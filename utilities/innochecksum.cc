@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ uintmax_t cur_page_num;
 /* Skip the checksum verification. */
 static bool no_check;
 /* Enabled for strict checksum verification. */
-bool strict_verify = 0;
+bool strict_verify = false;
 /* Enabled for rewrite checksum. */
 static bool do_write;
 /* Mismatches count allowed (0 by default). */
@@ -103,13 +103,13 @@ static uintmax_t allow_mismatches;
 static bool page_type_summary;
 static bool page_type_dump;
 /* Store filename for page-type-dump option. */
-char *page_dump_filename = 0;
+char *page_dump_filename = nullptr;
 /* skip the checksum verification & rewrite if page is doublewrite buffer. */
-static bool skip_page = 0;
+static bool skip_page = false;
 const char *dbug_setting = "FALSE";
-char *log_filename = NULL;
+char *log_filename = nullptr;
 /* User defined filename for logging. */
-FILE *log_file = NULL;
+FILE *log_file = nullptr;
 /* Enabled for log write option. */
 static bool is_log_enabled = false;
 
@@ -161,7 +161,7 @@ static const char *innochecksum_algorithms[] = {
 /* Used to define an enumerate type of the "innochecksum algorithm". */
 static TYPELIB innochecksum_algorithms_typelib = {
     array_elements(innochecksum_algorithms) - 1, "", innochecksum_algorithms,
-    NULL};
+    nullptr};
 
 /** Error logging classes. */
 namespace ib {
@@ -188,7 +188,7 @@ fatal::~fatal() {
 
 /** Check that a page_size is correct for InnoDB. If correct, set the
 associated page_size_shift which is the power of 2 for this page size.
-@param[in]	page_isze	page size to evaluate
+@param[in]	page_size	page size to evaluate
 @return an associated page_size_shift if valid, 0 if invalid. */
 static int innodb_page_size_validate(ulong page_size) {
   ulong n;
@@ -316,7 +316,7 @@ static FILE *open_file(const char *name) {
             " %s\n",
             name);
     perror("fcntl");
-    return (NULL);
+    return (nullptr);
   }
 #endif /* _WIN32 */
 
@@ -389,7 +389,7 @@ class InnocheckReporter : public BlockReporter {
 
   /** Print message if page is empty.
   @param[in]	empty		true if page is empty */
-  virtual inline void report_empty_page(bool empty) const {
+  inline void report_empty_page(bool empty) const override {
     if (empty && m_is_log_enabled) {
       fprintf(m_log_file, "Page::%" PRIuMAX " is empty and uncorrupted\n",
               m_page_no);
@@ -400,9 +400,9 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	crc32		Calculated crc32 checksum */
-  virtual inline void print_strict_crc32(ulint checksum_field1,
-                                         ulint checksum_field2, uint32_t crc32,
-                                         srv_checksum_algorithm_t algo) const {
+  inline void print_strict_crc32(ulint checksum_field1, ulint checksum_field2,
+                                 uint32_t crc32,
+                                 srv_checksum_algorithm_t algo) const override {
     if (algo != SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 || !m_is_log_enabled) {
       return;
     }
@@ -419,8 +419,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print innodb checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_strict_innodb(ulint checksum_field1,
-                                          ulint checksum_field2) const {
+  inline void print_strict_innodb(ulint checksum_field1,
+                                  ulint checksum_field2) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -442,9 +442,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print none checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_strict_none(ulint checksum_field1,
-                                        ulint checksum_field2,
-                                        srv_checksum_algorithm_t algo) const {
+  inline void print_strict_none(ulint checksum_field1, ulint checksum_field2,
+                                srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled || algo != SRV_CHECKSUM_ALGORITHM_STRICT_NONE) {
       return;
     }
@@ -458,7 +457,7 @@ class InnocheckReporter : public BlockReporter {
   }
 
   /** Print a message that none check failed. */
-  virtual inline void print_none_fail() const {
+  inline void print_none_fail() const override {
     fprintf(m_log_file,
             "Fail; page %" PRIuMAX " invalid (fails none checksum)\n",
             m_page_no);
@@ -470,9 +469,9 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	algo		current checksum algorithm */
-  virtual inline void print_innodb_checksum(
+  inline void print_innodb_checksum(
       ulint old_checksum, ulint new_checksum, ulint checksum_field1,
-      ulint checksum_field2, srv_checksum_algorithm_t algo) const {
+      ulint checksum_field2, srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -518,7 +517,7 @@ class InnocheckReporter : public BlockReporter {
 
   /** Print the message that checksum mismatch happened in
   page header. */
-  virtual inline void print_innodb_fail() const {
+  inline void print_innodb_fail() const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -533,8 +532,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print both new-style, old-style & crc32 checksum values.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  virtual inline void print_crc32_checksum(ulint checksum_field1,
-                                           ulint checksum_field2) const {
+  inline void print_crc32_checksum(ulint checksum_field1,
+                                   ulint checksum_field2) const override {
     if (m_is_log_enabled) {
       fprintf(m_log_file,
               "page::%" PRIuMAX "; old style: calculated = " ULINTPF
@@ -551,7 +550,7 @@ class InnocheckReporter : public BlockReporter {
   }
 
   /** Print a message that crc32 check failed. */
-  virtual inline void print_crc32_fail() const {
+  inline void print_crc32_fail() const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -564,8 +563,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print checksum values on a compressed page.
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
-  virtual inline void print_compressed_checksum(ib_uint32_t calc,
-                                                ib_uint32_t stored) const {
+  inline void print_compressed_checksum(ib_uint32_t calc,
+                                        ib_uint32_t stored) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -1124,19 +1123,19 @@ static void parse_page(const byte *page, FILE *file) {
   }
 }
 /**
-@param [in/out] file_name	name of the filename
+@param [in,out] file_name	name of the filename
 
-@retval FILE pointer if successfully created else NULL when error occurred.
+@returns FILE pointer if successfully created else NULL when error occurred.
 */
 static FILE *create_file(char *file_name) {
-  FILE *file = NULL;
+  FILE *file = nullptr;
 
 #ifndef _WIN32
   file = fopen(file_name, "wb");
-  if (file == NULL) {
+  if (file == nullptr) {
     fprintf(stderr, "Failed to create file: %s: %s\n", file_name,
             strerror(errno));
-    return (NULL);
+    return (nullptr);
   }
 #else
   HANDLE hFile; /* handle to open file. */
@@ -1210,53 +1209,58 @@ static void print_summary(FILE *fil_out) {
 
 /* command line argument for innochecksum tool. */
 static struct my_option innochecksum_options[] = {
-    {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-    {"info", 'I', "Synonym for --help.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"version", 'V', "Displays version information and exits.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"help", '?', "Displays this help and exits.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"info", 'I', "Synonym for --help.", nullptr, nullptr, nullptr, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Displays version information and exits.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v', "Verbose (prints progress every 5 seconds).", &verbose,
-     &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &verbose, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #ifndef DBUG_OFF
     {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
-     &dbug_setting, &dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &dbug_setting, &dbug_setting, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
 #endif /* !DBUG_OFF */
     {"count", 'c', "Print the count of pages in the file and exits.",
-     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &just_count, &just_count, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"format_info", 'f', "Display information about the file format and exit",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     0, 0, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"start_page", 's', "Start on this page number (0 based).", &start_page,
-     &start_page, 0, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, 0, 1, 0},
+     &start_page, nullptr, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, nullptr, 1,
+     nullptr},
     {"end_page", 'e', "End at this page number (0 based).", &end_page,
-     &end_page, 0, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, 0, 1, 0},
-    {"page", 'p', "Check only this page (0 based).", &do_page, &do_page, 0,
-     GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, 0, 1, 0},
+     &end_page, nullptr, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, nullptr, 1,
+     nullptr},
+    {"page", 'p', "Check only this page (0 based).", &do_page, &do_page,
+     nullptr, GET_ULL, REQUIRED_ARG, 0, 0, ULLONG_MAX, nullptr, 1, nullptr},
     {"strict-check", 'C', "Specify the strict checksum algorithm by the user.",
      &strict_check, &strict_check, &innochecksum_algorithms_typelib, GET_ENUM,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-check", 'n', "Ignore the checksum verification.", &no_check, &no_check,
-     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"allow-mismatches", 'a', "Maximum checksum mismatch allowed.",
-     &allow_mismatches, &allow_mismatches, 0, GET_ULL, REQUIRED_ARG, 0, 0,
-     ULLONG_MAX, 0, 1, 0},
+     &allow_mismatches, &allow_mismatches, nullptr, GET_ULL, REQUIRED_ARG, 0, 0,
+     ULLONG_MAX, nullptr, 1, nullptr},
     {"write", 'w', "Rewrite the checksum algorithm by the user.", &write_check,
      &write_check, &innochecksum_algorithms_typelib, GET_ENUM, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
+     0, 0, nullptr, 0, nullptr},
     {"page-type-summary", 'S',
      "Display a count of each page type "
      "in a tablespace.",
-     &page_type_summary, &page_type_summary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &page_type_summary, &page_type_summary, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"page-type-dump", 'D',
      "Dump the page type info for each page in a "
      "tablespace.",
-     &page_dump_filename, &page_dump_filename, 0, GET_STR, REQUIRED_ARG, 0, 0,
-     0, 0, 0, 0},
-    {"log", 'l', "log output.", &log_filename, &log_filename, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &page_dump_filename, &page_dump_filename, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
+    {"log", 'l', "log output.", &log_filename, &log_filename, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
 #ifdef DBUG_OFF
@@ -1431,7 +1435,7 @@ static void display_format_info(const uchar *page) noexcept {
 
 int main(int argc, char **argv) {
   /* our input file. */
-  FILE *fil_in = NULL;
+  FILE *fil_in = nullptr;
   /* our input filename. */
   char *filename;
   /* Buffer to store pages read. */
@@ -1439,7 +1443,7 @@ int main(int argc, char **argv) {
   /* bytes read count */
   ulong bytes;
   /* Buffer to decompress page.*/
-  byte *tbuf = NULL;
+  byte *tbuf = nullptr;
   /* current time */
   time_t now;
   /* last time */
@@ -1465,7 +1469,7 @@ int main(int argc, char **argv) {
   bool partial_page_read = false;
   /* Enabled when read from stdin is done. */
   bool read_from_stdin = false;
-  FILE *fil_page_type = NULL;
+  FILE *fil_page_type = nullptr;
   fpos_t pos;
 
   /* Use to check the space id of given file. If space_id is zero,
@@ -1555,7 +1559,7 @@ int main(int argc, char **argv) {
       size = st.st_size;
       fil_in = open_file(filename);
       /*If fil_in is NULL, terminate as some error encountered */
-      if (fil_in == NULL) {
+      if (fil_in == nullptr) {
         return 1;
       }
       /* Save the current file pointer in pos variable.*/
@@ -1718,7 +1722,7 @@ int main(int argc, char **argv) {
       }
 
       if (ferror(fil_in)) {
-        fprintf(stderr, "Error reading %u bytes", page_size.physical());
+        fprintf(stderr, "Error reading %zu bytes", page_size.physical());
         perror(" ");
 
         return 1;
@@ -1727,7 +1731,7 @@ int main(int argc, char **argv) {
       if (bytes != page_size.physical()) {
         fprintf(stderr,
                 "Error: bytes read (%lu) "
-                "doesn't match page size (%u)\n",
+                "doesn't match page size (%zu)\n",
                 bytes, page_size.physical());
         return 1;
       }
@@ -1799,7 +1803,7 @@ int main(int argc, char **argv) {
       cur_page_num++;
       if (verbose && !read_from_stdin) {
         if ((cur_page_num % 64) == 0) {
-          now = time(0);
+          now = time(nullptr);
           if (!lastt) {
             lastt = now;
           }

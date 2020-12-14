@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_index_stat\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_INDEX_STAT\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_INDEX_STAT\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,7 +38,8 @@ ndb_index_stat \- NDB index statistics utility
 provides per\-fragment statistical information about indexes on
 NDB
 tables\&. This includes cache version and age, number of index entries per partition, and memory consumption by indexes\&.
-Usage.PP
+Usage
+.PP
 To obtain basic index statistics about a given
 NDB
 table, invoke
@@ -165,7 +166,8 @@ ANALYZE TABLE
 on the table in the
 \fBmysql\fR
 client\&.
-Options.PP
+Options
+.PP
 The following table includes options that are specific to the NDB Cluster
 \fBndb_index_stat\fR
 utility\&. Additional descriptions are listed following the table\&. For options common to most NDB Cluster programs (including
@@ -176,7 +178,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.337.\ \&Command\-line options for the ndb_index_stat program
+.B Table\ \&22.265.\ \&Command\-line options for the ndb_index_stat program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -204,140 +206,139 @@ l l l
 l l l.
 T{
 .PP
---database=name,
+\fB--database=name\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
-Name of the database containing the table.
+Name of database containing table
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---delete
+\fB \fR\fB--delete\fR\fB \fR
 T}:T{
-Delete index statistics for the given table, stopping any auto-update
-              previously configured.
+Delete index statistics for table, stopping any auto-update previously
+              configured
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---update
+\fB \fR\fB--update\fR\fB \fR
 T}:T{
-Update index statistics for the given table, restarting any auto-update
-              previously configured.
+Update index statistics for table, restarting any auto-update previously
+              configured
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---dump
+\fB \fR\fB--dump\fR\fB \fR
 T}:T{
-Print the query cache.
+Print query cache
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---query=#
+\fB \fR\fB--query=#\fR\fB \fR
 T}:T{
-Perform a number of random range queries on first key attr (must be int
-              unsigned).
+Perform random range queries on first key attr (must be int unsigned)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-drop
+\fB \fR\fB--sys-drop\fR\fB \fR
 T}:T{
 Drop any statistics tables and events in NDB kernel (all statistics are
               lost)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-create
+\fB \fR\fB--sys-create\fR\fB \fR
 T}:T{
 Create all statistics tables and events in NDB kernel, if none of them
               already exist
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-create-if-not-exist
+\fB \fR\fB--sys-create-if-not-exist\fR\fB \fR
 T}:T{
 Create any statistics tables and events in NDB kernel that do not
-              already exist.
+              already exist
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-create-if-not-valid
+\fB \fR\fB--sys-create-if-not-valid\fR\fB \fR
 T}:T{
 Create any statistics tables or events that do not already exist in the
-              NDB kernel. after dropping any that are invalid.
+              NDB kernel, after dropping any that are invalid
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-check
+\fB \fR\fB--sys-check\fR\fB \fR
 T}:T{
-Verify that NDB system index statistics and event tables exist.
+Verify that NDB system index statistics and event tables exist
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-skip-tables
+\fB \fR\fB--sys-skip-tables\fR\fB \fR
 T}:T{
-Do not apply sys-* options to tables.
+Do not apply sys-* options to tables
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-skip-events
+\fB \fR\fB--sys-skip-events\fR\fB \fR
 T}:T{
-Do not apply sys-* options to events.
+Do not apply sys-* options to events
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---verbose,
+\fB--verbose\fR,
 .PP
--v
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
 Turn on verbose output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---loops=#
+\fB \fR\fB--loops=#\fR\fB \fR
 T}:T{
-Set the number of times to perform a given command. Default is 0.
+Set the number of times to perform given command; default is 0
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -357,39 +358,32 @@ ndb_index_stat system options)\&.
 \fB\-d \fR\fB\fIname\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --database=name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -408,39 +402,32 @@ The name of the database that contains the table being queried\&.
 \fB\-\-delete\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --delete
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -459,39 +446,32 @@ Delete the index statistics for the given table, stopping any auto\-update that 
 \fB\-\-update\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --update
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -510,39 +490,32 @@ Update the index statistics for the given table, and restart any auto\-update th
 \fB\-\-dump\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --dump
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -561,40 +534,33 @@ Dump the contents of the query cache\&.
 \fB\-\-query=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --query=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 MAX_INT
 T}
@@ -617,39 +583,32 @@ ndb_index_stat statistics options)\&.
 \fB\-\-sys\-drop\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-drop
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -669,39 +628,32 @@ Drop all statistics tables and events in the NDB kernel\&.
 \fB\-\-sys\-create\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-create
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -720,39 +672,32 @@ Create all statistics tables and events in the NDB kernel\&. This works only if 
 \fBsys\-create\-if\-not\-exist\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-create-if-not-exist
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -771,39 +716,32 @@ Create any NDB system statistics tables or events (or both) that do not already 
 \fB\-\-sys\-create\-if\-not\-valid\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-create-if-not-valid
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -822,39 +760,32 @@ Create any NDB system statistics tables or events that do not already exist, aft
 \fB\-\-sys\-check\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-check
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -873,39 +804,32 @@ Verify that all required system statistics tables and events exist in the NDB ke
 \fB\-\-sys\-skip\-tables\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-skip-tables
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -926,39 +850,32 @@ options to any statistics tables\&.
 \fB\-\-sys\-skip\-events\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sys-skip-events
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -979,39 +896,32 @@ options to any events\&.
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --verbose
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 false
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 T}
 .TE
@@ -1030,40 +940,33 @@ Turn on verbose output\&.
 \fB\-\-loops=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --loops=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 MAX_INT
 T}
@@ -1074,7 +977,7 @@ Repeat commands this number of times (for use in testing)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

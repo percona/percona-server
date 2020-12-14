@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -254,7 +254,7 @@ bool acquire_exclusive_mdl(THD *thd) {
     if ((*it)->entity() == nullptr) continue;
 
     MDL_request *table_request = new (thd->mem_root) MDL_request;
-    if (table_request == NULL) return true;
+    if (table_request == nullptr) return true;
     MDL_REQUEST_INIT(table_request, MDL_key::TABLE, MYSQL_SCHEMA_NAME.str,
                      (*it)->entity()->name().c_str(), MDL_EXCLUSIVE,
                      MDL_TRANSACTION);
@@ -888,6 +888,14 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
   // Create compression dictionary tables
   if (compression_dict::bootstrap(thd)) return true;
 
+  DBUG_EXECUTE_IF(
+      "schema_read_only",
+      if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
+          dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
+          dd::execute_query(thd, "DROP SCHEMA schema_read_only"))
+          DBUG_ASSERT(false););
+
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
 
   return false;
@@ -1013,9 +1021,7 @@ static bool check_and_create_compression_dict_tables(THD *thd) {
   // Create the compression dictionary tables
   if (compression_dict::bootstrap(thd)) return true;
 
-  if (dd::info_schema::create_non_dd_views(thd, false)) {
-    return true;
-  }
+  dd::info_schema::create_system_views(thd, true, true);
 
   /*
     We must commit the transaction before executing a new query, which
@@ -1056,6 +1062,15 @@ bool restart(THD *thd) {
       update_versions(thd, false)) {
     return true;
   }
+
+  DBUG_EXECUTE_IF(
+      "schema_read_only",
+      if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
+          dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
+          dd::execute_query(thd, "DROP SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "CREATE TABLE IF NOT EXISTS S.restart(i INT)"))
+          DBUG_ASSERT(false););
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
   LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND, d->get_actual_dd_version(thd));
@@ -1148,7 +1163,7 @@ void store_predefined_tablespace_metadata(THD *thd) {
         tablespace_def->get_files();
     List_iterator<const Plugin_tablespace::Plugin_tablespace_file> file_it(
         files);
-    const Plugin_tablespace::Plugin_tablespace_file *file = NULL;
+    const Plugin_tablespace::Plugin_tablespace_file *file = nullptr;
     while ((file = file_it++)) {
       Tablespace_file *space_file = tablespace->add_file();
       space_file->set_filename(file->get_name());

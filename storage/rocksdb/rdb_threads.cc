@@ -22,15 +22,23 @@
 /* The C++ file's header */
 #include "./rdb_threads.h"
 
+/* MySQL header files */
+#include "sql/sql_class.h"
+
 namespace myrocks {
 
 void *Rdb_thread::thread_func(void *const thread_ptr) {
   DBUG_ASSERT(thread_ptr != nullptr);
+  my_thread_init();
   Rdb_thread *const thread = static_cast<Rdb_thread *>(thread_ptr);
+
   if (!thread->m_run_once.exchange(true)) {
     thread->run();
+
     thread->uninit();
   }
+
+  my_thread_end();
   return nullptr;
 }
 
@@ -64,11 +72,11 @@ int Rdb_thread::create_thread(const std::string &thread_name
   return err;
 }
 
-void Rdb_thread::signal(const bool &stop_thread) {
+void Rdb_thread::signal(const bool stop_thread) {
   RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
 
   if (stop_thread) {
-    m_stop = true;
+    m_killed = THD::KILL_CONNECTION;
   }
 
   mysql_cond_signal(&m_signal_cond);

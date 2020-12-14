@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -73,6 +73,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iterator>
 #include <memory> /* std::unique_ptr */
 #include <set>
+#include <string>
 #include <vector>
 
 #include "fil0rkinfo.h"
@@ -82,7 +83,7 @@ struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
-/* @{ */
+/** @{ */
 #define DICT_CLUSTERED                                     \
   1                   /*!< clustered index; for other than \
                       auto-generated clustered indexes,    \
@@ -108,7 +109,7 @@ combination of types */
 #define DICT_IT_BITS              \
   10 /*!< number of bits used for \
      SYS_INDEXES.TYPE */
-/* @} */
+/** @} */
 
 #if 0                         /* not implemented, retained for history */
 /** Types for a table object */
@@ -138,7 +139,7 @@ The following types and constants describe the flags found in dict_table_t
 and SYS_TABLES.TYPE.  Similar flags found in fil_space_t and FSP_SPACE_FLAGS
 are described in fsp0fsp.h. */
 
-/* @{ */
+/** @{ */
 /** dict_table_t::flags bit 0 is equal to 0 if the row format = Redundant */
 #define DICT_TF_REDUNDANT 0 /*!< Redundant row format. */
 /** dict_table_t::flags bit 0 is equal to 1 if the row format = Compact */
@@ -234,7 +235,7 @@ to open the table and allows InnoDB to quickly find the tablespace. */
   ((flags & DICT_TF_MASK_SHARED_SPACE) >> DICT_TF_POS_SHARED_SPACE)
 /** Return the contents of the UNUSED bits */
 #define DICT_TF_GET_UNUSED(flags) (flags >> DICT_TF_POS_UNUSED)
-/* @} */
+/** @} */
 
 /** @brief Table Flags set number 2.
 
@@ -243,7 +244,7 @@ will be written as 0.  The column may contain garbage for tables
 created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
-/* @{ */
+/** @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS 11
 #define DICT_TF2_UNUSED_BIT_MASK (~0U << DICT_TF2_BITS)
@@ -283,7 +284,7 @@ it is not created by user and so not visible to end-user. */
 
 /** Table is opened by resurrected trx during crash recovery. */
 #define DICT_TF2_RESURRECT_PREPARED 1024
-/* @} */
+/** @} */
 
 #define DICT_TF2_FLAG_SET(table, flag) (table->flags2 |= (flag))
 
@@ -320,24 +321,27 @@ before proceeds. */
 @param[in]	len		length
 @param[in]	pos		position in a table
 @param[in]	num_base	number of base columns
+@param[in]	is_visible	True if virtual column is visible to user
 @return the virtual column definition */
 dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
                                        const char *name, ulint mtype,
                                        ulint prtype, ulint len, ulint pos,
-                                       ulint num_base);
+                                       ulint num_base, bool is_visible);
 
 /** Adds a stored column definition to a table.
 @param[in,out]	table		table
 @param[in]	num_base	number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base);
 
-/** Renames a column of a table in the data dictionary cache. */
-void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
-                               ulint nth_col,       /*!< in: column index */
-                               const char *from,    /*!< in: old column name */
-                               const char *to,      /*!< in: new column name */
+/** Renames a column of a table in the data dictionary cache.
+@param[in,out] table Table
+@param[in] nth_col Column index
+@param[in] from Old column name
+@param[in] to New column name
+@param[in] is_virtual If this is a virtual column */
+void dict_mem_table_col_rename(dict_table_t *table, ulint nth_col,
+                               const char *from, const char *to,
                                bool is_virtual);
-/*!< in: if this is a virtual column */
 
 /** This function poplulates a dict_index_t index memory structure with
 supplied information.
@@ -346,14 +350,15 @@ supplied information.
 @param[in]	table_name	table name
 @param[in]	index_name	index name
 @param[in]	space		space where the index tree is placed, the
-                                clustered type ignored if the index is of the
-                                clustered type
+                                clustered type ignored if the index is of
+the clustered type
 @param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
 @param[in]	n_fields	number of fields */
-UNIV_INLINE
-void dict_mem_fill_index_struct(dict_index_t *index, mem_heap_t *heap,
-                                const char *table_name, const char *index_name,
-                                ulint space, ulint type, ulint n_fields);
+UNIV_INLINE void dict_mem_fill_index_struct(dict_index_t *index,
+                                            mem_heap_t *heap,
+                                            const char *table_name,
+                                            const char *index_name, ulint space,
+                                            ulint type, ulint n_fields);
 
 /** Frees an index memory object. */
 void dict_mem_index_free(dict_index_t *index); /*!< in: index */
@@ -453,6 +458,9 @@ struct dict_col_default_t {
   byte *value;
   /** Length of default value */
   size_t len;
+
+  bool operator==(const dict_col_default_t &other);
+  bool operator!=(const dict_col_default_t &other);
 };
 
 /** Data structure for a column in a table */
@@ -460,7 +468,7 @@ struct dict_col_t {
   /*----------------------*/
   /** The following are copied from dtype_t,
   so that all bit-fields can be packed tightly. */
-  /* @{ */
+  /** @{ */
 
   /** Default value when this column was added instantly.
   If this is not a instantly added column then this is nullptr. */
@@ -493,7 +501,7 @@ struct dict_col_t {
                             mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
   /*----------------------*/
   /* End of definitions copied from dtype_t */
-  /* @} */
+  /** @} */
 
   unsigned ind : 10;        /*!< table column position
                             (starting from 0) */
@@ -504,6 +512,9 @@ struct dict_col_t {
                             this column. Our current max limit is
                             3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
                             bytes. */
+
+  /* True, if the column is visible */
+  bool is_visible;
 
   /** Returns the minimum size of the column.
   @return minimum size */
@@ -530,7 +541,7 @@ struct dict_col_t {
   /** Gets the column data type.
   @param[out] type	data type */
   void copy_type(dtype_t *type) const {
-    ut_ad(type != NULL);
+    ut_ad(type != nullptr);
 
     type->mtype = mtype;
     type->prtype = prtype;
@@ -640,7 +651,7 @@ struct dict_v_col_t {
   /** array of base column ptr */
   dict_col_t **base_col;
 
-  /** number of base column */
+  /** number of base columns */
   ulint num_base;
 
   /** column pos in table */
@@ -836,8 +847,8 @@ class last_ops_cur_t {
     if (mtr.is_active()) {
       mtr_commit(&mtr);
     }
-    rec = NULL;
-    block = NULL;
+    rec = nullptr;
+    block = nullptr;
     invalid = false;
   }
 
@@ -976,7 +987,7 @@ struct dict_index_t {
   ONLINE_INDEX_CREATION */
   /*----------------------*/
   /** Statistics for query optimization */
-  /* @{ */
+  /** @{ */
   ib_uint64_t *stat_n_diff_key_vals;
   /*!< approximate number of different
   key values for this index, for each
@@ -1004,7 +1015,7 @@ struct dict_index_t {
   ulint stat_n_leaf_pages;
   /*!< approximate number of leaf pages in the
   index tree */
-  /* @} */
+  /** @} */
   last_ops_cur_t *last_ins_cur;
   /*!< cache the last insert position.
   Currently limited to auto-generated
@@ -1070,13 +1081,6 @@ struct dict_index_t {
     return (type & DICT_CORRUPT);
   }
 
-  /** @return whether this index is readable
-  @retval true normally
-  @retval false if this is a single-table tablespace
-          and the .ibd file is missing, or a
-          page cannot be read or decrypted */
-  inline bool is_readable() const;
-
   /* Check whether the index is the clustered index
   @return nonzero for clustered index, zero for other indexes */
 
@@ -1113,6 +1117,11 @@ struct dict_index_t {
   /** Check whether index has any instantly added columns
   @return true if this is instant affected, otherwise false */
   bool has_instant_cols() const { return (instant_cols); }
+
+  /** Check if tuple is having instant format.
+  @param[in]	n_fields_in_tuple	number of fields in tuple
+  @return true if yes, false otherwise. */
+  bool is_tuple_instant_format(const uint16_t n_fields_in_tuple) const;
 
   /** Returns the number of nullable fields before specified
   nth field
@@ -1246,6 +1255,15 @@ struct dict_index_t {
 
     return (0);
   }
+
+ public:
+  /** Get the page size of the tablespace to which this index belongs.
+  @return the page size. */
+  page_size_t get_page_size() const;
+
+  /** Get the space id of the tablespace to which this index belongs.
+  @return the space id. */
+  space_id_t space_id() const { return space; }
 };
 
 /** The status of online index creation */
@@ -1356,28 +1374,6 @@ struct dict_foreign_different_tables {
   }
 };
 
-/** A function object to check if the foreign key constraint has the same
-name as given.  If the full name of the foreign key constraint doesn't match,
-then, check if removing the database name from the foreign key constraint
-matches. Return true if it matches, false otherwise. */
-struct dict_foreign_matches_id {
-  dict_foreign_matches_id(const char *id) : m_id(id) {}
-
-  bool operator()(const dict_foreign_t *foreign) const {
-    if (0 == innobase_strcasecmp(foreign->id, m_id)) {
-      return (true);
-    }
-    if (const char *pos = strchr(foreign->id, '/')) {
-      if (0 == innobase_strcasecmp(m_id, pos + 1)) {
-        return (true);
-      }
-    }
-    return (false);
-  }
-
-  const char *m_id;
-};
-
 typedef std::set<dict_foreign_t *, dict_foreign_compare,
                  ut_allocator<dict_foreign_t *>>
     dict_foreign_set;
@@ -1414,7 +1410,7 @@ bool dict_foreign_set_validate(const dict_table_t &table);
 inline void dict_foreign_free(
     dict_foreign_t *foreign) /*!< in, own: foreign key struct */
 {
-  if (foreign->v_cols != NULL) {
+  if (foreign->v_cols != nullptr) {
     UT_DELETE(foreign->v_cols);
   }
 
@@ -1439,14 +1435,14 @@ struct dict_foreign_set_free {
 
 /** The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
-/* @{ */
+/** @{ */
 #define DICT_FOREIGN_ON_DELETE_CASCADE 1    /*!< ON DELETE CASCADE */
 #define DICT_FOREIGN_ON_DELETE_SET_NULL 2   /*!< ON DELETE SET NULL */
 #define DICT_FOREIGN_ON_UPDATE_CASCADE 4    /*!< ON UPDATE CASCADE */
 #define DICT_FOREIGN_ON_UPDATE_SET_NULL 8   /*!< ON UPDATE SET NULL */
 #define DICT_FOREIGN_ON_DELETE_NO_ACTION 16 /*!< ON DELETE NO ACTION */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32 /*!< ON UPDATE NO ACTION */
-/* @} */
+/** @} */
 
 /** Display an identifier.
 @param[in,out]	s	output stream
@@ -1560,19 +1556,12 @@ struct dict_table_t {
   /** Unlock the table handle. */
   inline void unlock();
 
-  /** @return whether this table is readable
-  @retval true  normally
-  @retval false if this is a single-table tablespace
-                and the .ibd file is missing, or a
-                page cannot be read or decrypted */
-
-  bool is_readable() const { return (UNIV_LIKELY(!file_unreadable)); }
-
-  void set_file_unreadable() { file_unreadable = true; }
-
-  void set_file_readable() { file_unreadable = false; }
-
 #ifndef UNIV_HOTBACKUP
+  /** Get schema and table name in system character set.
+  @param[out]	schema	schema name
+  @param[out]	table	table name */
+  void get_table_name(std::string &schema, std::string &table);
+
   /** Mutex of the table for concurrency access. */
   ib_mutex_t *mutex;
 
@@ -1643,9 +1632,10 @@ struct dict_table_t {
   process of altering partitions */
   unsigned skip_alter_undo : 1;
 
-  /** TRUE if  this is in a single-table tablespace and the .ibd
-  file is missing or page decryption failed and page is corrupted */
-  unsigned file_unreadable : 1;
+  /** TRUE if this is in a single-table tablespace and the .ibd file is
+  missing. Then we must return in ha_innodb.cc an error if the user
+  tries to query such an orphaned table. */
+  unsigned ibd_file_missing : 1;
 
   /** TRUE if the table object has been added to the dictionary cache. */
   unsigned cached : 1;
@@ -1715,6 +1705,10 @@ struct dict_table_t {
 
   /** Virtual column names */
   const char *v_col_names;
+
+  /** True if the table belongs to a system database (mysql, information_schema
+  or performance_schema) */
+  bool is_system_table;
 
   /** Hash chain node. */
   hash_node_t name_hash;
@@ -1905,7 +1899,7 @@ detect this and will eventually quit sooner. */
   Writes are covered by dict_sys->mutex. Dirty reads are possible. */
   byte stats_bg_flag;
 
-  /* @} */
+  /** @} */
 #endif /* !UNIV_HOTBACKUP */
 
   /** AUTOINC related members. @{ */
@@ -1913,8 +1907,8 @@ detect this and will eventually quit sooner. */
   /* The actual collection of tables locked during AUTOINC read/write is
   kept in trx_t. In order to quickly determine whether a transaction has
   locked the AUTOINC lock we keep a pointer to the transaction here in
-  the 'autoinc_trx' member. This is to avoid acquiring the
-  lock_sys_t::mutex and scanning the vector in trx_t.
+  the 'autoinc_trx' member. This is to avoid acquiring lock_sys latches and
+  scanning the vector in trx_t.
   When an AUTOINC lock has to wait, the corresponding lock instance is
   created on the trx lock heap rather than use the pre-allocated instance
   in autoinc_lock below. */
@@ -1963,11 +1957,15 @@ detect this and will eventually quit sooner. */
   be no conflict to access it, so no protection is needed. */
   ulint autoinc_field_no;
 
-  /** The transaction that currently holds the the AUTOINC lock on this
-  table. Protected by lock_sys->mutex. */
-  const trx_t *autoinc_trx;
+  /** The transaction that currently holds the the AUTOINC lock on this table.
+  Protected by lock_sys table shard latch. To "peek" the current value one
+  can read it without any latch, understanding that in general it may change.
+  Such access pattern is correct if trx thread wants to check if it has the lock
+  granted, as the field can only change to other value when lock is released,
+  which can not happen concurrently to thread executing the trx. */
+  std::atomic<const trx_t *> autoinc_trx;
 
-  /* @} */
+  /** @} */
 
 #ifndef UNIV_HOTBACKUP
   /** FTS specific state variables. */
@@ -1981,8 +1979,13 @@ detect this and will eventually quit sooner. */
 
   /** Count of the number of record locks on this table. We use this to
   determine whether we can evict the table from the dictionary cache.
-  It is protected by lock_sys->mutex. */
-  ulint n_rec_locks;
+  Writes (atomic increments and decrements) are performed when holding a shared
+  latch on lock_sys. (Note that this the table's shard latch is NOT required,
+  as this is field counts *record* locks, so a page shard is latched instead)
+  Reads should be performed when holding exclusive lock_sys latch, however:
+  - Some places assert this field is zero without holding any latch.
+  - Some places assert this field is positive holding only shared latch. */
+  std::atomic<size_t> n_rec_locks;
 
 #ifndef UNIV_DEBUG
  private:
@@ -1994,7 +1997,7 @@ detect this and will eventually quit sooner. */
 
  public:
 #ifndef UNIV_HOTBACKUP
-  /** List of locks on the table. Protected by lock_sys->mutex. */
+  /** List of locks on the table. Protected by lock_sys shard latch. */
   table_lock_list_t locks;
   /** count_by_mode[M] = number of locks in this->locks with
   lock->type_mode&LOCK_MODE_MASK == M.
@@ -2002,12 +2005,12 @@ detect this and will eventually quit sooner. */
   modes incompatible with LOCK_IS and LOCK_IX, to avoid costly iteration over
   this->locks when adding LOCK_IS or LOCK_IX.
   We use count_by_mode[LOCK_AUTO_INC] to track the number of granted and pending
-  autoinc locks on this table. This value is set after acquiring the
-  lock_sys_t::mutex but we peek the contents to determine whether other
+  autoinc locks on this table. This value is set after acquiring the lock_sys
+  table shard latch, but we peek the contents to determine whether other
   transactions have acquired the AUTOINC lock or not. Of course only one
   transaction can be granted the lock but there can be multiple
   waiters.
-  Protected by lock_sys->mutex. */
+  Protected by lock_sys table shard latch. */
   ulong count_by_mode[LOCK_NUM];
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2117,9 +2120,9 @@ detect this and will eventually quit sooner. */
     the clustered index may be NULL.  If the clustered index is corrupted,
     the table is corrupt.  We do not consider the table corrupt if only
     a secondary index is corrupt. */
-    ut_ad(index == NULL || index->is_clustered());
+    ut_ad(index == nullptr || index->is_clustered());
 
-    return (index != NULL && index->type & DICT_CORRUPT);
+    return (index != nullptr && index->type & DICT_CORRUPT);
   }
 
   /** Returns a column's name.
@@ -2236,12 +2239,6 @@ detect this and will eventually quit sooner. */
 
 inline bool dict_index_t::is_compressed() const {
   return (table->is_compressed());
-}
-
-inline bool dict_index_t::is_readable() const {
-  volatile bool is_readable = !table->file_unreadable;
-  return is_readable;
-  // return(UNIV_LIKELY(!table->file_unreadable));
 }
 
 /** Persistent dynamic metadata type, there should be 1 to 1
@@ -2374,9 +2371,9 @@ class Persister {
 
   /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
   metadata of table
-  @param[in]	id		table id
-  @param[in]	metadata	metadata used to write the log
-  @param[in,out]	mtr		mini-transaction */
+  @param[in]	id		Table id
+  @param[in]	metadata	Metadata used to write the log
+  @param[in,out]	mtr		Mini-transaction */
   void write_log(table_id_t id, const PersistentTableMetadata &metadata,
                  mtr_t *mtr) const;
 };
@@ -2384,20 +2381,20 @@ class Persister {
 /** Persister used for corrupted indexes */
 class CorruptedIndexPersister : public Persister {
  public:
-  /** Write the corrupted indexes of a table, we can pre-calculate
-  the size by calling get_write_size()
-  @param[in]	metadata	persistent metadata
+  /** Write the corrupted indexes of a table, we can pre-calculate the size
+  by calling get_write_size()
+  @param[in]	metadata	persistent data
   @param[out]	buffer		write buffer
-  @param[in]	size		size of write buffer, should be
-                                  at least get_write_size()
+  @param[in]	size		size of write buffer, should be at least
+                                  get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const;
+              ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  ulint get_write_size(const PersistentTableMetadata &metadata) const;
+  ulint get_write_size(const PersistentTableMetadata &metadata) const override;
 
   /** Read the corrupted indexes from buffer, and store them to
   metadata object
@@ -2408,9 +2405,9 @@ class CorruptedIndexPersister : public Persister {
                                   the buffer except incomplete buffer,
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
-  is complete and we get everything, 0 if the buffer is incomplete */
+  is complete and we get everything, 0 if the buffer is incompleted */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const;
+             bool *corrupt) const override;
 
  private:
   /** The length of index_id_t we will write */
@@ -2428,12 +2425,13 @@ class AutoIncPersister : public Persister {
                                   at least get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const;
+              ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  inline ulint get_write_size(const PersistentTableMetadata &metadata) const {
+  inline ulint get_write_size(
+      const PersistentTableMetadata &metadata) const override {
     /* We just return the max possible size that would be used
     if the counter exists, so we don't calculate every time.
     Here we need 1 byte for dynamic metadata type and 11 bytes
@@ -2452,7 +2450,7 @@ class AutoIncPersister : public Persister {
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const;
+             bool *corrupt) const override;
 };
 
 /** Container of persisters used in the system. Currently we don't need
@@ -2499,9 +2497,10 @@ class Persisters {
 };
 
 #ifndef UNIV_HOTBACKUP
-/** Initialise the table lock list. */
-void lock_table_lock_list_init(
-    table_lock_list_t *locks); /*!< List to initialise */
+
+/** Initialise the table lock list.
+@param[out] lock_list List to initialise */
+void lock_table_lock_list_init(table_lock_list_t *lock_list);
 
 /** A function object to add the foreign key constraint to the referenced set
 of the referenced table, if it exists in the dictionary cache. */
@@ -2543,12 +2542,12 @@ or from a thread that has not shared the table object with other threads.
 @param[in,out]	table	table whose stats latch to destroy */
 inline void dict_table_autoinc_destroy(dict_table_t *table) {
   if (table->autoinc_mutex_created == os_once::DONE) {
-    if (table->autoinc_mutex != NULL) {
+    if (table->autoinc_mutex != nullptr) {
       mutex_free(table->autoinc_mutex);
       UT_DELETE(table->autoinc_mutex);
     }
 
-    if (table->autoinc_persisted_mutex != NULL) {
+    if (table->autoinc_persisted_mutex != nullptr) {
       mutex_free(table->autoinc_persisted_mutex);
       UT_DELETE(table->autoinc_persisted_mutex);
     }
@@ -2560,8 +2559,8 @@ This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
 @param[in,out]	table	table whose autoinc latch is to be created. */
 inline void dict_table_autoinc_create_lazy(dict_table_t *table) {
-  table->autoinc_mutex = NULL;
-  table->autoinc_persisted_mutex = NULL;
+  table->autoinc_mutex = nullptr;
+  table->autoinc_persisted_mutex = nullptr;
   table->autoinc_mutex_created = os_once::NEVER_DONE;
 }
 
@@ -2570,7 +2569,7 @@ This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
 @param[in,out]	index	index whose zip_pad mutex is to be created */
 inline void dict_index_zip_pad_mutex_create_lazy(dict_index_t *index) {
-  index->zip_pad.mutex = NULL;
+  index->zip_pad.mutex = nullptr;
   index->zip_pad.mutex_created = os_once::NEVER_DONE;
 }
 
@@ -2580,7 +2579,7 @@ or from a thread that has not shared the table object with other threads.
 @param[in,out]	index	index whose stats latch to destroy */
 inline void dict_index_zip_pad_mutex_destroy(dict_index_t *index) {
   if (index->zip_pad.mutex_created == os_once::DONE &&
-      index->zip_pad.mutex != NULL) {
+      index->zip_pad.mutex != nullptr) {
     mutex_free(index->zip_pad.mutex);
     UT_DELETE(index->zip_pad.mutex);
   }

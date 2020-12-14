@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2438,7 +2438,7 @@ class LO_rwlock_pr : public LO_rwlock {
   ~LO_rwlock_pr() {}
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread);
+                                     LO_thread *thread) override;
 };
 
 class LO_rwlock_rw : public LO_rwlock {
@@ -2447,7 +2447,7 @@ class LO_rwlock_rw : public LO_rwlock {
   ~LO_rwlock_rw() {}
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread);
+                                     LO_thread *thread) override;
 };
 
 class LO_rwlock_sx : public LO_rwlock {
@@ -2456,7 +2456,7 @@ class LO_rwlock_sx : public LO_rwlock {
   ~LO_rwlock_sx() {}
 
   virtual LO_rwlock_lock *build_lock(const char *src_file, int src_line,
-                                     LO_thread *thread);
+                                     LO_thread *thread) override;
 };
 
 class LO_rwlock_locker {
@@ -2525,16 +2525,16 @@ class LO_rwlock_lock_pr : public LO_rwlock_lock {
   ~LO_rwlock_lock_pr() {}
 
   virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
   virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op);
+  virtual bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const;
+  virtual PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
  private:
   int m_read_count;
@@ -2552,16 +2552,16 @@ class LO_rwlock_lock_rw : public LO_rwlock_lock {
   ~LO_rwlock_lock_rw() {}
 
   virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
   virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op);
+  virtual bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const;
+  virtual PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
  private:
   int m_read_count;
@@ -2579,16 +2579,16 @@ class LO_rwlock_lock_sx : public LO_rwlock_lock {
   ~LO_rwlock_lock_sx() {}
 
   virtual void set_locked(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
   virtual void merge_lock(PSI_rwlock_operation op, const char *src_file,
-                          int src_line);
+                          int src_line) override;
 
-  virtual bool set_unlocked(PSI_rwlock_operation op);
+  virtual bool set_unlocked(PSI_rwlock_operation op) override;
 
-  virtual PSI_rwlock_operation get_state() const;
+  virtual PSI_rwlock_operation get_state() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
  private:
   int m_s_count;
@@ -6475,6 +6475,9 @@ static ulonglong lo_get_thread_internal_id(PSI_thread *thread) {
 static PSI_thread *lo_get_thread_by_id(ulonglong processlist_id) {
   PSI_thread *chain = nullptr;
   LO_thread *lo = nullptr;
+  PSI_thread *result = nullptr;
+
+  native_mutex_lock(&serialize);
 
   if (g_thread_chain != nullptr) {
     chain = g_thread_chain->get_thread_by_id(processlist_id);
@@ -6485,12 +6488,15 @@ static PSI_thread *lo_get_thread_by_id(ulonglong processlist_id) {
          it++) {
       lo = *it;
       if (lo->m_chain == chain) {
-        return reinterpret_cast<PSI_thread *>(lo);
+        result = reinterpret_cast<PSI_thread *>(lo);
+        break;
       }
     }
   }
 
-  return nullptr;
+  native_mutex_unlock(&serialize);
+
+  return result;
 }
 
 static void lo_set_thread_THD(PSI_thread *thread, THD *thd) {
@@ -6591,6 +6597,17 @@ static int lo_set_thread_resource_group_by_id(PSI_thread *thread,
   return rc;
 }
 
+static void lo_set_thread_peer_port(PSI_thread *thread, uint port) {
+  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->set_thread_peer_port(lo->m_chain, port);
+    }
+  }
+  return;
+}
+
 static void lo_set_thread(PSI_thread *thread) {
   LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
   set_THR_LO(lo);
@@ -6644,6 +6661,7 @@ static void lo_delete_thread(PSI_thread *thread) {
       g_thread_chain->delete_thread(lo->m_chain);
     }
 
+    LO_thread::g_threads.remove(lo);
     delete lo;
   }
 
@@ -6729,7 +6747,7 @@ static PSI_file_locker *lo_get_thread_file_descriptor_locker(
   int index = (int)file;
   if (index >= 0) {
     /*
-      See comment in pfs_get_thread_file_descriptor_locker_v1().
+      See comment in pfs_get_thread_file_descriptor_locker_v2().
 
       We are about to close a file by descriptor number,
       and the calling code still holds the descriptor.
@@ -7440,6 +7458,21 @@ static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
   delete lo_locker;
 }
 
+static void lo_start_file_rename_wait(PSI_file_locker *locker,
+                                      size_t count MY_ATTRIBUTE((unused)),
+                                      const char *old_name,
+                                      const char *new_name,
+                                      const char *src_file, uint src_line) {
+  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  DBUG_ASSERT(lo_locker != nullptr);
+  PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
+
+  if ((g_file_chain != nullptr) && (chain_locker != nullptr)) {
+    g_file_chain->start_file_rename_wait(chain_locker, count, old_name,
+                                         new_name, src_file, src_line);
+  }
+}
+
 static void lo_end_file_rename_wait(PSI_file_locker *locker,
                                     const char *old_name, const char *new_name,
                                     int rc) {
@@ -7582,7 +7615,7 @@ static void lo_notify_session_change_user(PSI_thread *thread) {
   }
 }
 
-PSI_thread_service_v3 LO_thread_v3 = {lo_register_thread,
+PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7602,6 +7635,7 @@ PSI_thread_service_v3 LO_thread_v3 = {lo_register_thread,
                                       lo_set_thread_resource_group,
                                       lo_set_thread_resource_group_by_id,
                                       lo_set_thread,
+                                      lo_set_thread_peer_port,
                                       lo_aggregate_thread_status,
                                       lo_delete_current_thread,
                                       lo_delete_thread,
@@ -7623,7 +7657,9 @@ static void *lo_get_thread_interface(int version) {
     case PSI_THREAD_VERSION_2:
       return nullptr;
     case PSI_THREAD_VERSION_3:
-      return &LO_thread_v3;
+      return nullptr;
+    case PSI_THREAD_VERSION_4:
+      return &LO_thread_v4;
     default:
       return nullptr;
   }
@@ -7680,7 +7716,7 @@ static void *lo_get_cond_interface(int version) {
 
 struct PSI_cond_bootstrap LO_cond_bootstrap = {lo_get_cond_interface};
 
-PSI_file_service_v1 LO_file = {
+PSI_file_service_v2 LO_file = {
     lo_register_file,
     lo_create_file,
     lo_get_thread_file_name_locker,
@@ -7694,6 +7730,7 @@ PSI_file_service_v1 LO_file = {
     lo_end_file_wait,
     lo_start_file_close_wait,
     lo_end_file_close_wait,
+    lo_start_file_rename_wait,
     lo_end_file_rename_wait};
 
 static void *lo_get_file_interface(int version) {
@@ -7973,6 +8010,8 @@ void LO_dump() { global_graph->dump_txt(); }
 void LO_cleanup() {
   LO_thread *lo = nullptr;
 
+  native_mutex_lock(&serialize);
+
   LO_thread_list::const_iterator it;
   for (it = LO_thread::g_threads.begin(); it != LO_thread::g_threads.end();
        it++) {
@@ -8006,6 +8045,8 @@ void LO_cleanup() {
     fclose(out_txt);
     out_txt = nullptr;
   }
+
+  native_mutex_unlock(&serialize);
 
   native_mutex_destroy(&serialize);
   native_mutex_destroy(&serialize_logs);

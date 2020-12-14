@@ -2,8 +2,8 @@ CREATE TABLE t1(c INT,PRIMARY KEY (c)) Engine=InnoDB;
 INSERT IGNORE INTO t1 VALUES(),(),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value
-Warning	1062	Duplicate entry '0' for key 'PRIMARY'
-Warning	1062	Duplicate entry '0' for key 'PRIMARY'
+Warning	1062	Duplicate entry '0' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '0' for key 't1.PRIMARY'
 DROP TABLE t1;
 CREATE TABLE t1(
 i INT KEY,

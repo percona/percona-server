@@ -1,7 +1,7 @@
 #ifndef SQL_COMPOSITE_ITERATORS_INCLUDED
 #define SQL_COMPOSITE_ITERATORS_INCLUDED
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
  */
 
 #include <stdio.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -87,12 +88,6 @@ class FilterIterator final : public RowIterator {
   }
   void UnlockRow() override { m_source->UnlockRow(); }
 
-  std::vector<Child> children() const override;
-
-  std::vector<std::string> DebugString() const override {
-    return {"Filter: " + ItemToString(m_condition)};
-  }
-
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
   Item *m_condition;
@@ -113,17 +108,20 @@ class LimitOffsetIterator final : public RowIterator {
     @param count_all_rows If true, the query will run to completion to get
       more accurate numbers for skipped_rows, so you will not get any
       performance benefits of early end.
+    @param reject_multiple_rows True if a derived table transformed from a
+      scalar subquery needs a run-time cardinality check
     @param skipped_rows If not nullptr, is incremented for each row skipped by
       offset or limit.
    */
   LimitOffsetIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                       ha_rows limit, ha_rows offset, bool count_all_rows,
-                      ha_rows *skipped_rows)
+                      bool reject_multiple_rows, ha_rows *skipped_rows)
       : RowIterator(thd),
         m_source(move(source)),
         m_limit(limit),
         m_offset(offset),
         m_count_all_rows(count_all_rows),
+        m_reject_multiple_rows(reject_multiple_rows),
         m_skipped_rows(skipped_rows) {
     if (count_all_rows) {
       DBUG_ASSERT(m_skipped_rows != nullptr);
@@ -144,27 +142,6 @@ class LimitOffsetIterator final : public RowIterator {
   }
   void UnlockRow() override { m_source->UnlockRow(); }
 
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
-  }
-
-  std::vector<std::string> DebugString() const override {
-    char buf[256];
-    if (m_offset == 0) {
-      snprintf(buf, sizeof(buf), "Limit: %llu row(s)", m_limit);
-    } else if (m_limit == HA_POS_ERROR) {
-      snprintf(buf, sizeof(buf), "Offset: %llu row(s)", m_offset);
-    } else {
-      snprintf(buf, sizeof(buf), "Limit/Offset: %llu/%llu row(s)",
-               m_limit - m_offset, m_offset);
-    }
-    if (m_count_all_rows) {
-      return {std::string(buf) + " (no early end due to SQL_CALC_FOUND_ROWS)"};
-    } else {
-      return {std::string(buf)};
-    }
-  }
-
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
 
@@ -180,6 +157,7 @@ class LimitOffsetIterator final : public RowIterator {
 
   const ha_rows m_limit, m_offset;
   const bool m_count_all_rows;
+  const bool m_reject_multiple_rows;
   ha_rows *m_skipped_rows;
 };
 
@@ -196,7 +174,7 @@ class LimitOffsetIterator final : public RowIterator {
   of aggregation, others (the aggregates) are added. For this reason (and also
   because we need to make copies of the group expressions -- see Read()), it
   conceptually always outputs to a temporary table. If we _are_ outputting to a
-  temporary table, that's not a problem -- we take over responsibility for
+  temporary table, that's not a problem -- we take over responsibility for
   copying the group expressions from MaterializeIterator, which would otherwise
   do it.
 
@@ -237,12 +215,6 @@ class AggregateIterator final : public RowIterator {
     // and we also can't unlock the _current_ row, since that belongs to a
     // different group. Thus, do nothing.
   }
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
-  }
-
-  std::vector<std::string> DebugString() const override;
 
  private:
   enum {
@@ -285,45 +257,14 @@ class AggregateIterator final : public RowIterator {
   const bool m_rollup;
 
   /**
-    Whether we have a rollup query where we needed to replace m_join->fields
-    with a set of Item_refs. See the constructor for more information.
-   */
-  bool m_replace_field_list;
-
-  /// If we have replaced the field list, contains the original field list.
-  List<Item> *m_original_fields = nullptr;
-
-  /**
-    If we have replaced the field list, this is the list of Item pointers
-    that each Item_ref points into.
-   */
-  Mem_root_array<Item *> *m_current_fields = nullptr;
-
-  /**
-    The list that the current values in m_current_fields come from.
-    This is used purely as an optimization so that SwitchFieldList()
-    does not have to do copying work if m_current_fields is already set up
-    correctly. Only used if m_replace_field_list is true.
-   */
-  const List<Item> *m_current_fields_source = nullptr;
-
-  /**
     For rollup: The index of the first group item that did _not_ change when we
     last switched groups. E.g., if we have group fields A,B,C,D and then switch
-    to group A,B,D,D, this value will become 1 (which means that we need
-    to output rollup rows for 2 -- A,B,D,NULL -- and then 1 -- A,B,NULL,NULL).
+    to group A,B,E,D, this value will become 1 (which means that we need
+    to output rollup rows for 2 -- A,B,E,NULL -- and then 1 -- A,B,NULL,NULL).
     m_current_rollup_position will count down from the end until it becomes
     less than this value.
 
-    In addition, it is important to know this value so that we known
-    which aggregates to reset once we start reading rows again; e.g.,
-    in the given example, the two first aggregates should keep counting,
-    while the two last ones should be reset. join->sum_funcs_end contains
-    the right end pointers for this purpose.
-
-    If we do not have rollup, this value is perennially zero, because there
-    is only one element in join->sum_funcs_end (representing all aggregates
-    in the query).
+    If we do not have rollup, this value is perennially zero.
    */
   int m_last_unchanged_group_item_idx;
 
@@ -331,21 +272,13 @@ class AggregateIterator final : public RowIterator {
     If we are in state OUTPUTTING_ROLLUP_ROWS, where we are in the iteration.
     This value will start at the index of the last group expression and then
     count backwards down to and including m_last_unchanged_group_item_idx.
-    It is used to know which field list we should send.
+    It is used to communicate to the rollup group items whether to turn
+    themselves into NULLs, and the sum items which of their sums to output.
    */
   int m_current_rollup_position;
 
-  void SwitchFieldList(List<Item> *fields) {
-    if (!m_replace_field_list || m_current_fields_source == fields) {
-      return;
-    }
-
-    size_t item_index = 0;
-    for (Item &item : *fields) {
-      (*m_current_fields)[item_index++] = &item;
-    }
-    m_current_fields_source = fields;
-  }
+  void copy_sum_funcs();
+  void SetRollupLevel(int level);
 };
 
 /**
@@ -379,12 +312,6 @@ class PrecomputedAggregateIterator final : public RowIterator {
     // See AggregateIterator::UnlockRow().
   }
 
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
-  }
-
-  std::vector<std::string> DebugString() const override;
-
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
 
@@ -402,8 +329,6 @@ class PrecomputedAggregateIterator final : public RowIterator {
   /// The slice of the fields we are outputting to.
   int m_output_slice;
 };
-
-enum class JoinType { INNER, OUTER, ANTI, SEMI };
 
 /**
   A simple nested loop join, taking in two iterators (left/outer and
@@ -464,13 +389,6 @@ class NestedLoopIterator final : public RowIterator {
     }
   }
 
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source_outer.get(), ""},
-                              {m_source_inner.get(), ""}};
-  }
-
  private:
   enum {
     NEEDS_OUTER_ROW,
@@ -520,10 +438,6 @@ class CacheInvalidatorIterator final : public RowIterator {
   }
 
   void UnlockRow() override { m_source_iterator->UnlockRow(); }
-  std::vector<std::string> DebugString() const override;
-  std::vector<Child> children() const override {
-    return {Child{m_source_iterator.get(), ""}};
-  }
 
   int64_t generation() const { return m_generation; }
   std::string name() const { return m_name; }
@@ -631,21 +545,25 @@ class MaterializeIterator final : public TableRowIterator {
       (e.g., because we have a dependency on a value from outside the query
       block).
     @param limit_rows
-      Does the same job as a LimitOffsetIterator right before the
-      MaterializeIterator would have done, except that it works _after_
-      deduplication (if that is active). It is used for when pushing LIMIT down
-      to MaterializeIterator, so that we can stop materializing when there are
-      enough rows. The deduplication is the reason why this specific limit has
-      to be handled in MaterializeIterator and not using a regular
-      LimitOffsetIterator. Set to HA_POS_ERROR for no limit.
+      Used for when pushing LIMIT down to MaterializeIterator; this is
+      more efficient than having a LimitOffsetIterator above the
+      MaterializeIterator, since we can stop materializing when there are
+      enough rows. (This is especially important for recursive CTEs.)
+      Note that we cannot have a LimitOffsetIterator _below_ the
+      MaterializeIterator, as that would count wrong if we have deduplication,
+      and would not work at all for recursive CTEs.
+      Set to HA_POS_ERROR for no limit.
+    @param reject_multiple_rows true if this is the top level iterator for a
+      materialized derived table transformed from a scalar subquery which needs
+      run-time cardinality check.
    */
   MaterializeIterator(THD *thd,
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,
                       TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, SELECT_LEX_UNIT *unit,
-                      JOIN *join, int ref_slice, bool rematerialize,
-                      ha_rows limit_rows);
+                      Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
+                      int ref_slice, bool rematerialize, ha_rows limit_rows,
+                      bool reject_multiple_rows);
 
   /**
     A convenience form for materializing a single table only.
@@ -677,21 +595,21 @@ class MaterializeIterator final : public TableRowIterator {
       (e.g., because we have a dependency on a value from outside the query
       block).
     @param limit_rows See limit_rows on the other constructor.
+    @param reject_multiple_rows true if this is the top level iterator for a
+      materialized derived table transformed from a scalar subquery which needs
+      run-time cardinality check.
    */
   MaterializeIterator(THD *thd,
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
                       Temp_table_param *temp_table_param, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, int select_number,
+                      Common_table_expr *cte, int select_number,
                       SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
                       bool copy_fields_and_items, bool rematerialize,
-                      ha_rows limit_rows);
+                      ha_rows limit_rows, bool reject_multiple_rows);
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override;
 
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
@@ -718,7 +636,7 @@ class MaterializeIterator final : public TableRowIterator {
   /// If we are materializing a CTE, points to it (otherwise nullptr).
   /// Used so that we see if some other iterator already materialized the table,
   /// avoiding duplicate work.
-  const Common_table_expr *m_cte;
+  Common_table_expr *m_cte;
 
   /// The query expression we are materializing. For derived tables,
   /// we materialize the entire query expression; for materialization within
@@ -740,6 +658,9 @@ class MaterializeIterator final : public TableRowIterator {
   /// If true, we need to materialize anew for each Init() (because the contents
   /// of the table will depend on some outer non-constant value).
   const bool m_rematerialize;
+
+  /// See constructor.
+  const bool m_reject_multiple_rows;
 
   /// See constructor.
   const ha_rows m_limit_rows;
@@ -789,22 +710,25 @@ class MaterializeIterator final : public TableRowIterator {
  */
 class StreamingIterator final : public TableRowIterator {
  public:
+  /**
+    @param thd Thread handle.
+    @param subquery_iterator The iterator to read rows from.
+    @param temp_table_param Parameters for the temp table.
+    @param table The table we are streaming through. Will never actually
+      be written to, but its fields will be used.
+    @param copy_fields_and_items See MaterializeIterator.
+    @param provide_rowid If true, generate a row ID for each row we stream.
+      This is used if the parent needs row IDs for deduplication, in particular
+      weedout.
+   */
   StreamingIterator(THD *thd,
                     unique_ptr_destroy_only<RowIterator> subquery_iterator,
                     Temp_table_param *temp_table_param, TABLE *table,
-                    bool copy_fields_and_items);
+                    bool copy_fields_and_items, bool provide_rowid);
 
   bool Init() override;
 
   int Read() override;
-
-  std::vector<std::string> DebugString() const override {
-    return {"Stream results"};
-  }
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_subquery_iterator.get(), ""}};
-  }
 
   void StartPSIBatchMode() override {
     m_subquery_iterator->StartPSIBatchMode();
@@ -823,7 +747,7 @@ class StreamingIterator final : public TableRowIterator {
   // Whether the iterator should generate and provide a row ID. Only true if the
   // iterator is part of weedout, where the iterator will create a fake row ID
   // to uniquely identify the rows it produces.
-  bool m_provide_rowid{false};
+  const bool m_provide_rowid;
 };
 
 /**
@@ -836,8 +760,8 @@ class TemptableAggregateIterator final : public TableRowIterator {
   TemptableAggregateIterator(
       THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
       Temp_table_param *temp_table_param, TABLE *table,
-      unique_ptr_destroy_only<RowIterator> table_iterator,
-      SELECT_LEX *select_lex, JOIN *join, int ref_slice);
+      unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join,
+      int ref_slice);
 
   bool Init() override;
   int Read() override;
@@ -849,9 +773,6 @@ class TemptableAggregateIterator final : public TableRowIterator {
     m_subquery_iterator->EndPSIBatchModeIfStarted();
   }
   void UnlockRow() override {}
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override;
 
  private:
   /// The iterator we are reading rows from.
@@ -861,7 +782,6 @@ class TemptableAggregateIterator final : public TableRowIterator {
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
   Temp_table_param *m_temp_table_param;
-  SELECT_LEX *m_select_lex;
   JOIN *const m_join;
   const int m_ref_slice;
 
@@ -887,9 +807,6 @@ class MaterializedTableFunctionIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override { return m_table_iterator->Read(); }
-  std::vector<std::string> DebugString() const override {
-    return {{"Materialize table function"}};
-  }
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
@@ -931,15 +848,10 @@ class MaterializedTableFunctionIterator final : public TableRowIterator {
 class WeedoutIterator final : public RowIterator {
  public:
   WeedoutIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
-                  SJ_TMP_TABLE *sj);
+                  SJ_TMP_TABLE *sj, table_map tables_to_get_rowid_for);
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
-  }
 
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
@@ -953,11 +865,7 @@ class WeedoutIterator final : public RowIterator {
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
   SJ_TMP_TABLE *m_sj;
-
-  // The cached value of QEP_TAB::rowid_status for each of the tables in the
-  // weedout. Index 0 corresponds to the first table in m_sj.
-  // See QEP_TAB::rowid_status for why we need to cache this value.
-  Prealloced_array<rowid_statuses, 4> m_rowid_status;
+  const table_map m_tables_to_get_rowid_for;
 };
 
 /**
@@ -977,11 +885,6 @@ class RemoveDuplicatesIterator final : public RowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
-  }
 
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
@@ -1012,7 +915,8 @@ class RemoveDuplicatesIterator final : public RowIterator {
 
   In this case, the query tree without this iterator would ostensibly look like
 
-    -> Table scan on t1
+    -> Nested loop join
+       -> Table scan on t1
        -> Remove duplicates on t2_idx
           -> Nested loop semijoin
              -> Index scan on t2 using t2_idx
@@ -1059,13 +963,6 @@ class NestedLoopSemiJoinWithDuplicateRemovalIterator final
     m_source_inner->UnlockRow();
   }
 
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source_outer.get(), ""},
-                              {m_source_inner.get(), ""}};
-  }
-
  private:
   unique_ptr_destroy_only<RowIterator> const m_source_outer;
   unique_ptr_destroy_only<RowIterator> const m_source_inner;
@@ -1108,12 +1005,6 @@ class WindowingIterator final : public RowIterator {
 
   void UnlockRow() override {
     // There's nothing we can do here.
-  }
-
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
   }
 
  private:
@@ -1164,12 +1055,6 @@ class BufferingWindowingIterator final : public RowIterator {
     // There's nothing we can do here.
   }
 
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source.get(), ""}};
-  }
-
  private:
   int ReadBufferedRow(bool new_partition_or_eof);
 
@@ -1211,19 +1096,11 @@ class BufferingWindowingIterator final : public RowIterator {
 class MaterializeInformationSchemaTableIterator final : public RowIterator {
  public:
   MaterializeInformationSchemaTableIterator(
-      THD *thd, QEP_TAB *qep_tab,
-      unique_ptr_destroy_only<RowIterator> table_iterator);
+      THD *thd, unique_ptr_destroy_only<RowIterator> table_iterator,
+      TABLE_LIST *table_list, Item *condition);
 
   bool Init() override;
   int Read() override { return m_table_iterator->Read(); }
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    // We don't list the table iterator as an explicit child; we mark it in
-    // our DebugString() instead. (Anything else would look confusingly much
-    // like a join.)
-    return {};
-  }
 
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
@@ -1241,7 +1118,8 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
  private:
   /// The iterator that reads from the materialized table.
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
-  QEP_TAB *m_qep_tab;
+  TABLE_LIST *m_table_list;
+  Item *m_condition;
 };
 
 /**
@@ -1257,9 +1135,6 @@ class AppendIterator final : public RowIterator {
 
   bool Init() override;
   int Read() override;
-
-  std::vector<std::string> DebugString() const override { return {"Append"}; }
-  std::vector<Child> children() const override;
 
   void StartPSIBatchMode() override;
   void EndPSIBatchModeIfStarted() override;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 void Dbdih::initData() 
 {
+  m_set_up_multi_trp_in_node_restart = false;
   cpageFileSize = ZPAGEREC;
 
   // Records with constant sizes
@@ -94,6 +95,8 @@ void Dbdih::initData()
   }
   m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
   m_master_lcp_req_lcp_already_completed = false;
+  
+  c_shutdownReqNodes.clear();
 }//Dbdih::initData()
 
 void Dbdih::initRecords()
@@ -349,10 +352,10 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
                &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
-
-
   addRecSignal(GSN_DIH_GET_TABINFO_REQ,
                &Dbdih::execDIH_GET_TABINFO_REQ);
+  addRecSignal(GSN_SET_UP_MULTI_TRP_CONF,
+               &Dbdih::execSET_UP_MULTI_TRP_CONF);
 #if 0
   addRecSignal(GSN_DIH_GET_TABINFO_REF,
                &Dbdih::execDIH_GET_TABINFO_REF);

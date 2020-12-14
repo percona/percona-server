@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@ using namespace json_binary;
 
 class JsonBinaryTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
   THD *thd() const { return initializer.thd(); }
 };
@@ -457,11 +457,11 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
 
   String buf;
   EXPECT_FALSE(serialize(thd(), &array, &buf));
-  Value val = parse_binary(buf.ptr(), buf.length());
-  EXPECT_TRUE(val.large_format());
+  Value val1 = parse_binary(buf.ptr(), buf.length());
+  EXPECT_TRUE(val1.large_format());
   {
     SCOPED_TRACE("");
-    validate_array_contents(val, array.size());
+    validate_array_contents(val1, array.size());
   }
 
   /*
@@ -469,7 +469,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
     that it is valid.
   */
   String raw;
-  EXPECT_FALSE(val.raw_binary(thd(), &raw));
+  EXPECT_FALSE(val1.raw_binary(thd(), &raw));
   {
     SCOPED_TRACE("");
     validate_array_contents(parse_binary(raw.ptr(), raw.length()),
@@ -1082,8 +1082,8 @@ static const SpaceNeededTuple space_needed_tuples[] = {
     {nullptr, true, 0},
 };
 
-INSTANTIATE_TEST_CASE_P(JsonBinary, SpaceNeededTest,
-                        ::testing::ValuesIn(space_needed_tuples));
+INSTANTIATE_TEST_SUITE_P(JsonBinary, SpaceNeededTest,
+                         ::testing::ValuesIn(space_needed_tuples));
 
 /**
   Helper function for testing Value::has_space(). Serializes a JSON

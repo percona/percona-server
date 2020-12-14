@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,6 +202,9 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   m_lcp_timing_counter = Uint64(0);
   m_lcp_change_rate = Uint64(0);
   m_lcp_timing_factor = Uint64(100);
+  m_current_dd_time_us = Uint64(0);
+  m_last_lcp_dd_percentage = Uint32(0);
+  m_undo_log_level_percentage = Uint32(0);
 }
   
 Backup::~Backup()
@@ -257,6 +260,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 			    &c_defaults.m_compressed_backup);
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
+  ndb_mgm_get_int_parameter(p, CFG_DB_REQUIRE_ENCRYPTED_BACKUP,
+			    &c_defaults.m_encryption_required);
 
   m_enable_partial_lcp = 1; /* Default to enabled */
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
@@ -341,7 +346,6 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   jam();
 
-  Uint32 szLogBuf = BACKUP_DEFAULT_BUFFER_SIZE;
   Uint32 szWrite = BACKUP_DEFAULT_WRITE_SIZE;
   Uint32 szDataBuf = BACKUP_DEFAULT_BUFFER_SIZE;
   Uint32 maxWriteSize = szDataBuf;
@@ -382,6 +386,9 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
    */
+
+  Uint32 szLogBuf = BACKUP_DEFAULT_LOGBUFFER_SIZE;
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   if (maxWriteSize < szWrite)
   {
     /**

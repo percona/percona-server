@@ -54,7 +54,7 @@ int heap_delete(HP_INFO *info, const uchar *record) {
 
   info->update = HA_STATE_DELETED;
   hp_free_chunks(&share->recordspace, pos);
-  info->current_hash_ptr = 0;
+  info->current_hash_ptr = nullptr;
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
@@ -75,7 +75,7 @@ int hp_rb_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   uint old_allocated;
   int res;
 
-  if (flag) info->last_pos = NULL; /* For heap_rnext/heap_rprev */
+  if (flag) info->last_pos = nullptr; /* For heap_rnext/heap_rprev */
 
   custom_arg.keyseg = keyinfo->seg;
   custom_arg.key_length =
@@ -114,14 +114,14 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   blength = share->blength;
   if (share->records + 1 == blength) blength += blength;
   lastpos = hp_find_hash(&keyinfo->block, share->records);
-  last_ptr = 0;
+  last_ptr = nullptr;
 
   /* Search after record with key */
   key_pos =
       hp_mask(hp_rec_hashnr(keyinfo, record), blength, share->records + 1);
   pos = hp_find_hash(&keyinfo->block, key_pos);
 
-  gpos = pos3 = 0;
+  gpos = pos3 = nullptr;
 
   while (pos->ptr_to_rec != recpos) {
     if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
@@ -138,7 +138,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   if (flag) {
     /* Save for heap_rnext/heap_rprev */
     info->current_hash_ptr = last_ptr;
-    info->current_ptr = last_ptr ? last_ptr->ptr_to_rec : 0;
+    info->current_ptr = last_ptr ? last_ptr->ptr_to_rec : nullptr;
     DBUG_PRINT("info",
                ("Corrected current_ptr to point at: %p", info->current_ptr));
   }
@@ -189,11 +189,11 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
       been processed yet.
     */
     if (flag && pos2 == key_pos) {
-      info->current_ptr = 0;
-      info->current_hash_ptr = 0;
+      info->current_ptr = nullptr;
+      info->current_hash_ptr = nullptr;
     }
   } else {
-    pos3 = 0; /* Different positions merge */
+    pos3 = nullptr; /* Different positions merge */
     keyinfo->hash_buckets--;
   }
 

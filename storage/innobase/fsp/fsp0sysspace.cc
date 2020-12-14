@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
 #include "mem0mem.h"
-#include "my_inttypes.h"
+
 /** The server header file is included to access opt_initialize global variable.
 If server passes the option for create/open DB to SE, we should remove such
 direct reference to server header and global variable */
@@ -318,9 +318,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 void SysTablespace::shutdown() {
   Tablespace::shutdown();
 
-  m_auto_extend_last_file = 0;
+  m_auto_extend_last_file = false;
   m_last_file_size_max = 0;
-  m_created_new_raw = 0;
+  m_created_new_raw = false;
   m_is_tablespace_full = false;
   m_sanity_checks_done = false;
 }
@@ -378,7 +378,7 @@ dberr_t SysTablespace::check_size(Datafile &file) {
 }
 
 /** Set the size of the file.
-@param[in]	file	data file object
+@param[in,out]	file	data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::set_size(Datafile &file) {
   ut_a(!srv_read_only_mode || m_ignore_read_only);
@@ -411,7 +411,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 }
 
 /** Create a data file.
-@param[in]	file	data file object
+@param[in,out]	file	data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::create_file(Datafile &file) {
   dberr_t err = DB_SUCCESS;
@@ -448,7 +448,7 @@ dberr_t SysTablespace::create_file(Datafile &file) {
 }
 
 /** Open a data file.
-@param[in]	file	data file object
+@param[in,out]	file	data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::open_file(Datafile &file) {
   dberr_t err = DB_SUCCESS;
@@ -515,8 +515,6 @@ dberr_t SysTablespace::open_file(Datafile &file) {
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
-  dberr_t err;
-
   /* Only relevant for the system tablespace. */
   ut_ad(space_id() == TRX_SYS_SPACE);
 
@@ -525,7 +523,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   ut_a(it->m_exists);
   ut_ad(it->m_handle.m_file != OS_FILE_CLOSED);
 
-  err = it->read_first_page(m_ignore_read_only ? false : srv_read_only_mode);
+  dberr_t err =
+      it->read_first_page(m_ignore_read_only ? false : srv_read_only_mode);
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -533,13 +532,13 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
 
   ut_a(it->order() == 0);
 
-  err = buf_dblwr_init_or_load_pages(it->handle(), it->filepath());
+  err = recv_sys->dblwr->load();
+
   if (err != DB_SUCCESS) {
     return (err);
   }
 
-  /* Check the contents of the first page of the
-  first datafile. */
+  /* Check the contents of the first page of the first datafile. */
   for (int retry = 0; retry < 2; ++retry) {
     err = it->validate_first_page(it->m_space_id, flushed_lsn, false).error;
 
@@ -576,6 +575,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
     keyring_encryption_info.page0_has_crypt_data = true;
     keyring_encryption_info.keyring_encryption_min_key_version =
         crypt_data->min_key_version;
+    keyring_encryption_info.type = crypt_data->type;
+    keyring_encryption_info.private_version = crypt_data->private_version;
     fil_space_destroy_crypt_data(&crypt_data);
   }
 
@@ -585,7 +586,7 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
 }
 
 /** Check if a file can be opened in the correct mode.
-@param[in]	file	data file object
+@param[in,out]	file	data file object
 @param[out]	reason	exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 dberr_t SysTablespace::check_file_status(const Datafile &file,
@@ -719,8 +720,8 @@ void SysTablespace::file_found(Datafile &file) {
 }
 
 /** Check the data file specification.
-@param[out] create_new_db	true if a new database is to be created
-@param[in] min_expected_size	Minimum expected tablespace size in bytes
+@param[in]  create_new_db     True if a new database is to be created
+@param[in]  min_expected_size Minimum expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
 dberr_t SysTablespace::check_file_spec(bool create_new_db,
                                        ulint min_expected_size) {
@@ -773,7 +774,7 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
       ut_a(err != DB_FAIL);
       break;
 
-    } else if (create_new_db) {
+    } else if (create_new_db && !(*it).is_raw_type()) {
       ib::error(ER_IB_MSG_454)
           << "The " << name() << " data file '" << begin->m_name
           << "' was not found but"
@@ -784,6 +785,7 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
       break;
 
     } else {
+      ut_ad(err == DB_SUCCESS);
       file_found(*it);
     }
   }
@@ -812,7 +814,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
                                       page_no_t *sum_new_sizes,
                                       lsn_t *flush_lsn) {
   dberr_t err = DB_SUCCESS;
-  fil_space_t *space = NULL;
+  fil_space_t *space = nullptr;
 
   ut_ad(!m_files.empty());
 
@@ -861,11 +863,11 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     the tablespace should be on the same medium. */
 
     if (fil_fusionio_enable_atomic_write(it->m_handle)) {
-      if (srv_use_doublewrite_buf) {
+      if (dblwr::enabled) {
         ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
                                    " disabling the double write buffer";
 
-        srv_use_doublewrite_buf = false;
+        dblwr::enabled = false;
       }
 
       it->m_atomic_write = true;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,11 @@
 
 #include <sys/types.h>
 
-#include "handler.h"  // ts_command_type
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"  // Sql_cmd
+#include "sql/handler.h"  // ts_command_type
+#include "sql/sql_cmd.h"  // Sql_cmd
 
 class THD;
 
@@ -51,6 +51,7 @@ struct Tablespace_options {
   LEX_CSTRING engine_name = {nullptr, 0};
   LEX_STRING encryption = {nullptr, 0};
   KeyringEncryptionKeyIdInfo encryption_key_id;
+  LEX_CSTRING engine_attribute = NULL_CSTR;
 };
 
 /**
@@ -111,7 +112,7 @@ class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
     Provide access to the command code enum value.
     @return command code enum value
    */
-  enum_sql_command sql_command_code() const override final;
+  enum_sql_command sql_command_code() const final;
   /**
     Return the Tablespace_options for this object.
    */

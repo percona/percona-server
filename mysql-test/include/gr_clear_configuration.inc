@@ -46,7 +46,20 @@ while ($_rpl_server <= $_rpl_server_max)
     if (!$skip_recovery_configuration)
     {
       # Clean distributed recovery user.
-      RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+      RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
+    }
+
+    # Clear the configuration of privilege_checks_user account
+    if ($rpl_privilege_checks_user != '')
+    {
+      --source include/rpl_get_instance_priv_checks_user.inc
+      if ($rpl_instance_privilege_checks_user != '')
+      {
+        if ($rpl_instance_privilege_checks_user != NULL)
+        {
+          --source include/rpl_clear_priv_checks_user_configuration.inc
+        }
+      }
     }
 
     --enable_query_log

@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Secondary engine not supported.
+
 --echo #
 --echo # Test that query preparation is able to make plans for executing
 --echo # a query on a secondary storage engine.
@@ -365,7 +367,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 --echo # An error shall be returned if table is not loaded.
 ALTER TABLE t1 SECONDARY_UNLOAD;
 SET @@use_secondary_engine = FORCED;
---error ER_SECONDARY_ENGINE
+--error ER_SECONDARY_ENGINE,ER_SECONDARY_ENGINE_PLUGIN
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @@use_secondary_engine = ON;
@@ -452,10 +454,10 @@ SET @my_use_secondary_engine = @@use_secondary_engine;
 SET @@use_secondary_engine = FORCED;
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
 FLUSH STATUS;
+--error ER_SECONDARY_ENGINE_PLUGIN
 PREPARE ps FROM "SELECT * FROM t1";
---error ER_SECONDARY_ENGINE
-EXECUTE ps;
 SET @@use_secondary_engine = OFF;
+PREPARE ps FROM "SELECT * FROM t1";
 EXECUTE ps;
 --echo # Load table into secondary engine.
 ALTER TABLE t1 SECONDARY_LOAD;
@@ -490,7 +492,7 @@ INSERT INTO t1 VALUES (1);
 FLUSH STATUS;
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
---error ER_SECONDARY_ENGINE
+--error ER_SECONDARY_ENGINE,ER_SECONDARY_ENGINE_PLUGIN
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_LOAD;
@@ -800,6 +802,19 @@ SET GLOBAL general_log = @saved_general_log;
 SET GLOBAL log_output = @saved_log_output;
 
 TRUNCATE TABLE mysql.general_log;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30391501: ASSERTION FAILURE WHEN RUNNING RAPID.AGG_PROJ_ANY
+--echo #               WITH --PS-PROTOCOL
+--echo #
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y;
+PREPARE ps FROM 'SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y';
+EXECUTE ps;
+DROP PREPARE ps;
 DROP TABLE t;
 
 --disable_query_log

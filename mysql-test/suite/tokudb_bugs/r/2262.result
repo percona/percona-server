@@ -8,7 +8,7 @@ set session transaction isolation level read uncommitted;
 replace into test_bug (id, foo) VALUES (1, "bar");
 insert ignore into test_bug (id, foo) VALUES (1, "bar");
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 'test_bug.PRIMARY'
 insert into test_bug (id, foo) VALUES (1, "bar") ON DUPLICATE KEY UPDATE foo='baz';
 set session transaction isolation level serializable;
 DROP TABLE test_bug;

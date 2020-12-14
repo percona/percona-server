@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,8 @@
 #include "sql/thr_malloc.h"
 
 struct TABLE_LIST;
+
+#include <vector>
 
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
@@ -148,6 +150,16 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
   } else if (thd->owned_gtid.sidno > 0) {
     broadcast_sidno(thd->owned_gtid.sidno);
   }
+}
+
+void Gtid_state::get_snapshot_gtid_executed(
+    std::string &snapshot_gtid_executed) {
+  global_sid_lock->wrlock();
+  size_t size = executed_gtids.get_string_length() + 1;
+  std::vector<char> buf(size);
+  executed_gtids.to_string(buf.data());
+  snapshot_gtid_executed = buf.data();
+  global_sid_lock->unlock();
 }
 
 void Gtid_state::update_commit_group(THD *first_thd) {
@@ -468,7 +480,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(
     sid_lock->assert_some_lock();
 
   // If GTID_MODE = ON_PERMISSIVE or ON, generate a new GTID
-  if (get_gtid_mode(GTID_MODE_LOCK_SID) >= GTID_MODE_ON_PERMISSIVE) {
+  if (global_gtid_mode.get() >= Gtid_mode::ON_PERMISSIVE) {
     Gtid automatic_gtid = {specified_sidno, specified_gno};
 
     if (automatic_gtid.sidno == 0) automatic_gtid.sidno = get_server_sidno();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,128 +69,15 @@ struct cartesian;
   Functions for spatial relations
 */
 
-const char *Item_func_spatial_mbr_rel::func_name() const {
-  switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      return "mbrcontains";
-    case SP_WITHIN_FUNC:
-      return "mbrwithin";
-    case SP_EQUALS_FUNC:
-      return "mbrequals";
-    case SP_DISJOINT_FUNC:
-      return "mbrdisjoint";
-    case SP_INTERSECTS_FUNC:
-      return "mbrintersects";
-    case SP_TOUCHES_FUNC:
-      return "mbrtouches";
-    case SP_CROSSES_FUNC:
-      return "mbrcrosses";
-    case SP_OVERLAPS_FUNC:
-      return "mbroverlaps";
-    case SP_COVERS_FUNC:
-      return "mbrcovers";
-    case SP_COVEREDBY_FUNC:
-      return "mbrcoveredby";
-    default:
-      DBUG_ASSERT(0);  // Should never happened
-      return "mbrsp_unknown";
-  }
-}
-
-longlong Item_func_spatial_mbr_rel::val_int() {
-  DBUG_ASSERT(fixed == 1);
-  String *res1 = args[0]->val_str(&cmp.value1);
-  String *res2 = args[1]->val_str(&cmp.value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  MBR mbr1, mbr2;
-
-  if ((null_value =
-           (!res1 || args[0]->null_value || !res2 || args[1]->null_value)))
-    return 0;
-  if (!(g1 = Geometry::construct(&buffer1, res1)) ||
-      !(g2 = Geometry::construct(&buffer2, res2))) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_int();
-  }
-  if ((null_value = (g1->get_mbr(&mbr1) || g2->get_mbr(&mbr2)))) return 0;
-
-  // The two geometry operands must be in the same coordinate system.
-  if (g1->get_srid() != g2->get_srid()) {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), g1->get_srid(),
-             g2->get_srid());
-    null_value = true;
-    return 0;
-  }
-
-  if (g1->get_srid() != 0) {
-    bool srs_exists = false;
-    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
-      return error_int();  // Error has already been flagged.
-
-    if (!srs_exists) {
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING, ER_WARN_SRS_NOT_FOUND,
-          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND), g1->get_srid());
-    }
-  }
-
-  int ret = 0;
-
-  switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      ret = mbr1.contains(&mbr2);
-      break;
-    case SP_WITHIN_FUNC:
-      ret = mbr1.within(&mbr2);
-      break;
-    case SP_EQUALS_FUNC:
-      ret = mbr1.equals(&mbr2);
-      break;
-    case SP_DISJOINT_FUNC:
-      ret = mbr1.disjoint(&mbr2);
-      break;
-    case SP_INTERSECTS_FUNC:
-      ret = mbr1.intersects(&mbr2);
-      break;
-    case SP_TOUCHES_FUNC:
-      ret = mbr1.touches(&mbr2);
-      break;
-    case SP_OVERLAPS_FUNC:
-      ret = mbr1.overlaps(&mbr2);
-      break;
-    case SP_CROSSES_FUNC:
-      DBUG_ASSERT(false);
-      ret = 0;
-      null_value = true;
-      break;
-    case SP_COVERS_FUNC:
-      ret = mbr1.covers(&mbr2);
-      break;
-    case SP_COVEREDBY_FUNC:
-      ret = mbr1.covered_by(&mbr2);
-      break;
-    default:
-      break;
-  }
-
-  if (ret == -1) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_int();
-  }
-
-  return ret;
-}
-
 longlong Item_func_spatial_rel::val_int() {
   DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
   String tmp_value1;
   String tmp_value2;
-  String *res1 = NULL;
-  String *res2 = NULL;
+  String *res1 = nullptr;
+  String *res2 = nullptr;
   Geometry_buffer buffer1, buffer2;
-  Geometry *g1 = NULL, *g2 = NULL;
+  Geometry *g1 = nullptr, *g2 = nullptr;
   int tres = 0;
   bool had_except = false;
   bool had_error = false;
@@ -266,9 +153,10 @@ exit:
 template <typename Coordsys>
 int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2) {
   String gcbuf;
-  Geometry *tmpg = NULL;
+  Geometry *tmpg = nullptr;
   int tres = 0;
-  const typename BG_geometry_collection::Geometry_list *gv1 = NULL, *gv2 = NULL;
+  const typename BG_geometry_collection::Geometry_list *gv1 = nullptr,
+                                                       *gv2 = nullptr;
   BG_geometry_collection bggc1, bggc2;
   bool empty1 = is_empty_geocollection(g1);
   bool empty2 = is_empty_geocollection(g2);
@@ -367,7 +255,7 @@ int Item_func_spatial_rel::geocol_relcheck_intersect_disjoint(
 
   DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
               functype() == SP_INTERSECTS_FUNC);
-  const BG_geometry_collection::Geometry_list *gv = NULL, *gvr = NULL;
+  const BG_geometry_collection::Geometry_list *gv = nullptr, *gvr = nullptr;
 
   if (gv1->size() > gv2->size()) {
     gv = gv2;

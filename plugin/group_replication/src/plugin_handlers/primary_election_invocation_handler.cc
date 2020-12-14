@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
-#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
@@ -121,7 +120,7 @@ int Primary_election_handler::execute_primary_election(
 
   primary_member_info = group_member_mgr->get_group_member_info(primary_uuid);
 
-  if (primary_member_info == NULL) {
+  if (primary_member_info == nullptr) {
     if (all_members_info->size() != 1) {
       // There are no servers in the group or they are all recovering WARN the
       // user
@@ -162,6 +161,9 @@ int Primary_election_handler::execute_primary_election(
     }
 
     set_election_running(true);
+    if (!primary_uuid.compare(local_member_info->get_uuid())) {
+      print_gtid_info_in_log();
+    }
     if (!legacy_election) {
       std::string message;
       if (DEAD_OLD_PRIMARY == mode)
@@ -178,13 +180,13 @@ int Primary_election_handler::execute_primary_election(
             "Enabling conflict detection until the new primary applies all "
             "relay logs.");
 
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port(), message.c_str());
       internal_primary_election(primary_uuid, mode);
     } else {
       // retain the old message
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port(),
                    "Enabling conflict detection until the new primary applies "
@@ -204,6 +206,41 @@ end:
   delete all_members_info;
   delete primary_member_info;
   return 0;
+}
+
+void Primary_election_handler::print_gtid_info_in_log() {
+  Replication_thread_api applier_channel("group_replication_applier");
+  std::string applier_retrieved_gtids;
+  std::string server_executed_gtids;
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
+  if (sql_command_interface->establish_session_connection(
+          PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer())) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_CONN_INTERNAL_PLUGIN_FAIL);
+    goto err;
+    /* purecov: end */
+  }
+  if (sql_command_interface->get_server_gtid_executed(server_executed_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
+    goto err;
+    /* purecov: inspected */
+  }
+  if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL,
+                 ER_GRP_RPL_GTID_SET_EXTRACT_ERROR); /* purecov: inspected */
+    goto err;
+    /* purecov: end */
+  }
+  LogPluginErr(INFORMATION_LEVEL, ER_GR_ELECTED_PRIMARY_GTID_INFORMATION,
+               "gtid_executed", server_executed_gtids.c_str());
+  LogPluginErr(INFORMATION_LEVEL, ER_GR_ELECTED_PRIMARY_GTID_INFORMATION,
+               "applier channel received_transaction_set",
+               applier_retrieved_gtids.c_str());
+err:
+  delete sql_command_interface;
 }
 
 int Primary_election_handler::internal_primary_election(
@@ -228,8 +265,7 @@ int Primary_election_handler::internal_primary_election(
   group_member_mgr->update_primary_member_flag(true);
 
   if (!local_member_info->get_uuid().compare(primary_to_elect)) {
-    hold_transactions->enable();
-    register_transaction_observer();
+    notify_election_running();
     primary_election_handler.launch_primary_election_process(
         mode, primary_to_elect, members_info);
   } else {
@@ -284,7 +320,7 @@ int Primary_election_handler::legacy_primary_election(
     internal_primary_election(primary_uuid, LEGACY_ELECTION_PRIMARY);
   } else {
     set_election_running(false);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
                  primary_member_info->get_hostname().c_str(),
                  primary_member_info->get_port());
   }
@@ -305,7 +341,7 @@ bool Primary_election_handler::pick_primary_member(
 #ifndef DBUG_OFF
   int n = 0;
 #endif
-  Group_member_info *the_primary = NULL;
+  Group_member_info *the_primary = nullptr;
 
   std::vector<Group_member_info *>::iterator it;
   std::vector<Group_member_info *>::iterator lowest_version_end;
@@ -332,7 +368,7 @@ bool Primary_election_handler::pick_primary_member(
 #endif
 
     Group_member_info *member = *it;
-    if (local_member_info->in_primary_mode() && the_primary == NULL &&
+    if (local_member_info->in_primary_mode() && the_primary == nullptr &&
         member->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
       the_primary = member;
 #ifndef DBUG_OFF
@@ -361,9 +397,9 @@ bool Primary_election_handler::pick_primary_member(
      To pick leaders from only lowest version members loop
      till lowest_version_end.
     */
-    if (the_primary == NULL) {
+    if (the_primary == nullptr) {
       for (it = all_members_info->begin();
-           it != lowest_version_end && the_primary == NULL; it++) {
+           it != lowest_version_end && the_primary == nullptr; it++) {
         Group_member_info *member_info = *it;
 
         DBUG_ASSERT(member_info);
@@ -374,10 +410,10 @@ bool Primary_election_handler::pick_primary_member(
     }
   }
 
-  if (the_primary == NULL) return 1;
+  if (the_primary == nullptr) return true;
 
   primary_uuid.assign(the_primary->get_uuid());
-  return 0;
+  return false;
 }
 
 std::vector<Group_member_info *>::iterator
@@ -462,52 +498,10 @@ void sort_members_for_election(
               Group_member_info::comparator_group_member_uuid);
 }
 
-void Primary_election_handler::register_transaction_observer() {
-  group_transaction_observation_manager->register_transaction_observer(this);
+void Primary_election_handler::notify_election_running() {
+  transaction_consistency_manager->enable_primary_election_checks();
 }
 
-void Primary_election_handler::unregister_transaction_observer() {
-  group_transaction_observation_manager->unregister_transaction_observer(this);
+void Primary_election_handler::notify_election_end() {
+  transaction_consistency_manager->disable_primary_election_checks();
 }
-
-int Primary_election_handler::before_transaction_begin(
-    my_thread_id, ulong gr_consistency, ulong hold_timeout,
-    enum_rpl_channel_type channel_type) {
-  DBUG_TRACE;
-
-  if (GR_RECOVERY_CHANNEL == channel_type ||
-      GR_APPLIER_CHANNEL == channel_type) {
-    return 0;
-  }
-
-  const enum_group_replication_consistency_level consistency_level =
-      static_cast<enum_group_replication_consistency_level>(gr_consistency);
-
-  if (consistency_level ==
-          GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
-      consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
-    return hold_transactions->wait_until_primary_failover_complete(
-        hold_timeout);
-  }
-
-  return 0;
-}
-
-/*
-  These methods are necessary to fulfil the Group_transaction_listener
-  interface.
-*/
-/* purecov: begin inspected */
-int Primary_election_handler::before_commit(
-    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0;
-}
-int Primary_election_handler::before_rollback(
-    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0;
-}
-int Primary_election_handler::after_rollback(my_thread_id) { return 0; }
-int Primary_election_handler::after_commit(my_thread_id, rpl_sidno, rpl_gno) {
-  return 0;
-}
-/* purecov: end */

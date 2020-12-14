@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_sys.h"
 
 /** Check if two tablespaces have common data file names.
-@param other_space	Tablespace to check against this.
+@param[in]	other_space	Tablespace to check against this.
 @return true if they have the same data filenames and paths */
 bool Tablespace::intersection(const Tablespace *other_space) {
   files_t::const_iterator end = other_space->m_files.end();
@@ -83,7 +83,7 @@ void Tablespace::file_found(Datafile &file) {
 @param[in]	is_temp	whether this is a temporary tablespace
 @return DB_SUCCESS or error code */
 dberr_t Tablespace::open_or_create(bool is_temp) {
-  fil_space_t *space = NULL;
+  fil_space_t *space = nullptr;
   dberr_t err = DB_SUCCESS;
 
   ut_ad(!m_files.empty());
@@ -111,7 +111,7 @@ dberr_t Tablespace::open_or_create(bool is_temp) {
     bool atomic_write;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-    if (!srv_use_doublewrite_buf) {
+    if (!dblwr::enabled) {
       atomic_write = fil_fusionio_enable_atomic_write(it->m_handle);
     } else {
       atomic_write = false;
@@ -182,11 +182,11 @@ void Tablespace::delete_files() {
   }
 }
 
-/** Use the ADD DATAFILE path to create a Datafile object and add it to the
-front of m_files.
-Parse the datafile path into a path and a filename with extension 'ibd'.
-This datafile_path provided may or may not be an absolute path, but it
-must end with the extension .ibd and have a basename of at least 1 byte.
+/** Use the ADD DATAFILE path to create a Datafile object and add
+it to the front of m_files. Parse the datafile path into a path
+and a basename with extension 'ibd'. This datafile_path provided
+may be an absolute or relative path, but it must end with the
+extension .ibd and have a basename of at least 1 byte.
 
 Set tablespace m_path member and add a Datafile with the filename.
 @param[in]	datafile_added	full path of the tablespace file. */
@@ -194,7 +194,7 @@ dberr_t Tablespace::add_datafile(const char *datafile_added) {
   /* The path provided ends in ".ibd".  This was assured by
   validate_create_tablespace_info() */
   ut_d(const char *dot = strrchr(datafile_added, '.'));
-  ut_ad(dot != NULL && Fil_path::has_suffix(IBD, dot));
+  ut_ad(dot != nullptr && Fil_path::has_suffix(IBD, dot));
 
   std::string filepath{datafile_added};
 

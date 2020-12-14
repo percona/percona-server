@@ -23,7 +23,7 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
    .. admonition:: Output
 
       .. code-block:: guess
-    
+
 	 Checking SELinux status...
 	 INFO: SELinux is disabled.
 
@@ -111,7 +111,7 @@ Since attributes of files are preserved, in most cases you will need to change t
 
   $ chown -R mysql:mysql /var/lib/mysql
 
-If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately: 
+If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
 
 .. code-block:: bash
 
@@ -192,7 +192,7 @@ Reporting Errors
   +----------------------------+
   |                         17 |
   +----------------------------+
- 
+
   mysql> SELECT @@tokudb_backup_last_error_string;
   +---------------------------------------------------+
   | @@tokudb_backup_last_error_string                 |
@@ -200,11 +200,94 @@ Reporting Errors
   | tokudb backup couldn't create needed directories. |
   +---------------------------------------------------+
 
+Using TokuDB Hot Backup for Replication
+***************************************
+
+TokuDB Hot Backup makes a transactionally consistent copy of the TokuDB
+files while applications read and write to these files. The TokuDB hot
+backup library intercepts certain system calls that writes files and duplicates
+the writes on backup files while copying files to the backup directory. The
+copied files contain the same content as the original files.
+
+TokuDB Hot Backup also has an API. This API includes the ``start capturing`` and
+``stop capturing`` commands. The "capturing" command starts the process, when a
+portion of a file is copied to the backup location, and this portion is changed,
+these changes are also applied to the backup location.
+
+Replication often uses backup replication to create replicas. You must know the
+last executed global transaction identifier (GTID) or binary log position both
+for the replica and source configuration.
+
+To lock tables, use ``FLUSH TABLE WITH READ LOCK`` or use the smart locks like
+``LOCK TABLES FOR BACKUP`` or ``LOCK BINLOG FOR BACKUP``.
+
+During the copy process, the binlog is flushed, and the changes are copied to
+backup by the "capturing" mechanism. After everything has been copied, and the
+"capturing" mechanism is still running, use the ``LOCK BINLOG FOR BACKUP``.
+After this statement is executed, the binlog is flushed, the changes are
+captured, and any queries that could change the binlog position or executed GTID
+are blocked.
+
+After this command, we can stop capturing and retrieve the last executed GTID or
+binlog log position and unlock the binlog.
+
+After a backup is taken, there are the following files in the backup directory:
+
+* tokubackup_slave_info
+* tokubackup_binlog_info
+
+These files contain information for replica and source. You can use this
+information to start a new replica from the source or replica.
+
+The ``SHOW MASTER STATUS`` and ``SHOW SLAVE STATUS`` commands provide the
+information.
+
+.. important::
+
+    As of |MySQL| 8.0.22, the ``SHOW SLAVE STATUS`` statement is
+    `deprecated <https://dev.mysql.com/doc/refman/8.0/en/show-replicas.html>`_.
+    Use ``SHOW REPLICA STATUS`` instead.
+    
+In specific binlog formats, a binary log event can contain statements that
+produce temporary tables on the replica side, and the result of further statements
+may depend on the temporary table content. Typically, temporary tables are not
+selected for backup because they are created in a separate directory. A backup
+created with temporary tables created by binlog events can cause issues when
+restored because the temporary tables are not restored. The data may be
+inconsistent.
+
+The following system variables :variable:`--tokudb-backup-safe-slave`, which
+enables or disables the safe-slave mode, and
+:variable:`--tokudb-backup-safe-slave-timeout`, which defines the maximum amount
+of time in seconds to wait until temporary tables disappear.  The
+``safe-slave`` mode, when used with ``LOCK BINLOG FOR BACKUP``, the replica SQL
+thread is stopped and checked to see if temporary tables produced by the replica
+exist or do not exist. If temporary tables exist, the replica SQL thread is
+restarted until there are no temporary tables or a defined timeout is reached.
+
+You should not use this option for group-replication.
+Create a Backup with a Timestamp
+*********************************
+
+If you plan to store more than one backup in a location, you should add a
+timestamp to the backup directory name.
+
+A sample Bash script has this information:
+
+.. code-block:: bash
+
+   #!/bin/bash
+
+   tm=$(date "+%Y-%m-%d-%H-%M-%S");
+   backup_dir=$PWD/backup/$tm;
+   mkdir -p $backup_dir;
+   bin/mysql -uroot -e "set tokudb_backup_dir='$backup_dir'"
+
 Limitations and known issues
 ----------------------------
 
 * You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables with |TokuBackup|. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is ``innodb_use_native_aio=0``.
-  
+
 * To be able to run Point-In-Time-Recovery you'll need to manually get the binary log position.
 
 * Transactional storage engines (|TokuDB| and |InnoDB|) will perform recovery on the backup copy of the database when it is first started.
@@ -219,7 +302,7 @@ Limitations and known issues
 
 * |TokuBackup| does not follow symbolic links.
 
-* |TokuBackup| does not backup |MySQL| configuration file(s). 
+* |TokuBackup| does not backup |MySQL| configuration file(s).
 
 * |TokuBackup| does not backup tablespaces if they are out of :variable:`datadir`.
 
@@ -230,4 +313,3 @@ Limitations and known issues
 
 .. include:: ../.res/replace.txt
 .. include:: ../.res/replace.program.txt
-

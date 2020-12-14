@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,6 +82,7 @@ my_svc_bool thd_set_security_context(MYSQL_THD _thd,
   try {
     if (in_ctx) {
       thd->set_security_context(in_ctx);
+      in_ctx->set_thd(thd);
       // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
       set_system_user_flag(thd);
     }
@@ -172,9 +173,9 @@ my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
 my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *user, const char *host,
                                     const char *ip, const char *db) {
-  THD *tmp_thd = NULL;
+  THD *tmp_thd = nullptr;
   bool retval;
-  if (current_thd == NULL) {
+  if (current_thd == nullptr) {
     tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
     if (!tmp_thd) return true;
   }
@@ -182,10 +183,16 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   retval = acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, user, host, ip, db)
                ? true
                : false;
+  /*
+    If it is not a new security context then update the
+    system_user flag in its referenced THD.
+  */
+  THD *sctx_thd = ctx->get_thd();
+  if (sctx_thd) set_system_user_flag(sctx_thd);
 
   if (tmp_thd) {
     destroy_thd(tmp_thd);
-    tmp_thd = NULL;
+    tmp_thd = nullptr;
   }
   return retval;
 }

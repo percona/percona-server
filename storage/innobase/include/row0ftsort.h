@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -176,9 +176,9 @@ typedef struct fts_psort_insert fts_psort_insert_t;
 /** Create a temporary "fts sort index" used to merge sort the
  tokenized doc string. The index has three "fields":
 
- 1) Tokenized word,
- 2) Doc ID
- 3) Word's position in original 'doc'.
+ 1. Tokenized word,
+ 2. Doc ID
+ 3. Word's position in original 'doc'.
 
  @return dict_index_t structure for the fts sort index */
 dict_index_t *row_merge_create_fts_sort_index(
@@ -193,24 +193,21 @@ instead of 8 bytes integer to
 store Doc ID during sort */
 
 /** Initialize FTS parallel sort structures.
- @return true if all successful */
-ibool row_fts_psort_info_init(
-    trx_t *trx,           /*!< in: transaction */
-    row_merge_dup_t *dup, /*!< in,own: descriptor of
-                          FTS index being created */
-    const dict_table_t *old_table,
-    /*!< in: Needed to fetch LOB from old
-    table */
-    const dict_table_t *new_table, /*!< in: table where indexes are
-                                 created */
-    ibool opt_doc_id_size,
-    /*!< in: whether to use 4 bytes
-    instead of 8 bytes integer to
-    store Doc ID during sort */
-    fts_psort_t **psort,  /*!< out: parallel sort info to be
-                          instantiated */
-    fts_psort_t **merge); /*!< out: parallel merge info
-                          to be instantiated */
+@param[in] trx Transaction
+@param[in,out] dup Descriptor of fts index being created
+@param[in] old_table Needed to fetch lob from old table
+@param[in] new_table Table where indexes are created
+@param[in] opt_doc_id_size Whether to use 4 bytes instead of 8 bytes integer to
+store doc id during sort
+@param[out] psort Parallel sort info to be instantiated
+@param[out] merge Parallel merge info to be instantiated
+@return true if all successful */
+ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
+                              const dict_table_t *old_table,
+                              const dict_table_t *new_table,
+                              ibool opt_doc_id_size, fts_psort_t **psort,
+                              fts_psort_t **merge);
+
 /** Clean up and deallocate FTS parallel sort structures, and close
  temparary merge sort files */
 void row_fts_psort_info_destroy(
@@ -228,12 +225,14 @@ void row_fts_start_parallel_merge(
     fts_psort_t *merge_info); /*!< in: parallel sort info */
 /** Propagate a newly added record up one level in the selection tree
  @return parent where this value propagated to */
-int row_merge_fts_sel_propagate(int propogated, /*<! in: tree node propagated */
-                                int *sel_tree,  /*<! in: selection tree */
-                                ulint level,    /*<! in: selection tree level */
-                                const mrec_t **mrec,  /*<! in: sort record */
-                                ulint **offsets,      /*<! in: record offsets */
-                                dict_index_t *index); /*<! in: FTS index */
+int row_merge_fts_sel_propagate(
+    int propogated,      /*!< [in] tree node propagated */
+    int *sel_tree,       /*!< [in] selection tree */
+    ulint level,         /*!< [in] selection tree level */
+    const mrec_t **mrec, /*!< [in] sort record */
+    ulint **offsets,     /*!< [in] record offsets */
+    dict_index_t *index  /*!< [in] FTS index */
+);
 
 /** Read sorted file containing index data tuples and insert these data
 tuples to the index

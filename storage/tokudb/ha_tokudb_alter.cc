@@ -671,8 +671,8 @@ void ha_tokudb::print_alter_info(TABLE *altered_table,
         "%d, is_null %d, pack_length %u",
         curr_field->field_name, curr_field->real_type(),
         mysql_to_toku_type(*curr_field), curr_field->null_bit, null_offset,
-        curr_field->real_maybe_null(),
-        curr_field->real_maybe_null()
+        curr_field->is_nullable(),
+        curr_field->is_nullable()
             ? table->s->default_values[null_offset] & curr_field->null_bit
             : 0xffffffff,
         curr_field->pack_length());
@@ -687,8 +687,8 @@ void ha_tokudb::print_alter_info(TABLE *altered_table,
         "is_null_field: %d, is_null %d, pack_length %u",
         curr_field->field_name, curr_field->real_type(),
         mysql_to_toku_type(*curr_field), curr_field->null_bit, null_offset,
-        curr_field->real_maybe_null(),
-        curr_field->real_maybe_null()
+        curr_field->is_nullable(),
+        curr_field->is_nullable()
             ? altered_table->s->default_values[null_offset] &
                   curr_field->null_bit
             : 0xffffffff,
@@ -1571,7 +1571,9 @@ int ha_tokudb::alter_table_expand_columns(TABLE *altered_table,
 }
 
 // Return true if the field is an unsigned int
-static bool is_unsigned(Field *f) { return (f->flags & UNSIGNED_FLAG) != 0; }
+static bool is_unsigned(Field *f) {
+  return (f->is_flag_set(UNSIGNED_FLAG)) != 0;
+}
 
 // Return the starting offset in the value for a particular index (selected by
 // idx) of a particular field (selected by expand_field_num)

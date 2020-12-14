@@ -1,7 +1,7 @@
 .. _innodb_fragmentation_count:
 
 ====================================
-|InnoDB| Page Fragmentation Counters
+InnoDB Page Fragmentation Counters
 ====================================
 
 |InnoDB| page fragmentation is caused by random insertion or deletion from a

@@ -1,5 +1,6 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+--source include/not_have_privilege_checks_user.inc
 #
 # WL#5569 MTS
 #
@@ -31,7 +32,10 @@
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 
-connection master;
-source extra/rpl_tests/rpl_parallel_load.test;
+--source include/rpl_connection_slave.inc
+--source include/only_mts_slave_parallel_workers.inc
+
+--source include/rpl_connection_master.inc
+--source extra/rpl_tests/rpl_parallel_load.test
 
 --source include/rpl_end.inc

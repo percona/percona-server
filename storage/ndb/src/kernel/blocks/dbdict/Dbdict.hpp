@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -870,7 +870,7 @@ public:
 
 public:
   Dbdict(Block_context& ctx);
-  virtual ~Dbdict();
+  ~Dbdict() override;
 
 private:
   BLOCK_DEFINES(Dbdict);
@@ -1764,8 +1764,9 @@ private:
       errorObjectName[0] = 0;
     }
     void print(NdbOut&) const;
+    ErrorInfo(const ErrorInfo&) = default;
   private:
-    ErrorInfo& operator=(const ErrorInfo&);
+    ErrorInfo& operator=(const ErrorInfo&) = default;
   };
 
   void setError(ErrorInfo&,
@@ -4662,7 +4663,6 @@ private:
 			  LinearSectionPtr dataPtr);
 
   void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
-  bool upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const;
 
   // support
   void getTableKeyList(TableRecordPtr,
@@ -4794,7 +4794,6 @@ public:
                            Uint32& parentObjectType,
                            Uint32& parentObjectId);
 
-  void sendOLD_LIST_TABLES_CONF(Signal *signal, ListTablesReq*);
   void sendLIST_TABLES_CONF(Signal *signal, ListTablesReq*);
 
   Uint32 c_outstanding_sub_startstop;
@@ -4822,7 +4821,7 @@ public:
   void startNextGetTabInfoReq(Signal*);
 
 protected:
-  virtual bool getParam(const char * param, Uint32 * retVal);
+  bool getParam(const char * param, Uint32 * retVal) override;
 private:
   ArenaAllocator c_arenaAllocator;
   Uint32 c_noOfMetaTables;

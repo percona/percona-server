@@ -28,8 +28,6 @@ funcs_1.is_basics_mixed @windows : BUG#25882809 INCORRECT RESULT WHEN USING SUBQ
 innodb.analyze_table @solaris                     : BUG#22607584 Failing too often on PB2 due to timeout.
 innodb.log_corruption @darwin                     : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.
 innodb.log_corruption @freebsd                    : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.
-innodb.portability_tablespace_linux               : BUG#28352630 The maintainability of the zip files required by this test is not acceptable.
-innodb.portability_tablespace_windows             : BUG#28352645 The maintainability of the zip files required by this test is not acceptable.
 innodb.create_tablespace_partition                : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.alter_tablespace_partition                 : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.truncate                                   : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
@@ -37,13 +35,19 @@ innodb.subpartition                               : WL#12034 Enable again once s
 innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
 innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
-innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten 
+innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten
+innodb.slow_shutdown                              : Bug#31763837 mtr hits this debug assert post test run cleanup
 
 # innodb_fts suite test
 innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
 
+# keyring tests
+keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
+
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
+main.percona_changed_pages_big : BUG#7435 percona https://jira.percona.com/browse/PS-7435
+main.bug100352 : BUG#100352 https://bugs.mysql.com/bug.php?id=100352
 
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.
@@ -66,11 +70,16 @@ max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test 
 
 # perfschema suite test
 perfschema.threads_history      : BUG#27712231
+perfschema.ssl                  : BUG#30910698
+perfschema.idx_compare_events_waits_current : BUG#27865960
+perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
 rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 rpl_gtid.rpl_master_errors : BUG#4797 percona https://jira.percona.com/browse/PS-4797
+rpl_gtid.rpl_xa_prepare : BUG#31006095 Disabled due to crash during shutdown.
+rpl_gtid.rpl_xa_with_filters_error_msg : BUG#31006095 Disabled due to crash during shutdown.
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
@@ -80,7 +89,10 @@ rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
-rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 Disabled until the bug is fixed
+rpl.rpl_xa_with_filters_binlogless_slave : BUG#31006095 Disabled due to crash during shutdown.
+
+# sys_vars tests
+sys_vars.max_execution_time_basic @freebsd : BUG#31041720
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.
@@ -93,22 +105,12 @@ rocksdb.covered_unpack_info_format : BUG#0 MYR-180 fb-mysql-5.6.35/922021ce3d8bf
 rocksdb.fast_prefix_index_fetch : BUG#0 MYR-180 fb-mysql-5.6.35/922021ce3d8bfc40152c112f6a59eb71e3d6dd98
 rocksdb.level_read_uncommitted : BUG#0 MyRocks does not yet suppore ISO read uncommitted
 rocksdb.level_serializable : BUG#0 MyRocks does not yet support ISO serializable
-rocksdb.rpl_read_free : BUG#6 MYR-6
 rocksdb.slow_query_log : BUG#26 MYR-26
 # 8.0
 rocksdb.allow_to_start_after_corruption : BUG#4584 PS-4584
-rocksdb.bloomfilter3 : BUG#4618 PS-4618 - Port PS-4070 a.k.a. MYR-63 to 8.0
-rocksdb.skip_validate_tmp_table : BUG#4218 PS-4218
-rocksdb.validate_datadic : BUG#4218 PS-4218
-
-rocksdb.add_index_inplace : BUG#0 inplace alter partitioning has not yet been implemented
-rocksdb.add_index_inplace_crash : BUG#0 inplace alter partitioning has not yet been implemented
 
 # rocksdb_rpl suite tests
 rocksdb_rpl.rpl_rocksdb_snapshot : BUG#0 LOCK BINLOG FOR BACKUP
-
-# rocksdb_sys_vars suite tests
-rocksdb_sys_vars.rocksdb_validate_tables_basic : BUG#0 disabled until validation is figured out
 
 # tokudb suite tests
 tokudb.mvcc-19 : BUG#0 tokutek
@@ -168,9 +170,8 @@ tokudb_rpl.rpl_deadlock_tokudb : BUG#0 temporarily disabled until properly debug
 tokudb_rpl.rpl_partition_tokudb : BUG#0 exchange partition is not supported
 
 # encryption suite tests
-encryption.encryption_force : BUG#5817 Align Keyring encryption and default_table_encryption
 encryption.innodb_lotoftables : BUG#5817 Align Keyring encryption and default_table_encryption
 encryption.innodb-bad-key-change2 : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.innodb-bad-key-change3 : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.innodb_encryption_discard_import : BUG#5322 Keyring encrypted tablespace import/export is broken
-encryption.innodb-redo-wrongkey : BUG#5635 Intoduce crypt_schema 2 for better error checking in encryption threads
+encryption.create_or_replace : BUG#6987 encryption threads report space unencrypted

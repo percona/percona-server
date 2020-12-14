@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,6 @@
 #include <Windows.h>
 #include <cstdarg>
 
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::LogTimestampPrecision;
 
@@ -42,8 +38,6 @@ constexpr const char *kEventSourceName = "MySQL Router";
 
 constexpr const char *kRegistryPrefix =
     "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
-
-constexpr const char *kLogLevel = "level";
 
 static WORD logger_to_eventlog_severity(LogLevel level) {
   switch (level) {
@@ -53,9 +47,10 @@ static WORD logger_to_eventlog_severity(LogLevel level) {
     case LogLevel::kWarning:
       return EVENTLOG_WARNING_TYPE;
     default:
-      assert(level == LogLevel::kInfo || level == LogLevel::kDebug);
-      // there is no DEBUG counterpart in the eventlog so we go with
-      // Information for DEBUG too!
+      assert(level == LogLevel::kSystem || level == LogLevel::kInfo ||
+             level == LogLevel::kNote || level == LogLevel::kDebug);
+      // there are no DEBUG, NOTE, or SYSTEM counterparts in the eventlog so we
+      // go with Information for DEBUG, NOTE and SYSTEM too!
       return EVENTLOG_INFORMATION_TYPE;
   }
 }
@@ -167,9 +162,9 @@ void EventlogHandler::do_log(
 }
 
 extern "C" {
-Plugin harness_plugin_eventlog = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
+mysql_harness::Plugin harness_plugin_eventlog = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Logging using eventlog",
     VERSION_NUMBER(0, 0, 1),
     0,
@@ -180,5 +175,6 @@ Plugin harness_plugin_eventlog = {
     nullptr,  // deinit,
     nullptr,  // start,
     nullptr,  // stop
+    false,    // declares_readiness
 };
 }

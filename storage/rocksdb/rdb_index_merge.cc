@@ -29,14 +29,17 @@
 namespace myrocks {
 
 Rdb_index_merge::Rdb_index_merge(const char *const tmpfile_path,
-                                 const ulonglong &merge_buf_size,
-                                 const ulonglong &merge_combine_read_size,
-                                 const ulonglong &merge_tmp_file_removal_delay,
+                                 const ulonglong merge_buf_size,
+                                 const ulonglong merge_combine_read_size,
+                                 const ulonglong merge_tmp_file_removal_delay,
                                  rocksdb::ColumnFamilyHandle *cf)
-    : m_tmpfile_path(tmpfile_path), m_merge_buf_size(merge_buf_size),
+    : m_tmpfile_path(tmpfile_path),
+      m_merge_buf_size(merge_buf_size),
       m_merge_combine_read_size(merge_combine_read_size),
       m_merge_tmp_file_removal_delay(merge_tmp_file_removal_delay),
-      m_cf_handle(cf), m_rec_buf_unsorted(nullptr), m_output_buf(nullptr) {}
+      m_cf_handle(cf),
+      m_rec_buf_unsorted(nullptr),
+      m_output_buf(nullptr) {}
 
 Rdb_index_merge::~Rdb_index_merge() {
   /*
@@ -587,7 +590,7 @@ size_t Rdb_index_merge::merge_buf_info::prepare(File fd, ulonglong f_offset) {
     size of each chunk.
   */
   const uchar *block_ptr = m_block.get();
-  merge_read_uint64(&block_ptr, (__uint64_t*)(&m_total_size));
+  merge_read_uint64(&block_ptr, (__uint64_t *)(&m_total_size));
   m_curr_offset += RDB_MERGE_CHUNK_LEN;
   return m_total_size;
 }

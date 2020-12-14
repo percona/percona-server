@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,6 +106,7 @@
 #include "sql/sql_base.h"  // MYSQL_LOCK_LOG_TABLE
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_db.h"  // check_schema_readonly
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // is_log_table_write_query
 #include "sql/system_variables.h"
@@ -209,8 +210,10 @@ static int lock_tables_check(THD *thd, TABLE **tables, size_t count,
     if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) && !t->s->tmp_table &&
         !is_perfschema_db(t->s->db.str, t->s->db.length)) {
       if (t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-          check_readonly(thd, true))
+          (check_readonly(thd, true) ||
+           check_schema_readonly(thd, t->s->db.str, t->s))) {
         return 1;
+      }
     }
   }
 
@@ -269,9 +272,7 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock) {
 */
 
 static void track_table_access(THD *thd, TABLE **tables, size_t count) {
-  Transaction_state_tracker *tst =
-      (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-          TRANSACTION_INFO_TRACKER);
+  TX_TRACKER_GET(tst);
   enum enum_tx_state s;
 
   while (count--) {
@@ -295,7 +296,7 @@ static void track_table_access(THD *thd, TABLE **tables, size_t count) {
 static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock) {
   reset_lock_data(*mysql_lock);
   my_free(*mysql_lock);
-  *mysql_lock = 0;
+  *mysql_lock = nullptr;
 }
 
 /**
@@ -322,10 +323,10 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
 
   DBUG_TRACE;
 
-  if (lock_tables_check(thd, tables, count, flags)) return NULL;
+  if (lock_tables_check(thd, tables, count, flags)) return nullptr;
 
   if (!(sql_lock = get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
-    return NULL;
+    return nullptr;
 
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
@@ -361,7 +362,7 @@ end:
     thd->send_kill_message();
     if (sql_lock) {
       mysql_unlock_tables(thd, sql_lock);
-      sql_lock = 0;
+      sql_lock = nullptr;
     }
   }
 
@@ -570,7 +571,7 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a, MYSQL_LOCK *b) {
                 sizeof(THR_LOCK_DATA *) * (a->lock_count + b->lock_count) +
                 sizeof(TABLE *) * (a->table_count + b->table_count),
             MYF(MY_WME))))
-    return 0;  // Fatal error
+    return nullptr;  // Fatal error
   sql_lock->lock_count = a->lock_count + b->lock_count;
   sql_lock->table_count = a->table_count + b->table_count;
   sql_lock->locks = (THR_LOCK_DATA **)(sql_lock + 1);
@@ -663,7 +664,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
             sizeof(*sql_lock) + sizeof(THR_LOCK_DATA *) * tables * 2 +
                 sizeof(table_ptr) * lock_count,
             MYF(0))))
-    return 0;
+    return nullptr;
   locks = locks_buf = sql_lock->locks = (THR_LOCK_DATA **)(sql_lock + 1);
   to = table_buf = sql_lock->table = (TABLE **)(locks + tables * 2);
   sql_lock->table_count = lock_count;
@@ -764,6 +765,19 @@ bool lock_schema_name(THD *thd, const char *db) {
                                      thd->variables.lock_wait_timeout))
     return true;
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
+  /*
+    We have an IX lock on the schema name, so we can check the read
+    only option of the schema without worrying about a concurrent
+    ALTER SCHEMA.
+  */
+  if (check_schema_readonly(thd, db)) return true;
+
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
   return false;
 }
@@ -789,7 +803,7 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
     DBUG_ASSERT(!tablespace.empty());
 
     MDL_request *tablespace_request = new (thd->mem_root) MDL_request;
-    if (tablespace_request == NULL) return true;
+    if (tablespace_request == nullptr) return true;
     MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE, "",
                      tablespace.c_str(), MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
@@ -884,6 +898,19 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
     return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
+  /*
+    We have an IX lock on the schema name, so we can check the read
+    only option of the schema without worrying about a concurrent
+    ALTER SCHEMA.
+  */
+  if (check_schema_readonly(thd, db)) return true;
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return false;
@@ -992,7 +1019,16 @@ bool acquire_shared_global_read_lock(THD *thd,
   MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
 
-  return thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout);
+  if (thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout))
+    return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
+  return false;
 }
 
 /**
@@ -1031,7 +1067,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout)) {
       Global_read_lock::m_atomic_active_requests--;
-      return 1;
+      return true;
     }
 
     m_mdl_global_shared_lock = mdl_request.ticket;
@@ -1045,7 +1081,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     forbid it before, or we can have a 3-thread deadlock if 2 do SELECT FOR
     UPDATE and one does FLUSH TABLES WITH READ LOCK).
   */
-  return 0;
+  return false;
 }
 
 /**
@@ -1065,11 +1101,11 @@ void Global_read_lock::unlock_global_read_lock(THD *thd) {
 
   if (m_mdl_blocks_commits_lock) {
     thd->mdl_context.release_lock(m_mdl_blocks_commits_lock);
-    m_mdl_blocks_commits_lock = NULL;
+    m_mdl_blocks_commits_lock = nullptr;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
   Global_read_lock::m_atomic_active_requests--;
-  m_mdl_global_shared_lock = NULL;
+  m_mdl_global_shared_lock = nullptr;
   m_state = GRL_NONE;
 }
 
@@ -1095,7 +1131,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd) {
     If we didn't succeed lock_global_read_lock(), or if we already suceeded
     make_global_read_lock_block_commit(), do nothing.
   */
-  if (m_state != GRL_ACQUIRED) return 0;
+  if (m_state != GRL_ACQUIRED) return false;
 
   MDL_REQUEST_INIT(&mdl_request, MDL_key::COMMIT, "", "", MDL_SHARED,
                    MDL_EXPLICIT);

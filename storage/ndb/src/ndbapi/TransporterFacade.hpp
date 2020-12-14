@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ public:
   STATIC_CONST( MAX_NO_THREADS = 4711 );
   STATIC_CONST( MAX_LOCKED_CLIENTS = 256 );
   TransporterFacade(GlobalDictCache *cache);
-  virtual ~TransporterFacade();
+  ~TransporterFacade() override;
 
   int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
@@ -121,7 +121,7 @@ public:
    * These are functions used by ndb_mgmd
    */
   void ext_set_max_api_reg_req_interval(Uint32 ms);
-  struct in_addr ext_get_connect_address(Uint32 nodeId);
+  struct in6_addr ext_get_connect_address(Uint32 nodeId);
   bool ext_isConnected(NodeId aNodeId);
   void ext_doConnect(int aNodeId);
 
@@ -132,6 +132,7 @@ private:
 
 public:
   Uint32 getMinDbNodeVersion() const;
+  Uint32 getMinApiNodeVersion() const;
 
   // My own processor id
   NodeId ownId() const;
@@ -237,18 +238,18 @@ public:
   bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
                       Uint32 * const signalData,
-                      LinearSectionPtr ptr[3]);
+                      LinearSectionPtr ptr[3]) override;
   void handleMissingClnt(const SignalHeader * header,
                          const Uint32 * theData);
 
-  int checkJobBuffer();
-  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
-  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
-  void reportConnect(NodeId nodeId);
-  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+  int checkJobBuffer() override;
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
+  void reportConnect(NodeId nodeId) override;
+  void reportDisconnect(NodeId nodeId, Uint32 errNo) override;
   void reportError(NodeId nodeId, TransporterError errorCode,
-                   const char *info = 0);
-  void transporter_recv_from(NodeId node);
+                   const char *info = 0) override;
+  void transporter_recv_from(NodeId node) override;
 
   /**
    * Wakeup
@@ -264,7 +265,7 @@ public:
   bool registerForWakeup(trp_client* dozer);
   bool unregisterForWakeup(trp_client* dozer);
   void requestWakeup();
-  void reportWakeup();
+  void reportWakeup() override;
 
 private:
 
@@ -475,11 +476,16 @@ public:
    * methods on all clients known by TF to handle theirs thread local
    * send buffers.
    */
-  void enable_send_buffer(NodeId node);
-  void disable_send_buffer(NodeId node);
+  void enable_send_buffer(NodeId nodeId, TrpId trp_id) override;
+  void disable_send_buffer(NodeId nodeId, TrpId trp_id) override;
 
-  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
-  Uint32 bytes_sent(NodeId node, Uint32 bytes);
+  Uint32 get_bytes_to_send_iovec(NodeId nodeId,
+                                 TrpId trp_id,
+                                 struct iovec *dst,
+                                 Uint32 max) override;
+  Uint32 bytes_sent(NodeId nodeId,
+                    TrpId trp_id,
+                    Uint32 bytes) override;
 
 #ifdef ERROR_INSERT
   void consume_sendbuffer(Uint32 bytes_remain);
@@ -648,6 +654,12 @@ unsigned Ndb_cluster_connection_impl::get_min_db_version() const
 }
 
 inline
+unsigned Ndb_cluster_connection_impl::get_min_api_version() const
+{
+  return m_transporter_facade->getMinApiNodeVersion();
+}
+
+inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
   if (theClusterMgr)
@@ -669,6 +681,16 @@ TransporterFacade::getMinDbNodeVersion() const
 {
   if (theClusterMgr)
     return theClusterMgr->minDbVersion;
+  else
+    return 0;
+}
+
+inline
+Uint32
+TransporterFacade::getMinApiNodeVersion() const
+{
+  if (theClusterMgr)
+    return theClusterMgr->minApiVersion;
   else
     return 0;
 }
@@ -703,16 +725,16 @@ public :
     read= false;
   }
 
-  ~LinearSectionIterator()
+  ~LinearSectionIterator() override
   {}
   
-  void reset()
+  void reset() override
   {
     /* Reset iterator */
     read= false;
   }
 
-  const Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz) override
   {
     if (likely(!read))
     {
@@ -747,16 +769,16 @@ public :
     firstSignal= currentSignal= signal;
   }
 
-  ~SignalSectionIterator()
+  ~SignalSectionIterator() override
   {}
   
-  void reset()
+  void reset() override
   {
     /* Reset iterator */
     currentSignal= firstSignal;
   }
 
-  const Uint32* getNextWords(Uint32& sz);
+  const Uint32* getNextWords(Uint32& sz) override;
 };
 
 /*

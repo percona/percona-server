@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -148,30 +148,24 @@ const byte *row_mysql_read_true_varchar(
     const byte *field, /*!< in: field in the MySQL format */
     ulint lenlen);     /*!< in: storage length of len: either 1
                        or 2 bytes */
-/** Stores a reference to a BLOB in the MySQL format. */
-void row_mysql_store_blob_ref(
-    byte *dest,       /*!< in: where to store */
-    ulint col_len,    /*!< in: dest buffer size: determines into
-                      how many bytes the BLOB length is stored,
-                      the space for the length may vary from 1
-                      to 4 bytes */
-    const void *data, /*!< in: BLOB data; if the value to store
-                      is SQL NULL this should be NULL pointer */
-    ulint len,        /*!< in: BLOB length; if the value to store
-            is SQL NULL this should be 0; remember
-            also to set the NULL bit in the MySQL record
-            header! */
-    bool need_decompression,
-    /*!< in: if the data need to be compressed*/
-    const byte *dict_data,
-    /*!< in: optional compression dictionary
-    data */
-    ulint dict_data_len,
-    /*!< in: optional compression dictionary data
-    length */
-    row_prebuilt_t *prebuilt);
-/*<! in: use prebuilt->compress_heap only
-here */
+
+/** Stores a reference to a BLOB in the MySQL format.
+@param[in] dest Where to store
+@param[in,out] col_len Dest buffer size: determines into how many bytes the blob
+length is stored, the space for the length may vary from 1 to 4 bytes
+@param[in] data Blob data; if the value to store is sql null this should be null
+pointer
+@param[in] len Blob length; if the value to store is sql null this should be 0;
+remember also to set the null bit in the mysql record header!
+@param[in] need_decompression If the data need to be compressed
+@param[in] dict_data Optional compression dictionary
+@param[in] dict_data_len Optional compression dictionary data
+@param[in] prebuilt Use prebuilt->compress_heap only here */
+void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
+                              ulint len, bool need_decompression,
+                              const byte *dict_data, ulint dict_data_len,
+                              row_prebuilt_t *prebuilt);
+
 /** Reads a reference to a BLOB in the MySQL format.
 @param[out] len                 BLOB length.
 @param[in] ref                  BLOB reference in the MySQL format.
@@ -199,11 +193,13 @@ void row_mysql_store_geometry(
                      is SQL NULL this should be 0; remember
                      also to set the NULL bit in the MySQL record
                      header! */
-/** Pad a column with spaces. */
-void row_mysql_pad_col(ulint mbminlen, /*!< in: minimum size of a character,
-                                       in bytes */
-                       byte *pad,      /*!< out: padded buffer */
-                       ulint len);     /*!< in: number of bytes to pad */
+
+/** Pad a column with spaces.
+@param[in] mbminlen Minimum size of a character, in bytes
+@param[out] pad Padded buffer
+@param[in] len Number of bytes to pad */
+void row_mysql_pad_col(ulint mbminlen, byte *pad, ulint len);
+
 /** Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
  The counterpart of this function is row_sel_field_store_in_mysql_format() in
  row0sel.cc.
@@ -262,10 +258,11 @@ row_prebuilt_t *row_create_prebuilt(
     dict_table_t *table,  /*!< in: Innobase table handle */
     ulint mysql_row_len); /*!< in: length in bytes of a row in
                           the MySQL format */
-/** Free a prebuilt struct for a MySQL table handle. */
-void row_prebuilt_free(
-    row_prebuilt_t *prebuilt, /*!< in, own: prebuilt struct */
-    ibool dict_locked);       /*!< in: TRUE=data dictionary locked */
+
+/** Free a prebuilt struct for a MySQL table handle.
+@param[in,out] prebuilt Prebuilt struct
+@param[in] dict_locked True=data dictionary locked */
+void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked);
 
 /** Updates the transaction pointers in query graphs stored in the prebuilt
 struct.
@@ -283,6 +280,7 @@ dberr_t row_lock_table_autoinc_for_mysql(
     row_prebuilt_t *prebuilt) /*!< in: prebuilt struct in the MySQL
                               table handle */
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Sets a table lock on the table mentioned in prebuilt.
 @param[in,out]	prebuilt	table handle
 @return error code or DB_SUCCESS */
@@ -361,31 +359,39 @@ dberr_t row_update_cascade_for_mysql(
                          or set null operation */
     dict_table_t *table) /*!< in: table where we do the operation */
     MY_ATTRIBUTE((nonnull, warn_unused_result));
+
 /** Locks the data dictionary exclusively for performing a table create or other
- data dictionary modification operation. */
-void row_mysql_lock_data_dictionary_func(trx_t *trx, /*!< in/out: transaction */
-                                         const char *file, /*!< in: file name */
-                                         ulint line); /*!< in: line number */
+ data dictionary modification operation.
+@param[in,out] trx Transaction
+@param[in] file File name
+@param[in] line Line number */
+void row_mysql_lock_data_dictionary_func(trx_t *trx, const char *file,
+                                         ulint line);
+
 #define row_mysql_lock_data_dictionary(trx) \
   row_mysql_lock_data_dictionary_func(trx, __FILE__, __LINE__)
 /** Unlocks the data dictionary exclusive lock. */
 void row_mysql_unlock_data_dictionary(trx_t *trx); /*!< in/out: transaction */
+
 /** Locks the data dictionary in shared mode from modifications, for performing
- foreign key check, rollback, or other operation invisible to MySQL. */
-void row_mysql_freeze_data_dictionary_func(
-    trx_t *trx,       /*!< in/out: transaction */
-    const char *file, /*!< in: file name */
-    ulint line);      /*!< in: line number */
+ foreign key check, rollback, or other operation invisible to MySQL.
+@param[in,out] trx Transaction
+@param[in] file File name
+@param[in] line Line number */
+void row_mysql_freeze_data_dictionary_func(trx_t *trx, const char *file,
+                                           ulint line);
+
 #define row_mysql_freeze_data_dictionary(trx) \
   row_mysql_freeze_data_dictionary_func(trx, __FILE__, __LINE__)
 /** Unlocks the data dictionary shared lock. */
 void row_mysql_unfreeze_data_dictionary(trx_t *trx); /*!< in/out: transaction */
+
 /** Creates a table for MySQL. On success the in-memory table could be
 kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	table		table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
-@param[in,out]	trx		transasction
+@param[in,out]	trx		transaction
 @param[in]	mode		keyring encryption mode
 @param[in]	keyring_encryption_key_id	keyring encryption info
 @return error code or DB_SUCCESS */
@@ -395,6 +401,7 @@ dberr_t row_create_table_for_mysql(
     const KeyringEncryptionKeyIdInfo
         &keyring_encryption_key_id) /*!< in: encryption key_id */
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Does an index creation operation for MySQL. TODO: currently failure
  to create an index results in dropping the whole table! This is no problem
  currently as all indexes must be created at the same time as the table.
@@ -411,31 +418,19 @@ dberr_t row_create_index_for_mysql(
                                 large. */
     dict_table_t *handler)      /* ! in/out: table handler. */
     MY_ATTRIBUTE((warn_unused_result));
-/** Scans a table create SQL string and adds to the data dictionary
- the foreign key constraints declared in the string. This function
- should be called after the indexes for a table have been created.
- Each foreign key constraint must be accompanied with indexes in
- bot participating tables. The indexes are allowed to contain more
+
+/** Loads foreign key constraints for the table being created. This
+ function should be called after the indexes for a table have been
+ created. Each foreign key constraint must be accompanied with indexes
+ in both participating tables. The indexes are allowed to contain more
  fields than mentioned in the constraint.
 
  @param[in]	trx		transaction
- @param[in]	sql_string	table create statement where
-                                 foreign keys are declared like:
-                                 FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                 table2 can be written also with the database
-                                 name before it: test.table2; the default
-                                 database id the database of parameter name
- @param[in]	sql_length	length of sql_string
  @param[in]	name		table full name in normalized form
- @param[in]	reject_fks	if TRUE, fail with error code
-                                 DB_CANNOT_ADD_CONSTRAINT if any
-                                 foreign keys are found.
  @param[in]	dd_table	MySQL dd::Table for the table
  @return error code or DB_SUCCESS */
-dberr_t row_table_add_foreign_constraints(trx_t *trx, const char *sql_string,
-                                          size_t sql_length, const char *name,
-                                          ibool reject_fks,
-                                          const dd::Table *dd_table)
+dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
+                                           const dd::Table *dd_table)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** The master thread in srv0srv.cc calls this regularly to drop tables which
@@ -467,14 +462,14 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath);
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
-@param[in]	name		table name
-@param[in,out]	trx		data dictionary transaction
-@param[in]	nonatomic	whether it is permitted
-to release and reacquire dict_operation_lock
-@param[in,out]	handler		intrinsic temporary table handle, or NULL
+@param[in]	name		Table name
+@param[in]	trx		Transaction handle
+@param[in]	nonatomic	Whether it is permitted to release
+and reacquire dict_operation_lock
+@param[in,out]	handler		Table handler or NULL
 @return error code or DB_SUCCESS */
 dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
-                                 dict_table_t *handler = NULL);
+                                 dict_table_t *handler = nullptr);
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
@@ -482,12 +477,12 @@ data dictionary will remain locked.
 @param[in,out]	trx		data dictionary transaction
 @return error code or DB_SUCCESS */
 inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
-  return (row_drop_table_for_mysql(name, trx, true, NULL));
+  return (row_drop_table_for_mysql(name, trx, true, nullptr));
 }
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding
  means that this function deletes the .ibd file and assigns a new table id for
- the table. Also the flag table->file_unreadable is set TRUE.
+ the table. Also the flag table->ibd_file_missing is set TRUE.
  @return error code or DB_SUCCESS */
 dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
@@ -930,12 +925,12 @@ struct row_prebuilt_t {
   /** Disable prefetch. */
   bool m_no_prefetch;
 
-  bool skip_serializable_dd_view;
-  /* true, if we want skip serializable
-  isolation level on views on DD tables */
+  /** true, if server has called ha_extra(HA_EXTRA_NO_READ_LOCKING) */
+  bool no_read_locking;
+
+  /** true, if we were asked to skip AUTOINC locking for the table. */
   bool no_autoinc_locking;
-  /* true, if we were asked to skip
-  AUTOINC locking for the table. */
+
   /** Return materialized key for secondary index scan */
   bool m_read_virtual_key;
 
@@ -1000,6 +995,9 @@ struct row_prebuilt_t {
     dtuple_set_n_fields(m_stop_tuple, 0);
   }
 
+  /** @return true iff the operation can skip concurrency ticket. */
+  bool skip_concurrency_ticket() const;
+
   /** It is unsafe to copy this struct, and moving it would be non-trivial,
   because we want to keep in sync with row_is_reading_range_guard_t. Therefore
   it is much safer/easier to just forbid such operations.  */
@@ -1014,7 +1012,7 @@ struct SysIndexCallback {
   virtual ~SysIndexCallback() {}
 
   /** Callback method
-  @param mtr current mini transaction
+  @param mtr current mini-transaction
   @param pcur persistent cursor. */
   virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) noexcept = 0;
 };
@@ -1032,8 +1030,8 @@ struct SysIndexCallback {
                                 or NULL.
 @param[in]	parent_update	update vector for the parent row
 @param[in]	foreign		foreign key information
-@param[in]	prebuilt	compress_heap must be taken from here
-@return the field filled with computed value */
+@return the field filled with computed value, or NULL if just want
+to store the value in passed in "my_rec" */
 dfield_t *innobase_get_computed_value(
     const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
@@ -1079,8 +1077,6 @@ void innobase_rename_vc_templ(dict_table_t *table);
 #define ROW_READ_WITH_LOCKS 0
 #define ROW_READ_TRY_SEMI_CONSISTENT 1
 #define ROW_READ_DID_SEMI_CONSISTENT 2
-
-#include "row0mysql.ic"
 
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */

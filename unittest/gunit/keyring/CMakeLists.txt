@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,11 @@ SET(TESTS
   converter
   file_io
 )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM TESTS keys_container)
+ENDIF()
+
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
 
@@ -56,6 +61,7 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/psi_memory_key.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/uuid.cc
   )
 
 IF(WIN32)
@@ -74,9 +80,7 @@ MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t
 TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
   keyring_test
   gunit_large
-  perfschema
-  sql_main
-  ${ICU_LIBRARIES}
+  server_unittest_library
   )
 
 ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)
@@ -88,9 +92,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t
     keyring_test
     gunit_large
-    sql_main
-    perfschema
-    ${ICU_LIBRARIES}
+    server_unittest_library
     )
 ENDFOREACH()
 

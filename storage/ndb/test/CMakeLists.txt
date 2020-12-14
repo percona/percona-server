@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,20 @@
 
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
           "unused-but-set-variable"
           "strict-aliasing"
           "unused-parameter"
           "cast-qual"
+          # Downgrade -Werror=deprecated-copy to warning for gcc 9
+          "error=deprecated-copy"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
-          "error=maybe-uninitialized")
+          "error=maybe-uninitialized"
+          # Downgrade -Werror=suggest-override to warning
+          "error=suggest-override")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
@@ -44,7 +48,7 @@ ENDIF()
 
 ADD_SUBDIRECTORY(src)
 IF(WITH_NDB_TEST)
-ADD_SUBDIRECTORY(tools)
-ADD_SUBDIRECTORY(ndbapi)
-ADD_SUBDIRECTORY(run-test)
+  ADD_SUBDIRECTORY(tools)
+  ADD_SUBDIRECTORY(ndbapi)
+  ADD_SUBDIRECTORY(run-test)
 ENDIF(WITH_NDB_TEST)

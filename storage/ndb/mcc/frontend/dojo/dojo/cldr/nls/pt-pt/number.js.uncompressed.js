@@ -3,9 +3,9 @@ define(
 {
 	"group": " ",
 	"decimalFormat-long": "000 biliões",
-	"currencyFormat": "#,##0.00 ¤",
+	"currencyFormat": "#,##0.00 ¤;(#,##0.00 ¤)",
 	"decimalFormat-short": "000 Bi",
-	"decimal": ","
+	"currencyFormat-short": "¤000 B"
 }
 //end v1.x content
 );

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef M_CTYPE_INCLUDED
+#define M_CTYPE_INCLUDED
+
 /**
   @file include/m_ctype.h
   A better implementation of the UNIX ctype(3) library.
 */
-
-#ifndef _m_ctype_h
-#define _m_ctype_h
 
 #ifndef __cplusplus
 #include <stdbool.h>
@@ -137,8 +137,6 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 
 /* Flags for strxfrm */
 #define MY_STRXFRM_PAD_TO_MAXLEN 0x00000080 /* if pad tail(for filesort) */
-/* for MyRocks packing, do NOT pad with spaces, follow < 8.0.2 behavior */
-#define MY_STRXFRM_NOPAD_WITH_SPACE 0x10000000
 
 typedef struct MY_UNI_IDX {
   uint16 from;
@@ -412,9 +410,7 @@ struct CHARSET_INFO {
 */
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
-C_MODE_START
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
-C_MODE_END
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_bin;
@@ -747,4 +743,8 @@ static inline uint my_ismbchar(const CHARSET_INFO *cs, const uchar *str,
   ((s)->cset->strntoull((s), (a), (b), (c), (d), (e)))
 #define my_strntod(s, a, b, c, d) ((s)->cset->strntod((s), (a), (b), (c), (d)))
 
-#endif /* _m_ctype_h */
+static inline bool is_supported_parser_charset(const CHARSET_INFO *cs) {
+  return (cs->mbminlen == 1);
+}
+
+#endif  // M_CTYPE_INCLUDED

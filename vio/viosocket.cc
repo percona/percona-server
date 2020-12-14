@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,8 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <algorithm>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -212,7 +214,7 @@ size_t vio_read_buff(Vio *vio, uchar *buf, size_t size) {
                        mysql_socket_getfd(vio->mysql_socket), buf, (uint)size));
 
   if (vio->read_pos < vio->read_end) {
-    rc = MY_MIN((size_t)(vio->read_end - vio->read_pos), size);
+    rc = std::min<size_t>(vio->read_end - vio->read_pos, size);
     memcpy(buf, vio->read_pos, rc);
     vio->read_pos += rc;
     /*
@@ -358,6 +360,11 @@ int vio_set_blocking_flag(Vio *vio, bool status) {
       VIO_TYPE_SSL == vio->type) {
     vio->is_blocking_flag = status;
     ret = vio_set_blocking(vio, status);
+  } else {
+    DBUG_PRINT("warning", ("Connection type %d is not supported for "
+                           "asynchronous communication protocol",
+                           vio->type));
+    ret = -1;
   }
   return ret;
 }
@@ -528,7 +535,7 @@ int vio_shutdown(Vio *vio, int how) {
 #ifdef USE_PPOLL_IN_VIO
     if (vio->thread_id != 0 && vio->poll_shutdown_flag.test_and_set()) {
       // Send signal to wake up from poll.
-      if (pthread_kill(vio->thread_id, SIGUSR1) == 0)
+      if (pthread_kill(vio->thread_id, SIGALRM) == 0)
         vio_wait_until_woken(vio);
       else
         perror("Error in pthread_kill");
@@ -701,7 +708,7 @@ bool vio_get_normalized_ip_string(const struct sockaddr *addr,
 
   vio_get_normalized_ip(addr, addr_length, norm_addr, &norm_addr_length);
 
-  err_code = vio_getnameinfo(norm_addr, ip_string, ip_string_size, NULL, 0,
+  err_code = vio_getnameinfo(norm_addr, ip_string, ip_string_size, nullptr, 0,
                              NI_NUMERICHOST);
 
   if (!err_code) return false;
@@ -726,19 +733,23 @@ void vio_proxy_protocol_add(const struct st_vio_network &net) noexcept {
 
 void vio_proxy_cleanup() noexcept { my_free(vio_pp_networks); }
 
+void vio_force_skip_proxy(Vio *vio) { vio->force_skip_proxy = true; }
+
 /* Check whether a connection from this source address must provide the proxy
    protocol header */
-static bool vio_client_must_be_proxied(const struct sockaddr *addr) noexcept {
+static bool vio_client_must_be_proxied(const struct sockaddr *p_addr) noexcept {
   size_t i;
   for (i = 0; i < vio_pp_networks_nb; i++)
-    if (vio_pp_networks[i].family == addr->sa_family) {
+    if (vio_pp_networks[i].family == p_addr->sa_family) {
       if (vio_pp_networks[i].family == AF_INET) {
-        const struct in_addr *check = &((const struct sockaddr_in *)addr)->sin_addr;
+        const struct in_addr *check =
+            &((const struct sockaddr_in *)p_addr)->sin_addr;
         struct in_addr *addr = &vio_pp_networks[i].addr.in;
         struct in_addr *mask = &vio_pp_networks[i].mask.in;
         if ((check->s_addr & mask->s_addr) == addr->s_addr) return true;
       } else {
-        const struct in6_addr *check = &((const struct sockaddr_in6 *)addr)->sin6_addr;
+        const struct in6_addr *check =
+            &((const struct sockaddr_in6 *)p_addr)->sin6_addr;
         struct in6_addr *addr = &vio_pp_networks[i].addr.in6;
         struct in6_addr *mask = &vio_pp_networks[i].mask.in6;
         DBUG_ASSERT(vio_pp_networks[i].family == AF_INET6);
@@ -993,7 +1004,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
        The proxy protocol source ip replace it the ip returned by
        mysql_socket_getpeername(). */
-    if (vio_client_must_be_proxied(addr))
+    if (!vio->force_skip_proxy && vio_client_must_be_proxied(addr))
       if (vio_process_proxy_header(mysql_socket_getfd(vio->mysql_socket), addr,
                                    &addr_length))
         return true;
@@ -1015,7 +1026,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
       return true;
     }
 
-    *port = (uint16)strtol(port_buffer, NULL, 10);
+    *port = (uint16)strtol(port_buffer, nullptr, 10);
   }
 
   DBUG_PRINT("exit", ("Client IP address: %s; port: %d",
@@ -1250,16 +1261,16 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
   /* The requested I/O event is ready? */
   switch (event) {
     case VIO_IO_EVENT_READ:
-      ret = MY_TEST(FD_ISSET(fd, &readfds));
+      ret = (FD_ISSET(fd, &readfds) ? 1 : 0);
       break;
     case VIO_IO_EVENT_WRITE:
     case VIO_IO_EVENT_CONNECT:
-      ret = MY_TEST(FD_ISSET(fd, &writefds));
+      ret = (FD_ISSET(fd, &writefds) ? 1 : 0);
       break;
   }
 
   /* Error conditions pending? */
-  ret |= MY_TEST(FD_ISSET(fd, &exceptfds));
+  ret |= (FD_ISSET(fd, &exceptfds) ? 1 : 0);
 
   /* Not a timeout, ensure that a condition was met. */
   DBUG_ASSERT(ret);
@@ -1347,13 +1358,16 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
   @param nonblocking flag to represent if socket is blocking or nonblocking
   @param timeout   Interval (in milliseconds) to wait until a
                    connection is established.
+  @param [out] connect_done Indication if connect actually completed or not.
+                   If set to true this means there's no need to wait for
+                   connect to complete anymore.
 
   @retval false   A connection was successfully established.
   @retval true    A fatal error. See socket_errno.
 */
 
 bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
-                        bool nonblocking, int timeout) {
+                        bool nonblocking, int timeout, bool *connect_done) {
   int ret, wait;
   int retry_count = 0;
   DBUG_TRACE;
@@ -1370,6 +1384,8 @@ bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
     ret = mysql_socket_connect(vio->mysql_socket, addr, len);
   } while (ret < 0 && vio_should_retry(vio) &&
            (retry_count++ < vio->retry_count));
+
+  if (connect_done) *connect_done = (ret == 0);
 
 #ifdef _WIN32
   wait = (ret == SOCKET_ERROR) && (WSAGetLastError() == WSAEINPROGRESS ||
@@ -1406,6 +1422,7 @@ bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
       it was really a success. Otherwise we might prevent the caller
       from trying another address to connect to.
     */
+    if (connect_done) *connect_done = true;
     if (!(ret = mysql_socket_getsockopt(vio->mysql_socket, SOL_SOCKET, SO_ERROR,
                                         optval, &optlen))) {
 #ifdef _WIN32
@@ -1413,7 +1430,7 @@ bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
 #else
       errno = error;
 #endif
-      ret = MY_TEST(error);
+      ret = (error != 0);
     }
   }
 
@@ -1423,9 +1440,10 @@ bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
   }
 
   if (nonblocking && wait) {
+    if (connect_done) *connect_done = false;
     return false;
   } else {
-    return MY_TEST(ret);
+    return (ret != 0);
   }
 }
 
@@ -1465,11 +1483,9 @@ bool vio_is_connected(Vio *vio) {
     if (socket_errno != SOCKET_EINTR) return false;
   }
 
-#ifdef HAVE_OPENSSL
   /* There might be buffered data at the SSL layer. */
   if (!bytes && vio->type == VIO_TYPE_SSL)
     bytes = SSL_pending((SSL *)vio->ssl_arg);
-#endif
 
   return bytes ? true : false;
 }

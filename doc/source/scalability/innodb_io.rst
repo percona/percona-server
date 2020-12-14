@@ -1,7 +1,7 @@
 .. _innodb_io_page:
 
 ===================================
- Improved |InnoDB| I/O Scalability
+ Improved InnoDB I/O Scalability
 ===================================
 
 Because |InnoDB| is a complex storage engine it must be configured properly in
@@ -27,30 +27,8 @@ System Variables
    :default: ``fdatasync``
    :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``
 
-See :variable:`innodb_flush_method` in the |MySQL| 8.0 `Reference Manual
-<https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
-
-This variable affects the parallel doublewrite buffer as follows
-
-.. list-table::
-   :widths: 25 75
-   :header-rows: 1
-
-   * - Value
-     - Usage
-   * - fdatasync
-     - Use ``fsync()`` to flush parallel doublewrite files.
-   * - O_SYNC
-     - Use ``O_SYNC`` to open and flush parallel doublewrite files; Do not use
-       the ``fsync()`` system call to flush the parallel doublewrite file.
-   * - O_DIRECT
-     - Use O_DIRECT to open the data files and the ``fsync()`` system call to flush
-       parallel doublewrite files.
-   * - O_DIRECT_NO_FSYNC
-     - Use ``O_DIRECT`` to open the data files but don't use ``fsync()`` system
-       call to flush doublewrite files.
-
-   
+Starting from |Percona Server| 8.0.20-11, the `innodb_flush_method <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_flush_method>`_ affects doublewrite buffers exactly the same as in |MySQL| 8.0.20. 
+ 
 Status Variables
 ================================================================================
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 #include <set>
 
 #include "mock_session.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mock_server_component.h"
 #include "statement_reader.h"
@@ -50,15 +52,16 @@ class MySQLServerMock {
    *                        of the expected SQL statements and responses
    * @param module_prefix prefix of javascript modules used by the nodejs
    * compatible module-loader
+   * @param bind_address Address on which the server accepts client connections
    * @param bind_port Number of the port on which the server accepts clients
    *                        connections
    * @param protocol the protocol this mock instance speaks: "x" or "classic"
    * @param debug_mode Flag indicating if the handled queries should be printed
    * to the standard output
    */
-  MySQLServerMock(const std::string &expected_queries_file,
-                  const std::string &module_prefix, unsigned bind_port,
-                  const std::string &protocol, bool debug_mode);
+  MySQLServerMock(std::string expected_queries_file, std::string module_prefix,
+                  std::string bind_address, unsigned bind_port,
+                  std::string protocol, bool debug_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
    *         Will return only in case of an exception (error).
@@ -67,23 +70,26 @@ class MySQLServerMock {
 
   void close_all_connections();
 
-  ~MySQLServerMock();
-
  private:
   void setup_service();
 
   void handle_connections(mysql_harness::PluginFuncEnv *env);
 
   static constexpr int kListenQueueSize = 128;
+  std::string bind_address_;
   unsigned bind_port_;
   bool debug_mode_;
-  socket_t listener_{socket_t(-1)};
+  net::io_context io_ctx_;
+  net::ip::tcp::acceptor listener_{io_ctx_};
   std::string expected_queries_file_;
   std::string module_prefix_;
-  std::string protocol_;
-
-  std::mutex active_fds_mutex_;
-  std::set<socket_t> active_fds_;
+  std::string protocol_name_;
+#if defined(_WIN32)
+  net::ip::tcp::socket
+#else
+  local::stream_protocol::socket
+#endif
+      wakeup_sock_send_{io_ctx_};
 };
 
 class MySQLServerSharedGlobals {

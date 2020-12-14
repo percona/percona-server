@@ -274,7 +274,7 @@ DROP TABLE t11,t12;
 explain select dt.a from t1, lateral (select t1.a from t2) dt;
 
 --echo # no right join
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_BAD_FIELD_ERROR
 explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
 
 --echo # no bad left join either
@@ -283,10 +283,7 @@ explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
 
 --echo # more complex case
 
-# Justifies call to propagate_table_maps() in
-#  TABLE_LIST::resolve_derived()
-
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_BAD_FIELD_ERROR
 explain SELECT * FROM t1
 LEFT JOIN
 lateral (select t1.a) as dt ON t1.a=dt.a
@@ -951,3 +948,49 @@ EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;
+
+--echo #
+--echo # Bug#30627575 ASSERT: `INITED == NONE' IN HANDLER::HA_INDEX_INIT() AT SQL/HANDLER.CC
+--echo #
+
+CREATE TABLE t1(
+a INT,
+b INT NOT NULL,
+c INT NOT NULL,
+d INT,
+UNIQUE KEY (c,b)
+);
+INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
+CREATE TABLE t2(
+a INT,
+b INT,
+UNIQUE KEY(a,b)
+);
+INSERT INTO t2 VALUES (NULL, NULL), (NULL, NULL), (NULL, 1), (1, NULL), (1, 1), (1,2);
+ANALYZE TABLE t1,t2;
+
+# Should show "using index for group-by"
+EXPLAIN SELECT * FROM t1 JOIN LATERAL (SELECT a+t1.a from t2 GROUP BY a) AS dt;
+
+SELECT * FROM t1 JOIN LATERAL (SELECT a+t1.a from t2 GROUP BY a) AS dt;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30887665 ASSERT: `SELECT_LEX->IS_RECURSIVE()' IN JOIN::MAKE_JOIN_PLAN()
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(1));
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# table5 depends on table1 and is right-joined to it:
+--error ER_BAD_FIELD_ERROR
+SELECT 1 FROM
+v1 AS table1 RIGHT OUTER JOIN LATERAL
+      (SELECT 1 FROM v1 AS table2 RIGHT OUTER JOIN LATERAL
+                     ( SELECT 1 FROM v1 AS table3 ) AS table4
+                     ON table1.c1 = 1) AS table5
+      ON 1;
+
+DROP VIEW v1;
+DROP TABLE t1;

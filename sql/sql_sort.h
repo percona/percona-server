@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "sql/filesort_utils.h"  // Filesort_buffer
 
 class Addon_fields;
+struct TABLE;
 
 /* Defines used by filesort and uniques */
 
@@ -53,10 +54,10 @@ constexpr size_t VARLEN_PREFIX = 4;
 struct Merge_chunk {
  public:
   Merge_chunk()
-      : m_current_key(NULL),
+      : m_current_key(nullptr),
         m_file_position(0),
-        m_buffer_start(NULL),
-        m_buffer_end(NULL),
+        m_buffer_start(nullptr),
+        m_buffer_end(nullptr),
         m_rowcount(0),
         m_mem_count(0),
         m_max_keys(0) {}
@@ -74,7 +75,7 @@ struct Merge_chunk {
   }
   void set_buffer_start(uchar *start) { m_buffer_start = start; }
   void set_buffer_end(uchar *end) {
-    DBUG_ASSERT(m_buffer_end == NULL || end <= m_buffer_end);
+    DBUG_ASSERT(m_buffer_end == nullptr || end <= m_buffer_end);
     m_buffer_end = end;
   }
 
@@ -140,7 +141,7 @@ typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;
 */
 class Sort_result {
  public:
-  Sort_result() : sorted_result_in_fsbuf(false), sorted_result_end(NULL) {}
+  Sort_result() : sorted_result_in_fsbuf(false), sorted_result_end(nullptr) {}
 
   bool has_result_in_memory() const {
     return sorted_result || sorted_result_in_fsbuf;
@@ -191,17 +192,20 @@ class Filesort_info {
   /** Sort filesort_buffer
     @return Number of records, after any deduplication
    */
-  unsigned sort_buffer(Sort_param *param, uint count) {
-    return filesort_buffer.sort_buffer(param, count);
+  size_t sort_buffer(Sort_param *param, size_t num_input_rows,
+                     size_t max_output_rows) {
+    return filesort_buffer.sort_buffer(param, num_input_rows, max_output_rows);
   }
 
   /**
     Copies (unpacks) values appended to sorted fields from a buffer back to
     their regular positions specified by the Field::ptr pointers.
-    @param buff            Buffer which to unpack the value from
+    @param tables  Tables in the join; for NULL row flags.
+    @param buff    Buffer which to unpack the value from.
   */
   template <bool Packed_addon_fields>
-  inline void unpack_addon_fields(uchar *buff);
+  inline void unpack_addon_fields(const Prealloced_array<TABLE *, 4> &tables,
+                                  uchar *buff);
 
   /**
     Reads 'count' number of chunk descriptors into the merge_chunks array.

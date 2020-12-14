@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <cinttypes>  // std::strtoumax
 #include <cstdlib>
 #include <sstream>
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #ifndef _WIN32
 #include <netdb.h>
 #include <sys/socket.h>
@@ -54,9 +53,14 @@ static const unsigned int JOIN_ATTEMPTS = 0;
 static const uint64_t JOIN_SLEEP_TIME = 5;
 
 /*
-  Default and Min value for the maximum size of the XCom cache.
+  Default value for the maximum size of the XCom cache.
 */
 static const uint64_t DEFAULT_XCOM_MAX_CACHE_SIZE = 1073741824;
+
+/*
+  Min value for the maximum size of the XCom cache.
+*/
+static const uint64_t MIN_XCOM_MAX_CACHE_SIZE = 134217728;
 
 Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
@@ -134,7 +138,7 @@ bool is_valid_hostname(const std::string &server_and_port) {
   }
 
   /* handle hostname*/
-  error = (checked_getaddrinfo(hostname, 0, NULL, &addr) != 0);
+  error = (checked_getaddrinfo(hostname, nullptr, nullptr, &addr) != 0);
   if (error) goto end;
 
 end:
@@ -149,10 +153,10 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("compression_threshold"));
   std::string *wait_time_str =
       const_cast<std::string *>(interface_params.get_parameter("wait_time"));
-  std::string *ip_whitelist_str =
-      const_cast<std::string *>(interface_params.get_parameter("ip_whitelist"));
-  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
-      interface_params.get_parameter("reconfigure_ip_whitelist"));
+  std::string *ip_allowlist_str =
+      const_cast<std::string *>(interface_params.get_parameter("ip_allowlist"));
+  std::string *ip_allowlist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_allowlist"));
   std::string *join_attempts_str = const_cast<std::string *>(
       interface_params.get_parameter("join_attempts"));
   std::string *join_sleep_time_str = const_cast<std::string *>(
@@ -183,15 +187,15 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     interface_params.add_parameter("wait_time", ss.str());
   }
 
-  bool should_configure_whitelist = true;
-  if (ip_whitelist_reconfigure_str) {
-    should_configure_whitelist =
-        ip_whitelist_reconfigure_str->compare("on") == 0 ||
-        ip_whitelist_reconfigure_str->compare("true") == 0;
+  bool should_configure_allowlist = true;
+  if (ip_allowlist_reconfigure_str) {
+    should_configure_allowlist =
+        ip_allowlist_reconfigure_str->compare("on") == 0 ||
+        ip_allowlist_reconfigure_str->compare("true") == 0;
   }
 
-  // sets the default ip whitelist
-  if (should_configure_whitelist && !ip_whitelist_str) {
+  // sets the default ip allowlist
+  if (should_configure_allowlist && !ip_allowlist_str) {
     std::stringstream ss;
     std::string iplist;
     std::map<std::string, int> out;
@@ -212,9 +216,9 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     iplist.erase(iplist.end() - 1);  // remove trailing comma
 
     MYSQL_GCS_LOG_INFO("Added automatically IP ranges " << iplist
-                                                        << " to the whitelist");
+                                                        << " to the allowlist");
 
-    interface_params.add_parameter("ip_whitelist", iplist);
+    interface_params.add_parameter("ip_allowlist", iplist);
   }
 
   // sets the default join attempts
@@ -337,8 +341,8 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("suspicions_processing_period");
   const std::string *member_expel_timeout_str =
       interface_params.get_parameter("member_expel_timeout");
-  const std::string *reconfigure_ip_whitelist_str =
-      interface_params.get_parameter("reconfigure_ip_whitelist");
+  const std::string *reconfigure_ip_allowlist_str =
+      interface_params.get_parameter("reconfigure_ip_allowlist");
   const std::string *fragmentation_threshold_str =
       interface_params.get_parameter("fragmentation_threshold");
   const std::string *fragmentation_str =
@@ -353,7 +357,7 @@ bool is_parameters_syntax_correct(
    */
 
   // validate group name
-  if (group_name_str != NULL && group_name_str->size() == 0) {
+  if (group_name_str != nullptr && group_name_str->size() == 0) {
     MYSQL_GCS_LOG_ERROR("The group_name parameter (" << group_name_str << ")"
                                                      << " is not valid.")
     error = GCS_NOK;
@@ -362,14 +366,14 @@ bool is_parameters_syntax_correct(
 
   // validate bootstrap string
   // accepted values: true, false, on, off
-  if (bootstrap_group_str != NULL) {
+  if (bootstrap_group_str != nullptr) {
     std::string &flag = const_cast<std::string &>(*bootstrap_group_str);
     error = is_valid_flag("bootstrap_group", flag);
     if (error == GCS_NOK) goto end;
   }
 
   // validate peer addresses addresses
-  if (peer_nodes_str != NULL) {
+  if (peer_nodes_str != nullptr) {
     /*
      Parse and validate hostname and ports.
      */
@@ -402,7 +406,7 @@ bool is_parameters_syntax_correct(
   }
 
   // local peer address
-  if (local_node_str != NULL) {
+  if (local_node_str != nullptr) {
     bool matches_local_ip = false;
     std::map<std::string, int> ips;
     std::map<std::string, int>::iterator it;
@@ -483,7 +487,7 @@ bool is_parameters_syntax_correct(
   }
 
   // validate compression
-  if (compression_str != NULL) {
+  if (compression_str != nullptr) {
     std::string &flag = const_cast<std::string &>(*compression_str);
     error = is_valid_flag("compression", flag);
     if (error == GCS_NOK) goto end;
@@ -549,11 +553,11 @@ bool is_parameters_syntax_correct(
     goto end;
   }
 
-  // Validate whitelist reconfiguration parameter
-  if (reconfigure_ip_whitelist_str != NULL) {
+  // Validate allowlist reconfiguration parameter
+  if (reconfigure_ip_allowlist_str != nullptr) {
     std::string &flag =
-        const_cast<std::string &>(*reconfigure_ip_whitelist_str);
-    error = is_valid_flag("reconfigure_ip_whitelist", flag);
+        const_cast<std::string &>(*reconfigure_ip_allowlist_str);
+    error = is_valid_flag("reconfigure_ip_allowlist", flag);
     if (error == GCS_NOK) goto end;
   }
 
@@ -575,12 +579,12 @@ bool is_parameters_syntax_correct(
 
   // Validate XCom cache size
   errno = 0;
-  if (xcom_cache_size_str != NULL &&
+  if (xcom_cache_size_str != nullptr &&
       // Verify if the input value is a valid number
       (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
        // Check that it is not lower than the min value allowed for the var
        strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
-           DEFAULT_XCOM_MAX_CACHE_SIZE ||
+           MIN_XCOM_MAX_CACHE_SIZE ||
        // Check that it is not higher than the max value allowed
        strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX ||
        // Check that it is within the range of values allowed for the var type.

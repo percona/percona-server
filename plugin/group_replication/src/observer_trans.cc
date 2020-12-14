@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@
 void cleanup_transaction_write_set(
     Transaction_write_set *transaction_write_set) {
   DBUG_TRACE;
-  if (transaction_write_set != NULL) {
+  if (transaction_write_set != nullptr) {
     my_free(transaction_write_set->write_set);
     my_free(transaction_write_set);
   }
@@ -119,12 +119,6 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
     return 0;
   }
 
-  if ((out += (param->trans_ctx_info.binlog_checksum_options !=
-               binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
-    return 0;
-  }
-
   if ((out += (param->trans_ctx_info.transaction_write_set_extraction ==
                HASH_ALGORITHM_OFF))) {
     /* purecov: begin inspected */
@@ -146,7 +140,12 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
     - It should not contain 'ON DELETE/UPDATE CASCADE' referential action
    */
   for (uint table = 0; out == 0 && table < param->number_of_tables; table++) {
+#if defined(GROUP_REPLICATION_WITH_ROCKSDB)
+    if (param->tables_info[table].db_type != DB_TYPE_INNODB &&
+        param->tables_info[table].db_type != DB_TYPE_ROCKSDB) {
+#else
     if (param->tables_info[table].db_type != DB_TYPE_INNODB) {
+#endif
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NEEDS_INNODB_TABLE,
                    param->tables_info[table].table_name);
       out++;
@@ -173,6 +172,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
   int error = 0;
   const int pre_wait_error = 1;
   const int post_wait_error = 2;
+  int64 sequence_number = 1;
 
   DBUG_EXECUTE_IF("group_replication_force_error_on_before_commit_listener",
                   return 1;);
@@ -236,7 +236,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
     return 0;
   }
 
-  DBUG_ASSERT(applier_module != NULL && recovery_module != NULL);
+  DBUG_ASSERT(applier_module != nullptr && recovery_module != nullptr);
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
 
@@ -275,15 +275,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   const Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
-  Gtid_log_event *gle = NULL;
+  Gtid_log_event *gle = nullptr;
 
-  Transaction_context_log_event *tcle = NULL;
+  Transaction_context_log_event *tcle = nullptr;
 
   const enum_group_replication_consistency_level consistency_level =
       static_cast<enum_group_replication_consistency_level>(
           param->group_replication_consistency);
 
-  Transaction_message_interface *transaction_msg = NULL;
+  Transaction_message_interface *transaction_msg = nullptr;
   enum enum_gcs_error send_error = GCS_OK;
 
   // Binlog cache.
@@ -294,7 +294,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
   */
   bool is_dml = !param->is_atomic_ddl;
   bool may_have_sbr_stmts = !is_dml;
-  Binlog_cache_storage *cache_log = NULL;
+  Binlog_cache_storage *cache_log = nullptr;
   my_off_t cache_log_position = 0;
   const my_off_t trx_cache_log_position = param->trx_cache_log->length();
   const my_off_t stmt_cache_log_position = param->stmt_cache_log->length();
@@ -346,14 +346,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
       a transaction may have not write set at all because it didn't
       change any data, it will just persist that GTID as applied.
     */
-    if ((write_set == NULL) && (!is_gtid_specified)) {
+    if ((write_set == nullptr) && (!is_gtid_specified) &&
+        (!param->is_create_table_as_select)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET,
                    param->thread_id);
       error = pre_wait_error;
       goto err;
     }
 
-    if (write_set != NULL) {
+    if (write_set != nullptr) {
       if (add_write_set(tcle, write_set)) {
         /* purecov: begin inspected */
         cleanup_transaction_write_set(write_set);
@@ -370,6 +371,25 @@ int group_replication_trans_before_commit(Trans_param *param) {
         For empty transactions we should set the GTID may_have_sbr_stmts. See
         comment at binlog_cache_data::may_have_sbr_stmts().
       */
+      may_have_sbr_stmts = true;
+    }
+
+    /*
+      'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
+      is DDL + DML, which write-sets do not capture all dependencies.
+      Example:
+        CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
+        INSERT INTO test.t1 VALUES (99);
+        CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) AS SELECT * FROM
+      test.t1; The 'CREATE TABLE ... AS SELECT' does depend on the INSERT on t1,
+      though these transactions have non intersecting write-sets, the INSERT
+      will refer to table t1 and the 'CREATE TABLE ... AS SELECT' to table t2.
+      As such we need to say that 'CREATE TABLE ... AS SELECT' can only be
+      executed on parallel applier after all precedent transactions like any
+      other DDL.
+    */
+    if (param->is_create_table_as_select) {
+      sequence_number = 0;
       may_have_sbr_stmts = true;
     }
   }
@@ -421,7 +441,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
   // Notice the GTID of atomic DDL is written to the trans cache as well.
   gle = new Gtid_log_event(
-      param->server_id, is_dml || param->is_atomic_ddl, 0, 1,
+      param->server_id, is_dml || param->is_atomic_ddl, 0, sequence_number,
       may_have_sbr_stmts, *(param->original_commit_timestamp), 0,
       gtid_specification, *(param->original_server_version),
       *(param->immediate_server_version));
@@ -623,6 +643,14 @@ int group_replication_trans_begin(Trans_param *param, int &out) {
   }
 
   group_transaction_observation_manager->read_lock_observer_list();
+
+  DBUG_EXECUTE_IF("group_replication_wait_on_observer_trans", {
+    const char act[] =
+        "now signal signal.group_replication_wait_on_observer_trans_waiting "
+        "wait_for signal.group_replication_wait_on_observer_trans_continue";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   std::list<Group_transaction_listener *> *transaction_observers =
       group_transaction_observation_manager->get_all_observers();
   for (Group_transaction_listener *transaction_observer :

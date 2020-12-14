@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,33 +20,38 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
+# MYSQL_ADD_PLUGIN(plugin sources... options/keywords...)
 
-GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
+MACRO(MYSQL_ADD_PLUGIN plugin_arg)
+  SET(PLUGIN_OPTIONS
+    CLIENT_ONLY
+    DEFAULT         # builtin as static by default
+    DEFAULT_LEGACY_ENGINE
+    MANDATORY       # not actually a plugin, always builtin
+    MODULE_ONLY     # build only as shared library
+    SKIP_INSTALL
+    STATIC_ONLY
+    STORAGE_ENGINE
+    TEST_ONLY
+    )
+  SET(PLUGIN_ONE_VALUE_KW
+    MODULE_OUTPUT_NAME
+    )
+  SET(PLUGIN_MULTI_VALUE_KW
+    DEPENDENCIES   # target1 ... targetN
+    LINK_LIBRARIES # lib1 ... libN
+    )
 
-# MYSQL_ADD_PLUGIN(plugin_name source1...sourceN
-# [STORAGE_ENGINE]
-# [MANDATORY|DEFAULT]
-# [STATIC_ONLY|MODULE_ONLY]
-# [MODULE_OUTPUT_NAME module_name]
-# [STATIC_OUTPUT_NAME static_name]
-# [LINK_LIBRARIES lib1...libN]
-# [DEPENDENCIES target1...targetN]
-
-# MANDATORY   : not actually a plugin, always builtin
-# DEFAULT     : builtin as static by default
-# MODULE_ONLY : build only as shared library
-
-MACRO(MYSQL_ADD_PLUGIN)
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;TEST_ONLY;SKIP_INSTALL"
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "${PLUGIN_OPTIONS}"
+    "${PLUGIN_ONE_VALUE_KW}"
+    "${PLUGIN_MULTI_VALUE_KW}"
     ${ARGN}
-  )
-  
-  LIST(GET ARG_DEFAULT_ARGS 0 plugin) 
-  SET(SOURCES ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT SOURCES 0)
+    )
+
+  SET(plugin ${plugin_arg})
+  SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
+
   STRING(TOUPPER ${plugin} plugin)
   STRING(TOLOWER ${plugin} target)
   
@@ -63,6 +68,22 @@ MACRO(MYSQL_ADD_PLUGIN)
     ENDIF()
   ENDIF()
   
+  # Set it ON by default.
+  # Can be disabled with -DWITHOUT_${plugin}_STORAGE_ENGINE
+  IF(ARG_DEFAULT_LEGACY_ENGINE)
+    SET(WITH_${plugin}_STORAGE_ENGINE ON)
+    IF(WITHOUT_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSEIF(NOT WITH_${plugin}_STORAGE_ENGINE)
+      SET(WITHOUT_${plugin}_STORAGE_ENGINE ON CACHE BOOL "")
+      MARK_AS_ADVANCED(WITHOUT_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSE()
+      SET(WITH_${plugin}_STORAGE_ENGINE ON CACHE BOOL "")
+    ENDIF()
+  ENDIF()
+
   IF(WITH_${plugin}_STORAGE_ENGINE 
     OR WITH_{$plugin}
     AND NOT WITHOUT_${plugin}_STORAGE_ENGINE
@@ -120,12 +141,11 @@ MACRO(MYSQL_ADD_PLUGIN)
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
 
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
-    
-    IF(ARG_STATIC_OUTPUT_NAME)
-      SET_TARGET_PROPERTIES(${target} PROPERTIES 
-      OUTPUT_NAME ${ARG_STATIC_OUTPUT_NAME})
+    IF(COMPRESS_DEBUG_SECTIONS)
+      MY_TARGET_LINK_OPTIONS(${target}
+        "LINKER:--compress-debug-sections=zlib")
     ENDIF()
-
+    
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
@@ -163,6 +183,10 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
+    IF(COMPRESS_DEBUG_SECTIONS)
+      MY_TARGET_LINK_OPTIONS(${target}
+        "LINKER:--compress-debug-sections=zlib")
+    ENDIF()
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     IF(WIN32_CLANG AND WITH_ASAN)
@@ -201,34 +225,35 @@ MACRO(MYSQL_ADD_PLUGIN)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
 
-    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
-                 $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
-                 $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY
-        ${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}
-        )
-    ENDIF()
+    # For APPLE: adjust path dependecy for SSL shared libraries.
+    SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
 
     # Install dynamic library
     IF(NOT ARG_SKIP_INSTALL)
       SET(INSTALL_COMPONENT Server)
       IF(ARG_TEST_ONLY)
         SET(INSTALL_COMPONENT Test)
+      ELSEIF(ARG_CLIENT_ONLY)
+        SET(INSTALL_COMPONENT Client)
       ENDIF()
-      IF(LINUX_INSTALL_RPATH_ORIGIN)
-        ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
-      ENDIF()
-      MYSQL_INSTALL_TARGETS(${target}
+
+      ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
+
+      MYSQL_INSTALL_TARGET(${target}
         DESTINATION ${INSTALL_PLUGINDIR}
         COMPONENT ${INSTALL_COMPONENT})
-      INSTALL_DEBUG_TARGET(${target}
-        DESTINATION ${INSTALL_PLUGINDIR}/debug
-        COMPONENT ${INSTALL_COMPONENT})
+
+      # For testing purposes, we need
+      # <...>/lib/plugin/debug/authentication_ldap_sasl_client.so
+      IF(ARG_CLIENT_ONLY)
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT Test)
+      ELSE()
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT ${INSTALL_COMPONENT})
+      ENDIF()
     ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
@@ -238,6 +263,10 @@ MACRO(MYSQL_ADD_PLUGIN)
        FORCE)
     ENDIF()
     SET(BUILD_PLUGIN 0)
+  ENDIF()
+
+  IF(NOT BUILD_PLUGIN)
+    MESSAGE(STATUS "Skipping the ${plugin} plugin.")
   ENDIF()
 
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,7 +358,8 @@ int runSetDropTableConcurrentLCP2(NDBT_Context *ctx, NDBT_Step *step)
  *
  * Test:
  *    Creation of the (empty) table 'TRANSACTION'
- *    should succeed even if 'DbIsFull'. However, 
+ *    should succeed even if 'DbIsFull'. Or it could fail
+ *    due to memory for hash index.  If succeed however,
  *    insertion of the first row should fail.
  *
  * Postcond:
@@ -393,9 +394,24 @@ int runCreateTableWhenDbIsFull(NDBT_Context* ctx, NDBT_Step* step){
       break;
     }
 
-    // Create (empty) table in db, should succeed even if 'DbIsFull'
-    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
-      ndbout << tabName << " was not created when DB is full"<< endl;
+    /*
+     * Create (empty) table in db, should succeed even if 'DbIsFull' or fail
+     * with 625:
+     * Out of memory in Ndb Kernel, hash index part (increase DataMemory).
+     */
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0)
+    {
+      if (pNdb->getDictionary()->getNdbError().code == 625)
+      {
+        /*
+         * Fail due to really out of data memory, not even a hash index page
+         * available.
+         */
+        result = NDBT_OK;
+        break;
+      }
+
+      ndbout << tabName << " was not created when DB is full" << endl;
       result = NDBT_FAILED;
       break;
     }
@@ -3073,7 +3089,6 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
   };
   static int errlst_node[] = {
     7174,       // crash before sending DICT_LOCK_REQ
-    7176,       // pretend master does not support DICT lock
     7121,       // crash at receive START_PERMCONF
     0
   };
@@ -3110,7 +3125,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
       nodeIdList[nodeIdCnt++] = nodeId;
     }
 
-    if (numnodes >= 4 && myRandom48(2) == 0) {
+    if (numnodes >= 4 && (myRandom48(2) == 0) && (restarter.getNumNodeGroups() > 1)) {
       int rand = myRandom48(numnodes);
       int nodeId = restarter.getRandomNodeOtherNodeGroup(nodeIdList[0], rand);
       CHECK(nodeId != -1);
@@ -3168,14 +3183,6 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 
       for (int i = 0; i < nodeIdCnt && nodeIdCnt == 1; i++) {
         err_node[i] = errlst_node[l % errcnt_node];
-
-        // 7176 - no DICT lock protection
-
-        if (err_node[i] == 7176) {
-          g_info << "1: no dict ops due to error insert "
-                 << err_node[i] << endl;
-          NR_ops = false;
-        }
       }
     }
 
@@ -5090,15 +5097,15 @@ struct ST_Trg : public ST_Obj {
   struct ST_Ind* ind;
   TriggerEvent::Value event;
   mutable char realname_buf[ST_MAX_NAME_SIZE];
-  virtual bool is_trigger() const {
+  bool is_trigger() const override {
     return true;
   }
-  virtual const char* realname() const;
+  const char* realname() const override;
   ST_Trg(const char* a_db, const char* a_name) :
     ST_Obj(a_db, a_name) {
     ind = 0;
   }
-  virtual ~ST_Trg() {}
+  ~ST_Trg() override {}
 };
 
 template class Vector<ST_Trg*>;
@@ -5111,7 +5118,7 @@ struct ST_Ind : public ST_Obj {
   BaseString colnames;
   ST_Trglist* trglist;
   int trgcount;
-  virtual bool is_index() const {
+  bool is_index() const override {
     return true;
   }
   bool is_unique() const {
@@ -5131,7 +5138,7 @@ struct ST_Ind : public ST_Obj {
     trglist = new ST_Trglist;
     trgcount = 0;
   }
-  virtual ~ST_Ind() {
+  ~ST_Ind() override {
     delete ind;
     delete trglist;
     ind = 0;
@@ -5163,7 +5170,7 @@ struct ST_Tab : public ST_Obj {
   int indcount;
   int induniquecount;
   int indorderedcount;
-  virtual bool is_table() const {
+  bool is_table() const override {
     return true;
   }
   const ST_Ind& ind(int j) const {
@@ -5181,7 +5188,7 @@ struct ST_Tab : public ST_Obj {
     induniquecount = 0;
     indorderedcount = 0;
   }
-  virtual ~ST_Tab() {
+  ~ST_Tab() override {
     delete tab;
     delete indlist;
     tab = 0;
@@ -9995,6 +10002,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
 
   if (pIdx == 0)
   {
+    // Exit if there aren't any indexes in the table
     return NDBT_OK;
   }
 
@@ -12583,7 +12591,7 @@ TESTCASE("CreateManyDataFiles", "Test lack of DiskPageBufferMemory "
   FINALIZER(changeStartDiskPageBufMem);
 }
 
-NDBT_TESTSUITE_END(testDict);
+NDBT_TESTSUITE_END(testDict)
 
 int main(int argc, const char** argv){
   ndb_init();

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -510,7 +510,7 @@ struct TTASEventMutex {
     ut_a(m_event == nullptr);
     ut_a(!m_lock_word.load(std::memory_order_relaxed));
 
-    m_event = os_event_create(sync_latch_get_name(id));
+    m_event = os_event_create();
 
     m_policy.init(*this, id, filename, line);
   }
@@ -523,7 +523,7 @@ struct TTASEventMutex {
 
     /* We have to free the event before InnoDB shuts down. */
     os_event_destroy(m_event);
-    m_event = 0;
+    m_event = nullptr;
 
     m_policy.destroy();
   }
@@ -538,9 +538,8 @@ struct TTASEventMutex {
   /** Release the mutex. */
   void exit() UNIV_NOTHROW {
     m_lock_word.store(false);
-    std::atomic_thread_fence(std::memory_order_acquire);
 
-    if (m_waiters.load(std::memory_order_acquire)) {
+    if (m_waiters.load()) {
       signal();
     }
   }
@@ -672,20 +671,11 @@ struct TTASEventMutex {
     m_policy.add(n_spins, n_waits);
   }
 
-  /** @return the value of the m_waiters flag */
-  lock_word_t waiters() UNIV_NOTHROW {
-    return (m_waiters.load(std::memory_order_relaxed));
-  }
-
   /** Note that there are threads waiting on the mutex */
-  void set_waiters() UNIV_NOTHROW {
-    m_waiters.store(true, std::memory_order_release);
-  }
+  void set_waiters() UNIV_NOTHROW { m_waiters.store(true); }
 
   /** Note that there are no threads waiting on the mutex */
-  void clear_waiters() UNIV_NOTHROW {
-    m_waiters.store(false, std::memory_order_release);
-  }
+  void clear_waiters() UNIV_NOTHROW { m_waiters.store(false); }
 
   /** Wakeup any waiting thread(s). */
   void signal() UNIV_NOTHROW;
@@ -721,7 +711,7 @@ struct PolicyMutex {
 
   PolicyMutex() UNIV_NOTHROW : m_impl() {
 #ifdef UNIV_PFS_MUTEX
-    m_ptr = 0;
+    m_ptr = nullptr;
 #endif /* UNIV_PFS_MUTEX */
   }
 
@@ -846,7 +836,7 @@ struct PolicyMutex {
 
   @param key - Performance Schema key. */
   void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW {
-    ut_ad(m_ptr == 0);
+    ut_ad(m_ptr == nullptr);
     m_ptr = PSI_MUTEX_CALL(init_mutex)(key.m_value, this);
   }
 
@@ -858,12 +848,12 @@ struct PolicyMutex {
   PSI_mutex_locker *pfs_begin_lock(PSI_mutex_locker_state *state,
                                    const char *name,
                                    uint32_t line) UNIV_NOTHROW {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_LOCK,
                                                name, (uint)line));
     }
 
-    return (0);
+    return (nullptr);
   }
 
   /** Performance schema monitoring.
@@ -873,35 +863,35 @@ struct PolicyMutex {
   PSI_mutex_locker *pfs_begin_trylock(PSI_mutex_locker_state *state,
                                       const char *name,
                                       uint32_t line) UNIV_NOTHROW {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_TRYLOCK,
                                                name, (uint)line));
     }
 
-    return (0);
+    return (nullptr);
   }
 
   /** Performance schema monitoring
   @param locker - PFS identifier
   @param ret - 0 for success and 1 for failure */
   void pfs_end(PSI_mutex_locker *locker, int ret) UNIV_NOTHROW {
-    if (locker != 0) {
+    if (locker != nullptr) {
       PSI_MUTEX_CALL(end_mutex_wait)(locker, ret);
     }
   }
 
   /** Performance schema monitoring - register mutex release */
   void pfs_exit() {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
     }
   }
 
   /** Performance schema monitoring - deregister */
   void pfs_del() {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       PSI_MUTEX_CALL(destroy_mutex)(m_ptr);
-      m_ptr = 0;
+      m_ptr = nullptr;
     }
   }
 #endif /* UNIV_PFS_MUTEX */

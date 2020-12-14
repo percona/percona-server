@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -93,18 +93,56 @@ struct Compression {
       case NONE:
       case ZLIB:
       case LZ4:
-
+        break;
       default:
         ut_error;
     }
 #endif /* UNIV_DEBUG */
   }
 
+  /** @return string representation. */
+  std::string to_string() const {
+    std::ostringstream os;
+
+    os << "type: ";
+    switch (m_type) {
+      case NONE:
+        os << "NONE";
+        break;
+      case ZLIB:
+        os << "ZLIB";
+        break;
+      case LZ4:
+        os << "LZ4";
+        break;
+      default:
+        os << "<UNKNOWN>";
+        break;
+    }
+
+    return (os.str());
+  }
+
+  /** Version of compressed page */
+  static constexpr uint8_t FIL_PAGE_VERSION_1 = 1;
+  static constexpr uint8_t FIL_PAGE_VERSION_2 = 2;
+
   /** Check the page header type field.
   @param[in]	page		Page contents
   @return true if it is a compressed page */
   static bool is_compressed_page(const byte *page)
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Check the page header type field.
+  @param[in]	page		Page contents
+  @return true if it is a compressed and encrypted page */
+  static bool is_compressed_encrypted_page(const byte *page)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Check if the version on page is valid.
+  @param[in]	version		version
+  @return true if version is valid */
+  static bool is_valid_page_version(uint8_t version);
 
   /** Check wether the compression algorithm is supported.
   @param[in]      algorithm       Compression algorithm to check
@@ -140,17 +178,17 @@ struct Compression {
   @return true if no algorithm requested */
   static bool is_none(const char *algorithm) MY_ATTRIBUTE((warn_unused_result));
 
-  /** Decompress the page data contents. Page type must be
-  FIL_PAGE_COMPRESSED, if not then the source contents are
-  left unchanged and DB_SUCCESS is returned.
-  @param[in]	dblwr_recover	true of double write recovery
-                                  in progress
-  @param[in,out]	src		Data read from disk, decompressed
-                                  data will be copied to this page
-  @param[in,out]	dst		Scratch area to use for decompression
-  @param[in]	dst_len		Size of the scratch area in bytes
+  /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED,
+  if not then the source contents are left unchanged and DB_SUCCESS is returned.
+  @param[in]	dblwr_read	true if double write recovery in progress
+  @param[in,out]	src		Data read from disk, decompressed data
+  will be copied to this page
+  @param[in,out]	dst		Scratch area to use for decompression or
+                                  nullptr.
+  @param[in]	dst_len		If dst is valid, size of the scratch area in
+                                  bytes.
   @return DB_SUCCESS or error code */
-  static dberr_t deserialize(bool dblwr_recover, byte *src, byte *dst,
+  static dberr_t deserialize(bool dblwr_read, byte *src, byte *dst,
                              ulint dst_len) MY_ATTRIBUTE((warn_unused_result));
 
   /** Compression type */

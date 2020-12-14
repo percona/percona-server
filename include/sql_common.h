@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,6 +144,7 @@ struct st_mysql_options_extention {
   unsigned int total_configured_compression_algorithms;
   unsigned int zstd_compression_level;
   bool connection_compressed;
+  char *load_data_dir;
 };
 
 struct MYSQL_METHODS {
@@ -159,7 +160,7 @@ struct MYSQL_METHODS {
                         unsigned int field_count);
   void (*flush_use_result)(MYSQL *mysql, bool flush_all_results);
   int (*read_change_user_result)(MYSQL *mysql);
-#if !defined(MYSQL_SERVER)
+#if !defined(MYSQL_SERVER) && !defined(MYSQL_COMPONENT)
   MYSQL_FIELD *(*list_fields)(MYSQL *mysql);
   bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (*stmt_execute)(MYSQL_STMT *stmt);

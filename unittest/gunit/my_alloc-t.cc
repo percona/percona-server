@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class Mock_global_error_handler {
       EXPECT_GT(m_handle_called, 0);
     }
     error_handler_hook = m_old_error_handler_hook;
-    current = NULL;
+    current = nullptr;
   }
 
   void error_handler(uint err) {
@@ -71,7 +71,7 @@ class Mock_global_error_handler {
   void (*m_old_error_handler_hook)(uint, const char *, myf);
 };
 
-Mock_global_error_handler *Mock_global_error_handler::current = NULL;
+Mock_global_error_handler *Mock_global_error_handler::current = nullptr;
 
 /*
   Error handler function.
@@ -87,27 +87,28 @@ const size_t num_iterations = 1ULL;
 
 class MyAllocTest : public ::testing::TestWithParam<size_t> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_root, 1024, 0);
   }
-  virtual void TearDown() { free_root(&m_root, MYF(0)); }
+  void TearDown() override { free_root(&m_root, MYF(0)); }
   size_t m_num_objects;
   MEM_ROOT m_root;
 };
 
 class MyPreAllocTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_prealloc_root, 1024, 2048);
   }
-  virtual void TearDown() { free_root(&m_prealloc_root, MYF(0)); }
+  void TearDown() override { free_root(&m_prealloc_root, MYF(0)); }
   size_t m_num_objects;
   MEM_ROOT m_prealloc_root;
 };
 
 size_t test_values[] = {100, 1000, 10000, 100000};
 
-INSTANTIATE_TEST_CASE_P(MyAlloc, MyAllocTest, ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(MyAlloc, MyAllocTest,
+                         ::testing::ValuesIn(test_values));
 
 TEST_P(MyAllocTest, NoMemoryLimit) {
   m_num_objects = GetParam();
@@ -127,7 +128,7 @@ TEST_P(MyAllocTest, WithMemoryLimit) {
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
-  const void *null_pointer = NULL;
+  const void *null_pointer = nullptr;
   EXPECT_TRUE(m_root.Alloc(1000));
   m_root.set_max_capacity(100);
   EXPECT_EQ(null_pointer, m_root.Alloc(1000));

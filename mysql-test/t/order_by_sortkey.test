@@ -63,10 +63,10 @@ set sort_buffer_size= 32768;
 FLUSH STATUS;
 SHOW SESSION STATUS LIKE 'Sort%';
 
-SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100;
+SELECT * FROM t1 ORDER BY f2,f0 LIMIT 101;
 
-# 32-bit has smaller pointers and thus can do with one less merge pass.
---replace_result 98 99
+# 32-bit has smaller pointers and thus can do with fewer merge passes.
+--replace_result 100 102
 SHOW SESSION STATUS LIKE 'Sort%';
 
 FLUSH STATUS;
@@ -78,3 +78,16 @@ SELECT * FROM t2 where f1 =
 SHOW SESSION STATUS LIKE 'Sort%';
 
 DROP TABLE t1, t2, tmp;
+
+--echo #
+--echo # BUG: PS-7221 - crash on select Sys_var_tz::session_value_ptr
+--echo #
+
+CREATE TABLE t1 (
+  id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  dt DATETIME NOT NULL
+);
+INSERT INTO t1 SET dt=NOW();
+INSERT INTO t1 (dt) SELECT NOW() FROM t1;
+SELECT id FROM t1 ORDER BY convert_tz(dt,'UTC',@@session.time_zone);
+DROP TABLE t1;

@@ -1,14 +1,21 @@
 /*
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
@@ -1195,12 +1202,6 @@ function configWizardEnableButtons (page) {
 
 // Setup help menu for the configuration wizard
 function helpMenuSetup () {
-    var mcv = mcc.util.getClusterUrlRoot();
-    if (mcv.indexOf('80') >= 0) {
-        mcv = '80';
-    } else {
-        mcv = '57';
-    };
 
     var menu = new dijit.DropDownMenu({ style: 'display: none;' });
     var menuItemContents = new dijit.MenuItem({
@@ -1246,46 +1247,30 @@ function helpMenuSetup () {
         label: 'About',
         onClick: function () {
             if (!dijit.byId('aboutDialog')) {
-                var dlg;
-                if (mcv === '57') {
-                    dlg = new dijit.Dialog({
-                        id: 'aboutDialog',
-                        title: 'About MySQL Cluster Configuration Tool',
-                        content: "\
-                                <div><img src='img/content-title.png'></div>\
-                                <p>Version: mysql-5.7-cluster-7.6</p>\
-                                <button id='termsButton' \
-                                        data-dojo-type='dijit.form.Button'\
-                                        type='button'>\
-                                    Close \
-                                    <script type='dojo/method' \
-                                            data-dojo-event='onClick'\
-                                            data-dojo-args='evt'>\
-                                        dijit.byId('aboutDialog').hide();\
-                                    </script>\
-                                </button>"
-                    });
-                } else {
-                    // 80
-                    dlg = new dijit.Dialog({
-                        id: 'aboutDialog',
-                        title: 'About MySQL Cluster Configuration Tool',
-                        content: "\
-                                <div><img src='img/content-title.png'></div>\
-                                <p>Version: mysql-cluster-8.0</p>\
-                                <button id='termsButton' \
-                                        data-dojo-type='dijit.form.Button'\
-                                        type='button'>\
-                                    Close \
-                                    <script type='dojo/method' \
-                                            data-dojo-event='onClick'\
-                                            data-dojo-args='evt'>\
-                                        dijit.byId('aboutDialog').hide();\
-                                    </script>\
-                                </button>"
-                    });
-                }
+                var dlg = new dijit.Dialog({
+                    id: 'aboutDialog',
+                    title: 'About MySQL Cluster Configuration Tool',
+                    content: "\
+                        <div><img src='img/content-title.png' </div>\
+                        <p id='mcv'></p>\
+                        <button id='termsButton' \
+                           data-dojo-type='dijit.form.Button'\
+                           type='button'>\
+                           Close \
+                           <script type='dojo/method' \
+                                   data-dojo-event='onClick'\
+                                   data-dojo-args='evt'>\
+                               dijit.byId('aboutDialog').hide();\
+                           </script>\
+                         </button>"
+                 });
             }
+            var version = 'Version: mysql-cluster-8.0';
+            if (mcc.util.getClusterUrlRoot().indexOf('57') >= 0) {
+                version = 'Version: mysql-5.7-cluster7.6';
+            }
+            dojo.byId('mcv').innerHTML = version;
+
             dijit.byId('aboutDialog').show();
         }
     });

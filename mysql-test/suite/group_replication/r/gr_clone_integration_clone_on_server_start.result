@@ -21,6 +21,8 @@ INSERT INTO t1 VALUES (2);
 #    Remove the default channel from server1 to server2
 [connection server2]
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/spawn_monitoring_process.inc
 
 ############################################################
@@ -63,11 +65,10 @@ RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS group_replication_clone_threshold;
 SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
-SET GLOBAL group_replication_start_on_boot= 0;
 DROP TABLE t1;
 include/rpl_sync.inc
 set session sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
@@ -79,6 +80,7 @@ call mtr.add_suppression("Clone removing all user data for provisioning: Finishe
 set session sql_log_bin=1;
 UNINSTALL PLUGIN clone;
 include/clean_monitoring_process.inc
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 [connection server1]
 UNINSTALL PLUGIN clone;
 include/group_replication_end.inc

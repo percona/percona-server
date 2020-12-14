@@ -38,6 +38,7 @@ extern std::atomic<uint64_t> rocksdb_num_sst_entry_delete;
 extern std::atomic<uint64_t> rocksdb_num_sst_entry_singledelete;
 extern std::atomic<uint64_t> rocksdb_num_sst_entry_merge;
 extern std::atomic<uint64_t> rocksdb_num_sst_entry_other;
+extern std::atomic<uint64_t> rocksdb_additional_compaction_triggers;
 extern bool rocksdb_compaction_sequential_deletes_count_sd;
 
 struct Rdb_compact_params {
@@ -62,18 +63,50 @@ struct Rdb_index_stats {
 
   Rdb_index_stats() : Rdb_index_stats({0, 0}) {}
   explicit Rdb_index_stats(GL_INDEX_ID gl_index_id)
-      : m_gl_index_id(gl_index_id), m_data_size(0), m_rows(0),
-        m_actual_disk_size(0), m_entry_deletes(0), m_entry_single_deletes(0),
-        m_entry_merges(0), m_entry_others(0) {}
+      : m_gl_index_id(gl_index_id),
+        m_data_size(0),
+        m_rows(0),
+        m_actual_disk_size(0),
+        m_entry_deletes(0),
+        m_entry_single_deletes(0),
+        m_entry_merges(0),
+        m_entry_others(0) {}
 
-  void merge(const Rdb_index_stats &s, const bool &increment = true,
-             const int64_t &estimated_data_len = 0);
+  void merge(const Rdb_index_stats &s, const bool increment = true,
+             const int64_t estimated_data_len = 0);
+
+  void adjust_cardinality(uint64_t adjustment_factor);
+
+  void reset_cardinality();
+};
+
+struct Rdb_table_stats {
+  // TODO: With TTL rows can be removed without a decrement in
+  // m_stat_n_rows. We should take TTL into consideration later.
+  uint64 m_stat_n_rows;
+  uint64 m_stat_modified_counter;
+  time_t m_last_recalc;
+
+  Rdb_table_stats()
+      : m_stat_n_rows(0), m_stat_modified_counter(0), m_last_recalc(0) {}
+
+  explicit Rdb_table_stats(uint64 rows, uint64 modified_counter,
+                           time_t last_recalc)
+      : m_stat_n_rows(rows),
+        m_stat_modified_counter(modified_counter),
+        m_last_recalc(last_recalc) {}
+
+  void set(uint64 rows, uint64 modified_counter, time_t last_recalc) {
+    m_stat_n_rows = rows;
+    m_stat_modified_counter = modified_counter;
+    m_last_recalc = last_recalc;
+  }
 };
 
 // The helper class to calculate index cardinality
 class Rdb_tbl_card_coll {
  public:
-  explicit Rdb_tbl_card_coll(uint8_t table_stats_sampling_pct);
+  explicit Rdb_tbl_card_coll(const uint8_t table_stats_sampling_pct);
 
  public:
   void ProcessKey(const rocksdb::Slice &key, const Rdb_key_def *keydef,
@@ -93,6 +126,7 @@ class Rdb_tbl_card_coll {
    * an optrimizer or displaying it to a clent.
    */
   void AdjustStats(Rdb_index_stats *stats);
+  void SetCardinality(Rdb_index_stats *stat);
 
  private:
   bool ShouldCollectStats();
@@ -107,8 +141,8 @@ class Rdb_tbl_card_coll {
 class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
  public:
   Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
-                    const Rdb_compact_params &params, const uint32_t &cf_id,
-                    const uint8_t &table_stats_sampling_pct);
+                    const Rdb_compact_params &params, const uint32_t cf_id,
+                    const uint8_t table_stats_sampling_pct);
 
   /*
     Override parent class's virtual methods of interest.
@@ -120,8 +154,8 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
                                      rocksdb::SequenceNumber seq,
                                      uint64_t file_size) override;
 
-  virtual rocksdb::Status
-  Finish(rocksdb::UserCollectedProperties *properties) override;
+  virtual rocksdb::Status Finish(
+      rocksdb::UserCollectedProperties *properties) override;
 
   virtual const char *Name() const override { return "Rdb_tbl_prop_coll"; }
 
@@ -138,12 +172,12 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
 
  private:
   static std::string GetReadableStats(const Rdb_index_stats &it);
-
+  bool FilledWithDeletions() const;
   bool ShouldCollectStats();
   void CollectStatsForRow(const rocksdb::Slice &key,
                           const rocksdb::Slice &value,
                           const rocksdb::EntryType &type,
-                          const uint64_t &file_size);
+                          const uint64_t file_size);
   Rdb_index_stats *AccessStats(const rocksdb::Slice &key);
   void AdjustDeletedRows(rocksdb::EntryType type);
 
@@ -160,7 +194,9 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
 
   // floating window to count deleted rows
   std::vector<bool> m_deleted_rows_window;
-  uint64_t m_rows, m_window_pos, m_deleted_rows, m_max_deleted_rows;
+  uint64_t m_window_pos, m_deleted_rows, m_max_deleted_rows;
+  uint64_t m_total_puts, m_total_merges;
+  uint64_t m_total_deletes, m_total_singledeletes, m_total_others;
   uint64_t m_file_size;
   Rdb_compact_params m_params;
   Rdb_tbl_card_coll m_cardinality_collector;
@@ -171,8 +207,8 @@ class Rdb_tbl_prop_coll_factory
     : public rocksdb::TablePropertiesCollectorFactory {
  public:
   Rdb_tbl_prop_coll_factory(const Rdb_tbl_prop_coll_factory &) = delete;
-  Rdb_tbl_prop_coll_factory &
-  operator=(const Rdb_tbl_prop_coll_factory &) = delete;
+  Rdb_tbl_prop_coll_factory &operator=(const Rdb_tbl_prop_coll_factory &) =
+      delete;
 
   explicit Rdb_tbl_prop_coll_factory(Rdb_ddl_manager *ddl_manager)
       : m_ddl_manager(ddl_manager) {}
@@ -197,7 +233,7 @@ class Rdb_tbl_prop_coll_factory
     m_params = params;
   }
 
-  void SetTableStatsSamplingPct(const uint8_t &table_stats_sampling_pct) {
+  void SetTableStatsSamplingPct(const uint8_t table_stats_sampling_pct) {
     m_table_stats_sampling_pct = table_stats_sampling_pct;
   }
 

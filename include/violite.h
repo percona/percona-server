@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,8 @@
 #include "mysql/components/services/my_io_bits.h"
 #include "mysql/components/services/my_thread_bits.h"
 #include "mysql/components/services/mysql_socket_bits.h"
+
+#include "mysql/psi/mysql_socket.h"
 
 struct Vio;
 
@@ -189,6 +191,7 @@ struct st_vio_network {
 
 void vio_proxy_protocol_add(const st_vio_network &net) noexcept;
 void vio_proxy_cleanup() noexcept;
+void vio_force_skip_proxy(MYSQL_VIO vio);
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
 int vio_fastsend(MYSQL_VIO vio);
 /* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible */
@@ -223,7 +226,8 @@ extern void vio_set_wait_callback(void (*before_wait)(void),
 
 /* Connect to a peer. */
 bool vio_socket_connect(MYSQL_VIO vio, struct sockaddr *addr, socklen_t len,
-                        bool nonblocking, int timeout);
+                        bool nonblocking, int timeout,
+                        bool *connect_done = nullptr);
 
 bool vio_get_normalized_ip_string(const struct sockaddr *addr,
                                   size_t addr_length, char *ip_string,
@@ -235,7 +239,6 @@ int vio_getnameinfo(const struct sockaddr *sa, char *hostname,
                     size_t hostname_size, char *port, size_t port_size,
                     int flags);
 
-#if defined(HAVE_OPENSSL)
 extern "C" {
 #include <openssl/opensslv.h>
 }
@@ -250,11 +253,6 @@ extern "C" {
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define HAVE_OPENSSL11 1
 #endif  // OPENSSL_VERSION_NUMBER
-
-/* apple deprecated openssl in MacOSX Lion */
-#ifdef __APPLE__
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 #define HEADER_DES_LOCL_H dummy_something
 
@@ -274,6 +272,8 @@ enum enum_ssl_init_error {
   SSL_TLS_VERSION_INVALID,
   SSL_FIPS_MODE_INVALID,
   SSL_FIPS_MODE_FAILED,
+  SSL_INITERR_ECDHFAIL,
+  SSL_INITERR_X509_VERIFY_PARAM,
   SSL_INITERR_LASTERR
 };
 const char *sslGetErrString(enum enum_ssl_init_error err);
@@ -291,7 +291,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags);
+    const long ssl_ctx_flags, const char *server_host);
 
 long process_tls_version(const char *tls_version);
 
@@ -307,8 +307,6 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
-
-#endif /* HAVE_OPENSSL */
 
 void ssl_start(void);
 void vio_end(void);
@@ -369,6 +367,7 @@ struct Vio {
   int write_timeout = {-1}; /* Timeout value (ms) for write ops. */
   int retry_count = {1};    /* Retry count */
   bool inactive = {false};  /* Connection has been shutdown */
+  bool force_skip_proxy = {false};
 
   struct sockaddr_storage local;  /* Local internet address */
   struct sockaddr_storage remote; /* Remote internet address */
@@ -452,9 +451,11 @@ struct Vio {
 #endif
   HANDLE hPipe{nullptr};
 #endif
-#ifdef HAVE_OPENSSL
   void *ssl_arg = {nullptr};
-#endif
+  struct PSI_socket_locker *m_psi_read_locker = {nullptr};
+  PSI_socket_locker_state m_psi_read_state;
+  struct PSI_socket_locker *m_psi_write_locker = {nullptr};
+  PSI_socket_locker_state m_psi_write_state;
 #if defined(_WIN32)
   HANDLE handle_file_map = {nullptr};
   char *handle_map = {nullptr};
@@ -488,10 +489,6 @@ struct Vio {
   Vio &operator=(Vio &&vio);
 };
 
-#ifdef HAVE_OPENSSL
 #define SSL_handle SSL *
-#else
-#define SSL_handle void *
-#endif
 
 #endif /* vio_violite_h_ */

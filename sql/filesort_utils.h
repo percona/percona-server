@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,8 @@ class Filesort_buffer {
   /** Sort me...
     @return Number of records, after any deduplication
    */
-  unsigned sort_buffer(Sort_param *param, uint count);
+  size_t sort_buffer(Sort_param *param, size_t num_input_rows,
+                     size_t max_output_rows);
 
   /**
     Prepares the buffer for the next batch of records to process.
@@ -113,7 +114,8 @@ class Filesort_buffer {
   Bounds_checked_array<uchar> get_next_record_pointer(size_t min_size) {
     DBUG_ASSERT(min_size != 0xFFFFFFFFu);
     // See if we need to allocate a new block.
-    if (m_next_rec_ptr + min_size > m_current_block_end) {
+    if (m_next_rec_ptr == nullptr ||
+        m_next_rec_ptr + min_size > m_current_block_end) {
       if (allocate_block(min_size)) return Bounds_checked_array<uchar>();
     }
 

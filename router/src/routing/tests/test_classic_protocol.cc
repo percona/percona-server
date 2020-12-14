@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,43 +22,45 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <cstring>  // memcmp
 #include <memory>
+#include <system_error>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "mock_io_service.h"
+#include "mock_socket_service.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql_routing.h"
-#include "mysqlrouter/routing.h"
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
-#include "test/helpers.h"
-
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "test/helpers.h"  // init_test_logger
 
 using ::testing::_;
 using ::testing::Args;
-using ::testing::DoAll;
-using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
-using ::testing::SetArgPointee;
 
 using namespace mysql_protocol;
 
 class ClassicProtocolTest : public ::testing::Test {
  protected:
   ClassicProtocolTest()
-      : mock_routing_sock_ops_(new MockRoutingSockOps()),
-        mock_socket_operations_(mock_routing_sock_ops_->so()),
-        sut_protocol_(new ClassicProtocol(mock_routing_sock_ops_.get())) {}
+      : sut_protocol_(new ClassicProtocol(&mock_socket_operations_)) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     network_buffer_.resize(routing::kDefaultNetBufferLength);
     network_buffer_offset_ = 0;
     curr_pktnr_ = 0;
     handshake_done_ = false;
   }
 
-  std::unique_ptr<MockRoutingSockOps> mock_routing_sock_ops_;
-  MockSocketOperations *mock_socket_operations_;
+  MockSocketOperations mock_socket_operations_;
+  net::io_context io_ctx_{std::make_unique<MockSocketService>(),
+                          std::make_unique<MockIoService>()};
 
   // the tested object:
   std::unique_ptr<BaseProtocol> sut_protocol_;
@@ -66,11 +68,11 @@ class ClassicProtocolTest : public ::testing::Test {
   void serialize_classic_packet_to_buffer(
       RoutingProtocolBuffer &buffer, size_t &buffer_offset,
       const mysql_protocol::Packet &packet) {
-    using diff_t = mysql_protocol::Packet::difference_type;
-    std::copy(packet.begin(),
-              packet.begin() + static_cast<diff_t>(packet.size()),
+    using diff_t = mysql_protocol::Packet::vector_t::difference_type;
+    auto msg = packet.message();
+    std::copy(msg.begin(), msg.begin() + static_cast<diff_t>(msg.size()),
               buffer.begin() + static_cast<diff_t>(buffer_offset));
-    buffer_offset += packet.size();
+    buffer_offset += msg.size();
   }
 
   static constexpr int sender_socket_ = 1;
@@ -90,7 +92,7 @@ TEST_F(ClassicProtocolTest, OnBlockClientHostSuccess) {
   auto packet = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "",
                                                         "fake_router_login");
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, _, packet.size()))
       .WillOnce(Return((ssize_t)packet.size()));
 
@@ -104,11 +106,10 @@ TEST_F(ClassicProtocolTest, OnBlockClientHostWriteFail) {
   auto packet = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "",
                                                         "fake_router_login");
 
-  mock_routing_sock_ops_->so()->set_errno(ECONNREFUSED);
-
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, _, packet.size()))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::connection_refused))));
 
   const bool result =
       sut_protocol_->on_block_client_host(receiver_socket_, "routing");
@@ -117,89 +118,82 @@ TEST_F(ClassicProtocolTest, OnBlockClientHostWriteFail) {
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsFdNotSet) {
-  size_t report_bytes_read = 0xff;
-
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, false, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_TRUE(result == 0);
-  ASSERT_TRUE(report_bytes_read == 0);
-  ASSERT_FALSE(handshake_done_);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(copy_res.value(), 0);
+  EXPECT_FALSE(handshake_done_);
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsReadError) {
-  size_t report_bytes_read = 0xff;
+  EXPECT_CALL(mock_socket_operations_, read(sender_socket_, _, _))
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
-  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _))
-      .WillOnce(Return(-1));
-
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsHandshakeDoneOK) {
   handshake_done_ = true;
-  size_t report_bytes_read = 0xff;
   constexpr int PACKET_SIZE = 20;
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(PACKET_SIZE));
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, &network_buffer_[0], PACKET_SIZE))
       .WillOnce(Return(PACKET_SIZE));
 
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(static_cast<size_t>(PACKET_SIZE), report_bytes_read);
+  EXPECT_TRUE(handshake_done_);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(PACKET_SIZE, copy_res.value());
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsHandshakeDoneWriteError) {
   handshake_done_ = true;
-  size_t report_bytes_read = 0xff;
   constexpr ssize_t PACKET_SIZE = 20;
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(PACKET_SIZE));
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, &network_buffer_[0], 20))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  EXPECT_TRUE(handshake_done_);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsHandshakePacketTooSmall) {
-  size_t report_bytes_read = 3;
-
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
-      .WillOnce(Return((ssize_t)report_bytes_read));
+      .WillOnce(Return(3));
 
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  EXPECT_FALSE(handshake_done_);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsHandshakeInvalidPacketNumber) {
-  size_t report_bytes_read = 0xff;
   constexpr int packet_no = 3;
   curr_pktnr_ = 1;
 
@@ -208,20 +202,19 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeInvalidPacketNumber) {
   serialize_classic_packet_to_buffer(network_buffer_, network_buffer_offset_,
                                      error_packet);
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
-      .WillOnce(Return((ssize_t)report_bytes_read));
+      .WillOnce(Return(12));
 
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsHandshakeServerSendsError) {
-  size_t report_bytes_read = 0xff;
   curr_pktnr_ = 1;
 
   auto error_packet = mysql_protocol::ErrorPacket(
@@ -230,25 +223,25 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeServerSendsError) {
   serialize_classic_packet_to_buffer(network_buffer_, network_buffer_offset_,
                                      error_packet);
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return((ssize_t)network_buffer_offset_));
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, _, network_buffer_offset_))
       .WillOnce(Return((ssize_t)network_buffer_offset_));
 
-  int result = sut_protocol_->copy_packets(
+  const auto copy_res = sut_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   // if the server sent error handshake is considered done
   ASSERT_EQ(2, curr_pktnr_);
-  ASSERT_EQ(0, result);
+  ASSERT_TRUE(copy_res);
 }
 
 TEST_F(ClassicProtocolTest, SendErrorOKMultipleWrites) {
-  EXPECT_CALL(*mock_socket_operations_, write(1, _, _))
+  EXPECT_CALL(mock_socket_operations_, write(1, _, _))
       .Times(2)
       .WillOnce(Return(8))
       .WillOnce(Return(10000));
@@ -260,15 +253,20 @@ TEST_F(ClassicProtocolTest, SendErrorOKMultipleWrites) {
 }
 
 TEST_F(ClassicProtocolTest, SendErrorWriteFail) {
-  auto set_errno = [&]() -> void { errno = 15; };
-  EXPECT_CALL(*mock_socket_operations_, write(1, _, _))
-      .WillOnce(DoAll(InvokeWithoutArgs(set_errno), Return(-1)));
+  EXPECT_CALL(mock_socket_operations_, write(1, _, _))
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
-  bool res = sut_protocol_->send_error(1, 55, "Error message", "HY000",
-                                       "routing configuration name");
+  const bool res = sut_protocol_->send_error(1, 55, "Error message", "HY000",
+                                             "routing configuration name");
 
   ASSERT_FALSE(res);
 }
+
+#if 0
+// with the Connector class in place, the MySQLConnection is only create
+// after it is established. This test should move to test_routing.cc
+
 
 MATCHER_P(BufferEq, buf1,
           std::string(negation ? "Buffers content does not match"
@@ -282,22 +280,17 @@ MATCHER_P(BufferEq, buf1,
 // destination server
 TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   MySQLRouting routing(
-      routing::RoutingStrategy::kRoundRobin, 7001,
+      io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
       Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
       "127.0.0.1", mysql_harness::Path(), "routing:test",
       routing::kDefaultMaxConnections,
       routing::kDefaultDestinationConnectionTimeout,
       routing::kDefaultMaxConnectErrors, routing::kDefaultClientConnectTimeout,
-      routing::kDefaultNetBufferLength, mock_routing_sock_ops_.get());
+      routing::kDefaultNetBufferLength, &mock_socket_operations_);
 
-  constexpr int client_socket = 1;
-  constexpr int server_socket = -1;
-  union {
-    sockaddr_storage client_addr_storage;
-    sockaddr_in6 client_addr;
-  };
-  client_addr.sin6_family = AF_INET6;
-  memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
+  auto &sock_ops = *dynamic_cast<MockSocketService *>(io_ctx_.socket_service());
+  auto &io_ops = *dynamic_cast<MockIoService *>(io_ctx_.io_service());
+  net::ip::tcp::socket client_socket(io_ctx_);
 
   auto error_packet =
       mysql_protocol::ErrorPacket(0, 2003,
@@ -305,36 +298,60 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
                                   "client connected to '127.0.0.1:7001'",
                                   "HY000");
   const auto error_packet_size = static_cast<ssize_t>(error_packet.size());
-
-  EXPECT_CALL(*mock_socket_operations_, write(client_socket, _, _))
-      .With(Args<1, 2>(BufferEq(error_packet)))
+#if 0
+  EXPECT_CALL(mock_socket_operations_,
+              write(client_socket.native_handle(), _, _))
+      .With(Args<1, 2>(BufferEq(error_packet.message())))
       .WillOnce(Return(error_packet_size));
 
-  EXPECT_CALL(*mock_socket_operations_, shutdown(client_socket));
-  EXPECT_CALL(*mock_socket_operations_, close(client_socket));
+  EXPECT_CALL(mock_socket_operations_, shutdown(client_socket.native_handle()));
+  EXPECT_CALL(mock_socket_operations_, close(client_socket.native_handle()));
 
-  EXPECT_CALL(*mock_socket_operations_, inetntop(_, _, _, _))
+  EXPECT_CALL(mock_socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
+#endif
+
+  EXPECT_CALL(sock_ops, socket(_, _, _)).WillOnce(Return(25));
+  EXPECT_CALL(io_ops, add_fd_interest(25, _)).Times(2);
+  EXPECT_CALL(io_ops, remove_fd(25)).Times(1);
+  EXPECT_CALL(io_ops, poll_one(_))
+      .WillOnce(Return(net::fd_event{25, POLLIN}))
+      .WillRepeatedly(
+          Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
+
+  EXPECT_CALL(sock_ops, read(25, _, _));
+
+  EXPECT_CALL(io_ops, notify()).Times(5);
+#if 0
+  EXPECT_CALL(sock_ops, write(25, _, _))
+      .With(Args<1, 2>(BufferEq(error_packet)))
+      .WillOnce(Return(error_packet_size));
+#endif
+
+  EXPECT_CALL(sock_ops, shutdown(25, 1));
+  EXPECT_CALL(sock_ops, close(25));
 
   routing.set_destinations_from_csv("127.0.0.1:7004");
   mysql_harness::TCPAddress server_address("127.0.0.1", 7004);
 
-  MySQLRoutingConnection connection(
-      routing.get_context(), client_socket, client_addr_storage, server_socket,
-      server_address, [](MySQLRoutingConnection *) {});
-  connection.run();
+  net::ip::tcp::endpoint client_endpoint;
+  net::ip::tcp::socket server_socket(io_ctx_);
+  net::ip::tcp::endpoint server_endpoint;
+
+  client_socket.open(net::ip::tcp::v4());
+
+  MySQLRoutingConnection<net::ip::tcp, net::ip::tcp> connection(
+      routing.get_context(), std::move(client_socket), client_endpoint,
+      std::move(server_socket), server_endpoint,
+      [](MySQLRoutingConnectionBase *) {});
+  connection.async_run();
+  io_ctx_.run();
 }
+#endif
 
 int main(int argc, char *argv[]) {
-#ifdef _WIN32
-  WSADATA wsaData;
-  int iResult;
-  iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-  if (iResult != 0) {
-    std::cout << "WSAStartup() failed\n";
-    return 1;
-  }
-#endif
+  net::impl::socket::init();
+
   init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,11 @@
   EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
-#include <string.h>
 #include <sys/types.h>
 
+#include <cstring>
+
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -43,7 +45,6 @@ class Opt_trace_object;
 class Query_result;
 class SELECT_LEX_UNIT;
 class Window;
-struct MEM_ROOT;
 
 enum class enum_explain_type;
 
@@ -199,9 +200,9 @@ class qep_row {
 
     mem_root_str() { cleanup(); }
     void cleanup() {
-      str = NULL;
+      str = nullptr;
       length = 0;
-      deferred = NULL;
+      deferred = nullptr;
     }
     bool is_empty();
     bool set(const char *str_arg) { return set(str_arg, strlen(str_arg)); }
@@ -223,7 +224,7 @@ class qep_row {
     */
     void set(Lazy *x) {
       deferred = x;
-      str = NULL;
+      str = nullptr;
       length = 0;
     }
     /**
@@ -236,18 +237,18 @@ class qep_row {
       return set_const(str_arg, strlen(str_arg));
     }
     void set_const(const char *str_arg, size_t length_arg) {
-      deferred = NULL;
+      deferred = nullptr;
       str = str_arg;
       length = length_arg;
     }
 
     static char *strndup_root(MEM_ROOT *root, const char *str, size_t len) {
-      if (len == 0 || str == NULL) return const_cast<char *>("");
+      if (len == 0 || str == nullptr) return const_cast<char *>("");
       if (str[len - 1] == 0)
         return static_cast<char *>(memdup_root(root, str, len));
 
       char *ret = static_cast<char *>(root->Alloc(len + 1));
-      if (ret != NULL) {
+      if (ret != nullptr) {
         memcpy(ret, str, len);
         ret[len] = 0;
       }
@@ -271,7 +272,7 @@ class qep_row {
     */
     const char *const data;
 
-    explicit extra(Extra_tag tag_arg, const char *data_arg = NULL)
+    explicit extra(Extra_tag tag_arg, const char *data_arg = nullptr)
         : tag(tag_arg), data(data_arg) {}
   };
 
@@ -360,17 +361,17 @@ class qep_row {
   void cleanup() {
     col_id.cleanup();
     col_table_name.cleanup();
-    col_partitions.empty();
+    col_partitions.clear();
     col_join_type.cleanup();
-    col_possible_keys.empty();
+    col_possible_keys.clear();
     col_key.cleanup();
     col_key_len.cleanup();
-    col_ref.empty();
+    col_ref.clear();
     col_filtered.cleanup();
-    col_extra.empty();
+    col_extra.clear();
     col_message.cleanup();
     col_attached_condition.cleanup();
-    col_key_parts.empty();
+    col_key_parts.clear();
 
     col_rows.cleanup();
     col_prefix_rows.cleanup();
@@ -386,7 +387,7 @@ class qep_row {
       just for the consistency).
     */
     query_block_id = 0;
-    derived_from.empty();
+    derived_from.clear();
     is_dependent = false;
     is_cacheable = true;
     using_temporary = false;
@@ -508,7 +509,7 @@ class Explain_format {
   Query_result *output;  ///< output resulting data there
 
  public:
-  Explain_format() : output(NULL) {}
+  Explain_format() : output(nullptr) {}
   virtual ~Explain_format() {}
 
   /**
@@ -544,8 +545,8 @@ class Explain_format {
     @param flags        Format flags, see Explain_format_flags.
   */
   virtual bool begin_context(enum_parsing_context context,
-                             SELECT_LEX_UNIT *subquery = 0,
-                             const Explain_format_flags *flags = NULL) = 0;
+                             SELECT_LEX_UNIT *subquery = nullptr,
+                             const Explain_format_flags *flags = nullptr) = 0;
 
   /**
     Leave the current context

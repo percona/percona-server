@@ -1,0 +1,211 @@
+# This test contains keyring file created on 64bit which is not
+# portable
+--source include/have_64bit.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_util_unzip.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Upgrading redo log");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression("Resolving dependency for the view");
+call mtr.add_suppression("references invalid");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
+call mtr.add_suppression("Table 'mysql.component' doesn't exist");
+call mtr.add_suppression("is expected to be transactional");
+call mtr.add_suppression("table is missing or has an incorrect definition");
+call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
+call mtr.add_suppression("Native table .* has the wrong structure");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong");
+call mtr.add_suppression("The privilege system failed to initialize correctly");
+call mtr.add_suppression("Missing system table mysql.global_grants");
+# InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
+# statistics while persistent statistics table is altered during upgrade.
+# This issue doesn't seem to cause any further trouble (as there is no persistent
+# stats for persistent stats table anyway), so we ignore these warnings here.
+call mtr.add_suppression("Unable to delete statistics for table mysql.");
+# new fields were added to these tables
+call mtr.add_suppression("Column count of performance_schema.replication_group_members is wrong. Expected 7, found 5");
+call mtr.add_suppression("Column count of performance_schema.replication_group_member_stats is wrong. Expected 13, found 9");
+call mtr.add_suppression("Column count of performance_schema.threads is wrong. Expected 18, found 17");
+call mtr.add_suppression("ACL table mysql.[a-zA-Z_]* missing. Some operations may fail.");
+call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_master_info' cannot be opened");
+call mtr.add_suppression("Error in checking mysql.slave_master_info repository info type of TABLE");
+call mtr.add_suppression("Error creating master info: Error checking repositories.");
+call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
+call mtr.add_suppression("db.opt file not found for test database. Using default Character set");
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
+
+# PS-5635 introduces yet another private version of crypt_data (version 3). This new version of crypt_data introduces new field
+# max_key_version and also stores UUID as hexadecimal number, instead of bytes characters (reducing thus size occupied by UUID).
+# As with introducing version 2 this change is not compatible for KEYRING encrypted tables (ENCRYPTION='KEYRING') and for
+# tables encrypted  by encryption threads (even not fully encrypted). The upgrade should fail for any of those tables.
+
+# Since this test is very similar to upgrade_crypt_data_v1 - we will reuse the data directories provided by
+# upgrade_crypt_data_v1 to safe space. We will only replace the tested tablespace with ones that include crypt data v2
+# marker.
+
+--echo # Stop DB server which was created by MTR default
+--source include/shutdown_mysqld.inc
+
+--echo # Scenario 1st - system table half encrypted by encryption threads. Upgrade failure.
+
+--enable_query_log
+
+let $DATA_DIR_NAME=data_8017_crypt_v1_sys_half_encrypted;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
+--source unzip_datadir.inc
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/upgrade_failure.log;
+--remove_file $MYSQLD_DATADIR1/ibdata1
+--copy_file $MYSQLTEST_VARDIR/std_data/crypt_data_v2_upgrade/ibdata1_crypt_data_v2_half_encrypted $MYSQLD_DATADIR1/ibdata1
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Upgrade is not possible as there are tables that are KERYING encrypted\. KEYRING encryption is still experimental feature in the version you are upgrading from\. To upgrade please decrypt the tables encrypted with KEYRING encryption\.
+--source include/search_pattern_in_file.inc
+
+# cleanup after 1st scenario
+--remove_file $MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--force-rmdir $MYSQL_TMP_DIR/$DATA_DIR_NAME
+--remove_file $MYSQLD_LOG
+
+--echo # Scenario 2nd - Table encrypted with keyring encryption (ENCRYPTION='KEYRING'). Upgrade failure.
+--echo # Table created with: CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION='KEYRING';
+
+let $DATA_DIR_NAME=data_8017_crypt_v1_keyring_encrypted;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
+--source unzip_datadir.inc
+--remove_file $MYSQLD_DATADIR1/test/t1.ibd
+--copy_file $MYSQLTEST_VARDIR/std_data/crypt_data_v2_upgrade/t1_crypt_data_v2_encrypted.ibd $MYSQLD_DATADIR1/test/t1.ibd
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Upgrade is not possible as there are tables that are KERYING encrypted\. KEYRING encryption is still experimental feature in the version you are upgrading from\. To upgrade please decrypt the tables encrypted with KEYRING encryption\.
+--source include/search_pattern_in_file.inc
+
+# cleanup after 2nd scenario
+--remove_file $MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--force-rmdir $MYSQL_TMP_DIR/$DATA_DIR_NAME
+--remove_file $MYSQLD_LOG
+
+--echo # Scenario 3rd - Table half encrypted by encryption threads. Upgrade failure.
+--echo # Table created with: CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
+
+let $DATA_DIR_NAME=data_8017_crypt_v1_half_rotated;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
+--source unzip_datadir.inc
+--remove_file $MYSQLD_DATADIR1/test/t1.ibd
+--copy_file $MYSQLTEST_VARDIR/std_data/crypt_data_v2_upgrade/t1_crypt_data_v2_half_encrypted.ibd $MYSQLD_DATADIR1/test/t1.ibd
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Upgrade is not possible as there are tables that are KERYING encrypted\. KEYRING encryption is still experimental feature in the version you are upgrading from\. To upgrade please decrypt the tables encrypted with KEYRING encryption\.
+--source include/search_pattern_in_file.inc
+
+# cleanup after 3rd scenario
+--remove_file $MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--force-rmdir $MYSQL_TMP_DIR/$DATA_DIR_NAME
+--remove_file $MYSQLD_LOG
+
+--echo # Scenario 4th - System tablespace fully encrypted by encryption threads. Upgrade failure.
+--echo # Table created with: CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) in system tablespace;
+--echo # Inserted 30000 rows with word foobar.
+
+let $DATA_DIR_NAME=data_8017_crypt_v1_sys_encrypted;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
+--source unzip_datadir.inc
+--remove_file $MYSQLD_DATADIR1/ibdata1
+--copy_file $MYSQLTEST_VARDIR/std_data/crypt_data_v2_upgrade/ibdata1_crypt_v2_encrypted $MYSQLD_DATADIR1/ibdata1
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Upgrade is not possible as there are tables that are KERYING encrypted\. KEYRING encryption is still experimental feature in the version you are upgrading from\. To upgrade please decrypt the tables encrypted with KEYRING encryption\.
+--source include/search_pattern_in_file.inc
+
+# cleanup after 4th scenario
+--remove_file $MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--force-rmdir $MYSQL_TMP_DIR/$DATA_DIR_NAME
+--remove_file $MYSQLD_LOG
+
+--echo # Positive scenario. The datadir was created in 8.0.19 with:
+--echo # CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
+--echo # CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID = 4;
+--echo # CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION='N';
+
+# Tables t1 and t2 were encrypted by encryption threads and then decrypted. Thus they should
+# contain crypt_data in version 2 in their pages 0. We should be able to encrypt those tables
+# again. t3 should remain unencrypted. t2 should get encrypted with key 4.
+
+let $DATA_DIR_NAME=data_8019_crypt_v2_decrypted;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/$DATA_DIR_NAME/data;
+--source unzip_datadir.inc
+
+--echo # Start the 8.0.20 server on 8.0.19 datadir
+--let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --keyring_file_data=$MYSQL_TMP_DIR/$DATA_DIR_NAME/mysecret_keyring $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/start_mysqld.inc
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+
+--let $wait_timeout= 600
+--echo # tables_count - 2 tables should get encrypted, because temporary tablespace and t3 are not encrypted
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--let $assert_text= Table t1 should get encrypted
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'test/t1\\']" = 1
+--source include/assert.inc
+--let $assert_text= Table t2 should get encrypted
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'test/t2\\' AND CURRENT_KEY_ID=4]" = 1
+--source include/assert.inc
+--let $assert_text= Table t3 should remain unencrypted
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'test/t3\\']" = 0
+--source include/assert.inc
+
+# Check if server restarts correctly
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD KEYRING_PLUGIN_EARLY_LOAD
+--source include/restart_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--force-rmdir $MYSQL_TMP_DIR/$DATA_DIR_NAME
+
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--echo # Restart the server with default options.
+--let $restart_parameters=
+--source include/start_mysqld.inc

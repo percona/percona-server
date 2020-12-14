@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,18 @@
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
+using namespace std::chrono_literals;
 using testing::StartsWith;
 
 class RouterConfigTest : public RouterComponentTest {
  protected:
+  auto &launch_router(const std::vector<std::string> &params,
+                      int expected_exit_code,
+                      std::chrono::milliseconds wait_ready = -1s) {
+    return ProcessManager::launch_router(params, expected_exit_code, true,
+                                         false, wait_ready);
+  }
+
   TcpPortPool port_pool_;
 };
 
@@ -43,8 +51,8 @@ TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
   check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Expected configuration file, got directory name: " + config_dir.name()))
-      << "router output: " << router.get_full_output() << std::endl;
+      "The configuration file '" + config_dir.name() +
+      "' is expected to be a readable file, but it is a directory"));
 }
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
@@ -72,10 +80,9 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
 
   check_exit_code(router, EXIT_FAILURE);
 
-  EXPECT_TRUE(
-      router.expect_output("Expected configuration file, got directory name: " +
-                           extra_conf_dir.name()))
-      << "router output: " << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(
+      "The configuration file '" + extra_conf_dir.name() +
+      "' is expected to be a readable file, but it is a directory"));
 }
 
 TEST_F(RouterConfigTest,

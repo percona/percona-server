@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,7 +175,16 @@ setupUDPartitioning(Ndb* ndb, NdbDictionary::Table& tab)
 
   // Assume at least one node group had all replicas alive.
   const Uint32 numReplicas = max_alive_replicas;
-  const Uint32 numFragsPerNode = 2 + (rand() % 3);
+
+  /**
+   * The maximum number of partitions that may be defined explicitly
+   * for any NDB table is =
+   * 8 * [number of LDM threads] * [number of node groups]
+   * In this case, we consider the number of LDM threads to be 1
+   * (min. no of LDMs). This calculated number of partitions works for
+   * higher number of LDMs as well.
+   */
+  const Uint32 numFragsPerNode = (rand() % (8 / numReplicas)) + 1;
   const Uint32 numPartitions = numReplicas * numNgs * numFragsPerNode;
 
   tab.setFragmentType(NdbDictionary::Table::UserDefined);
@@ -692,8 +701,10 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  const Uint32 errorInsert = ctx->getProperty("errorinsertion", (unsigned) 8050);
+
   NdbRestarter restarter;
-  if(restarter.insertErrorInAllNodes(8050) != 0)
+  if(restarter.insertErrorInAllNodes(errorInsert) != 0)
     return NDBT_FAILED;
   
   HugoCalculator dummy(*tab);
@@ -1397,6 +1408,20 @@ TESTCASE("startTransactionHint_orderedIndex_mrr_userDefined",
   INITIALIZER(run_create_dist_table);
   INITIALIZER(run_dist_test);
   INITIALIZER(run_drop_dist_table);
+}
+TESTCASE("startTransactionHint_orderedIndex_MaxKey",
+         "Test startTransactionHint with max hash value via error insert")
+{
+  /* Special regression case */
+  TC_PROPERTY("distributionkey", (unsigned)0);
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  TC_PROPERTY("errorinsertion", (unsigned) 8119);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_startHint_ordered_index);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
 }
 
 NDBT_TESTSUITE_END(testPartitioning)

@@ -1,0 +1,59 @@
+--source include/have_rocksdb.inc
+
+--disable_query_log
+call mtr.add_suppression("Cannot mark Column family.*to be dropped");
+call mtr.add_suppression("Column family '[a-z_]+' not found");
+--enable_query_log
+
+# should fail for not existing CF
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = 'nonexistent_cf'
+
+# should fail for default system cf
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = '__system__'
+
+select count(*) from information_schema.rocksdb_ddl where cf = 'default';
+
+# should fail for default cf
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = 'default'
+
+# should fail for empty string, which is same to default cf
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = ''
+
+# should succeed for NULL
+--eval SET @@global.ROCKSDB_DELETE_CF = NULL
+
+CREATE TABLE cf_deletion_test_table1 (
+  id1 int unsigned NOT NULL DEFAULT '0',
+  id2 int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (id1) COMMENT 'cfname=cf_primary_key',
+  KEY `sec_key` (id2) COMMENT 'cfname=cf_secondary_key'
+) ENGINE=ROCKSDB;
+
+# should fail, CFs are still in use
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = 'cf_primary_key'
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = 'cf_secondary_key'
+
+CREATE TABLE cf_deletion_test_table2 (
+  id1 int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (id1) COMMENT 'cfname=cf_primary_key'
+) ENGINE=ROCKSDB;
+
+DROP TABLE cf_deletion_test_table1;
+
+# should fail, still used by second table
+--error ER_CANT_DROP_CF
+--eval SET @@global.ROCKSDB_DELETE_CF = 'cf_primary_key'
+
+# should succeed, no one is using it anymore
+--eval SET @@global.ROCKSDB_DELETE_CF = 'cf_secondary_key'
+
+DROP TABLE cf_deletion_test_table2;
+
+# should succeed now
+--eval SET @@global.ROCKSDB_DELETE_CF = 'cf_primary_key'

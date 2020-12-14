@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,8 @@ Plugin_table table_replication_applier_global_filters::m_table_def(
 PFS_engine_table_share table_replication_applier_global_filters::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_global_filters::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_applier_global_filters::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -108,14 +108,14 @@ ha_rows table_replication_applier_global_filters::get_row_count() {
 
 int table_replication_applier_global_filters::rnd_next(void) {
   int res = HA_ERR_END_OF_FILE;
-  Rpl_pfs_filter *rpl_pfs_filter = NULL;
+  Rpl_pfs_filter *rpl_pfs_filter = nullptr;
 
   rpl_global_filter.rdlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next()) {
     /* Get ith rpl_pfs_filter from global replication filters. */
     rpl_pfs_filter = rpl_global_filter.get_filter_at_pos(m_pos.m_index);
 
-    if (rpl_pfs_filter == NULL) {
+    if (rpl_pfs_filter == nullptr) {
       break;
     } else {
       make_row(rpl_pfs_filter);
@@ -130,7 +130,7 @@ int table_replication_applier_global_filters::rnd_next(void) {
 
 int table_replication_applier_global_filters::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
-  Rpl_pfs_filter *rpl_pfs_filter = NULL;
+  Rpl_pfs_filter *rpl_pfs_filter = nullptr;
   set_position(pos);
 
   rpl_global_filter.rdlock();
@@ -179,8 +179,8 @@ int table_replication_applier_global_filters::read_row_values(
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* filter_name */
           set_field_char_utf8(f, m_row.filter_name, m_row.filter_name_length);
           break;

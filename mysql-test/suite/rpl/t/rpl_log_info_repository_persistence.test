@@ -76,7 +76,7 @@
 #
 # TC.P.T3: RESET SLAVE should keep value of PRIVILEGE_CHECKS_USER.
 #   1. reset slave for channel "".
-#   2. verify that slave_relay_log_info table has only 2 entries but pfs has 3.
+#   2. verify that slave_relay_log_info table and pfs have 3 records.
 #   3. verify that "ch1" kept values for PRIVILEGE_CHECKS_USER,
 #      and (Privilege_checks_username, Privilege_checks_hostname) in
 #      respectively pfs and slave_relay_log_info tables.
@@ -251,6 +251,7 @@
 --source include/not_master_info_file.inc
 --source include/have_binlog_format_row.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 # When relay-log-info-repository=FILE,
@@ -282,7 +283,7 @@ END_OF_PROCEDURE
   --let $rpl_force_stop=1
   --source include/rpl_stop_server.inc
   --let $rpl_server_parameters=--skip_slave_start --debug=d,$debug_point
-  --let $explicit_default_counter = 15000
+  --let $explicit_default_wait_counter = 15000
   --source include/rpl_start_server.inc
 END_OF_PROCEDURE
 
@@ -356,7 +357,7 @@ END_OF_PROCEDURE
   if ($debug_point == '') {
     --let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_slave_start
   }
-  --let $explicit_default_counter = 15000
+  --let $explicit_default_wait_counter = 15000
   --source include/rpl_restart_server.inc
 
   --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME=$channel AND PRIVILEGE_CHECKS_USER="<INVALID>"`
@@ -417,7 +418,7 @@ START SLAVE;
 --echo #
 #   1. restart the slave server.
 --let $rpl_server_number = 2
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
 --source $MYSQL_TMP_DIR/assert_default_channel_config_with_file_repo.inc
@@ -477,6 +478,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = host_name_has_@
 --let $slave_server_num = 2
+--let $rpl_server_restart_parameters = --skip_slave_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --let $priv_checks_username = replication_applier
 --let $priv_checks_hostname = l@calhost
@@ -499,6 +501,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = anonymous_user
 --let $slave_server_num = 2
+--let $rpl_server_restart_parameters = --skip_slave_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 #      c. SLAVE START will result in failure due to invalid config.
@@ -520,6 +523,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 #         ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --let $sub_testcase = nonexist_user
 --let $slave_server_num = 2
+--let $rpl_server_restart_parameters = --skip_slave_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --let $priv_checks_username = replication_applier_nonexist
 --let $priv_checks_hostname = localhost
@@ -535,14 +539,12 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 
 --let $assert_text = Found 4 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel '': Invalid, corrupted PRIVILEGE_CHECKS_USER was found.*
 --let $assert_count = 4
 --source include/assert_grep.inc
 
 --let $assert_text = Found 1 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel '': PRIVILEGE_CHECKS_USER for replication channel '' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user
 --let $assert_count = 1
 --source include/assert_grep.inc
@@ -555,7 +557,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 --echo #
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE --debug=d,simulate_priv_check_user_nullptr_t
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
 # verify (privilege_checks_username, privilege_checks_hostname), and
@@ -604,7 +606,7 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 #   1. restart the slave server.
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 #   2. verify that there are three channel entries in both pfs and
 #      slave_relay_log_info tables.
@@ -630,10 +632,9 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 
 #   1. reset slave for channel "".
 RESET SLAVE FOR CHANNEL "";
-#   2. verify that there are 3 and 2 channel entries in pfs and
-#      slave_relay_log_info tables respectively.
+#   2. verify that slave_relay_log_info table and pfs have 3 records.
 --let $assert_text = Check that mysql.slave_relay_log_info has 2 entries for 2 channels
---let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info] = 2
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info] = 3
 --source include/assert.inc
 
 --let $assert_text = Check that performance_schema.replication_applier_configuration has 3 entries for 3 channels
@@ -782,14 +783,12 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --let $assert_text = Found 5 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel 'ch1': Invalid, corrupted PRIVILEGE_CHECKS_USER was found.*
 --let $assert_count = 5
 --source include/assert_grep.inc
 
 --let $assert_text = Found 1 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel 'ch1': PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user
 --let $assert_count = 1
 --source include/assert_grep.inc

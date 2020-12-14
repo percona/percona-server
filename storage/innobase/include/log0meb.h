@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 #ifndef log0meb_h
@@ -24,9 +32,6 @@ class THD;
 struct SYS_VAR;
 struct st_mysql_value;
 class innodb_session_t;
-
-/* The innodb_directories plugin variable value. */
-extern char *innobase_directories;
 
 namespace meb {
 
@@ -99,6 +104,21 @@ extern void redo_log_archive_session_end(innodb_session_t *session);
 */
 extern void redo_log_archive_produce(const byte *write_buf,
                                      const size_t write_size);
+
+/**
+  @return true iff redo log archiving is active.
+*/
+extern bool redo_log_archive_is_active();
+
+/**
+  Register a privilege. We should move this function and other UDF
+  registration functions to some common utility file later.
+  @param[in]      priv_name     privilege name
+  @return         status
+    @retval       false         success
+    @retval       true          failure
+*/
+extern bool register_privilege(const char *priv_name);
 
 }  // namespace meb
 

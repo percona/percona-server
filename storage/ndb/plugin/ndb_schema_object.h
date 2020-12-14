@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,15 +145,6 @@ class NDB_SCHEMA_OBJECT {
   static void init(uint32 nodeid);
 
   /**
-     @brief Return list of the schema operation id's for the currently active
-     NDB_SCHEMA_OBJECTS
-     @note Normally there is only one NDB_SCHEMA_OBJECT activa at a time
-
-     @param ids The list to populate
-   */
-  static void get_schema_op_ids(std::vector<uint32> &ids);
-
-  /**
     @brief Get NDB_SCHEMA_OBJECT to be used for communication between Client
            and Coordinator. The Client is usually the one to create an instance
            while the Coordinator simple uses it.
@@ -255,7 +246,7 @@ class NDB_SCHEMA_OBJECT {
      @brief Check if any client should wakeup after subscribers have changed.
      This happens when node unsubscribes(one subscriber shutdown or fail) or
      when cluster connection is lost(all subscribers are removed)
-     @param subscribers Current set of subscribers
+     @param new_subscribers Current set of subscribers
      @param result The result to set on the participant
      @param message The message to set on the participant
      @return true if all participants have completed

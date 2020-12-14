@@ -1,0 +1,9 @@
+# create bootstrap file
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD --log-error=MYSQL_TMP_DIR/error_log.err --innodb_redo_log_encrypt=KEYRING_KEY
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD --log-error=MYSQL_TMP_DIR/error_log.err --innodb_redo_log_encrypt=KEYRING_KEY
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD --log-error=MYSQL_TMP_DIR/error_log.err --innodb_redo_log_encrypt=KEYRING_KEY
+# Rotate percona_redo-UUID key to version 2.
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD --log-error=MYSQL_TMP_DIR/error_log.err --innodb_redo_log_encrypt=KEYRING_KEY --debug=+d,assert_default_to_ver2_rotation
+# Restart the server with default options.
+# restart

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -356,16 +356,9 @@
 #include <time.h>
 #include <algorithm>
 #include <atomic>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/concept/usage.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/type_index/type_index_facade.hpp>
 #include <memory>
 #include <vector>
 
-#include "boost/algorithm/string/detail/classification.hpp"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -390,6 +383,7 @@
 #include "sql/sql_error.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -468,7 +462,7 @@ static st_debug_sync_globals debug_sync_global; /* All globals in one object */
 /**
   Callback pointer for C files.
 */
-extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
+extern DebugSyncCallbackFp debug_sync_C_callback_ptr;
 
 /**
   Callbacks from C files.
@@ -611,7 +605,7 @@ void debug_sync_end(void) {
   /* End the facility only if it had been initialized. */
   if (debug_sync_C_callback_ptr) {
     /* Clear the call back pointer in C files. */
-    debug_sync_C_callback_ptr = NULL;
+    debug_sync_C_callback_ptr = nullptr;
 
     /* Destroy the global variables. */
     debug_sync_global.ds_signal_set.clear();
@@ -677,25 +671,25 @@ void debug_sync_init_thread(THD *thd) {
   }
 }
 
-void debug_sync_claim_memory_ownership(THD *thd) {
+void debug_sync_claim_memory_ownership(THD *thd, bool claim) {
   DBUG_TRACE;
   DBUG_ASSERT(thd);
 
   st_debug_sync_control *ds_control = thd->debug_sync_control;
 
-  if (ds_control != NULL) {
+  if (ds_control != nullptr) {
     if (ds_control->ds_action) {
       st_debug_sync_action *action = ds_control->ds_action;
       st_debug_sync_action *action_end = action + ds_control->ds_allocated;
       for (; action < action_end; action++) {
-        action->signal.mem_claim();
-        action->wait_for.mem_claim();
-        action->sync_point.mem_claim();
+        action->signal.mem_claim(claim);
+        action->wait_for.mem_claim(claim);
+        action->sync_point.mem_claim(claim);
       }
-      my_claim(ds_control->ds_action);
+      my_claim(ds_control->ds_action, claim);
     }
 
-    my_claim(ds_control);
+    my_claim(ds_control, claim);
   }
 }
 
@@ -738,7 +732,7 @@ void debug_sync_end_thread(THD *thd) {
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
     my_free(ds_control);
-    thd->debug_sync_control = NULL;
+    thd->debug_sync_control = nullptr;
   }
 }
 
@@ -758,7 +752,7 @@ static char *debug_sync_bmove_len(char *to, char *to_end, const char *from,
   DBUG_ASSERT(to);
   DBUG_ASSERT(to_end);
   DBUG_ASSERT(!length || from);
-  set_if_smaller(length, (size_t)(to_end - to));
+  length = std::min(length, size_t(to_end - to));
   memcpy(to, from, length);
   return (to + length);
 }
@@ -892,7 +886,7 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
       return action;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -1018,7 +1012,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
   } else {
     /* Create a new action. */
     int dsp_idx = ds_control->ds_active++;
-    set_if_bigger(ds_control->dsp_max_active, ds_control->ds_active);
+    ds_control->dsp_max_active =
+        std::max(ds_control->dsp_max_active, ulonglong(ds_control->ds_active));
     if (ds_control->ds_active > ds_control->ds_allocated) {
       uint new_alloc = ds_control->ds_active + 3;
       void *new_action =
@@ -1178,7 +1173,7 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action) {
 static inline const char *advance_mbchar_ptr(const char *ptr) {
   uint clen = my_mbcharlen(system_charset_info, (uchar)*ptr);
 
-  return (clen != 0) ? ptr + clen : NULL;
+  return (clen != 0) ? ptr + clen : nullptr;
 }
 
 /*
@@ -1191,7 +1186,7 @@ static inline const char *advance_mbchar_ptr(const char *ptr) {
 */
 
 static inline const char *skip_whitespace(const char *ptr) {
-  while (ptr != NULL && *ptr && my_isspace(system_charset_info, *ptr))
+  while (ptr != nullptr && *ptr && my_isspace(system_charset_info, *ptr))
     ptr = advance_mbchar_ptr(ptr);
 
   return ptr;
@@ -1206,7 +1201,7 @@ static inline const char *skip_whitespace(const char *ptr) {
 */
 
 static inline const char *get_token_end_ptr(const char *ptr) {
-  while (ptr != NULL && *ptr && !my_isspace(system_charset_info, *ptr))
+  while (ptr != nullptr && *ptr && !my_isspace(system_charset_info, *ptr))
     ptr = advance_mbchar_ptr(ptr);
 
   return ptr;
@@ -1270,7 +1265,7 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
   /* Skip leading space */
   ptr = const_cast<char *>(skip_whitespace(ptr));
 
-  if (ptr == NULL || !*ptr) return NULL;
+  if (ptr == nullptr || !*ptr) return nullptr;
 
   /* Get token start. */
   *token_p = ptr;
@@ -1278,7 +1273,7 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
   /* Find token end. */
   ptr = const_cast<char *>(get_token_end_ptr(ptr));
 
-  if (ptr == NULL) return NULL;
+  if (ptr == nullptr) return nullptr;
 
   /* Get token length. */
   *token_length_p = ptr - *token_p;
@@ -1289,7 +1284,7 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
 
     /* Advance by terminator character length. */
     ptr = const_cast<char *>(advance_mbchar_ptr(ptr));
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       /* Terminate token. */
       *tmp = '\0';
 
@@ -1334,7 +1329,7 @@ static char *debug_sync_number(ulong *number_p, char *actstrptr) {
   if (!(ptr = debug_sync_token(&token, &token_length, actstrptr))) goto end;
 
   *number_p = strtoul(token, &ept, 10);
-  if (*ept) ptr = NULL;
+  if (*ept) ptr = nullptr;
 
 end:
   return ptr;
@@ -1373,7 +1368,7 @@ end:
 */
 
 static bool debug_sync_eval_action(THD *thd, char *action_str) {
-  st_debug_sync_action *action = NULL;
+  st_debug_sync_action *action = nullptr;
   const char *errmsg;
   char *ptr;
   char *token;
@@ -1486,7 +1481,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
     if (action->signal.copy(token, token_length, system_charset_info)) {
       /* Error is reported by my_malloc(). */
       /* purecov: begin tested */
-      errmsg = NULL;
+      errmsg = nullptr;
       goto err;
       /* purecov: end */
     }
@@ -1510,7 +1505,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
     if (action->wait_for.copy(token, token_length, system_charset_info)) {
       /* Error is reported by my_malloc(). */
       /* purecov: begin tested */
-      errmsg = NULL;
+      errmsg = nullptr;
       goto err;
       /* purecov: end */
     }
@@ -1594,7 +1589,8 @@ err:
       It can be NULL if an error message is already reported
       (e.g. by my_malloc()).
     */
-    set_if_smaller(token_length, 64); /* Limit error message length. */
+    token_length =
+        std::min(token_length, size_t(64)); /* Limit error message length. */
     my_printf_error(ER_PARSE_ERROR, errmsg, MYF(0), token_length, token);
   }
   if (action) debug_sync_remove_action(thd->debug_sync_control, action);
@@ -1768,7 +1764,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
   action->activation_count--;
 
   if (action->execute) {
-    const char *old_proc_info = NULL;
+    const char *old_proc_info = nullptr;
 
     action->execute--;
 
@@ -1795,15 +1791,16 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
 
     if (action->signal.length()) {
       std::string signal = action->signal.ptr();
-      std::vector<std::string> signals;
-      boost::split(signals, signal, boost::is_any_of(","));
-      for (std::vector<std::string>::const_iterator it = signals.begin();
-           it != signals.end(); ++it) {
-        /* Copy the signal to the global set. */
-        std::string s = *it;
-        boost::trim(s);
-        if (!s.empty()) add_signal_event(&s);
-      }
+      myu::Split(
+          signal.begin(), signal.end(), myu::IsComma,
+          [](std::string::const_iterator f, std::string::const_iterator l) {
+            auto tr = myu::FindTrimmedRange(f, l, myu::IsSpace);
+            if (tr.first != tr.second) {
+              std::string s{tr.first, tr.second};
+              add_signal_event(&s);
+            }
+          });
+
       /* Wake threads waiting in a sync point. */
       mysql_cond_broadcast(&debug_sync_global.ds_cond);
       DBUG_PRINT("debug_sync_exec",
@@ -1812,7 +1809,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
 
     if (action->wait_for.length()) {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t *old_cond = 0;
+      mysql_cond_t *old_cond = nullptr;
       int error = 0;
       struct timespec abstime;
       std::string wait_for = action->wait_for.ptr();
@@ -1980,6 +1977,19 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   value = strmake_root(thd->mem_root, action_str, len);
   rc = debug_sync_eval_action(thd, value);
   return rc;
+}
+
+void conditional_sync_point(std::string name) {
+  DBUG_EXECUTE_IF(("syncpoint_" + name).c_str(), {
+    std::string act =
+        "now SIGNAL reached_" + name + " WAIT_FOR continue_" + name;
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, act.c_str(), act.length()));
+  });
+}
+
+void conditional_sync_point_for_timestamp(std::string name) {
+  conditional_sync_point(name + "_" +
+                         std::to_string(current_thd->start_time.tv_sec));
 }
 
 #endif /* defined(ENABLED_DEBUG_SYNC) */

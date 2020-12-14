@@ -163,8 +163,7 @@ static uchar *hp_allocate_one_chunk(HP_DATASPACE *info) noexcept;
 
 void hp_clear_dataspace(HP_DATASPACE *info) noexcept {
   if (info->block.levels) {
-    hp_free_level(&info->block, info->block.levels, info->block.root,
-                  (uchar *)0);
+    hp_free_level(&info->block, info->block.levels, info->block.root, nullptr);
   }
   info->block.levels = 0;
   info->del_chunk_count = info->chunk_count = 0;

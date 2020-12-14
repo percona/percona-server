@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -91,8 +91,8 @@ Callback_command_delegate::Row_data::Row_data(const Row_data &other) {
   clone_fields(other);
 }
 
-Callback_command_delegate::Row_data &Callback_command_delegate::Row_data::
-operator=(const Row_data &other) {
+Callback_command_delegate::Row_data &
+Callback_command_delegate::Row_data::operator=(const Row_data &other) {
   if (&other != this) {
     clear();
     clone_fields(other);
@@ -109,11 +109,12 @@ void Callback_command_delegate::Row_data::clone_fields(const Row_data &other) {
   }
 }
 
-Callback_command_delegate::Callback_command_delegate() : m_current_row(NULL) {}
+Callback_command_delegate::Callback_command_delegate()
+    : m_current_row(nullptr) {}
 
 Callback_command_delegate::Callback_command_delegate(
     Start_row_callback start_row, End_row_callback end_row)
-    : m_start_row(start_row), m_end_row(end_row), m_current_row(NULL) {}
+    : m_start_row(start_row), m_end_row(end_row), m_current_row(nullptr) {}
 
 void Callback_command_delegate::set_callbacks(Start_row_callback start_row,
                                               End_row_callback end_row) {
@@ -150,7 +151,7 @@ ulong Callback_command_delegate::get_client_capabilities() {
 /****** Getting data ******/
 int Callback_command_delegate::get_null() {
   try {
-    if (m_current_row) m_current_row->fields.push_back(NULL);
+    if (m_current_row) m_current_row->fields.push_back(nullptr);
   } catch (std::exception &DEBUG_VAR(e)) {
     log_debug("Error getting result data: %s", e.what());
     return true;
@@ -170,7 +171,7 @@ int Callback_command_delegate::get_integer(longlong value) {
 }
 
 int Callback_command_delegate::get_longlong(longlong value,
-                                            uint unsigned_flag) {
+                                            uint32_t unsigned_flag) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -71,6 +71,28 @@ struct buf_chunk_t {
   Emits a warning to the log if could not succeed.
   @return true iff succeeded, false if no OS support or failed */
   bool madvise_dont_dump();
+
+  /** Checks if this chunk contains a given block without dereferencing it
+  @param[in]  ptr   A pointer which we want to check
+  @return true iff the ptr points inside the chunk */
+  bool contains(const buf_block_t *ptr) const {
+    /* In theory comparing pointers which don't belong to the same array can
+    give unspecified results when using < and <=.
+    By using std::less(_equal) we get at least the guarantee that std::less
+    relation forms a total order, which still doesn't gives us what we really
+    need (as it could be a weird total order in which ptr seems to be inside an
+    array even though it is not), but at least it is specified and people seem
+    to use this in real world applications except for old MS-DOS real-mode.
+    Also, we might have an ABA problem here, where the memory of chunk was freed
+    and later reallocated at similar address thus the range contains the ptr
+    again. I hope this is not a problem because we require the chunk to be
+    aligned the same way both times, so the pointer should never point in the
+    middle (non-zero offset) of the buf_block_t struct.
+    The only 100% sure and compliant way to implement this function would be a
+    loop over all blocks inside the chunk, which is too slow. */
+    return std::less_equal<const buf_block_t *>{}(blocks, ptr) &&
+           std::less<const buf_block_t *>{}(ptr, blocks + size);
+  }
 };
 
 /** Gets the current size of buffer buf_pool in bytes.
@@ -356,7 +378,7 @@ ibool buf_page_in_file(
 /** Determines if a block should be on unzip_LRU list.
  @return true if block belongs to unzip_LRU */
 UNIV_INLINE
-ibool buf_page_belongs_to_unzip_LRU(
+bool buf_page_belongs_to_unzip_LRU(
     const buf_page_t *bpage) /*!< in: pointer to control block */
 {
   ut_ad(buf_page_in_file(bpage));
@@ -420,7 +442,7 @@ void buf_page_set_flush_type(buf_page_t *bpage,      /*!< in: buffer page */
 UNIV_INLINE
 void buf_block_set_file_page(buf_block_t *block, const page_id_t &page_id) {
   buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-  block->page.id.copy_from(page_id);
+  block->page.id = page_id;
 }
 
 /** Gets the io_fix state of a block.
@@ -440,7 +462,7 @@ not to hold it.
 @return page io_fix state */
 UNIV_INLINE
 enum buf_io_fix buf_page_get_io_fix_unlocked(const buf_page_t *bpage) {
-  ut_ad(bpage != NULL);
+  ut_ad(bpage != nullptr);
 
   enum buf_io_fix io_fix = bpage->io_fix;
 
@@ -628,7 +650,7 @@ to make this pure.
 @return control block, or NULL */
 UNIV_INLINE
 buf_block_t *buf_page_get_block(buf_page_t *bpage) {
-  if (bpage != NULL) {
+  if (bpage != nullptr) {
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
     buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
@@ -643,7 +665,7 @@ buf_block_t *buf_page_get_block(buf_page_t *bpage) {
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -832,8 +854,7 @@ ib_uint64_t buf_block_get_modify_clock(const buf_block_t *block) {
 @return the count */
 UNIV_INLINE
 ulint buf_block_fix(buf_page_t *bpage) {
-  ib_uint32_t count;
-  count = os_atomic_increment_uint32(&bpage->buf_fix_count, 1);
+  auto count = os_atomic_increment_uint32(&bpage->buf_fix_count, 1);
   ut_ad(count > 0);
   return (count);
 }
@@ -894,8 +915,6 @@ UNIV_INLINE
 void buf_block_buf_fix_dec(
     buf_block_t *block) /*!< in/out: block to bufferunfix */
 {
-  buf_block_unfix(block);
-
 #ifdef UNIV_DEBUG
   /* No debug latch is acquired if block belongs to system temporary.
   Debug latch is not of much help if access to block is single
@@ -904,6 +923,8 @@ void buf_block_buf_fix_dec(
     rw_lock_s_unlock(&block->debug_latch);
   }
 #endif /* UNIV_DEBUG */
+
+  buf_block_unfix(block);
 }
 
 /** Returns the buffer pool instance given a page id.
@@ -953,7 +974,7 @@ buf_page_t *buf_page_hash_get_low(buf_pool_t *buf_pool,
   HASH_SEARCH(hash, buf_pool->page_hash, page_id.fold(), buf_page_t *, bpage,
               ut_ad(bpage->in_page_hash && !bpage->in_zip_hash &&
                     buf_page_in_file(bpage)),
-              page_id.equals_to(bpage->id));
+              page_id == bpage->id);
   if (bpage) {
     ut_a(buf_page_in_file(bpage));
     ut_ad(bpage->in_page_hash);
@@ -984,12 +1005,12 @@ UNIV_INLINE
 buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
                                      const page_id_t &page_id, rw_lock_t **lock,
                                      ulint lock_mode, bool watch) {
-  buf_page_t *bpage = NULL;
+  buf_page_t *bpage = nullptr;
   rw_lock_t *hash_lock;
   ulint mode = RW_LOCK_S;
 
-  if (lock != NULL) {
-    *lock = NULL;
+  if (lock != nullptr) {
+    *lock = nullptr;
     ut_ad(lock_mode == RW_LOCK_X || lock_mode == RW_LOCK_S);
     mode = lock_mode;
   }
@@ -1016,15 +1037,15 @@ buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
 
   if (!bpage || buf_pool_watch_is_sentinel(buf_pool, bpage)) {
     if (!watch) {
-      bpage = NULL;
+      bpage = nullptr;
     }
     goto unlock_and_exit;
   }
 
   ut_ad(buf_page_in_file(bpage));
-  ut_ad(page_id.equals_to(bpage->id));
+  ut_ad(page_id == bpage->id);
 
-  if (lock == NULL) {
+  if (lock == nullptr) {
     /* The caller wants us to release the page_hash lock */
     goto unlock_and_exit;
   } else {
@@ -1065,7 +1086,7 @@ buf_block_t *buf_block_hash_get_locked(buf_pool_t *buf_pool,
       buf_page_hash_get_locked(buf_pool, page_id, lock, lock_mode);
   buf_block_t *block = buf_page_get_block(bpage);
 
-  if (block != NULL) {
+  if (block != nullptr) {
     ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
     ut_ad(!lock || rw_lock_own(*lock, lock_mode));
 
@@ -1081,13 +1102,13 @@ buf_block_t *buf_block_hash_get_locked(buf_pool_t *buf_pool,
         rw_lock_x_unlock(*lock);
       }
     }
-    *lock = NULL;
-    return (NULL);
+    *lock = nullptr;
+    return (nullptr);
   }
 
   ut_ad(!bpage);
-  ut_ad(lock == NULL || *lock == NULL);
-  return (NULL);
+  ut_ad(lock == nullptr || *lock == nullptr);
+  return (nullptr);
 }
 
 /** Returns TRUE if the page can be found in the buffer pool hash table.
@@ -1099,7 +1120,7 @@ UNIV_INLINE
 ibool buf_page_peek(const page_id_t &page_id) {
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
-  return (buf_page_hash_get(buf_pool, page_id) != NULL);
+  return (buf_page_hash_get(buf_pool, page_id) != nullptr);
 }
 
 /** Releases a compressed-only page acquired with buf_page_get_zip(). */
@@ -1191,14 +1212,6 @@ buf_block_t *buf_get_nth_chunk_block(
   chunk = buf_pool->chunks + n;
   *chunk_size = chunk->size;
   return (chunk->blocks);
-}
-
-/** Verify the possibility that a stored page is not in buffer pool.
-@param[in]	withdraw_clock	withdraw clock when stored the page
-@retval true	if the page might be relocated */
-UNIV_INLINE
-bool buf_pool_is_obsolete(ulint withdraw_clock) {
-  return (buf_pool_withdrawing || buf_withdraw_clock != withdraw_clock);
 }
 
 /** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,

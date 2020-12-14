@@ -480,6 +480,17 @@ explain select * from t1 force index(i1) where 100 member of (f1->"$[*]");
 delete from t1;
 drop table t1;
 
+
+--echo #Test CAST( .. AS YEAR ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+--error ER_NOT_SUPPORTED_YET
+create index i1 on t1((cast(f1->"$" as YEAR array)));
+show create table t1;
+DROP TABLE t1;
+--error ER_NOT_SUPPORTED_YET
+create table t1 (id int not null key auto_increment, f1 json, key i1 ((cast(f1->"$" as YEAR array)));
+
+
 --echo Test CAST( .. AS DATE ARRAY)
 create table t1 (id int not null key auto_increment, f1 json);
 create index i1 on t1((cast(f1->"$" as date array)));
@@ -1294,6 +1305,22 @@ SELECT * FROM t WHERE j->'$' = '1:1';
 SELECT * FROM t WHERE j->'$' = TIME'1:1';
 SELECT * FROM t WHERE j->'$' = '1:01';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30227756: JSON.JSON_PERFSCHEMA FAILS ON WINDOWS
+--echo #
+CREATE TABLE t1 (
+  j JSON DEFAULT (CAST('[9,8,0,1]' AS JSON)),
+  KEY mv_idx ((CAST(j->'$[*]' AS UNSIGNED ARRAY))));
+INSERT INTO t1 VALUES();
+DROP TABLE t1;
+# This query should return zero rows unless some allocated JSON data
+# has not been freed. It used to return a row on Windows due to a
+# memory leak in the CREATE TABLE statement above.
+SELECT * FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/sql/JSON' AND
+      (count_alloc <> count_free OR
+       sum_number_of_bytes_alloc <> sum_number_of_bytes_free);
 
 # If the unique record filter is not properly closed by any of queries above,
 # then the TempTable plugin will have ref_count > 0 on restart. This should be

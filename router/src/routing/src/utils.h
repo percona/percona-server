@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,11 @@
 #define UTILS_ROUTING_INCLUDED
 
 #include <array>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
+#include <cstdint>
 #include <vector>
 #ifndef _WIN32
-#include <netdb.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include <sys/socket.h>  // sockaddr_storage
 #else
-#include <stdint.h>
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -44,14 +39,6 @@
 #include "socket_operations.h"
 
 using ClientIpArray = std::array<uint8_t, 16>;
-
-/**
- * Socket address from either IPv4 or IPv6
- *
- * @param addr addrinfo struct
- * @return struct in_addr
- */
-void *get_in_addr(struct sockaddr *addr);
 
 /**
  * Get address of connected peer
@@ -112,7 +99,5 @@ std::vector<std::string> split_string(const std::string &data,
  * @return ClientIpArray
  */
 ClientIpArray in_addr_to_array(const sockaddr_storage &addr);
-
-std::string get_message_error(int errcode);
 
 #endif  // UTILS_ROUTING_INCLUDED

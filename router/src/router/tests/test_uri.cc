@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,13 +21,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "mysqlrouter/uri.h"
 
 #include <exception>
 
-#include "mysqlrouter/uri.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 using mysqlrouter::URI;
 using mysqlrouter::URIAuthority;
@@ -610,8 +609,8 @@ URIParseGoodTestData uri_test_data[] = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(URITests, URIParseGoodTests,
-                        ::testing::ValuesIn(uri_test_data));
+INSTANTIATE_TEST_SUITE_P(URITests, URIParseGoodTests,
+                         ::testing::ValuesIn(uri_test_data));
 
 // should all throw
 struct URITestFailData {
@@ -797,8 +796,8 @@ URITestFailData uri_test_fail_data[] = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(URITests, URIParseThrowingTests,
-                        ::testing::ValuesIn(uri_test_fail_data));
+INSTANTIATE_TEST_SUITE_P(URITests, URIParseThrowingTests,
+                         ::testing::ValuesIn(uri_test_fail_data));
 
 // parsing
 
@@ -1169,8 +1168,8 @@ URItoStringTestData uri_to_string_test_data[] = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(URITests, URItoStringGoodTests,
-                        ::testing::ValuesIn(uri_to_string_test_data));
+INSTANTIATE_TEST_SUITE_P(URITests, URItoStringGoodTests,
+                         ::testing::ValuesIn(uri_to_string_test_data));
 
 // rootless
 
@@ -1219,5 +1218,10 @@ URIRootlessTestFailData uri_rootless_test_fail_data[] = {
       "localhost:1234"}},
 };
 
-INSTANTIATE_TEST_CASE_P(URITests, URIRootlessThrowingTests,
-                        ::testing::ValuesIn(uri_rootless_test_fail_data));
+INSTANTIATE_TEST_SUITE_P(URITests, URIRootlessThrowingTests,
+                         ::testing::ValuesIn(uri_rootless_test_fail_data));
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

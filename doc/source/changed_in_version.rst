@@ -5,32 +5,33 @@ Changed in Percona Server |version|
 ================================================================================
 
 |Percona Server| |version| is based on |MySQL| |version| and incorporates many of the
-improvements found in |Percona Server| |version|.
+improvements found in |Percona Server| 5.7.
 
-Features ported to |Percona Server| |version| from |Percona Server| 5.7
-================================================================================
+------------------------------------------------------------------------
+Features Ported to |Percona Server| |version| from |Percona Server| 5.7
+------------------------------------------------------------------------
 
-The following features have been ported to |Percona Server| |version| from |Percona Server| 5.7: 
+The features are listed within the following sections:
 
 SHOW ENGINE INNODB STATUS Extensions
---------------------------------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - The Redo Log state
 - Specifying the InnoDB buffer pool sizes in bytes
 - ``innodb_print_lock_wait_timeout_info`` system variable
 
 Performance
---------------------------------------------------------------------------------
+^^^^^^^^^^^
 
 - :ref:`prefix_index_queries_optimization`
 - :ref:`aio_page_requests`
 - :ref:`threadpool`
 - :ref:`ps.buffer-pool.free-list.priority-refill`
 - :ref:`lru_manager_threads`
-- :ref:`parallel_doublewrite_buffer`
+
 
 Flexibility
---------------------------------------------------------------------------------
+^^^^^^^^^^^
 
 - :ref:`innodb_fts_improvements`
 - :ref:`improved_memory_engine`
@@ -40,7 +41,7 @@ Flexibility
 - :ref:`compressed_columns`
 
 Management
---------------------------------------------------------------------------------
+^^^^^^^^^^
 
 - :ref:`udf_percona_toolkit`
 - :ref:`kill_idle_trx`
@@ -54,13 +55,13 @@ Management
 - :ref:`data_at_rest_encryption`
 
 Reliability
---------------------------------------------------------------------------------
+^^^^^^^^^^^
 
 - :ref:`innodb_corrupt_table_action_page`
 - :ref:`log_connection_error`
 
 Diagnostics
---------------------------------------------------------------------------------
+^^^^^^^^^^^
 
 - :ref:`user_stats`
 - :ref:`slow_extended`
@@ -70,8 +71,8 @@ Diagnostics
 - :ref:`thread_based_profiling`
 - :ref:`innodb_fragmentation_count`
 
-Features removed from |Percona Server| |version|
-================================================================================
+Features Removed from |Percona Server| |version|
+================================================
 
 Some features, that were present in |Percona Server| 5.7, are removed from
 |Percona Server| |version|:
@@ -81,14 +82,13 @@ Removed Features
 
 - `Slow Query Log Rotation and Expiration
   <https://www.percona.com/doc/percona-server/5.7/flexibility/slowlog_rotation.html>`_
-- CSV engine mode for standard-compliant quote and comma parsing
-- Utility user
-- Expanded program option modifiers
-- The ``ALL_O_DIRECT`` InnoDB flush method: it is not compatible with the new
-  redo logging implementation
-- XTRADB_RSEG table from INFORMATION_SCHEMA
-- InnoDB memory size information from SHOW ENGINE INNODB STATUS; the same
-  information is available from Performance Schema memory summary tables
+- `CSV engine mode for standard-compliant quote and comma parsing <https://www.percona.com/doc/percona-server/5.7/flexibility/csv_engine_mode.html>`_
+- `Expanded program option modifiers <https://www.percona.com/doc/percona-server/5.7/management/expanded_program_option_modifiers.html>`_
+- `The ALL_O_DIRECT InnoDB flush method: it is not compatible with the new
+  redo logging implementation <https://www.percona.com/doc/percona-server/5.7/scalability/innodb_io.html>`_
+- `XTRADB_RSEG table from INFORMATION_SCHEMA <https://www.percona.com/doc/percona-server/5.7/diagnostics/misc_info_schema_tables.html>`_
+- `InnoDB memory size information from SHOW ENGINE INNODB STATUS; the same
+  information is available from Performance Schema memory summary tables <https://www.percona.com/doc/percona-server/5.7/diagnostics/innodb_show_status.html>`_
 - `Query cache enhancements
   <https://www.percona.com/doc/percona-server/5.7/performance/query_cache_enhance.html#query-cache-enhancements>`_
 

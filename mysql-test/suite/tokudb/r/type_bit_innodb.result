@@ -68,7 +68,7 @@ hex(a)
 0
 1
 alter table t1 add unique (a);
-ERROR 23000: Duplicate entry '' for key 'a'
+ERROR 23000: Duplicate entry '' for key 't1.a'
 drop table t1;
 create table t1 (a bit(2)) engine=innodb;
 insert into t1 values (b'00');
@@ -281,6 +281,7 @@ a+0	b+0
 68	454
 set @@max_length_for_sort_data=0;
 Warnings:
+Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
 select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
 a+0	b+0

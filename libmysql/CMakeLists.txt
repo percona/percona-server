@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+ADD_WSHADOW_WARNING()
 
 SET(CLIENT_API_FUNCTIONS
   mysql_affected_rows
@@ -137,7 +139,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_thread_safe
   mysql_use_result
   mysql_warning_count
-
+  mysql_real_connect_dns_srv
   CACHE INTERNAL "Functions exported by client API"
 )
 
@@ -175,6 +177,7 @@ SET(CLIENT_API_NONBLOCKING_FUNCTIONS
 SET(CLIENT_SOURCES
   libmysql.cc
   errmsg.cc
+  dns_srv.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
@@ -230,6 +233,31 @@ ENDIF()
 
 LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})
 
+UNSET(HAVE_WIN32_DNS_SRV)
+UNSET(HAVE_UNIX_DNS_SRV)
+SET(HAVE_DNS_SRV 0)
+IF(WIN32)
+  LIST(APPEND LIBS_TO_LINK dnsapi)
+  SET(HAVE_WIN32_DNS_SRV 1 PARENT_SCOPE)
+  SET(HAVE_DNS_SRV 1)
+  MESSAGE(STATUS "Found Win32 DNS SRV APIs")
+ELSEIF(FREEBSD)
+  SET(HAVE_DNS_SRV 1)
+  SET(HAVE_UNIX_DNS_SRV 1 PARENT_SCOPE)
+  MESSAGE(STATUS "BSD built in DNS SRV APIs")
+ELSE()
+  FIND_LIBRARY(RESOLV_LIBRARY NAMES resolv)
+  IF (RESOLV_LIBRARY)
+    LIST(APPEND LIBS_TO_LINK ${RESOLV_LIBRARY})
+    SET(HAVE_UNIX_DNS_SRV 1 PARENT_SCOPE)
+    SET(HAVE_DNS_SRV 1)
+    MESSAGE(STATUS "Found Unix DNS SRV APIs")
+  ENDIF()
+ENDIF()
+
+IF(HAVE_DNS_SRV EQUAL 0)
+  MESSAGE(FATAL_ERROR "Can't find neither Win32 nor Unix DNS SRV APIs")
+ENDIF()
 #
 # On Windows platform client library includes the client-side 
 # Windows Native Authentication plugin.
@@ -241,9 +269,8 @@ IF(WIN32)
 ENDIF()
 
 # LDAP authentication SASL client plugin
-MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
 ADD_SUBDIRECTORY(authentication_ldap)
-  
+
 # Merge several convenience libraries into one big perconaserverclient
 MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
 TARGET_LINK_LIBRARIES(perconaserverclient PRIVATE ${LIBS_TO_LINK})
@@ -289,6 +316,11 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   COMPONENT SharedLibraries)
 TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
 
+IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+  ADD_DEPENDENCIES(libmysql ${kerberos_target})
+  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
+ENDIF()
+
 IF(WIN32)
   # So that libmysql_api_test below can find the .dll
   ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD
@@ -319,14 +351,15 @@ IF(UNIX)
       )
   ENDIF()
 
-  GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-  IF(LINK_FLAG_NO_UNDEFINED)
-    STRING_APPEND(libmysql_link_flags
-      " ${LINK_FLAG_NO_UNDEFINED}")
-    STRING_APPEND(libmysql_link_flags
-      " -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-    SET_TARGET_PROPERTIES(libmysql
-      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+  ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
+
+  IF(LINK_FLAG_Z_DEFS)
+    MY_TARGET_LINK_OPTIONS(libmysql "LINKER:${LINK_FLAG_Z_DEFS}")
+  ENDIF()
+
+  IF(LINUX)
+    MY_TARGET_LINK_OPTIONS(libmysql
+      "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
   ENDIF() 
   # clean direct output needs to be set several targets have the same name
   #(perconaserverclient in this case)
@@ -374,6 +407,14 @@ IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
     COMPILE_FLAGS -Wstrict-prototypes
+    )
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+    COMPILE_FLAGS ${HAS_WARN_FLAG}
     )
 ENDIF()
 

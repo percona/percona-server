@@ -693,7 +693,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `status` enum('active','passive') CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL DEFAULT 'passive',
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -1025,8 +1025,8 @@ a	CAST(a AS SIGNED)	CAST(a AS UNSIGNED)
 18446744073709551614	-2	18446744073709551614
 18446744073709551615	-1	18446744073709551615
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to its negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to its negative complement
 UPDATE t1 SET a=CONCAT('-', a);
 SELECT a, CAST(a AS SIGNED) FROM t1;
 a	CAST(a AS SIGNED)

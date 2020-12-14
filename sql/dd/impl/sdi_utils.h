@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,10 +67,10 @@ inline bool checked_return(bool ret) {
   Convenience function for obtaining MDL. Sets up the MDL_request
   struct and populates it, before calling Mdl_context::acquire_lock.
 
-  @param thd
+  @param thd thread context
   @param ns MDL key namespace
-  @param schema_name
-  @param object_name
+  @param schema_name schema name
+  @param object_name object name
   @param mt MDL type
   @param md MDL duration
   @return value from Mdl_context::acquire_lock
@@ -100,22 +100,25 @@ const T &ptr_as_cref(const T *p) {
  */
 template <typename CONDITION_HANDLER_CLOS>
 class Closure_error_handler : public Internal_error_handler {
-  CONDITION_HANDLER_CLOS *m_ch;
+  CONDITION_HANDLER_CLOS m_ch;
   bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
                         Sql_condition::enum_severity_level *level,
-                        const char *msg) {
-    return (*m_ch)(sql_errno, sqlstate, level, msg);
+                        const char *msg) override {
+    return m_ch(sql_errno, sqlstate, level, msg);
   }
 
  public:
-  Closure_error_handler(CONDITION_HANDLER_CLOS *ch) : m_ch(ch) {}
+  // CONDITION_HANDLER_CLOS is *class* template argument, so there is no type
+  // deduction, and ch must refer to an R-value. So it is safe to move.
+  explicit Closure_error_handler(CONDITION_HANDLER_CLOS &&ch)
+      : m_ch(std::move(ch)) {}
 };
 
 /**
   Set up a custom error handler to use for errors from the execution
   of a closure.
 
-  @param thd
+  @param thd thread context
   @param chc closure which implements the
              Internal_error_handler::handle_condition override
   @param ac closure action for which error conditions should be handled.
@@ -124,7 +127,7 @@ class Closure_error_handler : public Internal_error_handler {
  */
 template <typename CH_CLOS, typename ACTION_CLOS>
 bool handle_errors(THD *thd, CH_CLOS &&chc, ACTION_CLOS &&ac) {
-  Closure_error_handler<CH_CLOS> eh(&chc);
+  Closure_error_handler<CH_CLOS> eh{std::forward<CH_CLOS>(chc)};
   thd->push_internal_handler(&eh);
   bool r = ac();
   thd->pop_internal_handler();

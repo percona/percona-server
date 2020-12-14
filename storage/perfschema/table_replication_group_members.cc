@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -142,8 +142,8 @@ Plugin_table table_replication_group_members::m_table_def(
 PFS_engine_table_share table_replication_group_members::m_share = {
     &pfs_readonly_acl,
     &table_replication_group_members::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_group_members::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -234,8 +234,8 @@ int table_replication_group_members::read_row_values(TABLE *table,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /** channel_name */
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;

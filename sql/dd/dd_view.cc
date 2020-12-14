@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
+
 #include <memory>
 #include <string>
 
@@ -267,11 +268,9 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     single query block. Otherwise iterate through all the type holders items
     created for unioned column types of all the query blocks.
   */
-  List_iterator_fast<Item> it(*(thd->lex->unit->get_unit_column_types()));
   List<Create_field> create_fields;
-  Item *item;
   uint i = 0;
-  while ((item = it++) != nullptr) {
+  for (Item *item : VisibleFields(*(thd->lex->unit->get_unit_column_types()))) {
     i++;
     bool is_sp_func_item = false;
     // Create temporary Field object from the item.
@@ -315,7 +314,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       Field *from_field, *default_field;
       tmp_field = create_tmp_field(thd, &table, item, item->type(), nullptr,
                                    &from_field, &default_field, false, false,
-                                   false, false);
+                                   false, false, false);
     }
     if (!tmp_field) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
@@ -356,15 +355,16 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         is created with type holder item, store name from first SELECT_LEX.
       */
       cr_field->field_name =
-          thd->lex->select_lex->item_list[i - 1]->item_name.ptr();
+          GetNthVisibleField(thd->lex->select_lex->fields, i - 1)
+              ->item_name.ptr();
     }
 
     cr_field->after = nullptr;
     cr_field->offset = 0;
     cr_field->pack_length_override = 0;
-    cr_field->maybe_null = !(tmp_field->flags & NOT_NULL_FLAG);
-    cr_field->is_zerofill = (tmp_field->flags & ZEROFILL_FLAG);
-    cr_field->is_unsigned = (tmp_field->flags & UNSIGNED_FLAG);
+    cr_field->is_nullable = !tmp_field->is_flag_set(NOT_NULL_FLAG);
+    cr_field->is_zerofill = tmp_field->is_flag_set(ZEROFILL_FLAG);
+    cr_field->is_unsigned = tmp_field->is_flag_set(UNSIGNED_FLAG);
 
     create_fields.push_back(cr_field);
   }
@@ -398,18 +398,8 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
         is_temporary_table(const_cast<TABLE_LIST *>(table)))
       continue;
 
-    LEX_CSTRING db_name;
-    LEX_CSTRING table_name;
-    if (table->schema_table_name) {
-      db_name = {table->db, table->db_length};
-      table_name = {table->schema_table_name, strlen(table->schema_table_name)};
-    } else if (table->is_view()) {
-      db_name = table->view_db;
-      table_name = table->view_name;
-    } else {
-      db_name = {table->db, table->db_length};
-      table_name = {table->table_name, table->table_name_length};
-    }
+    LEX_CSTRING db_name = {table->db, table->db_length};
+    LEX_CSTRING table_name = {table->table_name, table->table_name_length};
 
     // Avoid duplicate entries.
     {
@@ -565,7 +555,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     metadata stored with column information. Fill view columns only when view
     metadata is stored with column information.
   */
-  if ((thd->lex->select_lex->item_list.elements > 0) &&
+  if (!thd->lex->select_lex->field_list_is_empty() &&
       fill_dd_view_columns(thd, view_obj, view))
     return true;
 
@@ -712,7 +702,7 @@ bool update_view_status(THD *thd, const char *schema_name,
   dd::Properties *view_options = &new_view->options();
   view_options->set("view_valid", status);
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   // Update DD tables.
   if (client->update(new_view)) {

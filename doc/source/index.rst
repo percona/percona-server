@@ -9,27 +9,9 @@
 |Percona Server| |version| - Documentation
 ================================================================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
+|Percona Server| is a free, fully compatible, enhanced, and open source drop-in replacement for any MySQL database. It provides superior performance, scalability, and instrumentation.
 
-  * Your queries will run faster and more consistently.
-
-  * You will consolidate servers on powerful hardware.
-
-  * You will delay sharding, or avoid it entirely.
-
-  * You will save money on hosting fees and power.
-
-  * You will spend less time tuning and administering.
-
-  * You will achieve higher uptime.
-
-  * You will troubleshoot without guesswork.
-
-Does this sound too good to be true? It's not. |Percona Server| offers
-breakthrough performance, scalability, features, and instrumentation. Its
-self-tuning algorithms and support for extremely high-performance hardware
-make it the clear choice for companies who demand the utmost performance and
-reliability from their database server.
+|Percona Server| is trusted by thousands of enterprises to provide better performance and concurrency for their most demanding workloads. It delivers higher value to MySQL server users with optimized performance, greater performance scalability and availability, enhanced backups, and increased visibility.
 
 Introduction
 ================================================================================
@@ -51,7 +33,7 @@ Installation
    :glob:
 
    installation
-   upgrading_guide
+   installation/post-installation
 
 Scalability Improvements
 ================================================================================
@@ -92,6 +74,7 @@ Flexibility Improvements
    flexibility/innodb_fts_improvements
    flexibility/binlogging_replication_improvements
    flexibility/extended_set_var
+   flexibility/sequence_table
 
 Reliability Improvements
 ================================================================================
@@ -120,8 +103,6 @@ Management Improvements
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
-   management/data_at_rest_encryption
-   management/ssl-improvement
    management/utility_user
 
 Security Improvements
@@ -132,6 +113,8 @@ Security Improvements
   :glob:
 
   security/pam_plugin
+  security/simple-ldap
+  security/simple-ldap-variables
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin
@@ -146,7 +129,6 @@ Security Improvements
   security/encrypting-threads
   security/encrypting-doublewrite-buffers
   security/verifying-encryption
-  security/data-scrubbing
   security/ssl-improvement
   security/data-masking
 
@@ -165,6 +147,8 @@ Diagnostics Improvements
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
    diagnostics/innodb_fragmentation_count
+   diagnostics/stacktrace
+   diagnostics/libcoredumper
 
 TokuDB
 ================================================================================
@@ -182,9 +166,9 @@ TokuDB
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
    tokudb/tokudb_status_variables
+   tokudb/tokudb_fractal_tree_indexing
    tokudb/tokudb_troubleshooting
    tokudb/tokudb_performance_schema
-   tokudb/toku_backup
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
@@ -195,14 +179,14 @@ Percona MyRocks
    :maxdepth: 1
    :glob:
 
-   Introduction <myrocks/index>
-   Installation <myrocks/install>
-   Limitations <myrocks/limitations>
-   Differences <myrocks/differences>
-   Server Variables <myrocks/variables>
-   Status Variables <myrocks/status_variables>
-   myrocks/gap_locks_detection
-   myrocks/data_loading
+   MyRocks Introduction <myrocks/index>
+   MyRocks Installation <myrocks/install>
+   MyRocks Limitations <myrocks/limitations>
+   MyRocks Differences <myrocks/differences>
+   MyRocks Server Variables <myrocks/variables>
+   MyRocks Status Variables <myrocks/status_variables>
+   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
+   MyRocks Data Loading <myrocks/data_loading>
 
 Reference
 ================================================================================

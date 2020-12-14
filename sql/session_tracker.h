@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,11 @@ enum enum_session_tracker {
 };
 
 #define SESSION_TRACKER_END TRANSACTION_INFO_TRACKER
+
+#define TX_TRACKER_GET(a)                                            \
+  Transaction_state_tracker *a =                                     \
+      (Transaction_state_tracker *)thd->session_tracker.get_tracker( \
+          TRANSACTION_INFO_TRACKER)
 
 /**
   State_tracker
@@ -100,7 +105,7 @@ class State_tracker {
   /** Mark the entity as changed. */
   virtual void mark_as_changed(THD *thd, LEX_CSTRING *name) = 0;
 
-  virtual void claim_memory_ownership() {}
+  virtual void claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {}
 };
 
 /**
@@ -152,7 +157,7 @@ class Session_tracker {
     for (int i = 0; i <= SESSION_TRACKER_END; i++) delete m_trackers[i];
   }
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 };
 
 /*
@@ -174,11 +179,11 @@ class Session_state_change_tracker : public State_tracker {
 
  public:
   Session_state_change_tracker();
-  bool enable(THD *thd);
-  bool check(THD *, set_var *) { return false; }
-  bool update(THD *thd);
-  bool store(THD *, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override;
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
   bool is_state_changed();
 };
 
@@ -203,7 +208,8 @@ enum enum_tx_state {
   TX_STMT_UNSAFE = 64,     ///< "unsafe" (non-deterministic like UUID()) stmts
   TX_RESULT_SET = 128,     ///< result-set was sent
   TX_WITH_SNAPSHOT = 256,  ///< WITH CONSISTENT SNAPSHOT was used
-  TX_LOCKED_TABLES = 512   ///< LOCK TABLES is active
+  TX_LOCKED_TABLES = 512,  ///< LOCK TABLES is active
+  TX_STMT_DML = 1024       ///< a DML statement (known before data is accessed)
 };
 
 /**
@@ -239,11 +245,11 @@ class Transaction_state_tracker : public State_tracker {
  public:
   /** Constructor */
   Transaction_state_tracker();
-  bool enable(THD *thd) { return update(thd); }
-  bool check(THD *, set_var *) { return false; }
-  bool update(THD *thd);
-  bool store(THD *thd, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override { return update(thd); }
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *thd, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
 
   /** Change transaction characteristics */
   void set_read_flags(THD *thd, enum enum_tx_read_flags flags);
@@ -257,6 +263,9 @@ class Transaction_state_tracker : public State_tracker {
 
   /** Helper function: turn table info into table access flag */
   enum_tx_state calc_trx_state(thr_lock_type l, bool has_trx);
+
+  /** Get (possibly still incomplete) state */
+  uint get_trx_state() const { return tx_curr_state; }
 
  private:
   enum enum_tx_changed {
@@ -281,8 +290,12 @@ class Transaction_state_tracker : public State_tracker {
 
   inline void update_change_flags(THD *thd) {
     tx_changed &= ~TX_CHG_STATE;
-    tx_changed |= (tx_curr_state != tx_reported_state) ? TX_CHG_STATE : 0;
-    if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, NULL);
+    // Flag state changes other than "is DML"
+    tx_changed |=
+        ((tx_curr_state & ~TX_STMT_DML) != (tx_reported_state & ~TX_STMT_DML))
+            ? TX_CHG_STATE
+            : 0;
+    if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, nullptr);
   }
 };
 

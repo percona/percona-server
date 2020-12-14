@@ -4,8 +4,6 @@
 Encrypting Temporary Files
 ==========================================================
 
-:Availability: This feature is of **Experimental** quality.
-
 For InnoDB user-created temporary tables, created in a temporary tablespace
 file, use the :variable:`innodb_temp_tablespace_encrypt` variable.
 
@@ -21,12 +19,12 @@ When this variable is set to ``ON``, the server encrypts the global temporary
 tablespace (:file: `ibtmp*` files) and the session temporary tablespaces
 (:file: `#innodb_temp/temp_*.ibt` files). The variable does not enforce the
 encryption of currently open temporary files and does not rebuild the system
-temporary tablespace to encrypt data which has already been written.
+temporary tablespace to encrypt data that has already been written.
 
 The ``CREATE TEMPORARY TABLE`` does not support the ``ENCRYPTION`` clause. The
 ``TABLESPACE`` clause cannot be set to innodb_temporary.
 
-The global temporary tablespace datafile ``ibtmp1`` contains temporary table
+The global temporary tablespace datafile ``ibtmp1`` contains the temporary table
 undo logs while intrinsic temporary tables and user-created temporary tables
 are located in the encrypted session temporary tablespace.
 
@@ -58,22 +56,16 @@ allow encrypted tables and undo data to be decrypted.
 
 .. important::
 
-    To use this option, the keyring plugin must be loaded. If the keyring is
-    not loaded the server generates an error and refuses to create new
-    temporary tables.
+    The keyring plugin must be loaded to use the variable. The server generates an error and refuses to create temporary tables if the keyring plugin is not loaded.
 
-Temporary files are currently used in |Percona Server| for the following
-purposes:
 
-  * Filesort - for example, when you run a `SELECT` statement with `SQL_BIG_RESULT` hints
+For each temporary file, an encryption key has the following attributes:
 
-  * Binary log transactional caches
+* Generated locally
 
-  * Group Replication caches
+* Maintained in memory for the lifetime of the temporary file 
 
-For each temporary file, an encryption key is generated locally and only
-maintained in memory for the lifetime of the temporary file and the key is
-discarded afterwards.
+* Discarded with the temporary file
 
 System Variables
 ----------------------
@@ -87,15 +79,10 @@ System Variables
    :default: ``OFF``
 
 This variable turns "ON" the encryption of temporary files created by |Percona
-Server|.
+Server|. The default value is ``OFF``.
 
   .. seealso::
 
     |MySQL| Documentation
     https://dev.mysql.com/doc/refman/8.0/en/create-temporary-table.html
 
-.. seealso::
-
-    :ref:`using-keyring-plugin`
-
-    :ref:`encrypting-system-tablespace`

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class Ofstream : public std::ofstream {
   // that is inherited by default, a new solution has to be found.
   //
   // using std::ofstream::ofstream;
-  virtual ~Ofstream() {}
+  ~Ofstream() override {}
   virtual void open(const char *filename,
                     std::ios_base::openmode mode = std::ios_base::out) = 0;
   virtual void open(const std::string &filename,
@@ -92,12 +92,12 @@ class Ofstream : public std::ofstream {
 class RealOfstream : public Ofstream {
  public:
   // using Ofstream::Ofstream;
-  virtual void open(const char *filename,
-                    std::ios_base::openmode mode = std::ios_base::out) {
+  void open(const char *filename,
+            std::ios_base::openmode mode = std::ios_base::out) override {
     return std::ofstream::open(filename, mode);
   }
-  virtual void open(const std::string &filename,
-                    std::ios_base::openmode mode = std::ios_base::out) {
+  void open(const std::string &filename,
+            std::ios_base::openmode mode = std::ios_base::out) override {
     return open(filename.c_str(), mode);
   }
 };
@@ -269,24 +269,6 @@ bool substitute_envvar(std::string &line) noexcept;
 std::string substitute_variable(const std::string &s, const std::string &name,
                                 const std::string &value);
 
-/** @brief Wraps the given string
- *
- * Wraps the given string based on the spaces between words.
- * New lines are respected; carriage return and tab characters are
- * removed.
- *
- * The `width` specifies how much characters will in each line. It is also
- * possible to prefix each line with a number of spaces using the `indent_size`
- * argument.
- *
- * @param str string to wrap
- * @param width maximum line length
- * @param indent number of spaces to prefix each line with
- * @return vector of strings
- */
-std::vector<std::string> wrap_string(const std::string &str, size_t width,
-                                     size_t indent);
-
 bool my_check_access(const std::string &path);
 
 /** @brief Copy contents of one file to another.
@@ -373,28 +355,28 @@ class SysUserOperations : public SysUserOperationsBase {
   int initgroups(const char *user, gid_type gid) override;
 
   /** @brief Thin wrapper around system setgid() */
-  virtual int setgid(gid_t gid) override;
+  int setgid(gid_t gid) override;
 
   /** @brief Thin wrapper around system setuid() */
-  virtual int setuid(uid_t uid) override;
+  int setuid(uid_t uid) override;
 
   /** @brief Thin wrapper around system setegid() */
-  virtual int setegid(gid_t gid) override;
+  int setegid(gid_t gid) override;
 
   /** @brief Thin wrapper around system seteuid() */
-  virtual int seteuid(uid_t uid) override;
+  int seteuid(uid_t uid) override;
 
   /** @brief Thin wrapper around system geteuid() */
-  virtual uid_t geteuid() override;
+  uid_t geteuid() override;
 
   /** @brief Thin wrapper around system getpwnam() */
-  virtual struct passwd *getpwnam(const char *name) override;
+  struct passwd *getpwnam(const char *name) override;
 
   /** @brief Thin wrapper around system getpwuid() */
-  virtual struct passwd *getpwuid(uid_t uid) override;
+  struct passwd *getpwuid(uid_t uid) override;
 
   /** @brief Thin wrapper around system chown() */
-  virtual int chown(const char *file, uid_t owner, gid_t group) override;
+  int chown(const char *file, uid_t owner, gid_t group) override;
 
  private:
   SysUserOperations(const SysUserOperations &) = delete;

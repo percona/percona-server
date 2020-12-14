@@ -32,7 +32,7 @@
 #        Even the 'SELECT 1' was in some cases in state                #
 #        "writing to net".                                             #
 #     Final Solution:                                                  #
-#        --real_sleep 0.3                                              #
+#        --sleep 0.3                                              #
 #        This value was at least on my box sufficient.                 #
 #        Please inform us if this test fails so that we can adjust     #
 #        the sleep time better or switch to poll routines.             #
@@ -164,7 +164,7 @@ eval SELECT * FROM $table $select_where ORDER BY id;
 --sorted_result
 eval SELECT $columns FROM $table $select_where ORDER BY id;
 --source suite/funcs_1/datadict/datadict_priv.inc
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -173,7 +173,7 @@ eval SELECT $columns FROM $table $select_where ORDER BY id;
 --echo ####################################################################################
 connection default;
 GRANT PROCESS ON *.* TO ddicttestuser1@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 4.1 Existing connection con100 (ddicttestuser1)
@@ -191,7 +191,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 4.2 New connection con101 (ddicttestuser1 with PROCESS privilege)
@@ -207,7 +207,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -217,7 +217,7 @@ SELECT * FROM information_schema.processlist;
 connection default;
 CREATE USER ''@'localhost';
 GRANT PROCESS ON *.* TO ''@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 5.1 Establish connection (anonymous1,localhost,'',,information_schema)
@@ -234,7 +234,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -243,7 +243,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 6.1 New connection con102 (ddicttestuser1 has no more PROCESS privilege)
@@ -260,7 +260,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -269,7 +269,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 REVOKE PROCESS ON *.* FROM ''@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 7.1 New connection (anonymous2,localhost,'',,information_schema)
@@ -290,7 +290,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -299,7 +299,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 8.1 New connection con103 (ddicttestuser1 with SUPER privilege)
@@ -315,7 +315,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -324,7 +324,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 REVOKE SUPER ON *.* FROM 'ddicttestuser1'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 9.1 New connection con104 (ddicttestuser1 without SUPER privilege)
@@ -341,7 +341,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -350,7 +350,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost' WITH GRANT OPTION;
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 10.1 New connection con105 (ddicttestuser1 with SUPER privilege and GRANT OPTION)
@@ -367,7 +367,7 @@ GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 --echo ####################################################################################
 connection default;
 GRANT SUPER,PROCESS ON *.* TO 'ddicttestuser1'@'localhost' WITH GRANT OPTION;
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 10.3 New connection con106 (ddicttestuser1 with SUPER,PROCESS WITH GRANT OPTION)
@@ -376,7 +376,7 @@ connect (con106,localhost,ddicttestuser1,ddictpass,information_schema);
 --echo ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 10.4 New connection con200 (ddicttestuser2 with PROCESS privilege)
@@ -392,7 +392,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -401,7 +401,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection con106;
 REVOKE PROCESS ON *.* FROM 'ddicttestuser2'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 11.1 New connection con201 (ddicttestuser2)
@@ -417,7 +417,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 11.2 Revoke SUPER,PROCESS,GRANT OPTION privilege from user ddicttestuser1
@@ -425,7 +425,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 REVOKE SUPER,PROCESS,GRANT OPTION ON *.* FROM 'ddicttestuser1'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 11.3 New connection con107 (ddicttestuser1)
@@ -444,7 +444,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################
@@ -453,7 +453,7 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connection default;
 REVOKE SELECT ON *.* FROM 'ddicttestuser1'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 12.1 New connection con108 (ddicttestuser1)
@@ -472,7 +472,7 @@ SHOW processlist;
 --replace_result "init" STATE "starting" STATE "cleaning up" STATE
 --sorted_result
 SELECT * FROM information_schema.processlist;
---real_sleep 0.3
+--sleep 0.3
 
 --echo ####################################################################################
 --echo 12.2 Revoke only the SELECT privilege on the information_schema from ddicttestuser1.
@@ -481,7 +481,7 @@ SELECT * FROM information_schema.processlist;
 connection default;
 --error ER_DBACCESS_DENIED_ERROR
 REVOKE SELECT ON information_schema.* FROM 'ddicttestuser3'@'localhost';
---real_sleep 0.3
+--sleep 0.3
 
 
 --echo ####################################################################################

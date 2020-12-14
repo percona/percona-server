@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -61,7 +61,7 @@ when it finishes its run\&. Applications depending on this behavior should be mo
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&22.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&22.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .if n \{\
 .sp
 .\}
@@ -77,7 +77,7 @@ Section\ \&22.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&22.5.8, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
+Section\ \&22.5.6, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
@@ -90,7 +90,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.341.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&22.269.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -145,456 +145,517 @@ l l l
 l l l
 l l l
 l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
 l l l.
 T{
 .PP
---append
+\fB \fR\fB--allow-pk-changes[=0|1]\fR\fB \fR
 T}:T{
-Append data to a tab-delimited file
+Allow changes to set of columns making up table's primary key
 T}:T{
 .PP
-All NDB 8.0 releases
+ADDED: NDB 8.0.21
 T}
 T{
 .PP
---backup_path=dir_name
+\fB \fR\fB--append\fR\fB \fR
+T}:T{
+Append data to tab-delimited file
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--backup-path=dir_name\fR\fB \fR
 T}:T{
 Path to backup files directory
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---backupid=#,
+\fB--backupid=#\fR,
 .PP
--b
+\fB \fR\fB-b\fR\fB \fR
 T}:T{
-Restore from the backup with the given ID
+Restore from backup having this ID
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect,
+\fB--connect\fR,
 .PP
--c
+\fB \fR\fB-c\fR\fB \fR
 T}:T{
-Alias for --connectstring.
+Alias for --connectstring
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---disable-indexes
+\fB \fR\fB--disable-indexes\fR\fB \fR
 T}:T{
-Causes indexes from a backup to be ignored; may decrease time needed to
-              restore data.
+Causes indexes from backup to be ignored; may decrease time needed to
+              restore data
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---dont-ignore-systab-0,
+\fB--dont-ignore-systab-0\fR,
 .PP
--f
+\fB \fR\fB-f\fR\fB \fR
 T}:T{
-Do not ignore system table during restore. Experimental only; not for
+Do not ignore system table during restore; experimental only; not for
               production use
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---exclude-databases=db-list
+\fB \fR\fB--exclude-databases=db-list\fR\fB \fR
 T}:T{
 List of one or more databases to exclude (includes those not named)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---exclude-intermediate-sql-tables[=TRUE|FALSE]
+\fB \fR\fB--exclude-intermediate-sql-tables[=TRUE|FALSE]\fR\fB \fR
 T}:T{
-If TRUE (the default), do not restore any intermediate tables (having
-              names prefixed with '#sql-') that were left over from
-              copying ALTER TABLE operations.
+If TRUE (default), do not restore any intermediate tables (having names
+              prefixed with '#sql-') that were left over from copying
+              ALTER TABLE operations
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---exclude-missing-columns
+\fB \fR\fB--exclude-missing-columns\fR\fB \fR
 T}:T{
-Causes columns from the backup version of a table that are missing from
-              the version of the table in the database to be ignored.
+Causes columns from backup version of table that are missing from
+              version of table in database to be ignored
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---exclude-missing-tables
+\fB \fR\fB--exclude-missing-tables\fR\fB \fR
 T}:T{
-Causes tables from the backup that are missing from the database to be
-              ignored.
+Causes tables from backup that are missing from database to be ignored
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---exclude-tables=table-list
+\fB \fR\fB--exclude-tables=table-list\fR\fB \fR
 T}:T{
-List of one or more tables to exclude (includes those in the same
-              database that are not named); each table reference must
-              include the database name
+List of one or more tables to exclude (includes those in same database
+              that are not named); each table reference must include
+              database name
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-enclosed-by=char
+\fB \fR\fB--fields-enclosed-by=char\fR\fB \fR
 T}:T{
-Fields are enclosed with the indicated character
+Fields are enclosed by this character
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-optionally-enclosed-by
+\fB \fR\fB--fields-optionally-enclosed-by\fR\fB \fR
 T}:T{
-Fields are optionally enclosed with the indicated character
+Fields are optionally enclosed by this character
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-terminated-by=char
+\fB \fR\fB--fields-terminated-by=char\fR\fB \fR
 T}:T{
-Fields are terminated by the indicated character
+Fields are terminated by this character
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---hex
+\fB \fR\fB--hex\fR\fB \fR
 T}:T{
 Print binary types in hexadecimal format
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---include-databases=db-list
+\fB \fR\fB--ignore-extended-pk-updates[=0|1]\fR\fB \fR
+T}:T{
+Ignore log entries containing updates to columns now included in
+              extended primary key
+T}:T{
+.PP
+ADDED: NDB 8.0.21
+T}
+T{
+.PP
+\fB \fR\fB--include-databases=db-list\fR\fB \fR
 T}:T{
 List of one or more databases to restore (excludes those not named)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---include-tables=table-list
+\fB \fR\fB--include-stored-grants\fR\fB \fR
+T}:T{
+Restore shared users and grants to ndb_sql_metadata table
+T}:T{
+.PP
+ADDED: NDB 8.0.19
+T}
+T{
+.PP
+\fB \fR\fB--include-tables=table-list\fR\fB \fR
 T}:T{
 List of one or more tables to restore (excludes those in same database
-              that are not named); each table reference must include the
+              that are not named); each table reference must include
               database name
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---lines-terminated-by=char
+\fB \fR\fB--lines-terminated-by=char\fR\fB \fR
 T}:T{
-Lines are terminated by the indicated character
+Lines are terminated by this character
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---lossy-conversions,
+\fB--lossy-conversions\fR,
 .PP
--L
+\fB \fR\fB-L\fR\fB \fR
 T}:T{
 Allow lossy conversions of column values (type demotions or changes in
               sign) when restoring data from backup
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---no-binlog
+\fB \fR\fB--no-binlog\fR\fB \fR
 T}:T{
-If a mysqld is connected and using binary logging, do not log the
-              restored data
+If mysqld is connected and using binary logging, do not log restored
+              data
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---no-restore-disk-objects,
+\fB--no-restore-disk-objects\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Do not restore objects relating to Disk Data
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---no-upgrade,
+\fB--no-upgrade\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Do not upgrade array type for varsize attributes which do not already
               resize VAR data, and do not change column attributes
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---ndb-nodegroup-map=map,
+\fB--ndb-nodegroup-map=map\fR,
 .PP
--z
+\fB \fR\fB-z\fR\fB \fR
 T}:T{
-Nodegroup map for NDBCLUSTER storage engine. Syntax: list of
+Nodegroup map for NDBCLUSTER storage engine; syntax: list of
               (source_nodegroup, destination_nodegroup)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nodeid=#,
+\fB--nodeid=#\fR,
 .PP
--n
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 ID of node where backup was taken
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---parallelism=#,
+\fB \fR\fB--num-slices=#\fR\fB \fR
+T}:T{
+Number of slices to apply when restoring by slice
+T}:T{
 .PP
--p
+ADDED: NDB 8.0.20
+T}
+T{
+.PP
+\fB--parallelism=#\fR,
+.PP
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Number of parallel transactions to use while restoring data
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---preserve-trailing-spaces,
+\fB--preserve-trailing-spaces\fR,
 .PP
--P
+\fB \fR\fB-P\fR\fB \fR
 T}:T{
 Allow preservation of trailing spaces (including padding) when promoting
               fixed-width string types to variable-width types
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---print
+\fB \fR\fB--print\fR\fB \fR
 T}:T{
-Print metadata, data and log to stdout (equivalent to --print-meta
+Print metadata, data, and log to stdout (equivalent to --print-meta
               --print-data --print-log)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---print-data
+\fB \fR\fB--print-data\fR\fB \fR
 T}:T{
 Print data to stdout
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---print-log
+\fB \fR\fB--print-log\fR\fB \fR
 T}:T{
-Print to stdout
+Print log to stdout
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---print-meta
+\fB \fR\fB--print-meta\fR\fB \fR
 T}:T{
 Print metadata to stdout
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
-print-sql-log
+\fB \fR\fB--print-sql-log\fR\fB \fR
 T}:T{
 Write SQL log to stdout; default is FALSE
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---progress-frequency=#
+\fB \fR\fB--progress-frequency=#\fR\fB \fR
 T}:T{
-Print status of restoration each given number of seconds
+Print status of restore each given number of seconds
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---promote-attributes,
+\fB--promote-attributes\fR,
 .PP
--A
+\fB \fR\fB-A\fR\fB \fR
 T}:T{
 Allow attributes to be promoted when restoring data from backup
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---rebuild-indexes
+\fB \fR\fB--rebuild-indexes\fR\fB \fR
 T}:T{
-Causes multithreaded rebuilding of ordered indexes found in the backup.
-              Number of threads used is determined by setting
-              BuildIndexThreads parameter.
+Causes multithreaded rebuilding of ordered indexes found in backup;
+              number of threads used is determined by setting
+              BuildIndexThreads
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---restore-data,
-.PP
--r
+\fB \fR\fB--remap-column=[db].[tbl].[col]:[fn]:[args]\fR\fB \fR
 T}:T{
-Restore table data and logs into NDB Cluster using the NDB API
+Apply offset to value of specified column using indicated function and
+              arguments
 T}:T{
 .PP
-All NDB 8.0 releases
+ADDED: NDB 8.0.21
 T}
 T{
 .PP
---restore-epoch,
+\fB--restore-data\fR,
 .PP
--e
+\fB \fR\fB-r\fR\fB \fR
 T}:T{
-Restore epoch info into the status table. Convenient on a MySQL Cluster
-              replication slave for starting replication. The row in
-              mysql.ndb_apply_status with id 0 will be updated/inserted.
+Restore table data and logs into NDB Cluster using NDB API
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---restore-meta,
+\fB--restore-epoch\fR,
 .PP
--m
+\fB \fR\fB-e\fR\fB \fR
 T}:T{
-Restore metadata to NDB Cluster using the NDB API
+Restore epoch info into status table; useful on replica cluster for
+              starting replication; updates or inserts row in
+              mysql.ndb_apply_status with ID 0
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---restore-privilege-tables
+\fB--restore-meta\fR,
+.PP
+\fB \fR\fB-m\fR\fB \fR
 T}:T{
-Restore MySQL privilege tables that were previously moved to NDB.
+Restore metadata to NDB Cluster using NDB API
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---rewrite-database=olddb,newdb
+\fB \fR\fB--restore-privilege-tables\fR\fB \fR
 T}:T{
-Restores to a database with a different name than the original
+Restore MySQL privilege tables that were previously moved to NDB
 T}:T{
 .PP
-All NDB 8.0 releases
+DEPRECATED: NDB 8.0.16
 T}
 T{
 .PP
---skip-broken-objects
+\fB \fR\fB--rewrite-database=olddb,newdb\fR\fB \fR
 T}:T{
-Causes missing blob tables in the backup file to be ignored.
+Restore to differently named database
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---skip-table-check,
-.PP
--s
+\fB \fR\fB--skip-broken-objects\fR\fB \fR
 T}:T{
-Skip table structure check during restoring of data
+Ignore missing blob tables in backup file
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---skip-unknown-objects
+\fB--skip-table-check\fR,
+.PP
+\fB \fR\fB-s\fR\fB \fR
+T}:T{
+Skip table structure check during restore
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--skip-unknown-objects\fR\fB \fR
 T}:T{
 Causes schema objects not recognized by ndb_restore to be ignored when
-              restoring a backup made from a newer MySQL Cluster version
-              to an older version.
+              restoring backup made from newer NDB version to older
+              version
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---tab=dir_name,
-.PP
--T dir_name
+\fB \fR\fB--slice-id=#\fR\fB \fR
 T}:T{
-Creates a tab-separated .txt file for each table in the given path
+Slice ID, when restoring by slices
 T}:T{
 .PP
-All NDB 8.0 releases
+ADDED: NDB 8.0.20
 T}
 T{
 .PP
---verbose=#
+\fB--tab=dir_name\fR,
+.PP
+\fB \fR\fB-T dir_name\fR\fB \fR
+T}:T{
+Creates a tab-separated .txt file for each table in path provided
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--verbose=#\fR\fB \fR
 T}:T{
 Level of verbosity in output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -606,7 +667,7 @@ Typical options for this utility are shown here:
 .\}
 .nf
 ndb_restore [\-c \fIconnection_string\fR] \-n \fInode_id\fR \-b \fIbackup_id\fR \e
-      [\-m] \-r \-\-backup_path=\fI/path/to/backup/files\fR
+      [\-m] \-r \-\-backup\-path=\fI/path/to/backup/files\fR
 .fi
 .if n \{\
 .RE
@@ -621,13 +682,15 @@ requires at a minimum the
 \fB\-\-backupid\fR
 (short form:
 \fB\-b\fR), and
-\fB\-\-backup_path\fR
-options\&. In addition, when
+\fB\-\-backup\-path\fR
+options\&.
+.PP
+Prior to NDB 8\&.0\&.19, when
 \fBndb_restore\fR
-is used to restore any tables containing unique indexes, you must include
+was used to restore any tables containing unique indexes, it was necessary to include
 \fB\-\-disable\-indexes\fR
 or
-\fB\-\-rebuild\-indexes\fR\&. (Bug #57782, Bug #11764893)
+\fB\-\-rebuild\-indexes\fR\&. Beginning with NDB 8\&.0\&.19, when automatic metadata synchronization is enabled, this is no longer necessary\&.
 .PP
 The
 \fB\-c\fR
@@ -684,19 +747,218 @@ can be found in the following list:
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-allow\-pk\-changes\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--allow-pk-changes[=0|1]
+T}
+T{
+Introduced
+T}:T{
+8.0.21-ndb-8.0.21
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+1
+T}
+.TE
+.sp 1
+When this option is set to
+1,
+\fBndb_restore\fR
+allows the primary keys in a table definition to differ from that of the same table in the backup\&. This may be desirable when backing up and restoring between different schema versions with primary key changes on one or more tables, and it appears that performing the restore operation using ndb_restore is simpler or mor efficient than issuing many
+ALTER TABLE
+statements after restoring table schemas and data\&.
+.sp
+The following changes in primary key definitions are supported by
+\fB\-\-allow\-pk\-changes\fR:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBExtending the primary key\fR: A non\-nullable column that exists in the table schema in the backup becomes part of the table\*(Aqs primary key in the database\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+When extending a table\*(Aqs primary key, any columns which become part of primary key must not be updated while the backup is being taken; any such updates discovered by
+\fBndb_restore\fR
+cause the restore operation to fail, even when no change in value takes place\&. In some cases, it may be possible to override this behavior using the
+\fB\-\-ignore\-extended\-pk\-updates\fR
+option; see the description of this option for more information\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBContracting the primary key (1)\fR: A column that is already part of the table\*(Aqs primary key in the backup schema is no longer part of the primary key, but remains in the table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBContracting the primary key (2)\fR: A column that is already part of the table\*(Aqs primary key in the backup schema is removed from the table entirely\&.
+.RE
+.sp
+These differences can be combined with other schema differences supported by
+\fBndb_restore\fR, including changes to blob and text columns requiring the use of staging tables\&.
+.sp
+Basic steps in a typical scenario using primary key schema changes are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Restore table schemas using
+\fBndb_restore\fR
+\fB\-\-restore\-meta\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Alter schema to that desired, or create it
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Back up the desired schema
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+Run
+\fBndb_restore\fR
+\fB\-\-disable\-indexes\fR
+using the backup from the previous step, to drop indexes and constraints
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
+Run
+\fBndb_restore\fR
+\fB\-\-allow\-pk\-changes\fR
+(possibly along with
+\fB\-\-ignore\-extended\-pk\-updates\fR,
+\fB\-\-disable\-indexes\fR, and possibly other options as needed) to restore all data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  6." 4.2
+.\}
+Run
+\fBndb_restore\fR
+\fB\-\-rebuild\-indexes\fR
+using the backup made with the desired schema, to rebuild indexes and constraints
+.RE
+.sp
+When extending the primary key, it may be necessary for
+\fBndb_restore\fR
+to use a temporary secondary unique index during the restore operation to map from the old primary key to the new one\&. Such an index is created only when necessary to apply events from the backup log to a table which has an extended primary key\&. This index is named
+NDB$RESTORE_PK_MAPPING, and is created on each table requiring it; it can be shared, if necessary, by multiple instances of
+\fBndb_restore\fR
+instances running in parallel\&. (Running
+\fBndb_restore\fR
+\fB\-\-rebuild\-indexes\fR
+at the end of the restore process causes this index to be dropped\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-append\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --append
 T}
@@ -717,31 +979,24 @@ options, this causes the data to be appended to any existing files having the sa
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-backup_path\fR=\fIdir_name\fR
+\fB\-\-backup\-path\fR=\fIdir_name\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --backup-path=dir_name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Directory name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ./
 T}
@@ -750,7 +1005,7 @@ T}
 The path to the backup directory is required; this is supplied to
 \fBndb_restore\fR
 using the
-\fB\-\-backup_path\fR
+\fB\-\-backup\-path\fR
 option, and must include the subdirectory corresponding to the ID backup of the backup to be restored\&. For example, if the data node\*(Aqs
 DataDir
 is
@@ -759,7 +1014,7 @@ is
 /var/lib/mysql\-cluster/BACKUP/BACKUP\-3\&. The path may be absolute or relative to the directory in which the
 \fBndb_restore\fR
 executable is located, and may be optionally prefixed with
-\fBbackup_path=\fR\&.
+\fBbackup\-path=\fR\&.
 .sp
 It is possible to restore a backup to a database with a different configuration than it was created from\&. For example, suppose that a backup with backup ID
 12, created in a cluster with two storage nodes having the node IDs
@@ -787,9 +1042,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.16 to a cluster running NDB Cluster 7\&.4\&.26, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.20 to a cluster running NDB Cluster 7\&.4\&.30, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.16 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.20 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -815,28 +1070,21 @@ process\&. However, the data files must always be applied before the logs\&.
 \fB\-b\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --backupid=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 none
 T}
@@ -845,7 +1093,7 @@ T}
 This option is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&22.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&22.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -876,28 +1124,21 @@ In NDB 8\&.0\&.15 and later, this option is required\&.
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 localhost:1186
 T}
@@ -918,16 +1159,9 @@ Alias for
 \fB\-\-disable\-indexes\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --disable-indexes
 T}
@@ -951,16 +1185,9 @@ backup\&. Afterwards, you can restore indexes for all tables at once with multit
 \fB\-f\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --dont-ignore-systab-0
 T}
@@ -987,28 +1214,21 @@ causes the system table to be restored\&.
 \fB\-\-exclude\-databases\fR=\fIdb\-list\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-databases=db-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1030,28 +1250,21 @@ This option is often used in combination with
 \fB\-\-exclude\-intermediate\-sql\-tables[\fR=\fITRUE|FALSE]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-intermediate-sql-tables[=TRUE|FALSE]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -1083,16 +1296,9 @@ by default\&.
 \fB\-\-exclude\-missing\-columns\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-missing-columns
 T}
@@ -1118,16 +1324,9 @@ options described elsewhere in this section to do so, then restore data to the r
 \fB\-\-exclude\-missing\-tables\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-missing-tables
 T}
@@ -1149,28 +1348,21 @@ to ignore any tables from the backup that are not found in the target database\&
 \fB\-\-exclude\-tables\fR=\fItable\-list\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --exclude-tables=table-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1195,7 +1387,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.342.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&22.270.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1371,28 +1563,21 @@ db1:
 \fB\-\-fields\-enclosed\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --fields-enclosed-by=char
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1412,28 +1597,21 @@ Each column value is enclosed by the string passed to this option (regardless of
 \fB\-\-fields\-optionally\-enclosed\-by\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --fields-optionally-enclosed-by
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1457,28 +1635,21 @@ ENUM)\&.
 \fB\-\-fields\-terminated\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --fields-terminated-by=char
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 \t (tab)
 T}
@@ -1498,16 +1669,9 @@ The string passed to this option is used to separate column values\&. The defaul
 \fB\-\-hex\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --hex
 T}
@@ -1524,31 +1688,101 @@ If this option is used, all binary values are output in hexadecimal format\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ignore\-extended\-pk\-updates\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ignore-extended-pk-updates[=0|1]
+T}
+T{
+Introduced
+T}:T{
+8.0.21-ndb-8.0.21
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+1
+T}
+.TE
+.sp 1
+When using
+\fB\-\-allow\-pk\-changes\fR, columns which become part of a table\*(Aqs primary key must not be updated while the backup is being taken; such columns should keep the same values from the time values are inserted into them until the rows containing the values are deleted\&. If
+\fBndb_restore\fR
+encounters updates to these columns when restoring a backup, the restore fails\&. Because some applications may set values for all columns when updating a row, even when some column values are not changed, the backup may include log events appearing to update columns which are not in fact modified\&. In such cases you can set
+\fB\-\-ignore\-extended\-pk\-updates\fR
+to
+1, forcing
+\fBndb_restore\fR
+to ignore such updates\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+When causing these updates to be ignored, the user is responsible for ensuring that there are no updates to the values of any columns that become part of the primary key\&.
+.sp .5v
+.RE
+For more information, see the description of
+\fB\-\-allow\-pk\-changes\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-include\-databases\fR=\fIdb\-list\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --include-databases=db-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1565,31 +1799,69 @@ Comma\-delimited list of one or more databases to restore\&. Often used together
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-include\-stored\-grants\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--include-stored-grants
+T}
+T{
+Introduced
+T}:T{
+8.0.19-ndb-8.0.19
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+In NDB 8\&.0\&.19 and later,
+\fBndb_restore\fR
+does not by default restore shared users and grants (see
+Section\ \&22.5.12, \(lqDistributed MySQL Privileges with NDB_STORED_USER\(rq) to the
+ndb_sql_metadata
+table\&. Specifying this option causes it to do so\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-include\-tables\fR=\fItable\-list\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --include-tables=table-list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1613,7 +1885,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.343.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&22.271.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1735,28 +2007,21 @@ One or more tables from a single database
 \fB\-\-lines\-terminated\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --lines-terminated-by=char
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 \n (linebreak)
 T}
@@ -1777,28 +2042,21 @@ Specifies the string used to end each line of output\&. The default is a linefee
 \fB\-L\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --lossy-conversions
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE (If option is not used)
 T}
@@ -1809,7 +2067,7 @@ This option is intended to complement the
 option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
-Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
 .sp
 \fBndb_restore\fR
 reports any truncation of data that it performs during lossy conversions once per attribute and column\&.
@@ -1826,16 +2084,9 @@ reports any truncation of data that it performs during lossy conversions once pe
 \fB\-\-no\-binlog\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-binlog
 T}
@@ -1858,28 +2109,21 @@ to their binary logs\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-restore-disk-objects
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1888,7 +2132,7 @@ T}
 This option stops
 \fBndb_restore\fR
 from restoring any NDB Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&22.5.13, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
+Section\ \&22.5.10, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
 .RE
 .sp
 .RS 4
@@ -1903,16 +2147,9 @@ Section\ \&22.5.13, \(lqNDB Cluster Disk Data Tables\(rq, for more information a
 \fB\-u\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --no-upgrade
 T}
@@ -1938,16 +2175,9 @@ columns created using the old fixed format are resized and recreated using the v
 \fB\-z\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ndb-nodegroup-map=map
 T}
@@ -1969,28 +2199,21 @@ This option can be used to restore a backup taken from one node group to a diffe
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nodeid=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 none
 T}
@@ -2012,44 +2235,292 @@ In NDB 8\&.0\&.15 and later, this option is required\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-parallelism\fR=\fI#\fR,
-\fB\-p\fR
+\fB\-\-num\-slices\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
+Command-Line Format
 T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---parallelism=#
+--num-slices=#
 T}
 T{
-\fBType\fR
+Introduced
 T}:T{
-Numeric
+8.0.20-ndb-8.0.20
 T}
 T{
-\fBDefault Value\fR
+Type
 T}:T{
-128
+Integer
 T}
 T{
-\fBMinimum Value\fR
+Default Value
 T}:T{
 1
 T}
 T{
-\fBMaximum Value\fR
+Minimum Value
+T}:T{
+1
+T}
+T{
+Maximum Value
+T}:T{
+1024
+T}
+.TE
+.sp 1
+When restoring a backup by slices, this option sets the number of slices into which to divide the backup\&. This allows multiple instances of
+\fBndb_restore\fR
+to restore disjoint subsets in parallel, potentially reducing the amount of time required to perform the restore operation\&.
+.sp
+A
+\fIslice\fR
+is a subset of the data in a given backup; that is, it is a set of fragments having the same slice ID, specified using the
+\fB\-\-slice\-id\fR
+option\&. The two options must always be used together, and the value set by
+\fB\-\-slice\-id\fR
+must always be less than the number of slices\&.
+.sp
+\fBndb_restore\fR
+encounters fragments and assigns each one a fragment counter\&. When restoring by slices, a slice ID is assigned to each fragment; this slice ID is in the range 0 to 1 less than the number of slices\&. For a table that is not a
+BLOB
+table, the slice to which a given fragment belongs is determined using the formula shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[\fIslice_ID\fR] = [\fIfragment_counter\fR] % [\fInumber_of_slices\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+For a
+BLOB
+table, a fragment counter is not used; the fragment number is used instead, along with the ID of the main table for the
+BLOB
+table (recall that
+NDB
+stores
+\fIBLOB\fR
+values in a separate table internally)\&. In this case, the slice ID for a given fragment is calculated as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[\fIslice_ID\fR] =
+([\fImain_table_ID\fR] + [\fIfragment_ID\fR]) % [\fInumber_of_slices\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Thus, restoring by
+\fIN\fR
+slices means running
+\fIN\fR
+instances of
+\fBndb_restore\fR, all with
+\fB\-\-num\-slices=\fR\fB\fIN\fR\fR
+(along with any other necessary options) and one each with
+\fB\-\-slice\-id=1\fR,
+\fB\-\-slice\-id=2\fR,
+\fB\-\-slice\-id=3\fR, and so on through
+\fBslice\-id=\fR\fB\fIN\fR\fR\fB\-1\fR\&.
+.PP
+\fBExample\fR. Assume that you want to restore a backup named
+BACKUP\-1, found in the default directory
+/var/lib/mysql\-cluster/BACKUP/BACKUP\-3
+on the node file system on each data node, to a cluster with four data nodes having the node IDs 1, 2, 3, and 4\&. To perform this operation using five slices, execute the sets of commands shown in the following list:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Restore the cluster metadata using
+\fBndb_restore\fR
+as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-b 1 \-n 1 \-m \-\-disable\-indexes \-\-backup\-path=/home/ndbuser/backups\fR
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Restore the cluster data to the data nodes invoking
+\fBndb_restore\fR
+as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-b 1 \-n 1 \-r \-\-num\-slices=5 \-\-slice\-id=0 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 1 \-r \-\-num\-slices=5 \-\-slice\-id=1 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 1 \-r \-\-num\-slices=5 \-\-slice\-id=2 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 1 \-r \-\-num\-slices=5 \-\-slice\-id=3 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 1 \-r \-\-num\-slices=5 \-\-slice\-id=4 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 2 \-r \-\-num\-slices=5 \-\-slice\-id=0 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 2 \-r \-\-num\-slices=5 \-\-slice\-id=1 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 2 \-r \-\-num\-slices=5 \-\-slice\-id=2 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 2 \-r \-\-num\-slices=5 \-\-slice\-id=3 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 2 \-r \-\-num\-slices=5 \-\-slice\-id=4 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 3 \-r \-\-num\-slices=5 \-\-slice\-id=0 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 3 \-r \-\-num\-slices=5 \-\-slice\-id=1 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 3 \-r \-\-num\-slices=5 \-\-slice\-id=2 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 3 \-r \-\-num\-slices=5 \-\-slice\-id=3 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 3 \-r \-\-num\-slices=5 \-\-slice\-id=4 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 4 \-r \-\-num\-slices=5 \-\-slice\-id=0 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 4 \-r \-\-num\-slices=5 \-\-slice\-id=1 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 4 \-r \-\-num\-slices=5 \-\-slice\-id=2 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 4 \-r \-\-num\-slices=5 \-\-slice\-id=3 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+shell> \fBndb_restore \-b 1 \-n 4 \-r \-\-num\-slices=5 \-\-slice\-id=4 \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+All of the commands just shown in this step can be executed in parallel, provided there are enough slots for connections to the cluster (see the description for the
+\fB\-\-backup\-path\fR
+option)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Restore indexes as usual, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-b 1 \-n 1 \-\-rebuild\-indexes \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+Finally, restore the epoch, using the command shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-b 1 \-n 1 \-\-restore\-epoch \-\-backup\-path=/var/lib/mysql\-cluster/BACKUP/BACKUP\-1\fR
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+You should use slicing to restore the cluster data only; it is not necessary to employ
+\fB\-\-num\-slices\fR
+or
+\fB\-\-slice\-id\fR
+when restoring the metadata, indexes, or epoch information\&. If either or both of these options are used with the
+\fBndb_restore\fR
+options controlling restoration of these, the program ignores them\&.
+.sp
+The effects of using the
+\fB\-\-parallelism\fR
+option on the speed of restoration are independent of those produced by slicing or parallel restoration using multiple instances of
+\fBndb_restore\fR
+(\fB\-\-parallelism\fR
+specifies the number of parallel transactions executed by a
+\fIsingle\fR
+\fBndb_restore\fR
+thread), but it can be used together with either or both of these\&. You should be aware that increasing
+\fB\-\-parallelism\fR
+causes
+\fBndb_restore\fR
+to impose a greater load on the cluster; if the system can handle this, restoration should complete even more quickly\&.
+.sp
+The value of
+\fB\-\-num\-slices\fR
+is not directly dependent on values relating to hardware such as number of CPUs or CPU cores, amount of RAM, and so forth, nor does it depend on the number of LDMs\&.
+.sp
+It is possible to employ different values for this option on different data nodes as part of the same restoration; doing so should not in and of itself produce any ill effects\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-parallelism\fR=\fI#\fR,
+\fB\-p\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--parallelism=#
+T}
+T{
+Type
+T}:T{
+Numeric
+T}
+T{
+Default Value
+T}:T{
+128
+T}
+T{
+Minimum Value
+T}:T{
+1
+T}
+T{
+Maximum Value
 T}:T{
 1024
 T}
@@ -2077,16 +2548,9 @@ file\(emthat is, the fuzzy snapshot of the data; it is not used for building or 
 \fB\-P\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --preserve-trailing-spaces
 T}
@@ -2141,28 +2605,21 @@ BINARY\&.
 \fB\-\-print\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2211,28 +2668,21 @@ makes no attempt to restore data or metadata to an NDB Cluster\&.
 \fB\-\-print\-data\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-data
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2267,28 +2717,21 @@ column values are always truncated\&. Such values are truncated to the first 256
 \fB\-\-print\-log\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-log
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2311,28 +2754,21 @@ stdout\&.
 \fB\-\-print\-meta\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-meta
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2353,28 +2789,21 @@ stdout\&.
 \fBprint\-sql\-log\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --print-sql-log
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2401,40 +2830,33 @@ columns\&.
 \fB\-\-progress\-frequency\fR=\fIN\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --progress-frequency=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 65535
 T}
@@ -2457,16 +2879,9 @@ seconds while the backup is in progress\&. 0 (the default) causes no status repo
 \fB\-A\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --promote-attributes
 T}
@@ -2488,7 +2903,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .sp
 Attribute promotion by
 \fBndb_restore\fR
@@ -2569,16 +2984,9 @@ following a successful restoration\&.
 \fB\-\-rebuild\-indexes\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --rebuild-indexes
 T}
@@ -2621,32 +3029,192 @@ and related parameters), in order to free space more quickly\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-remap\-column=\fR\fB\fIdb\fR\fR\fB\&.\fR\fB\fItbl\fR\fR\fB\&.\fR\fB\fIcol\fR\fR\fB:\fR\fB\fIfn\fR\fR\fB:\fR\fB\fIargs\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--remap-column=[db].[tbl].[col]:[fn]:[args]
+T}
+T{
+Introduced
+T}:T{
+8.0.21-ndb-8.0.21
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+When used together with
+\fB\-\-restore\-data\fR, this option applies a function to the value of the indicated column\&. Values in the argument string are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIdb\fR: Database name, following any renames performed by
+\fB\-\-rewrite\-database\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fItbl\fR: Table name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcol\fR: Name of the column to be updated\&. This column must be of type
+INT
+or
+BIGINT\&. The column can also be but is not required to be
+UNSIGNED\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIfn\fR: Function name; currently, the only supported name is
+offset\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIargs\fR: Arguments supplied to the function\&. Currently, only a single argument, the size of the offset to be added by the
+offset
+function, is supported\&. Negative values are supported\&. The size of the argument cannot exceed that of the signed variant of the column\*(Aqs type; for example, if
+\fIcol\fR
+is an
+INT
+column, then the allowed range of the argument passed to the
+offset
+function is
+\-2147483648
+to
+2147483647
+(see
+Section\ \&11.1.2, \(lqInteger Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT\(rq)\&.
+.sp
+If applying the offset value to the column would cause an overflow or underflow, the restore operation fails\&. This could happen, for example, if the column is a
+BIGINT, and the option attempts to apply an offset value of 8 on a row in which the column value is 4294967291, since
+4294967291 + 8 = 4294967299 > 4294967295\&.
+.RE
+.sp
+This option can be useful when you wish to merge data stored in multiple source instances of NDB Cluster (all using the same schema) into a single destination NDB Cluster, using NDB native backup (see
+Section\ \&22.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq) and
+\fBndb_restore\fR
+to merge the data, where primary and unique key values are overlapping between source clusters, and it is necessary as part of the process to remap these values to ranges that do not overlap\&. It may also be necessary to preserve other relationships between tables\&. To fulfill such requirements, it is possible to use the option multiple times in the same invocation of
+\fBndb_restore\fR
+to remap columns of different tables, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-\-restore\-data \-\-remap\-column=hr\&.employee\&.id:offset:1000 \e
+    \-\-remap\-column=hr\&.manager\&.id:offset:1000 \-\-remap\-column=hr\&.firstaiders\&.id:offset:1000\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+(Other options not shown here may also be used\&.)
+.sp
+\fB\-\-remap\-column\fR
+can also be used to update multiple columns of the same table\&. Combinations of multiple tables and columns are possible\&. Different offset values can also be used for different columns of the same table, like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-\-restore\-data \-\-remap\-column=hr\&.employee\&.salary:offset:10000 \e
+    \-\-remap\-column=hr\&.employee\&.hours:offset:\-10\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+When source backups contain duplicate tables which should not be merged, you can handle this by using
+\fB\-\-exclude\-tables\fR,
+\fB\-\-exclude\-databases\fR, or by some other means in your application\&.
+.sp
+Information about the structure and other characteristics of tables to be merged can obtained using
+SHOW CREATE TABLE; the
+\fBndb_desc\fR
+tool; and
+MAX(),
+MIN(),
+LAST_INSERT_ID(), and other MySQL functions\&.
+.sp
+Replication of changes from merged to unmerged tables, or from unmerged to merged tables, in separate instances of NDB Cluster is not supported\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-restore\-data\fR,
 \fB\-r\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-data
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2669,22 +3237,15 @@ table data and logs\&.
 \fB\-e\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-epoch
 T}
 .TE
 .sp 1
-Add (or restore) epoch information to the cluster replication status table\&. This is useful for starting replication on an NDB Cluster replication slave\&. When this option is used, the row in the
+Add (or restore) epoch information to the cluster replication status table\&. This is useful for starting replication on an NDB Cluster replica\&. When this option is used, the row in the
 mysql\&.ndb_apply_status
 having
 0
@@ -2706,28 +3267,21 @@ Section\ \&22.6.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
 \fB\-m\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-meta
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -2784,28 +3338,27 @@ prior to performing the restore\&.)
 \fB\-\-restore\-privilege\-tables\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --restore-privilege-tables
 T}
 T{
-\fBType\fR
+Deprecated
+T}:T{
+8.0.16-ndb-8.0.16
+T}
+T{
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE (If option is not used)
 T}
@@ -2834,28 +3387,21 @@ Section\ \&6.2.3, \(lqGrant Tables\(rq\&.
 \fB\-\-rewrite\-database\fR=\fIolddb,newdb\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --rewrite-database=olddb,newdb
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 none
 T}
@@ -2937,16 +3483,9 @@ When restoring from multiple backup databases into a single target database usin
 \fB\-\-skip\-broken\-objects\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --skip-broken-objects
 T}
@@ -2973,16 +3512,9 @@ option works only in the case of missing blob parts tables\&.
 \fB\-s\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --skip-table-check
 T}
@@ -3065,16 +3597,9 @@ Different distribution key settings
 \fB\-\-skip\-unknown\-objects\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --skip-unknown-objects
 T}
@@ -3095,27 +3620,78 @@ backup\&. This can be used for restoring a backup made from a cluster running (f
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-slice\-id\fR=\fI#\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--slice-id=#
+T}
+T{
+Introduced
+T}:T{
+8.0.20-ndb-8.0.20
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+1023
+T}
+.TE
+.sp 1
+When restoring by slices, this is the ID of the slice to restore\&. This option is always used together with
+\fB\-\-num\-slices\fR, and its value must be always less than that of
+\fB\-\-num\-slices\fR\&.
+.sp
+For more information, see the description of the
+\fB\-\-num\-slices\fR
+elsewhere in this section\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tab\fR=\fIdir_name\fR,
 \fB\-T\fR
 \fIdir_name\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --tab=dir_name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Directory name
 T}
@@ -3140,40 +3716,33 @@ for the current directory\&.
 \fB\-\-verbose\fR=\fI#\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --verbose=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 255
 T}
@@ -3201,7 +3770,7 @@ in such cases\&.
 .PP
 After using
 \fBndb_restore\fR
-to initialize an NDB Cluster for use in circular replication, binary logs on the SQL node acting as the replication slave are not automatically created, and you must cause them to be created manually\&. To cause the binary logs to be created, issue a
+to initialize an NDB Cluster for use in circular replication, binary logs on the SQL node acting as the replica are not automatically created, and you must cause them to be created manually\&. To cause the binary logs to be created, issue a
 SHOW TABLES
 statement on that SQL node before running
 START SLAVE\&. This is a known issue in NDB Cluster\&.
@@ -3276,7 +3845,7 @@ or the equivalent\&.
 .IP "  2." 4.2
 .\}
 Perform a backup in the normal manner\&. See
-Section\ \&22.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
+Section\ \&22.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
 .RE
 .sp
 .RS 4
@@ -3540,8 +4109,8 @@ as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_restore \-c host20 \fR\fB\fB\-\-nodeid=2\fR\fR\fB \fR\fB\fB\-\-backupid=1\fR\fR\fB \fR\fB\fB\-\-restore\-data\fR\fR\fB \fR\fB\fB\-\-backup_path=/BACKUP\-1\fR\fR
-shell> \fBndb_restore \-c host20 \-\-nodeid=4 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/BACKUP\-1\fR
+shell> \fBndb_restore \-c host20 \fR\fB\fB\-\-nodeid=2\fR\fR\fB \fR\fB\fB\-\-backupid=1\fR\fR\fB \fR\fB\fB\-\-restore\-data\fR\fR\fB \fR\fB\fB\-\-backup\-path=/BACKUP\-1\fR\fR
+shell> \fBndb_restore \-c host20 \-\-nodeid=4 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/BACKUP\-1\fR
 .fi
 .if n \{\
 .RE
@@ -3556,8 +4125,8 @@ host5, like this:
 .RS 4
 .\}
 .nf
-shell> \fBndb_restore \-c host20 \-\-nodeid=6 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/BACKUP\-1\fR
-shell> \fBndb_restore \-c host20 \-\-nodeid=8 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/BACKUP\-1\fR
+shell> \fBndb_restore \-c host20 \-\-nodeid=6 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/BACKUP\-1\fR
+shell> \fBndb_restore \-c host20 \-\-nodeid=8 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/BACKUP\-1\fR
 .fi
 .if n \{\
 .RE
@@ -3781,7 +4350,7 @@ need to create a schema file, you can re\-create the schema using
 .RS 4
 .\}
 .nf
-shell> ndb_restore \-\-nodeid=1 \-\-backupid=1 \-\-restore\-meta \-\-backup_path=/backups/node_1/BACKUP/BACKUP\-1
+shell> ndb_restore \-\-nodeid=1 \-\-backupid=1 \-\-restore\-meta \-\-backup\-path=/backups/node_1/BACKUP/BACKUP\-1
 .fi
 .if n \{\
 .RE
@@ -3808,10 +4377,10 @@ option if and as needed to make this possible\&.
 .RS 4
 .\}
 .nf
-ndb_restore \-\-nodeid=1 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/backups/node_1/BACKUP/BACKUP\-1 \-\-disable\-indexes
-ndb_restore \-\-nodeid=2 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/backups/node_2/BACKUP/BACKUP\-1 \-\-disable\-indexes
-ndb_restore \-\-nodeid=3 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/backups/node_3/BACKUP/BACKUP\-1 \-\-disable\-indexes
-ndb_restore \-\-nodeid=4 \-\-backupid=1 \-\-restore\-data \-\-backup_path=/backups/node_4/BACKUP/BACKUP\-1 \-\-disable\-indexes
+ndb_restore \-\-nodeid=1 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/backups/node_1/BACKUP/BACKUP\-1 \-\-disable\-indexes
+ndb_restore \-\-nodeid=2 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/backups/node_2/BACKUP/BACKUP\-1 \-\-disable\-indexes
+ndb_restore \-\-nodeid=3 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/backups/node_3/BACKUP/BACKUP\-1 \-\-disable\-indexes
+ndb_restore \-\-nodeid=4 \-\-backupid=1 \-\-restore\-data \-\-backup\-path=/backups/node_4/BACKUP/BACKUP\-1 \-\-disable\-indexes
 .fi
 .if n \{\
 .RE
@@ -3840,7 +4409,7 @@ option used in the commands just shown\&. Recreating the indexes avoids errors d
 .RS 4
 .\}
 .nf
-shell> \fBndb_restore \-\-nodeid=1 \-\-backupid=1 \-\-backup_path=/backups/node_1/BACKUP/BACKUP\-1 \-\-rebuild\-indexes\fR
+shell> \fBndb_restore \-\-nodeid=1 \-\-backupid=1 \-\-backup\-path=/backups/node_1/BACKUP/BACKUP\-1 \-\-rebuild\-indexes\fR
 .fi
 .if n \{\
 .RE
@@ -3858,7 +4427,7 @@ can contact the management server\&.
 Beginning with NDB Cluster 8\&.0\&.16, it is possible to take parallel backups on each data node using
 \fBndbmtd\fR
 with multiple LDMs (see
-Section\ \&22.5.3.5, \(lqTaking an NDB with Parallel Data Nodes\(rq)\&. The next two sections describe how to restore backups that were taken in this fashion\&.
+Section\ \&22.5.8.5, \(lqTaking an NDB Backup with Parallel Data Nodes\(rq)\&. The next two sections describe how to restore backups that were taken in this fashion\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -3880,8 +4449,8 @@ twice, similarly to what is shown here:
 .RS 4
 .\}
 .nf
-shell> ndb_restore \-n 1 \-b 1 \-m \-\-backup_path=\fIpath/to/backup_dir\fR/BACKUP/BACKUP\-\fIbackup_id\fR 
-shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup_path=\fIpath/to/backup_dir\fR/BACKUP/BACKUP\-\fIbackup_id\fR 
+shell> ndb_restore \-n 1 \-b 1 \-m \-\-backup\-path=\fIpath/to/backup_dir\fR/BACKUP/BACKUP\-\fIbackup_id\fR
+shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup\-path=\fIpath/to/backup_dir\fR/BACKUP/BACKUP\-\fIbackup_id\fR
 .fi
 .if n \{\
 .RE
@@ -3891,7 +4460,7 @@ shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup_path=\fIpath/to/backup_dir\fR/BACK
 is the ID of the backup to be restored\&. In the general case, no additional special arguments are required;
 \fBndb_restore\fR
 always checks for the existence of parallel subdirectories under the directory indicated by the
-\fB\-\-backup_path\fR
+\fB\-\-backup\-path\fR
 option and restores the metadata (serially) and then the table data (in parallel)\&.
 .RE
 .sp
@@ -3906,7 +4475,7 @@ option and restores the metadata (serially) and then the table data (in parallel
 It is possible to restore a backup that was made using parallelism on the data nodes in serial fashion\&. To do this, invoke
 \fBndb_restore\fR
 with
-\fB\-\-backup_path\fR
+\fB\-\-backup\-path\fR
 pointing to the subdirectories created by each LDM under the main backup directory, once to any one of the subdirectories to restore the metadata (it does not matter which one, since each subdirectory contains a complete copy of the metadata), then to each of the subdirectories in turn to restore the data\&. Suppose that we want to restore the backup having backup ID 100 that was taken with four LDMs, and that the
 BackupDataDir
 is
@@ -3918,7 +4487,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> ndb_restore \-n 1 \-b 1 \-m \-\-backup_path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-1\-OF\-4
+shell> ndb_restore \-n 1 \-b 1 \-m \-\-backup\-path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-1\-OF\-4
 .fi
 .if n \{\
 .RE
@@ -3932,10 +4501,10 @@ four times, each time using one of the subdirectories in turn, as shown here:
 .RS 4
 .\}
 .nf
-shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup_path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-1\-OF\-4
-shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup_path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-2\-OF\-4
-shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup_path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-3\-OF\-4
-shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup_path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-4\-OF\-4
+shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup\-path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-1\-OF\-4
+shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup\-path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-2\-OF\-4
+shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup\-path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-3\-OF\-4
+shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup\-path=opt/BACKUP/BACKUP\-100/BACKUP\-100\-PART\-4\-OF\-4
 .fi
 .if n \{\
 .RE
@@ -3948,7 +4517,7 @@ binary supplied with the older version of the NDB Cluster software\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

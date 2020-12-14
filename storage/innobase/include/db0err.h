@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -183,9 +183,18 @@ enum dberr_t {
   DB_ABORT_INCOMPLETE_CLONE,
   /** Btree level limit exceeded. */
   DB_BTREE_LEVEL_LIMIT_EXCEEDED,
-
-  DB_PAGE_CORRUPTED = 999, /*!< Page read from tablespace is
-                           corrupted. */
+  /** Doublewrite meta data not found in the system space header */
+  DB_DBLWR_NOT_EXISTS,
+  /** Failed to initialize the doublewrite extents in the system tablespace */
+  DB_V1_DBLWR_INIT_FAILED,
+  /** Failed to create the doublewrite extents in the system tablespace */
+  DB_V1_DBLWR_CREATE_FAILED,
+  /** Failed to initialize the double write memory data structures */
+  DB_DBLWR_INIT_FAILED,
+  /* Schema mismatch between the metadata and data being imported. */
+  DB_SCHEMA_MISMATCH,
+  /** System has run out of resources. */
+  DB_OUT_OF_RESOURCES,
 
   /* The following are partial failure codes */
 
@@ -197,6 +206,8 @@ enum dberr_t {
   DB_RECORD_NOT_FOUND = 1500,
   DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
+  DB_END_SAMPLE_READ,
+
   /** Generic error code for "Not found" type of errors */
   DB_NOT_FOUND,
 
@@ -205,7 +216,8 @@ enum dberr_t {
   /** Column update or read failed because the types mismatch */
   DB_DATA_MISMATCH = 2000,
   /** Request the caller to cache records. */
-  DB_CACHE_RECORDS
+  DB_CACHE_RECORDS,
+  /* Too many nested sub expression in full-text search string */
+  DB_FTS_TOO_MANY_NESTED_EXP
 };
-
 #endif

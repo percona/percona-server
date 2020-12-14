@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
    Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -32,20 +32,30 @@
 #include <algorithm>
 #include <utility>
 
+#include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "my_time.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_error_bits.h"
+#include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_ps.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_table.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
+#include "rpl_master.h"  // unregister_slave
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/check_stack.h"
@@ -55,9 +65,13 @@
 #include "sql/dd/dd_kill_immunizer.h"        // dd:DD_kill_immunizer
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/derror.h"                      // ER_THD
-#include "sql/error_handler.h"               // Internal_error_handler
-#include "sql/item_func.h"                   // user_var_entry
-#include "sql/lock.h"                        // mysql_lock_abort_for_thread
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"        // user_var_entry
+#include "sql/lock.h"             // mysql_lock_abort_for_thread
 #include "sql/locking_service.h"  // release_all_locking_service_locks
 #include "sql/log_event.h"
 #include "sql/mdl_context_backup.h"  // MDL context backup for XA
@@ -77,22 +91,25 @@
 #include "sql/sql_backup_lock.h"  // release_backup_lock
 #include "sql/sql_base.h"         // close_temporary_tables
 #include "sql/sql_callback.h"     // MYSQL_CALLBACK
-#include "sql/sql_handler.h"      // mysql_ha_cleanup
+#include "sql/sql_cmd.h"
+#include "sql/sql_handler.h"  // mysql_ha_cleanup
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"    // is_update_query
 #include "sql/sql_plugin.h"   // plugin_thdvar_init
 #include "sql/sql_prepare.h"  // Prepared_statement
 #include "sql/sql_profile.h"
-#include "sql/sql_time.h"   // my_timeval_trunc
 #include "sql/sql_timer.h"  // thd_timer_destroy
-#include "sql/strfunc.h"
 #include "sql/table.h"
+#include "sql/table_cache.h"  // table_cache_manager
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_rollback
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
+
+class Parse_tree_root;
 
 using std::max;
 using std::min;
@@ -108,10 +125,6 @@ PSI_mutex_key key_LOCK_bloom_filter;
   table name
 */
 char empty_c_string[1] = {0}; /* used for not defined db */
-
-LEX_STRING NULL_STR = {NULL, 0};
-LEX_CSTRING EMPTY_CSTR = {"", 0};
-LEX_CSTRING NULL_CSTR = {NULL, 0};
 
 const char *const THD::DEFAULT_WHERE = "field list";
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -230,7 +243,7 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
 
   // Reset transaction instrumentation.
 
-  m_thd->m_transaction_psi = NULL;
+  m_thd->m_transaction_psi = nullptr;
 
   // Reset THD::in_lock_tables so InnoDB won't start acquiring table locks.
   m_thd->in_lock_tables = false;
@@ -306,12 +319,12 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
              ("'%s' %s:%d", new_stage ? new_stage->m_name : "", calling_file,
               calling_line));
 
-  if (old_stage != NULL) {
+  if (old_stage != nullptr) {
     old_stage->m_key = m_current_stage_key;
     old_stage->m_name = proc_info;
   }
 
-  if (new_stage != NULL) {
+  if (new_stage != nullptr) {
     const char *msg = new_stage->m_name;
 
 #if defined(ENABLED_PROFILING)
@@ -324,7 +337,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_stage_progress_psi =
         MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
   } else {
-    m_stage_progress_psi = NULL;
+    m_stage_progress_psi = nullptr;
   }
 
   return;
@@ -346,10 +359,10 @@ void Open_tables_state::set_open_tables_state(Open_tables_state *state) {
 }
 
 void Open_tables_state::reset_open_tables_state() {
-  open_tables = NULL;
-  temporary_tables = NULL;
-  lock = NULL;
-  extra_lock = NULL;
+  open_tables = nullptr;
+  temporary_tables = nullptr;
+  lock = nullptr;
+  extra_lock = nullptr;
   locked_tables_mode = LTM_NONE;
   state_flags = 0U;
   reset_reprepare_observers();
@@ -364,10 +377,11 @@ THD::THD(bool enable_plugins)
       m_dd_client(new dd::cache::Dictionary_client(this)),
       m_query_string(NULL_CSTR),
       m_db(NULL_CSTR),
-      rli_fake(0),
-      rli_slave(NULL),
-      initial_status_var(NULL),
+      rli_fake(nullptr),
+      rli_slave(nullptr),
+      initial_status_var(nullptr),
       status_var_aggregated(false),
+      m_connection_attributes(),
       m_current_query_cost(0),
       m_current_query_partial_plans(0),
       m_main_security_ctx(this),
@@ -376,56 +390,57 @@ THD::THD(bool enable_plugins)
       protocol_binary(new Protocol_binary),
       query_plan(this),
       m_current_stage_key(0),
-      current_mutex(NULL),
-      current_cond(NULL),
+      current_mutex(nullptr),
+      current_cond(nullptr),
       m_is_admin_conn(false),
       in_sub_stmt(0),
       fill_status_recursion_level(0),
       fill_variables_recursion_level(0),
       ha_data(PSI_NOT_INSTRUMENTED, ha_data.initial_capacity),
-      binlog_row_event_extra_data(NULL),
+      binlog_row_event_extra_data(nullptr),
       skip_readonly_check(false),
       binlog_unsafe_warning_flags(0),
       binlog_table_maps(0),
-      binlog_accessed_db_names(NULL),
-      m_trans_log_file(NULL),
-      m_trans_fixed_log_file(NULL),
+      binlog_accessed_db_names(nullptr),
+      m_trans_log_file(nullptr),
+      m_trans_fixed_log_file(nullptr),
       m_trans_end_pos(0),
       m_transaction(new Transaction_ctx()),
-      m_attachable_trx(NULL),
+      m_attachable_trx(nullptr),
       table_map_for_update(0),
       m_examined_row_count(0),
 #if defined(ENABLED_PROFILING)
       profiling(new PROFILING),
 #endif
-      m_stage_progress_psi(NULL),
-      m_digest(NULL),
-      m_statement_psi(NULL),
-      m_transaction_psi(NULL),
-      m_idle_psi(NULL),
+      m_stage_progress_psi(nullptr),
+      m_digest(nullptr),
+      m_statement_psi(nullptr),
+      m_transaction_psi(nullptr),
+      m_idle_psi(nullptr),
       m_server_idle(false),
       user_var_events(key_memory_user_var_entry),
-      next_to_commit(NULL),
+      next_to_commit(nullptr),
       binlog_need_explicit_defaults_ts(false),
-      kill_immunizer(NULL),
+      kill_immunizer(nullptr),
       m_is_fatal_error(false),
-      transaction_rollback_request(0),
+      transaction_rollback_request(false),
       is_fatal_sub_stmt_error(false),
-      rand_used(0),
-      time_zone_used(0),
-      in_lock_tables(0),
+      rand_used(false),
+      time_zone_used(false),
+      in_lock_tables(false),
       derived_tables_processing(false),
       parsing_system_view(false),
-      sp_runtime_ctx(NULL),
-      m_parser_state(NULL),
-      work_part_info(NULL),
+      sp_runtime_ctx(nullptr),
+      m_parser_state(nullptr),
+      work_part_info(nullptr),
       // No need to instrument, highly unlikely to have that many plugins.
       audit_class_plugins(PSI_NOT_INSTRUMENTED),
       audit_class_mask(PSI_NOT_INSTRUMENTED),
 #if defined(ENABLED_DEBUG_SYNC)
-      debug_sync_control(0),
+      debug_sync_control(nullptr),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
       m_enable_plugins(enable_plugins),
+      m_audited(true),
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set(global_sid_map),
 #endif
@@ -441,13 +456,13 @@ THD::THD(bool enable_plugins)
       is_a_srv_session_thd(false),
       m_is_plugin_fake_ddl(false) {
   main_lex->reset();
-  set_psi(NULL);
+  set_psi(nullptr);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root, &main_mem_root,
                  global_system_variables.query_alloc_block_size,
                  global_system_variables.query_prealloc_size);
   stmt_arena = this;
-  thread_stack = 0;
+  thread_stack = nullptr;
   m_catalog.str = "std";
   m_catalog.length = 3;
   event_scheduler.data = nullptr;
@@ -467,11 +482,11 @@ THD::THD(bool enable_plugins)
   m_row_count_func = -1;
   statement_id_counter = 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
-  lex->thd = NULL;
-  lex->set_current_select(0);
+  lex->thd = nullptr;
+  lex->set_current_select(nullptr);
   utime_after_lock = 0L;
-  current_linfo = 0;
-  slave_thread = 0;
+  current_linfo = nullptr;
+  slave_thread = false;
   memset(&variables, 0, sizeof(variables));
   m_thread_id = Global_THD_manager::reserved_thread_id;
   file_id = 0;
@@ -480,7 +495,7 @@ THD::THD(bool enable_plugins)
   db_charset = global_system_variables.collation_database;
   is_killable = false;
   binlog_evt_union.do_union = false;
-  enable_slow_log = 0;
+  enable_slow_log = false;
   commit_error = CE_NONE;
   tx_commit_pending = false;
   durability_property = HA_REGULAR_DURABILITY;
@@ -488,9 +503,9 @@ THD::THD(bool enable_plugins)
   dbug_sentry = THD_SENTRY_MAGIC;
 #endif
   mysql_audit_init_thd(this);
-  net.vio = 0;
+  net.vio = nullptr;
   system_thread = NON_SYSTEM_THREAD;
-  cleanup_done = 0;
+  cleanup_done = false;
   m_release_resources_done = false;
   peer_port = 0;  // For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled = true;
@@ -525,11 +540,11 @@ THD::THD(bool enable_plugins)
 #if defined(ENABLED_PROFILING)
   profiling->set_thd(this);
 #endif
-  m_user_connect = NULL;
+  m_user_connect = nullptr;
   user_vars.clear();
 
-  sp_proc_cache = NULL;
-  sp_func_cache = NULL;
+  sp_proc_cache = nullptr;
+  sp_func_cache = nullptr;
 
   /* Protocol */
   m_protocol = protocol_text.get();  // Default protocol
@@ -543,18 +558,18 @@ THD::THD(bool enable_plugins)
   */
   thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 
-  m_internal_handler = NULL;
+  m_internal_handler = nullptr;
   m_binlog_invoker = false;
   memset(&m_invoker_user, 0, sizeof(m_invoker_user));
   memset(&m_invoker_host, 0, sizeof(m_invoker_host));
 
-  binlog_next_event_pos.file_name = NULL;
+  binlog_next_event_pos.file_name = nullptr;
   binlog_next_event_pos.pos = 0;
 
-  timer = NULL;
-  timer_cache = NULL;
+  timer = nullptr;
+  timer_cache = nullptr;
 
-  m_token_array = NULL;
+  m_token_array = nullptr;
   if (max_digest_length > 0) {
     m_token_array = (unsigned char *)my_malloc(PSI_INSTRUMENT_ME,
                                                max_digest_length, MYF(MY_WME));
@@ -623,7 +638,7 @@ bool THD::handle_condition(uint sql_errno, const char *sqlstate,
 }
 
 Internal_error_handler *THD::pop_internal_handler() {
-  DBUG_ASSERT(m_internal_handler != NULL);
+  DBUG_ASSERT(m_internal_handler != nullptr);
   Internal_error_handler *popped_handler = m_internal_handler;
   m_internal_handler = m_internal_handler->m_prev_internal_handler;
   return popped_handler;
@@ -631,7 +646,7 @@ Internal_error_handler *THD::pop_internal_handler() {
 
 void THD::raise_error(uint sql_errno) {
   const char *msg = ER_THD_NONCONST(this, sql_errno);
-  (void)raise_condition(sql_errno, NULL, Sql_condition::SL_ERROR, msg);
+  (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_ERROR, msg);
 }
 
 void THD::raise_error_printf(uint sql_errno, ...) {
@@ -643,12 +658,12 @@ void THD::raise_error_printf(uint sql_errno, ...) {
   va_start(args, sql_errno);
   vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
-  (void)raise_condition(sql_errno, NULL, Sql_condition::SL_ERROR, ebuff);
+  (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_ERROR, ebuff);
 }
 
 void THD::raise_warning(uint sql_errno) {
   const char *msg = ER_THD_NONCONST(this, sql_errno);
-  (void)raise_condition(sql_errno, NULL, Sql_condition::SL_WARNING, msg);
+  (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_WARNING, msg);
 }
 
 void THD::raise_warning_printf(uint sql_errno, ...) {
@@ -660,7 +675,7 @@ void THD::raise_warning_printf(uint sql_errno, ...) {
   va_start(args, sql_errno);
   vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
-  (void)raise_condition(sql_errno, NULL, Sql_condition::SL_WARNING, ebuff);
+  (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_WARNING, ebuff);
 }
 
 void THD::raise_note(uint sql_errno) {
@@ -668,7 +683,7 @@ void THD::raise_note(uint sql_errno) {
   DBUG_PRINT("enter", ("code: %d", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES)) return;
   const char *msg = ER_THD_NONCONST(this, sql_errno);
-  (void)raise_condition(sql_errno, NULL, Sql_condition::SL_NOTE, msg);
+  (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_NOTE, msg);
 }
 
 void THD::raise_note_printf(uint sql_errno, ...) {
@@ -681,7 +696,7 @@ void THD::raise_note_printf(uint sql_errno, ...) {
   va_start(args, sql_errno);
   vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
-  (void)raise_condition(sql_errno, NULL, Sql_condition::SL_NOTE, ebuff);
+  (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_NOTE, ebuff);
 }
 
 struct timeval THD::query_start_timeval_trunc(uint decimals) {
@@ -704,13 +719,13 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
       (level == Sql_condition::SL_NOTE))
-    return NULL;
+    return nullptr;
 
   DBUG_ASSERT(sql_errno != 0);
   if (sql_errno == 0) /* Safety in release build */
     sql_errno = ER_UNKNOWN_ERROR;
-  if (msg == NULL) msg = ER_THD_NONCONST(this, sql_errno);
-  if (sqlstate == NULL) sqlstate = mysql_errno_to_sqlstate(sql_errno);
+  if (msg == nullptr) msg = ER_THD_NONCONST(this, sql_errno);
+  if (sqlstate == nullptr) sqlstate = mysql_errno_to_sqlstate(sql_errno);
 
   if (fatal_error) {
     // Only makes sense for errors
@@ -719,7 +734,7 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
   }
 
   MYSQL_LOG_ERROR(sql_errno, PSI_ERROR_OPERATION_RAISED);
-  if (handle_condition(sql_errno, sqlstate, &level, msg)) return NULL;
+  if (handle_condition(sql_errno, sqlstate, &level, msg)) return nullptr;
 
   Diagnostics_area *da = get_stmt_da();
   if (level == Sql_condition::SL_ERROR) {
@@ -747,7 +762,7 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
     require memory allocation and therefore might fail. Non fatal out of
     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
   */
-  Sql_condition *cond = NULL;
+  Sql_condition *cond = nullptr;
   if (!(is_fatal_error() &&
         (sql_errno == EE_OUTOFMEMORY || sql_errno == ER_OUTOFMEMORY ||
          sql_errno == ER_STD_BAD_ALLOC_ERROR))) {
@@ -778,7 +793,7 @@ void THD::init(void) {
   user_time.tv_sec = user_time.tv_usec = 0;
   start_time.tv_sec = start_time.tv_usec = 0;
   set_time();
-  auto_inc_intervals_forced.empty();
+  auto_inc_intervals_forced.clear();
   {
     ulong tmp;
     tmp = sql_rnd_with_mutex();
@@ -810,7 +825,7 @@ void THD::init(void) {
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();
   memset(&status_var, 0, sizeof(status_var));
-  binlog_row_event_extra_data = 0;
+  binlog_row_event_extra_data = nullptr;
 
   if (variables.sql_log_bin)
     variables.option_bits |= OPTION_BIN_LOG;
@@ -830,7 +845,7 @@ void THD::init(void) {
   owned_gtid.clear();
   owned_sid.clear();
   m_se_gtid_flags.reset();
-  owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
+  owned_gtid.dbug_print(nullptr, "set owned_gtid (clear) in THD::init");
 
   clear_slow_extended();
 
@@ -879,7 +894,8 @@ void THD::cleanup_connection(void) {
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
-  cleanup_done = 0;
+  running_explain_analyze = false;
+  cleanup_done = false;
   init();
   stmt_map.reset();
   user_vars.clear();
@@ -908,9 +924,9 @@ void THD::cleanup_connection(void) {
     /* check diagnostic area is cleaned up */
     DBUG_ASSERT(get_stmt_da()->status() == Diagnostics_area::DA_EMPTY);
     /* check if temp tables are deleted */
-    DBUG_ASSERT(temporary_tables == NULL);
+    DBUG_ASSERT(temporary_tables == nullptr);
     /* check if tables are unlocked */
-    DBUG_ASSERT(locked_tables_list.locked_tables() == NULL);
+    DBUG_ASSERT(locked_tables_list.locked_tables() == nullptr);
   }
   /* DEBUG code only (end) */
 #endif
@@ -948,7 +964,7 @@ void THD::cleanup(void) {
   locked_tables_list.unlock_locked_tables(this);
   mysql_ha_cleanup(this);
 
-  DBUG_ASSERT(open_tables == NULL);
+  DBUG_ASSERT(open_tables == nullptr);
   /*
     If the thread was in the middle of an ongoing transaction (rolled
     back a few lines above) or under LOCK TABLES (unlocked the tables
@@ -1013,7 +1029,7 @@ void THD::cleanup(void) {
     If we have a Security_context, make sure it is "logged out"
   */
 
-  cleanup_done = 1;
+  cleanup_done = true;
 }
 
 /**
@@ -1035,7 +1051,7 @@ void THD::release_resources() {
   }
 
   /* modification plan for UPDATE/DELETE should be freed. */
-  DBUG_ASSERT(query_plan.get_modification_plan() == NULL);
+  DBUG_ASSERT(query_plan.get_modification_plan() == nullptr);
   mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_thd_query);
@@ -1058,14 +1074,14 @@ void THD::release_resources() {
 
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
-  DBUG_ASSERT(timer == NULL);
+  DBUG_ASSERT(timer == nullptr);
 
   if (timer_cache) thd_timer_destroy(timer_cache);
 
   if (rli_fake) {
     rli_fake->end_info();
     delete rli_fake;
-    rli_fake = NULL;
+    rli_fake = nullptr;
   }
   mysql_audit_free_thd(this);
 
@@ -1076,7 +1092,7 @@ void THD::release_resources() {
   add_to_status(&global_status_var, &status_var);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Aggregate thread status into the Performance Schema. */
-  if (m_psi != NULL) {
+  if (m_psi != nullptr) {
     PSI_THREAD_CALL(aggregate_thread_status)(m_psi);
   }
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1120,7 +1136,7 @@ THD::~THD() {
   dbug_sentry = THD_SENTRY_GONE;
 #endif
 
-  if (variables.gtid_next_list.gtid_set != NULL) {
+  if (variables.gtid_next_list.gtid_set != nullptr) {
 #ifdef HAVE_GTID_NEXT_LIST
     delete variables.gtid_next_list.gtid_set;
     variables.gtid_next_list.gtid_set = NULL;
@@ -1131,9 +1147,16 @@ THD::~THD() {
   }
   if (rli_slave) rli_slave->cleanup_after_session();
 
+  /*
+    As slaves can be added in one mysql command like COM_REGISTER_SLAVE
+    but then need to be removed on error scenarios, we call this method
+    here
+  */
+  unregister_slave(this, true, true);
+
   free_root(&main_mem_root, MYF(0));
 
-  if (m_token_array != NULL) {
+  if (m_token_array != nullptr) {
     my_free(m_token_array);
   }
 }
@@ -1322,7 +1345,7 @@ extern "C" int thd_get_ft_query_extra_word_chars(void) {
 */
 
 void THD::disconnect(bool server_shutdown) {
-  Vio *vio = NULL;
+  Vio *vio = nullptr;
 
   mysql_mutex_lock(&LOCK_thd_data);
 
@@ -1545,10 +1568,10 @@ void THD::cleanup_after_query() {
   if (!in_sub_stmt) /* stored functions and triggers are a special case */
   {
     /* Forget those values, for next binlogger: */
-    stmt_depends_on_first_successful_insert_id_in_prev_stmt = 0;
-    auto_inc_intervals_in_cur_stmt_for_binlog.empty();
-    rand_used = 0;
-    binlog_accessed_db_names = NULL;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
+    auto_inc_intervals_in_cur_stmt_for_binlog.clear();
+    rand_used = false;
+    binlog_accessed_db_names = nullptr;
 
     /*
       Clean possible unused INSERT_ID events by current statement.
@@ -1560,14 +1583,14 @@ void THD::cleanup_after_query() {
         SET statements between them).
     */
     if ((rli_slave || rli_fake) && is_update_query(lex->sql_command))
-      auto_inc_intervals_forced.empty();
+      auto_inc_intervals_forced.clear();
   }
 
   /*
     In case of stored procedures, stored functions, triggers and events
     m_trans_fixed_log_file will not be set to NULL. The memory will be reused.
   */
-  if (!sp_runtime_ctx) m_trans_fixed_log_file = NULL;
+  if (!sp_runtime_ctx) m_trans_fixed_log_file = nullptr;
 
   /*
     Forget the binlog stmt filter for the next query.
@@ -1583,14 +1606,15 @@ void THD::cleanup_after_query() {
         first_successful_insert_id_in_cur_stmt;
     first_successful_insert_id_in_cur_stmt = 0;
   }
-  arg_of_last_insert_id_function = 0;
+  arg_of_last_insert_id_function = false;
   /* Hack for cleaning up view security contexts */
   List_iterator<Security_context> it(m_view_ctx_list);
   while (Security_context *ctx = it++) {
     ctx->logout();
   }
-  m_view_ctx_list.empty();
-  /* Free Items that were created during this execution */
+  m_view_ctx_list.clear();
+  // Cleanup and free items that were created during this execution
+  cleanup_items(item_list());
   free_items();
   /* Reset where. */
   where = THD::DEFAULT_WHERE;
@@ -1631,7 +1655,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
   size_t new_length = to_cs->mbmaxlen * from_length;
   if (!(to->str = (char *)alloc(new_length + 1))) {
     to->length = 0;  // Safety fix
-    return 1;        // EOM
+    return true;     // EOM
   }
   uint errors = 0;
   to->length = copy_and_convert(to->str, new_length, to_cs, from, from_length,
@@ -1644,7 +1668,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     if (report_error) {
       my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff,
                from_cs->csname, to_cs->csname);
-      return 1;
+      return true;
     } else {
       push_warning_printf(this, Sql_condition::SL_WARNING,
                           ER_INVALID_CHARACTER_STRING,
@@ -1653,7 +1677,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     }
   }
 
-  return 0;
+  return false;
 }
 
 /*
@@ -1673,39 +1697,39 @@ void THD::update_charset() {
 }
 
 int THD::send_explain_fields(Query_result *result) {
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(current_thd->mem_root);
   Item *item;
   CHARSET_INFO *cs = system_charset_info;
   field_list.push_back(new Item_return_int("id", 3, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
   field_list.push_back(item =
                            new Item_empty_string("table", NAME_CHAR_LEN, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   /* Maximum length of string that make_used_partitions_str() can produce */
   item = new Item_empty_string("partitions", MAX_PARTITIONS * (1 + FN_LEN), cs);
   field_list.push_back(item);
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string("type", 10, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string(
                            "possible_keys", NAME_CHAR_LEN * MAX_KEY, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string("key", NAME_CHAR_LEN, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_empty_string("key_len", NAME_CHAR_LEN * MAX_KEY));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_empty_string("ref", NAME_CHAR_LEN * MAX_REF_PARTS, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_return_int("rows", 10, MYSQL_TYPE_LONGLONG));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_float(NAME_STRING("filtered"), 0.1234, 2, 4));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   return (result->send_result_set_metadata(
       this, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
@@ -1720,8 +1744,8 @@ void THD::shutdown_active_vio() {
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (active_vio) {
     vio_shutdown(active_vio, SHUT_RDWR);
-    active_vio = 0;
-    m_SSL = NULL;
+    active_vio = nullptr;
+    m_SSL = nullptr;
   }
 }
 
@@ -1751,11 +1775,12 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *new_value) {
   Item_change_record *change;
   /*
     Now we use one node per change, which adds some memory overhead,
-    but still is rather fast as we use alloc_root for allocations.
+    but still is rather fast as we use mem_root->alloc() for allocations.
     A list of item tree changes of an average query should be short.
   */
+
   void *change_mem = mem_root->Alloc(sizeof(*change));
-  if (change_mem == 0) {
+  if (change_mem == nullptr) {
     /*
       OOM, thd->fatal_error() is called by the error handler of the
       memroot. Just return.
@@ -1766,32 +1791,21 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *new_value) {
   change_list.push_front(change);
 }
 
-void THD::replace_rollback_place(Item **new_place) {
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change = it++)) {
-    if (change->new_value == *new_place) {
-      DBUG_PRINT("info", ("replace_rollback_place new_value %p place %p",
-                          *new_place, new_place));
-      change->place = new_place;
-      break;
-    }
-  }
-}
-
 void THD::rollback_item_tree_changes() {
   I_List_iterator<Item_change_record> it(change_list);
   Item_change_record *change;
   DBUG_TRACE;
 
   while ((change = it++)) {
+    if (change->m_cancel) continue;
+
     DBUG_PRINT("info", ("rollback_item_tree_changes "
                         "place %p curr_value %p old_value %p",
                         change->place, *change->place, change->old_value));
     *change->place = change->old_value;
   }
   /* We can forget about changes memory: it's allocated in runtime memroot */
-  change_list.empty();
+  change_list.clear();
 }
 
 void Query_arena::add_item(Item *item) {
@@ -1826,9 +1840,7 @@ void THD::end_statement() {
   DBUG_TRACE;
   /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
-  //@todo Check lifetime of Query_result objects.
-  // delete lex->result;
-  lex->result = NULL;  // Prepare for next statement
+  lex->result = nullptr;  // Prepare for next statement
   /* Note that item list is freed in cleanup_after_query() */
 
   /*
@@ -1840,7 +1852,7 @@ void THD::end_statement() {
 Prepared_statement_map::Prepared_statement_map()
     : st_hash(key_memory_prepared_statement_map),
       names_hash(system_charset_info, key_memory_prepared_statement_map),
-      m_last_found_statement(NULL) {}
+      m_last_found_statement(nullptr) {}
 
 int Prepared_statement_map::insert(Prepared_statement *statement) {
   st_hash.emplace(statement->id, unique_ptr<Prepared_statement>(statement));
@@ -1888,16 +1900,16 @@ Prepared_statement *Prepared_statement_map::find_by_name(
 }
 
 Prepared_statement *Prepared_statement_map::find(ulong id) {
-  if (m_last_found_statement == NULL || id != m_last_found_statement->id) {
+  if (m_last_found_statement == nullptr || id != m_last_found_statement->id) {
     Prepared_statement *stmt = find_or_nullptr(st_hash, id);
-    if (stmt && stmt->name().str) return NULL;
+    if (stmt && stmt->name().str) return nullptr;
     m_last_found_statement = stmt;
   }
   return m_last_found_statement;
 }
 
 void Prepared_statement_map::erase(Prepared_statement *statement) {
-  if (statement == m_last_found_statement) m_last_found_statement = NULL;
+  if (statement == m_last_found_statement) m_last_found_statement = nullptr;
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
 
   st_hash.erase(statement->id);
@@ -1907,9 +1919,9 @@ void Prepared_statement_map::erase(Prepared_statement *statement) {
   mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 }
 
-void Prepared_statement_map::claim_memory_ownership() {
+void Prepared_statement_map::claim_memory_ownership(bool claim) {
   for (const auto &key_and_value : st_hash) {
-    my_claim(key_and_value.second.get());
+    my_claim(key_and_value.second.get(), claim);
   }
 }
 
@@ -1928,7 +1940,7 @@ void Prepared_statement_map::reset() {
   }
   names_hash.clear();
   st_hash.clear();
-  m_last_found_statement = NULL;
+  m_last_found_statement = nullptr;
 }
 
 Prepared_statement_map::~Prepared_statement_map() {
@@ -1951,8 +1963,14 @@ void THD::send_kill_message() const {
       - INSERT/UPDATE IGNORE should fail: if KILL arrives during
       JOIN::optimize(), statement cannot possibly run as its caller expected
       => "OK" would be misleading the caller.
+
+      EXPLAIN ANALYZE still succeeds (but with a warning in the output),
+      assuming it's come as far as the execution stage, so that the user
+      can look at the execution plan and statistics so far.
     */
-    my_error(err, MYF(ME_FATALERROR));
+    if (!running_explain_analyze) {
+      my_error(err, MYF(ME_FATALERROR));
+    }
   }
 }
 
@@ -1980,9 +1998,9 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup) {
     Before we will throw away current open tables state we want
     to be sure that it was properly cleaned up.
   */
-  DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 && lock == 0 &&
-              locked_tables_mode == LTM_NONE &&
-              get_reprepare_observer() == NULL);
+  DBUG_ASSERT(open_tables == nullptr && temporary_tables == nullptr &&
+              lock == nullptr && locked_tables_mode == LTM_NONE &&
+              get_reprepare_observer() == nullptr);
 
   set_open_tables_state(backup);
 }
@@ -2078,7 +2096,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   m_examined_row_count = 0;
   m_sent_row_count = 0;
   num_truncated_fields = 0;
-  get_transaction()->m_savepoints = 0;
+  get_transaction()->m_savepoints = nullptr;
   first_successful_insert_id_in_cur_stmt = 0;
 
   /* Reset savepoint on transaction write set */
@@ -2363,7 +2381,7 @@ void THD::debug_assert_query_locked() const {
   if (current_thd != this) mysql_mutex_assert_owner(&LOCK_thd_query);
 }
 
-void THD::set_query(const LEX_CSTRING &query_arg) {
+void THD::set_query(LEX_CSTRING query_arg) {
   DBUG_ASSERT(this == current_thd);
   mysql_mutex_lock(&LOCK_thd_query);
   m_query_string = query_arg;
@@ -2409,7 +2427,7 @@ void THD::get_definer(LEX_USER *definer) {
     definer->host = m_invoker_host;
     definer->plugin.str = "";
     definer->plugin.length = 0;
-    definer->auth.str = NULL;
+    definer->auth.str = nullptr;
     definer->auth.length = 0;
   } else
     get_default_definer(this, definer);
@@ -2433,11 +2451,11 @@ void THD::mark_transaction_to_rollback(bool all) {
 
 void THD::set_next_event_pos(const char *_filename, ulonglong _pos) {
   char *&filename = binlog_next_event_pos.file_name;
-  if (filename == NULL) {
+  if (filename == nullptr) {
     /* First time, allocate maximal buffer */
     filename =
         (char *)my_malloc(key_memory_LOG_POS_COORD, FN_REFLEN + 1, MYF(MY_WME));
-    if (filename == NULL) return;
+    if (filename == nullptr) return;
   }
 
   assert(strlen(_filename) <= FN_REFLEN);
@@ -2448,10 +2466,10 @@ void THD::set_next_event_pos(const char *_filename, ulonglong _pos) {
 }
 
 void THD::clear_next_event_pos() {
-  if (binlog_next_event_pos.file_name != NULL) {
+  if (binlog_next_event_pos.file_name != nullptr) {
     my_free(binlog_next_event_pos.file_name);
   }
-  binlog_next_event_pos.file_name = NULL;
+  binlog_next_event_pos.file_name = nullptr;
   binlog_next_event_pos.pos = 0;
 }
 
@@ -2683,7 +2701,7 @@ void THD::vsyntax_error_at(const YYLTYPE &location, const char *format,
 void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
                            const char *format, va_list args) {
   DBUG_ASSERT(
-      pos_in_lexer_raw_buffer == NULL ||
+      pos_in_lexer_raw_buffer == nullptr ||
       (pos_in_lexer_raw_buffer >= m_parser_state->m_lip.get_buf() &&
        pos_in_lexer_raw_buffer <= m_parser_state->m_lip.get_end_of_query()));
 
@@ -2701,20 +2719,18 @@ void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
                   err.ptr(), lineno);
 }
 
-bool THD::send_result_metadata(List<Item> *list, uint flags) {
+bool THD::send_result_metadata(const mem_root_deque<Item *> &list, uint flags) {
   DBUG_TRACE;
-  List_iterator_fast<Item> it(*list);
-  Item *item;
   uchar buff[MAX_FIELD_WIDTH];
   String tmp((char *)buff, sizeof(buff), &my_charset_bin);
 
-  if (m_protocol->start_result_metadata(list->elements, flags,
+  if (m_protocol->start_result_metadata(CountVisibleFields(list), flags,
                                         variables.character_set_results))
     goto err;
   switch (variables.resultset_metadata) {
     case RESULTSET_METADATA_FULL:
-      /* Sent metadata. */
-      while ((item = it++)) {
+      /* Send metadata. */
+      for (Item *item : VisibleFields(list)) {
         Send_field field;
         item->make_field(&field);
         m_protocol->start_row();
@@ -2732,24 +2748,23 @@ bool THD::send_result_metadata(List<Item> *list, uint flags) {
 
     default:
       /* Unknown @@resultset_metadata value. */
-      return 1;
+      return true;
   }
 
   return m_protocol->end_result_metadata();
 
 err:
   my_error(ER_OUT_OF_RESOURCES, MYF(0)); /* purecov: inspected */
-  return 1;                              /* purecov: inspected */
+  return true;                           /* purecov: inspected */
 }
 
-bool THD::send_result_set_row(List<Item> *row_items) {
+bool THD::send_result_set_row(const mem_root_deque<Item *> &row_items) {
   char buffer[MAX_FIELD_WIDTH];
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);
-  List_iterator_fast<Item> it(*row_items);
 
   DBUG_TRACE;
 
-  for (Item *item = it++; item; item = it++) {
+  for (Item *item : VisibleFields(row_items)) {
     if (item->send(m_protocol, &str_buffer) || is_error()) return true;
     /*
       Reset str_buffer to its original state, as it may have been altered in
@@ -2795,43 +2810,43 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership() {
-/*
-  Ownership of the THD object is transfered to this thread.
-  This happens typically:
-  - in the event scheduler,
-    when the scheduler thread creates a work item and
-    starts a worker thread to run it
-  - in the main thread, when the code that accepts a new
-    network connection creates a work item and starts a
-    connection thread to run it.
-  Accounting for memory statistics needs to be told
-  that memory allocated by thread X now belongs to thread Y,
-  so that statistics by thread/account/user/host are accurate.
-  Inspect every piece of memory allocated in THD,
-  and call PSI_MEMORY_CALL(memory_claim)().
-*/
+void THD::claim_memory_ownership(bool claim) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  main_mem_root.Claim();
-  my_claim(m_token_array);
+  /*
+    Ownership of the THD object is transfered to this thread.
+    This happens typically:
+    - in the event scheduler,
+      when the scheduler thread creates a work item and
+      starts a worker thread to run it
+    - in the main thread, when the code that accepts a new
+      network connection creates a work item and starts a
+      connection thread to run it.
+    Accounting for memory statistics needs to be told
+    that memory allocated by thread X now belongs to thread Y,
+    so that statistics by thread/account/user/host are accurate.
+    Inspect every piece of memory allocated in THD,
+    and call PSI_MEMORY_CALL(memory_claim)().
+   */
+  main_mem_root.Claim(claim);
+  my_claim(m_token_array, claim);
   Protocol_classic *p = get_protocol_classic();
-  if (p != NULL) p->claim_memory_ownership();
-  session_tracker.claim_memory_ownership();
-  session_sysvar_res_mgr.claim_memory_ownership();
+  if (p != nullptr) p->claim_memory_ownership(claim);
+  session_tracker.claim_memory_ownership(claim);
+  session_sysvar_res_mgr.claim_memory_ownership(claim);
   for (const auto &key_and_value : user_vars) {
-    my_claim(key_and_value.second.get());
+    my_claim(key_and_value.second.get(), claim);
   }
 #if defined(ENABLED_DEBUG_SYNC)
-  debug_sync_claim_memory_ownership(this);
+  debug_sync_claim_memory_ownership(this, claim);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-  get_transaction()->claim_memory_ownership();
-  stmt_map.claim_memory_ownership();
+  get_transaction()->claim_memory_ownership(claim);
+  stmt_map.claim_memory_ownership(claim);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
 void THD::rpl_detach_engine_ha_data() {
   Relay_log_info *rli =
-      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
 
   DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
   DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
@@ -2841,7 +2856,7 @@ void THD::rpl_detach_engine_ha_data() {
 
 void THD::rpl_reattach_engine_ha_data() {
   Relay_log_info *rli =
-      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
 
   DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
   DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
@@ -2851,19 +2866,17 @@ void THD::rpl_reattach_engine_ha_data() {
 
 bool THD::rpl_unflag_detached_engine_ha_data() const {
   Relay_log_info *rli =
-      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
   return rli ? rli->unflag_detached_engine_ha_data() : false;
 }
 
-/**
-  Determine if binlogging is disabled for this session
-  @retval 0 if the current statement binlogging is disabled
-  (could be because of binlog closed/binlog option
-  is set to false).
-  @retval 1 if the current statement will be binlogged
-*/
 bool THD::is_current_stmt_binlog_disabled() const {
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
+          !mysql_bin_log.is_open());
+}
+
+bool THD::is_current_stmt_binlog_log_slave_updates_disabled() const {
+  return ((!opt_bin_log || (slave_thread && !opt_log_slave_updates)) ||
           !mysql_bin_log.is_open());
 }
 
@@ -2888,27 +2901,11 @@ bool add_item_to_list(THD *thd, Item *item) {
   return thd->lex->select_lex->add_item_to_list(item);
 }
 
-void add_order_to_list(THD *thd, ORDER *order) {
-  thd->lex->select_lex->add_order_to_list(order);
-}
-
 THD::Transaction_state::Transaction_state()
     : m_query_tables_list(new Query_tables_list()),
       m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity) {}
 
 THD::Transaction_state::~Transaction_state() { delete m_query_tables_list; }
-
-void THD::change_item_tree(Item **place, Item *new_value) {
-  /* TODO: check for OOM condition here */
-  if (!stmt_arena->is_regular()) {
-    DBUG_PRINT("info", ("change_item_tree place %p old_value %p new_value %p",
-                        place, *place, new_value));
-    if (new_value)
-      new_value->set_runtime_created(); /* Note the change of item tree */
-    nocheck_register_item_tree_change(place, new_value);
-  }
-  *place = new_value;
-}
 
 bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
                                             bool *victimized) {
@@ -2927,8 +2924,8 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
     /* restore the saved original engine transaction's link with thd */
     void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
 
-    hton->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-    *trx_backup = NULL;
+    hton->replace_native_transaction_in_thd(thd, *trx_backup, nullptr);
+    *trx_backup = nullptr;
   }
 }
 
@@ -3049,6 +3046,16 @@ bool THD::secondary_storage_engine_eligible() const {
          sp_runtime_ctx == nullptr;
 }
 
+void THD::swap_rewritten_query(String &query_arg) {
+  DBUG_ASSERT(this == current_thd);
+
+  mysql_mutex_lock(&LOCK_thd_query);
+  m_rewritten_query.swap(query_arg);
+  // The rewritten query should always be a valid C string, just in case.
+  (void)m_rewritten_query.c_ptr_safe();
+  mysql_mutex_unlock(&LOCK_thd_query);
+}
+
 /**
   Restore session state in case of parse error.
 
@@ -3067,9 +3074,9 @@ void THD::cleanup_after_parse_error() {
   if (sp) {
     sp->m_parser_data.finish_parsing_sp_body(this);
     //  Do not delete sp_head if is invoked in the context of sp execution.
-    if (sp_runtime_ctx == NULL) {
+    if (sp_runtime_ctx == nullptr) {
       sp_head::destroy(sp);
-      lex->sphead = NULL;
+      lex->sphead = nullptr;
     }
   }
 }
@@ -3105,4 +3112,112 @@ void THD::pop_protocol() {
   DBUG_ASSERT(m_protocol != nullptr);
   m_protocol = m_protocol->pop_protocol();
   DBUG_ASSERT(m_protocol != nullptr);
+}
+
+void THD::set_time() {
+  start_utime = utime_after_lock = my_micro_time();
+  if (user_time.tv_sec || user_time.tv_usec)
+    start_time = user_time;
+  else
+    my_micro_time_to_timeval(start_utime, &start_time);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
+#endif
+}
+
+void THD::set_time_after_lock() {
+  /*
+    If mysql_lock_tables() is called multiple times,
+    we stick with the first timestamp. This prevents
+    anomalities with things like CREATE INDEX, where
+    otherwise, we'll get the lock timestamp for the
+    data dictionary update.
+  */
+  if (utime_after_lock != start_utime) return;
+  utime_after_lock = my_micro_time();
+  MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
+                                (utime_after_lock - start_utime));
+}
+
+void THD::update_slow_query_status() {
+  utime_after_query = current_utime();
+  if (my_micro_time() > utime_after_lock + variables.long_query_time)
+    server_status |= SERVER_QUERY_WAS_SLOW;
+}
+
+/**
+  Initialize the transactional ddl context when executing CREATE TABLE ...
+  SELECT command with engine which supports atomic DDL.
+
+  @param db         Schema name in which table is being created.
+  @param tablename  Table name being created.
+  @param hton       Handlerton representing engine used for table.
+
+  @returns void
+*/
+void Transactional_ddl_context::init(dd::String_type db,
+                                     dd::String_type tablename,
+                                     const handlerton *hton) {
+  DBUG_ASSERT(m_hton == nullptr);
+  m_db = db;
+  m_tablename = tablename;
+  m_hton = hton;
+}
+
+/**
+  Remove the table share used while creating the table, if the transaction
+  is being rolledback.
+
+  @returns void
+*/
+void Transactional_ddl_context::rollback() {
+  if (!inited()) return;
+  table_cache_manager.lock_all_and_tdc();
+  TABLE_SHARE *share =
+      get_cached_table_share(m_db.c_str(), m_tablename.c_str());
+  if (share) {
+    tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_db.c_str(),
+                     m_tablename.c_str(), true);
+
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    // quick_rm_table() was not called, so remove the P_S table share here.
+    PSI_TABLE_CALL(drop_table_share)
+    (false, m_db.c_str(), strlen(m_db.c_str()), m_tablename.c_str(),
+     strlen(m_tablename.c_str()));
+#endif
+  }
+  table_cache_manager.unlock_all_and_tdc();
+}
+
+/**
+  End the transactional context created by calling post ddl hook for engine
+  on which table is being created. This is done after transaction rollback
+  and commit.
+
+  @returns void
+*/
+void Transactional_ddl_context::post_ddl() {
+  if (!inited()) return;
+  if (m_hton && m_hton->post_ddl) {
+    m_hton->post_ddl(m_thd);
+  }
+  m_hton = nullptr;
+  m_db = "";
+  m_tablename = "";
+}
+
+void my_ok(THD *thd, ulonglong affected_rows, ulonglong id,
+           const char *message) {
+  thd->set_row_count_func(affected_rows);
+  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
+}
+
+void my_eof(THD *thd) {
+  thd->set_row_count_func(-1);
+  thd->get_stmt_da()->set_eof_status(thd);
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
+    TX_TRACKER_GET(tst);
+    tst->add_trx_state(thd, TX_RESULT_SET);
+  }
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dict0dict.h"
 #include "page0cur.h"
+#include "ut0class_life_cycle.h"
 #include "ut0new.h"
 
 /** Innodb B-tree index fill factor for bulk load. */
@@ -53,7 +54,7 @@ The proper function call sequence of PageBulk is as below:
 -- PageBulk::commit
 */
 
-class PageBulk {
+class PageBulk : private ut::Non_copyable {
  public:
   /** Page split point descriptor. */
   struct SplitPoint {
@@ -96,14 +97,17 @@ class PageBulk {
         m_flush_observer(observer),
         m_last_slotted_rec(nullptr),
         m_slotted_rec_no(0),
-        m_modified(false),
-        m_err(DB_SUCCESS) {
+        m_modified(false) {
     ut_ad(!dict_index_is_spatial(m_index));
   }
 
   /** Destructor */
   ~PageBulk() {
     if (m_heap) {
+      /* mtr is allocated using heap. */
+      if (m_mtr != nullptr) {
+        m_mtr->~mtr_t();
+      }
       mem_heap_free(m_heap);
     }
   }
@@ -117,11 +121,9 @@ class PageBulk {
   @param[in]  tuple     tuple to insert
   @param[in]  big_rec   external record
   @param[in]  rec_size  record size
-  @param[in]  n_ext     number of externally stored columns
   @return error code */
   dberr_t insert(const dtuple_t *tuple, const big_rec_t *big_rec,
-                 ulint rec_size, ulint n_ext)
-      MY_ATTRIBUTE((warn_unused_result));
+                 ulint rec_size) MY_ATTRIBUTE((warn_unused_result));
 
   /** Mark end of insertion to the page. Scan records to set page dirs,
   and set page header members. The scan is incremental (slots and records
@@ -169,7 +171,7 @@ class PageBulk {
   inline void release();
 
   /** Start mtr and latch block */
-  inline dberr_t latch();
+  inline void latch();
 
   /** Check if required space is available in the page for the rec
   to be inserted.	We check fill factor & padding here.
@@ -226,8 +228,6 @@ class PageBulk {
   @return error code */
   dberr_t storeExt(const big_rec_t *big_rec, ulint *offsets)
       MY_ATTRIBUTE((warn_unused_result));
-
-  dberr_t getError() { return (m_err); }
 
   /** Memory heap for internal allocation */
   mem_heap_t *m_heap;
@@ -297,9 +297,6 @@ class PageBulk {
 
   /** Page modified flag. */
   bool m_modified;
-
-  /** Operation result DB_SUCCESS or error code */
-  dberr_t m_err;
 };
 
 class BtrBulk {
@@ -359,7 +356,8 @@ class BtrBulk {
   pointer to father page if needed, and commit mini-transaction.
   @param[in]	page_bulk	page to commit
   @param[in]	next_page_bulk	next page
-  @param[in]	insert_father	flag whether need to insert node ptr
+  @param[in]	insert_father	false when page_bulk is a root page and
+                                  true when it's a non-root page
   @return	error code */
   dberr_t pageCommit(PageBulk *page_bulk, PageBulk *next_page_bulk,
                      bool insert_father) MY_ATTRIBUTE((warn_unused_result));
@@ -384,14 +382,12 @@ class BtrBulk {
   /** Insert a tuple to a page.
   @param[in]  page_bulk   page bulk object
   @param[in]  tuple       tuple to insert
-  @param[in]  big_rec     big record vector, maybe NULL if there is no
+  @param[in]  big_rec     big record vector, could be nullptr if there is no
                           data to be stored externally.
   @param[in]  rec_size    record size
-  @param[in]  n_ext       number of externally stored columns
   @return error code */
   dberr_t insert(PageBulk *page_bulk, dtuple_t *tuple, big_rec_t *big_rec,
-                 ulint rec_size, ulint n_ext)
-      MY_ATTRIBUTE((warn_unused_result));
+                 ulint rec_size) MY_ATTRIBUTE((warn_unused_result));
 
   /** Log free check */
   void logFreeCheck();

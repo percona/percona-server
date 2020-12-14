@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
-Cost_constant_cache *cost_constant_cache = NULL;
+Cost_constant_cache *cost_constant_cache = nullptr;
 
 static void read_cost_constants(Cost_model_constants *cost_constants);
 
@@ -59,11 +59,11 @@ static void read_cost_constants(Cost_model_constants *cost_constants);
 */
 
 Cost_constant_cache::Cost_constant_cache()
-    : current_cost_constants(NULL), m_inited(false) {}
+    : current_cost_constants(nullptr), m_inited(false) {}
 
 Cost_constant_cache::~Cost_constant_cache() {
   // Verify that close has been called
-  DBUG_ASSERT(current_cost_constants == NULL);
+  DBUG_ASSERT(current_cost_constants == nullptr);
   DBUG_ASSERT(m_inited == false);
 }
 
@@ -94,7 +94,7 @@ void Cost_constant_cache::close() {
   // Release the current cost constant set
   if (current_cost_constants) {
     release_cost_constants(current_cost_constants);
-    current_cost_constants = NULL;
+    current_cost_constants = nullptr;
   }
 
   // To ensure none is holding the mutex when deleting it, lock/unlock it.
@@ -248,9 +248,9 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, NULL, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 
@@ -313,9 +313,9 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, NULL, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 
@@ -396,8 +396,8 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
       tables[0].next_name_resolution_table = &tables[1];
 
   if (!open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT)) {
-    DBUG_ASSERT(tables[0].table != NULL);
-    DBUG_ASSERT(tables[1].table != NULL);
+    DBUG_ASSERT(tables[0].table != nullptr);
+    DBUG_ASSERT(tables[1].table != nullptr);
 
     // Read the server constants table
     read_server_cost_constants(thd, tables[0].table, cost_constants);
@@ -419,7 +419,7 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
 }
 
 void init_optimizer_cost_module(bool enable_plugins) {
-  DBUG_ASSERT(cost_constant_cache == NULL);
+  DBUG_ASSERT(cost_constant_cache == nullptr);
   cost_constant_cache = new Cost_constant_cache();
   cost_constant_cache->init();
   /*
@@ -433,7 +433,7 @@ void delete_optimizer_cost_module() {
   if (cost_constant_cache) {
     cost_constant_cache->close();
     delete cost_constant_cache;
-    cost_constant_cache = NULL;
+    cost_constant_cache = nullptr;
   }
 }
 

@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <algorithm>
 #include <atomic>
 
 #include "lex_string.h"
@@ -36,6 +37,7 @@
 #include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
+#include "mysql_version.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -87,7 +89,7 @@ extern "C" void handle_fatal_signal(int sig) {
   const long secs = utc_time.wSecond;
 #else
   /* Using time() instead of my_time() to avoid looping */
-  const time_t curr_time = time(NULL);
+  const time_t curr_time = time(nullptr);
   /* Calculate time of day */
   const long tmins = curr_time / 60;
   const long thrs = tmins / 60;
@@ -110,6 +112,13 @@ extern "C" void handle_fatal_signal(int sig) {
       "%s",
       "Most likely, you have hit a bug, but this error can also "
       "be caused by malfunctioning hardware.\n");
+
+  my_safe_printf_stderr("\n");
+#ifdef __linux__
+  my_print_buildID();
+#endif
+  my_safe_printf_stderr("Server Version: %s %s\n\n", server_version,
+                        MYSQL_COMPILATION_COMMENT);
 
 #ifdef HAVE_STACKTRACE
   THD *thd = current_thd;
@@ -152,7 +161,8 @@ extern "C" void handle_fatal_signal(int sig) {
         "Some pointers may be invalid and cause the dump to abort.\n");
 
     my_safe_printf_stderr("Query (%p): ", thd->query().str);
-    my_safe_puts_stderr(thd->query().str, MY_MIN(1024U, thd->query().length));
+    my_safe_puts_stderr(thd->query().str,
+                        std::min(size_t{1024}, thd->query().length));
     my_safe_printf_stderr("Connection ID (thread ID): %u\n", thd->thread_id());
     my_safe_printf_stderr("Status: %s\n\n", kreason);
   }
@@ -168,8 +178,23 @@ extern "C" void handle_fatal_signal(int sig) {
 #endif /* HAVE_STACKTRACE */
 
   if (test_flags & TEST_CORE_ON_SIGNAL) {
-    my_safe_printf_stderr("%s", "Writing a core file\n");
-    my_write_core(sig);
+#if HAVE_LIBCOREDUMPER
+    if (opt_libcoredumper) {
+      if (opt_libcoredumper_path != NULL) {
+        if (!validate_libcoredumper_path(opt_libcoredumper_path)) {
+          my_safe_printf_stderr("%s", "Changing path to datadir\n");
+          opt_libcoredumper_path = NULL;
+        }
+      }
+      my_safe_printf_stderr("%s", "Writing a core file using lib coredumper\n");
+      my_write_libcoredumper(sig, opt_libcoredumper_path, curr_time);
+    } else {
+#endif
+      my_safe_printf_stderr("%s", "Writing a core file\n");
+      my_write_core(sig);
+#if HAVE_LIBCOREDUMPER
+    }
+#endif
   }
 
 #ifndef _WIN32

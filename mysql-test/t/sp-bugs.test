@@ -478,29 +478,64 @@ DROP FUNCTION очень_очень_очень_очень_очень_очень_
 SET NAMES default;
 
 --echo #
---echo # Bug#97682 - Handler fails to trigger on Error 1049 or SQLSTATE 42000 or plain sqlexception
+--echo # Bug#30034972 - Deterministic function returns different value after
+--echo #                error.
 --echo #
+DELIMITER //;
+CREATE FUNCTION myfunc(dt VARCHAR(50)) RETURNS VARCHAR(32) DETERMINISTIC
+BEGIN
+  DECLARE dt_local TIMESTAMP(0);
+  SET dt_local = dt;
+  RETURN CONCAT(UNIX_TIMESTAMP(dt_local));
+END; //
+DELIMITER ;//
+--echo # Stored function returns seconds without fractional
+--echo # part (e.g. 1546290000)
+SELECT myfunc('2019-01-01 00:00:00');
+--error ER_TRUNCATED_WRONG_VALUE
+SELECT myfunc('2019-01-01 00:00:71');
+--echo # Without the fix, the following returned second value with fractional
+--echo # part (e.g. 1546290000.000000).
+SELECT myfunc('2019-01-01 00:00:00');
+DROP FUNCTION myfunc;
 
+--echo # Issue exists with Prepared Statements too.
+PREPARE stmt FROM 'SELECT CONCAT(UNIX_TIMESTAMP(?))';
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+SET @var = '2019-01-01 00:00:71';
+EXECUTE stmt USING @var;
+--echo # Without the fix, the following returned second value with fractional
+--echo # part (e.g. 1546290000.000000).
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+DEALLOCATE PREPARE stmt;
+
+
+--echo #
+--echo # Bug#30561920 - Handler fails to trigger on error 1049 or SQLSTATE 42000
+--echo #                or plain SQLEXCEPTION
+--echo #
 DELIMITER |;
-
-CREATE FUNCTION handler_func() RETURNS INTEGER
+CREATE FUNCTION func1() RETURNS INT
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-  SELECT fake_col INTO @a FROM fake_table;
+  SELECT * INTO @a FROM fake_table;
 RETURN 1;
 END|
 
-CREATE FUNCTION handler_func2() RETURNS INTEGER
+CREATE FUNCTION func2() RETURNS INT
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-  SELECT fake_col INTO @a FROM fake_db.fake_table;
+  SELECT * INTO @a FROM fake_db.fake_table;
 RETURN 1;
 END|
-
 DELIMITER ;|
 
-SELECT handler_func();
-SELECT handler_func2();
+SELECT func1();
+--echo # Without fix, exit handler is not triggered and unknown DB error
+--echo # is reported.
+SELECT func2();
 
-DROP FUNCTION handler_func;
-DROP FUNCTION handler_func2;
+DROP FUNCTION func1;
+DROP FUNCTION func2;

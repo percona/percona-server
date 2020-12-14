@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
     : otx(thd, TL_WRITE),
       m_thd(thd),
       m_kill_immunizer(thd),
-      m_lex_saved(NULL),
+      m_lex_saved(nullptr),
       m_saved_in_sub_stmt(thd->in_sub_stmt),
       m_saved_time_zone_used(thd->time_zone_used),
       m_saved_auto_increment_increment(
@@ -206,7 +206,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx() {
   m_thd->variables.option_bits = m_saved_options;
 
   if (m_saved_binlog_row_based) m_thd->set_current_stmt_binlog_format_row();
-  m_saved_binlog_row_based = 0;
+  m_saved_binlog_row_based = false;
 
   m_thd->restore_backup_open_tables_state(&m_open_tables_state_backup);
 
@@ -216,7 +216,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx() {
   m_thd->lex = m_lex_saved;
 
   // Restore auto_inc_intervals_in_cur_stmt_for_binlog
-  m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.empty();  // XXX: remove?
+  m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.clear();  // XXX: remove?
   m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.swap(
       &m_thd->auto_inc_intervals_in_cur_stmt_for_binlog);
 

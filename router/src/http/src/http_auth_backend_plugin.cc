@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
  * :  http_auth_backend
  */
 
+#include <array>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -43,18 +44,15 @@
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/plugin_config.h"
 
 #include "http_auth_backend.h"
+#include "http_auth_backend_metadata_cache.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kSectionName[]{"http_auth_backend"};
-
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 
 namespace {
 class HtpasswdPluginConfig : public mysqlrouter::BasePluginConfig {
@@ -91,6 +89,9 @@ class HttpAuthBackendFactory {
       }
 
       return s;
+    } else if (name == "metadata_cache") {
+      auto s = std::make_shared<HttpAuthBackendMetadataCache>();
+      return s;
     } else {
       throw std::invalid_argument("unknown backend=" + name +
                                   " in section: " + section->name);
@@ -120,7 +121,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
 
 std::shared_ptr<HttpAuthBackendComponent::value_type> auth_backends;
 
-static void init(PluginFuncEnv *env) {
+static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (nullptr == info->config) {
@@ -133,6 +134,13 @@ static void init(PluginFuncEnv *env) {
          info->config->sections()) {
       if (section->name != kSectionName) {
         continue;
+      }
+
+      if (section->key.empty()) {
+        set_error(env, mysql_harness::kConfigInvalidArgument,
+                  "The config section [%s] requires a name, like [%s:example]",
+                  kSectionName, kSectionName);
+        return;
       }
 
       PluginConfig config(section);
@@ -150,19 +158,56 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
+static void start(mysql_harness::PluginFuncEnv *env) {
+  const mysql_harness::ConfigSection *section = get_config_section(env);
+
+  PluginConfig config(section);
+  if (config.backend == "metadata_cache") {
+    auto *cache_api = metadata_cache::MetadataCacheAPI::instance();
+
+    if (cache_api->is_initialized()) {
+      // metada_cache is already running, we need to force update cache
+      cache_api->enable_fetch_auth_metadata();
+      cache_api->force_cache_update();
+    } else {
+      while (!cache_api->is_initialized()) {
+        if (!(!env || is_running(env))) return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+      cache_api->enable_fetch_auth_metadata();
+    }
+
+    try {
+      // verify that auth_cache timers are greater than the ttl and that
+      // auth_cache_refresh_interval is smaller than auth_cache_ttl
+      cache_api->check_auth_metadata_timers();
+    } catch (const std::invalid_argument &e) {
+      log_error("%s", e.what());
+      set_error(env, mysql_harness::kConfigInvalidArgument, "%s", e.what());
+      clear_running(env);
+    }
+  }
+}
+
+static const std::array<const char *, 1> required = {{
+    "logger",
+}};
+
 extern "C" {
-Plugin HTTP_AUTH_BACKEND_EXPORT harness_plugin_http_auth_backend = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "HTTP_AUTH_BACKEND",
-    VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // requires
-    0,
-    nullptr,  // conflicts
-    init,     // init
-    nullptr,  // deinit
-    nullptr,  // start
-    nullptr,  // stop
+mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
+    harness_plugin_http_auth_backend = {
+        mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+        "HTTP_AUTH_BACKEND",                     // name
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        required.size(), required.data(),
+        // conflicts
+        0, nullptr,
+        init,     // init
+        nullptr,  // deinit
+        start,    // start
+        nullptr,  // stop
+        false,    // declares_readiness
 };
 }

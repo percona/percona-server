@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ Transaction_consistency_info::Transaction_consistency_info(
     std::list<Gcs_member_identifier> *members_that_must_prepare_the_transaction)
     : m_thread_id(thread_id),
       m_local_transaction(local_transaction),
-      m_sid_specified(sid != NULL ? true : false),
+      m_sid_specified(sid != nullptr ? true : false),
       m_sidno(sidno),
       m_gno(gno),
       m_consistency_level(consistency_level),
@@ -46,7 +46,7 @@ Transaction_consistency_info::Transaction_consistency_info(
       m_transaction_prepared_remotely(false) {
   DBUG_TRACE;
   DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
-  DBUG_ASSERT(NULL != m_members_that_must_prepare_the_transaction);
+  DBUG_ASSERT(nullptr != m_members_that_must_prepare_the_transaction);
   DBUG_PRINT(
       "info",
       ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
@@ -56,7 +56,7 @@ Transaction_consistency_info::Transaction_consistency_info(
        m_consistency_level, m_transaction_prepared_locally,
        m_transaction_prepared_remotely));
 
-  if (NULL != sid) {
+  if (nullptr != sid) {
     m_sid.copy_from(*sid);
   } else {
     m_sid.clear();
@@ -145,7 +145,7 @@ int Transaction_consistency_info::after_applier_prepare(
         return 0;
       };);
 
-  Transaction_prepared_message message((m_sid_specified ? &m_sid : NULL),
+  Transaction_prepared_message message((m_sid_specified ? &m_sid : nullptr),
                                        m_gno);
   if (gcs_module->send_message(message)) {
     /* purecov: begin inspected */
@@ -218,7 +218,7 @@ int Transaction_consistency_info::handle_member_leave(
 }
 
 Transaction_consistency_manager::Transaction_consistency_manager()
-    : m_plugin_stopping(true) {
+    : m_plugin_stopping(true), m_primary_election_active(false) {
   m_map_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_transaction_consistency_manager_map
@@ -410,7 +410,7 @@ int Transaction_consistency_manager::handle_remote_prepare(
   DBUG_TRACE;
   rpl_sidno sidno = 0;
 
-  if (sid != NULL) {
+  if (sid != nullptr) {
     /*
      This transaction has a UUID different from the group name,
      thence we need to fetch the corresponding sidno from the
@@ -574,6 +574,14 @@ int Transaction_consistency_manager::before_transaction_begin(
     /* purecov: begin inspected */
     return error;
     /* purecov: end */
+  }
+
+  if (m_primary_election_active) {
+    if (consistency_level ==
+            GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
+        consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
+      return m_hold_transactions.wait_until_primary_failover_complete(timeout);
+    }
   }
 
   return 0;
@@ -829,6 +837,15 @@ void Transaction_consistency_manager::unregister_transaction_observer() {
   group_transaction_observation_manager->unregister_transaction_observer(this);
 }
 
+void Transaction_consistency_manager::enable_primary_election_checks() {
+  m_hold_transactions.enable();
+  m_primary_election_active = true;
+}
+
+void Transaction_consistency_manager::disable_primary_election_checks() {
+  m_primary_election_active = false;
+  m_hold_transactions.disable();
+}
 /*
   These methods are necessary to fulfil the Group_transaction_listener
   interface.

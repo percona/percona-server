@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,9 @@ class THD;
 struct LF_PINS;
 struct MDL_key;
 struct MEM_ROOT;
-
+namespace mdl_unittest {
+bool test_drive_fix_pins(MDL_context *);
+}
 /**
   @def ENTER_COND(C, M, S, O)
   Start a wait on a condition.
@@ -358,6 +360,9 @@ struct MDL_key {
 
     Different types of objects exist in different namespaces
      - GLOBAL is used for the global read lock.
+     - BACKUP_LOCK is to block any operations that could cause
+       inconsistent backup. Such operations are most DDL statements,
+       and some administrative statements.
      - TABLESPACE is for tablespaces.
      - SCHEMA is for schemas (aka databases).
      - TABLE is for tables and views.
@@ -371,9 +376,6 @@ struct MDL_key {
      - SRID is for spatial reference systems
      - ACL_CACHE is for ACL caches
      - COLUMN_STATISTICS is for column statistics, such as histograms
-     - BACKUP_LOCK is to block any operations that could cause
-       inconsistent backup. Such operations are most DDL statements,
-       and some administrative statements.
      - RESOURCE_GROUPS is for resource groups.
      - FOREIGN_KEY is for foreign key names.
      - CHECK_CONSTRAINT is for check constraint names.
@@ -382,6 +384,7 @@ struct MDL_key {
   */
   enum enum_mdl_namespace {
     GLOBAL = 0,
+    BACKUP_LOCK,
     TABLESPACE,
     SCHEMA,
     TABLE,
@@ -395,7 +398,6 @@ struct MDL_key {
     SRID,
     ACL_CACHE,
     COLUMN_STATISTICS,
-    BACKUP_LOCK, /* Oracle LOCK INSTANCE FOR BACKUP */
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
@@ -425,7 +427,7 @@ struct MDL_key {
     }
 
     /* No column name stored. */
-    return NULL;
+    return nullptr;
   }
 
   uint col_name_length() const {
@@ -812,7 +814,7 @@ class MDL_request {
   }
 
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &)noexcept {}
+                              const std::nothrow_t &) noexcept {}
 
   void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
                         const char *db_arg, const char *name_arg,
@@ -832,7 +834,7 @@ class MDL_request {
                                     const char *src_file, uint src_line);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg) {
-    DBUG_ASSERT(ticket == NULL);
+    DBUG_ASSERT(ticket == nullptr);
     type = type_arg;
   }
 
@@ -876,7 +878,7 @@ class MDL_request {
   MDL_request() {}
 
   MDL_request(const MDL_request &rhs)
-      : type(rhs.type), duration(rhs.duration), ticket(NULL), key(rhs.key) {}
+      : type(rhs.type), duration(rhs.duration), ticket(nullptr), key(rhs.key) {}
 
   MDL_request(MDL_request &&) = default;
 
@@ -996,8 +998,8 @@ class MDL_ticket : public MDL_wait_for_subgraph {
   bool is_incompatible_when_waiting(enum_mdl_type type) const;
 
   /** Implement MDL_wait_for_subgraph interface. */
-  virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
-  virtual uint get_deadlock_weight() const;
+  bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor) override;
+  uint get_deadlock_weight() const override;
 
 #ifndef DBUG_OFF
   enum_mdl_duration get_duration() const { return m_duration; }
@@ -1029,13 +1031,13 @@ class MDL_ticket : public MDL_wait_for_subgraph {
         m_duration(duration_arg),
 #endif
         m_ctx(ctx_arg),
-        m_lock(NULL),
+        m_lock(nullptr),
         m_is_fast_path(false),
         m_hton_notified(false),
-        m_psi(NULL) {
+        m_psi(nullptr) {
   }
 
-  virtual ~MDL_ticket() { DBUG_ASSERT(m_psi == NULL); }
+  ~MDL_ticket() override { DBUG_ASSERT(m_psi == nullptr); }
 
   static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg
 #ifndef DBUG_OFF
@@ -1647,7 +1649,9 @@ class MDL_context {
   void release_lock(enum_mdl_duration duration, MDL_ticket *ticket);
   bool try_acquire_lock_impl(MDL_request *mdl_request, MDL_ticket **out_ticket);
   void materialize_fast_path_locks();
-  inline bool fix_pins();
+
+  friend bool mdl_unittest::test_drive_fix_pins(MDL_context *);
+  bool fix_pins();
 
  public:
   void find_deadlock();
@@ -1676,7 +1680,7 @@ class MDL_context {
   /** Remove the wait-for edge from the graph after we're done waiting. */
   void done_waiting_for() {
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
-    m_waiting_for = NULL;
+    m_waiting_for = nullptr;
     mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
   void lock_deadlock_victim() { mysql_prlock_rdlock(&m_LOCK_waiting_for); }

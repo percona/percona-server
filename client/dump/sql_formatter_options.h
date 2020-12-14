@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "client/base/abstract_options_provider.h"
 #include "client/dump/mysql_chain_element_options.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 namespace Mysql {
@@ -47,7 +48,7 @@ class Sql_formatter_options
   Sql_formatter_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
-  void create_options();
+  void create_options() override;
 
   bool m_add_locks;
   bool m_charsets_consistent;
@@ -72,7 +73,7 @@ class Sql_formatter_options
     static const char *gtid_purged_mode_names[4] = {"OFF", "AUTO", "ON", NullS};
     TYPELIB static gtid_purged_mode_typelib = {
         array_elements(gtid_purged_mode_names) - 1, "", gtid_purged_mode_names,
-        NULL};
+        nullptr};
     return &gtid_purged_mode_typelib;
   }
 };

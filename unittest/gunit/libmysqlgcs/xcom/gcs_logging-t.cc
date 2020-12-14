@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,14 +39,14 @@ class Mock_Logger : public Logger_interface {
 
 class LoggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
-  LoggingInfrastructureTest() : logger(NULL) {}
+  LoggingInfrastructureTest() : logger(nullptr) {}
 
-  virtual void SetUp() { logger = new Mock_Logger(); }
+  void SetUp() override { logger = new Mock_Logger(); }
 
-  virtual void TearDown() {
+  void TearDown() override {
     Gcs_log_manager::finalize();
     delete logger;
-    logger = NULL;
+    logger = nullptr;
   }
 
   Mock_Logger *logger;
@@ -59,7 +59,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
   Gcs_log_manager::initialize(logger);
 
   // Logger 1 initialized
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() != NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() != nullptr);
   ASSERT_EQ(logger, Gcs_log_manager::get_logger());
 
   // Log some messages on logger
@@ -75,7 +75,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
   Gcs_log_manager::initialize(anotherLogger);
 
   // anotherLogger initialized
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() != NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() != nullptr);
   ASSERT_EQ(anotherLogger, Gcs_log_manager::get_logger());
 
   Gcs_log_manager::finalize();
@@ -85,9 +85,9 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
 class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
   DebuggingInfrastructureTest()
-      : debugger(NULL), sink(NULL), saved_options(GCS_DEBUG_NONE) {}
+      : debugger(nullptr), sink(nullptr), saved_options(GCS_DEBUG_NONE) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     sink = new Gcs_async_buffer(new Gcs_output_sink());
     debugger = new Gcs_default_debugger(sink);
     saved_options = Gcs_debug_manager::get_current_debug_options();
@@ -95,7 +95,7 @@ class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
     ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     Gcs_debug_manager::unset_debug_options(GCS_DEBUG_ALL);
     Gcs_debug_manager::set_debug_options(saved_options);
     ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), saved_options);
@@ -103,7 +103,7 @@ class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
     Gcs_debug_manager::finalize();
     delete debugger;
     delete sink;
-    debugger = NULL;
+    debugger = nullptr;
   }
 
   Gcs_default_debugger *debugger;

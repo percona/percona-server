@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,7 @@ extern bool server_id_supplied;
 
   ## Gtid_mode (gtid_mode) ##
 
-  ### gtid_mode_lock ###
+  ### Gtid_mode::lock ###
 
   Used to arbitrate changes on server Gtid_mode.
 
@@ -227,7 +227,7 @@ extern bool server_id_supplied;
   then we write F2's name in parentheses in the list of locks for F1.
 
     Sys_var_gtid_mode::global_update:
-      gtid_mode_lock->wrlock, channel_map->wrlock, binlog.LOCK_log,
+      Gtid_mode::lock.wrlock, channel_map->wrlock, binlog.LOCK_log,
   global_sid_lock->wrlock
 
     change_master_cmd:
@@ -319,7 +319,7 @@ extern bool server_id_supplied;
   So the DAG of lock acquisition order (not counting the buggy
   purge_logs) is, empirically:
 
-    gtid_mode_lock, channel_map lock, mi.run_lock, rli.run_lock,
+    Gtid_mode::lock, channel_map lock, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
         ( LOCK_thd_list,
           (
@@ -423,7 +423,28 @@ int load_mi_and_rli_from_repositories(
     Master_info *mi, bool ignore_if_no_info, int thread_mask,
     bool skip_received_gtid_set_recovery = false);
 void end_info(Master_info *mi);
+/**
+  Clear the information regarding the `Master_info` and `Relay_log_info` objects
+  represented by the parameter, meaning, setting to `NULL` all attributes that
+  are not meant to be kept between slave resets.
+
+  @param mi the `Master_info` reference that holds both `Master_info` and
+                `Relay_log_info` data.
+ */
+void clear_info(Master_info *mi);
 int remove_info(Master_info *mi);
+/**
+  Resets the information regarding the `Master_info` and `Relay_log_info`
+  objects represented by the parameter, meaning, setting to `NULL` all
+  attributes that are not meant to be kept between slave resets and persisting
+  all other attribute values in the repository.
+
+  @param mi the `Master_info` reference that holds both `Master_info` and
+                `Relay_log_info` data.
+
+  @returns true if an error occurred and false otherwiser.
+ */
+bool reset_info(Master_info *mi);
 int flush_master_info(Master_info *mi, bool force, bool need_lock = true,
                       bool flush_relay_log = true);
 void add_slave_skip_errors(const char *arg);

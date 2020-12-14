@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,29 +69,20 @@ class Mem_root_array_YY {
   typedef Element_type value_type;
 
   void init(MEM_ROOT *root) {
-    DBUG_ASSERT(root != NULL);
+    DBUG_ASSERT(root != nullptr);
 
     m_root = root;
-    m_array = NULL;
+    m_array = nullptr;
     m_size = 0;
     m_capacity = 0;
   }
 
   /// Initialize empty array that we aren't going to grow
   void init_empty_const() {
-    m_root = NULL;
-    m_array = NULL;
+    m_root = nullptr;
+    m_array = nullptr;
     m_size = 0;
     m_capacity = 0;
-  }
-
-  /**
-    Switches mem-root, in case original mem-root was copied.
-    NOTE: m_root should really be const, i.e. never change after initialization.
-  */
-  void set_mem_root(MEM_ROOT *new_root) {
-    m_root = new_root;
-    DBUG_ASSERT(m_root != NULL);
   }
 
   Element_type &at(size_t n) {
@@ -213,6 +204,33 @@ class Mem_root_array_YY {
       return true;
     Element_type *p = &m_array[m_size++];
     ::new (p) Element_type(std::move(element));
+    return false;
+  }
+
+  /**
+    Adds a new element at the beginning of the array.
+    The content of this new element is initialized to a copy of
+    the input argument.
+
+    @param  element Object to copy.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_front(const Element_type &element) {
+    if (push_back(element)) return true;
+    std::rotate(begin(), end() - 1, end());
+    return false;
+  }
+
+  /**
+    Adds a new element at the front of the array.
+    The content of this new element is initialized by moving the input element.
+
+    @param  element Object to move.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool push_front(Element_type &&element) {
+    if (push_back(std::move(element))) return true;
+    std::rotate(begin(), end() - 1, end());
     return false;
   }
 
@@ -417,11 +435,10 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
     other.init_empty_const();
   }
   Mem_root_array &operator=(Mem_root_array &&other) {
-    this->m_root = other.m_root;
-    this->m_array = other.m_array;
-    this->m_size = other.m_size;
-    this->m_capacity = other.m_capacity;
-    other.init_empty_const();
+    if (this != &other) {
+      this->~Mem_root_array();
+      new (this) Mem_root_array(std::move(other));
+    }
     return *this;
   }
 

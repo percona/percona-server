@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -142,7 +142,7 @@ que_fork_t *que_fork_create(
 
   fork->state = QUE_FORK_COMMAND_WAIT;
 
-  fork->graph = (graph != NULL) ? graph : fork;
+  fork->graph = (graph != nullptr) ? graph : fork;
 
   UT_LIST_INIT(fork->thrs, &que_thr_t::thrs);
 
@@ -158,8 +158,8 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
                           row_prebuilt_t *prebuilt) {
   que_thr_t *thr;
 
-  ut_ad(parent != NULL);
-  ut_ad(heap != NULL);
+  ut_ad(parent != nullptr);
+  ut_ad(heap != nullptr);
 
   thr = static_cast<que_thr_t *>(mem_heap_zalloc(heap, sizeof(*thr)));
 
@@ -190,21 +190,19 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
 que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
                                              in QUE_THR_LOCK_WAIT */
 {
-  que_thr_t *thr;
-  ibool was_active;
+  ut_ad(locksys::owns_lock_shard(trx->lock.wait_lock));
 
-  ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(trx));
 
-  thr = trx->lock.wait_thr;
+  que_thr_t *const thr = trx->lock.wait_thr;
 
-  ut_ad(thr != NULL);
+  ut_ad(thr != nullptr);
 
   ut_ad(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
   /* In MySQL this is the only possible state here */
   ut_a(thr->state == QUE_THR_LOCK_WAIT);
 
-  was_active = thr->is_active;
+  bool const was_active = thr->is_active;
 
   que_thr_move_to_run_state(thr);
 
@@ -212,12 +210,12 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
 
   trx->lock.que_state = TRX_QUE_RUNNING;
 
-  trx->lock.wait_thr = NULL;
+  trx->lock.wait_thr = nullptr;
 
   /* In MySQL we let the OS thread (not just the query thread) to wait
   for the lock to be released: */
 
-  return ((!was_active && thr != NULL) ? thr : NULL);
+  return !was_active ? thr : nullptr;
 }
 
 /** Inits a query thread for a command. */
@@ -241,7 +239,7 @@ que_thr_t *que_fork_scheduler_round_robin(
   trx_mutex_enter(fork->trx);
 
   /* If no current, start first available. */
-  if (thr == NULL) {
+  if (thr == nullptr) {
     thr = UT_LIST_GET_FIRST(fork->thrs);
   } else {
     thr = UT_LIST_GET_NEXT(thrs, thr);
@@ -250,7 +248,7 @@ que_thr_t *que_fork_scheduler_round_robin(
   if (thr) {
     fork->state = QUE_FORK_ACTIVE;
 
-    fork->last_sel_node = NULL;
+    fork->last_sel_node = nullptr;
 
     switch (thr->state) {
       case QUE_THR_COMMAND_WAIT:
@@ -281,15 +279,15 @@ que_thr_t *que_fork_scheduler_round_robin(
 que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 {
   que_thr_t *thr;
-  que_thr_t *suspended_thr = NULL;
-  que_thr_t *completed_thr = NULL;
+  que_thr_t *suspended_thr = nullptr;
+  que_thr_t *completed_thr = nullptr;
 
   fork->state = QUE_FORK_ACTIVE;
 
-  fork->last_sel_node = NULL;
+  fork->last_sel_node = nullptr;
 
-  suspended_thr = NULL;
-  completed_thr = NULL;
+  suspended_thr = nullptr;
+  completed_thr = nullptr;
 
   /* Choose the query thread to run: usually there is just one thread,
   but in a parallelized select, which necessarily is non-scrollable,
@@ -302,7 +300,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 
   /* We make a single pass over the thr list within which we note which
   threads are ready to run. */
-  for (thr = UT_LIST_GET_FIRST(fork->thrs); thr != NULL;
+  for (thr = UT_LIST_GET_FIRST(fork->thrs); thr != nullptr;
        thr = UT_LIST_GET_NEXT(thrs, thr)) {
     switch (thr->state) {
       case QUE_THR_COMMAND_WAIT:
@@ -377,7 +375,7 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
 
   DBUG_TRACE;
 
-  if (node == NULL) {
+  if (node == nullptr) {
     return;
   }
 
@@ -428,11 +426,11 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
       ins = static_cast<ins_node_t *>(node);
 
       que_graph_free_recursive(ins->select);
-      ins->select = NULL;
+      ins->select = nullptr;
 
-      if (ins->entry_sys_heap != NULL) {
+      if (ins->entry_sys_heap != nullptr) {
         mem_heap_free(ins->entry_sys_heap);
-        ins->entry_sys_heap = NULL;
+        ins->entry_sys_heap = nullptr;
       }
 
       break;
@@ -454,15 +452,15 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
       que_graph_free_recursive(upd->cascade_node);
       if (upd->cascade_heap) {
         mem_heap_free(upd->cascade_heap);
-        upd->cascade_heap = NULL;
+        upd->cascade_heap = nullptr;
       }
 
       que_graph_free_recursive(upd->select);
-      upd->select = NULL;
+      upd->select = nullptr;
 
-      if (upd->heap != NULL) {
+      if (upd->heap != nullptr) {
         mem_heap_free(upd->heap);
-        upd->heap = NULL;
+        upd->heap = nullptr;
       }
 
       break;
@@ -565,7 +563,7 @@ static que_thr_t *que_thr_node_step(
 
   trx_mutex_exit(thr_get_trx(thr));
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Moves a thread from another state to the QUE_THR_RUNNING state. Increments
@@ -593,15 +591,9 @@ static void que_thr_move_to_run_state(
   thr->state = QUE_THR_RUNNING;
 }
 
-/** Stops a query thread if graph or trx is in a state requiring it. The
- conditions are tested in the order (1) graph, (2) trx.
- @return true if stopped */
-ibool que_thr_stop(que_thr_t *thr) /*!< in: query thread */
-{
-  que_t *graph;
+bool que_thr_stop(que_thr_t *thr) {
+  que_t *graph = thr->graph;
   trx_t *trx = thr_get_trx(thr);
-
-  graph = thr->graph;
 
   ut_ad(trx_mutex_own(trx));
 
@@ -622,10 +614,10 @@ ibool que_thr_stop(que_thr_t *thr) /*!< in: query thread */
   } else {
     ut_ad(graph->state == QUE_FORK_ACTIVE);
 
-    return (FALSE);
+    return false;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Decrements the query thread reference counts in the query graph and the
@@ -653,7 +645,7 @@ static void que_thr_dec_refer_count(
 
   if (thr->state == QUE_THR_RUNNING) {
     if (!que_thr_stop(thr)) {
-      ut_a(next_thr != NULL && *next_thr == NULL);
+      ut_a(next_thr != nullptr && *next_thr == nullptr);
 
       /* The reason for the thr suspension or wait was
       already canceled before we came here: continue
@@ -748,10 +740,10 @@ void que_thr_move_to_run_state_for_mysql(
 }
 
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL
- select, when there is no error or lock wait. */
-void que_thr_stop_for_mysql_no_error(que_thr_t *thr, /*!< in: query thread */
-                                     trx_t *trx)     /*!< in: transaction */
-{
+ select, when there is no error or lock wait.
+@param[in] thr Query thread
+@param[in] trx Transaction */
+void que_thr_stop_for_mysql_no_error(que_thr_t *thr, trx_t *trx) {
   ut_ad(thr->state == QUE_THR_RUNNING);
   ut_ad(thr->is_active == TRUE);
   ut_ad(trx->lock.n_active_thrs == 1);
@@ -978,17 +970,17 @@ static void que_run_threads_low(que_thr_t *thr) /*!< in: query thread */
 
     trx_mutex_enter(trx);
 
-    ut_a(next_thr == NULL || trx->error_state == DB_SUCCESS);
+    ut_a(next_thr == nullptr || trx->error_state == DB_SUCCESS);
 
     if (next_thr != thr) {
-      ut_a(next_thr == NULL);
+      ut_a(next_thr == nullptr);
 
       /* This can change next_thr to a non-NULL value
       if there was a lock wait that already completed. */
 
       que_thr_dec_refer_count(thr, &next_thr);
 
-      if (next_thr != NULL) {
+      if (next_thr != nullptr) {
         thr = next_thr;
       }
     }
@@ -997,7 +989,7 @@ static void que_run_threads_low(que_thr_t *thr) /*!< in: query thread */
 
     trx_mutex_exit(trx);
 
-  } while (next_thr != NULL);
+  } while (next_thr != nullptr);
 }
 
 /** Run a query thread. Handles lock waits. */
@@ -1028,7 +1020,7 @@ loop:
         /* thr was chosen as a deadlock victim or there was
         a lock wait timeout */
 
-        que_thr_dec_refer_count(thr, NULL);
+        que_thr_dec_refer_count(thr, nullptr);
         trx_mutex_exit(thr_get_trx(thr));
         break;
       }
@@ -1070,7 +1062,7 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
   mutex_exit(&pars_mutex);
 
   graph->trx = trx;
-  trx->graph = NULL;
+  trx->graph = nullptr;
 
   graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 

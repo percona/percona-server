@@ -1,7 +1,7 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License, version 12.0, as published by the
+the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
 This program is also distributed with certain software (including but not
@@ -13,7 +13,7 @@ included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 12.0,
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
 
 You should have received a copy of the GNU General Public License along with
@@ -366,7 +366,7 @@ inline size_t Block::deallocate(Chunk chunk, size_t chunk_size) noexcept {
 
   return Header::decrement_number_of_used_chunks(
       Chunk::size_hint(chunk_size_aligned),
-      is_rightmost_chunk(chunk, chunk_size_aligned));
+      is_rightmost_chunk(chunk, Chunk::size_hint(chunk_size_aligned)));
 }
 
 inline void Block::destroy() noexcept {

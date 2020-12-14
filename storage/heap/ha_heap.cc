@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,10 +77,10 @@ static handler *heap_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 
 ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
-      file(0),
+      file(nullptr),
       records_changed(0),
       key_stat_version(0),
-      single_instance(0) {}
+      single_instance(false) {}
 
 /*
   Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to
@@ -108,7 +108,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
     HP_CREATE_INFO create_info;
     bool created_new_share;
     int rc;
-    file = 0;
+    file = nullptr;
     if (heap_prepare_hp_create_info(table, single_instance, delete_on_close,
                                     &create_info))
       goto end;
@@ -145,9 +145,6 @@ end:
 
   const int ret = file ? 0 : 1;
 
-  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
-                          table_definition(name, table).c_str(), ret));
-
   return (ret);
 }
 
@@ -171,9 +168,9 @@ handler *ha_heap::clone(const char *, MEM_ROOT *mem_root) {
   handler *new_handler =
       get_new_handler(table->s, false, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
+                                           HA_OPEN_IGNORE_IF_LOCKED, nullptr))
     return new_handler;
-  return NULL; /* purecov: inspected */
+  return nullptr; /* purecov: inspected */
 }
 
 const char *ha_heap::table_type() const { return "MEMORY"; }
@@ -224,9 +221,6 @@ int ha_heap::write_row(uchar *buf) {
     file->s->key_stat_version++;
   }
 
-  DBUG_PRINT("heap_api", ("this=%p row=(%s); return=%d", this,
-                          row_to_string(buf, table).c_str(), res));
-
   return res;
 }
 
@@ -266,17 +260,6 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = heap_rkey(file, buf, active_index, key, keypart_map, find_flag);
-
-#ifndef DBUG_OFF
-  const uint key_len = calculate_key_len(table, active_index, keypart_map);
-#endif /* DBUG_OFF */
-  DBUG_PRINT(
-      "heap_api",
-      ("this=%p cells=(%s) cells_len=%u find_flag=%s out=(%s); return=%d", this,
-       indexed_cells_to_string(key, key_len, table->key_info[active_index])
-           .c_str(),
-       key_len, ha_rkey_function_to_str(find_flag),
-       (error == 0 ? row_to_string(buf, table).c_str() : ""), error));
 
   return error;
 }
@@ -332,9 +315,6 @@ int ha_heap::rnd_next(uchar *buf) {
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error = heap_scan(file, buf);
 
-  DBUG_PRINT("heap_api",
-             ("this=%p out=(%s); return=%d", this,
-              (error == 0 ? row_to_string(buf, table).c_str() : ""), error));
   return error;
 }
 
@@ -524,7 +504,7 @@ int ha_heap::delete_table(const char *name, const dd::Table *) {
 }
 
 void ha_heap::drop_table(const char *) {
-  file->s->delete_on_close = 1;
+  file->s->delete_on_close = true;
   close();
 }
 
@@ -564,7 +544,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
   TABLE_SHARE *share = table_arg->s;
-  bool found_real_auto_increment = 0;
+  bool found_real_auto_increment = false;
   uint blobs = 0;
 
   memset(hp_create_info, 0, sizeof(*hp_create_info));
@@ -591,8 +571,8 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
 
     if (field->type() == MYSQL_TYPE_VARCHAR) {
       column->length_bytes = static_cast<uint8>(
-          ((static_cast<Field_varstring *>(field))->length_bytes));
-    } else if (field->flags & BLOB_FLAG) {
+          ((static_cast<Field_varstring *>(field))->get_length_bytes()));
+    } else if (field->is_flag_set(BLOB_FLAG)) {
       blobs++;
       column->length_bytes = static_cast<uint8>(
           (static_cast<Field_blob *>(field))->pack_length_no_ptr());
@@ -654,23 +634,24 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
 
       next_field_pos = seg->start;
       if (field->type() == MYSQL_TYPE_VARCHAR) {
-        Field *orig_field = *(table_arg->field + key_part->field->field_index);
+        Field *orig_field =
+            *(table_arg->field + key_part->field->field_index());
         next_field_pos += orig_field->pack_length();
       } else {
         next_field_pos += seg->length;
       }
-      if (field->flags & (ENUM_FLAG | SET_FLAG))
+      if (field->is_flag_set(ENUM_FLAG) || field->is_flag_set(SET_FLAG))
         seg->charset = &my_charset_bin;
       else
         seg->charset = field->charset_for_protocol();
-      if (field->real_maybe_null()) {
+      if (field->is_nullable()) {
         seg->null_bit = field->null_bit;
         seg->null_pos = field->null_offset();
       } else {
         seg->null_bit = 0;
         seg->null_pos = 0;
       }
-      if (field->flags & AUTO_INCREMENT_FLAG &&
+      if (field->is_flag_set(AUTO_INCREMENT_FLAG) &&
           table_arg->found_next_number_field &&
           key == share->next_number_index) {
         /*
@@ -731,11 +712,11 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         fixed_data_size = next_field_pos;
       }
 
-      if (field->field_index >= fixed_key_fieldnr) {
+      if (field->field_index() >= fixed_key_fieldnr) {
         /*
           Do not use seg->fieldnr as it's not reliable in case of temp tables
         */
-        fixed_key_fieldnr = field->field_index + 1;
+        fixed_key_fieldnr = field->field_index() + 1;
       }
     }
   }
@@ -786,11 +767,9 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     error = heap_create(name, &hp_create_info, &internal_share, &created);
     my_free(hp_create_info.keydef);
     my_free(hp_create_info.columndef);
-    DBUG_ASSERT(file == 0);
+    DBUG_ASSERT(file == nullptr);
   }
 
-  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
-                          table_definition(name, table_arg).c_str(), error));
   return (error);
 }
 
@@ -827,15 +806,15 @@ mysql_declare_plugin(heap){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &heap_storage_engine,
     "MEMORY",
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "Hash based, stored in memory, useful for temporary tables",
     PLUGIN_LICENSE_GPL,
     heap_init,
-    NULL,
-    NULL,
-    0x0100, /* 1.0 */
-    NULL,   /* status variables                */
-    NULL,   /* system variables                */
-    NULL,   /* config options                  */
-    0,      /* flags                           */
+    nullptr,
+    nullptr,
+    0x0100,  /* 1.0 */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

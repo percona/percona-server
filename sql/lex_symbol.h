@@ -41,7 +41,6 @@ struct SYMBOL {
   const unsigned int tok;
   /** group mask, see SYM_GROUP enum for bits. */
   int group;
-  bool percona_symbol;
 };
 
 struct LEX_SYMBOL {

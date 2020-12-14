@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@ using namespace sha2_password;
 using my_testing::Server_initializer;
 
 class SHA256_digestTest : public ::testing::Test {
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -352,7 +352,7 @@ TEST_F(SHA256_digestTest, SHA2_password_cache) {
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr);
 
   Digest_info digest_type;
 
@@ -475,9 +475,9 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_Serialize_Deserialize) {
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_generate_fast_digest) {
-  Caching_sha2_password caching_sha2_password(0);
-  Caching_sha2_password caching_sha2_password_4(0, DEFAULT_STORED_DIGEST_ROUNDS,
-                                                4);
+  Caching_sha2_password caching_sha2_password(nullptr);
+  Caching_sha2_password caching_sha2_password_4(
+      nullptr, DEFAULT_STORED_DIGEST_ROUNDS, 4);
 
   std::string plaintext("HahaH0hO1234#$@#%");
   sha2_cache_entry digest;
@@ -533,13 +533,13 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
   memset(stage2, 0, CRYPT_MAX_PASSWORD_SIZE + 1);
   my_crypt_genhash(
       stage2, CRYPT_MAX_PASSWORD_SIZE, plaintext_buffer_arthur.c_str(),
-      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), 0);
+      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), nullptr);
 
   std::string digest_string1(stage2);
   digest_string1 = digest_string1.substr(
       digest_string1.find('$', 3 + CRYPT_SALT_LENGTH) + 1, std::string::npos);
 
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr);
   std::string digest;
   ASSERT_TRUE(caching_sha2_password.generate_sha2_multi_hash(
                   plaintext_buffer_arthur, salt_buffer_arthur, &digest, 5000) ==
@@ -554,7 +554,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
   memset(stage2, 0, CRYPT_MAX_PASSWORD_SIZE + 1);
   my_crypt_genhash(
       stage2, CRYPT_MAX_PASSWORD_SIZE, plaintext_buffer_arthur.c_str(),
-      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), 0);
+      plaintext_buffer_arthur.length(), salt_buffer_arthur.c_str(), nullptr);
   digest_string1.assign(stage2);
   digest_string1 = digest_string1.substr(
       digest_string1.find('$', 3 + CRYPT_SALT_LENGTH) + 1, std::string::npos);
@@ -567,7 +567,7 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
 
 TEST_F(SHA256_digestTest,
        Caching_sha2_password_authenticate_fast_authenticate) {
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr);
   std::string serialized_string[MAX_PASSWORDS];
   Digest_info digest_type = Digest_info::SHA256_DIGEST;
   std::string digest;
@@ -713,7 +713,7 @@ TEST_F(SHA256_digestTest,
 }
 
 TEST_F(SHA256_digestTest, Caching_sha2_password_authenticate_sanity) {
-  Caching_sha2_password caching_sha2_password(0);
+  Caching_sha2_password caching_sha2_password(nullptr);
   std::string serialized_string[MAX_PASSWORDS];
   std::string plaintext;
 

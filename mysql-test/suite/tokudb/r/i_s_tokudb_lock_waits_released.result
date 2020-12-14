@@ -34,7 +34,7 @@ locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	lo
 TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
 select * from information_schema.tokudb_lock_waits;
 requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time	lock_waits_table_schema	lock_waits_table_name	lock_waits_table_dictionary_name
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't.PRIMARY'
 commit;
 verify that txn_a replace (1) blocks txn_b replace (1) and txn_b eventually gets the lock on (1) and completes
 verify that the lock on the 2nd transaction has been released, should be be empty

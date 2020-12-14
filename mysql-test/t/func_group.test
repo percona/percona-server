@@ -40,8 +40,10 @@ insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 
 select sum(all a),count(all a),avg(all a),std(all a),variance(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
+--sorted_result
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 --disable_warnings
+--sorted_result
 select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a)+max(a)+min(c)+max(c) as sum from t1 group by grp;
 --enable_warnings
 
@@ -126,6 +128,7 @@ insert into t1 values (10.3,'nem'),(20.53,'monty'),(30.23,'sinisa');
 insert into t1 values (30.13,'nem'),(20.98,'monty'),(10.45,'sinisa');
 insert into t1 values (5.2,'nem'),(8.64,'monty'),(11.12,'sinisa');
 select sum(num) from t1;
+--sorted_result
 select sum(num) from t1 group by user;
 drop table t1;
 
@@ -648,6 +651,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 decimal(16,12));
 INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.00000000000),(-5.00000000001),(-5.00000000002);
 insert into t1 select * from t1;
+--sorted_result
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 DROP TABLE t1;
 
@@ -658,10 +662,12 @@ DROP TABLE t1;
 create table t1 (col1 decimal(16,12));
 insert into t1 values (-5.00000000001);
 insert into t1 values (-5.00000000001);
+--sorted_result
 select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 delete from t1;
 insert into t1 values (5.00000000001);
 insert into t1 values (5.00000000001);
+--sorted_result
 select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 DROP TABLE t1;
 
@@ -692,7 +698,9 @@ INSERT INTO t1 (a, b, c) VALUES
   (3,3,1), (3,3,2), (3,3,3);
 
 SELECT b/c as v, a FROM t1 ORDER BY v, a;
+--sorted_result
 SELECT b/c as v, SUM(a) FROM t1 GROUP BY v;
+--sorted_result
 SELECT SUM(a) FROM t1 GROUP BY b/c;
 
 DROP TABLE t1;
@@ -1085,7 +1093,7 @@ DROP TABLE t1;
 --echo # Bug#43668: Wrong comparison and MIN/MAX for YEAR(2)
 --echo # WL#6263: Remove year(2)
 --echo #
-create table t1 (f1 year(4), f2 year(4), f3 date, f4 datetime);
+create table t1 (f1 year, f2 year, f3 date, f4 datetime);
 insert into t1 values
   (98,1998,19980101,"1998-01-01 00:00:00"),
   ('00',2000,20000101,"2000-01-01 00:00:01"),
@@ -1166,7 +1174,7 @@ DROP TABLE t1;
 --echo # Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
 --echo #
 
-CREATE TABLE t1(f1 YEAR(4));
+CREATE TABLE t1(f1 YEAR);
 INSERT INTO t1 VALUES (0000),(2001);
 --enable_metadata
 (SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);
@@ -1331,3 +1339,29 @@ DROP TABLE t1, t2, t3, t4;
 
 --echo # End of test for bug#25541454
 
+--echo #
+--echo # Bug#29596977 MYSQL OPTIMIZER SCAN FULL INDEX FOR MAX() ON INDEXED COLUMN.
+--echo #
+
+CREATE TABLE t1 (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  f1 BIGINT,
+  PRIMARY KEY(id),
+  INDEX ix_fd2 (f1)
+);
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (NULL, 3);
+
+DELIMITER |;
+CREATE FUNCTION f1 (par INT) RETURNS INT
+    DETERMINISTIC
+    SQL SECURITY INVOKER
+BEGIN
+   RETURN par + 1;
+END|
+DELIMITER ;|
+
+EXPLAIN SELECT f1(MAX(f1)) FROM t1;
+SELECT f1(MAX(f1)) FROM t1;
+
+DROP TABLE t1;
+DROP FUNCTION f1;

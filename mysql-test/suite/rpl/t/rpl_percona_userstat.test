@@ -7,10 +7,10 @@
 
 connection slave;
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 CHANGE REPLICATION FILTER
 REPLICATE_DO_TABLE= (test.t1, test.t2);
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 
 SET @slave_userstat_saved= @@global.userstat;
 SET GLOBAL userstat=ON;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,7 +57,7 @@ static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
     return (DB_ERROR);
   }
 
-  ut_ad(check_trx_exists(current_thd) != NULL);
+  ut_ad(check_trx_exists(current_thd) != nullptr);
 
   if (fsp_is_undo_tablespace(*space_id) || fsp_is_system_temporary(*space_id)) {
     /* Claim Success */
@@ -68,10 +68,14 @@ static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
 }
 
 /** Report error on failure
+@param[in]	errornum	MySQL error number (for my_error()) (Must take
+                                4 string arguments, in the same way as
+                                ER_SDI_OPERATION_FAILED)
 @param[in]	operation	SDI set or delete
 @param[in]	table		table object for which SDI is serialized
 @param[in]	tablespace	tablespace where SDI is stored */
-static void dict_sdi_report_error(const char *operation, const dd::Table *table,
+static void dict_sdi_report_error(int errornum, const char *operation,
+                                  const dd::Table *table,
                                   const dd::Tablespace &tablespace) {
   THD *thd = current_thd;
   const char *schema_name = nullptr;
@@ -95,8 +99,21 @@ static void dict_sdi_report_error(const char *operation, const dd::Table *table,
     table_name = "<no table>";
   }
 
-  my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation, schema_name, table_name,
+  my_error(errornum, MYF(0), operation, schema_name, table_name,
            tablespace.name().c_str());
+}
+
+/** Report error on failure. Calls dict_sdi_report_error(int errornum,
+const char *operation, const dd::Table *table, const
+dd::Tablespace &tablespace) with errornum=SDI_OPERATION_FAILED
+(for compatibility with existing code).
+
+@param[in]	operation	SDI set or delete
+@param[in]	table		table object for which SDI is serialized
+@param[in]	tablespace	tablespace where SDI is stored */
+static void dict_sdi_report_error(const char *operation, const dd::Table *table,
+                                  const dd::Tablespace &tablespace) {
+  dict_sdi_report_error(ER_SDI_OPERATION_FAILED, operation, table, tablespace);
 }
 
 /** Create SDI in a tablespace. This API should be used when
@@ -204,14 +221,16 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
   return (false);
 }
 
-/** Retrieve SDI from tablespace
+/** Retrieve SDI from tablespace.
 @param[in]	tablespace	tablespace object
 @param[in]	sdi_key		SDI key
 @param[in,out]	sdi		SDI retrieved from tablespace
 @param[in,out]	sdi_len		in:  size of memory allocated
                                 out: actual length of SDI
 @retval		false		success
-@retval		true		failure */
+@retval		true		in case of failures like record not found,
+                                sdi_len is UINT64MAX_T, else sdi_len is
+                                actual length of SDI */
 bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
                   void *sdi, uint64 *sdi_len) {
 #if 0 /* TODO: Enable in WL#9761 */
@@ -482,7 +501,11 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
                         << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
-    dict_sdi_report_error(operation, table, tablespace);
+    if (err == DB_RECORD_NOT_FOUND)
+      dict_sdi_report_error(ER_SDI_OPERATION_FAILED_MISSING_RECORD, operation,
+                            table, tablespace);
+    else
+      dict_sdi_report_error(operation, table, tablespace);
     return (true);
   } else {
     return (false);

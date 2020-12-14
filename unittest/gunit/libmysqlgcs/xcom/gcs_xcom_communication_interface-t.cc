@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD2(xcom_client_send_data,
                bool(unsigned long long size, char *data));
   MOCK_METHOD1(xcom_init, void(xcom_port listen_port));
-  MOCK_METHOD1(xcom_exit, bool(bool xcom_input_open));
+  MOCK_METHOD0(xcom_exit, void());
   MOCK_METHOD0(xcom_set_cleanup, void());
   MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
   MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
@@ -151,7 +151,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
 
 class XComCommunicationTest : public GcsBaseTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     engine = new Gcs_xcom_engine();
     engine->initialize(nullptr);
 
@@ -181,7 +181,7 @@ class XComCommunicationTest : public GcsBaseTest {
     // clang-format on
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete mock_stats;
     delete mock_vce;
     delete mock_proxy;
@@ -545,7 +545,7 @@ TEST_F(XComCommunicationTest, SuccessfulSynodRecoveryTest) {
   /* Mock the connection to the donor. */
   EXPECT_CALL(*mock_proxy, xcom_client_open_connection(_, _))
       .Times(1)
-      .WillOnce(Return(::new_connection(0, 0)));
+      .WillOnce(Return(::new_connection(0, nullptr)));
 
   /*
    Mock the request-reply interaction with the remote XCom.
@@ -668,7 +668,7 @@ TEST_F(XComCommunicationTest, UnsuccessfulSynodRecoveryTest) {
   /* Mock the connection to the donor. */
   EXPECT_CALL(*mock_proxy, xcom_client_open_connection(_, _))
       .Times(1)
-      .WillOnce(Return(::new_connection(0, 0)));
+      .WillOnce(Return(::new_connection(0, nullptr)));
 
   /*
    Mock the request-reply interaction with the remote XCom.

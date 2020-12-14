@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <string.h>
 #include <memory>
 
+#include "../sql_update.h"  // compare_records()
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -33,6 +34,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
@@ -49,6 +51,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/table.h"
+#include "sql_string.h"
 #include "thr_lock.h"
 
 class THD;
@@ -94,7 +97,6 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]->store(
       &with_admin_option_char, 1, system_charset_info, CHECK_FIELD_IGNORE);
 
-  // How to get edge prop?!
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
   ret = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
@@ -109,14 +111,34 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
       /* If the key didn't exist the record is already gone and all is well. */
       return false;
     }
-  } else if (ret == HA_ERR_KEY_NOT_FOUND && !delete_option) {
-    /* Insert new edge into table */
-    // store_record(table,record[1]);
-    DBUG_PRINT("note",
-               ("Insert role edge (`%s`@`%s`, `%s`@`%s`)", from_user.first.str,
-                from_user.second.str, to_user.first.str, to_user.second.str));
-    ret = table->file->ha_write_row(table->record[0]);
-  }
+  } else {
+    if (ret == HA_ERR_KEY_NOT_FOUND) {
+      /* Insert new edge into table */
+      DBUG_PRINT("note", ("Insert role edge (`%s`@`%s`, `%s`@`%s`)",
+                          from_user.first.str, from_user.second.str,
+                          to_user.first.str, to_user.second.str));
+      ret = table->file->ha_write_row(table->record[0]);
+    } else if (ret == 0 && with_admin_option_char == 'Y') {
+      /*
+        We are elevating the privilege of an existing edge WITH ADMIN OPTION.
+      */
+      DBUG_PRINT("note", ("Update role edge (`%s`@`%s`, `%s`@`%s`)",
+                          from_user.first.str, from_user.second.str,
+                          to_user.first.str, to_user.second.str));
+      /*
+        If the key was found the corresponding record was read into record[0]
+        so now we need to restore the "with admin opt"-field before we update.
+        Before we do that we create a copy of the old field and save it to
+        record[1].
+      */
+      store_record(table, record[1]);
+      table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]->store(
+          &with_admin_option_char, 1, system_charset_info, CHECK_FIELD_IGNORE);
+      if (compare_records(
+              table))  // if we already have WITH ADMIN this is a NOP
+        ret = table->file->ha_update_row(table->record[1], table->record[0]);
+    }
+  }  // else if !delete_option
   return ret != 0;
 }
 
@@ -153,7 +175,6 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
     }
   } else if (ret == HA_ERR_KEY_NOT_FOUND && !delete_option) {
     /* Insert new edge into table */
-    // store_record(table,record[1]);
     DBUG_PRINT("note", ("Insert default role `%s`@`%s` for `%s`@`%s`",
                         auth_id.first.str, auth_id.second.str, role.first.str,
                         role.second.str));
@@ -190,8 +211,9 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
   {
     roles_edges_table->use_all_columns();
-    iterator = init_table_iterator(thd, roles_edges_table, NULL, false,
-                                   /*ignore_not_found_rows=*/false);
+    iterator = init_table_iterator(thd, roles_edges_table, nullptr,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
     if (iterator == nullptr) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
                roles_edges_table->s->table_name.str);
@@ -218,23 +240,40 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
           &tmp_mem,
           roles_edges_table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]);
 
-      acl_role = find_acl_user(from_host, from_user, true);
-      acl_user = find_acl_user(to_host, to_user, true);
-      if (acl_user == nullptr || acl_role == nullptr) {
-        my_printf_error(ER_UNKNOWN_ERROR,
-                        "Unknown authorization identifier `%s`@`%s`", MYF(0),
-                        to_user, to_host);
-        rebuild_vertex_index(thd);
-        return true;
+      int from_user_len = from_user ? strlen(from_user) : 0;
+      int to_user_len = to_user ? strlen(to_user) : 0;
+      if (from_user_len == 0 || to_user_len == 0) {
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_IGNORED_EMPTY_NAME);
+        continue;
       }
-      grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
+
+      acl_role = find_acl_user(from_host, from_user, true);
+      if (acl_role == nullptr) {
+        Auth_id_ref auth_id = create_authid_from(to_lex_cstring(from_user),
+                                                 to_lex_cstring(from_host));
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
+      acl_user = find_acl_user(to_host, to_user, true);
+      if (acl_user == nullptr) {
+        Auth_id_ref auth_id = create_authid_from(to_lex_cstring(to_user),
+                                                 to_lex_cstring(to_host));
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
+      grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? true : false);
     }
     iterator.reset();
 
     default_role_table->use_all_columns();
 
-    iterator = init_table_iterator(thd, default_role_table, NULL, false,
-                                   /*ignore_not_found_records=*/false);
+    iterator = init_table_iterator(thd, default_role_table, nullptr,
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
     DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit", iterator = nullptr;);
     if (iterator == nullptr) {
       my_error(ER_TABLE_CORRUPT, MYF(0), default_role_table->s->db.str,
@@ -259,6 +298,32 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
       int host_len = (host ? strlen(host) : 0);
       int role_user_len = (role_user ? strlen(role_user) : 0);
       int role_host_len = (role_host ? strlen(role_host) : 0);
+
+      if (user_len == 0 || role_user_len == 0) {
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME);
+        continue;
+      }
+
+      acl_user = find_acl_user(host, user, true);
+      if (acl_user == nullptr) {
+        Auth_id_ref auth_id =
+            create_authid_from(to_lex_cstring(user), to_lex_cstring(host));
+        LogErr(WARNING_LEVEL,
+               ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
+      acl_user = find_acl_user(role_host, role_user, true);
+      if (acl_user == nullptr) {
+        Auth_id_ref auth_id = create_authid_from(to_lex_cstring(role_user),
+                                                 to_lex_cstring(role_host));
+        LogErr(WARNING_LEVEL,
+               ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
       Role_id user_id(user, user_len, host, host_len);
       Role_id role_id(role_user, role_user_len, role_host, role_host_len);
       g_default_roles->emplace(user_id, role_id);

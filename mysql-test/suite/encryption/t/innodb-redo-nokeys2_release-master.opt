@@ -1,6 +1,6 @@
 $KEYRING_PLUGIN_OPT
 --early-plugin-load="keyring_file=$KEYRING_PLUGIN"
---loose-keyring_file_data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
 --innodb-change-buffering=none
 --default-table-encryption=ONLINE_TO_KEYRING
 --innodb-default-encryption-key-id=20

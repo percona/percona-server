@@ -98,7 +98,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `uuid()` varchar(36) CHARACTER SET utf8 NOT NULL DEFAULT '',
-  `length(uuid())` int(10) NOT NULL DEFAULT '0'
+  `length(uuid())` int NOT NULL DEFAULT '0'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #------------------------------------------------------------------------
@@ -129,7 +129,7 @@ create table t1 select INET_ATON('255.255.0.1') as `a`;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(21) unsigned DEFAULT NULL
+  `a` bigint unsigned DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table if exists table_26093;
@@ -1120,9 +1120,38 @@ DO (!(SECOND(0xb16beeb7)));
 Warnings:
 Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 Warning	1292	Truncated incorrect time value: '\xB1k\xEE\xB7'
-
-# -- Done.
-
+# Bug #26319675:"ILLEGAL MIX OF COLLATIONS" HAPPENS IN CONCAT WITH
+# NAME_CONST
+#
+SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a;
+a
+test0
+CREATE TABLE t1 AS SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(5) CHARACTER SET cp932 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Bug#28892294: Segmentation fault at get_time_value()
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+col_time TIME DEFAULT NULL,
+col_varchar VARCHAR(1) DEFAULT NULL,
+KEY (col_varchar)
+);
+INSERT INTO t1 VALUES(5, '11:03:56', 'I');
+PREPARE st FROM
+"SELECT * FROM t1
+ WHERE pk = 5 AND (col_time, col_varchar) IN ((23, 'Y'), (92, 'W'))";
+Warnings:
+Warning	1292	Truncated incorrect time value: '92'
+EXECUTE st;
+pk	col_time	col_varchar
+EXECUTE st;
+pk	col_time	col_varchar
+DEALLOCATE PREPARE st;
+DROP TABLE t1;
 #
 # End of tests
 #

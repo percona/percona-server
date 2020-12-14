@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 class MetadataRecover;
 class PersistentTableMetadata;
+struct fil_space_crypt_t;
 
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
@@ -80,23 +81,19 @@ void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
 @param[in]	end_ptr		end of the buffer
 @param[out]	space_id	tablespace identifier
 @param[out]	page_no		page number
-@param[in]	apply		whether to apply the record
+@param[in]	online_log	true if we process online DDL log
 @param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no, bool apply,
-                         byte **body);
+                         space_id_t *space_id, page_no_t *page_no,
+                         bool online_log, byte **body);
 
 #ifdef UNIV_HOTBACKUP
 
 struct recv_addr_t;
 
-/** This is set to FALSE if the backup was originally taken with the
-mysqlbackup --include regexp option: then we do not want to create tables in
-directories which were not included */
-extern bool meb_replay_file_ops;
-/** true if the redo log is copied during an online backup */
-extern volatile bool is_online_redo_copy;
+/** list of tablespaces, that experienced an inplace DDL during a backup op */
+extern std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 /** the last redo log flush len as seen by MEB */
 extern volatile lsn_t backup_redo_log_flushed_lsn;
 /** TRUE when the redo log is being backed up */
@@ -116,14 +113,17 @@ than buf_len if log data ended here
 @param[out]	has_encrypted_log	set true, if buffer contains encrypted
 redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      uint32_t *scanned_checkpoint_no, uint32_t *block_no,
                       ulint *n_bytes_scanned, bool *has_encrypted_log);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
+
+
 @param[in,out]	block		buffer block */
-void recv_recover_page_func(buf_block_t *block);
+/* TODO(Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
+void recv_recover_page_func(buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
@@ -140,8 +140,8 @@ void meb_apply_log_recs(void);
 
 /** Applies log records in the hash table to a backup using a callback
 functions.
-@param[in]	function		function for apply
-@param[in]	wait_till_finished	function for wait */
+@param[in]	apply_log_record_function  function for apply
+@param[in]	wait_till_done_function    function for wait */
 void meb_apply_log_recs_via_callback(
     void (*apply_log_record_function)(recv_addr_t *),
     void (*wait_till_done_function)());
@@ -204,10 +204,14 @@ bool log_block_checksum_is_ok(const byte *block);
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
+
+
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]	block		buffer block */
-void recv_recover_page_func(bool just_read_in, buf_block_t *block);
+/* TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
+void recv_recover_page_func(bool just_read_in,
+                            buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
@@ -218,13 +222,13 @@ a freshly read page)
 @param[in,out]	block	buffer block */
 #define recv_recover_page(jri, block) recv_recover_page_func(jri, block)
 
+#endif /* UNIV_HOTBACKUP */
+
 /** Frees the recovery system. */
 void recv_sys_free();
 
 /** Reset the state of the recovery system variables. */
 void recv_sys_var_init();
-
-#endif /* UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /** Get the number of bytes used by all the heaps
@@ -272,7 +276,7 @@ lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, uint64_t len);
 
 /** Empties the hash table of stored log records, applying them to appropriate
 pages.
-@param[in,out]	log		redo log
+@param[in,out]	log		Redo log
 @param[in]	allow_ibuf	if true, ibuf operations are allowed during
                                 the application; if false, no ibuf operations
                                 are allowed, and after the application all
@@ -365,83 +369,12 @@ struct recv_addr_t {
   List rec_list;
 };
 
-struct recv_dblwr_t {
-  // Default constructor
-  recv_dblwr_t() : deferred(), pages() {}
-
-  /** Add a page frame to the doublewrite recovery buffer. */
-  void add(byte *page) { pages.push_back(page); }
-
-  /** Add a page frame to sys_list and the global list of double
-  write pages. The separate list is used to decrypt doublewrite
-  buffer pages of encrypted system tablespace
-  @param[in]	page	doublwrite buffer page */
-  void add_to_sys(byte *page) {
-    sys_pages.push_back(page);
-    pages.push_back(page);
-  }
-
-  /** Find a doublewrite copy of a page.
-  @param[in]	space_id	tablespace identifier
-  @param[in]	page_no		page number
-  @return	page frame
-  @retval NULL if no page was found */
-  const byte *find_page(space_id_t space_id, page_no_t page_no);
-
-  using List = std::list<byte *>;
-
-  struct Page {
-    /** Default constructor */
-    Page() : m_no(), m_ptr(), m_page() {}
-
-    /** Constructor
-    @param[in]	no	Doublewrite page number
-    @param[in]	page	Page read from no */
-    Page(page_no_t no, const byte *page);
-
-    /** Free the memory */
-    void close() {
-      ut_free(m_ptr);
-      m_ptr = nullptr;
-      m_page = nullptr;
-    }
-
-    /** Page number if the doublewrite buffer */
-    page_no_t m_no;
-
-    /** Unaligned pointer */
-    byte *m_ptr;
-
-    /** Aligned pointer derived from ptr */
-    byte *m_page;
-  };
-
-  using Deferred = std::list<Page>;
-
-  /** Pages that could not be recovered from the doublewrite
-  buffer at the start and need to be recovered once we process an
-  MLOG_FILE_OPEN redo log record */
-  Deferred deferred;
-
-  /** Recovered doublewrite buffer page frames */
-  List pages;
-
-  /** Pages from system tablespace doublewrite buffer.
-  If encrypted, these pages should be decrypted with system tablespace
-  encryption key. Other pages from parallel double write buffer should
-  be decrypted with their respective tablespace encryption key */
-  List sys_pages;
-
-  /** Decrypt double write buffer pages if system tablespace is
-  encrypted. This function process only pages from sys_pages list.
-  Other pages from parallel doublewrite buffer will be decrypted after
-  tablespace objects are loaded. */
-  void decrypt_sys_dblwr_pages();
-
-  // Disable copying
-  recv_dblwr_t(const recv_dblwr_t &) = delete;
-  recv_dblwr_t &operator=(const recv_dblwr_t &) = delete;
-};
+// Forward declaration
+namespace dblwr {
+namespace recv {
+class DBLWR;
+}
+}  // namespace dblwr
 
 /** Class to parse persistent dynamic metadata redo log, store and
 merge them and apply them to in-memory table objects finally */
@@ -462,16 +395,13 @@ class MetadataRecover {
 
   /** Parse a dynamic metadata redo log of a table and store
   the metadata locally
-  @param[in]	id		table id
-  @param[in]	version		table dynamic metadata version
-  @param[in]	ptr		redo log start
-  @param[in]	end		end of redo log
-  @param[in]    apply           if false, this is coming from changed page
-                                tracking and changes should be parsed only
-  @retval ptr to next redo log record, NULL if this log record
+  @param[in]	id	table id
+  @param[in]	version	table dynamic metadata version
+  @param[in]	ptr	redo log start
+  @param[in]	end	end of redo log
+  @retval ptr to next redo log record, nullptr if this log record
   was truncated */
-  byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end,
-                         bool apply);
+  byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
 
   /** Apply the collected persistent dynamic metadata to in-memory
   table objects */
@@ -553,6 +483,8 @@ struct recv_sys_t {
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
 
+#else  /* !UNIV_HOTBACKUP */
+  bool apply_file_operations;
 #endif /* !UNIV_HOTBACKUP */
 
   /** This is true when log rec application to pages is allowed;
@@ -624,14 +556,22 @@ struct recv_sys_t {
   /** If the recovery is from a cloned database. */
   bool is_cloned_db;
 
+  /** Recovering from MEB. */
+  bool is_meb_recovery;
+
+  /** Doublewrite buffer state before MEB recovery starts. We restore to this
+  state after MEB recovery completes and disable the doublewrite buffer during
+  MEB recovery. */
+  bool dblwr_state;
+
   /** Hash table of pages, indexed by SpaceID. */
   Spaces *spaces;
 
   /** Number of not processed hashed file addresses in the hash table */
   ulint n_addrs;
 
-  /** Doublewrite buffer state during recovery. */
-  recv_dblwr_t dblwr;
+  /** Doublewrite buffer pages, destroyed after recovery completes */
+  dblwr::recv::DBLWR *dblwr;
 
   /** We store and merge all table persistent data here during
   scanning redo logs */
@@ -639,6 +579,17 @@ struct recv_sys_t {
 
   /** Encryption Key information per tablespace ID */
   Encryption_Keys *keys;
+
+  /** Map of crypt_data harvested during processing the redo logs. If crypt_data
+   * exists in redo log and the space it belongs to, does not yet exist in the
+   * system (create for the space exists only in redo) - we put the crypt_data
+   * into this map. Later when redo for creating the space gets proceed and
+   * space gets opened in open_for_recovery we assign the crypt_data from this
+   * map to this newly created space */
+  using CryptDatas =
+      std::unordered_map<space_id_t, fil_space_crypt_t *, std::hash<space_id_t>,
+                         std::equal_to<space_id_t>>;
+  CryptDatas *crypt_datas;
 
   void set_corrupt_log() { found_corrupt_log = true; }
 

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -76,7 +76,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.328.\ \&Command\-line options for the ndb_mgm program
+.B Table\ \&22.256.\ \&Command\-line options for the ndb_mgm program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -89,29 +89,40 @@ Added, Deprecated, or Removed
 T}
 .T&
 l l l
+l l l
 l l l.
 T{
 .PP
---try-reconnect=#,
-.PP
--t
+\fB \fR\fB--connect-retries=#\fR\fB \fR
 T}:T{
-Set the number of times to retry a connection before giving up; synonym
-              for --connect-retries
+Set number of times to retry connection before giving up; 0 means 1
+              attempt only (and no retries)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---execute=name,
+\fB--try-reconnect=#\fR,
 .PP
--e
+\fB \fR\fB-t\fR\fB \fR
+T}:T{
+Set number of times to retry connection before giving up; synonym for
+              --connect-retries
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB--execute=name\fR,
+.PP
+\fB \fR\fB-e\fR\fB \fR
 T}:T{
 Execute command and exit
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -127,40 +138,33 @@ T}
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-retries=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 3
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 4294967295
 T}
@@ -191,16 +195,9 @@ Options Common to NDB Cluster Programs(1), for more information\&.
 \fB\-e \fR\fBcommand\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --execute=name
 T}
@@ -259,58 +256,51 @@ be enclosed in quotation marks\&. Either single or double quotation marks may be
 \fB\-\-try\-reconnect=\fR\fB\fInumber\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --try-reconnect=#
 T}
 T{
-\fBDeprecated\fR
+Deprecated
 T}:T{
 Yes
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 12
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 3
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 4294967295
 T}
@@ -327,11 +317,11 @@ This option is deprecated and subject to removal in a future release\&. Use
 Additional information about using
 \fBndb_mgm\fR
 can be found in
-Section\ \&22.5.2, \(lqCommands in the NDB Cluster Management Client\(rq\&.
+Section\ \&22.5.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

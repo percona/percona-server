@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+ Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
  This program is free software; you can redistribute it and/or modify it under
  the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,7 +64,7 @@ static ibool rbt_check_ordering(
     const ib_rbt_t *tree) /*!< in: tree to verfify */
 {
   const ib_rbt_node_t *node;
-  const ib_rbt_node_t *prev = NULL;
+  const ib_rbt_node_t *prev = nullptr;
 
   /* Iterate over all the nodes, comparing each node with the prev */
   for (node = rbt_first(tree); node; node = rbt_next(tree, prev)) {
@@ -357,7 +357,7 @@ static ib_rbt_node_t *rbt_find_successor(
       parent = next->parent;
     }
 
-    next = (parent == tree->root) ? NULL : parent;
+    next = (parent == tree->root) ? nullptr : parent;
   }
 
   return (next);
@@ -392,7 +392,7 @@ static ib_rbt_node_t *rbt_find_predecessor(
       parent = prev->parent;
     }
 
-    prev = (parent == tree->root) ? NULL : parent;
+    prev = (parent == tree->root) ? nullptr : parent;
   }
 
   return (prev);
@@ -486,7 +486,7 @@ static ib_rbt_node_t *rbt_balance_right(
     ib_rbt_node_t *parent,    /*!< in: parent node */
     ib_rbt_node_t *sibling)   /*!< in: sibling node */
 {
-  ib_rbt_node_t *node = NULL;
+  ib_rbt_node_t *node = nullptr;
 
   ut_a(sibling != nil);
 
@@ -539,7 +539,7 @@ static ib_rbt_node_t *rbt_balance_left(
     ib_rbt_node_t *parent,    /*!< in: parent node */
     ib_rbt_node_t *sibling)   /*!< in: sibling node */
 {
-  ib_rbt_node_t *node = NULL;
+  ib_rbt_node_t *node = nullptr;
 
   ut_a(sibling != nil);
 
@@ -661,7 +661,7 @@ ib_rbt_t *rbt_create_arg_cmp(
 
   ut_a(cmp_arg);
 
-  tree = rbt_create(sizeof_value, NULL);
+  tree = rbt_create(sizeof_value, nullptr);
   tree->cmp_arg = cmp_arg;
   tree->compare_with_arg = compare;
 
@@ -750,7 +750,7 @@ void rbt_add_preallocated_node(ib_rbt_t *tree, ib_rbt_bound_t *parent,
   node->parent = node->left = node->right = tree->nil;
 
   /* If tree is empty */
-  if (parent->last == NULL) {
+  if (parent->last == nullptr) {
     parent->last = tree->root;
   }
 
@@ -793,7 +793,7 @@ const ib_rbt_node_t *rbt_lookup(
     }
   }
 
-  return (current != tree->nil ? current : NULL);
+  return (current != tree->nil ? current : nullptr);
 }
 
 /** Delete a node indentified by key.
@@ -844,7 +844,7 @@ int rbt_search(const ib_rbt_t *tree,   /*!< in: rb tree */
 
   /* Every thing is greater than the NULL root. */
   parent->result = 1;
-  parent->last = NULL;
+  parent->last = nullptr;
 
   while (current != tree->nil) {
     parent->last = current;
@@ -882,7 +882,7 @@ int rbt_search_cmp(const ib_rbt_t *tree,   /*!< in: rb tree */
 
   /* Every thing is greater than the NULL root. */
   parent->result = 1;
-  parent->last = NULL;
+  parent->last = nullptr;
 
   while (current != tree->nil) {
     parent->last = current;
@@ -911,7 +911,7 @@ const ib_rbt_node_t *rbt_first(
     /* out leftmost node or NULL */
     const ib_rbt_t *tree) /* in: rb tree */
 {
-  ib_rbt_node_t *first = NULL;
+  ib_rbt_node_t *first = nullptr;
   ib_rbt_node_t *current = ROOT(tree);
 
   while (current != tree->nil) {
@@ -926,7 +926,7 @@ const ib_rbt_node_t *rbt_first(
  @return the rightmost node or NULL */
 const ib_rbt_node_t *rbt_last(const ib_rbt_t *tree) /*!< in: rb tree */
 {
-  ib_rbt_node_t *last = NULL;
+  ib_rbt_node_t *last = nullptr;
   ib_rbt_node_t *current = ROOT(tree);
 
   while (current != tree->nil) {
@@ -943,7 +943,7 @@ const ib_rbt_node_t *rbt_next(
     const ib_rbt_t *tree,         /*!< in: rb tree */
     const ib_rbt_node_t *current) /*!< in: current node */
 {
-  return (current ? rbt_find_successor(tree, current) : NULL);
+  return (current ? rbt_find_successor(tree, current) : nullptr);
 }
 
 /** Return the previous node.
@@ -952,7 +952,7 @@ const ib_rbt_node_t *rbt_prev(
     const ib_rbt_t *tree,         /*!< in: rb tree */
     const ib_rbt_node_t *current) /*!< in: current node */
 {
-  return (current ? rbt_find_predecessor(tree, current) : NULL);
+  return (current ? rbt_find_predecessor(tree, current) : nullptr);
 }
 
 /** Clear the tree without deleting and freeing its nodes.

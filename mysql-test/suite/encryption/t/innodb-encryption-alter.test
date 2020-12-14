@@ -5,6 +5,7 @@ SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads = 4;
 
 CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, c VARCHAR(256)) ENGINE=INNODB encryption='N' ENCRYPTION_KEY_ID=4;
+SHOW CREATE TABLE t1;
 DROP TABLE t1;
 #set innodb_default_encryption_key_id = 99;
 #--error 1005
@@ -79,6 +80,7 @@ connection default;
 drop table t1,t2;
 
 # Decrypt all tables
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
@@ -86,5 +88,5 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL default_table_encryption = OFF;
 SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = OFF;

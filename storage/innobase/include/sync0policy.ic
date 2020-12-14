@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,6 +41,7 @@ template <typename Mutex>
 std::string AggregateMutexStatsPolicy<Mutex>::to_string() const {
   switch (m_id) {
     case LATCH_ID_BUF_BLOCK_MUTEX:
+    case LATCH_ID_BUF_POOL_ZIP:
       /* I don't think it makes sense to keep track of the file name
       and line number for each block mutex. Too much of overhead.
       Use the latch id to figure out the location from the source. */

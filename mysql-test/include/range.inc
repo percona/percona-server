@@ -32,7 +32,14 @@ INSERT INTO t1 VALUES ('1999-07-10',100100,24), ('1999-07-11',100100,25),
 ('1999-08-31',100600,33), ('1999-09-17',100100,37), ('1999-09-18',100100,37),
 ('1999-09-19',100100,37), ('2000-12-18',100700,38);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
+
 explain select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 explain select event_date,type,event_id from t1 WHERE type = 100601 and event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
@@ -204,6 +211,11 @@ CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
 INSERT INTO t1 VALUES (0),(0),(0),(0),(0),(1),(1);
 CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1, t2;
+--enable_query_log
+--enable_result_log
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 explain select * from t1 force index(i1), t2 force index(j1) where 
  (t1.key1 <t2.keya + 1) and t2.keya=3;
@@ -227,6 +239,11 @@ INSERT INTO t1 VALUES
 (21,4),(22,5),(23,5),(24,5),(25,5),(26,5),(30,5),(31,5),(32,5),(33,5),
 (33,5),(33,5),(33,5),(33,5),(34,5),(35,5);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 # we expect that optimizer will choose index on A
 EXPLAIN SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
@@ -250,6 +267,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 ( a int not null, b int not null, INDEX ab(a,b) );
 INSERT INTO t1 VALUES (47,1), (70,1), (15,1), (15, 4);
+--sorted_result
 SELECT * FROM t1
 WHERE
 (
@@ -282,6 +300,7 @@ KEY recount( owner, line )
 
 INSERT into t1 (owner,id,columnid,line) values (11,15,15,1),(11,13,13,5);
 
+--sorted_result
 SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner=11 AND ((columnid IN ( 15, 13, 14 ) AND line IN ( 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 31 )) OR (columnid IN ( 13, 14 ) AND line IN ( 15 ))) LIMIT 0 , 30;
 drop table t1;
 
@@ -444,14 +463,23 @@ create table t1 (a bigint unsigned);
 create index t1i on t1(a);
 insert into t1 select 18446744073709551615;
 insert into t1 select 18446744073709551614;
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 explain select * from t1 where a <> -1;
+--sorted_result
 select * from t1 where a <> -1;
 explain select * from t1 where a > -1 or a < -1;
+--sorted_result
 select * from t1 where a > -1 or a < -1;
 explain select * from t1 where a > -1;
+--sorted_result
 select * from t1 where a > -1;
 explain select * from t1 where a < -1;
+--sorted_result
 select * from t1 where a < -1;
 
 drop table t1;
@@ -464,6 +492,11 @@ set names latin1;
 create table t1 (a char(10), b text, key (a)) character set latin1;
 INSERT INTO t1 (a) VALUES
 ('111'),('222'),('222'),('222'),('222'),('444'),('aaa'),('AAA'),('bbb');
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 # all these three can be optimized
 explain select * from t1 where a='aaa';
 explain select * from t1 where a=binary 'aaa';
@@ -524,6 +557,11 @@ drop table t1, t2;
 
 create table t1(a char(2), key(a(1))) charset utf8mb4;
 insert into t1 values ('x'), ('xx');
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 explain select a from t1 where a > 'x';
 select a from t1 where a > 'x';
 drop table t1;
@@ -558,12 +596,18 @@ INSERT INTO t1 VALUES
 ('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11,
  'd8c4177d09f8b11f5.52725521');
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 EXPLAIN
 SELECT s.oxid FROM t1 v, t1 s 
   WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
         v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
         s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 
+--sorted_result
 SELECT s.oxid FROM t1 v, t1 s 
   WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
         v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
@@ -582,6 +626,7 @@ create table t1 (
 insert into t1 (c1) values ('1'),('1'),('1'),('1');
 
 # This must run without crash and fast:
+--skip_if_hypergraph  # Warnings depend on the range optimizer being called.
 select * from t1 where
      c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
             "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
@@ -740,6 +785,11 @@ INSERT INTO t1 VALUES
 (49,'A'), (50,'A'), (51,'A'), (52,'A'), (53,'C'), (54,'C'),
 (55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
 
@@ -766,6 +816,11 @@ CREATE TABLE  t1 (a int, b int, primary key(a,b));
 INSERT INTO  t1 VALUES
   (1,1),(1,2),(1,3),(2,1),(2,2),(2,3),(3,1),(3,2),(3,3),(4,1),(4,2),(4,3);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 CREATE VIEW v1 as SELECT a,b FROM t1 WHERE b=3;
 
 EXPLAIN SELECT a,b FROM t1 WHERE a < 2 and b=3;
@@ -788,8 +843,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (name varchar(15) NOT NULL, KEY idx(name));
 INSERT INTO t1 VALUES ('Betty'), ('Anna');
 
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1 WHERE name NOT LIKE 'A%a';
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -813,6 +870,11 @@ INSERT INTO `t1` VALUES
 (0,0),(1,0),(2,0),(3,0),(4,0),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(11,2),(12,2)
 ,(13,2),(14,2),(15,3),(16,3),(17,3),(18,3),(19,3);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 --replace_column 10 #
 explain select * from t1 where a in (3,4)  and b in (1,2,3);
 --replace_column 10 #
@@ -839,6 +901,11 @@ insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
 create table t2 (a varchar(10), filler char(200), key(a)) charset utf8mb4;
 insert into t2 select * from t1;
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1, t2;
+--enable_query_log
+--enable_result_log
 --replace_column 10 #
 explain select * from t1 where a between 'a' and 'a '; 
 --replace_column 10 #
@@ -869,6 +936,11 @@ select count(*) from (select @a:=concat(@a, ',', a) from t2 ) Z;
 set @a=concat(@a, ')');
 
 insert into t2 values (11),(13),(15);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t2;
+--enable_query_log
+--enable_result_log
 
 set @b= concat("explain ", @a);
 
@@ -907,6 +979,7 @@ SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 
 EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;  # Tests printing of sort_union.
 
 DROP TABLE t1;
@@ -931,6 +1004,11 @@ INSERT INTO t1 VALUES
 ('A1','2005-12-12 08:00:00',3000),
 ('A2','2005-12-01 08:00:00',1000);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 --error ER_WRONG_VALUE
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 --error ER_WRONG_VALUE
@@ -938,6 +1016,11 @@ SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 
 DROP INDEX `PRIMARY` ON t1;
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 --error ER_WRONG_VALUE
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
@@ -961,6 +1044,11 @@ INSERT INTO t1 VALUES
 (1,'2007-01-01'),(2,'2007-01-02'),(3,'2007-01-03'),(4,'2007-01-04'),
 (5,'2007-01-05'),(6,'2007-01-06'),(7,'2007-01-07'),(8,'2007-01-08'),
 (9,'2007-01-09'),(10,'2007-01-10'),(11,'2007-01-11');
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 --echo This must use range access:
 explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '2007-01-02 23:59:59';
@@ -979,6 +1067,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES
   ('B'), ('A'), ('A'), ('C'), ('B'), ('A'), ('A');
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 SELECT a FROM t1 WHERE a='b' OR a='B';
 EXPLAIN SELECT a FROM t1 WHERE a='b' OR a='B';
 
@@ -1052,6 +1145,11 @@ alter table t2 add index (a,b);
 #  (1000, 10, 'filler') - 500 times
 
 # 500 rows, 1 row
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t2;
+--enable_query_log
+--enable_result_log
 
 --echo Access method can be range/ALL with #rows >= 500.
 --echo Or it can be ref with #rows = 2, only when there is memory limit.
@@ -1092,12 +1190,18 @@ VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0),
 # To make range scan compelling to the optimizer
 INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
 INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1, t2, t3;
+--enable_query_log
+--enable_result_log
 
 
 #
 # Problem#1 Test queries. Will give missing results unless Problem#1 is fixed.
 # With one exception, they are independent of Problem#2.
 #
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a < 5 OR 
 5 < a AND b = 3 OR
@@ -1110,6 +1214,7 @@ SELECT * FROM t1 WHERE
 3 <= a;
 
 # Query below: Tests both Problem#1 and Problem#2 (EXPLAIN differs as well)
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a < 5 OR 
 5 <= a AND b = 3 OR
@@ -1121,6 +1226,7 @@ SELECT * FROM t1 WHERE
 5 <= a AND b = 3 OR
 3 <= a;
 
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a <= 5 OR 
 5 <= a AND b = 3 OR
@@ -1132,6 +1238,7 @@ SELECT * FROM t1 WHERE
 5 <= a AND b = 3 OR
 3 <= a;
 
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a <= 5 OR 
 3 <= a;
@@ -1146,6 +1253,7 @@ SELECT * FROM t1 WHERE
 # These queries will give missing results if Problem#1 is fixed.
 # But Problem#1 also hides this bug.
 #
+--sorted_result
 SELECT * FROM t2 WHERE
 5 <= a AND a < 10 AND b = 1 OR
 15 <= a AND a < 20 AND b = 3
@@ -1159,6 +1267,7 @@ SELECT * FROM t2 WHERE
 OR
 1 <= a AND b = 1;
 
+--sorted_result
 SELECT * FROM t2 WHERE
 5 <= a AND a < 10 AND b = 2 OR
 15 <= a AND a < 20 AND b = 3
@@ -1172,6 +1281,7 @@ SELECT * FROM t2 WHERE
 OR
 1 <= a AND b = 1;
 
+--sorted_result
 SELECT * FROM t3 WHERE
 5 <= a AND a < 10 AND b = 3 OR 
 a < 5 OR
@@ -1209,6 +1319,11 @@ INSERT INTO t2 VALUES ('2009-09-22 12:00:00'), ('2009-09-22 12:00:00'),
 INSERT INTO t2 VALUES ('2009-09-23 12:00:00'), ('2009-09-23 12:00:00'),
                       ('2009-09-23 12:00:00');
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1, t2;
+--enable_query_log
+--enable_result_log
 --echo # DATE vs DATE
 --replace_column 1 X 2 X 3 X 8 X 9 X 10 X 12 X
 EXPLAIN
@@ -1320,6 +1435,11 @@ CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
 
 INSERT INTO t1 VALUES (0,0), (1,1);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 --replace_column 1 @ 2 @ 3 @ 6 @ 7 @ 8 @ 9 @ 10 @ 12 @
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX (PRIMARY) 
@@ -1338,6 +1458,11 @@ DROP TABLE t1;
 CREATE TABLE t1 (c_key INT, c_notkey INT, KEY(c_key));
 INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 EXPLAIN SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
 SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
 
@@ -1355,6 +1480,11 @@ CREATE UNIQUE INDEX i4_uq ON t1(i4);
 
 INSERT INTO t1 VALUES (1,10), (2,20), (3,30);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
@@ -1403,6 +1533,7 @@ SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
 # Also tests printing of index condition pushdown on EQRefIterator.
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+--skip_if_hypergraph  # No ICP in the hypergraph optimizer yet.
 EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
@@ -1543,6 +1674,11 @@ INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 16
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 32
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 64
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 128
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 --echo # This must use range over index l, not k.
 --echo # Update: Due to patch being reverted and minor differences in 
 --echo #         range estimates k is selected.
@@ -1573,6 +1709,11 @@ INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 16
 INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 32
 INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 64
 INSERT INTO t2 VALUES (1, 1, 2);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 --echo # This must use range over index l, not n.
 --echo # Update: Due to patch being reverted and minor differences in 
@@ -1600,6 +1741,11 @@ INSERT INTO t100(I,J) SELECT X.I, X.K+(10*Y.K) FROM t10 AS X,t10 AS Y;
 
 # Insert offending value:
 INSERT INTO t100(I,J) VALUES(8,26);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t100;
+--enable_query_log
+--enable_result_log
 
 let $query= SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
 
@@ -1635,12 +1781,16 @@ INSERT INTO t2 VALUES
 let $query=SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 
+--replace_column 10 # 11 #
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 --echo # need FLUSH so that InnoDB statistics change and thus plan changes
 FLUSH TABLES;
+--replace_column 10 # 11 #
 eval EXPLAIN $query;
+--skip_if_hypergraph  # No DynamicRangeIterator in the hypergraph optimizer.
 eval EXPLAIN FORMAT=tree $query;  # Tests printing of DynamicRangeIterator.
 eval $query;
 
@@ -1736,10 +1886,7 @@ CREATE TABLE t1 (
  PRIMARY KEY (c,a), KEY (a),KEY (a)
 ) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
 INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
-# Disabled by WL#5094
---disable_warnings
 UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
---enable_warnings
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -1803,10 +1950,16 @@ INSERT INTO t2 VALUES ('2001#01#01');
 INSERT INTO t2 VALUES ('2001-01-01 00:00:00');
 INSERT INTO t2 VALUES ('2001-01-01 11:22:33');
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1, t2;
+--enable_query_log
+--enable_result_log
 --echo
 --echo # range/ref access cannot be used for this query
 --echo
 EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+--sorted_result
 SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 
 let $query_ab=SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
@@ -1938,6 +2091,11 @@ INSERT INTO t4 SELECT * FROM t4;
 INSERT INTO t4 SELECT * FROM t4;
 INSERT INTO t4 SELECT * FROM t4;
 INSERT INTO t4 SELECT * FROM t4;
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t4;
+--enable_query_log
+--enable_result_log
 
 --echo # Inner table in a nested-loops join
 EXPLAIN
@@ -1992,6 +2150,11 @@ INSERT INTO t6 VALUES (3, 2), (4, 2), (100, 100), (101, 201), (102, 102);
 CREATE TABLE t7 (a int, b int, KEY (a, b));
 INSERT INTO t7 VALUES (1, 1), (2, 2), (1000, 1000), (1001, 1001), (1002, 1002),
 (1003, 1003), (1004, 1004);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t5, t6, t7;
+--enable_query_log
+--enable_result_log
 
 let $ERC_query=
 SELECT *
@@ -2090,6 +2253,11 @@ DROP TABLE t2;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 
 INSERT INTO t1 VALUES (1,1), (2,1), (3,1), (4,1), (5,1), (6,1);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 EXPLAIN SELECT * FROM t1 WHERE a IN (1, 2);
 EXPLAIN SELECT * FROM t1 WHERE a IN (1, "2");
@@ -2326,6 +2494,11 @@ CREATE TABLE t1 (
 ) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
 Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
@@ -2335,8 +2508,11 @@ eval EXPLAIN $query1;
 eval EXPLAIN $query2;
 eval EXPLAIN $query3;
 
+--skip_if_hypergraph  # Warnings depend on the query plan.
 eval $query1;
+--skip_if_hypergraph  # Warnings depend on the query plan.
 eval $query2;
+--skip_if_hypergraph  # Warnings depend on the query plan.
 eval $query3;
 
 DROP TABLE t1;
@@ -2392,6 +2568,11 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES ('abcde', 10);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 let $query1= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
 let $query2= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 
@@ -2414,6 +2595,11 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE t1;
+--enable_query_log
+--enable_result_log
 
 SET @orig_range_optimizer_max_mem_size= @@range_optimizer_max_mem_size;
 SET range_optimizer_max_mem_size= 5000;
@@ -2518,6 +2704,11 @@ INSERT INTO giant_table (id,one_id) VALUES (66136539, 0), (68983258,1),
 INSERT INTO giant_table (id,one_id, some_other_id) VALUES(84673401, 0, 1),
                                                          (61069031, 1, 1);
 
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE giant_table;
+--enable_query_log
+--enable_result_log
 EXPLAIN SELECT id, something, comment, time_created, one_id, other_id,
                some_other_id, flags
 FROM giant_table
@@ -2684,6 +2875,11 @@ UPDATE mysql.innodb_table_stats SET n_rows=3001 WHERE TABLE_name='transactions';
 
 FLUSH TABLE transactions;
 --enable_query_log
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE transactions;
+--enable_query_log
+--enable_result_log
 
 --replace_column 10 # 11 #
 eval EXPLAIN $query1;
@@ -2691,6 +2887,7 @@ eval EXPLAIN $query1;
 SET optimizer_trace="enabled=on";
 eval $query1;
 SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT @trace RLIKE "range_uses_more_keyparts";
 SET optimizer_trace="enabled=off";
 
@@ -2818,12 +3015,17 @@ INSERT INTO test_ref VALUES
 ( 4455095, 'D005', 'cheennse', 'S',    5);
 --enable_query_log
 ANALYZE TABLE t1;
+--disable_result_log
+--disable_query_log
+ANALYZE TABLE test_ref;
+--enable_query_log
+--enable_result_log
 
 let query1=
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c
+ORDER BY c, a
 LIMIT 1;
 
 # test with descending order
@@ -2831,7 +3033,7 @@ let query2=
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c DESC
+ORDER BY c DESC, a DESC
 LIMIT 1;
 
 eval EXPLAIN $query1;
@@ -2841,3 +3043,19 @@ eval EXPLAIN $query2;
 eval $query2;
 
 DROP TABLE test_ref;
+
+--echo #
+--echo # Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
+--echo #                WHERE_CLAUSE
+--echo #
+
+CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
+INSERT INTO t VALUES(0,0);
+
+# Test if adjacent ranges when rounded off to the same value by range
+# optimizer return correct results. Note that range scan is not chosen as the
+# final range would be 0 < id <= 0 which is "where true". So range optimizer
+# will not have any range to work on.
+SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
+
+DROP TABLE t;

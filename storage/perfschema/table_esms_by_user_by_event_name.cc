@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,7 @@ Plugin_table table_esms_by_user_by_event_name::m_table_def(
 PFS_engine_table_share table_esms_by_user_by_event_name::m_share = {
     &pfs_truncatable_acl,
     table_esms_by_user_by_event_name::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_esms_by_user_by_event_name::delete_all_rows,
     table_esms_by_user_by_event_name::get_row_count,
     sizeof(pos_esms_by_user_by_event_name),
@@ -154,7 +154,7 @@ int table_esms_by_user_by_event_name::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user()) {
     user = global_user_container.get(m_pos.m_index_1, &has_more_user);
-    if (user != NULL) {
+    if (user != nullptr) {
       statement_class = find_statement_class(m_pos.m_index_2);
       if (statement_class) {
         m_next_pos.set_after(&m_pos);
@@ -173,7 +173,7 @@ int table_esms_by_user_by_event_name::rnd_pos(const void *pos) {
   set_position(pos);
 
   user = global_user_container.get(m_pos.m_index_1);
-  if (user != NULL) {
+  if (user != nullptr) {
     statement_class = find_statement_class(m_pos.m_index_2);
     if (statement_class) {
       return make_row(user, statement_class);
@@ -185,7 +185,7 @@ int table_esms_by_user_by_event_name::rnd_pos(const void *pos) {
 
 int table_esms_by_user_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_esms_by_user_by_event_name *result = NULL;
+  PFS_index_esms_by_user_by_event_name *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_user_by_event_name);
   m_opened_index = result;
@@ -200,7 +200,7 @@ int table_esms_by_user_by_event_name::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user()) {
     user = global_user_container.get(m_pos.m_index_1, &has_more_user);
-    if (user != NULL) {
+    if (user != nullptr) {
       if (m_opened_index->match(user)) {
         do {
           statement_class = find_statement_class(m_pos.m_index_2);
@@ -213,7 +213,7 @@ int table_esms_by_user_by_event_name::index_next(void) {
             }
             m_pos.m_index_2++;
           }
-        } while (statement_class != NULL);
+        } while (statement_class != nullptr);
       }
     }
   }
@@ -263,8 +263,8 @@ int table_esms_by_user_by_event_name::read_row_values(TABLE *table,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
           m_row.m_user.set_field(f);
           break;
@@ -272,7 +272,7 @@ int table_esms_by_user_by_event_name::read_row_values(TABLE *table,
           m_row.m_event_name.set_field(f);
           break;
         default: /* 2, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stat.set_field(f->field_index - 2, f);
+          m_row.m_stat.set_field(f->field_index() - 2, f);
           break;
       }
     }

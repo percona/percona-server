@@ -44,9 +44,9 @@ ALTER TABLE t7 ADD KEY a(a), ADD KEY b(b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
-  `b` int(11) DEFAULT '2',
+  `b` int DEFAULT '2',
   PRIMARY KEY (`id`),
   KEY `a` (`a`),
   KEY `b` (`b`)
@@ -54,9 +54,9 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
-  `b` int(11) DEFAULT '2',
+  `b` int DEFAULT '2',
   PRIMARY KEY (`id`),
   KEY `a` (`a`),
   KEY `b` (`b`)
@@ -64,25 +64,25 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `a` varchar(255) DEFAULT NULL,
-  `c` int(11) DEFAULT '5',
+  `c` int DEFAULT '5',
   KEY `a` (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `a` varchar(255) DEFAULT NULL,
-  `c` int(11) DEFAULT '5',
+  `c` int DEFAULT '5',
   KEY `a` (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` text,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -92,7 +92,7 @@ t5	CREATE TABLE `t5` (
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `a` text,
   `b` varchar(255) DEFAULT NULL,
   FULLTEXT KEY `b` (`b`),
@@ -101,9 +101,9 @@ t6	CREATE TABLE `t6` (
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
-  `b` int(11) DEFAULT '2',
+  `b` int DEFAULT '2',
   PRIMARY KEY (`id`),
   KEY `a` (`a`),
   KEY `b` (`b`)

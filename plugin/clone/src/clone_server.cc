@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,8 +178,23 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   if (err != 0) {
     return (err);
   }
-  /* Send locators back to client */
   m_storage_initialized = true;
+
+  if (m_is_master && mode == HA_CLONE_MODE_START) {
+    /* Validate local configurations. */
+    err = validate_local_params(get_thd());
+
+    if (err == 0) {
+      /* Send current server parameters for validation. */
+      err = send_params();
+    }
+
+    if (err != 0) {
+      return (err);
+    }
+  }
+
+  /* Send locators back to client */
   err = send_locators();
 
   return (err);
@@ -200,11 +215,10 @@ int Server::parse_command_buffer(uchar command, uchar *com_buf, size_t com_len,
 
     case COM_INIT:
       m_is_master = true;
+
+      /* Initialize storage, send locators and validating configurations.  */
       err = init_storage(HA_CLONE_MODE_START, com_buf, com_len);
-      if (err == 0) {
-        /* Send current server parameters for validation. */
-        err = send_params();
-      }
+
       log_error(get_thd(), false, err, "COM_INIT: Storage Initialize");
       break;
 
@@ -384,8 +398,10 @@ int Server::send_key_value(Command_Response rcmd, String_Key &key_str,
   auto buf_len = key_str.length();
   buf_len += 4;
 
+  bool send_value = (rcmd == COM_RES_CONFIG || rcmd == COM_RES_PLUGIN_V2);
+
   /** Add length for value. */
-  if (rcmd == COM_RES_CONFIG) {
+  if (send_value) {
     buf_len += val_str.length();
     buf_len += 4;
   }
@@ -410,7 +426,7 @@ int Server::send_key_value(Command_Response rcmd, String_Key &key_str,
   buf_ptr += key_str.length();
 
   /* Store Value */
-  if (rcmd == COM_RES_CONFIG) {
+  if (send_value) {
     int4store(buf_ptr, val_str.length());
     buf_ptr += 4;
     memcpy(buf_ptr, val_str.c_str(), val_str.length());
@@ -428,19 +444,34 @@ int Server::send_params() {
   auto plugin_cbk = [](THD *, plugin_ref plugin, void *ctx) {
     auto server = static_cast<Server *>(ctx);
 
-    if (plugin == nullptr || plugin_state(plugin) == PLUGIN_IS_FREED ||
-        plugin_state(plugin) == PLUGIN_IS_DISABLED) {
+    if (plugin == nullptr) {
       return (false);
     }
     /* Send plugin name string */
     String_Key pstring(plugin_name(plugin)->str, plugin_name(plugin)->length);
-    auto err = server->send_key_value(COM_RES_PLUGIN, pstring, pstring);
 
+    if (server->send_only_plugin_name()) {
+      auto err = server->send_key_value(COM_RES_PLUGIN, pstring, pstring);
+      return (err != 0);
+    }
+
+    /* Send plugin dynamic library name. */
+    String_Key dstring;
+
+    auto plugin_dl = plugin_dlib(plugin);
+    if (plugin_dl != nullptr) {
+      dstring.assign(plugin_dl->dl.str, plugin_dl->dl.length);
+    }
+
+    auto err = server->send_key_value(COM_RES_PLUGIN_V2, pstring, dstring);
     return (err != 0);
   };
 
-  auto result = plugin_foreach_with_mask(
-      get_thd(), plugin_cbk, MYSQL_ANY_PLUGIN, ~PLUGIN_IS_FREED, this);
+  /* Check only for plugins in active state - PLUGIN_IS_READY. We already have
+  backup lock here and no new plugins can be installed or uninstalled at this
+  point. However, there could be some left over plugins in PLUGIN_IS_DELETED
+  state which are uninstalled but not removed yet. */
+  auto result = plugin_foreach(get_thd(), plugin_cbk, MYSQL_ANY_PLUGIN, this);
 
   if (result) {
     err = ER_INTERNAL_ERROR;

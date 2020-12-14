@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,48 +51,6 @@ struct mysql_mutex_t;
 
 #ifndef MYSQL_SERVER
 #include "client/mysqlbinlog.h"
-#endif
-
-// Todo: move other global gtid variable declarations here.
-Checkable_rwlock *gtid_mode_lock = nullptr;
-std::atomic<ulong> gtid_mode_counter;
-
-ulong _gtid_mode;
-const char *gtid_mode_names[] = {"OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE", "ON",
-                                 NullS};
-TYPELIB gtid_mode_typelib = {array_elements(gtid_mode_names) - 1, "",
-                             gtid_mode_names, nullptr};
-
-#ifdef MYSQL_SERVER
-enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock) {
-  switch (have_lock) {
-    case GTID_MODE_LOCK_NONE:
-      global_sid_lock->rdlock();
-      break;
-    case GTID_MODE_LOCK_SID:
-      global_sid_lock->assert_some_lock();
-      break;
-    case GTID_MODE_LOCK_CHANNEL_MAP:
-      channel_map.assert_some_lock();
-      break;
-    case GTID_MODE_LOCK_GTID_MODE:
-      gtid_mode_lock->assert_some_lock();
-
-      /*
-        This lock is currently not used explicitly by any of the places
-        that calls get_gtid_mode.  Still it would be valid for a caller to
-        use it to protect reads of GTID_MODE, so we keep the code here in
-        case it is needed in the future.
-
-        case GTID_MODE_LOCK_LOG:
-          mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
-          break;
-      */
-  }
-  enum_gtid_mode ret = (enum_gtid_mode)_gtid_mode;
-  if (have_lock == GTID_MODE_LOCK_NONE) global_sid_lock->unlock();
-  return ret;
-}
 #endif
 
 ulong _gtid_consistency_mode;
@@ -289,6 +247,9 @@ Trx_monitoring_info::Trx_monitoring_info(const Trx_monitoring_info &info) {
     last_transient_error_timestamp = info.last_transient_error_timestamp;
     transaction_retries = info.transaction_retries;
     is_retrying = info.is_retrying;
+    compression_type = info.compression_type;
+    compressed_bytes = info.compressed_bytes;
+    uncompressed_bytes = info.uncompressed_bytes;
   }
 }
 
@@ -305,6 +266,9 @@ void Trx_monitoring_info::clear() {
   last_transient_error_timestamp = 0;
   transaction_retries = 0;
   is_retrying = false;
+  compression_type = binary_log::transaction::compression::type::NONE;
+  compressed_bytes = 0;
+  uncompressed_bytes = 0;
 }
 
 void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
@@ -470,6 +434,14 @@ void Gtid_monitoring_info::clear_last_processed_trx() {
   atomic_unlock();
 }
 
+void Gtid_monitoring_info::update(binary_log::transaction::compression::type t,
+                                  size_t payload_size,
+                                  size_t uncompressed_size) {
+  processing_trx->compression_type = t;
+  processing_trx->compressed_bytes = payload_size;
+  processing_trx->uncompressed_bytes = uncompressed_size;
+}
+
 void Gtid_monitoring_info::start(Gtid gtid_arg, ulonglong original_ts_arg,
                                  ulonglong immediate_ts_arg, bool skipped_arg) {
   /**
@@ -493,6 +465,10 @@ void Gtid_monitoring_info::start(Gtid gtid_arg, ulonglong original_ts_arg,
     processing_trx->last_transient_error_message[0] = '\0';
     processing_trx->last_transient_error_timestamp = 0;
     processing_trx->transaction_retries = 0;
+    processing_trx->compression_type =
+        binary_log::transaction::compression::type::NONE;
+    processing_trx->compressed_bytes = 0;
+    processing_trx->uncompressed_bytes = 0;
     atomic_unlock();
   } else {
     /**

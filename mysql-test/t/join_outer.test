@@ -22,17 +22,28 @@ create table t2 (id int, a bigint unsigned not null, c char(10), d int, primary 
 insert into t2 values (1,1,"a",1),(3,4,"A",4),(3,5,"B",5),(3,6,"C",6),(4,7,"D",7);
 
 select t1.*,t2.* from t1 JOIN t2 where t1.a=t2.a;
+# Tests printing of EXPLAIN FORMAT=tree for outer join BKA (in join_outer_bka.test).
+--skip_if_hypergraph  # No BKA support.
+EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
+--sorted_result
 select t1.*,t2.* from { oj t2 left outer join t1 on (t1.a=t2.a) };
+--sorted_result
 select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE t0.a=2;
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (a);
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (a,c);
 --sorted_result
 select t1.*,t2.* from t1 left join t2 using (c);
+--sorted_result
 select t1.*,t2.* from t1 natural left outer join t2;
 
+--sorted_result
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id=3;
+--sorted_result
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id is null;
 
 explain select t1.*,t2.* from t1,t2 where t1.a=t2.a and isnull(t2.a)=1;
@@ -259,7 +270,13 @@ select count(*) from t2 right join t1 on (t1.id = t2.owner);
 
 --sorted_result
 select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner) left join t1 as t3 on t3.id=t2.owner;
+--sorted_result
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
+# In join_outer_bka.test, demonstrates that when combining outer BKA and BNL,
+# we revert to simple nested loops.
+--skip_if_hypergraph  # Depends on the query plan.
+explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
+--sorted_result
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 
 drop table t1,t2;
@@ -269,6 +286,7 @@ insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
 select * from t1 where str is not null order by id;
 select * from t1 where str is null;
 explain select * from t1 where str is null;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select * from t1 where str is null;  # Tests printing of index condition pushdown on RefIterator.
 drop table t1;
 
@@ -381,8 +399,10 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3000'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw3500'),('kvw6000'),('kvw6000'),('kld2000');
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
+--sorted_result
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -480,6 +500,7 @@ insert into t1 values (1,2), (2,2), (3,2);
 insert into t2 values (1,3), (2,3);
 insert into t3 values (2,4),        (3,4);
 
+--sorted_result
 select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 
@@ -808,9 +829,11 @@ CREATE VIEW v2 AS SELECT b FROM t2 JOIN t1 ON t2.b=t1.a;
 
 # We see the functional dependency implied by ON:
 
+--sorted_result
 SELECT v1.a, v2. b 
   FROM v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3)
     GROUP BY v1.a;
+--sorted_result
 SELECT v1.a, v2. b 
   FROM { OJ v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3) }
     GROUP BY v1.a;
@@ -880,6 +903,7 @@ SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read%';
 
 DROP TABLE t1,t2;
@@ -1355,6 +1379,7 @@ WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 # Demonstrates the case where we put a condition on the top level above
 # an outer join with const tables on the left side. The found_match test
 # is redundant and should probably be removed if we can.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT t1.col_int
 FROM t1
   LEFT JOIN t2
@@ -1564,6 +1589,7 @@ eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
 # Without the "not exists" optimization, there would be more read_rnd_next
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 DROP TABLE t1,t2;
 
@@ -2014,6 +2040,7 @@ CREATE TABLE t4 (
 
 INSERT INTO t4 VALUES (0, 15, 6), (9, 16, 6);
 
+--sorted_result
 SELECT alias2.col_datetime_key
 FROM
     t1 AS alias1
@@ -2107,6 +2134,7 @@ CREATE TABLE t3 (
 );
 INSERT INTO t3 VALUES ('01602', 'BOB'), ('01603', 'SALLY');
 
+--sorted_result
 SELECT s.adslot, lid.ionumber1, lid.ionumber2, lid.ioattribute
 FROM t1 s LEFT JOIN
      (SELECT lid.adslot,
@@ -2204,14 +2232,17 @@ eval EXPLAIN $query2;
 eval EXPLAIN $query3;
 
 flush status;
+--sorted_result
 eval $query1;
 SHOW STATUS LIKE 'HANDLER_%';
 
 flush status;
+--sorted_result
 eval $query2;
 SHOW STATUS LIKE 'HANDLER_%';
 
 flush status;
+--sorted_result
 eval $query3;
 SHOW STATUS LIKE 'HANDLER_%';
 
@@ -2446,3 +2477,142 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #30659532: WL#13476: DIFFERENT NUMBER OF ROWS WITH NESTED LOOP JOINS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL
+);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+
+CREATE TABLE t3 (
+  f1 INTEGER,
+  f2 INTEGER,
+  KEY k2 (f2)
+);
+
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,295010100);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,-1762438755);
+INSERT INTO t3 VALUES (NULL,4);
+
+ANALYZE TABLE t1, t2, t3;
+
+# For BKA, verify that the multi-equality rewriting of the MRR iterator
+# (which is really unneeded in this case, but still done) doesn't change
+# the condition on t1.
+let $query =
+  SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
+
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #30654713: WL#13476: DIFFERENT ROWS WITH BATCHED KEY ACCESS LEFT JOIN
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER,
+  a INTEGER,
+  b varchar(10),
+  KEY key_a (a)
+);
+
+INSERT INTO t1 VALUES (5,NULL,'p');
+INSERT INTO t1 VALUES (6,NULL,'');
+INSERT INTO t1 VALUES (7,NULL,'');
+INSERT INTO t1 VALUES (8,NULL,'Z');
+INSERT INTO t1 VALUES (9,4,'g');
+INSERT INTO t1 VALUES (10,NULL,'if');
+INSERT INTO t1 VALUES (11,NULL,'j');
+INSERT INTO t1 VALUES (12,9,'');
+
+CREATE TABLE t2 (
+  a INTEGER,
+  b varchar(10),
+  KEY key_b (b)
+);
+
+INSERT INTO t2 VALUES (1,'j');
+INSERT INTO t2 VALUES (2,'o');
+INSERT INTO t2 VALUES (3,'z');
+INSERT INTO t2 VALUES (4,'really');
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+  SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+  FROM t1
+  LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+    ON t1.b = t2.b;
+
+# Verify that we've got BKA (in join_outer_bka.test) on the innermost join,
+# but not on the outermost, because that join is not right-deep.
+--skip_if_hypergraph  # No BKA support.
+eval EXPLAIN format=tree $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30520749 - REGRESSION: LEFT JOIN WITH IMPOSSIBLE ON CONDITION PERFORMS SLOWLY
+--echo #
+
+# Same test as in hash_join.test, just for nested loop join.
+
+set optimizer_switch='block_nested_loop=off';
+
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+
+# Conditions referring to no sides should be pushed, and the entire right side
+# should be removed.
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
+
+DROP TABLE t1, t2;
+
+set optimizer_switch='block_nested_loop=on';
+
+--echo #
+--echo # Bug #31252625: DATA IN WRONG ROW ON LEFT JOIN
+--echo #
+
+CREATE TABLE t1 (
+  id INTEGER NOT NULL,
+  b INTEGER,
+  PRIMARY KEY (id)
+);
+INSERT INTO t1 VALUES (17,NULL);
+INSERT INTO t1 VALUES (136,564);
+INSERT INTO t1 VALUES (137,NULL);
+
+CREATE TABLE t2 (
+  id INTEGER NOT NULL,
+  PRIMARY KEY (id)
+);
+INSERT INTO t2 VALUES (564);
+
+ANALYZE TABLE t1, t2;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.b = t2.id GROUP BY t1.id;
+DROP TABLE t1, t2;

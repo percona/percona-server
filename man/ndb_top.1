@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -123,7 +123,7 @@ Ctrl\-C\&. The display updates once per second; to set a different delay interva
 .br
 .PP
 \fBndb_top\fR
-is available on Mac OS X, Linux, and Solaris\&. It is not currently supported on Windows platforms\&.
+is available on macOS, Linux, and Solaris\&. It is not currently supported on Windows platforms\&.
 .sp .5v
 .RE
 .PP
@@ -134,7 +134,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.349.\ \&Command\-line options for the ndb_top program
+.B Table\ \&22.277.\ \&Command\-line options for the ndb_top program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -159,134 +159,117 @@ l l l
 l l l
 l l l
 l l l
-l l l
 l l l.
 T{
 .PP
---color,
+\fB--color\fR,
 .PP
--c
+\fB \fR\fB-c\fR\fB \fR
 T}:T{
 Show ASCII graphs in color; use --skip-colors to disable
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---graph,
+\fB--graph\fR,
 .PP
--g
+\fB \fR\fB-g\fR\fB \fR
 T}:T{
 Display data using graphs; use --skip-graphs to disable
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---help,
+\fB--help\fR,
 .PP
--?
+\fB \fR\fB-?\fR\fB \fR
 T}:T{
 Show program usage information
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---host[=name],
+\fB--host[=name]\fR,
 .PP
--h
+\fB \fR\fB-h\fR\fB \fR
 T}:T{
 Host name or IP address of MySQL Server to connect to
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---measured-load,
+\fB--measured-load\fR,
 .PP
--m
+\fB \fR\fB-m\fR\fB \fR
 T}:T{
 Show measured load by thread
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---node-id[=#],
+\fB--node-id[=#]\fR,
 .PP
--n
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 Watch node having this node ID
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---os-load,
+\fB--os-load\fR,
 .PP
--o
+\fB \fR\fB-o\fR\fB \fR
 T}:T{
 Show load measured by operating system
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---passwd[=password],
+\fB--password[=password]\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Connect using this password
 T}:T{
 .PP
-All NDB 8.0 releases
-.PP
-REMOVED: NDB 7.6.4
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---password[=password],
+\fB--port[=#]\fR,
 .PP
--p
-T}:T{
-Connect using this password
-T}:T{
-.PP
-All NDB 8.0 releases
-T}
-T{
-.PP
---port[=#],
-.PP
--t
-(<=7.6.5),
-.PP
--P
+\fB-P\fR
 (>=7.6.6)
 T}:T{
 Port number to use when connecting to MySQL Server
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sleep-time[=seconds],
+\fB--sleep-time[=seconds]\fR,
 .PP
--s
+\fB \fR\fB-s\fR\fB \fR
 T}:T{
 Time to wait between display refreshes, in seconds
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -294,47 +277,44 @@ T{
 .PP
 \fB \fR\fB-S\fR\fB \fR
 T}:T{
-Socket file to use for connection.
+Socket file to use for connection
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sort,
+\fB--sort\fR,
 .PP
--r
+\fB \fR\fB-r\fR\fB \fR
 T}:T{
 Sort threads by usage; use --skip-sort to disable
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---text,
+\fB--text\fR,
 .PP
--x
-(<=7.6.5),
-.PP
--t
+\fB-t\fR
 (>=7.6.6)
 T}:T{
 Display data using text
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---user[=name],
+\fB--user[=name]\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Connect as this MySQL user
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -363,28 +343,21 @@ Additional Options
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --color
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -407,28 +380,21 @@ to disable\&.
 \fB\-g\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --graph
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -453,28 +419,21 @@ must be true; both options may be true\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --help
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -495,28 +454,21 @@ Show program usage information\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --host[=name]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 localhost
 T}
@@ -537,28 +489,21 @@ Host name or IP address of MySQL Server to connect to\&.
 \fB\-m\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --measured-load
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -581,28 +526,21 @@ must be true; both options may be true\&.
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --node-id[=#]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
@@ -623,28 +561,21 @@ Watch the data node having this node ID\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --os-load
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -667,28 +598,21 @@ must be true; both options may be true\&.
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --passwd[=password]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 NULL
 T}
@@ -713,28 +637,21 @@ option\&. (Bug #26907833)
 \fB\-p\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --password[=password]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 NULL
 T}
@@ -761,28 +678,21 @@ option used previously\&. (Bug #26907833)
 \fB\-P\fR)
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --port[=#]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 3306
 T}
@@ -810,28 +720,21 @@ option\&. (Bug #26907833)
 \fB\-s\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sleep-time[=seconds]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
@@ -852,28 +755,21 @@ Time to wait between display refreshes, in seconds\&.
 \fI\-S\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --socket
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Path name
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 [none]
 T}
@@ -896,28 +792,21 @@ Added in NDB 7\&.6\&.6\&. (Bug #86614, Bug #26236298)
 \fB\-r\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --sort
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -937,33 +826,24 @@ to disable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-text\fR,
-\fB\-x\fR
-(NDB 7\&.6\&.6 and later:
-\fB\-t\fR)
+\fB\-t\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --text
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -973,11 +853,9 @@ Display data using text\&. This option or
 \fB\-\-graph\fR
 must be true; both options may be true\&.
 .sp
-Beginning with NDB 7\&.6\&.6, the short form for this option is
-\fB\-t\fR
-and support for
+The short form for this option was
 \fB\-x\fR
-is removed\&. (Bug #26907833)
+in previous versions of NDB Cluster, but this is no longer supported\&.
 .RE
 .sp
 .RS 4
@@ -992,28 +870,21 @@ is removed\&. (Bug #26907833)
 \fB\-u\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --user[=name]
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 root
 T}
@@ -1032,7 +903,7 @@ data node under a moderate load\&. Here, the program has been invoked using
 \fB\-x\fR
 to provide both text and graph output:
 .PP
-\fBFigure\ \&22.25.\ \&ndb_top Running in Terminal\fR
+\fBFigure\ \&22.26.\ \&ndb_top Running in Terminal\fR
 .sp
 .RS 4
 [IMAGE]\&\s-2\u[1]\d\s+2
@@ -1041,10 +912,14 @@ Display from ndb_top, running in a
             terminal window\&. Shows information for each node, including
             the utilized resources\&.
 .RE
+.PP
+Beginning with NDB 8\&.0\&.20,
+\fBndb_top\fR
+also shows spin times for threads, displayed in green\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

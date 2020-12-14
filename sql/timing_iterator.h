@@ -1,7 +1,7 @@
 #ifndef SQL_TIMING_ITERATOR_H_
 #define SQL_TIMING_ITERATOR_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +53,6 @@ class TimingIterator final : public RowIterator {
     m_iterator.SetNullRowFlag(is_null_row);
   }
   void UnlockRow() override { m_iterator.UnlockRow(); }
-  std::vector<Child> children() const override { return m_iterator.children(); }
-  std::vector<std::string> DebugString() const override {
-    return m_iterator.DebugString();
-  }
   void StartPSIBatchMode() override { m_iterator.StartPSIBatchMode(); }
   void EndPSIBatchModeIfStarted() override {
     m_iterator.EndPSIBatchModeIfStarted();
@@ -80,6 +76,14 @@ class TimingIterator final : public RowIterator {
     // crashes.
     return std::chrono::time_point_cast<std::chrono::nanoseconds>(
         steady_clock::now());
+#elif defined(__linux__)
+    // Work around very slow libstdc++ implementations of std::chrono
+    // (those compiled with _GLIBCXX_USE_CLOCK_GETTIME_SYSCALL).
+    timespec tp;
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return steady_clock::time_point(
+        steady_clock::duration(std::chrono::seconds(tp.tv_sec) +
+                               std::chrono::nanoseconds(tp.tv_nsec)));
 #else
     return steady_clock::now();
 #endif

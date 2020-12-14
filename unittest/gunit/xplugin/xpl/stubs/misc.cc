@@ -1,35 +1,39 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#include "my_config.h"
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <sys/types.h>
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
+#include <atomic>
+#include <cstdint>
+#include <memory>
+
+#include "my_config.h"  // NOLINT(build/include_subdir)
+#include "my_dbug.h"    // NOLINT(build/include_subdir)
 #include "mysql/service_plugin_registry.h"
+#include "violite.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/replication.h"
-#include "violite.h"
+#include "unittest/gunit/xplugin/xpl/mock/mock_component_services.h"
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -41,12 +45,12 @@
 #include <sys/utsname.h>
 #endif
 
-#include <atomic>
-
 const char *my_localhost;
 std::atomic<int32> connection_events_loop_aborted_flag;
+bool opt_initialize = false;
 
-int ip_to_hostname(struct sockaddr_storage *, const char *, char **, uint *) {
+int ip_to_hostname(struct sockaddr_storage *, const char *, char **,
+                   uint32_t *) {
   DBUG_ASSERT(0);
   return 1;
 }
@@ -91,15 +95,32 @@ long ssl_wrapper_sess_accept(struct st_VioSSLFd *) { return 0; }
 
 long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *) { return 0; }
 
-SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() {
+  using xpl::test::Mock_mysql_plugin_registry;
 
-int mysql_plugin_registry_release(SERVICE_TYPE(registry) *) { return 0; }
+  if (Mock_mysql_plugin_registry::m_mysql_plugin_registry)
+    return Mock_mysql_plugin_registry::m_mysql_plugin_registry
+        ->mysql_plugin_registry_acquire();
+  return nullptr;
+}
+
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) * reg) {
+  using xpl::test::Mock_mysql_plugin_registry;
+
+  if (Mock_mysql_plugin_registry::m_mysql_plugin_registry)
+    return Mock_mysql_plugin_registry::m_mysql_plugin_registry
+        ->mysql_plugin_registry_release(reg);
+
+  return 0;
+}
 
 thread_local THD *current_thd = nullptr;
 
 THD *thd_get_current_thd() { return current_thd; }
 
 bool check_address_is_wildcard(const char *, size_t) { return false; }
+
+void conditional_sync_point(std::string) {}
 
 #ifdef HAVE_SETNS
 bool set_network_namespace(const std::string &) { return false; }

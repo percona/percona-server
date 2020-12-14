@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,4 +179,44 @@ bool fetch_referenced_tables_from_ndb_dictionary(
   }
 
   DBUG_RETURN(true);
+}
+
+/**
+  @brief Retrieve a list of foreign keys referencing the given table and on it.
+
+  @param dict          The NDB Dictionary object
+  @param table         The table whose foreign keys need to be retrieved
+  @param[out] fk_list  The output param that will have the list of foreign
+                       keys.
+  @return true on success or, false on failure to retrieve all the foreign keys.
+          On failure, the error can be retrieved from dict's NdbError object
+ */
+bool retrieve_foreign_key_list_from_ndb(NdbDictionary::Dictionary *dict,
+                                        const NdbDictionary::Table *table,
+                                        Ndb_fk_list *fk_list) {
+  DBUG_TRACE;
+
+  // Loop the dependant list and retrieve all FKs
+  NdbDictionary::Dictionary::List list;
+  if (dict->listDependentObjects(list, *table) != 0) {
+    DBUG_PRINT("error", ("Failed to list dependent objects for table '%s'",
+                         table->getName()));
+    return false;
+  }
+  for (unsigned i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element element = list.elements[i];
+    if (element.type != NdbDictionary::Object::ForeignKey) continue;
+    NdbDictionary::ForeignKey fk;
+    if (dict->getForeignKey(fk, element.name) != 0) {
+      // Could not find the listed fk
+      DBUG_ASSERT(false);
+      DBUG_PRINT("error",
+                 ("Failed to retrieve the foreign key '%s'", element.name));
+      return false;
+    }
+    fk_list->emplace_back(fk);
+  }
+  DBUG_PRINT("info", ("Found %zu foreign keys in table %s", fk_list->size(),
+                      table->getName()));
+  return true;
 }

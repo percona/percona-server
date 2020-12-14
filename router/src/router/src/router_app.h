@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,8 +107,10 @@ class MySQLRouter {
    * @param arguments a vector of strings
    * @param out_stream output stream representing "stdout"
    * @param err_stream output stream representing "stderr"
-   * @param sys_user_operations .oO( ... )
    */
+#ifndef _WIN32
+  /// @param sys_user_operations system operations which provide chown, ...
+#endif
   MySQLRouter(const mysql_harness::Path &origin,
               const std::vector<std::string> &arguments,
               std::ostream &out_stream = std::cout,
@@ -137,8 +139,10 @@ class MySQLRouter {
    * @param argv pointer to first command line argument
    * @param out_stream output stream representing "stdout"
    * @param err_stream output stream representing "stderr"
-   * @param sys_user_operations .oO( ... )
    */
+#ifndef _WIN32
+  /// @param sys_user_operations system operations which provide chown, ...
+#endif
   MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
               std::ostream &err_stream
 #ifndef _WIN32
@@ -228,6 +232,25 @@ class MySQLRouter {
    * @endinternal
    */
   void start();
+
+  /** @brief Stop and cleanup the MySQL Router application
+   *
+   * Cleanup to perform when the MySQL Router application shuts down.
+   *
+   * Example:
+   *
+   *     MySQLRouter router;
+   *     router.start();
+   *     ...
+   *     router.stop();
+   *
+   * Throws std::runtime_error on errors during cleanup.
+   *
+   * @internal
+   * We ensure that the Harness pidfile is removed if present.
+   * @endinternal
+   */
+  void stop();
 
   /** @brief Gets list of default configuration files
    *
@@ -385,6 +408,24 @@ class MySQLRouter {
    */
   void assert_bootstrap_mode(const std::string &option_name) const;
 
+  /**
+   * @brief verify that option given by user is not used with bootstrap option
+   * (--bootstrap or -B).
+   *
+   * @throw std::runtime_error if called in bootstrap mode.
+   */
+  void assert_not_bootstrap_mode(const std::string &option_name) const;
+
+  /**
+   * @brief verify that option given by user is an integer value in the given
+   * range.
+   *
+   * @throw std::out_of_range - option not in [min, max] range
+   * @throw std::invalid_argument - not a valid integer
+   */
+  void assert_option_value_in_range(const std::string &option_value,
+                                    const int min, const int max) const;
+
   /** @brief Shows command line usage and option description
    *
    * Shows command line usage and all available options together with their
@@ -468,7 +509,7 @@ class MySQLRouter {
   // throws std::runtime_error
   mysql_harness::LoaderConfig *make_config(
       const std::map<std::string, std::string> params,
-      ConfigFiles config_files);
+      const std::vector<std::string> &config_files);
 
   std::map<std::string, std::string> get_default_paths() const;
 
@@ -476,15 +517,12 @@ class MySQLRouter {
    * patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
-  // TODO move these to class ConfigFiles
   /** @brief Vector with default configuration file locations as strings **/
   std::vector<std::string> default_config_files_;
-  // TODO move these to class ConfigFiles
   /** @brief Vector with extra configuration file locations as strings **/
   std::vector<std::string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line
    * arguments **/
-  // TODO move these to class ConfigFiles
   std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;

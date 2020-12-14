@@ -26,6 +26,7 @@
 
 /* MyRocks header files */
 #include "./rdb_comparator.h"
+#include "./rdb_global.h"
 
 namespace myrocks {
 
@@ -62,11 +63,11 @@ class Rdb_cf_options {
     return m_default_cf_opts;
   }
 
-  static const rocksdb::Comparator *
-  get_cf_comparator(const std::string &cf_name);
+  static const rocksdb::Comparator *get_cf_comparator(
+      const std::string &cf_name);
 
-  std::shared_ptr<rocksdb::MergeOperator>
-  get_cf_merge_operator(const std::string &cf_name);
+  std::shared_ptr<rocksdb::MergeOperator> get_cf_merge_operator(
+      const std::string &cf_name);
 
   /* bool true return indicates cf_name was found, otherwise default */
   bool get_cf_options(const std::string &cf_name,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -91,30 +91,34 @@ void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@param[out]	mysql_rec		        row in the MySQL format
-@param[in,out]	prebuilt		    prebuilt structure
-@param[in]	rec			            Innobase record in the index
-                                which was described in prebuilt's
-                                template, or in the clustered index;
-                                must be protected by a page latch
-@param[in]	vrow			          virtual columns
-@param[in]	rec_clust		        true if rec is in the clustered index instead
-                                of prebuilt->index
-@param[in]	index			          index of rec
-@param[in]	offsets			        array returned by rec_get_offsets(rec)
-@param[in]	clust_templ_for_sec	true if rec belongs to secondary index
-                                but the prebuilt->template is in
-                                clustered index format and it
-                                is used only for end range comparison
-@param[in]	lob_undo		        the LOB undo information.
-@param[in,out] blob_heap        If not null then use this heap for BLOBs.
+@param[out]     mysql_rec           row in the MySQL format
+@param[in,out]  prebuilt            prebuilt structure
+@param[in]      rec                 Innobase record in the index
+                                    which was described in prebuilt's
+                                    template, or in the clustered index;
+                                    must be protected by a page latch
+@param[in]      vrow                virtual columns
+@param[in]      rec_clust           true if rec is in the clustered index
+                                    instead of index which could belong to
+                                    prebuilt->index
+@param[in]      rec_index           index of rec
+@param[in]      prebuilt_index      prebuilt->index
+@param[in]      offsets             array returned by rec_get_offsets(rec)
+@param[in]      clust_templ_for_sec true if rec belongs to secondary index
+                                    but the prebuilt->template is in
+                                    clustered index format and it
+                                    is used only for end range comparison
+@param[in]      lob_undo            the LOB undo information.
+@param[in,out]  blob_heap           If not null then use this heap for BLOBs
 @return true on success, false if not all columns could be retrieved */
 // clang-format on
 bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
                              const rec_t *rec, const dtuple_t *vrow,
-                             bool rec_clust, const dict_index_t *index,
+                             bool rec_clust, const dict_index_t *rec_index,
+                             const dict_index_t *prebuilt_index,
                              const ulint *offsets, bool clust_templ_for_sec,
-                             lob::undo_vers_t *lob_undo, mem_heap_t *blob_heap);
+                             lob::undo_vers_t *lob_undo,
+                             mem_heap_t *&blob_heap);
 
 /** Converts a key value stored in MySQL format to an Innobase dtuple. The last
  field of the key value may be just a prefix of a fixed length field: hence
@@ -166,7 +170,7 @@ dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
@@ -208,7 +212,8 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 @return DB_SUCCESS or error code */
 dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
                         row_prebuilt_t *prebuilt, ulint match_mode,
-                        ulint direction) MY_ATTRIBUTE((warn_unused_result));
+                        const ulint direction)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Count rows in a R-Tree leaf level.
  @return DB_SUCCESS if successful */
@@ -455,16 +460,23 @@ function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in]	templ		MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-@param[in]	index		InnoDB index
+@param[in]	index		InnoDB index */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no
+                                or templ->icp_rec_field_no */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	data		data to store
 @param[in]	len		length of the data
-@param[in]	prebuilt	use prebuilt->compress_heap only here
+@param[in]	prebuilt	use prebuilt->compress_heap only here */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	sec_field	secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
+#endif /* UNIV_DEBUG */
 void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               const mysql_row_templ_t *templ,
                                               const dict_index_t *index,

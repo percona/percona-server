@@ -12,26 +12,10 @@ call mtr.add_suppression("Check keyring plugin fail, please check the keyring pl
 call mtr.add_suppression("Redo log key generation failed.");
 --enable_query_log
 
-# Enable redo log encryption, should report error in server log, since keyring is not loaded.
-eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_mode;
-
-# Create a table with encryption, should fail since keyring is not
-# loaded.
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
-
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-
-let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: $KEYRING_PARAMS
 --source include/restart_mysqld_no_echo.inc
 
-# Enable redo log encryption
-eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_mode;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 
 SHOW CREATE TABLE t1;
 
@@ -55,9 +39,7 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
-let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log --innodb_redo_log_encrypt=$redo_log_mode;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: $KEYRING_PARAMS
 --source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -98,9 +80,7 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
-let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log --innodb_redo_log_encrypt=$redo_log_mode;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
---replace_regex /\.dll/.so/
+--let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log
 --source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;

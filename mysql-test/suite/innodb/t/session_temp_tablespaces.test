@@ -227,7 +227,7 @@ let $restart_parameters=;
 # Create a dummy file in #innodb_temp directory manually and see if
 # this is shown in INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
 
---write_file $MYSQLD_DATADIR/#innodb_temp/temp_11.ibt
+--write_file $MYSQLD_DATADIR/#innodb_temp/temp_50.ibt
 test contents
 EOF
 
@@ -319,3 +319,4 @@ SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TA
 --echo # Cleanup
 --echo #########################################################################
 DROP TABLESPACE tbs;
+--remove_file $MYSQLD_DATADIR/#innodb_temp/temp_50.ibt

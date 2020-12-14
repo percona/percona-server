@@ -1,7 +1,7 @@
 #ifndef SQL_SORTING_ITERATOR_H_
 #define SQL_SORTING_ITERATOR_H_
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_table_map.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_sort.h"
@@ -58,8 +59,13 @@ class SortingIterator final : public RowIterator {
   // times). It _does_ take ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
   // "examined_rows", if not nullptr, is incremented for each successful Read().
+  //
+  // num_rows_estimate is used only for whether we intend to use the priority
+  // queue optimization or not; if we estimate fewer rows than we can fit into
+  // RAM, we never use the priority queue.
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
+                  ha_rows num_rows_estimate, table_map tables_to_get_rowid_for,
                   ha_rows *examined_rows);
   ~SortingIterator() override;
 
@@ -81,16 +87,15 @@ class SortingIterator final : public RowIterator {
   int Read() override { return m_result_iterator->Read(); }
 
   void SetNullRowFlag(bool is_null_row) override {
+    if (m_result_iterator == nullptr) {
+      // If we don't have a result yet, it will come up with the flag unset.
+      DBUG_ASSERT(is_null_row == false);
+      return;
+    }
     m_result_iterator->SetNullRowFlag(is_null_row);
   }
 
   void UnlockRow() override { m_result_iterator->UnlockRow(); }
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source_iterator.get(), ""}};
-  }
-
-  std::vector<std::string> DebugString() const override;
 
   /// Optional (when JOIN::destroy() runs, the iterator and its buffers
   /// will be cleaned up anyway); used to clean up the buffers a little
@@ -102,7 +107,7 @@ class SortingIterator final : public RowIterator {
   void CleanupAfterQuery();
 
  private:
-  int DoSort(QEP_TAB *qep_tab);
+  int DoSort();
   void ReleaseBuffers();
 
   Filesort *m_filesort;
@@ -124,6 +129,8 @@ class SortingIterator final : public RowIterator {
 
   Sort_result m_sort_result;
 
+  const ha_rows m_num_rows_estimate;
+  const table_map m_tables_to_get_rowid_for;
   ha_rows *m_examined_rows;
 
   // Holds one out of all RowIterator implementations we need so that it is

@@ -2,12 +2,12 @@
 .\"     Title: \fBndbinfo_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBINFO_SELECT_ALL\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBINFO_SELECT_ALL\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -99,7 +99,7 @@ node_id log_type        log_id  log_part        total   used    high
 8       0       0       1       268435456       0       0
 8       0       0       2       268435456       0       0
 8       0       0       3       268435456       0       0
-shell>                     
+shell>
 .fi
 .if n \{\
 .RE
@@ -114,7 +114,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.326.\ \&Command\-line options for the ndbinfo_select_all program
+.B Table\ \&22.254.\ \&Command\-line options for the ndbinfo_select_all program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -132,45 +132,45 @@ l l l
 l l l.
 T{
 .PP
---delay=#
+\fB \fR\fB--delay=#\fR\fB \fR
 T}:T{
-Set the delay in seconds between loops. Default is 5.
+Set delay in seconds between loops
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---loops=#,
+\fB--loops=#\fR,
 .PP
--l
+\fB \fR\fB-l\fR\fB \fR
 T}:T{
-Set the number of times to perform the select. Default is 1.
+Set number of times to perform select
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---database=db_name,
+\fB--database=db_name\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
-Name of the database where the table located.
+Name of database where table is located
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---parallelism=#,
+\fB--parallelism=#\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
-Set the degree of parallelism.
+Set degree of parallelism
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -186,40 +186,33 @@ T}
 \fB\-\-delay=\fR\fBseconds\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --delay=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 5
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 MAX_INT
 T}
@@ -242,40 +235,33 @@ is set to 0 or 1\&.
 \fB\-l \fR\fB\fInumber\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --loops=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 1
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 MAX_INT
 T}
@@ -288,7 +274,7 @@ to set the time between loops\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

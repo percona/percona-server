@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,11 +108,20 @@ const uint CLONE_MAX_CONN_RETRY = 60;  // 60 x 5 sec = 5 minutes
 /** Maximum number of restart attempts */
 const uint CLONE_MAX_RESTART = 100;
 
+/** Minimum block size of clone data. */
+const uint CLONE_MIN_BLOCK = 1024 * 1024;
+
+/** Minimum network packet. Safe margin for meta information */
+const uint CLONE_MIN_NET_BLOCK = 2 * CLONE_MIN_BLOCK;
+
 /* Namespace for all clone data types */
 namespace myclone {
 
-/**  Clone protocol version */
-const uint32_t CLONE_PROTOCOL_VERSION = 0x0100;
+/**  Clone protocol oldest version */
+const uint32_t CLONE_PROTOCOL_VERSION_V1 = 0x0100;
+
+/**  Clone protocol latest version */
+const uint32_t CLONE_PROTOCOL_VERSION = 0x0101;
 
 /** Clone protocol commands. Please bump the protocol version before adding
 new command. */
@@ -159,6 +168,9 @@ typedef enum Type_Command_Response : uchar {
 
   /** Character set collation */
   COM_RES_COLLATION,
+
+  /** Plugin with shared object name : introduced in version 0x0101 */
+  COM_RES_PLUGIN_V2,
 
   /** End of response data */
   COM_RES_COMPLETE = 99,
@@ -308,6 +320,10 @@ struct Data_Link {
   };
 };
 
+/** Validate all local configuration parameters.
+@param[in]	thd	current session THD
+@return error code */
+int validate_local_params(THD *thd);
 }  // namespace myclone
 
 #endif /* CLONE_H */

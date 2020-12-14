@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class Remote_clone_handler : public Group_event_observer {
   /**
     The destructor
   */
-  ~Remote_clone_handler();
+  ~Remote_clone_handler() override;
 
   /**
     Set the class threshold for clone activation
@@ -147,19 +147,18 @@ class Remote_clone_handler : public Group_event_observer {
 
   // The listeners for group events
 
-  virtual int after_view_change(
-      const std::vector<Gcs_member_identifier> &joining,
-      const std::vector<Gcs_member_identifier> &leaving,
-      const std::vector<Gcs_member_identifier> &group, bool is_leaving,
-      bool *skip_election, enum_primary_election_mode *election_mode,
-      std::string &suggested_primary);
-  virtual int after_primary_election(std::string primary_uuid,
-                                     bool primary_changed,
-                                     enum_primary_election_mode election_mode,
-                                     int error);
-  virtual int before_message_handling(const Plugin_gcs_message &message,
-                                      const std::string &message_origin,
-                                      bool *skip_message);
+  int after_view_change(const std::vector<Gcs_member_identifier> &joining,
+                        const std::vector<Gcs_member_identifier> &leaving,
+                        const std::vector<Gcs_member_identifier> &group,
+                        bool is_leaving, bool *skip_election,
+                        enum_primary_election_mode *election_mode,
+                        std::string &suggested_primary) override;
+  int after_primary_election(std::string primary_uuid, bool primary_changed,
+                             enum_primary_election_mode election_mode,
+                             int error) override;
+  int before_message_handling(const Plugin_gcs_message &message,
+                              const std::string &message_origin,
+                              bool *skip_message) override;
 
   /**
     The thread callback passed onto mysql_thread_create.
@@ -261,6 +260,17 @@ class Remote_clone_handler : public Group_event_observer {
       @retval != 0 some error occurred
   */
   int kill_clone_query();
+
+  /**
+    Given a error code it evaluates if the error is critical or not.
+    Basically it tells us if there is still data in the server.
+
+    @param[in] error_code the clone returned error
+
+    @retval true  error is critical
+    @retval false error is not critical
+  */
+  bool evaluate_error_code(int error_code);
 
 #ifndef DBUG_OFF
   /**

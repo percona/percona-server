@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,8 @@ Plugin_table table_metadata_locks::m_table_def(
 PFS_engine_table_share table_metadata_locks::m_share = {
     &pfs_readonly_acl,
     table_metadata_locks::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_metadata_locks::get_row_count,
     sizeof(PFS_simple_index),
     &m_table_lock,
@@ -165,7 +165,7 @@ int table_metadata_locks::rnd_next(void) {
   m_pos.set_at(&m_next_pos);
   PFS_mdl_iterator it = global_mdl_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -179,7 +179,7 @@ int table_metadata_locks::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_mdl_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -187,7 +187,7 @@ int table_metadata_locks::rnd_pos(const void *pos) {
 }
 
 int table_metadata_locks::index_init(uint idx, bool) {
-  PFS_index_metadata_locks *result = NULL;
+  PFS_index_metadata_locks *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -217,7 +217,7 @@ int table_metadata_locks::index_next(void) {
 
   do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -225,7 +225,7 @@ int table_metadata_locks::index_next(void) {
         }
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -267,13 +267,13 @@ int table_metadata_locks::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* OBJECT_SCHEMA */
         case 2: /* OBJECT_NAME */
         case 3: /* COLUMN_NAME */
-          m_row.m_object.set_nullable_field(f->field_index, f);
+          m_row.m_object.set_nullable_field(f->field_index(), f);
           break;
         case 4: /* OBJECT_INSTANCE */
           set_field_ulonglong(f, (intptr)m_row.m_identity);

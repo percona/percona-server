@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -284,26 +284,27 @@ std::string get_logging_folder(const std::string &conf_file) {
   return logging_folder;
 }
 
-/** @brief Sets appropriate permissions on log dir/file so that Router can run
+/** @brief Sets appropriate permissions on log dir so that Router can run
  *         as a Windows service
  *
  * This function first obtains logging_folder (first it checks Router config
  * file, if not found there, it uses the predefined default) and then sets RW
- * access for that folder, and log file inside of it (if present), such that
- * Router can run as a Windows service (at the time of writing, it runs as user
- * `LocalService`).
+ * access for that folder, such that Router can run as a Windows service
+ *
  *
  * @param conf_file Path to Router configuration file
  *
  * @throws std::runtime_error on any error (i.e. opening/parsing config file
- *         fails, log dir or file is bogus, setting permissions on log dir or
- *         file fails)
+ *         fails, log dir is bogus, setting permissions on log dir fails)
  *
- * @note At the moment we don't give delete rights, but these might be needed
- *       when we implement log file rotation on Windows.
  *
  * @note this function is private to this compilation unit, but outside of
  *       unnamed namespace so it can be unit-tested.
+ *
+ * @note we do not care about the logfile access rights. The assumption is that
+ *       if the Service creates the file it will have a proper rights to write
+ *       to it. If the file already exists and is missing proper rights there
+ *       will be an error - we are letting the user to fix that.
  */
 void allow_windows_service_to_write_logs(const std::string &conf_file) {
   // obtain logging_folder; throws std::runtime_error on failure
@@ -312,7 +313,6 @@ void allow_windows_service_to_write_logs(const std::string &conf_file) {
 
   using mysql_harness::Path;
   const Path path_to_logging_folder{logging_folder};
-  Path path_to_logging_file{path_to_logging_folder.join("mysqlrouter.log")};
 
   if (!path_to_logging_folder.is_directory())
     throw std::runtime_error(
@@ -329,23 +329,16 @@ void allow_windows_service_to_write_logs(const std::string &conf_file) {
                       logging_folder + "' failed: " + e.what();
     throw std::runtime_error(msg);
   }
+}
 
-  // set RW permission for user LocalService on log file
-  if (path_to_logging_file.is_regular()) {
-    try {
-      mysql_harness::make_file_private(
-          path_to_logging_file.str(),
-          false /* false means: RW access for LocalService */);
-    } catch (const std::exception &e) {
-      std::string msg = "Setting RW access for LocalService on log file '" +
-                        path_to_logging_file.str() + "' failed: " + e.what();
-      throw std::runtime_error(msg);
-    }
-  } else if (path_to_logging_file.exists()) {
-    throw std::runtime_error(std::string("Path '") +
-                             path_to_logging_file.str() +
-                             "' does not point to a regular file");
-  }
+/** @brief Wrapper for request_application_shutdown()
+ *
+ * The service Init() method must call a function without parameters on
+ * shutdown, hence the need for a wrapper function for
+ * request_application_shutdown().
+ */
+static void service_request_shutdown() {
+  request_application_shutdown(SHUTDOWN_REQUESTED);
 }
 
 int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
@@ -362,7 +355,7 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
         // - g_service.StopService() (triggered by OS due to outside event, such
         // as termination request)
         BOOL ok = g_service.Init(kRouterServiceName, (void *)router_service,
-                                 request_application_shutdown);
+                                 service_request_shutdown);
         if (!ok) {
           DWORD err = GetLastError();
 

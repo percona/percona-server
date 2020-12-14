@@ -21,10 +21,13 @@ create table t3 (a int not null, b int, primary key (a));
 insert into t1 values (1,10), (2,20), (3,30),  (4,40);
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+--sorted_result
 select * from t2 where t2.a in (select a from t1);
 explain select * from t2 where t2.a in (select a from t1);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 drop table t1, t2, t3;
@@ -40,14 +43,19 @@ select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
 
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+--sorted_result
 select * from t2 where t2.a in (select a from t1);
 explain select * from t2 where t2.a in (select a from t1);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 insert into t1 values (3,31);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 drop table t0, t1, t2, t3;
@@ -98,13 +106,13 @@ explain select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t1
 
 --echo subqueries within outer joins go into ON expr.
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join (t2 a, t2 b) on ( a.a= t1.a and b.a in (select pk from t10));
 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --echo t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10));
 
@@ -173,6 +181,7 @@ while ($i)
          eval PREPARE stmt FROM "$query";
          --sorted_result
          EXECUTE stmt;
+	 --echo
          --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
@@ -195,6 +204,7 @@ while ($i)
          eval PREPARE stmt FROM "$query";
          --sorted_result
          EXECUTE stmt;
+	 --echo
          --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
@@ -450,8 +460,9 @@ insert into t4 select a from t3;
 explain select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
-# In subquery_sj_loosescan_bka_nixbnl (ie., with loose scan), demonstrates
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
 # how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 --sorted_result
@@ -1410,7 +1421,9 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
 # reintroduced again at the very top of the join tree.
 #
 # In subquery_sj_{all,firstmatch}_*, demonstrates how partially overlapping
-# outer joins and first matches are rewritten into weedout at the top.
+# outer joins and first matches are rejected by the join optimizer and cannot
+# exist (DBUG_ASSERTs in FindSubstructure verify it).
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
          LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
@@ -2230,6 +2243,7 @@ WHERE t1field IN (SELECT * FROM v2);
 
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -2243,6 +2257,7 @@ WHERE t1field IN (SELECT * FROM v2)
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1, t2, t3;
@@ -2409,6 +2424,7 @@ WHERE t1field IN (SELECT v1field FROM v1);
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP PROCEDURE p1;
@@ -2724,6 +2740,7 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2750,6 +2767,7 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2775,6 +2793,7 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -3348,21 +3367,9 @@ t1.b=t2.b);
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 
-# the query just below may exhibit BUG#49129:
-create temporary table tmp select * from t0 where t0.a in 
-  (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
-# detect it and warn in result file if it's the case:
-create temporary table tmp_as_ref (a int);
-insert into tmp_as_ref values(0),(1),(2),(3); # correct desired result
-if (`select count(*) from tmp_as_ref left join tmp on tmp.a=tmp_as_ref.a
-where tmp.a is null`)
-{
-  --echo 
-  --echo # The result below is wrong due to Bug#49129
-}
-select * from tmp;
+select * from t0 where t0.a in (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 
-drop table t0, t1, t2, tmp, tmp_as_ref;
+drop table t0, t1, t2;
 
 #
 # BUG#35767: Processing of uncorrelated subquery with semi-join cause wrong result and crash
@@ -3823,6 +3830,7 @@ WHERE t1.id IN (
     )
   )';
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 PREPARE stmt FROM
@@ -3837,6 +3845,7 @@ WHERE t1.id IN (
     )
   )';
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1,t2,t3;
@@ -3883,6 +3892,7 @@ WHERE country_id IN (SELECT vf_country_id FROM v1);
 --echo
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -4024,6 +4034,7 @@ let $query=
 SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i
                                 FROM t2 JOIN t3
                                 WHERE t2.i + t3.i = 5);
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -5082,6 +5093,7 @@ WHERE (a, a) IN
 ;
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -5681,6 +5693,7 @@ FROM t2 AS alias1
 ';
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DEALLOCATE prepare stmt;
@@ -6037,6 +6050,7 @@ WHERE EXISTS
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6345,6 +6359,7 @@ FROM t2 LEFT JOIN t1 ON t2.vc=t1.vc
 WHERE t2.vc IN (SELECT vc FROM t2 AS t3);
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6376,7 +6391,10 @@ FROM t1 AS alias1
 eval explain $query;
 
 eval PREPARE stmt FROM "$query";
+--sorted_result
 EXECUTE stmt;
+--echo
+--sorted_result
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6510,7 +6528,8 @@ INSERT INTO t2 VALUES
  (15,7,'2008-07-02 00:00:00','g','g'), (16,4,'1900-01-01 00:00:00','p','p'),
  (17,1,'2002-12-08 11:34:58','q','q'), (18,9,'1900-01-01 00:00:00','w','w'),
  (19,4,'1900-01-01 00:00:00','d','d'), (20,8,'2002-08-25 20:35:06','e','e');
- 
+
+--sorted_result
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
      RIGHT JOIN t2 AS alias2
@@ -6540,6 +6559,7 @@ WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
         WHERE sq2_alias2.col_int_key < 2);
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6995,9 +7015,10 @@ ORDER BY col_int_key
 
 eval explain $query;
 
-# In subquery_sj_loosescan_bka_nixbnl (ie., with loose scan), shows a case
+# In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), shows a case
 # where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
 # have a table that is both firstmatch (semijoin) _and_ outer join.
+--skip_if_hypergraph  # Depends on query plan.
 eval explain format=tree $query;
 
 eval $query;
@@ -7101,10 +7122,12 @@ AND t2.uid=t1.fid;
 
 FLUSH STATUS;
 
+--sorted_result
 SELECT name FROM t2, t1
 WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
 AND t2.uid=t1.fid;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%handler_read%';
 
 DROP TABLE t1,t2,t3,t4;
@@ -7259,6 +7282,8 @@ INSERT INTO t1 VALUES ('08:35:24', 'X'), ('14:51:13', 'S'), ('11:22:33', 'Q');
 CREATE TABLE t2 ( pk INTEGER );
 INSERT INTO t2 VALUES (1), (2);
 ANALYZE TABLE t1, t2;
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+--sorted_result
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 DROP TABLE t1, t2;

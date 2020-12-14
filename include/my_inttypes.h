@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,26 +68,8 @@ typedef int64_t int64;
 typedef uint64_t uint64;
 typedef intptr_t intptr;
 
-#if defined(_WIN32)
-typedef unsigned long long my_off_t;
-#else
-#if SIZEOF_OFF_T > 4
 typedef ulonglong my_off_t;
-#else
-typedef unsigned long my_off_t;
-#endif
-#endif /*_WIN32*/
 #define MY_FILEPOS_ERROR (~(my_off_t)0)
-
-#if defined(_WIN32)
-/*
- off_t is 32 bit long. We do not use C runtime functions
- with off_t but native Win32 file IO APIs, that work with
- 64 bit offsets.
-*/
-#undef SIZEOF_OFF_T
-#define SIZEOF_OFF_T 8
-#endif
 
 #define INT_MIN64 (~0x7FFFFFFFFFFFFFFFLL)
 #define INT_MAX64 0x7FFFFFFFFFFFFFFFLL

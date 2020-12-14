@@ -9,7 +9,6 @@ IF(NOT GMOCK_FOUND OR NOT WITH_KEYRING_VAULT)
 ENDIF()
 
 CHECK_IF_LIB_FOUND(CURL "keyring_vault unit tests" FATAL_ERROR)
-CHECK_IF_CURL_DEPENDS_ON_RTMP("keyring_vault unit tests")
 
 message(STATUS "Building keyring_vault unittests")
 
@@ -83,7 +82,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t keyring_vault_test)
 
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
-    gunit_large strings mysys sql_main sql_gis sql_dd)
+    gunit_large strings mysys sql_main sql_gis sql_dd minchassis)
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd sql_main)
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t ${CURL_LIBRARY} ${SSL_LIBRARIES})
@@ -103,7 +102,7 @@ ELSE(MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(${test}-t
     gunit_large strings mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd minchassis)
   TARGET_LINK_LIBRARIES(${test}-t ${CURL_LIBRARY} ${SSL_LIBRARIES})
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 

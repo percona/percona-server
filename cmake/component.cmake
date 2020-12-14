@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,31 +20,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# MYSQL_ADD_COMPONENT(component sources... options/keywords...)
 
-GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
+MACRO(MYSQL_ADD_COMPONENT component_arg)
+  SET(COMPONENT_OPTIONS
+    MODULE_ONLY    # generate dynamic library
+    SKIP_INSTALL
+    STATIC         # generate new static library
+    TEST_ONLY      # include library only with test distribution
+    )
+  SET(COMPONENT_ONE_VALUE_KW
+    )
+  SET(COMPONENT_MULTI_VALUE_KW
+    LINK_LIBRARIES # lib1 ... libN
+    )
 
-# MYSQL_ADD_COMPONENT(component source1...sourceN
-#
-# [STATIC|MODULE_ONLY]
-# [TEST_ONLY]
-# [LINK_LIBRARIES lib1...libN]
-# [SKIP_INSTALL]
-#
-# STATIC - generate new static library,
-# MODULE_ONLY - generate dynamic library,
-# TEST_ONLY - include library only with test distribution
-
-MACRO(MYSQL_ADD_COMPONENT)
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "LINK_LIBRARIES"
-    "STATIC;MODULE_ONLY;TEST_ONLY;SKIP_INSTALL"
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "${COMPONENT_OPTIONS}"
+    "${COMPONENT_ONE_VALUE_KW}"
+    "${COMPONENT_MULTI_VALUE_KW}"
     ${ARGN}
     )
 
-  LIST(GET ARG_DEFAULT_ARGS 0 component)
-  SET(SOURCES ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT SOURCES 0)
+  SET(component ${component_arg})
+  SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
+
   STRING(TOUPPER ${component} component)
   STRING(TOLOWER ${component} component_lower)
   STRING(TOLOWER component_${component} target)
@@ -75,6 +75,12 @@ MACRO(MYSQL_ADD_COMPONENT)
   ADD_VERSION_INFO(${target} ${kind} SOURCES)
   ADD_LIBRARY(${target} ${kind} ${SOURCES})
 
+  TARGET_COMPILE_DEFINITIONS(${target} PUBLIC MYSQL_COMPONENT)
+  IF(COMPRESS_DEBUG_SECTIONS)
+    MY_TARGET_LINK_OPTIONS(${target}
+      "LINKER:--compress-debug-sections=zlib")
+  ENDIF()
+
   IF(ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
   ENDIF()
@@ -87,9 +93,22 @@ MACRO(MYSQL_ADD_COMPONENT)
     SET_TARGET_PROPERTIES(${target} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
+
+    # For APPLE: adjust path dependecy for SSL shared libraries.
+    SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
+
     IF(WIN32_CLANG AND WITH_ASAN)
       TARGET_LINK_LIBRARIES(${target}
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+    ENDIF()
+
+    # To hide the component symbols in the shared object
+    IF(UNIX)
+      IF(MY_COMPILER_IS_CLANG AND WITH_UBSAN)
+        # nothing, clang/ubsan gets confused
+      ELSE()
+        TARGET_COMPILE_OPTIONS(${target} PRIVATE "-fvisibility=hidden")
+      ENDIF()
     ENDIF()
 
     IF(NOT ARG_SKIP_INSTALL)
@@ -100,10 +119,8 @@ MACRO(MYSQL_ADD_COMPONENT)
         SET(INSTALL_COMPONENT Server)
       ENDIF()
 
-      IF(LINUX_INSTALL_RPATH_ORIGIN)
-        ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
-      ENDIF()
-      MYSQL_INSTALL_TARGETS(${target}
+      ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
+      MYSQL_INSTALL_TARGET(${target}
         DESTINATION ${INSTALL_PLUGINDIR}
         COMPONENT ${INSTALL_COMPONENT})
       INSTALL_DEBUG_TARGET(${target}

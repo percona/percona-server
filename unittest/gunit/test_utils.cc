@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"
+#include "sql/sql_plugin.h"
 #include "sql/xa.h"
 #include "unicode/uclean.h"
 
@@ -83,9 +84,11 @@ void setup_server_for_unit_tests() {
                   const_cast<char *>("--explicit_defaults_for_timestamp"),
                   const_cast<char *>("--datadir=" DATA_DIR),
                   const_cast<char *>("--lc-messages-dir=" ERRMSG_DIR),
-                  0};
+                  nullptr};
   set_remaining_args(6, argv);
   system_charset_info = &my_charset_utf8_general_ci;
+
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   sys_var_init();
   init_common_variables();
   test_flags |= TEST_SIGINT;

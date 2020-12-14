@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -389,6 +389,10 @@ typedef void (*ib_cb_t)(void);
 #define IB_CFG_BINLOG_ENABLED 0x1
 #define IB_CFG_MDL_ENABLED 0x2
 #define IB_CFG_DISABLE_ROWLOCK 0x4
+
+/** Used by ib_read_tuple to determine number of bytes to allocate for new slot
+if needed */
+static const size_t REC_BUF_SLOT_SIZE = 16384;
 
 /** The first argument to the InnoDB message logging function. By default
 it's set to stderr. You should treat ib_msg_stream_t as a void*, since
@@ -845,55 +849,55 @@ ib_err_t ib_sdi_create(space_id_t tablespace_id);
 /** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
 @param[in]	tablespace_id	InnoDB tablespace id
-@return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
+@return DB_SUCCESS if dropping of SDI indexes is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id);
 
-/** Flush SDI in a tablespace. The pages of a SDI copy modified by the
+/** Flush SDI in a tablespace. The pages of a SDI Index modified by the
 transaction will be flushed to disk.
 @param[in]	space_id	tablespace id
-@return DB_SUCCESS always*/
+@return DB_SUCCESS always */
 ib_err_t ib_sdi_flush(space_id_t space_id);
 
 #ifdef UNIV_MEMCACHED_SDI
 /** Wrapper function to retrieve SDI from tablespace.
 @param[in]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @param[in,out]	sdi		SDI data retrieved
 @param[in,out]	sdi_len		in:  Size of allocated memory
                                 out: Actual SDI length
 @return DB_SUCCESS if SDI retrieval is successful, else error */
-ib_err_t ib_memc_sdi_get(ib_crsr_t ib_crsr, const char *key, void *sdi,
+ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key, void *sdi,
                          uint64_t *sdi_len);
 
 /** Wrapper function to delete SDI from tablespace.
 @param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @return DB_SUCCESS if SDI deletion is successful, else error */
-ib_err_t ib_memc_sdi_delete(ib_crsr_t ib_crsr, const char *key);
+ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key);
 
 /** Wrapper function to insert SDI into tablespace.
 @param[in]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @param[in]	sdi		SDI to be stored in tablespace
 @param[in]	sdi_len		SDI length
 @return DB_SUCCESS if SDI insertion is successful, else error */
-ib_err_t ib_memc_sdi_set(ib_crsr_t ib_crsr, const char *key, const void *sdi,
+ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key, const void *sdi,
                          uint64_t *sdi_len);
 
 /** Wrapper function to create SDI in a tablespace.
 @param[in,out]	crsr		Memcached cursor
 @return DB_SUCCESS if SDI creation is successful, else error */
-ib_err_t ib_memc_sdi_create(ib_crsr_t ib_crsr);
+ib_err_t ib_memc_sdi_create(ib_crsr_t crsr);
 
 /** Wrapper function to drop SDI in a tablespace.
 @param[in,out]	crsr		Memcached cursor
 @return DB_SUCCESS if dropping of SDI is successful, else error */
-ib_err_t ib_memc_sdi_drop(ib_crsr_t ib_crsr);
+ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr);
 
 /* Wrapper function to retreive list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'.
 @param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @param[out]	sdi		The keys are copies into this buffer
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key, void *sdi,
@@ -902,7 +906,7 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key, void *sdi,
 
 /** Check the table whether it contains virtual columns.
 @param[in]	crsr	InnoDB Cursor
-@return true if table contains virtual column else false. */
+@return true if the table contains virtual column else failure. */
 ib_bool_t ib_is_virtual_table(ib_crsr_t crsr);
 
 #ifdef UNIV_MEMCACHED_SDI

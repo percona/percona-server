@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,8 @@
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
 class Ndb;
+class Ndb_sync_pending_objects_table;
+class Ndb_sync_excluded_objects_table;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
@@ -42,7 +44,7 @@ class Ndb_binlog_thread : public Ndb_component {
 
  public:
   Ndb_binlog_thread();
-  virtual ~Ndb_binlog_thread();
+  ~Ndb_binlog_thread() override;
 
   /*
     @brief Check if purge of the specified binlog file can be handled
@@ -56,7 +58,7 @@ class Ndb_binlog_thread : public Ndb_component {
   bool handle_purge(const char *filename);
 
   /*
-    @brief Iterate through the blacklist of objects and check if the mismatches
+    @brief Iterate through the excluded objects and check if the mismatches
            are still present or if the user has manually synchronized the
            objects
 
@@ -64,7 +66,21 @@ class Ndb_binlog_thread : public Ndb_component {
 
     @return void
   */
-  void validate_sync_blacklist(THD *thd);
+  void validate_sync_excluded_objects(THD *thd);
+
+  /*
+    @brief Clear the list of objects excluded from sync
+
+    @return void
+  */
+  void clear_sync_excluded_objects();
+
+  /*
+    @brief Clear the list of objects whose sync has been retried
+
+    @return void
+  */
+  void clear_sync_retry_objects();
 
   /*
     @brief Pass the logfile group object detected to the internal implementation
@@ -87,6 +103,16 @@ class Ndb_binlog_thread : public Ndb_component {
   bool add_tablespace_to_check(const std::string &tablespace_name);
 
   /*
+    @brief Pass the schema object detected to the internal implementation that
+           shall eventually synchronize the object
+
+    @param schema_name  Name of the schema
+
+    @return true on success, false on failure
+  */
+  bool add_schema_to_check(const std::string &schema_name);
+
+  /*
     @brief Pass the table object detected to the internal implementation that
            shall eventually synchronize the object
 
@@ -98,12 +124,46 @@ class Ndb_binlog_thread : public Ndb_component {
   bool add_table_to_check(const std::string &db_name,
                           const std::string &table_name);
 
+  /*
+    @brief Retrieve information about objects currently excluded from sync
+
+    @param excluded_table  Pointer to excluded objects table object
+
+    @return void
+  */
+  void retrieve_sync_excluded_objects(
+      Ndb_sync_excluded_objects_table *excluded_table);
+
+  /*
+    @brief Get the count of objects currently excluded from sync
+
+    @return number of excluded objects
+  */
+  unsigned int get_sync_excluded_objects_count();
+
+  /*
+    @brief Retrieve information about objects currently awaiting sync
+
+    @param pending_table  Pointer to pending objects table object
+
+    @return void
+  */
+  void retrieve_sync_pending_objects(
+      Ndb_sync_pending_objects_table *pending_table);
+
+  /*
+    @brief Get the count of objects currently awaiting sync
+
+    @return number pending objects
+  */
+  unsigned int get_sync_pending_objects_count();
+
  private:
-  virtual int do_init();
-  virtual void do_run();
-  virtual int do_deinit();
+  int do_init() override;
+  void do_run() override;
+  int do_deinit() override;
   // Wake up for stop
-  virtual void do_wakeup();
+  void do_wakeup() override;
 
   /*
      The Ndb_binlog_thread is supposed to make a continuous recording
@@ -156,10 +216,14 @@ class Ndb_binlog_thread : public Ndb_component {
      of objects detected for automatic synchronization
 
      @param thd Thread handle
-
-     @return void
   */
   void synchronize_detected_object(THD *thd);
 };
+
+/*
+  Called as part of SHOW STATUS or performance_schema queries. Returns
+  information about the number of NDB metadata objects synched
+*/
+int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *);
 
 #endif

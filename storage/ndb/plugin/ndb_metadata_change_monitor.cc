@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,20 +46,35 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"               // Thd_ndb
 
 Ndb_metadata_change_monitor::Ndb_metadata_change_monitor()
-    : Ndb_component("Metadata") {}
+    : Ndb_component("Metadata"), m_mark_sync_complete{false} {}
 
 Ndb_metadata_change_monitor::~Ndb_metadata_change_monitor() {}
+
+mysql_mutex_t Ndb_metadata_change_monitor::m_sync_done_mutex;
+mysql_cond_t Ndb_metadata_change_monitor::m_sync_done_cond;
 
 int Ndb_metadata_change_monitor::do_init() {
   log_info("Initialization");
   mysql_mutex_init(PSI_INSTRUMENT_ME, &m_wait_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(PSI_INSTRUMENT_ME, &m_wait_cond);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &m_sync_done_mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(PSI_INSTRUMENT_ME, &m_sync_done_cond);
   return 0;
 }
 
 void Ndb_metadata_change_monitor::set_check_interval(
     unsigned long new_check_interval) {
   log_info("Check interval value changed to %lu", new_check_interval);
+  mysql_mutex_lock(&m_wait_mutex);
+  mysql_cond_signal(&m_wait_cond);
+  mysql_mutex_unlock(&m_wait_mutex);
+}
+
+void Ndb_metadata_change_monitor::signal_metadata_sync_enabled() {
+  // Clear all excluded objects to enable the detection of all possible
+  // mismatches. This enables the user to easily retry the sync of objects
+  // that had previously failed due to permanent errors
+  ndbcluster_binlog_clear_sync_excluded_objects();
   mysql_mutex_lock(&m_wait_mutex);
   mysql_cond_signal(&m_wait_cond);
   mysql_mutex_unlock(&m_wait_mutex);
@@ -93,7 +108,7 @@ int show_ndb_metadata_check(THD *, SHOW_VAR *var, char *) {
 }
 
 bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
-    THD *thd, const Thd_ndb *thd_ndb) {
+    THD *thd, const Thd_ndb *thd_ndb) const {
   // Fetch list of logfile groups from NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> lfg_in_NDB;
@@ -112,7 +127,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
     return false;
   }
 
-  for (const auto logfile_group_name : lfg_in_NDB) {
+  for (const auto &logfile_group_name : lfg_in_NDB) {
     if (lfg_in_DD.find(logfile_group_name) == lfg_in_DD.end()) {
       // Exists in NDB but not in DD
       std::vector<std::string> undofile_names;
@@ -143,7 +158,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
     }
   }
 
-  for (const auto logfile_group_name : lfg_in_DD) {
+  for (const auto &logfile_group_name : lfg_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_logfile_group_async(logfile_group_name)) {
       increment_metadata_detected_count();
@@ -157,7 +172,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
 }
 
 bool Ndb_metadata_change_monitor::detect_tablespace_changes(
-    THD *thd, const Thd_ndb *thd_ndb) {
+    THD *thd, const Thd_ndb *thd_ndb) const {
   // Fetch list of tablespaces from NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> tablespaces_in_NDB;
@@ -176,7 +191,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
     return false;
   }
 
-  for (const auto tablespace_name : tablespaces_in_NDB) {
+  for (const auto &tablespace_name : tablespaces_in_NDB) {
     if (tablespaces_in_DD.find(tablespace_name) == tablespaces_in_DD.end()) {
       // Exists in NDB but not in DD
       std::vector<std::string> datafile_names;
@@ -206,7 +221,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
     }
   }
 
-  for (const auto tablespace_name : tablespaces_in_DD) {
+  for (const auto &tablespace_name : tablespaces_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_tablespace_async(tablespace_name)) {
       increment_metadata_detected_count();
@@ -218,11 +233,37 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
   return true;
 }
 
-bool Ndb_metadata_change_monitor::detect_changes_in_schema(
-    THD *thd, const Thd_ndb *thd_ndb, const std::string &schema_name) {
-  // Fetch list of tables in NDB
+bool Ndb_metadata_change_monitor::detect_schema_changes(
+    const Thd_ndb *thd_ndb, std::vector<std::string> *dd_schema_names) const {
+  // Fetch list of databases used in NDB
+  NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
+  std::unordered_set<std::string> ndb_schema_names;
+  if (!ndb_get_database_names_in_dictionary(dict, &ndb_schema_names)) {
+    log_NDB_error(dict->getNdbError());
+    log_info("Failed to fetch database names from NDB");
+    return false;
+  }
+  // Iterate through the schema names
+  for (const std::string &dd_schema_name : *dd_schema_names) {
+    ndb_schema_names.erase(dd_schema_name);
+  }
+  for (const std::string &ndb_schema_name : ndb_schema_names) {
+    // Schema is used in NDB but does not exist in DD
+    if (ndbcluster_binlog_check_schema_async(ndb_schema_name)) {
+      increment_metadata_detected_count();
+    } else {
+      log_info("Failed to submit schema '%s' for synchronization",
+               ndb_schema_name.c_str());
+    }
+  }
+  return true;
+}
+
+bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
+    THD *thd, const Thd_ndb *thd_ndb, const std::string &schema_name) const {
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> ndb_tables_in_NDB;
+  // Fetch list of tables in NDB
   if (!ndb_get_table_names_in_schema(dict, schema_name, &ndb_tables_in_NDB)) {
     log_NDB_error(dict->getNdbError());
     log_info("Failed to get list of tables in schema '%s' from NDB",
@@ -252,7 +293,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   // Special case when all NDB tables belonging to a schema still exist in DD
   // but not in NDB
   if (ndb_tables_in_NDB.empty() && !ndb_tables_in_DD.empty()) {
-    for (const auto ndb_table_name : ndb_tables_in_DD) {
+    for (const auto &ndb_table_name : ndb_tables_in_DD) {
       // Exists in DD but not in NDB
       if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
         increment_metadata_detected_count();
@@ -268,7 +309,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   // not in DD (as either NDB or shadow tables)
   if (!ndb_tables_in_NDB.empty() && ndb_tables_in_DD.empty() &&
       local_tables_in_DD.empty()) {
-    for (const auto ndb_table_name : ndb_tables_in_NDB) {
+    for (const auto &ndb_table_name : ndb_tables_in_NDB) {
       // Exists in NDB but not in DD
       if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
         increment_metadata_detected_count();
@@ -280,7 +321,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
     return true;
   }
 
-  for (const auto ndb_table_name : ndb_tables_in_NDB) {
+  for (const auto &ndb_table_name : ndb_tables_in_NDB) {
     if (ndb_tables_in_DD.find(ndb_table_name) == ndb_tables_in_DD.end() &&
         local_tables_in_DD.find(ndb_table_name) == local_tables_in_DD.end()) {
       // Exists in NDB but not in DD
@@ -296,7 +337,7 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
     }
   }
 
-  for (const auto ndb_table_name : ndb_tables_in_DD) {
+  for (const auto &ndb_table_name : ndb_tables_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
       increment_metadata_detected_count();
@@ -308,8 +349,8 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   return true;
 }
 
-bool Ndb_metadata_change_monitor::detect_table_changes(THD *thd,
-                                                       const Thd_ndb *thd_ndb) {
+bool Ndb_metadata_change_monitor::detect_schema_and_table_changes(
+    THD *thd, const Thd_ndb *thd_ndb) {
   // Fetch list of schemas in DD
   Ndb_dd_client dd_client(thd);
   std::vector<std::string> schema_names;
@@ -319,14 +360,26 @@ bool Ndb_metadata_change_monitor::detect_table_changes(THD *thd,
     return false;
   }
 
-  for (const auto name : schema_names) {
-    if (is_infoschema_db(name.c_str()) || is_perfschema_db(name.c_str())) {
+  if (!detect_schema_changes(thd_ndb, &schema_names)) {
+    // Problem while trying to detect schema changes. Log and continue detecting
+    // table changes
+    log_info("Failed to detect schema changes");
+  }
+
+  if (is_stop_requested()) {
+    return false;
+  }
+
+  for (const std::string &schema_name : schema_names) {
+    if (is_infoschema_db(schema_name.c_str()) ||
+        is_perfschema_db(schema_name.c_str())) {
       // We do not expect user changes in these schemas so they can be skipped
       continue;
     }
 
-    if (!detect_changes_in_schema(thd, thd_ndb, name)) {
-      log_info("Failed to detect tables changes in schema '%s'", name.c_str());
+    if (!detect_table_changes_in_schema(thd, thd_ndb, schema_name)) {
+      log_info("Failed to detect table changes in schema '%s'",
+               schema_name.c_str());
       if (is_stop_requested()) {
         return false;
       }
@@ -379,6 +432,46 @@ class Thd_ndb_guard {
 
 extern bool opt_ndb_metadata_check;
 extern unsigned long opt_ndb_metadata_check_interval;
+extern bool opt_ndb_metadata_sync;
+
+void Ndb_metadata_change_monitor::sync_done() {
+  if (opt_ndb_metadata_sync) {
+    // Signal that all detected objects have been synced
+    mysql_mutex_lock(&m_sync_done_mutex);
+    mysql_cond_signal(&m_sync_done_cond);
+    mysql_mutex_unlock(&m_sync_done_mutex);
+  }
+}
+
+// Helper class to control each run or iteration of the change monitor thread
+// with different behaviour exhibited depending on the values of the
+// ndb_metadata_check and ndb_metadata_sync options
+class Run_controller {
+  const int64_t m_initial_detected_count;
+  bool m_metadata_sync;
+
+ public:
+  explicit Run_controller(int64_t initial_detected_count)
+      : m_initial_detected_count(initial_detected_count),
+        m_metadata_sync(false) {}
+  Run_controller() = delete;
+  Run_controller(const Run_controller &) = delete;
+
+  bool check_enabled() const { return opt_ndb_metadata_check; }
+
+  bool sync_enabled() const { return opt_ndb_metadata_sync; }
+
+  void set_metadata_sync() { m_metadata_sync = opt_ndb_metadata_sync; }
+
+  bool get_metadata_sync() const { return m_metadata_sync; }
+
+  bool all_changes_detected() const {
+    // Designed to be called at the end of a run. If the detected count matches
+    // the count at the beginning of the run, then all changes are considered
+    // to be detected
+    return m_initial_detected_count == g_metadata_detected_count;
+  }
+};
 
 void Ndb_metadata_change_monitor::do_run() {
   DBUG_TRACE;
@@ -418,9 +511,10 @@ void Ndb_metadata_change_monitor::do_run() {
 
     for (;;) {
       // Inner loop where each iteration represents one "lap" of the thread
-      while (!opt_ndb_metadata_check) {
-        // Sleep and then check for change of state i.e. has metadata check been
-        // enabled or if a stop has been requested
+      Run_controller controller(g_metadata_detected_count);
+      while (!controller.check_enabled() && !controller.sync_enabled()) {
+        // Sleep and then check for change of state i.e. metadata check or sync
+        // has been enabled or a stop has been requested
         ndb_milli_sleep(1000);
         if (is_stop_requested()) {
           return;
@@ -429,7 +523,8 @@ void Ndb_metadata_change_monitor::do_run() {
 
       for (unsigned long check_interval = opt_ndb_metadata_check_interval,
                          elapsed_wait_time = 0;
-           elapsed_wait_time < check_interval && !is_stop_requested();
+           elapsed_wait_time < check_interval && !is_stop_requested() &&
+           !controller.sync_enabled();
            check_interval = opt_ndb_metadata_check_interval) {
         // Determine how long the next wait interval should be using the check
         // interval requested by the user and time spent waiting by the thread
@@ -439,12 +534,15 @@ void Ndb_metadata_change_monitor::do_run() {
         set_timespec(&abstime, wait_interval);
         mysql_mutex_lock(&m_wait_mutex);
         const auto start = std::chrono::steady_clock::now();
-        // Can be signalled from 2 places: do_wakeup() when a stop is requested
-        // or set_check_interval() when the interval is changed by the user.
-        // If a new interval is specified by the user, then the loop logic is
-        // written such that if new value <= elapsed_wait time, then this loop
-        // exits. Else, the thread waits for the remainder of the time that it
-        // needs to as determined at the start of the loop using wait_interval
+        // Can be signalled from 3 places:
+        // 1. do_wakeup() when a stop is requested
+        // 2. set_check_interval() when the interval is changed by the user. If
+        //    a new interval is specified by the user, then the loop logic is
+        //    written such that if new value <= elapsed_wait time, then this
+        //    loop exits. Else, the thread waits for the remainder of the time
+        //    that it needs to as determined at the start of the loop using
+        //    wait_interval
+        // 3. signal_metadata_sync_enabled() when the user triggers a sync
         mysql_cond_timedwait(&m_wait_cond, &m_wait_mutex, &abstime);
         const auto finish = std::chrono::steady_clock::now();
         mysql_mutex_unlock(&m_wait_mutex);
@@ -461,17 +559,22 @@ void Ndb_metadata_change_monitor::do_run() {
         return;
       }
 
-      // Check if metadata check is still enabled even after the wait
-      if (!opt_ndb_metadata_check) {
+      // Check if metadata check or metadata sync is still enabled even after
+      // the wait
+      if (!controller.check_enabled() && !controller.sync_enabled()) {
         continue;
       }
+
+      // Save the metadata sync value. For the remainder of the loop, changes
+      // made to the ndb_metadata_sync option are ignored
+      controller.set_metadata_sync();
 
       // It's pointless to try and monitor metadata changes if schema
       // synchronization is ongoing
       if (ndb_binlog_is_read_only()) {
         log_info(
-            "Schema synchronization is ongoing, this iteration of metadata"
-            " check is skipped");
+            "Schema synchronization is ongoing, this iteration of metadata "
+            "check is skipped");
         continue;
       }
 
@@ -484,14 +587,14 @@ void Ndb_metadata_change_monitor::do_run() {
         break;
       }
 
-      log_info("Metadata check started");
+      log_verbose(10, "Metadata check started");
 
-      ndbcluster_binlog_validate_sync_blacklist(thd);
+      ndbcluster_binlog_validate_sync_excluded_objects(thd);
 
       if (!detect_logfile_group_changes(thd, thd_ndb)) {
         log_info("Failed to detect logfile group metadata changes");
       }
-      log_info("Logfile group metadata check completed");
+      log_verbose(10, "Logfile group metadata check completed");
 
       if (is_stop_requested()) {
         return;
@@ -500,17 +603,68 @@ void Ndb_metadata_change_monitor::do_run() {
       if (!detect_tablespace_changes(thd, thd_ndb)) {
         log_info("Failed to detect tablespace metadata changes");
       }
-      log_info("Tablespace metadata check completed");
+      log_verbose(10, "Tablespace metadata check completed");
 
       if (is_stop_requested()) {
         return;
       }
 
-      if (!detect_table_changes(thd, thd_ndb)) {
+      if (!detect_schema_and_table_changes(thd, thd_ndb)) {
         log_info("Failed to detect table metadata changes");
       }
-      log_info("Table metadata check completed");
-      log_info("Metadata check completed");
+      log_verbose(10, "Table metadata check completed");
+      log_verbose(10, "Metadata check completed");
+
+      if (controller.get_metadata_sync()) {
+        if (controller.all_changes_detected()) {
+          /*
+            All changes at this point in time have been detected. Since the
+            ndb_metadata_sync option has been set, we don't expect more changes.
+            Stall the thread and prevent it from checking for further mismatches
+            until the current queue has been synchronized by the binlog thread
+          */
+          mysql_mutex_lock(&m_sync_done_mutex);
+          mysql_cond_wait(&m_sync_done_cond, &m_sync_done_mutex);
+          mysql_mutex_unlock(&m_sync_done_mutex);
+          if (!m_mark_sync_complete) {
+            /*
+              This is the first instance of the binlog thread having synced
+              all changes submitted to it. However, the change monitor thread
+              has been stalled for a while so we opt for at least one more
+              detection and sync cycle to ensure that all changes are synced.
+              This is particularly relevant to synchronization of schema objects
+              since they have to be installed in DD for their tables to be
+              detected. This synchronization is dependent on the load on the
+              binlog thread so an additional detection and sync run after we
+              know for a fact that such schemas have been installed could be
+              useful.
+
+              The below flag denotes that the we've already detected an instance
+              of all objects having been synchronized and that ndb_metadata_sync
+              can be flipped if the the same condition is detected in the
+              following run.
+            */
+            m_mark_sync_complete = true;
+          } else {
+            // Clear retry objects
+            ndbcluster_binlog_clear_sync_retry_objects();
+            // Set ndb_metadata_sync to false to denote that all changes have
+            // been detected and synchronized
+            opt_ndb_metadata_sync = false;
+            // Reset the flag to its default value
+            m_mark_sync_complete = false;
+            log_info("Metadata synchronization complete");
+          }
+        } else {
+          /*
+            Changes detected in this run. The flag is checked to see if the
+            previous run had marked it as complete. It is only after consecutive
+            runs with no new changes detected that the ndb_metadata_sync is
+            flipped.
+          */
+          if (m_mark_sync_complete) m_mark_sync_complete = false;
+        }
+      }
     }
   }
 }
@@ -519,14 +673,21 @@ int Ndb_metadata_change_monitor::do_deinit() {
   log_info("Deinitialization");
   mysql_mutex_destroy(&m_wait_mutex);
   mysql_cond_destroy(&m_wait_cond);
+  mysql_mutex_destroy(&m_sync_done_mutex);
+  mysql_cond_destroy(&m_sync_done_cond);
   return 0;
 }
 
 void Ndb_metadata_change_monitor::do_wakeup() {
   log_info("Wakeup");
   // Signal that a stop has been requested in case the thread is in the middle
-  // of a wait
+  // of a wait.
+  // Wait 1: Sleep for check interval duration
   mysql_mutex_lock(&m_wait_mutex);
   mysql_cond_signal(&m_wait_cond);
   mysql_mutex_unlock(&m_wait_mutex);
+  // Wait 2: Sleep while waiting sync to conclude when ndb_metadata_sync is set
+  mysql_mutex_lock(&m_sync_done_mutex);
+  mysql_cond_signal(&m_sync_done_cond);
+  mysql_mutex_unlock(&m_sync_done_mutex);
 }

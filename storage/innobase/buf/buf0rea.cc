@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0recv.h"
 #include "mtr0mtr.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #include "os0file.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -67,9 +67,10 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   *err = DB_SUCCESS;
 
   if (page_id.space() == TRX_SYS_SPACE &&
-      buf_dblwr_page_inside(page_id.page_no())) {
+      dblwr::v1::is_inside(page_id.page_no())) {
     ib::error(ER_IB_MSG_139)
-        << "Trying to read doublewrite buffer page " << page_id;
+        << "Trying to read legacy doublewrite buffer page " << page_id;
+
     return (0);
   }
 
@@ -89,7 +90,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   completed */
   bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
 
-  if (bpage == NULL) {
+  if (bpage == nullptr) {
     return (0);
   }
 
@@ -102,7 +103,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
   if (sync) {
-    thd_wait_begin(NULL, THD_WAIT_DISKIO);
+    thd_wait_begin(nullptr, THD_WAIT_DISKIO);
   }
 
   void *dst;
@@ -121,27 +122,23 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
                  dst, bpage, trx, should_buffer);
 
   if (sync) {
-    thd_wait_end(NULL);
+    thd_wait_end(nullptr);
   }
-
-  bpage->is_corrupt = bpage->encrypted = false;
 
   if (*err != DB_SUCCESS) {
     if (IORequest::ignore_missing(type) || *err == DB_TABLESPACE_DELETED) {
       buf_read_page_handle_error(bpage);
       return (0);
-    } else if (*err == DB_IO_DECRYPT_FAIL) {
-      bpage->encrypted = true;
     }
 
-    SRV_CORRUPT_TABLE_CHECK(bpage->encrypted, bpage->is_corrupt = true;);
+    SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS || *err == DB_IO_DECRYPT_FAIL,
+                            bpage->is_corrupt = true;);
   }
 
   if (sync) {
     /* The i/o is already completed when we arrive from
     fil_read */
-    *err = buf_page_io_complete(bpage);
-    if (*err != DB_SUCCESS) {
+    if (!buf_page_io_complete(bpage, false)) {
       return (0);
     }
   }
@@ -213,7 +210,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage != NULL && buf_page_is_accessed(bpage) &&
+    if (bpage != nullptr && buf_page_is_accessed(bpage) &&
         buf_page_peek_if_young(bpage)) {
       recent_blocks++;
 
@@ -223,7 +220,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
       }
     }
 
-    if (bpage != NULL) {
+    if (bpage != nullptr) {
       rw_lock_s_unlock(hash_lock);
     }
   }
@@ -283,10 +280,10 @@ read_ahead:
   return (count);
 }
 
-dberr_t buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
-                      trx_t *trx) {
+bool buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
+                   trx_t *trx) {
   ulint count;
-  dberr_t err = DB_SUCCESS;
+  dberr_t err;
 
   count = buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, page_id,
                             page_size, false, trx, false);
@@ -301,7 +298,7 @@ dberr_t buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
   /* Increment number of I/O operations used for LRU policy. */
   buf_LRU_stat_inc_io();
 
-  return (err);
+  return (count > 0);
 }
 
 bool buf_read_page_background(const page_id_t &page_id,
@@ -394,7 +391,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   buf_pool_t *buf_pool = buf_pool_get(page_id);
   buf_page_t *bpage;
   buf_frame_t *frame;
-  buf_page_t *pred_bpage = NULL;
+  buf_page_t *pred_bpage = nullptr;
   unsigned pred_bpage_is_accessed = 0;
   page_no_t pred_offset;
   page_no_t succ_offset;
@@ -486,7 +483,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id_t(page_id.space(), i),
                                        &hash_lock);
 
-    if (bpage == NULL || !buf_page_is_accessed(bpage)) {
+    if (bpage == nullptr || !buf_page_is_accessed(bpage)) {
       /* Not accessed */
       fail_count++;
 
@@ -530,7 +527,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
 
   bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
 
-  if (bpage == NULL) {
+  if (bpage == nullptr) {
     return (0);
   }
 
@@ -617,10 +614,6 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
                                 << page_id_t(page_id.space(), i)
                                 << " in nonexisting or being-dropped"
                                    " tablespace";
-      } else if (err == DB_IO_DECRYPT_FAIL) {
-        ib::error() << "linear readahead failed to"
-                       " read or decrypt "
-                    << page_id_t(page_id.space(), i);
       }
     }
   }
@@ -661,7 +654,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (!found) {
       /* The tablespace was not found, remove the
       entries for that page */
-      ibuf_merge_or_delete_for_page(NULL, page_id, NULL, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, nullptr, FALSE);
       continue;
     }
 
@@ -680,10 +673,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (err == DB_TABLESPACE_DELETED) {
       /* We have deleted or are deleting the single-table
       tablespace: remove the entries for that page */
-      ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, FALSE);
-    } else if (err == DB_IO_DECRYPT_FAIL) {
-      ib::error() << "Failed to read or decrypt " << page_id
-                  << " for change buffer merge";
+      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, FALSE);
     }
   }
 
@@ -700,7 +690,7 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
   ulint count;
   fil_space_t *space = fil_space_get(space_id);
 
-  if (space == NULL) {
+  if (space == nullptr) {
     /* The tablespace is missing: do nothing */
     return;
   }
@@ -764,13 +754,6 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
     } else {
       buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
                         cur_page_id, page_size, true, nullptr, false);
-    }
-
-    if (err == DB_IO_DECRYPT_FAIL) {
-      ib::error() << "Recovery failed to decrypt page " << cur_page_id
-                  << ". Are you using the correct keyring?";
-    } else if (err == DB_PAGE_CORRUPTED) {
-      ib::error() << "Recovery failed due to corrupted page " << cur_page_id;
     }
   }
 

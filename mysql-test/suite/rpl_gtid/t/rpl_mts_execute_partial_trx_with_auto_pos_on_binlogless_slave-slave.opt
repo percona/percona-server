@@ -1,1 +1,1 @@
---disable-log-bin --log-slave-updates=false
+--slave-parallel-workers=2 --disable-log-bin --log-slave-updates=false

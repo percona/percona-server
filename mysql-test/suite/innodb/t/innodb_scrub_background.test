@@ -101,7 +101,7 @@ while ($cnt)
     }
     if (!$success)
     {
-        real_sleep 1;
+        sleep 1;
         dec $cnt;
     }
     SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_SCRUBBING;

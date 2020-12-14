@@ -69,6 +69,6 @@ int heap_scan(HP_INFO *info, uchar *record) {
   if (hp_extract_record(info, record, info->current_ptr)) {
     return my_errno();
   }
-  info->current_hash_ptr = 0; /* Can't use read_next */
+  info->current_hash_ptr = nullptr; /* Can't use read_next */
   return 0;
 } /* heap_scan */

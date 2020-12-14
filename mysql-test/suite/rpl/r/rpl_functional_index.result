@@ -25,13 +25,13 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) = 12)
 SET SESSION debug="+d,show_hidden_columns";
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -52,12 +52,12 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) = 12)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -76,12 +76,12 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) = 12)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -101,6 +101,8 @@ INSERT INTO t1 (col1) VALUES (1), (2);
 include/wait_for_slave_sql_error.inc [errno=1062]
 DELETE FROM t1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 INSERT INTO t1 (col1) VALUES (3), (4);
 SELECT col1 FROM t1;
 col1
@@ -131,7 +133,7 @@ a	b
 2	3
 3	4
 UPDATE t SET b = 5 WHERE b - a = 1;
-ERROR 23000: Duplicate entry '7' for key 'c'
+ERROR 23000: Duplicate entry '7' for key 't.c'
 SELECT a, b FROM t;
 a	b
 1	2

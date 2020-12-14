@@ -1,8 +1,10 @@
+--source include/have_debug.inc
+
 #
 # Test the effect of various signals on the server
 #
 --let $test_error_log= $MYSQLTEST_VARDIR/tmp/test_threadpool_sig_handler.err
---let $restart_parameters=restart:--log-error=$test_error_log
+--let $restart_parameters=restart:--log-error=$test_error_log --debug=d,simulate_sighup_print_status
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --source include/restart_mysqld.inc
 

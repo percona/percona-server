@@ -2,7 +2,7 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ void partitioning_init();
 class Partition_share : public Handler_share {
  public:
   Partition_share();
-  ~Partition_share();
+  ~Partition_share() override;
 
   /** Set if auto increment is used an initialized. */
   bool auto_inc_initialized;
@@ -274,10 +274,6 @@ class Partition_handler {
   /**
     Exchange partition.
 
-    @param[in]      part_table_path   Path to partition in partitioned table
-                                      to be exchanged.
-    @param[in]      swap_table_path   Path to non-partitioned table to be
-                                      exchanged with partition.
     @param[in]      part_id           Id of partition to be exchanged.
     @param[in,out]  part_table_def    dd::Table object for partitioned table.
     @param[in,out]  swap_table_def    dd::Table object for non-partitioned
@@ -293,9 +289,8 @@ class Partition_handler {
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  int exchange_partition(const char *part_table_path,
-                         const char *swap_table_path, uint part_id,
-                         dd::Table *part_table_def, dd::Table *swap_table_def);
+  int exchange_partition(uint part_id, dd::Table *part_table_def,
+                         dd::Table *swap_table_def);
 
   /**
     Alter flags.
@@ -340,8 +335,6 @@ class Partition_handler {
     @sa Partition_handler::exchange_partition().
   */
   virtual int exchange_partition_low(
-      const char *part_table_path MY_ATTRIBUTE((unused)),
-      const char *swap_table_path MY_ATTRIBUTE((unused)),
       uint part_id MY_ATTRIBUTE((unused)),
       dd::Table *part_table_def MY_ATTRIBUTE((unused)),
       dd::Table *swap_table_def MY_ATTRIBUTE((unused))) {
@@ -357,7 +350,7 @@ class Partition_handler {
 
     @return handler or NULL if not supported.
   */
-  virtual handler *get_handler() { return NULL; }
+  virtual handler *get_handler() { return nullptr; }
 };
 
 /// Maps compare function to strict weak ordering required by Priority_queue.
@@ -424,7 +417,7 @@ class Partition_helper {
   */
   bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused))) {
 #ifndef DBUG_OFF
-    m_key_not_found_partitions.bitmap = NULL;
+    m_key_not_found_partitions.bitmap = nullptr;
 #endif
     return false;
   }
@@ -665,17 +658,25 @@ class Partition_helper {
       m_auto_increment_lock = false;
     }
   }
+
   /**
-    Get auto increment.
+    Get a range of auto increment values.
 
-    Only to be used for auto increment values that are the first field in
-    an unique index.
+    Can only be used if the auto increment field is the first field in an index.
 
-    @param[in]  increment           Increment between generated numbers.
-    @param[in]  nb_desired_values   Number of values requested.
-    @param[out] first_value         First reserved value (ULLONG_MAX on error).
-    @param[out] nb_reserved_values  Number of values reserved.
-  */
+    This method is called by update_auto_increment which in turn is called
+    by the individual handlers as part of write_row. We use the
+    part_share->next_auto_inc_val, or search all
+    partitions for the highest auto_increment_value if not initialized or
+    if auto_increment field is a secondary part of a key, we must search
+    every partition when holding a mutex to be sure of correctness.
+
+    @param[in]   increment           Increment value.
+    @param[in]   nb_desired_values   Number of desired values.
+    @param[out]  first_value         First auto inc value reserved
+                                        or MAX if failure.
+    @param[out]  nb_reserved_values  Number of values reserved.
+   */
   void get_auto_increment_first_field(ulonglong increment,
                                       ulonglong nb_desired_values,
                                       ulonglong *first_value,
@@ -1056,7 +1057,18 @@ class Partition_helper {
       @retval HA_ERR_KEY_NOT_FOUND Record not found, but index cursor
     positioned.
       @retval other                Error code.
-  */
+
+    @details
+      Start scanning the range (when invoked from read_range_first()) or doing
+      an index lookup (when invoked from index_read_XXX):
+       - If possible, perform partition selection
+       - Find the set of partitions we're going to use
+       - Depending on whether we need ordering:
+          NO:  Get the first record from first used partition (see
+               handle_unordered_scan_next_partition)
+          YES: Fill the priority queue and get the record that is the first in
+               the ordering
+   */
   int common_index_read(uchar *buf, bool have_start_key);
   /**
     Common routine for index_first/index_last.

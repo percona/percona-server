@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,8 +168,8 @@ struct MEM_ROOT {
 
     We don't use new[], as it can put extra data in front of the array.
    */
-  template <class T>
-  T *ArrayAlloc(size_t num) {
+  template <class T, class... Args>
+  T *ArrayAlloc(size_t num, Args &&... args) {
     static_assert(alignof(T) <= 8, "MEM_ROOT only returns 8-aligned memory.");
     if (num * sizeof(T) < num) {
       // Overflow.
@@ -181,10 +181,11 @@ struct MEM_ROOT {
       return nullptr;
     }
 
-    // Default-construct all elements. For primitive types like int,
+    // Construct all elements. For primitive types like int
+    // and no arguments (ie., default construction),
     // the entire loop will be optimized away.
     for (size_t i = 0; i < num; ++i) {
-      new (&ret[i]) T;
+      new (&ret[i]) T(std::forward<Args>(args)...);
     }
 
     return ret;
@@ -195,7 +196,7 @@ struct MEM_ROOT {
    * schema. Use when transferring responsibility for a MEM_ROOT from one thread
    * to another.
    */
-  void Claim();
+  void Claim(bool claim);
 
   /**
    * Deallocate all the RAM used. The MEM_ROOT itself continues to be valid,
@@ -376,7 +377,7 @@ inline void *operator new[](
 }
 
 inline void operator delete(void *, MEM_ROOT *,
-                            const std::nothrow_t &)noexcept {
+                            const std::nothrow_t &) noexcept {
   /* never called */
 }
 

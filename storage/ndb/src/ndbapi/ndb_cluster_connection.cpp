@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -429,6 +429,11 @@ unsigned Ndb_cluster_connection::get_connect_count() const
 unsigned Ndb_cluster_connection::get_min_db_version() const
 {
   return m_impl.get_min_db_version();
+}
+
+unsigned Ndb_cluster_connection::get_min_api_version() const
+{
+  return m_impl.get_min_api_version();
 }
 
 int Ndb_cluster_connection::get_latest_error() const
@@ -1720,8 +1725,8 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
   const Uint32 nodes_arr_cnt = m_nodes_proximity.size();
 
   Uint32 best_node = nodes[0];
-  Uint32 best_idx;
-  Uint32 best_usage;
+  Uint32 best_idx = Uint32(~0);
+  Uint32 best_usage = 0;
   Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
 
   if (!m_impl.m_optimized_node_selection)
@@ -1818,8 +1823,11 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
       }
     }
   }
-  nodes_arr[best_idx].hint_count =
-    (nodes_arr[best_idx].hint_count + 1) & HINT_COUNT_MASK;
+  if (best_idx != Uint32(~0))
+  {
+    nodes_arr[best_idx].hint_count =
+      (nodes_arr[best_idx].hint_count + 1) & HINT_COUNT_MASK;
+  }
   return best_node;
 }
 

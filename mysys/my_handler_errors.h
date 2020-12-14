@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ static const char *handler_error_messages[] = {
     "The event was corrupt, leading to illegal data being read",
     "The table is of a new format not supported by this version",
     "The event could not be processed no other hanlder error happened",
-    "Got a fatal error during initialzaction of handler",
+    "Got a fatal error during initialization of handler",
     "File too short; Expected more data in file",
     "Read page with wrong checksum",
     "Too many active concurrent transactions",
@@ -122,6 +122,8 @@ static const char *handler_error_messages[] = {
     "No session temporary tablespace available",
     "Invalid table name",
     "Path is too long for the OS",
+    "Histogram sampling initialization failed",
+    "Too many nested sub-expressions in a full-text search",
     "Destination schema does not exist"};
 
 extern void my_handler_error_register(void);

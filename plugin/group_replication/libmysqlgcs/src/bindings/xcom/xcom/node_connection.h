@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,29 +25,25 @@
 
 #include <stdlib.h>
 
-#ifdef XCOM_HAVE_OPENSSL
-#ifdef WIN32
-// In OpenSSL before 1.1.0, we need this first.
+#ifndef XCOM_WITHOUT_OPENSSL
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
 #include <winsock2.h>
-#endif  // WIN32
+#endif
 
 #include <openssl/ssl.h>
 
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_proto.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/xcom_proto.h"
+#include "xdr_gen/xcom_vp.h"
 
 enum con_state { CON_NULL, CON_FD, CON_PROTO };
 typedef enum con_state con_state;
 
 struct connection_descriptor {
   int fd;
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   SSL *ssl_fd;
 #endif
   con_state connected_;
@@ -57,7 +53,7 @@ struct connection_descriptor {
 
 typedef struct connection_descriptor connection_descriptor;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
   connection_descriptor *c =
       (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
@@ -86,9 +82,5 @@ static inline int proto_done(connection_descriptor *con) {
 static inline void set_connected(connection_descriptor *con, con_state val) {
   con->connected_ = val;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* NODE_CONNECTION_H */

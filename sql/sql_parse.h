@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
+void bind_fields(Item *first);
 
 Comp_creator *comp_eq_creator(bool invert);
 Comp_creator *comp_equal_creator(bool invert);
@@ -127,16 +128,10 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 extern uint sql_command_flags[];
 extern const LEX_CSTRING command_name[];
 
-inline bool is_supported_parser_charset(const CHARSET_INFO *cs) {
-  return (cs->mbminlen == 1);
-}
-
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
-
-bool execute_show(THD *thd, TABLE_LIST *all_tables);
 
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_charset(HA_CREATE_INFO *create_info,
@@ -282,6 +277,11 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   --skip-grant-tables server option.
 */
 #define CF_REQUIRE_ACL_CACHE (1U << 20)
+
+/**
+  Identifies statements as SHOW commands using INFORMATION_SCHEMA system views.
+*/
+#define CF_SHOW_USES_SYSTEM_VIEW (1U << 21)
 
 /* Bits in server_command_flags */
 

@@ -1,0 +1,39 @@
+
+# This testcase requires the following ldap structure:
+# https://github.com/rroemhild/docker-test-openldap
+# The easiest way to run it is to use the provided docker image
+
+--source include/count_sessions.inc
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
+--replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+
+# For debugging:
+# SET GLOBAL authentication_ldap_simple_log_status = 6;
+
+--replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com';
+CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
+
+--connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
+
+--replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT>
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+
+--disconnect con1
+--connection default
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,nonexistent,zoidberg,,,,CLEARTEXT)
+--enable_query_log
+
+DROP USER zoidberg;
+DROP USER nonexistent;
+SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
+SET GLOBAL authentication_ldap_simple_log_status = 1;
+
+--source include/wait_until_count_sessions.inc

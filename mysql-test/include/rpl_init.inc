@@ -8,7 +8,7 @@
 #    server_N_1. server_I and server_I_1 are connections to the same
 #    server.
 #  - Verifies that @@server_id of all servers are different.
-#  - Calls RESET MASTER, RESET SLAVE, USE test, CHANGE MASTER, START SLAVE.
+#  - Calls RESET MASTER, RESET REPLICA, USE test, CHANGE MASTER, START REPLICA.
 #  - Sets the connection to server_1 before exiting.
 #  - Sets the following mtr variables for convenience:
 #    $gtid_mode: the value of @@global.gtid_mode on server 1
@@ -63,6 +63,10 @@
 #    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #    [--let $rpl_skip_log_bin= 1]
 #    [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
+#    [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
+#    [--let $rpl_require_row_format= *:0,1:0,2:1]
+#    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
+#    [--let $rpl_shallow_reset_slave= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -99,9 +103,9 @@
 #      guaranteed by mtr, so it is only useful for debugging.
 #
 #    $rpl_skip_reset_master_and_slave
-#      By default, this script issues RESET MASTER and RESET SLAVE
-#      before CHANGE MASTER and START SLAVE.  RESET MASTER and RESET
-#      SLAVE are suppressed if $rpl_skip_reset_master_and_slave is
+#      By default, this script issues RESET MASTER and RESET REPLICA
+#      before CHANGE MASTER and START REPLICA.  RESET MASTER and RESET
+#      REPLICA are suppressed if $rpl_skip_reset_master_and_slave is
 #      set.
 #
 #    $rpl_skip_change_master
@@ -110,8 +114,8 @@
 #      is suppressed if $rpl_skip_change_master is set.
 #
 #    $rpl_skip_start_slave
-#      By default, this script issues START SLAVE on all slaves
-#      specified by $rpl_topology. START SLAVE is suppressed if
+#      By default, this script issues START REPLICA on all slaves
+#      specified by $rpl_topology. START REPLICA is suppressed if
 #      $rpl_skip_change_master is set.
 #
 #    $rpl_debug
@@ -148,6 +152,18 @@
 #
 #   $rpl_privilege_checks_user
 #      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_privilege_checks_user_additional_grants
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_require_row_format
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_require_table_primary_key_check
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_shallow_reset_slave
+#      If in the setup we shall only use RESET REPLICA and not RESET REPLICA ALL
 #
 # ==== Side effects ====
 #
@@ -312,26 +328,18 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   USE test;
-  if ($rpl_privilege_checks_user)
-  {
-    # Default database `test` has a special configurations that allow for
-    # operations to be executed even if the user in session doesn't have
-    # privileges. So, whenever we're running applier thread with privileges, we
-    # need to use a different database.
-    --let $RPL_PRIV_DB = rpl_priv
-    SET @@sql_log_bin = 0;
-    --eval CREATE DATABASE $RPL_PRIV_DB
-    SET @@sql_log_bin = 1;
-    --eval USE $RPL_PRIV_DB
-  }
   if ($rpl_gtid_utils)
   {
     --source include/gtid_utils.inc
   }
   if (!$rpl_skip_reset_master_and_slave)
   {
+
     RESET MASTER;
-    RESET SLAVE;
+    if (!$rpl_shallow_reset_slave){
+      --let $_rpl_init_reset_slave_modifier= ALL
+    }
+    --eval RESET REPLICA $_rpl_init_reset_slave_modifier FOR CHANNEL ''
   }
   # Only way to do this in mtr :-(
   if ($_rpl_server == 1) {

@@ -21,12 +21,13 @@ std::string uuid = generate_uuid();
 namespace keyring__vault_io_unittest {
 using namespace keyring;
 
+using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::_;
 
-std::string credential_file_url = "./keyring_vault.conf";
+std::string credential_file_url = "./keyring_vault_vault_io.conf";
 
 class Vault_io_test : public ::testing::Test {
  protected:
@@ -270,7 +271,7 @@ TEST_F(Vault_io_test, RetrieveKeyTypeAndValue) {
   EXPECT_TRUE(*key.get_key_signature() ==
               get_key_signature(uuid, "key1", "rob"));
   ASSERT_TRUE(memcmp(key.get_key_data(), "Robi", key.get_key_data_size()) == 0);
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
 
   Vault_key key_to_remove(key_1_id, nullptr, "rob", nullptr, 0);
   key_to_remove.set_key_operation(REMOVE_KEY);
@@ -300,7 +301,7 @@ TEST_F(Vault_io_test, FlushKeyRetrieveDeleteInit) {
               get_key_signature(uuid, "key1", "rob"));
   ASSERT_TRUE(
       memcmp(key1_id.get_key_data(), "Robi", key1_id.get_key_data_size()) == 0);
-  EXPECT_STREQ("AES", key1_id.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key1_id.get_key_type_as_string()->c_str());
 
   Vault_key key_to_remove(key);
   key_to_remove.set_key_operation(REMOVE_KEY);
@@ -640,9 +641,9 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  keyring::ILogger *logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(curl, logger);
-  std::string mount_point_path = "cicd/" + uuid;
+  std::unique_ptr<keyring::ILogger> logger(new keyring::Mock_logger());
+  keyring::Vault_mount vault_mount(curl, logger.get());
+  std::string mount_point_path = "cicd/" + uuid + "_vault_io";
   if (generate_credential_file(keyring__vault_io_unittest::credential_file_url,
                                CORRECT, mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;
@@ -663,7 +664,7 @@ int main(int argc, char **argv) {
   if (vault_mount.unmount_secret_backend()) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete logger;
+
   my_testing::teardown_server_for_unit_tests();
 
   return ret;

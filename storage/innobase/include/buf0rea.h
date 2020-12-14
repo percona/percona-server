@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,13 +69,9 @@ an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@retval DB_SUCCESS if the page was read and is not corrupted,
-@retval DB_PAGE_CORRUPTED if page based on checksum check is corrupted,
-@retval DB_IO_DECRYPT_FAIL if page post encryption checksum matches but
-after decryption normal page checksum does not match.
-@retval DB_TABLESPACE_DELETED if tablespace .ibd file is missing */
-dberr_t buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
-                      trx_t *trx);
+@return true if page has been read in, false in case of failure */
+bool buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
+                   trx_t *trx);
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
@@ -176,11 +172,12 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 invoked */
 #define BUF_READ_AHEAD_AREA(b) ((b)->read_ahead_area)
 
-/** @name Modes used in read-ahead @{ */
+/** @name Modes used in read-ahead
+@{ */
 /** read only pages belonging to the insert buffer tree */
 #define BUF_READ_IBUF_PAGES_ONLY 131
 /** read any page */
 #define BUF_READ_ANY_PAGE 132
-/* @} */
+/** @} */
 
 #endif

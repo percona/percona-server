@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ using std::vector;
 
 class SelectLexVisitorTest : public ParserTest {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 };
 
 /// A visitor that remembers what it has seen.
@@ -53,17 +53,17 @@ class Remembering_visitor : public Select_lex_visitor {
   Remembering_visitor()
       : m_saw_select_lex(false), m_saw_select_lex_unit(false) {}
 
-  virtual bool visit_union(SELECT_LEX_UNIT *) {
+  bool visit_union(SELECT_LEX_UNIT *) override {
     m_saw_select_lex_unit = true;
     return false;
   }
 
-  virtual bool visit_query_block(SELECT_LEX *) {
+  bool visit_query_block(SELECT_LEX *) override {
     m_saw_select_lex = true;
     return false;
   }
 
-  virtual bool visit_item(Item *item) {
+  bool visit_item(Item *item) override {
     // Not possible to call val_XXX on item_field. So just store the name.
     if (item->type() == Item::FIELD_ITEM)
       field_names.push_back(item->full_name());
@@ -75,7 +75,7 @@ class Remembering_visitor : public Select_lex_visitor {
   bool saw_select_lex() { return m_saw_select_lex; }
   bool saw_select_lex_unit() { return m_saw_select_lex_unit; }
 
-  ~Remembering_visitor() {}
+  ~Remembering_visitor() override {}
 
  private:
   bool m_saw_select_lex, m_saw_select_lex_unit;
@@ -113,7 +113,7 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
   EXPECT_CALL(where, walk(_, _, _)).Times(1);
   EXPECT_CALL(having, walk(_, _, _)).Times(1);
 
-  SELECT_LEX query_block(&where, &having);
+  SELECT_LEX query_block(thd()->mem_root, &where, &having);
 
   SELECT_LEX_UNIT unit(CTX_NONE);
 
@@ -135,7 +135,7 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
 
 TEST_F(SelectLexVisitorTest, InsertList) {
   SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2, 3)", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -147,7 +147,7 @@ TEST_F(SelectLexVisitorTest, InsertList) {
 
 TEST_F(SelectLexVisitorTest, InsertList2) {
   SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -160,7 +160,7 @@ TEST_F(SelectLexVisitorTest, InsertList2) {
 
 TEST_F(SelectLexVisitorTest, InsertSet) {
   SELECT_LEX *select_lex = parse("INSERT INTO t SET a=1, b=2, c=3", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -178,7 +178,7 @@ TEST_F(SelectLexVisitorTest, InsertSet) {
 TEST_F(SelectLexVisitorTest, ReplaceList) {
   SELECT_LEX *select_lex =
       parse("REPLACE INTO t(a, b, c) VALUES (1,2,3), (4,5,6)", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -196,7 +196,7 @@ TEST_F(SelectLexVisitorTest, ReplaceList) {
 TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
   SELECT_LEX *select_lex = parse(
       "INSERT INTO t VALUES (1,2) ON DUPLICATE KEY UPDATE c= 44, a= 55", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);
@@ -212,7 +212,7 @@ TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
 
 TEST_F(SelectLexVisitorTest, Update) {
   SELECT_LEX *select_lex = parse("UPDATE t SET a= 0, c= 25", 0);
-  ASSERT_FALSE(select_lex == NULL);
+  ASSERT_FALSE(select_lex == nullptr);
 
   Remembering_visitor visitor;
   thd()->lex->accept(&visitor);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,7 @@ struct Channel_ssl_info {
   char *ssl_cipher;            // list of permissible ciphers to use for SSL
   int ssl_verify_server_cert;  // check the server's Common Name value
   char *tls_version;           // TLS version to use for SSL
+  char *tls_ciphersuites;      // list of permissible ciphersuites for TLS 1.3
 };
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info);
@@ -104,6 +105,8 @@ struct Channel_creation_info {
                              // available
   char *compression_algorithm;
   unsigned int zstd_compression_level;
+  /* to enable async connection failover */
+  int m_source_connection_auto_failover{0};
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);
@@ -188,6 +191,14 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     @retval !=0    Error
 */
 int channel_stop(const char *channel, int threads_to_stop, long timeout);
+
+/**
+  Kills the Binlog Dump threads.
+
+  @return the operation status
+    @retval 0      OK
+*/
+int binlog_dump_thread_kill();
 
 /**
   Stops all the running channel threads according to the given options.
@@ -399,9 +410,8 @@ bool channel_is_stopping(const char *channel, enum_channel_thread_types type);
 
   @param channel  The channel name
 
-  @return
-    @retval true    If relaylog contains partial transcation.
-    @retval false   If relaylog does not contain partial transaction.
+  @retval true    If relaylog contains partial transcation.
+  @retval false   If relaylog does not contain partial transaction.
 */
 bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
@@ -410,9 +420,8 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
 
-  @return
-    @retval          true               atleast one channel threads are running.
-    @retval          false              none of the the channels are running.
+  @retval          true               atleast one channel threads are running.
+  @retval          false              none of the the channels are running.
 */
 bool is_any_slave_channel_running(int thread_mask);
 
@@ -422,14 +431,13 @@ bool is_any_slave_channel_running(int thread_mask);
   @param[in]  channel       The channel name
   @param[out] user          The user to extract
   @param[out] password      The password to extract
-  @param[out] pass_size     The password size
 
   @return the operation status
     @retval false   OK
     @retval true    Error, channel not found
 */
-int channel_get_credentials(const char *channel, const char **user,
-                            char **password, size_t *pass_size);
+int channel_get_credentials(const char *channel, std::string &user,
+                            std::string &password);
 
 /**
   Return type for function
@@ -460,4 +468,14 @@ enum enum_slave_channel_status {
 enum_slave_channel_status
 has_any_slave_channel_open_temp_table_or_is_its_applier_running();
 
+/**
+  Delete stored credentials from Slave_credentials
+  @param[in]  channel_name  The channel name
+
+  @return the operation status
+    @retval 0  OK
+    @retval 1  Error, channel not found
+
+ */
+int channel_delete_credentials(const char *channel_name);
 #endif  // RPL_SERVICE_INTERFACE_INCLUDE

@@ -1,0 +1,35 @@
+# Make sure that changes to disk will not get
+# applied and stay only in redo.
+set global innodb_page_cleaner_disabled_debug=on;
+create table t1(a varchar(255)) encryption='N';
+insert t1 values (repeat('foobarsecret', 12));
+create table t2(a varchar(255)) encryption='KEYRING';
+insert t2 values (repeat('tempsecret', 12));
+# Kill and restart
+include/assert.inc [Make sure t1 is included in INFORMATION_SCHEMA tablespace with MIN_KEY_VERSION equal to 0]
+include/assert.inc [Make sure t2 is included in INFORMATION_SCHEMA tablespace with MIN_KEY_VERSION equal to 1]
+#cleanup
+DROP TABLE t1,t2;
+# Now check that tablespace encrypted by encryption threads is retrieved correctly from redo log.
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+create table t1(a varchar(255));
+insert t1 values (repeat('foobarsecret', 12));
+set global innodb_page_cleaner_disabled_debug=on;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+# Kill and restart
+include/assert.inc [Encryption threads should be disabled]
+include/assert.inc [Make sure t1 is included in INFORMATION_SCHEMA tablespace with ENCRYPTION_SCHEME equal to 1]
+include/assert.inc [Make sure t1 is included in INFORMATION_SCHEMA tablespace with MIN_KEY_VERSION equal to 1]
+#cleanup
+DROP TABLE t1;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+# Wait max 10 min for key encryption threads to decrypt all spaces
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

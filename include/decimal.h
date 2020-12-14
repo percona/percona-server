@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,10 @@ struct decimal_t {
 void widen_fraction(int new_frac, decimal_t *d);
 int string2decimal(const char *from, decimal_t *to, const char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
-                   int fixed_precision, int fixed_decimals, char filler);
+                   int fixed_precision, int fixed_decimals);
+inline int decimal2string(const decimal_t *from, char *to, int *to_len) {
+  return decimal2string(from, to, to_len, 0, 0);
+}
 int decimal2ulonglong(const decimal_t *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal_t *to);
 int decimal2longlong(const decimal_t *from, longlong *to);
@@ -82,20 +85,19 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
 int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
 
 /**
-  Convert doube to lldiv_t.
-  The integer part is stored in to->quot.
-  The fractional part is multiplied to 10^9 and stored to to->rem.
-  @param  nr  Decimal value
-  @param  [out] lld    lldiv_t value
-  @retval 0     on success
-  @retval !0    in error
-*/
+  Convert double value to lldiv_t value.
+  @param     nr The double value to convert from.
+  @param [out] lld   The lldit_t variable to convert to.
+  @return         0 on success, error code on error.
 
+  Integer part goes into lld.quot.
+  Fractional part multiplied to 1000000000 (10^9) goes to lld.rem.
+  Typically used in datetime calculations to split seconds
+  and nanoseconds.
+ */
 int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
-int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
-                        int param);
 
 int decimal_intg(const decimal_t *from);
 int decimal_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to);
@@ -116,7 +118,7 @@ static inline void decimal_make_zero(decimal_t *dec) {
   dec->buf[0] = 0;
   dec->intg = 1;
   dec->frac = 0;
-  dec->sign = 0;
+  dec->sign = false;
 }
 
 /**

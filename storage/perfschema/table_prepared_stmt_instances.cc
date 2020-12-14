@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ Plugin_table table_prepared_stmt_instances::m_table_def(
 PFS_engine_table_share table_prepared_stmt_instances::m_share = {
     &pfs_truncatable_acl,
     table_prepared_stmt_instances::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_prepared_stmt_instances::delete_all_rows,
     table_prepared_stmt_instances::get_row_count,
     sizeof(PFS_simple_index),
@@ -211,7 +211,7 @@ int table_prepared_stmt_instances::rnd_next(void) {
   PFS_prepared_stmt_iterator it =
       global_prepared_stmt_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -225,7 +225,7 @@ int table_prepared_stmt_instances::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs = global_prepared_stmt_container.get(m_pos.m_index);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     return make_row(pfs);
   }
 
@@ -233,7 +233,7 @@ int table_prepared_stmt_instances::rnd_pos(const void *pos) {
 }
 
 int table_prepared_stmt_instances::index_init(uint idx, bool) {
-  PFS_index_prepared_stmt_instances *result = NULL;
+  PFS_index_prepared_stmt_instances *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -268,7 +268,7 @@ int table_prepared_stmt_instances::index_next(void) {
   for (m_pos.set_at(&m_next_pos); has_more; m_pos.next()) {
     pfs = global_prepared_stmt_container.get(m_pos.m_index, &has_more);
 
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (m_opened_index->match(pfs)) {
         if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
@@ -343,8 +343,8 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
           break;
@@ -406,7 +406,7 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
           m_row.m_reprepare_stat.set_field(0, f);
           break;
         default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_execute_stat.set_field(f->field_index - 11, f);
+          m_row.m_execute_stat.set_field(f->field_index() - 11, f);
           break;
       }
     }

@@ -18,6 +18,7 @@ CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 24M
+EXTENT_SIZE 256K
 ENGINE=NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
@@ -59,9 +60,9 @@ ALTER TABLE t1 ADD INDEX (c5);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -73,9 +74,9 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -94,9 +95,9 @@ ALTER TABLE t2 RENAME t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -107,9 +108,9 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -170,14 +171,21 @@ c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 DROP TABLE t1;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ******** Create additional TABLESPACE test 2 **************
 CREATE TABLESPACE ts2
 ADD DATAFILE 'datafile03.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 28M
+EXTENT_SIZE 256K
 ENGINE=NDB;
 ALTER TABLESPACE ts2
 ADD DATAFILE 'datafile04.dat'
@@ -230,7 +238,11 @@ COUNT(*)
 ***** Time to try slave sync ***********
 **** Must make sure slave is clean *****
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP PROCEDURE IF EXISTS tpcb.load;
 DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE IF EXISTS tpcb.account;
@@ -258,9 +270,6 @@ COUNT(*)
 200
 ************ Restore the slave ************************
 CREATE DATABASE tpcb;
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 5;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 ***** Check a few slave restore values ***************
 USE tpcb;
 SELECT COUNT(*) FROM account;
@@ -283,6 +292,8 @@ master_log_pos = <the_pos> ;
 * 4. *
 * 5. *
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 **** We should be ready to continue on *************
 ****** Let's make sure we match *******
 ***** MASTER *******

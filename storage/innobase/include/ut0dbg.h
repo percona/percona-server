@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,11 +42,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	callback	user callback function */
 void ut_set_assert_callback(std::function<void()> &callback);
 
-/** Report a failed assertion. */
-[[noreturn]] void ut_dbg_assertion_failed(
-    const char *expr, /*!< in: the failed assertion */
-    const char *file, /*!< in: source file containing the assertion */
-    ulint line);      /*!< in: line number of the assertion */
+/** Report a failed assertion.
+@param[in] expr The failed assertion
+@param[in] file Source file containing the assertion
+@param[in] line Line number of the assertion */
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          ulint line);
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
@@ -65,11 +66,15 @@ void ut_set_assert_callback(std::function<void()> &callback);
 #define ut_ad(EXPR) ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR) EXPR
+/** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
+#define ut_o(EXPR)
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)
+/** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
+#define ut_o(EXPR) EXPR
 #endif
 
 /** Debug crash point */
@@ -120,7 +125,7 @@ class ut_chrono_t {
 
   /** Resets the chrono (records the current time in it). */
   void reset() {
-    gettimeofday(&m_tv, NULL);
+    gettimeofday(&m_tv, nullptr);
 
     getrusage(RUSAGE_SELF, &m_ru);
   }
@@ -133,7 +138,7 @@ class ut_chrono_t {
 
     getrusage(RUSAGE_SELF, &ru_now);
 
-    gettimeofday(&tv_now, NULL);
+    gettimeofday(&tv_now, nullptr);
 
 #ifndef timersub
 #define timersub(a, b, r)                       \

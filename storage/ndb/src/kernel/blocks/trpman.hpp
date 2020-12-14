@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@ class Trpman : public SimulatedBlock
 {
 public:
   Trpman(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Trpman();
   BLOCK_DEFINES(Trpman);
 
   void execCLOSE_COMREQ(Signal *signal);
@@ -50,6 +49,7 @@ public:
   void execDISCONNECT_REP(Signal *signal);
   void execCONNECT_REP(Signal *signal);
   void execROUTE_ORD(Signal* signal);
+  void execACTIVATE_TRP_REQ(Signal*);
 
   void sendSYNC_THREAD_VIA_CONF(Signal*, Uint32, Uint32);
   void execSYNC_THREAD_VIA_REQ(Signal*);
@@ -61,7 +61,7 @@ public:
 protected:
   bool getParam(const char* name, Uint32* count) override;
 private:
-  bool handles_this_node(Uint32 nodeId);
+  bool handles_this_node(Uint32 nodeId, bool all = false);
   void close_com_failed_node(Signal*, Uint32);
   void enable_com_node(Signal*, Uint32);
 };
@@ -70,7 +70,7 @@ class TrpmanProxy : public LocalProxy
 {
 public:
   TrpmanProxy(Block_context& ctx);
-  virtual ~TrpmanProxy();
+  ~TrpmanProxy() override;
   BLOCK_DEFINES(TrpmanProxy);
 
   // GSN_OPEN_COMORD
@@ -133,8 +133,9 @@ public:
   void execROUTE_ORD(Signal* signal);
   void execNDB_TAMPER(Signal*);
   void execDUMP_STATE_ORD(Signal*);
+  void execACTIVATE_TRP_REQ(Signal*);
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 };
 
 

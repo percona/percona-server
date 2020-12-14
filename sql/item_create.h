@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@
   Builder for SQL functions.
 */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "sql/parse_tree_node_base.h"  // POS
+#include "my_inttypes.h"         // uint
+#include "sql/parse_location.h"  // POS
 
 /**
   @addtogroup GROUP_PARSER
@@ -45,8 +45,10 @@ class Item;
 class PT_item_list;
 class THD;
 struct Cast_type;
+struct CHARSET_INFO;
 struct udf_func;
 enum enum_field_types : int;
+enum class Json_on_response_type : uint16;
 
 /* For type casts */
 
@@ -56,6 +58,7 @@ enum Cast_target : unsigned char {
   ITEM_CAST_DATE,
   ITEM_CAST_TIME,
   ITEM_CAST_DATETIME,
+  ITEM_CAST_YEAR,
   ITEM_CAST_CHAR,
   ITEM_CAST_DECIMAL,
   ITEM_CAST_JSON,
@@ -121,7 +124,8 @@ class Create_qfunc : public Create_func {
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
-  virtual Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list);
+  Item *create_func(THD *thd, LEX_STRING name,
+                    PT_item_list *item_list) override;
 
   /**
     The builder create method, for qualified functions.
@@ -139,7 +143,7 @@ class Create_qfunc : public Create_func {
   /** Constructor. */
   Create_qfunc() {}
   /** Destructor. */
-  virtual ~Create_qfunc() {}
+  ~Create_qfunc() override {}
 };
 
 /**
@@ -163,7 +167,8 @@ extern Create_qfunc *find_qualified_function_builder(THD *thd);
 
 class Create_udf_func : public Create_func {
  public:
-  virtual Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list);
+  Item *create_func(THD *thd, LEX_STRING name,
+                    PT_item_list *item_list) override;
 
   /**
     The builder create method, for User Defined Functions.
@@ -181,7 +186,7 @@ class Create_udf_func : public Create_func {
   /** Constructor. */
   Create_udf_func() {}
   /** Destructor. */
-  virtual ~Create_udf_func() {}
+  ~Create_udf_func() override {}
 };
 
 /**
@@ -192,10 +197,32 @@ class Create_udf_func : public Create_func {
   @param type the type casted into
   @param as_array Cast to array
 */
-Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type,
-                       bool as_array = false);
+Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type &type,
+                       bool as_array);
+
 Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                        Cast_target cast_target, const CHARSET_INFO *cs_arg);
+
+/**
+  Creates an Item that represents a JSON_VALUE expression.
+
+  @param thd        thread handler
+  @param pos        the location of the expression
+  @param arg        the JSON input argument to the JSON_VALUE expression
+  @param path       the path to extract from the JSON document
+  @param type       the target type of the JSON_VALUE expression
+  @param on_empty_type     the type of the ON EMPTY clause
+  @param on_empty_default  the default value specified in ON EMPTY, if any
+  @param on_error_type     the type of the ON ERROR clause
+  @param on_error_default  the default value specified in ON ERROR, if any
+  @return an Item on success, or nullptr on error
+*/
+Item *create_func_json_value(THD *thd, const POS &pos, Item *arg, Item *path,
+                             const Cast_type &type,
+                             Json_on_response_type on_empty_type,
+                             Item *on_empty_default,
+                             Json_on_response_type on_error_type,
+                             Item *on_error_default);
 
 Item *create_temporal_literal(THD *thd, const char *str, size_t length,
                               const CHARSET_INFO *cs, enum_field_types type,

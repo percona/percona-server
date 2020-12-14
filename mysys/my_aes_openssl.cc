@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,25 +47,12 @@ int dummy_function_needed_by_xplugin() {
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
 const char *my_aes_opmode_names[] = {
-    "aes-128-ecb",
-    "aes-192-ecb",
-    "aes-256-ecb",
-    "aes-128-cbc",
-    "aes-192-cbc",
-    "aes-256-cbc",
-    "aes-128-cfb1",
-    "aes-192-cfb1",
-    "aes-256-cfb1",
-    "aes-128-cfb8",
-    "aes-192-cfb8",
-    "aes-256-cfb8",
-    "aes-128-cfb128",
-    "aes-192-cfb128",
-    "aes-256-cfb128",
-    "aes-128-ofb",
-    "aes-192-ofb",
-    "aes-256-ofb",
-    NULL /* needed for the type enumeration */
+    "aes-128-ecb",    "aes-192-ecb",    "aes-256-ecb",    "aes-128-cbc",
+    "aes-192-cbc",    "aes-256-cbc",    "aes-128-cfb1",   "aes-192-cfb1",
+    "aes-256-cfb1",   "aes-128-cfb8",   "aes-192-cfb8",   "aes-256-cfb8",
+    "aes-128-cfb128", "aes-192-cfb128", "aes-256-cfb128", "aes-128-ofb",
+    "aes-192-ofb",    "aes-256-ofb",    nullptr /* needed for the type
+                                                   enumeration */
 };
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
@@ -122,7 +109,7 @@ static const EVP_CIPHER *aes_evp_type(const my_aes_opmode mode) {
     case my_aes_256_ofb:
       return EVP_aes_256_ofb();
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -226,17 +213,6 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
   return block_size > 1 ? block_size * (source_length / block_size) + block_size
                         : source_length;
 }
-
-/**
-  Return true if the AES cipher and block mode requires an IV
-
-  SYNOPSIS
-  my_aes_needs_iv()
-  @param opmode           encryption mode
-
-  @retval true   IV needed
-  @retval false  IV not needed
-*/
 
 bool my_aes_needs_iv(my_aes_opmode opmode) {
   const EVP_CIPHER *cipher = aes_evp_type(opmode);

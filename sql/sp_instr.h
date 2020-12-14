@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ class sp_instr : public sp_printable {
         m_ip(ip),
         m_parsing_ctx(ctx) {}
 
-  virtual ~sp_instr() { m_arena.free_items(); }
+  ~sp_instr() override { m_arena.free_items(); }
 
   /**
     Execute this instruction
@@ -188,7 +188,7 @@ class sp_instr : public sp_printable {
   bool opt_is_marked() const { return m_marked; }
 
   virtual SQL_I_List<Item_trigger_field> *get_instr_trig_field_list() {
-    return NULL;
+    return nullptr;
   }
 
   Query_arena m_arena;
@@ -225,15 +225,15 @@ class sp_lex_instr : public sp_instr {
  public:
   sp_lex_instr(uint ip, sp_pcontext *ctx, LEX *lex, bool is_lex_owner)
       : sp_instr(ip, ctx),
-        m_lex(NULL),
+        m_lex(nullptr),
         m_is_lex_owner(false),
         m_first_execution(true),
-        m_prelocking_tables(NULL),
-        m_lex_query_tables_own_last(NULL) {
+        m_prelocking_tables(nullptr),
+        m_lex_query_tables_own_last(nullptr) {
     set_lex(lex, is_lex_owner);
   }
 
-  virtual ~sp_lex_instr() {
+  ~sp_lex_instr() override {
     free_lex();
     /*
       If the instruction is reparsed, m_lex_mem_root was used to allocate
@@ -264,7 +264,7 @@ class sp_lex_instr : public sp_instr {
   */
   bool validate_lex_and_execute_core(THD *thd, uint *nextp, bool open_tables);
 
-  virtual SQL_I_List<Item_trigger_field> *get_instr_trig_field_list() {
+  SQL_I_List<Item_trigger_field> *get_instr_trig_field_list() override {
     return &m_trig_field_list;
   }
 
@@ -328,7 +328,7 @@ class sp_lex_instr : public sp_instr {
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp) {
+  bool execute(THD *thd, uint *nextp) override {
     /*
       SP instructions with expressions should clear DA before execution.
       Note that sp_instr_stmt will override execute(), but it clears DA
@@ -376,6 +376,8 @@ class sp_lex_instr : public sp_instr {
     @param[out] sql_query SQL-statement query string.
   */
   virtual void get_query(String *sql_query) const;
+
+  virtual void adjust_sql_command(LEX *) {}
 
   /**
     @return the expression query string. This string can not be passed directly
@@ -479,29 +481,29 @@ class sp_instr_stmt : public sp_lex_instr {
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool is_invalid() const { return !m_valid; }
+  bool is_invalid() const override { return !m_valid; }
 
-  virtual void invalidate() { m_valid = false; }
+  void invalidate() override { m_valid = false; }
 
-  virtual void get_query(String *sql_query) const {
+  void get_query(String *sql_query) const override {
     sql_query->append(m_query.str, m_query.length);
   }
 
-  virtual bool on_after_expr_parsing(THD *) {
+  bool on_after_expr_parsing(THD *) override {
     m_valid = true;
     return false;
   }
@@ -515,7 +517,7 @@ class sp_instr_stmt : public sp_lex_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -539,27 +541,30 @@ class sp_instr_set : public sp_lex_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool is_invalid() const { return m_value_item == NULL; }
+  bool is_invalid() const override { return m_value_item == nullptr; }
 
-  virtual void invalidate() { m_value_item = NULL; }
+  void invalidate() override { m_value_item = nullptr; }
 
-  virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
-
-    m_value_item = thd->lex->select_lex->item_list.head();
+  bool on_after_expr_parsing(THD *thd) override {
+    m_value_item = thd->lex->select_lex->single_visible_field();
+    DBUG_ASSERT(m_value_item != nullptr);
 
     return false;
   }
 
-  virtual LEX_CSTRING get_expr_query() const { return m_value_query; }
+  LEX_CSTRING get_expr_query() const override { return m_value_query; }
+
+  void adjust_sql_command(LEX *lex) override {
+    lex->sql_command = SQLCOM_SET_OPTION;
+  }
 
  private:
   /// Frame offset.
@@ -574,7 +579,7 @@ class sp_instr_set : public sp_lex_instr {
 #ifdef HAVE_PSI_INTERFACE
  public:
   static PSI_statement_info psi_info;
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 #endif
 };
 
@@ -599,23 +604,23 @@ class sp_instr_set_trigger_field : public sp_lex_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool is_invalid() const { return m_value_item == NULL; }
+  bool is_invalid() const override { return m_value_item == nullptr; }
 
-  virtual void invalidate() { m_value_item = NULL; }
+  void invalidate() override { m_value_item = nullptr; }
 
-  virtual bool on_after_expr_parsing(THD *thd);
+  bool on_after_expr_parsing(THD *thd) override;
 
-  virtual void cleanup_before_parsing(THD *thd);
+  void cleanup_before_parsing(THD *thd) override;
 
-  virtual LEX_CSTRING get_expr_query() const { return m_value_query; }
+  LEX_CSTRING get_expr_query() const override { return m_value_query; }
 
  private:
   /// Trigger field name ("field_name" of the "NEW.field_name").
@@ -632,7 +637,7 @@ class sp_instr_set_trigger_field : public sp_lex_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -656,13 +661,13 @@ class sp_instr_freturn : public sp_lex_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint opt_mark(sp_head *, List<sp_instr> *) {
+  uint opt_mark(sp_head *, List<sp_instr> *) override {
     m_marked = true;
     return UINT_MAX;
   }
@@ -671,24 +676,22 @@ class sp_instr_freturn : public sp_lex_instr {
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool is_invalid() const { return m_expr_item == NULL; }
+  bool is_invalid() const override { return m_expr_item == nullptr; }
 
-  virtual void invalidate() {
+  void invalidate() override {
     // it's already deleted.
-    m_expr_item = NULL;
+    m_expr_item = nullptr;
   }
 
-  virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
-
-    m_expr_item = thd->lex->select_lex->item_list.head();
-
+  bool on_after_expr_parsing(THD *thd) override {
+    m_expr_item = thd->lex->select_lex->single_visible_field();
+    DBUG_ASSERT(m_expr_item != nullptr);
     return false;
   }
 
-  virtual LEX_CSTRING get_expr_query() const { return m_expr_query; }
+  LEX_CSTRING get_expr_query() const override { return m_expr_query; }
 
  private:
   /// RETURN-expression item.
@@ -702,7 +705,7 @@ class sp_instr_freturn : public sp_lex_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -723,41 +726,41 @@ class sp_instr_freturn : public sp_lex_instr {
 class sp_instr_jump : public sp_instr, public sp_branch_instr {
  public:
   sp_instr_jump(uint ip, sp_pcontext *ctx)
-      : sp_instr(ip, ctx), m_dest(0), m_optdest(NULL) {}
+      : sp_instr(ip, ctx), m_dest(0), m_optdest(nullptr) {}
 
   sp_instr_jump(uint ip, sp_pcontext *ctx, uint dest)
-      : sp_instr(ip, ctx), m_dest(dest), m_optdest(NULL) {}
+      : sp_instr(ip, ctx), m_dest(dest), m_optdest(nullptr) {}
 
   /////////////////////////////////////////////////////////////////////////
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *, uint *nextp) {
+  bool execute(THD *, uint *nextp) override {
     *nextp = m_dest;
     return false;
   }
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
+  uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
-  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start);
+  uint opt_shortcut_jump(sp_head *sp, sp_instr *start) override;
 
-  virtual void opt_move(uint dst, List<sp_branch_instr> *ibp);
+  void opt_move(uint dst, List<sp_branch_instr> *ibp) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_branch_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void set_destination(uint old_dest, uint new_dest) {
+  void set_destination(uint old_dest, uint new_dest) override {
     if (m_dest == old_dest) m_dest = new_dest;
   }
 
-  virtual void backpatch(uint dest) {
+  void backpatch(uint dest) override {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
     DBUG_ASSERT(m_dest == 0);
     m_dest = dest;
@@ -772,7 +775,7 @@ class sp_instr_jump : public sp_instr, public sp_branch_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -791,8 +794,8 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
       : sp_lex_instr(ip, ctx, lex, true),
         m_dest(0),
         m_cont_dest(0),
-        m_optdest(NULL),
-        m_cont_optdest(NULL),
+        m_optdest(nullptr),
+        m_cont_optdest(nullptr),
         m_expr_item(expr_item),
         m_expr_query(expr_query) {}
 
@@ -801,8 +804,8 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
       : sp_lex_instr(ip, ctx, lex, true),
         m_dest(dest),
         m_cont_dest(0),
-        m_optdest(NULL),
-        m_cont_optdest(NULL),
+        m_optdest(nullptr),
+        m_cont_optdest(nullptr),
         m_expr_item(expr_item),
         m_expr_query(expr_query) {}
 
@@ -813,33 +816,35 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
+  uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
-  virtual void opt_move(uint dst, List<sp_branch_instr> *ibp);
+  void opt_move(uint dst, List<sp_branch_instr> *ibp) override;
 
-  virtual uint get_cont_dest() const { return m_cont_dest; }
+  uint get_cont_dest() const override { return m_cont_dest; }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_invalid() const { return m_expr_item == NULL; }
+  bool is_invalid() const override { return m_expr_item == nullptr; }
 
-  virtual void invalidate() { m_expr_item = NULL; /* it's already deleted. */ }
+  void invalidate() override {
+    m_expr_item = nullptr; /* it's already deleted. */
+  }
 
-  virtual LEX_CSTRING get_expr_query() const { return m_expr_query; }
+  LEX_CSTRING get_expr_query() const override { return m_expr_query; }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_branch_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void set_destination(uint old_dest, uint new_dest) {
+  void set_destination(uint old_dest, uint new_dest) override {
     if (m_dest == old_dest) m_dest = new_dest;
 
     if (m_cont_dest == old_dest) m_cont_dest = new_dest;
   }
 
-  virtual void backpatch(uint dest) {
+  void backpatch(uint dest) override {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
     DBUG_ASSERT(m_dest == 0);
     m_dest = dest;
@@ -885,25 +890,23 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
-
-    m_expr_item = thd->lex->select_lex->item_list.head();
-
+  bool on_after_expr_parsing(THD *thd) override {
+    m_expr_item = thd->lex->select_lex->single_visible_field();
+    DBUG_ASSERT(m_expr_item != nullptr);
     return false;
   }
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -929,15 +932,15 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
+  uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
-  virtual void opt_move(uint dst, List<sp_branch_instr> *ibp);
+  void opt_move(uint dst, List<sp_branch_instr> *ibp) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_branch_instr implementation.
@@ -956,23 +959,21 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
     hierarchy.
   */
 
-  virtual void set_destination(uint old_dest, uint new_dest) {
+  void set_destination(uint old_dest, uint new_dest) override {
     if (m_cont_dest == old_dest) m_cont_dest = new_dest;
   }
 
-  virtual void backpatch(uint) {}
+  void backpatch(uint) override {}
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
-
-    m_expr_item = thd->lex->select_lex->item_list.head();
-
+  bool on_after_expr_parsing(THD *thd) override {
+    m_expr_item = thd->lex->select_lex->single_visible_field();
+    DBUG_ASSERT(m_expr_item != nullptr);
     return false;
   }
 
@@ -982,7 +983,7 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1009,19 +1010,19 @@ class sp_instr_jump_case_when : public sp_lex_branch_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual void invalidate() {
+  void invalidate() override {
     // Items should be already deleted in lex-keeper.
-    m_case_expr_item = NULL;
-    m_eq_item = NULL;
-    m_expr_item = NULL;  // it's a WHEN-expression.
+    m_case_expr_item = nullptr;
+    m_eq_item = nullptr;
+    m_expr_item = nullptr;  // it's a WHEN-expression.
   }
 
   /**
@@ -1044,7 +1045,7 @@ class sp_instr_jump_case_when : public sp_lex_branch_instr {
 
     @return Error flag.
   */
-  virtual bool on_after_expr_parsing(THD *thd);
+  bool on_after_expr_parsing(THD *thd) override;
 
  private:
   /// Identifier (index) of the CASE-expression in the runtime context.
@@ -1062,7 +1063,7 @@ class sp_instr_jump_case_when : public sp_lex_branch_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1076,7 +1077,7 @@ class sp_instr_hpush_jump : public sp_instr_jump {
  public:
   sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, sp_handler *handler);
 
-  virtual ~sp_instr_hpush_jump();
+  ~sp_instr_hpush_jump() override;
 
   void add_condition(sp_condition_value *condition_value);
 
@@ -1086,24 +1087,24 @@ class sp_instr_hpush_jump : public sp_instr_jump {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
+  uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
   /** Override sp_instr_jump's shortcut; we stop here. */
-  virtual uint opt_shortcut_jump(sp_head *, sp_instr *) { return get_ip(); }
+  uint opt_shortcut_jump(sp_head *, sp_instr *) override { return get_ip(); }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_branch_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void backpatch(uint dest) {
+  void backpatch(uint dest) override {
     DBUG_ASSERT(!m_dest || !m_opt_hpop);
     if (!m_dest)
       m_dest = dest;
@@ -1124,7 +1125,7 @@ class sp_instr_hpush_jump : public sp_instr_jump {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1140,7 +1141,7 @@ class sp_instr_hpop : public sp_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *, String *str) {
+  void print(const THD *, String *str) override {
     str->append(STRING_WITH_LEN("hpop"));
   }
 
@@ -1148,11 +1149,11 @@ class sp_instr_hpop : public sp_instr {
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1168,18 +1169,18 @@ class sp_instr_hreturn : public sp_instr_jump {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
   /** Override sp_instr_jump's shortcut; we stop here. */
-  virtual uint opt_shortcut_jump(sp_head *, sp_instr *) { return get_ip(); }
+  uint opt_shortcut_jump(sp_head *, sp_instr *) override { return get_ip(); }
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
+  uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
  private:
   // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
@@ -1188,7 +1189,7 @@ class sp_instr_hreturn : public sp_instr_jump {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1234,29 +1235,29 @@ class sp_instr_cpush : public sp_lex_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool is_invalid() const { return !m_valid; }
+  bool is_invalid() const override { return !m_valid; }
 
-  virtual void invalidate() { m_valid = false; }
+  void invalidate() override { m_valid = false; }
 
-  virtual void get_query(String *sql_query) const {
+  void get_query(String *sql_query) const override {
     sql_query->append(m_cursor_query.str, m_cursor_query.length);
   }
 
-  virtual bool on_after_expr_parsing(THD *) {
+  bool on_after_expr_parsing(THD *) override {
     m_valid = true;
     return false;
   }
@@ -1274,7 +1275,7 @@ class sp_instr_cpush : public sp_lex_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1295,20 +1296,20 @@ class sp_instr_cpop : public sp_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
  private:
   uint m_count;
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1329,13 +1330,13 @@ class sp_instr_copen : public sp_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
  private:
   /// Used to identify the cursor in the sp_rcontext.
@@ -1343,7 +1344,7 @@ class sp_instr_copen : public sp_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1365,13 +1366,13 @@ class sp_instr_cclose : public sp_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
  private:
   /// Used to identify the cursor in the sp_rcontext.
@@ -1379,7 +1380,7 @@ class sp_instr_cclose : public sp_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1401,13 +1402,13 @@ class sp_instr_cfetch : public sp_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp);
+  bool execute(THD *thd, uint *nextp) override;
 
   void add_to_varlist(sp_variable *var) { m_varlist.push_back(var); }
 
@@ -1420,7 +1421,7 @@ class sp_instr_cfetch : public sp_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
@@ -1443,19 +1444,19 @@ class sp_instr_error : public sp_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *, uint *nextp) {
+  bool execute(THD *, uint *nextp) override {
     my_error(m_errcode, MYF(0));
     *nextp = get_ip() + 1;
     return true;
   }
 
-  virtual uint opt_mark(sp_head *, List<sp_instr> *) {
+  uint opt_mark(sp_head *, List<sp_instr> *) override {
     m_marked = true;
     return UINT_MAX;
   }
@@ -1466,7 +1467,7 @@ class sp_instr_error : public sp_instr {
 
 #ifdef HAVE_PSI_INTERFACE
  public:
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif

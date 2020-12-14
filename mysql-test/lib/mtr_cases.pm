@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,9 @@ use mtr_report;
 
 require "mtr_misc.pl";
 
-my $threads_support        = eval 'use threads; 1';
-my $threads_shared_support = eval 'use threads::shared; 1';
+my $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
+my $threads_support          = eval 'use threads; 1';
+my $threads_shared_support   = eval 'use threads::shared; 1';
 
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
@@ -593,9 +594,7 @@ sub collect_test_cases ($$$$) {
     @$cases = sort { $a->{criteria} cmp $b->{criteria}; } @$cases;
   }
 
-  # When $opt_repeat > 1 and $opt_parallel > 1, duplicate each test
-  # $opt_repeat number of times to allow them running in parallel.
-  if ($::opt_repeat > 1 and $::opt_parallel > 1) {
+  if ($::opt_repeat > 1) {
     $cases = duplicate_test_cases($cases);
   }
 
@@ -611,7 +610,7 @@ sub collect_test_cases ($$$$) {
 sub duplicate_test_cases($) {
   my $tests = shift;
 
-  my $new_tests;
+  my $new_tests = [];
   foreach my $test (@$tests) {
     # Don't repeat the test if 'skip' flag is enabled.
     if ($test->{'skip'}) {
@@ -1052,6 +1051,10 @@ sub optimize_cases {
         $tinfo->{'myisam_test'} = 1
           if ($default_tmp_engine =~ /^myisam/i);
       }
+
+      if($secondary_engine_support) {
+        optimize_secondary_engine_tests($dash_opt, $tinfo);
+      }
     }
 
     if ($quick_collect && !$tinfo->{'skip'}) {
@@ -1291,12 +1294,6 @@ sub collect_one_test_case {
       if ($default_storage_engine =~ /^mysiam/i);
   }
 
-  # Skip non-parallel tests if 'non-parallel-test' option is disabled
-  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test) {
-    skip_test($tinfo, "Test needs 'non-parallel-test' option");
-    return $tinfo;
-  }
-
   # Except the tests which need big-test or only-big-test option to run
   # in valgrind environment(i.e tests having no_valgrind_without_big.inc
   # include file), other normal/non-big tests shouldn't run with
@@ -1329,6 +1326,20 @@ sub collect_one_test_case {
   if ($tinfo->{'need_debug'} && !$::debug_compiled_binaries) {
     skip_test($tinfo, "Test needs debug binaries.");
     return $tinfo;
+  }
+
+  if ($tinfo->{'asan_need_debug'} && !$::debug_compiled_binaries) {
+    if ($::mysql_version_extra =~ /asan/) {
+      skip_test($tinfo, "Test needs debug binaries if built with ASAN.");
+      return $tinfo;
+    }
+  }
+
+  if ($tinfo->{'need_backup'}) {
+    if (!$::mysqlbackup_enabled) {
+      skip_test($tinfo, "Test needs mysqlbackup.");
+      return $tinfo;
+    }
   }
 
   if ($tinfo->{'ndb_test'}) {
@@ -1479,6 +1490,8 @@ my @tags = (
   [ "include/force_myisam_default.inc", "myisam_test", 1 ],
 
   [ "include/big_test.inc",       "big_test",   1 ],
+  [ "include/asan_have_debug.inc","asan_need_debug", 1 ],
+  [ "include/have_backup.inc",    "need_backup", 1 ],
   [ "include/have_debug.inc",     "need_debug", 1 ],
   [ "include/have_ndb.inc",       "ndb_test",   1 ],
   [ "include/have_multi_ndb.inc", "ndb_test",   1 ],
@@ -1505,6 +1518,10 @@ my @tags = (
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
   [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ]);
+
+if ($secondary_engine_support) {
+  push (@tags, get_secondary_engine_tags());
+}
 
 sub tags_from_test_file {
   my $tinfo = shift;

@@ -10,7 +10,7 @@ Warnings:
 Warning	1048	Column 'f1' cannot be null
 INSERT IGNORE INTO t1 VALUES ( 'te' , 'm') , ( NULL , 'think' );
 Warnings:
-Warning	1062	Duplicate entry 'm-te' for key 'PRIMARY'
+Warning	1062	Duplicate entry 'm-te' for key 't1.PRIMARY'
 Warning	1048	Column 'f1' cannot be null
-Warning	1062	Duplicate entry 'th-' for key 'PRIMARY'
+Warning	1062	Duplicate entry 'th-' for key 't1.PRIMARY'
 DROP TABLE t1;

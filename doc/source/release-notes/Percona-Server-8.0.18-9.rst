@@ -56,11 +56,9 @@ Other bugs fixed:
 :psbug:`6054`,
 :psbug:`6056`,
 :psbug:`6058`,
-:psbug:`6059`,
 :psbug:`6078`,
 :psbug:`6057`,
-:psbug:`6111`,
-:psbug:`6117`, and
+:psbug:`6111`, and
 :psbug:`6073`.
 
 .. |release| replace:: 8.0.18-9

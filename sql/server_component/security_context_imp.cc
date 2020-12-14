@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,21 +20,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "components/mysql_server/security_context_imp.h"
-#include "components/mysql_server/server_component.h"
+#include "security_context_imp.h"
 
+#include <mysql/components/minimal_chassis.h>
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h"  // create_thd
-
-/**
-  Its a dummy initialization function. And it will be called from
-  server_component_init(). Else linker, is cutting out (as library
-  optimization) the security_context methods, because libsql code
-  is not calling any functions of it.
-*/
-void mysql_security_context_init() { return; }
 
 /**
   Gets the security context for the thread.
@@ -78,6 +70,8 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
     Security_context *in_sctx = reinterpret_cast<Security_context *>(in_ctx);
     if (in_sctx) {
       thd->set_security_context(in_sctx);
+      in_sctx->set_thd(thd);
+
       // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
       set_system_user_flag(thd);
     }
@@ -174,9 +168,9 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
                    (Security_context_handle ctx, const char *user,
                     const char *host, const char *ip, const char *db)) {
   try {
-    THD *tmp_thd = NULL;
+    THD *tmp_thd = nullptr;
     bool retval;
-    if (current_thd == NULL) {
+    if (current_thd == nullptr) {
       tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       if (!tmp_thd) return true;
     }
@@ -187,9 +181,17 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
                  ? true
                  : false;
 
+    /*
+      If it is not a new security context then update the
+      system_user flag in its referenced THD.
+    */
+    Security_context *sctx = reinterpret_cast<Security_context *>(ctx);
+    THD *sctx_thd = sctx->get_thd();
+    if (sctx_thd) set_system_user_flag(sctx_thd);
+
     if (tmp_thd) {
       destroy_thd(tmp_thd);
-      tmp_thd = NULL;
+      tmp_thd = nullptr;
     }
     return retval;
   } catch (...) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,17 +57,16 @@ These are low-level functions
 #define BUF_LRU_OLD_MIN_LEN 512 /* 8 megabytes of 16k pages */
 #endif                          /* !UNIV_HOTBACKUP */
 
-/** Flushes all dirty pages or removes all pages belonging
- to a given tablespace. A PROBLEM: if readahead is being started, what
- guarantees that it will not try to read in pages after this operation
- has completed? */
-void buf_LRU_flush_or_remove_pages(
-    space_id_t id,           /*!< in: space id */
-    buf_remove_t buf_remove, /*!< in: remove or flush strategy */
-    const trx_t *trx,        /*!< to check if the operation must
-                             be interrupted */
-    bool strict = true);     /*!< in: true, if no page from tablespace
-                             can be in buffer pool just after flush */
+/** Flushes all dirty pages or removes all pages belonging to a given
+tablespace. A PROBLEM: if readahead is being started, what guarantees
+that it will not try to read in pages after this operation has completed?
+@param[in]  id          tablespace ID
+@param[in]  buf_remove  remove or flush strategy
+@param[in]  trx         to check if the operation must be interrupted
+@param[in]  strict      true, if no page from tablespace can be in
+                        buffer pool just after flush */
+void buf_LRU_flush_or_remove_pages(space_id_t id, buf_remove_t buf_remove,
+                                   const trx_t *trx, bool strict = true);
 
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -79,7 +78,7 @@ void buf_LRU_insert_zip_clean(buf_page_t *bpage);
 /** Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 NOTE: this function may temporarily release and relock the
-buf_page_get_get_mutex(). Furthermore, the page frame will no longer be
+buf_page_get_mutex(). Furthermore, the page frame will no longer be
 accessible via bpage. If this function returns true, it will also release
 the LRU list mutex.
 The caller must hold the LRU list and buf_page_get_mutex() mutexes.
@@ -160,6 +159,10 @@ void buf_unzip_LRU_add_block(buf_block_t *block, ibool old);
 @param[in]	bpage	control block */
 void buf_LRU_make_block_young(buf_page_t *bpage);
 
+/** Moves a block to the end of the LRU list.
+@param[in]	bpage	control block */
+void buf_LRU_make_block_old(buf_page_t *bpage);
+
 /** Updates buf_pool->LRU_old_ratio.
  @return updated old_pct */
 uint buf_LRU_old_ratio_update(
@@ -184,9 +187,10 @@ the block mutexes will be released.
                                 could be not initialized */
 void buf_LRU_free_one_page(buf_page_t *bpage, bool zip, bool ignore_content);
 
-/** Adjust LRU hazard pointers if needed. */
-void buf_LRU_adjust_hp(buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-                       const buf_page_t *bpage); /*!< in: control block */
+/** Adjust LRU hazard pointers if needed.
+@param[in] buf_pool Buffer pool instance
+@param[in] bpage Control block */
+void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list.
@@ -198,7 +202,8 @@ ibool buf_LRU_validate(void);
 void buf_LRU_print(void);
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/** @name Heuristics for detecting index scan @{ */
+/** @name Heuristics for detecting index scan
+@{ */
 /** The denominator of buf_pool->LRU_old_ratio. */
 #define BUF_LRU_OLD_RATIO_DIV 1024
 /** Maximum value of buf_pool->LRU_old_ratio.
@@ -222,7 +227,7 @@ The minimum must exceed
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
 extern uint buf_LRU_old_threshold_ms;
-/* @} */
+/** @} */
 
 /** @brief Statistics for selecting the LRU list for eviction.
 
@@ -246,8 +251,6 @@ extern buf_LRU_stat_t buf_LRU_stat_sum;
 #define buf_LRU_stat_inc_io() buf_LRU_stat_cur.io++
 /** Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
 #define buf_LRU_stat_inc_unzip() buf_LRU_stat_cur.unzip++
-
-#include "buf0lru.ic"
 
 #endif /* !UNIV_HOTBACKUP */
 

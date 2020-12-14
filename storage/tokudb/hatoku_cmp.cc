@@ -65,6 +65,7 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_BOOL:
       ret_val = true;
       goto exit;
     //
@@ -78,6 +79,7 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:
@@ -173,6 +175,7 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_BOOL:
       ret_val = toku_type_int;
       goto exit;
     case MYSQL_TYPE_TIME:
@@ -225,6 +228,7 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:
@@ -447,10 +451,8 @@ static inline uchar *unpack_toku_double(uchar *to_mysql, uchar *from_tokudb) {
 
 static inline int cmp_toku_double(uchar *a_buf, uchar *b_buf) {
   int ret_val;
-  double a_num;
-  double b_num;
-  doubleget(&a_num, a_buf);
-  doubleget(&b_num, b_buf);
+  const double a_num = doubleget(a_buf);
+  const double b_num = doubleget(b_buf);
   if (a_num < b_num) {
     ret_val = -1;
     goto exit;
@@ -537,7 +539,7 @@ static uchar *pack_toku_varbinary_from_desc(
 ) {
   uint32_t length_bytes_in_tokudb = get_length_bytes_from_max(key_part_length);
   uint32_t length = field_length;
-  set_if_smaller(length, key_part_length);
+  length = std::min(length, key_part_length);
 
   //
   // copy the length bytes, assuming both are in little endian
@@ -582,7 +584,7 @@ static inline uchar *pack_toku_varbinary(
   // from this point on, functionality equivalent to
   // pack_toku_varbinary_from_desc
   //
-  set_if_smaller(length, max_num_bytes);
+  length = std::min(length, max_num_bytes);
 
   length_bytes_in_tokudb = get_length_bytes_from_max(max_num_bytes);
   //
@@ -684,7 +686,7 @@ static inline uchar *pack_toku_blob(
       length = uint4korr(from_mysql);
       break;
   }
-  set_if_smaller(length, max_num_bytes);
+  length = std::min(length, max_num_bytes);
 
   memcpy(&blob_buf, from_mysql + length_bytes_in_mysql, sizeof(uchar *));
 
@@ -694,7 +696,7 @@ static inline uchar *pack_toku_blob(
   if (length > local_char_length) {
     local_char_length =
         my_charpos(charset, blob_buf, blob_buf + length, local_char_length);
-    set_if_smaller(length, local_char_length);
+    length = std::min(length, local_char_length);
   }
 
   //
@@ -764,7 +766,7 @@ static uchar *pack_toku_varstring_from_desc(
   uint32_t length_bytes_in_tokudb = get_length_bytes_from_max(key_part_length);
   uint32_t length = field_length;
   uint32_t local_char_length = 0;
-  set_if_smaller(length, key_part_length);
+  length = std::min(length, key_part_length);
 
   charset = get_charset_from_num(charset_num);
 
@@ -777,7 +779,7 @@ static uchar *pack_toku_varstring_from_desc(
   if (length > local_char_length) {
     local_char_length =
         my_charpos(charset, from_desc, from_desc + length, local_char_length);
-    set_if_smaller(length, local_char_length);
+    length = std::min(length, local_char_length);
   }
 
   //
@@ -821,7 +823,7 @@ static inline uchar *pack_toku_varstring(
       length = uint4korr(from_mysql);
       break;
   }
-  set_if_smaller(length, max_num_bytes);
+  length = std::min(length, max_num_bytes);
 
   local_char_length =
       ((charset->mbmaxlen > 1) ? max_num_bytes / charset->mbmaxlen
@@ -830,7 +832,7 @@ static inline uchar *pack_toku_varstring(
     local_char_length = my_charpos(charset, from_mysql + length_bytes_in_mysql,
                                    from_mysql + length_bytes_in_mysql + length,
                                    local_char_length);
-    set_if_smaller(length, local_char_length);
+    length = std::min(length, local_char_length);
   }
 
   //
@@ -969,7 +971,7 @@ static int create_toku_key_descriptor_for_key(KEY *key, uchar *buf) {
         assert_always(num_bytes_in_field < 256);
         *pos = (uchar)(num_bytes_in_field & 255);
         pos++;
-        *pos = (field->flags & UNSIGNED_FLAG) ? 1 : 0;
+        *pos = (field->is_flag_set(UNSIGNED_FLAG)) ? 1 : 0;
         pos++;
         break;
       //
@@ -983,7 +985,8 @@ static int create_toku_key_descriptor_for_key(KEY *key, uchar *buf) {
       //
       case (toku_type_fixbinary):
         num_bytes_in_field = field->pack_length();
-        set_if_smaller(num_bytes_in_field, key->key_part[i].length);
+        num_bytes_in_field =
+            std::min<uint32_t>(num_bytes_in_field, key->key_part[i].length);
         assert_always(num_bytes_in_field < 256);
         pos[0] = (uchar)(num_bytes_in_field & 255);
         pos++;
@@ -1207,26 +1210,26 @@ static uchar *pack_toku_key_field(
       goto exit;
     case (toku_type_fixbinary):
       num_bytes = field->pack_length();
-      set_if_smaller(num_bytes, key_part_length);
+      num_bytes = std::min(num_bytes, key_part_length);
       new_pos = pack_toku_binary(to_tokudb, from_mysql, num_bytes);
       goto exit;
     case (toku_type_fixstring):
       num_bytes = field->pack_length();
-      set_if_smaller(num_bytes, key_part_length);
+      num_bytes = std::min(num_bytes, key_part_length);
       new_pos = pack_toku_varstring(to_tokudb, from_mysql,
                                     get_length_bytes_from_max(key_part_length),
                                     0, num_bytes, field->charset());
       goto exit;
     case (toku_type_varbinary):
-      new_pos = pack_toku_varbinary(to_tokudb, from_mysql,
-                                    ((Field_varstring *)field)->length_bytes,
-                                    key_part_length);
+      new_pos = pack_toku_varbinary(
+          to_tokudb, from_mysql, ((Field_varstring *)field)->get_length_bytes(),
+          key_part_length);
       goto exit;
     case (toku_type_varstring):
-      new_pos = pack_toku_varstring(to_tokudb, from_mysql,
-                                    get_length_bytes_from_max(key_part_length),
-                                    ((Field_varstring *)field)->length_bytes,
-                                    key_part_length, field->charset());
+      new_pos = pack_toku_varstring(
+          to_tokudb, from_mysql, get_length_bytes_from_max(key_part_length),
+          ((Field_varstring *)field)->get_length_bytes(), key_part_length,
+          field->charset());
       goto exit;
     case (toku_type_blob):
       new_pos = pack_toku_blob(
@@ -1317,7 +1320,7 @@ uchar *unpack_toku_key_field(uchar *to_mysql, uchar *from_tokudb, Field *field,
       goto exit;
     case (toku_type_fixbinary):
       num_bytes = field->pack_length();
-      set_if_smaller(num_bytes, key_part_length);
+      num_bytes = std::min(num_bytes, key_part_length);
       new_pos = unpack_toku_binary(to_mysql, from_tokudb, num_bytes);
       goto exit;
     case (toku_type_fixstring):
@@ -1334,7 +1337,7 @@ uchar *unpack_toku_key_field(uchar *to_mysql, uchar *from_tokudb, Field *field,
     case (toku_type_varstring):
       new_pos = unpack_toku_varbinary(
           to_mysql, from_tokudb, get_length_bytes_from_max(key_part_length),
-          ((Field_varstring *)field)->length_bytes);
+          ((Field_varstring *)field)->get_length_bytes());
       goto exit;
     case (toku_type_blob):
       new_pos = unpack_toku_blob(
@@ -1723,7 +1726,7 @@ int32_t KEY_AND_COL_INFO::initialize(const TABLE_SHARE &table_share,
         field_types[i] = KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
         field_lengths[i] = 0;
         length_bytes[i] = static_cast<uchar>(
-            static_cast<const Field_varstring *>(field)->length_bytes);
+            static_cast<const Field_varstring *>(field)->get_length_bytes());
         max_var_bytes += field->field_length;
         break;
       default:
@@ -1874,7 +1877,7 @@ static uint32_t pack_desc_pk_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                   TABLE_SHARE *table_share,
                                   KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16_t field_index = key_part->field->field_index;
+  uint16_t field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t key_part_length = key_part->length;
@@ -1895,7 +1898,7 @@ static uint32_t pack_desc_pk_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
       pos[0] = COL_FIX_FIELD;
       pos++;
       field_length = field->pack_length();
-      set_if_smaller(key_part_length, field_length);
+      key_part_length = std::min(key_part_length, field_length);
       assert_always(key_part_length < 256);
       pos[0] = (uchar)key_part_length;
       pos++;
@@ -1920,7 +1923,7 @@ static uint32_t pack_desc_pk_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
 static uint32_t pack_desc_pk_offset_info(uchar *buf, KEY_PART_INFO *key_part,
                                          KEY *prim_key, uchar *pk_info) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   bool found_col_in_pk = false;
   uint32_t index_in_pk;
 
@@ -1928,7 +1931,7 @@ static uint32_t pack_desc_pk_offset_info(uchar *buf, KEY_PART_INFO *key_part,
   uint32_t offset = 0;
   for (uint i = 0; i < prim_key->user_defined_key_parts; i++) {
     KEY_PART_INFO curr = prim_key->key_part[i];
-    uint16 curr_field_index = curr.field->field_index;
+    uint16 curr_field_index = curr.field->field_index();
 
     if (pk_info[2 * i] == COL_VAR_FIELD) {
       is_constant_offset = false;
@@ -1962,7 +1965,7 @@ static uint32_t pack_desc_offset_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                       uint pk_index, TABLE_SHARE *table_share,
                                       KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   bool found_index = false;
@@ -2013,7 +2016,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                           TABLE_SHARE *table_share,
                                           KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t key_part_length = key_part->length;
@@ -2031,7 +2034,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
     case (toku_type_fixbinary):
     case (toku_type_fixstring):
       field_length = field->pack_length();
-      set_if_smaller(key_part_length, field_length);
+      key_part_length = std::min(key_part_length, field_length);
       // fallthrough
     case (toku_type_varbinary):
     case (toku_type_varstring):
@@ -2050,7 +2053,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
 static uint32_t pack_desc_char_info(uchar *buf, TABLE_SHARE *table_share,
                                     KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t charset_num = 0;
@@ -2457,7 +2460,7 @@ static uint32_t create_toku_secondary_key_pack_descriptor(
 
   for (uint i = 0; i < key_info->user_defined_key_parts; i++) {
     KEY_PART_INFO curr_kpi = key_info->key_part[i];
-    uint16 field_index = curr_kpi.field->field_index;
+    uint16 field_index = curr_kpi.field->field_index();
     Field *field = table_share->field[field_index];
     bool is_col_in_pk = false;
 
@@ -2928,11 +2931,12 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_BOOL:
       // length, unsigned, auto increment
       if (a->pack_length() != b->pack_length() ||
-          (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG) ||
-          (a->flags & AUTO_INCREMENT_FLAG) !=
-              (b->flags & AUTO_INCREMENT_FLAG)) {
+          (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG)) ||
+          (a->is_flag_set(AUTO_INCREMENT_FLAG)) !=
+              (b->is_flag_set(AUTO_INCREMENT_FLAG))) {
         retval = false;
         goto cleanup;
       }
@@ -2941,9 +2945,9 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_FLOAT:
       // length, unsigned, auto increment
       if (a->pack_length() != b->pack_length() ||
-          (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG) ||
-          (a->flags & AUTO_INCREMENT_FLAG) !=
-              (b->flags & AUTO_INCREMENT_FLAG)) {
+          (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG)) ||
+          (a->is_flag_set(AUTO_INCREMENT_FLAG)) !=
+              (b->is_flag_set(AUTO_INCREMENT_FLAG))) {
         retval = false;
         goto cleanup;
       }
@@ -2951,7 +2955,7 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_NEWDECIMAL:
       // length, unsigned
       if (a->pack_length() != b->pack_length() ||
-          (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG)) {
+          (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG))) {
         retval = false;
         goto cleanup;
       }
@@ -3062,6 +3066,7 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:

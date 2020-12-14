@@ -1693,7 +1693,7 @@ alter table t1 add f2 enum(0xFFFF);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   `f2` enum('') DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

@@ -35,11 +35,12 @@ enable_query_log;
 let $databases = 16;
 
 connection slave;
+--source include/only_mts_slave_parallel_workers.inc
 
 call mtr.add_suppression('Slave: Error dropping database'); ## todo: fix
 
 source include/stop_slave.inc;
-start slave;
+start replica;
 
 connection master;
 
@@ -96,7 +97,7 @@ while($i)
 
 
 # not gather events into relay log w/o executing yet
-stop slave sql_thread;
+stop replica sql_thread;
 
 ##call p1(1);
 
@@ -255,7 +256,7 @@ insert into test0.benchmark set state='slave is processing load';
 # TODO: replace with another algorithm
 #set @save.mts_exp_slave_local_timestamp=@@global.mts_exp_slave_local_timestamp;
 #set @@global.mts_exp_slave_local_timestamp=1;
-start slave sql_thread;
+start replica sql_thread;
 
 let $wait_timeout= 600;
 let $wait_condition= SELECT count(*)+sleep(1) = 5 FROM test0.benchmark;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+ADD_WSHADOW_WARNING()
+DISABLE_MISSING_PROFILE_WARNING()
+
 IF(NOT CMAKE_CROSSCOMPILING)
   MYSQL_ADD_EXECUTABLE(comp_err
     comp_err.cc
+    COMPONENT Test
     LINK_LIBRARIES mysys
-    SKIP_INSTALL
     )
 ENDIF()
 
@@ -44,20 +47,24 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
 ADD_CUSTOM_TARGET(GenClientError ALL
   DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
 
-
-IF(BUILD_BUNDLED_LZ4)
-  ADD_LIBRARY(lz4_lib STATIC
-    ../extra/lz4/lz4.c
-    ../extra/lz4/lz4frame.c
-    ../extra/lz4/lz4hc.c
-    ../extra/lz4/xxhash.c
-  )
-ENDIF()
-
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 
+# Create localized error message files, <language>/errmsg.sys
+#
+# errmsg-utf8.txt was split into messages_to_clients.txt and
+# messages_to_error_log.txt, respectively.
+#
+# As the names suggest, this covers messages sent by the server to
+# the error-log, and those sent by the server to clients.
+# For messages built into the clients (or rather, libmysql / C-API)
+# itself, see the MYSQL_ADD_EXECUTABLE(comp_client_err ...) section.
+#
+# Please see errmsg_readme.txt in the same directory for more information.
+#
 ADD_CUSTOM_COMMAND(OUTPUT
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   COMMAND comp_err
   --charset=${PROJECT_SOURCE_DIR}/share/charsets
@@ -65,15 +72,22 @@ ADD_CUSTOM_COMMAND(OUTPUT
   --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
   --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   --errmsg_file=${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
-  --in_file=${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
-  DEPENDS ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
+  --in_file_errlog=${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
+  --in_file_toclient=${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt
+  DEPENDS
+  ${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
+  ${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt
   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)
+
 
 ADD_CUSTOM_TARGET(GenError ALL
   DEPENDS 
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
-  ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
+  ${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
+  ${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt)
 
 MYSQL_ADD_EXECUTABLE(range_check_err
   range_check_err.cc
@@ -85,19 +99,18 @@ MYSQL_ADD_EXECUTABLE(range_check_err
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
-## Most executables depend on SSL shared libraries (through mysys).
-## For 'comp_err' we need it to be available during build.
-IF(WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
+# The copied shared libraries must be available at build time.
+IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(GenError copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
-IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
-ENDIF()
+MYSQL_ADD_EXECUTABLE(static_thread_local_test
+  static_thread_local_test.cc
+  SKIP_INSTALL
+  EXCLUDE_FROM_ALL
+  )
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults
   my_print_defaults.cc
@@ -118,13 +131,11 @@ IF(BUILD_BUNDLED_LZ4)
     )
 ENDIF()
 
-IF(BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
-  MYSQL_ADD_EXECUTABLE(zlib_decompress
-    zlib_decompress.cc
-    COMPONENT Server
-    LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
-    )
-ENDIF()
+MYSQL_ADD_EXECUTABLE(zlib_decompress
+  zlib_decompress.cc
+  COMPONENT Server
+  LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
+  )
 
 # All targets below belong to COMPONENT Server and depend on InnoDB.
 IF(WITHOUT_SERVER)

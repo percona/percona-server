@@ -239,7 +239,7 @@ set global rocksdb_compact_cf='default';
 SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 
-# TTL test where you compact (values still exist), real_sleep, then compact again,
+# TTL test where you compact (values still exist), sleep, then compact again,
 # values should now be gone.
 CREATE TABLE t1 (
 a INT NOT NULL,

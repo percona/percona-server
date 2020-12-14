@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <fstream>
+#include <stdexcept>
+#include <vector>
+
 // ignore GMock warnings
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
-#include <fstream>
-#include <stdexcept>
-#include <vector>
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"
 #include "mysqlrouter/utils.h"
@@ -53,7 +54,7 @@ using ::testing::Pair;
 
 class SplitAddrPortTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(SplitAddrPortTest, SplitAddrPort) {
@@ -93,7 +94,7 @@ TEST_F(SplitAddrPortTest, SplitAddrPortFail) {
 
 class GetTCPPortTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(GetTCPPortTest, GetTCPPort) {
@@ -151,7 +152,7 @@ TEST_F(HexDumpTest, MultiLine) {
 
 class UtilsTests : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 static bool files_equal(const std::string &f1, const std::string &f2) {
@@ -301,4 +302,9 @@ TEST_F(UtilsTests, uint_conversion) {
   // extra + sign
   EXPECT_EQ(12u, strtoui_checked("+12", 66));
   EXPECT_EQ(0u, strtoui_checked("+0", 66));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

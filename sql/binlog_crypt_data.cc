@@ -17,6 +17,7 @@
 #include "binlog_crypt_data.h"
 
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #ifdef MYSQL_SERVER

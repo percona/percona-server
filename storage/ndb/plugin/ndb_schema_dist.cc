@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,10 @@
 #include <mutex>
 
 #include "my_dbug.h"
+#include "mysqld_error.h"
 #include "ndbapi/ndb_cluster_connection.hpp"
 #include "sql/query_options.h"  // OPTION_BIN_LOG
+#include "sql/sql_error.h"
 #include "sql/sql_thd_internal_api.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
@@ -41,6 +43,7 @@
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
+#include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 // Temporarily use a fixed string on the form "./mysql/ndb_schema" as key
 // for retrieving the NDB_SHARE for mysql.ndb_schema. This will subsequently
@@ -69,6 +72,8 @@ bool Ndb_schema_dist::is_ready(void *requestor) {
   NDB_SHARE::release_reference(schema_share, reference.c_str());
   return true;
 }
+
+bool Ndb_schema_dist_client::m_ddl_blocked = true;
 
 bool Ndb_schema_dist_client::is_schema_dist_table(const char *db,
                                                   const char *table_name) {
@@ -102,23 +107,57 @@ void Ndb_schema_dist_client::acquire_acl_lock() {
   m_holding_acl_mutex = true;
 }
 
+static std::string unique_reference(void *owner) {
+  std::stringstream ss;
+  ss << "ndb_schema_dist_client" << std::hex << owner;
+  return ss.str();
+}
+
 Ndb_schema_dist_client::Ndb_schema_dist_client(THD *thd)
-    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)), m_holding_acl_mutex(false) {}
+    : m_thd(thd),
+      m_thd_ndb(get_thd_ndb(thd)),
+      m_share_reference(unique_reference(this)),
+      m_holding_acl_mutex(false) {}
 
 bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   DBUG_TRACE;
 
   // Acquire reference on mysql.ndb_schema
-  // NOTE! Using fixed "reference", assuming only one Ndb_schema_dist_client
-  // is started at a time since it requires GSL. This may have to be revisited
   m_share = NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
-                                                "ndb_schema_dist_client");
+                                                m_share_reference.c_str());
+
   if (m_share == nullptr || m_share->have_event_operation() == false ||
       DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {
     // The NDB_SHARE for mysql.ndb_schema hasn't been created or not setup
     // yet -> schema distribution is not ready
-    m_thd_ndb->push_warning("Schema distribution is not ready");
+    push_warning(m_thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                 "Schema distribution is not ready");
     return false;
+  }
+
+  if (unlikely(m_ddl_blocked)) {
+    // If a data node gets upgraded after this MySQL Server is upgraded, this
+    // MySQL Server will not be aware of the upgrade due to Bug#30930132.
+    // So as a workaround, re-evaluate again if the DDL needs to be blocked
+    if (ndb_all_nodes_support_mysql_dd()) {
+      // All nodes connected to cluster support MySQL DD.
+      // No need to continue blocking the DDL.
+      m_ddl_blocked = false;
+    } else {
+      // Non database DDLs are blocked in plugin due to an ongoing upgrade.
+      // Database DDLs are allowed as they are actually executed in the Server
+      // layer and ndbcluster is only responsible for distributing the change to
+      // other MySQL Servers.
+      if (strlen(tabname) != 0) {
+        // If the tablename is not empty, it is a non database DDL. Block it.
+        my_printf_error(
+            ER_DISALLOWED_OPERATION,
+            "DDLs are disallowed on NDB SE as there is atleast one node "
+            "without MySQL DD support connected to the cluster.",
+            MYF(0));
+        return false;
+      }
+    }
   }
 
   // Save the prepared "keys"(which are used when communicating with
@@ -244,10 +283,10 @@ extern void update_slave_api_stats(const Ndb *);
 Ndb_schema_dist_client::~Ndb_schema_dist_client() {
   if (m_share) {
     // Release the reference to mysql.ndb_schema table
-    NDB_SHARE::release_reference(m_share, "ndb_schema_dist_client");
+    NDB_SHARE::release_reference(m_share, m_share_reference.c_str());
   }
 
-  if (m_thd_ndb->is_slave_thread()) {
+  if (m_thd_ndb && m_thd_ndb->is_slave_thread()) {
     // Copy-out slave thread statistics
     // NOTE! This is just a "convenient place" to call this
     // function, it could be moved to "end of statement"(if there

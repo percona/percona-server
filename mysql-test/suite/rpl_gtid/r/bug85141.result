@@ -76,6 +76,6 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_relay_log_info';
 DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_master_info';
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_2';
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_2';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

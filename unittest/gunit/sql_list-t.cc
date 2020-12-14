@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,12 +60,12 @@ class SqlListTest : public ::testing::Test {
   SqlListTest()
       : m_mem_root_p(&m_mem_root), m_int_list(), m_int_list_iter(m_int_list) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     THR_MALLOC = &m_mem_root_p;
   }
 
-  virtual void TearDown() { free_root(&m_mem_root, MYF(0)); }
+  void TearDown() override { free_root(&m_mem_root, MYF(0)); }
 
   static void SetUpTestCase() {
     current_thd = nullptr;
@@ -145,7 +145,7 @@ class Linked_node : public ilink<Linked_node> {
  private:
   int m_value;
 };
-const Linked_node *const null_node = NULL;
+const Linked_node *const null_node = nullptr;
 
 // An example of a test without any fixture.
 TEST(SqlIlistTest, ConstructAndDestruct) {

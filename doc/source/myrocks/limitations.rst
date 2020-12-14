@@ -6,30 +6,20 @@ MyRocks Limitations
 
 The MyRocks storage engine lacks the following features compared to InnoDB:
 
-* `Online DDL <https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl.html>`_
-
-* `ALTER TABLE ... EXCHANGE PARTITION
-  <https://dev.mysql.com/doc/refman/8.0/en/partitioning-management-exchange.html>`_
-
-* `SAVEPOINT <https://dev.mysql.com/doc/refman/8.0/en/savepoint.html>`_
-
-* `Transportable tablespace <https://dev.mysql.com/doc/refman/8.0/en/innodb-transportable-tablespace-examples.html>`_
-
-* `Foreign keys <https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html>`_
-
-* `Spatial indexes <https://dev.mysql.com/doc/refman/8.0/en/using-spatial-indexes.html>`_
-
-* `Fulltext indexes <https://dev.mysql.com/doc/refman/8.0/en/innodb-fulltext-index.html>`_
-
-* `Gap locks <https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks>`_
-
-* `Generated Columns
-  <https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html>`_
-
-* `Group Replication <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_
-
-* `Partial Update of LOB in InnoDB <https://mysqlserverteam.com/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/>`_
-
+   * `Online DDL <https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl.html>`_ is not supported due to the lack of atomic DDL support. 
+       - There is no ``ALTER TABLE ... ALGORITHM=INSTANT`` functionality
+       - A partition management operation only supports the ``COPY`` algorithms, which rebuilds the partition table and moves the data based on the new ``PARTITION ... VALUE`` definition. In the case of ``DROP PARTITION``, the data not moved to another partition is deleted.
+   * `ALTER TABLE .. EXCHANGE PARTITION <https://dev.mysql.com/doc/refman/8.0/en/partitioning-management-exchange.html>`_. 
+   * `SAVEPOINT <https://dev.mysql.com/doc/refman/8.0/en/savepoint.html>`_
+   * `Transportable tablespace <https://dev.mysql.com/doc/refman/8.0/en/innodb-transportable-tablespace-examples.html>`_
+   * `Foreign keys <https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html>`_
+   * `Spatial indexes <https://dev.mysql.com/doc/refman/8.0/en/using-spatial-indexes.html>`_
+   * `Fulltext indexes <https://dev.mysql.com/doc/refman/8.0/en/innodb-fulltext-index.html>`_
+   * `Gap locks <https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks>`_
+   * `Generated Columns <https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html>`_
+   * `Group Replication <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_
+   * `Partial Update of LOB in InnoDB <https://mysqlserverteam.com/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/>`_
+    
 You should also consider the following:
 
 * :file:`*_bin` (e.g. ``latin1_bin``) or binary collation should be used
@@ -52,7 +42,7 @@ You should also consider the following:
   Note that InnoDB also imposes a cost
   when the index is scanned in the opposite order.
 
-* MyRocks does not support operating as either a master or a slave
+* MyRocks does not support operating as either a source or a replica
   in any replication topology that is not exclusively row-based.
   Statement-based and mixed-format binary logging is not supported.
   For more information, see `Replication Formats
@@ -79,16 +69,10 @@ You should also consider the following:
 
    .. warning::
 
-    If you are loading large data without enabling :variable:`rocksdb_bulk_load`
-    or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
-    size is small enough. All modifications of the ongoing transactions are
-    kept in memory.
-
-* The`XA protocol <https://dev.mysql.com/doc/refman/8.0/en/xa.html>`_ support,
-  which allows distributed transactions combining multiple separate
-  transactional resources, is an experimental feature in MyRocks: the
-  implementation is less tested, it may lack some functionality and be not as
-  stable as in case of InnoDB.
+      If you are loading large data without enabling :variable:`rocksdb_bulk_load`
+      or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
+      size is small enough. All modifications of the ongoing transactions are
+      kept in memory.
 
 * With partitioned tables that use the |TokuDB| or |MyRocks| storage engine,
   the upgrade only works with native partitioning.
@@ -98,6 +82,12 @@ You should also consider the following:
      |MySQL| Documentation: Preparing Your Installation for Upgrade
         https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html
 
+* The |MyRocks| storage engine does not support the |sql.no-wait| and
+  |sql.skip-locked| modifiers introduced in the |InnoDB| storage
+  engine with |MySQL| 8.0.
+
+.. include:: ../.res/replace.concept.txt
+
 * |Percona Server| 8.0 and Unicode 9.0.0 standards have defined a change in the
   handling of binary collations. These collations are handled as NO PAD,
   trailing spaces are included in key comparisons. A binary collation comparison
@@ -106,7 +96,7 @@ You should also consider the following:
   character set attribute.
 
 *  In version 8.0.13-3 and later, MyRocks does not support
-   `explict DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
+   `explicit DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
 
 * |Percona Server| 8.0.16 does not support encryption for the MyRocks
   storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.
@@ -128,4 +118,5 @@ You should also consider the following:
 
     MyRocks Data Loading
     https://www.percona.com/doc/percona-server/8.0/myrocks/data_loading.html
-
+    
+* MySQL has `spatial data types <https://dev.mysql.com/doc/refman/8.0/en/spatial-type-overview.html>`__ . These data types are not supported by MyRocks.

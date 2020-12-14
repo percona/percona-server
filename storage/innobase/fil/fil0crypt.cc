@@ -27,6 +27,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "mach0data.h"
 #include "mtr0types.h"
+#include "mysqld.h"  // server_uuid
 #include "page0size.h"
 #include "page0zip.h"
 #include "system_key.h"
@@ -64,7 +65,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ENCRYPTION_MASTER_KEY_NAME_MAX_LEN 100
 
 #ifdef UNIV_DEBUG
-static int number_of_t1_pages_rotated = 0;
+static int number_of_t1_pages_rotated{0};
+// we set it to 100 first - so the space would be considered to
+// rotation, later we change it to different value - depends on
+// how many pages we do wait.
+static int number_of_t1_pages_to_rotate{100};
 #endif
 
 /** Mutex for keys */
@@ -113,77 +118,110 @@ extern bool mysqld_server_started;
 
 EncryptionKeyId get_global_default_encryption_key_id_value();
 
+static constexpr byte ENCRYPTION_KEYRING_VALIDATION_TAG[] = {
+    'E', 'N', 'C', '_', 'V', 'A', 'L', '_',
+    'T', 'A', 'G', '_', 'V', '1', '_', '1'};
+static constexpr size_t ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE =
+    MY_AES_BLOCK_SIZE;
+static_assert(sizeof(ENCRYPTION_KEYRING_VALIDATION_TAG) == MY_AES_BLOCK_SIZE,
+              "Size of ENCRYPTION_KEYRING_VALIDATION_TAG must be equal to size "
+              "of the output of AES crypto, i.e. MY_AES_BLOCK_SIZE");
+
+static constexpr uint ENCRYPTION_SERVER_UUID_HEX_LEN = 16;
+
 #define DEBUG_KEYROTATION_THROTTLING 0
 
 static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
-    ENCRYPTION_MAGIC_SIZE + 1  // type
-    + 4                        // min_key_version
-    + 4                        // key_id
-    + 1                        // encryption
-    + CRYPT_SCHEME_1_IV_LEN    // iv (16 bytes)
-    + 1                        // encryption rotation type
-    + ENCRYPTION_KEY_LEN       // tablespace key
-    + ENCRYPTION_KEY_LEN;      // tablespace iv
+    Encryption::MAGIC_SIZE + 1                 // type
+    + 4                                        // min_key_version
+    + 4                                        // max_key_version
+    + 4                                        // key_id
+    + 1                                        // encryption
+    + CRYPT_SCHEME_1_IV_LEN                    // iv (16 bytes)
+    + 1                                        // encryption rotation type
+    + Encryption::KEY_LEN                      // tablespace key
+    + Encryption::SERVER_UUID_HEX_LEN          // server's UUID written in hex
+    + ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE;  // validation tag
+
+static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
+    Encryption::MAGIC_SIZE + 1      // type
+    + 4                             // min_key_version
+    + 4                             // key_id
+    + 1                             // encryption
+    + CRYPT_SCHEME_1_IV_LEN         // iv (16 bytes)
+    + 1                             // encryption rotation type
+    + Encryption::KEY_LEN           // tablespace key
+    + Encryption::SERVER_UUID_LEN;  // server's UUID
 
 static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
-    ENCRYPTION_MAGIC_SIZE + 2  // length of iv
-    + 4                        // space id
-    + 2                        // offset
-    + 1                        // type
-    + 4                        // min_key_version
-    + 4                        // key_id
-    + 1                        // encryption
-    + CRYPT_SCHEME_1_IV_LEN    // iv (16 bytes)
-    + 4                        // encryption rotation type
-    + ENCRYPTION_KEY_LEN       // tablespace key
-    + ENCRYPTION_KEY_LEN;      // tablespace iv
+    Encryption::MAGIC_SIZE + 2  // length of iv
+    + 4                         // space id
+    + 2                         // offset
+    + 1                         // type
+    + 4                         // min_key_version
+    + 4                         // key_id
+    + 1                         // encryption
+    + CRYPT_SCHEME_1_IV_LEN     // iv (16 bytes)
+    + 4                         // encryption rotation type
+    + Encryption::KEY_LEN       // tablespace key
+    + Encryption::KEY_LEN;      // tablespace iv
 
 /* The size of keyring key encrption header cannot cross the Master
 Key header. This is because the bytes followed by MK header are used
 by other features like SDI, encryption progress (MK) etc. If we cross
 the MK encryption header size ENCRYPTION_INFO_MAX_SIZE, we corrupt the
 header and other features will not work */
-static_assert(KERYING_ENCRYPTION_INFO_MAX_SIZE < ENCRYPTION_INFO_MAX_SIZE,
+static_assert(KERYING_ENCRYPTION_INFO_MAX_SIZE < Encryption::INFO_MAX_SIZE,
               "Keyring key encryption header crosses Master Key encryption"
               " header size");
 
-uchar *fil_space_crypt_t::get_key_currently_used_for_encryption() {
-  // ut_ad(mutex_own(&this->mutex));
-  return get_cached_key(cached_encryption_key, encrypting_with_key_version);
-}
-
-uchar *fil_space_crypt_t::get_min_key_version_key() {
-  // ut_ad(mutex_own(&this->mutex));
-  return get_cached_key(cached_min_key_version_key, min_key_version);
-}
-
-uchar *fil_space_crypt_t::get_cached_key(Cached_key &cached_key,
-                                         uint key_version) {
-  // ut_ad(mutex_own(&this->mutex));
-  ut_ad(key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
-  if (cached_key.key_version == key_version) return cached_key.key;
-
-  if (cached_key.key != NULL) {
-    fetched_keys.push_back(cached_key.key);
-    // my_free(cached_key.key);
-    cached_key.key = NULL;
+void fil_space_crypt_t::unload_keys_from_local_cache() {
+  for (auto item : local_keys_cache) {
+    if (item.second != nullptr) {
+      memset(item.second, 0, Encryption::KEY_LEN);
+      my_free(item.second);
+    }
   }
-  cached_key.key_version = ENCRYPTION_KEY_VERSION_INVALID;
-
-  Encryption::get_tablespace_key(this->key_id, key_version, &cached_key.key,
-                                 &cached_key.key_len);
-  ut_ad(cached_key.key == NULL || cached_key.key_len == ENCRYPTION_KEY_LEN);
-
-  cached_key.key_version = key_version;
-
-  return cached_key.key;
+  local_keys_cache.clear();
 }
 
-bool fil_space_crypt_t::load_needed_keys_into_local_cache() {
-  return (encrypting_with_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED ||
-          get_key_currently_used_for_encryption() != NULL) &&
-         (min_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED ||
-          get_min_key_version_key() != NULL);
+bool fil_space_crypt_t::load_keys_to_local_cache(const uint from_key_version,
+                                                 const uint to_key_version) {
+  for (uint key_version = from_key_version; key_version <= to_key_version;
+       ++key_version) {
+    ut_ad(key_version != ENCRYPTION_KEY_VERSION_INVALID &&
+          key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
+
+    if (local_keys_cache[key_version] == nullptr) {
+      size_t key_length{0};
+
+      Encryption::get_tablespace_key(this->key_id, this->uuid, key_version,
+                                     &local_keys_cache[key_version],
+                                     &key_length);
+      if (local_keys_cache[key_version] == nullptr) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool fil_space_crypt_t::load_keys_to_local_cache() {
+  if (min_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
+      max_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)
+    return true;  // tablespace not encrypted - no keys to fetch
+
+  // in case space is not encrypted we need to only load max_key_version,
+  // min_key_version will be just unencrypted. In case it is encrypted
+  // min_key_version might be 0, but it's not a valid key version - just
+  // a marker that some pages are unencrypted.
+  uint start_version = (type == CRYPT_SCHEME_UNENCRYPTED)
+                           ? max_key_version
+                           : std::max(min_key_version, static_cast<uint>(1));
+
+  ut_ad(start_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
+
+  return load_keys_to_local_cache(start_version, max_key_version);
 }
 
 /** Statistics variables */
@@ -202,12 +240,25 @@ static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
                                      uint rotate_key_age)
     MY_ATTRIBUTE((warn_unused_result));
 
+static bool encrypt_validation_tag(const byte *secret, const size_t secret_size,
+                                   const byte *key, byte *encrypted_secret) {
+  auto elen =
+      my_aes_encrypt(secret, secret_size, encrypted_secret, key,
+                     Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
+
+  if (elen == MY_AES_BAD_DATA) {
+    return false;
+  }
+
+  return true;
+}
+
 /*********************************************************************
 Init space crypt */
 void fil_space_crypt_init() {
   mutex_create(LATCH_ID_FIL_CRYPT_MUTEX, &fil_crypt_key_mutex);
 
-  fil_crypt_throttle_sleep_event = os_event_create(0);
+  fil_crypt_throttle_sleep_event = os_event_create();
 
   mutex_create(LATCH_ID_FIL_CRYPT_STAT_MUTEX, &crypt_stat_mutex);
   memset(&crypt_stat, 0, sizeof(crypt_stat));
@@ -221,17 +272,27 @@ void fil_space_crypt_cleanup() {
   mutex_free(&crypt_stat_mutex);
 }
 
-fil_space_crypt_t::fil_space_crypt_t(uint new_type, uint new_min_key_version,
-                                     uint new_key_id,
+fil_space_crypt_t::fil_space_crypt_t(uint new_min_key_version, uint new_key_id,
+                                     const char *new_uuid,
                                      fil_encryption_t new_encryption,
-                                     Crypt_key_operation key_operation,
-                                     Encryption_rotation encryption_rotation)
+                                     Crypt_key_operation key_operation)
     : min_key_version(new_min_key_version),
       encryption(new_encryption),
       key_found(false),
       rotate_state(),
-      encryption_rotation(encryption_rotation),
       tablespace_key(NULL) {
+  encryption_rotation =
+      (new_encryption == FIL_ENCRYPTION_DEFAULT &&
+       srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)
+          ? Encryption_rotation::ENCRYPTING
+          : Encryption_rotation::NO_ROTATION;
+
+  mutex_create(LATCH_ID_FIL_CRYPT_START_ROTATE_MUTEX, &start_rotate_mutex);
+  mutex_create(LATCH_ID_FIL_CRYPT_DATA_MUTEX, &mutex);
+
+  memcpy(encrypted_validation_tag, ENCRYPTION_KEYRING_VALIDATION_TAG,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+
   key_id = new_key_id;
   if (my_random_bytes(iv, sizeof(iv)) != MY_AES_OK)  // TODO:Robert: This can
                                                      // return error and because
@@ -239,44 +300,64 @@ fil_space_crypt_t::fil_space_crypt_t(uint new_type, uint new_min_key_version,
                                                      // in constructor
     type = 0;  // TODO:Robert: This is temporary to get rid of unused variable
                // problem
-  mutex_create(LATCH_ID_FIL_CRYPT_START_ROTATE_MUTEX, &start_rotate_mutex);
-  mutex_create(LATCH_ID_FIL_CRYPT_DATA_MUTEX, &mutex);
-  // locker = crypt_data_scheme_locker; // TODO:Robert: Co to za locker, nie
-  // mogę znaleść jego definicji nawet w mariadb
-  type = new_type;
+  if (new_uuid != nullptr && strlen(new_uuid) > 0) {
+    memcpy(uuid, new_uuid, Encryption::SERVER_UUID_LEN);
+    uuid[Encryption::SERVER_UUID_LEN] = '\0';
+  } else {
+    uuid[0] = '\0';
+  }
 
-  if (new_encryption == FIL_ENCRYPTION_OFF ||
-      (Encryption::is_online_encryption_on() == false &&
-       new_encryption == FIL_ENCRYPTION_DEFAULT)) {
+  if (strlen(new_uuid) == 0) {
+    key_found = false;
+    min_key_version = max_key_version = ENCRYPTION_KEY_VERSION_INVALID;
+    // This was read - because when creating new crypt data - it means that
+    // uuid is never empty. type will be overwritten by read function
+  } else if (new_encryption == FIL_ENCRYPTION_OFF) {
+    type = CRYPT_SCHEME_UNENCRYPTED;
+    key_found = false;
+    min_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+    max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+  } else if (Encryption::is_online_encryption_on() == false &&
+             new_encryption == FIL_ENCRYPTION_DEFAULT) {
     type = CRYPT_SCHEME_UNENCRYPTED;
     min_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
-    key_found = true;
+    max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+    key_found =
+        key_operation == FETCH_OR_GENERATE_KEY
+            ? Encryption::
+                  tablespace_key_exists_or_create_new_one_if_does_not_exist(
+                      key_id, uuid)
+            : Encryption::tablespace_key_exists(key_id, uuid);
   } else {
     type = CRYPT_SCHEME_1;
     // key_found = true; // cheat key_get_latest_version that the key exists -
     // if it does not it will return ENCRYPTION_KEY_VERSION_INVALID
-    uchar *key = NULL;
-    uint key_version = 0;
+    uchar *key = nullptr;
+    uint key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
     if (key_operation == FETCH_OR_GENERATE_KEY) {
-      Encryption::get_latest_tablespace_key_or_create_new_one(
-          key_id, &key_version, &key);
+      Encryption::get_latest_key_or_create(key_id, uuid, &key_version, &key);
     } else if (key_operation == FETCH_KEY) {
-      Encryption::get_latest_tablespace_key(key_id, &key_version, &key);
+      Encryption::get_latest_tablespace_key(key_id, uuid, &key_version, &key);
     } else {
       ut_ad(0);
     }
-    if (key == NULL) {
+    if (key == nullptr) {
       key_found = false;
-      min_key_version = ENCRYPTION_KEY_VERSION_INVALID;
+      min_key_version = max_key_version = ENCRYPTION_KEY_VERSION_INVALID;
     } else {
       key_found = true;
-      min_key_version = key_version;
+      min_key_version = max_key_version = key_version;
+      // we are creating new encrypted space, we need to encrypt validation tag
+      if (key_operation == FETCH_OR_GENERATE_KEY &&
+          encrypt_validation_tag(ENCRYPTION_KEYRING_VALIDATION_TAG,
+                                 ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE, key,
+                                 encrypted_validation_tag) == false) {
+        ut_ad(false);
+        key_found = false;
+      }
     }
     my_free(key);
   }
-
-  // found_key_version = min_key_version; // TODO:This does not make much sense
-  // now - always true
 }
 
 /**
@@ -287,9 +368,8 @@ uint fil_space_crypt_t::key_get_latest_version(void) {
 
   if (is_key_found()) {  // TODO:Robert:This blocks new version from being found
                          // - if it once read - it stays the same
-    key_version = Encryption::encryption_get_latest_version(key_id);
+    key_version = Encryption::encryption_get_latest_version(key_id, uuid);
     srv_stats.n_key_requests.inc();
-    // found_key_version = key_version;
   }
 
   return key_version;
@@ -332,12 +412,13 @@ Create a fil_space_crypt_t object
 @return crypt object */
 
 static fil_space_crypt_t *fil_space_create_crypt_data(
-    uint type, fil_encryption_t encrypt_mode, uint min_key_version, uint key_id,
+    fil_encryption_t encrypt_mode, uint min_key_version, uint key_id,
+    const char *uuid,
     Crypt_key_operation key_operation =
         Crypt_key_operation::FETCH_OR_GENERATE_KEY) {
   fil_space_crypt_t *crypt_data = NULL;
   if (void *buf = ut_zalloc_nokey(sizeof(fil_space_crypt_t))) {
-    crypt_data = new (buf) fil_space_crypt_t(type, min_key_version, key_id,
+    crypt_data = new (buf) fil_space_crypt_t(min_key_version, key_id, uuid,
                                              encrypt_mode, key_operation);
   }
 
@@ -376,11 +457,24 @@ Create a fil_space_crypt_t object
 @param[in]	key_id		Encryption key id
 @return crypt object */
 fil_space_crypt_t *fil_space_create_crypt_data(
-    fil_encryption_t encrypt_mode, uint key_id,
+    fil_encryption_t encrypt_mode, uint key_id, const char *uuid,
     Crypt_key_operation key_operation) {
-  return (fil_space_create_crypt_data(0, encrypt_mode,
+  return (fil_space_create_crypt_data(encrypt_mode,
                                       ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED,
-                                      key_id, key_operation));
+                                      key_id, uuid, key_operation));
+}
+
+bool is_space_keyring_pre_v3_encrypted(fil_space_t *space) {
+  ut_ad(space != nullptr);
+  return space->crypt_data != nullptr &&
+         (space->crypt_data->private_version == 1 ||
+          space->crypt_data->private_version == 2) &&
+         space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED;
+}
+
+bool is_space_keyring_pre_v3_encrypted(space_id_t space_id) {
+  fil_space_t *space = fil_space_get(space_id);
+  return is_space_keyring_pre_v3_encrypted(space);
 }
 
 /******************************************************************
@@ -425,10 +519,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
     const page_size_t &page_size, const byte *page) {
   const ulint offset{fsp_header_get_keyring_encryption_offset(page_size)};
 
-  ut_ad(memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V1,
-               ENCRYPTION_MAGIC_SIZE) == 0);
+  ut_ad(memcmp(page + offset, Encryption::KEY_MAGIC_PS_V1,
+               Encryption::MAGIC_SIZE) == 0);
 
-  ulint bytes_read{ENCRYPTION_MAGIC_SIZE};
+  ulint bytes_read{Encryption::MAGIC_SIZE};
 
   uint8_t iv_length = mach_read_from_2(page + offset + bytes_read);
   ut_ad(iv_length == CRYPT_SCHEME_1_IV_LEN);
@@ -447,10 +541,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
     ib::error() << "Found non sensible crypt scheme: " << type
                 << " for space: " << page_get_space_id(page)
                 << " offset: " << offset << " bytes: ["
-                << page[offset + 2 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 3 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 4 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 5 + ENCRYPTION_MAGIC_SIZE] << "].";
+                << page[offset + 2 + Encryption::MAGIC_SIZE]
+                << page[offset + 3 + Encryption::MAGIC_SIZE]
+                << page[offset + 4 + Encryption::MAGIC_SIZE]
+                << page[offset + 5 + Encryption::MAGIC_SIZE] << "].";
     return nullptr;
   }
 
@@ -466,14 +560,20 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
       (fil_encryption_t)mach_read_from_1(page + offset + bytes_read);
   bytes_read += 1;
 
-  crypt_data = fil_space_create_crypt_data(encryption, key_id,
-                                           Crypt_key_operation::FETCH_KEY);
+  crypt_data =
+      fil_space_create_crypt_data(encryption, key_id, server_uuid,
+                                  Crypt_key_operation::FETCH_OR_GENERATE_KEY);
 
   /* We need to overwrite these as above function will initialize
   members */
   crypt_data->type = type;
   crypt_data->min_key_version = min_key_version;
-  crypt_data->encrypting_with_key_version = min_key_version;
+  // for encrypted space the upgrade would have failed
+  crypt_data->max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+  // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
+  memcpy(crypt_data->encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
   crypt_data->private_version = 1;
   memcpy(crypt_data->iv, page + offset + bytes_read, CRYPT_SCHEME_1_IV_LEN);
   bytes_read += CRYPT_SCHEME_1_IV_LEN;
@@ -482,12 +582,12 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v1(
       mach_read_from_4(page + offset + bytes_read));
   bytes_read += 4;
 
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, page + offset + bytes_read, ENCRYPTION_KEY_LEN);
-  bytes_read += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, page + offset + bytes_read, Encryption::KEY_LEN);
+  bytes_read += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
@@ -505,13 +605,13 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
     const page_size_t &page_size, const byte *page) {
   const ulint offset = fsp_header_get_keyring_encryption_offset(page_size);
 
-  if (memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V2,
-             ENCRYPTION_MAGIC_SIZE) != 0) {
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V2,
+             Encryption::MAGIC_SIZE) != 0) {
     /* Crypt data is not stored. */
     return nullptr;
   }
 
-  ulint bytes_read{ENCRYPTION_MAGIC_SIZE};
+  ulint bytes_read{Encryption::MAGIC_SIZE};
 
   uint8_t type = mach_read_from_1(page + offset + bytes_read);
 
@@ -526,10 +626,10 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
     ib::error() << "Found non sensible crypt scheme: " << type
                 << " for space: " << page_get_space_id(page)
                 << " offset: " << offset << " bytes: ["
-                << page[offset + 2 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 3 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 4 + ENCRYPTION_MAGIC_SIZE]
-                << page[offset + 5 + ENCRYPTION_MAGIC_SIZE] << "].";
+                << page[offset + 2 + Encryption::MAGIC_SIZE]
+                << page[offset + 3 + Encryption::MAGIC_SIZE]
+                << page[offset + 4 + Encryption::MAGIC_SIZE]
+                << page[offset + 5 + Encryption::MAGIC_SIZE] << "].";
     return nullptr;
   }
 
@@ -541,18 +641,32 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
 
   ut_ad(key_id != (uint)(~0));
 
+  char uuid[Encryption::SERVER_UUID_LEN];
+  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  memcpy(uuid, page + offset + bytes_read, Encryption::SERVER_UUID_LEN);
+  bytes_read += Encryption::SERVER_UUID_LEN;
+
+  ut_ad(strlen(uuid) > 0);
+
   fil_encryption_t encryption =
       (fil_encryption_t)mach_read_from_1(page + offset + bytes_read);
   bytes_read += 1;
 
-  crypt_data = fil_space_create_crypt_data(encryption, key_id,
+  crypt_data = fil_space_create_crypt_data(encryption, key_id, uuid,
                                            Crypt_key_operation::FETCH_KEY);
+
+  crypt_data->private_version = 2;
 
   /* We need to overwrite these as above function will initialize
   members */
   crypt_data->type = type;
   crypt_data->min_key_version = min_key_version;
-  crypt_data->encrypting_with_key_version = min_key_version;
+  // for encrypted space the upgrade would have failed
+  crypt_data->max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+  // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
+  memcpy(crypt_data->encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
   memcpy(crypt_data->iv, page + offset + bytes_read, CRYPT_SCHEME_1_IV_LEN);
   bytes_read += CRYPT_SCHEME_1_IV_LEN;
 
@@ -560,12 +674,119 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
       mach_read_from_1(page + offset + bytes_read));
   bytes_read += 1;
 
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, page + offset + bytes_read, ENCRYPTION_KEY_LEN);
-  bytes_read += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, page + offset + bytes_read, Encryption::KEY_LEN);
+  bytes_read += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
+                    0) ==
+      tablespace_key) {  // tablespace_key is all zeroes which means there is no
+                         // tablepsace in mtr log
+    crypt_data->set_tablespace_key(nullptr);
+  } else {
+    crypt_data->set_tablespace_key(
+        tablespace_key);  // We are using the same iv for both
+                          // MK encryption and KEYRING encryption
+  }
+
+  return crypt_data;
+}
+
+static void hex_to_uuid(const uchar *hex, char *uuid) {
+  char uuid_string[Encryption::SERVER_UUID_LEN + 1];
+  snprintf(
+      uuid_string, Encryption::SERVER_UUID_LEN + 1,
+      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+      hex[0], hex[1], hex[2], hex[3], hex[4], hex[5], hex[6], hex[7], hex[8],
+      hex[9], hex[10], hex[11], hex[12], hex[13], hex[14], hex[15]);
+  memcpy(uuid, uuid_string, Encryption::SERVER_UUID_LEN);
+}
+
+static fil_space_crypt_t *fil_space_read_crypt_data_v3(
+    const page_size_t &page_size, const byte *page) {
+  const ulint offset = fsp_header_get_keyring_encryption_offset(page_size);
+
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V3,
+             Encryption::MAGIC_SIZE) != 0) {
+    /* Crypt data is not stored. */
+    return nullptr;
+  }
+
+  ulint bytes_read{Encryption::MAGIC_SIZE};
+
+  uint8_t type = mach_read_from_1(page + offset + bytes_read);
+
+  ut_a(type == CRYPT_SCHEME_UNENCRYPTED ||
+       type == CRYPT_SCHEME_1);  // only supported
+
+  bytes_read += 1;
+
+  fil_space_crypt_t *crypt_data;
+
+  if (!(type == CRYPT_SCHEME_UNENCRYPTED || type == CRYPT_SCHEME_1)) {
+    ib::error() << "Found non sensible crypt scheme: " << type
+                << " for space: " << page_get_space_id(page)
+                << " offset: " << offset << " bytes: ["
+                << page[offset + 2 + Encryption::MAGIC_SIZE]
+                << page[offset + 3 + Encryption::MAGIC_SIZE]
+                << page[offset + 4 + Encryption::MAGIC_SIZE]
+                << page[offset + 5 + Encryption::MAGIC_SIZE] << "].";
+    return nullptr;
+  }
+
+  uint min_key_version = mach_read_from_4(page + offset + bytes_read);
+  bytes_read += 4;
+
+  uint max_key_version = mach_read_from_4(page + offset + bytes_read);
+  bytes_read += 4;
+
+  uint key_id = mach_read_from_4(page + offset + bytes_read);
+  bytes_read += 4;
+
+  ut_ad(key_id != (uint)(~0));
+
+  static uchar uuid_hex[ENCRYPTION_SERVER_UUID_HEX_LEN];
+  memcpy(&uuid_hex, page + offset + bytes_read, ENCRYPTION_SERVER_UUID_HEX_LEN);
+
+  bytes_read += ENCRYPTION_SERVER_UUID_HEX_LEN;
+
+  static char uuid[Encryption::SERVER_UUID_LEN];
+  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  hex_to_uuid(uuid_hex, uuid);
+
+  ut_ad(strlen(uuid) > 0);
+
+  fil_encryption_t encryption =
+      (fil_encryption_t)mach_read_from_1(page + offset + bytes_read);
+  bytes_read += 1;
+
+  crypt_data = fil_space_create_crypt_data(encryption, key_id, uuid,
+                                           Crypt_key_operation::FETCH_KEY);
+
+  /* We need to overwrite these as above function will initialize
+  members */
+  crypt_data->type = type;
+  crypt_data->min_key_version = min_key_version;
+  crypt_data->max_key_version = max_key_version;
+  // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
+  memcpy(crypt_data->encrypted_validation_tag, page + offset + bytes_read,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+  bytes_read += ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE;
+
+  memcpy(crypt_data->iv, page + offset + bytes_read, CRYPT_SCHEME_1_IV_LEN);
+  bytes_read += CRYPT_SCHEME_1_IV_LEN;
+
+  crypt_data->encryption_rotation = static_cast<Encryption_rotation>(
+      mach_read_from_1(page + offset + bytes_read));
+  bytes_read += 1;
+
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, page + offset + bytes_read, Encryption::KEY_LEN);
+  bytes_read += Encryption::KEY_LEN;
+
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
@@ -583,14 +804,19 @@ fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
                                              const byte *page) {
   const ulint offset{fsp_header_get_keyring_encryption_offset(page_size)};
 
-  if (memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V1,
-             ENCRYPTION_MAGIC_SIZE) == 0) {
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V1,
+             Encryption::MAGIC_SIZE) == 0) {
     return fil_space_read_crypt_data_v1(page_size, page);
   }
 
-  if (memcmp(page + offset, ENCRYPTION_KEY_MAGIC_PS_V2,
-             ENCRYPTION_MAGIC_SIZE) == 0) {
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V2,
+             Encryption::MAGIC_SIZE) == 0) {
     return fil_space_read_crypt_data_v2(page_size, page);
+  }
+
+  if (memcmp(page + offset, Encryption::KEY_MAGIC_PS_V3,
+             Encryption::MAGIC_SIZE) == 0) {
+    return fil_space_read_crypt_data_v3(page_size, page);
   }
 
   /* Crypt data is not stored. */
@@ -626,6 +852,16 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data) {
   }
 }
 
+static void uuid_to_hex(const char *uuid, byte *uuid_hex) {
+  sscanf(uuid,
+         "%2hhx%2hhx%2hhx%2hhx-%2hhx%2hhx-%2hhx%2hhx-%2hhx%2hhx-"
+         "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
+         &uuid_hex[0], &uuid_hex[1], &uuid_hex[2], &uuid_hex[3], &uuid_hex[4],
+         &uuid_hex[5], &uuid_hex[6], &uuid_hex[7], &uuid_hex[8], &uuid_hex[9],
+         &uuid_hex[10], &uuid_hex[11], &uuid_hex[12], &uuid_hex[13],
+         &uuid_hex[14], &uuid_hex[15]);
+}
+
 /******************************************************************
 Write crypt data to a page (0)
 @param[in]	space	tablespace
@@ -633,9 +869,9 @@ Write crypt data to a page (0)
 @param[in,out]	mtr	mini-transaction */
 
 // TODO: Should be marked as const when PS-5738 is implemented
-void fil_space_crypt_t::write_page0(
-    const fil_space_t *space, byte *page, mtr_t *mtr, uint a_min_key_version,
-    uint a_type, Encryption_rotation current_encryption_rotation) {
+void fil_space_crypt_t::write_page0(const fil_space_t *space, byte *page,
+                                    mtr_t *mtr, uint a_min_key_version,
+                                    uint a_max_key_version, uint a_type) {
   ut_ad(this == space->crypt_data);
   const ulint offset =
       fsp_header_get_keyring_encryption_offset(page_size_t(space->flags));
@@ -646,32 +882,44 @@ void fil_space_crypt_t::write_page0(
   mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS, space->flags,
                    MLOG_4BYTES, mtr);  // done
 
-  memcpy(encrypt_info_ptr, ENCRYPTION_KEY_MAGIC_PS_V2, ENCRYPTION_MAGIC_SIZE);
-  encrypt_info_ptr += ENCRYPTION_MAGIC_SIZE;
+  memcpy(encrypt_info_ptr, Encryption::KEY_MAGIC_PS_V3, Encryption::MAGIC_SIZE);
+  encrypt_info_ptr += Encryption::MAGIC_SIZE;
 
   mach_write_to_1(encrypt_info_ptr, a_type);
   encrypt_info_ptr += 1;
   mach_write_to_4(encrypt_info_ptr, a_min_key_version);
   encrypt_info_ptr += 4;
+  mach_write_to_4(encrypt_info_ptr, a_max_key_version);
+  encrypt_info_ptr += 4;
   ut_ad(key_id != (uint)(~0));
   mach_write_to_4(encrypt_info_ptr, key_id);
   encrypt_info_ptr += 4;
+  ut_ad(strlen(space->crypt_data->uuid) > 0);
+
+  static uchar uuid_hex[ENCRYPTION_SERVER_UUID_HEX_LEN];
+  uuid_to_hex(space->crypt_data->uuid, uuid_hex);
+
+  memcpy(encrypt_info_ptr, uuid_hex, ENCRYPTION_SERVER_UUID_HEX_LEN);
+  encrypt_info_ptr += ENCRYPTION_SERVER_UUID_HEX_LEN;
   mach_write_to_1(encrypt_info_ptr, encryption);
   encrypt_info_ptr += 1;
+
+  memcpy(encrypt_info_ptr, space->crypt_data->encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+  encrypt_info_ptr += ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE;
 
   memcpy(encrypt_info_ptr, iv, CRYPT_SCHEME_1_IV_LEN);
   encrypt_info_ptr += CRYPT_SCHEME_1_IV_LEN;
 
-  mach_write_to_1(encrypt_info_ptr,
-                  static_cast<byte>(current_encryption_rotation));
+  mach_write_to_1(encrypt_info_ptr, static_cast<byte>(encryption_rotation));
   encrypt_info_ptr += 1;
 
   if (tablespace_key == nullptr) {
-    memset(encrypt_info_ptr, 0, ENCRYPTION_KEY_LEN);
-    encrypt_info_ptr += ENCRYPTION_KEY_LEN;
+    memset(encrypt_info_ptr, 0, Encryption::KEY_LEN);
+    encrypt_info_ptr += Encryption::KEY_LEN;
   } else {
-    memcpy(encrypt_info_ptr, tablespace_key, ENCRYPTION_KEY_LEN);
-    encrypt_info_ptr += ENCRYPTION_KEY_LEN;
+    memcpy(encrypt_info_ptr, tablespace_key, Encryption::KEY_LEN);
+    encrypt_info_ptr += Encryption::KEY_LEN;
   }
 
   mlog_write_string(page + offset, encrypt_info,
@@ -719,10 +967,16 @@ static fil_space_crypt_t *fil_space_set_crypt_data(
 @param[in]  ptr  Log entry start
 @param[in]  end_ptr  Log entry end
 @param[in]  len  Log entry length
+@param[in]  recv_needed_recovery  missing keys will report error
 @return position on log buffer */
-byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len) {
+byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
+                                    const byte *end_ptr, ulint len,
+                                    bool recv_needed_recovery) {
   ptr += 4;  // skip offset and len
+
+#ifdef UNIV_DEBUG
+  byte *start_ptr = ptr;
+#endif
 
   if (len != KERYING_ENCRYPTION_INFO_MAX_SIZE) {
     recv_sys->set_corrupt_log();
@@ -733,9 +987,160 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
     return nullptr;
   }
 
+  // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V3 is set
+  ut_ad(
+      (memcmp(ptr, Encryption::KEY_MAGIC_PS_V3, Encryption::MAGIC_SIZE) == 0));
+  ptr += Encryption::MAGIC_SIZE;
+
+  uint type = mach_read_from_1(ptr);
+  ptr += 1;
+
+  ut_a(type == CRYPT_SCHEME_UNENCRYPTED ||
+       type == CRYPT_SCHEME_1);  // only supported
+
+  uint min_key_version = mach_read_from_4(ptr);
+  ptr += 4;
+
+  uint max_key_version = mach_read_from_4(ptr);
+  ptr += 4;
+
+  uint key_id = mach_read_from_4(ptr);
+  ptr += 4;
+
+  static uchar uuid_hex[ENCRYPTION_SERVER_UUID_HEX_LEN];
+  memcpy(&uuid_hex, ptr, ENCRYPTION_SERVER_UUID_HEX_LEN);
+
+  ptr += ENCRYPTION_SERVER_UUID_HEX_LEN;
+
+  static char uuid[Encryption::SERVER_UUID_LEN];
+  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  hex_to_uuid(uuid_hex, uuid);
+
+  ut_ad(strlen(uuid) > 0);
+  ut_ad(strlen(server_uuid) == 0 ||
+        memcmp(uuid, server_uuid, Encryption::SERVER_UUID_LEN) == 0);
+
+  fil_encryption_t encryption = (fil_encryption_t)mach_read_from_1(ptr);
+  ptr += 1;
+
+  Crypt_key_operation key_operation =
+      (type == CRYPT_SCHEME_UNENCRYPTED)
+          ? Crypt_key_operation::FETCH_OR_GENERATE_KEY
+          : Crypt_key_operation::FETCH_KEY;
+
+  fil_space_crypt_t *crypt_data =
+      fil_space_create_crypt_data(encryption, key_id, uuid, key_operation);
+  /* Need to overwrite these as above will initialize fields. */
+  crypt_data->type = type;
+  DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
+  crypt_data->min_key_version = min_key_version;
+  crypt_data->max_key_version = max_key_version;
+  // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
+  memcpy(crypt_data->encrypted_validation_tag, ptr,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+  ptr += ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE;
+  crypt_data->encryption = encryption;
+  memcpy(crypt_data->iv, ptr, CRYPT_SCHEME_1_IV_LEN);
+  ptr += CRYPT_SCHEME_1_IV_LEN;
+  crypt_data->encryption_rotation =
+      static_cast<Encryption_rotation>(mach_read_from_1(ptr));
+  ptr += 1;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, ptr, Encryption::KEY_LEN);
+  ptr += Encryption::KEY_LEN;
+
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
+                    0) ==
+      tablespace_key) {  // tablespace_key is all zeroes which means there is no
+                         // tablepsace in mtr log
+    crypt_data->set_tablespace_key(nullptr);
+  } else {
+    crypt_data->set_tablespace_key(tablespace_key);
+  }
+
+  if (recv_needed_recovery) {
+    /* Check is used key found from encryption plugin */
+    if (crypt_data->should_encrypt() && !crypt_data->is_key_found()) {
+      ib::error() << "Key cannot be read for space id = " << space_id;
+      recv_sys->set_corrupt_log();
+      fil_space_destroy_crypt_data(&crypt_data);
+      return nullptr;
+    }
+
+    if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+      // We have encrypted tablespace - validate that encryption key is
+      // available and it is the correct one.
+      if (crypt_data->key_found == false) {
+        ib::warn(ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY, space_id,
+                 crypt_data->key_id);
+        recv_sys->set_corrupt_log();
+        fil_space_destroy_crypt_data(&crypt_data);
+        return nullptr;
+      } else {
+        Validation_key_verions_result result{
+            crypt_data->validate_encryption_key_versions()};
+        if (result != Validation_key_verions_result::SUCCESS) {
+          uint error =
+              (result == Validation_key_verions_result::MISSING_KEY_VERSIONS)
+                  ? ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+                  : ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS;
+          ib::warn(error, space_id, crypt_data->key_id);
+          recv_sys->set_corrupt_log();
+          fil_space_destroy_crypt_data(&crypt_data);
+          return nullptr;
+        }
+      }
+    }
+  }
+
+  /* update fil_space memory cache with crypt_data */
+  fil_space_t *space = fil_space_acquire_silent(space_id);
+  if (space != nullptr) {
+    crypt_data = fil_space_set_crypt_data(space, crypt_data);
+    fil_space_release(space);
+  } else {
+    // crypt_data was created as part of creating a new tablespace
+    if (recv_sys->crypt_datas->count(space_id) > 0) {
+      fil_space_destroy_crypt_data(&(*recv_sys->crypt_datas)[space_id]);
+    }
+    (*recv_sys->crypt_datas)[space_id] = crypt_data;
+  }
+
+  // We are advancing the ptr pointer while reading crypt_data - make
+  // sure that we read exactly len bytes starting from start_ptr.
+  ut_ad((ulint)(ptr - start_ptr) == len);
+
+  return ptr;
+}
+
+/** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
+@param[in]  space_id  id of space that this log entry refers to
+@param[in]  ptr  Log entry start
+@param[in]  end_ptr  Log entry end
+@param[in]  len  Log entry length
+@return position on log buffer */
+byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
+                                    const byte *end_ptr, ulint len) {
+  ptr += 4;  // skip offset and len
+
+#ifdef UNIV_DEBUG
+  byte *start_ptr = ptr;
+#endif
+
+  if (len != KERYING_ENCRYPTION_INFO_MAX_SIZE_V2) {
+    recv_sys->set_corrupt_log();
+    return nullptr;
+  }
+
+  if (ptr + KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 > end_ptr) {
+    return nullptr;
+  }
+
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V2 is set
-  ut_ad((memcmp(ptr, ENCRYPTION_KEY_MAGIC_PS_V2, ENCRYPTION_MAGIC_SIZE) == 0));
-  ptr += ENCRYPTION_MAGIC_SIZE;
+  ut_ad(
+      (memcmp(ptr, Encryption::KEY_MAGIC_PS_V2, Encryption::MAGIC_SIZE) == 0));
+  ptr += Encryption::MAGIC_SIZE;
 
   uint type = mach_read_from_1(ptr);
   ptr += 1;
@@ -749,31 +1154,41 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   uint key_id = mach_read_from_4(ptr);
   ptr += 4;
 
+  char uuid[Encryption::SERVER_UUID_LEN];
+  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  memcpy(uuid, ptr, Encryption::SERVER_UUID_LEN);
+  ptr += Encryption::SERVER_UUID_LEN;
+
   fil_encryption_t encryption = (fil_encryption_t)mach_read_from_1(ptr);
   ptr += 1;
 
   fil_space_crypt_t *crypt_data = fil_space_create_crypt_data(
-      encryption, key_id, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
+      encryption, key_id, uuid, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
   /* Need to overwrite these as above will initialize fields. */
   DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
+  crypt_data->max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+  // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
+  memcpy(crypt_data->encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
   crypt_data->encryption = encryption;
+  crypt_data->private_version = 2;
   memcpy(crypt_data->iv, ptr, CRYPT_SCHEME_1_IV_LEN);
   ptr += CRYPT_SCHEME_1_IV_LEN;
   crypt_data->encryption_rotation =
       static_cast<Encryption_rotation>(mach_read_from_1(ptr));
   ptr += 1;
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, ptr, ENCRYPTION_KEY_LEN);
-  ptr += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, ptr, Encryption::KEY_LEN);
+  ptr += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
     crypt_data->set_tablespace_key(nullptr);
-    ptr += ENCRYPTION_KEY_LEN;
   } else {
     crypt_data->set_tablespace_key(tablespace_key);
   }
@@ -785,13 +1200,16 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   }
 
   /* update fil_space memory cache with crypt_data */
-  fil_space_t *space = fil_space_acquire_silent(space_id);
-  if (space != nullptr) {
+  if (fil_space_t *space = fil_space_acquire_silent(space_id)) {
     crypt_data = fil_space_set_crypt_data(space, crypt_data);
     fil_space_release(space);
   } else {
     fil_space_destroy_crypt_data(&crypt_data);
   }
+
+  // We are advancing the ptr pointer while reading crypt_data - make
+  // sure that we read exactly len bytes starting from start_ptr.
+  ut_ad((ulint)(ptr - start_ptr) == len);
 
   return ptr;
 }
@@ -816,8 +1234,9 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   }
 
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V1 is set
-  ut_ad((memcmp(ptr, ENCRYPTION_KEY_MAGIC_PS_V1, ENCRYPTION_MAGIC_SIZE) == 0));
-  ptr += ENCRYPTION_MAGIC_SIZE;
+  ut_ad(
+      (memcmp(ptr, Encryption::KEY_MAGIC_PS_V1, Encryption::MAGIC_SIZE) == 0));
+  ptr += Encryption::MAGIC_SIZE;
 
   ptr += 4;  // skip space_id
   ptr += 2;  // skip offset
@@ -837,8 +1256,12 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   fil_encryption_t encryption = (fil_encryption_t)mach_read_from_1(ptr);
   ptr += 1;
 
-  fil_space_crypt_t *crypt_data = fil_space_create_crypt_data(
-      encryption, key_id, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
+  // since we are parsing v1 crypt_data - it means that encryption of this table
+  // has not yet started and thus we might need to create a key with uuid in
+  // keyring for this table now
+  fil_space_crypt_t *crypt_data =
+      fil_space_create_crypt_data(encryption, key_id, server_uuid,
+                                  Crypt_key_operation::FETCH_OR_GENERATE_KEY);
   /* Need to overwrite these as above will initialize fields. */
   DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
@@ -849,20 +1272,20 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   crypt_data->encryption_rotation =
       static_cast<Encryption_rotation>(mach_read_from_4(ptr));
   ptr += 4;
-  uchar tablespace_key[ENCRYPTION_KEY_LEN];
-  memcpy(tablespace_key, ptr, ENCRYPTION_KEY_LEN);
-  ptr += ENCRYPTION_KEY_LEN;
+  uchar tablespace_key[Encryption::KEY_LEN];
+  memcpy(tablespace_key, ptr, Encryption::KEY_LEN);
+  ptr += Encryption::KEY_LEN;
 
-  if (std::search_n(tablespace_key, tablespace_key + ENCRYPTION_KEY_LEN,
-                    ENCRYPTION_KEY_LEN,
+  if (std::search_n(tablespace_key, tablespace_key + Encryption::KEY_LEN,
+                    Encryption::KEY_LEN,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
     crypt_data->set_tablespace_key(nullptr);
-    ptr += ENCRYPTION_KEY_LEN;  // skip tablespace iv
+    ptr += Encryption::KEY_LEN;  // skip tablespace iv
   } else {
     crypt_data->set_tablespace_key(tablespace_key);
-    ptr += ENCRYPTION_KEY_LEN;  // skip tablespace iv
+    ptr += Encryption::KEY_LEN;  // skip tablespace iv
   }
 
   if (crypt_data->encryption_rotation ==
@@ -977,10 +1400,14 @@ static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
 /** Read page 0 and possible crypt data from there.
 @param[in,out]	space		Tablespace */
 static inline void fil_crypt_read_crypt_data(fil_space_t *space) {
-  if (space->crypt_data && space->size) {
-    /* The encryption metadata has already been read, or
-    the tablespace is not encrypted and the file has been
-    opened already. */
+  if (space->size != 0) {
+    /* When space->size != 0 it means that page0 of the tablespace has
+    already been read in order to read the size of the space (i.e. number of the
+    pages). When we read page0 - we also read crypt_data information from it -
+    thus if space->size != 0 - it means that crypt_data was already read (if
+    existed). Also we need to read space->size in order to know how many pages
+    we are going to rotate in space. buf_page_get will read space's size if it
+    is not yet read */
     return;
   }
 
@@ -1015,21 +1442,73 @@ static void fil_crypt_write_crypt_data_to_page0(fil_space_t *space) {
           Page_fetch::NORMAL, __FILE__, __LINE__, &mtr)) {
     space->crypt_data->write_page0(
         space, block->frame, &mtr, space->crypt_data->min_key_version,
-        space->crypt_data->type, space->crypt_data->encryption_rotation);
+        space->crypt_data->max_key_version, space->crypt_data->type);
   }
   mtr.commit();
 }
 
-bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
-  IB_mutex_guard fil_crypt_threads_mutex_guard(&fil_crypt_threads_mutex);
-
-  if (space->crypt_data == nullptr) {
-    space->crypt_data = fil_space_create_crypt_data(FIL_ENCRYPTION_OFF,
-                                                    FIL_DEFAULT_ENCRYPTION_KEY);
-    fil_crypt_write_crypt_data_to_page0(space);
+bool fil_crypt_exclude_tablespace_from_rotation_temporarily(
+    fil_space_t *space) {
+  if (space->exclude_from_rotation) {
+    // nothing to do
     return true;
   }
 
+  // We acquire fil_crypt_threads_mutex to stop encryption threads from
+  // generating crypt_data for tablespaces that they are about to encrypt.
+  // Generating crypt_data is the fist step in encryption process.
+  mutex_enter(&fil_crypt_threads_mutex);
+
+  if (space->crypt_data == nullptr) {
+    space->exclude_from_rotation = true;
+    mutex_exit(&fil_crypt_threads_mutex);
+    return true;
+  }
+
+  mutex_exit(&fil_crypt_threads_mutex);
+
+  // crypt_data already existed.
+  fil_space_crypt_t *crypt_data = space->crypt_data;
+  // take a lock on crypt_data to block rotation from starting
+  IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
+
+  // if there are any encryption threads "running" on this tablespace we cannot
+  // exclude it from rotation.
+  if (crypt_data->rotate_state.active_threads != 0 ||
+      crypt_data->rotate_state.starting || crypt_data->rotate_state.flushing) {
+    my_error(ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING, MYF(0), space->name);
+    return false;
+  }
+
+  // it is only possible to exclude tablespace that is unencrypted
+  if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+    my_error(ER_EXCLUDE_ENCRYPTION_TABLE_ENCRYPTED, MYF(0), space->name);
+    return false;
+  }
+
+  space->exclude_from_rotation = true;
+
+  return true;
+}
+
+bool fil_crypt_exclude_tablespace_from_rotation_permanently(
+    fil_space_t *space) {
+  // We acquire fil_crypt_threads_mutex to stop encryption threads from
+  // generating crypt_data for tablespaces that they are about to encrypt.
+  // Generating crypt_data is the fist step in encryption process.
+  mutex_enter(&fil_crypt_threads_mutex);
+
+  if (space->crypt_data == nullptr) {
+    space->crypt_data = fil_space_create_crypt_data(
+        FIL_ENCRYPTION_OFF, FIL_DEFAULT_ENCRYPTION_KEY, server_uuid);
+    fil_crypt_write_crypt_data_to_page0(space);
+    mutex_exit(&fil_crypt_threads_mutex);
+    return true;
+  }
+
+  mutex_exit(&fil_crypt_threads_mutex);
+
+  // crypt_data already existed.
   fil_space_crypt_t *crypt_data = space->crypt_data;
   IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
 
@@ -1038,12 +1517,19 @@ bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
     return true;
   }
 
+  // if there are any encryption threads "running" on this tablespace we cannot
+  // exclude it from rotation.
   if (crypt_data->rotate_state.active_threads != 0 ||
       crypt_data->rotate_state.starting || crypt_data->rotate_state.flushing) {
+    my_error(ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING, MYF(0), space->name);
     return false;
   }
 
-  ut_ad(crypt_data->type == CRYPT_SCHEME_UNENCRYPTED);
+  // it is only possible to exclude tablespace that is unencrypted
+  if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+    my_error(ER_EXCLUDE_ENCRYPTION_TABLE_ENCRYPTED, MYF(0), space->name);
+    return false;
+  }
 
   crypt_data->encryption = FIL_ENCRYPTION_OFF;
   crypt_data->key_id = FIL_DEFAULT_ENCRYPTION_KEY;
@@ -1051,6 +1537,77 @@ bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
   fil_crypt_write_crypt_data_to_page0(space);
 
   return true;
+}
+
+void fil_crypt_readd_space_to_rotation(space_id_t space_id) {
+  fil_space_t *space = fil_space_acquire_silent(space_id);
+
+  if (space != nullptr) {
+    space->exclude_from_rotation = false;
+    fil_space_release(space);
+  }
+}
+
+static bool decrypt_validation_tag(const byte *encrypted_validation_tag,
+                                   const byte *key,
+                                   byte *decrypted_validation_tag) {
+  auto len = my_aes_decrypt(encrypted_validation_tag, MY_AES_BLOCK_SIZE,
+                            decrypted_validation_tag, key, Encryption::KEY_LEN,
+                            my_aes_256_ecb, nullptr, false);
+
+  /* If decryption failed, return error. */
+  return len != MY_AES_BAD_DATA;
+}
+
+Validation_key_verions_result
+fil_space_crypt_t::validate_encryption_key_versions() {
+  // unencrypted space, thus no keys needed to decrypt
+  if (type == CRYPT_SCHEME_UNENCRYPTED)
+    return Validation_key_verions_result::SUCCESS;
+
+  if (load_keys_to_local_cache() == false)
+    return Validation_key_verions_result::MISSING_KEY_VERSIONS;
+
+  byte decrypted_validation_tag[ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE] = {0};
+  byte current_validation_tag[ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE];
+  memcpy(current_validation_tag, this->encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+
+  // in case we are validating a space for which only a subset of pages is
+  // encrypted, we may be in a situation that there are muliple encryption keys
+  // and they do not fully fill the range [min_key_version, max_key_version],
+  // since min_key_version == 0 is a marker that there are some unencrypted
+  // pages, without any version. The encryption keys might be in some range [n,
+  // max_key_version], where n > min_key_version and min_key_version = 0. Thus
+  // for this situation (min_key_version = 0) we validate the tag after each
+  // decryption. If the tag matches after any decryption it means we have all
+  // the valid keys we need to decrypt space.
+  bool check_tag_for_each_version{this->min_key_version ==
+                                  ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED};
+
+  for (uint key_version = max_key_version;
+       key_version >= std::max(min_key_version, static_cast<uint>(1));
+       --key_version) {
+    ut_ad(local_keys_cache[key_version] != nullptr);
+
+    if (!decrypt_validation_tag(current_validation_tag,
+                                local_keys_cache[key_version],
+                                decrypted_validation_tag))
+      return Validation_key_verions_result::CORRUPTED_OR_WRONG_KEY_VERSIONS;
+
+    if (check_tag_for_each_version &&
+        memcmp(current_validation_tag, ENCRYPTION_KEYRING_VALIDATION_TAG,
+               ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE) == 0)
+      return Validation_key_verions_result::SUCCESS;
+
+    memcpy(current_validation_tag, decrypted_validation_tag,
+           ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+  }
+
+  return memcmp(current_validation_tag, ENCRYPTION_KEYRING_VALIDATION_TAG,
+                ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE) == 0
+             ? Validation_key_verions_result::SUCCESS
+             : Validation_key_verions_result::CORRUPTED_OR_WRONG_KEY_VERSIONS;
 }
 
 /***********************************************************************
@@ -1088,9 +1645,9 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
   crypt_data = fil_space_create_crypt_data(
       FIL_ENCRYPTION_DEFAULT, get_global_default_encryption_key_id_value(),
-      Crypt_key_operation::FETCH_OR_GENERATE_KEY);
+      server_uuid, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
 
-  if (crypt_data == NULL || crypt_data->key_found == false) {
+  if (crypt_data == nullptr || crypt_data->key_found == false) {
     mutex_exit(&fil_crypt_threads_mutex);
     return false;
   }
@@ -1098,6 +1655,9 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
   crypt_data->type = CRYPT_SCHEME_UNENCRYPTED;
   crypt_data->min_key_version =
       ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;  // all pages are unencrypted
+  crypt_data->max_key_version = crypt_data->key_get_latest_version();
+  ut_ad(crypt_data->max_key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
+  ut_ad(crypt_data->max_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->rotate_state.start_time = time(0);
   crypt_data->rotate_state.starting = true;
   crypt_data->rotate_state.active_threads = 1;
@@ -1115,14 +1675,8 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
                                 // pages
   }
 
-  crypt_data->encrypting_with_key_version =
-      crypt_data->key_get_latest_version();
-  ut_ad(crypt_data->encrypting_with_key_version != 0);
-  ut_ad(crypt_data->encrypting_with_key_version !=
-        ENCRYPTION_KEY_VERSION_INVALID);
-
   if (crypt_data->key_found == false ||
-      crypt_data->load_needed_keys_into_local_cache() == false) {
+      crypt_data->load_keys_to_local_cache() == false) {
     // This should not happen, we have locked the keyring before encryption
     // threads could have even started unless something realy strange have
     // happend like removing keyring file from under running server.
@@ -1170,7 +1724,7 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
     byte *frame = buf_block_get_frame(block);
     crypt_data->type = CRYPT_SCHEME_1;
     crypt_data->write_page0(space, frame, &mtr, crypt_data->min_key_version,
-                            crypt_data->type, crypt_data->encryption_rotation);
+                            crypt_data->max_key_version, crypt_data->type);
 
     mtr.commit();
     /* 4 - sync tablespace before publishing crypt data */
@@ -1244,11 +1798,15 @@ struct rotate_thread_t {
         return thread_no >= srv_n_fil_crypt_threads_requested;
       case SRV_SHUTDOWN_EXIT_THREADS:
       /* srv_init_abort() must have been invoked */
-      case SRV_SHUTDOWN_CLEANUP:
+      case SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS:
         return true;
+      case SRV_SHUTDOWN_PURGE:
+      case SRV_SHUTDOWN_CLEANUP:
+      case SRV_SHUTDOWN_DD:
       case SRV_SHUTDOWN_FLUSH_PHASE:
       case SRV_SHUTDOWN_LAST_PHASE:
       case SRV_SHUTDOWN_MASTER_STOP:
+      case SRV_SHUTDOWN_RECOVERY_ROLLBACK:
         break;
     }
     ut_ad(0);
@@ -1274,9 +1832,10 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
                                            bool *recheck) {
   fil_space_t *space = state->space;
 
-  DBUG_EXECUTE_IF("rotate_only_first_100_pages_from_t1",
+  DBUG_EXECUTE_IF("rotate_only_first_x_pages_from_t1",
                   if (strcmp(space->name, "test/t1") == 0 &&
-                      number_of_t1_pages_rotated >= 100) return false;);
+                      number_of_t1_pages_rotated >=
+                          number_of_t1_pages_to_rotate) return false;);
 
   /* Make sure that tablespace is normal tablespace */
   if (space->purpose != FIL_TYPE_TABLESPACE &&
@@ -1302,18 +1861,60 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
       return false;
     }
 
-    key_state->key_version = crypt_data->encrypting_with_key_version;
+    key_state->key_version = crypt_data->max_key_version;
+    ut_ad(key_state->key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
   }
+
+  mutex_enter(&crypt_data->mutex);
 
   /* If used key_id is not found from encryption plugin we can't
   continue to rotate the tablespace */
+
   if (!crypt_data->is_key_found()) {
-    return false;
+    // We can end up here in case we try to encrypt tablespace but the key used
+    // by this tablespace is no longer in keyring. This can happen when keyring
+    // was changed or crypt_data is in version 1 or 2 and key's uuid is empty.
+    // Also when tablespace was encrypted, then decrypted and server uuid was
+    // changed. Then the crypt_data uuid will not match the server_uuid. The
+    // change of server_uuid is done in some of the MTR tests (for instance
+    // encryption.innodb-missing-key).
+    if (crypt_data->rotate_state.active_threads == 0 &&
+        crypt_data->encryption == FIL_ENCRYPTION_DEFAULT) {
+      ut_ad(((crypt_data->private_version == 1 ||
+              crypt_data->private_version == 2 ||
+              strlen(crypt_data->uuid) == 0) ||
+             (crypt_data->private_version == 3 &&
+              memcmp(crypt_data->uuid, server_uuid,
+                     Encryption::SERVER_UUID_LEN) != 0)) &&
+            is_unenc_to_enc_rotation(*crypt_data));
+
+      crypt_data->key_found =
+          Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
+              crypt_data->key_id, server_uuid);
+
+      if (!crypt_data->key_found) {
+        mutex_exit(&crypt_data->mutex);
+        return false;  // failed to fetch or create the key - skip the
+                       // tablespace
+      }
+
+      key_state->key_version = 1;
+      // We assing here uuid to crypt_data key's uuid. If crypt_data
+      // does not make it to page0 (due to crash) we will do the same
+      // after the restart, because we will end up here again -
+      // encryption key will not be found.
+      ut_ad(strlen(server_uuid) > 0);
+      memcpy(crypt_data->uuid, server_uuid, Encryption::SERVER_UUID_LEN);
+      crypt_data->uuid[Encryption::SERVER_UUID_LEN] = '\0';
+      // fix private_version - it might have been 1 or 2
+      crypt_data->private_version = 3;
+    } else {
+      mutex_exit(&crypt_data->mutex);
+      return false;
+    }
   }
 
   const bool space_compressed = space->compression_type != Compression::NONE;
-
-  mutex_enter(&crypt_data->mutex);
 
   do {
     /* prevent threads from starting to rotate space */
@@ -1332,8 +1933,9 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
       break;
     }
 
-    /* No need to rotate space if encryption is disabled */
-    if (crypt_data->is_encryption_disabled()) {
+    /* No need to rotate space if encryption is disabled
+     * permanently or temporarily */
+    if (crypt_data->is_encryption_disabled() || space->exclude_from_rotation) {
       break;
     }
 
@@ -1346,22 +1948,11 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
         crypt_data->encryption, crypt_data->min_key_version,
         key_state->key_version, key_state->rotate_key_age);
 
-    if (need_key_rotation) {
-      if (crypt_data->rotate_state.active_threads == 0) {
-        if (key_state->key_version == ENCRYPTION_KEY_VERSION_INVALID) {
-          ut_ad(is_unenc_to_enc_rotation(*crypt_data));
-          // we are asked to encrypt table with encryption_key_id assigned, but
-          // the key is not in the keyring - create it now.
-          if (Encryption::create_tablespace_key(crypt_data->key_id)) {
-            break;  // failed to create the key - skip the tablespace
-          }
-          key_state->key_version = 1;
-        }
-      } else if (crypt_data->rotate_state.next_offset >
-                 crypt_data->rotate_state.max_offset) {
-        break;  // the space is already being processed and there are no more
-                // pages to rotate
-      }
+    if (need_key_rotation && crypt_data->rotate_state.active_threads != 0 &&
+        crypt_data->rotate_state.next_offset >
+            crypt_data->rotate_state.max_offset) {
+      break;  // the space is already being processed and there are no more
+              // pages to rotate
     }
 
     crypt_data->rotate_state.scrubbing.is_active =
@@ -1528,8 +2119,12 @@ static void fil_crypt_realloc_iops(rotate_thread_t *state) {
 
 /***********************************************************************
 Return allocated iops to global
-@param[in,out]		state		Rotation state */
-static void fil_crypt_return_iops(rotate_thread_t *state) {
+@param[in,out] state                       rotation state
+@param[in]     set_fil_crypt_threads_event should fil_crypt_threads_event be set
+                                           so to notify other events that there
+                                           might be some work to do. */
+static void fil_crypt_return_iops(rotate_thread_t *state,
+                                  bool set_fil_crypt_threads_event = true) {
   if (state->allocated_iops > 0) {
     uint iops = state->allocated_iops;
     mutex_enter(&fil_crypt_threads_mutex);
@@ -1544,7 +2139,7 @@ static void fil_crypt_return_iops(rotate_thread_t *state) {
 
     n_fil_crypt_iops_allocated -= iops;
     state->allocated_iops = 0;
-    os_event_set(fil_crypt_threads_event);
+    if (set_fil_crypt_threads_event) os_event_set(fil_crypt_threads_event);
     mutex_exit(&fil_crypt_threads_mutex);
   }
 
@@ -1613,6 +2208,20 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
       return true;
     }
 
+    DBUG_EXECUTE_IF(
+        "wait_for_ts1_to_be_considered_for_rotation",
+        if (strcmp(state->space->name, "ts1") == 0) {
+          // artifical key_id = 10 for system space to let MTR test know that
+          // t1 was already proccessed
+          fil_space_t *sys_space = fil_space_get(0);
+          EncryptionKeyId key_id = sys_space->crypt_data->key_id;
+          sys_space->crypt_data->key_id = 10;
+          while (DBUG_EVALUATE_IF("wait_for_ts1_to_be_considered_for_rotation",
+                                  true, false))
+            os_thread_sleep(1000);
+          sys_space->crypt_data->key_id = key_id;
+        });
+
     if (srv_fil_crypt_rotate_key_age) {
       state->space = fil_space_next(state->space);
     } else {
@@ -1620,10 +2229,55 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
     }
   }
 
-  /* if we didn't find any space return iops */
-  fil_crypt_return_iops(state);
+  /* If we didn't find any space return iops. Do not set
+     fil_crypt_threads_event. We do not want to notify other threads that there
+     is some work to do - since
+     we went through all spaces and did not find any space that needs rotation.
+   */
+  fil_crypt_return_iops(state, false);
 
   return false;
+}
+
+bool fil_space_crypt_t::re_encrypt_validation_tag(const uint from_key_version,
+                                                  const uint to_key_version) {
+  if (from_key_version > to_key_version)
+    return true;  // re-encryption not needed
+
+  // load key_versions that we might be missing in the cache
+  if (load_keys_to_local_cache(from_key_version, to_key_version) == false) {
+    // generate error
+    return false;
+  }
+
+  byte re_encrypted_validation_tag[ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE] = {
+      0};
+  byte copy_encrypted_validation_tag[ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE];
+  memcpy(copy_encrypted_validation_tag, encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+
+  for (uint key_version = from_key_version; key_version <= to_key_version;
+       ++key_version) {
+    ut_ad(local_keys_cache[key_version] != nullptr);
+
+    if (encrypt_validation_tag(copy_encrypted_validation_tag,
+                               ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE,
+                               local_keys_cache[key_version],
+                               re_encrypted_validation_tag) == false) {
+      // generate error
+      return false;
+    }
+
+    memcpy(copy_encrypted_validation_tag, re_encrypted_validation_tag,
+           ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+  }
+
+  // only update encrypted_validation_tag if the whole re-encryption was
+  // successful
+  memcpy(encrypted_validation_tag, copy_encrypted_validation_tag,
+         ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+
+  return true;
 }
 
 /***********************************************************************
@@ -1644,27 +2298,111 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
     crypt_data->rotate_state.create_flush_observer(state->space->id);
 
   mutex_enter(&crypt_data->mutex);
+
+  // Check of crypt_data->is_encryption_disabled:
+  // It is possible that tablespace was excluded from rotation in the meantime
+  // ("permanently") I.e. fil_crypt_exclude_tablespace_from_rotation was called,
+  // because ENCRYPTION='N' was set. Check it here. Check for
+  // state->space->exclude_from_rotation: Check that in the meantime space was
+  // not excluded from rotation (temporarly). This could be the case when ALTER
+  // ENCRYPTION='Y/N' is done on a tablespace. When ENCRYPTION of general
+  // tablespace is changed the page0 is periodically updated with the progress
+  // of encryption/decryption of general tablespace. We do not want encryption
+  // threads to interfere with that.
+
+  if (crypt_data->is_encryption_disabled() ||
+      state->space->exclude_from_rotation) {
+    mutex_exit(&crypt_data->mutex);
+    crypt_data->rotate_state.destroy_flush_observer();
+    mutex_exit(&crypt_data->start_rotate_mutex);
+    return false;
+  }
+
   ut_ad(key_state->key_id == crypt_data->key_id);
 
   if (crypt_data->rotate_state.active_threads == 0) {
-    crypt_data->encrypting_with_key_version = key_state->key_version;
-    if (crypt_data->load_needed_keys_into_local_cache() == false) {
+    bool validation_tag_re_encryption_failure{false};
+    bool load_key_failure{false};
+    uint org_max_key_version = crypt_data->max_key_version;
+    crypt_data->rotate_state.active_threads = 1;
+
+    if (crypt_data->load_keys_to_local_cache() == false) {
+      load_key_failure = true;
+    } else if (key_state->key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) {
+      if (crypt_data->re_encrypt_validation_tag(crypt_data->max_key_version + 1,
+                                                key_state->key_version) ==
+          false) {
+        validation_tag_re_encryption_failure = true;
+      } else {
+        // If we are doing unencrypted=>encrypted rotation - set online
+        // encryption to true. Such tables - in case the rotation is
+        // not finished before server shutdowns/crashes - will be validated
+        // and server will check that needed encryption keys are loaded.
+        if (crypt_data->min_key_version == 0) {
+          mutex_exit(&crypt_data->mutex);
+
+          DBUG_EXECUTE_IF(
+              "hang_on_ts_hang_rotation",
+              if (strcmp(state->space->name, "ts_hang") == 0) {
+                // artifical key_id = 10 to let MTR test know that we are
+                // hanging
+                static EncryptionKeyId key_id = crypt_data->key_id;
+                crypt_data->key_id = 10;
+                while (
+                    DBUG_EVALUATE_IF("hang_on_ts_hang_rotation", true, false))
+                  os_thread_sleep(1000);
+                crypt_data->key_id = key_id;
+              });
+
+          if (dd_set_online_encryption(state->thd, state->space->name,
+                                       &state->space->stop_new_ops)) {
+            // should not happen
+            ib::error() << "Could not update DD for tablespace "
+                        << state->space->name
+                        << " with information on online keyring encryption."
+                        << " Removing space from online keyring encryption.";
+            state->space->exclude_from_rotation = true;
+            crypt_data->rotate_state.destroy_flush_observer();
+            mutex_enter(&crypt_data->mutex);
+            crypt_data->rotate_state.active_threads = 0;
+            mutex_exit(&crypt_data->mutex);
+            mutex_exit(&crypt_data->start_rotate_mutex);
+            return false;
+          }
+
+          mutex_enter(&crypt_data->mutex);
+        }
+        crypt_data->max_key_version = key_state->key_version;
+        ut_ad(crypt_data->min_key_version < crypt_data->max_key_version);
+      }
+    }
+    if (load_key_failure || validation_tag_re_encryption_failure) {
       ib::error() << "Encryption thread could not retrieve a key from a "
                      "keyring for tablespace "
                   << state->space->name
                   << " . Removing space from encrypting. Please make sure "
                      "keyring is functional and try restarting the server";
       state->space->exclude_from_rotation = true;
+      crypt_data->max_key_version = org_max_key_version;
+      crypt_data->rotate_state.active_threads = 0;
       mutex_exit(&crypt_data->mutex);
       crypt_data->rotate_state.destroy_flush_observer();
       mutex_exit(&crypt_data->start_rotate_mutex);
       return false;
     }
+
+    if (key_state->key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)
+      crypt_data->encryption_rotation = Encryption_rotation::DECRYPTING;
+    else if (crypt_data->encryption_rotation !=
+             Encryption_rotation::MASTER_KEY_TO_KEYRING)
+      crypt_data->encryption_rotation = Encryption_rotation::ENCRYPTING;
+
     /* only first thread needs to init */
     crypt_data->rotate_state.next_offset = 1;  // skip page 0
     /* no need to rotate beyond current max
      * if space extends, it will be encrypted with newer version */
 
+    ut_ad(state->space->size > 0);
     crypt_data->rotate_state.max_offset = state->space->size;
     crypt_data->rotate_state.end_lsn = 0;
     crypt_data->rotate_state.min_key_version_found = key_state->key_version;
@@ -1677,29 +2415,24 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
       /* this is rotation unencrypted => encrypted */
       crypt_data->type = CRYPT_SCHEME_1;
     }
-  }
 
-  /* count active threads in space */
-  crypt_data->rotate_state.active_threads++;
+    fil_crypt_write_crypt_data_to_page0(state->space);
+
+    DBUG_EXECUTE_IF(
+        "set_number_of_t1_pages_to_rotate_to_20",
+        if (strcmp(state->space->name, "test/t1") == 0) {
+          number_of_t1_pages_to_rotate = 20;
+        });
+  } else {
+    /* count active threads in space */
+    crypt_data->rotate_state.active_threads++;
+  }
 
   /* Initialize thread local state */
   state->min_key_version_found = crypt_data->rotate_state.min_key_version_found;
 
   mutex_exit(&crypt_data->mutex);
   mutex_exit(&crypt_data->start_rotate_mutex);
-
-  DBUG_EXECUTE_IF(
-      "hang_on_ts_with_encryption_key_id_rotation",
-      if (strcmp(state->space->name, "ts_with_encryption_key_id") == 0) {
-        // artifical key_id = 10 to let MTR test know that we are
-        // hanging
-        static EncryptionKeyId key_id = crypt_data->key_id;
-        crypt_data->key_id = 10;
-        while (DBUG_EVALUATE_IF("hang_on_ts_with_encryption_key_id_rotation",
-                                true, false))
-          os_thread_sleep(1000);
-        crypt_data->key_id = key_id;
-      });
 
   return true;
 }
@@ -1793,10 +2526,8 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
   state->crypt_stat.pages_read_from_disk++;
 
   const auto start = ut_time_monotonic_us();
-  dberr_t err;
   block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
-                           Page_fetch::POSSIBLY_FREED, file, line, mtr, false,
-                           &err);
+                           Page_fetch::POSSIBLY_FREED, file, line, mtr, false);
   const auto end = ut_time_monotonic_us();
 
   state->cnt_waited++;
@@ -1922,7 +2653,7 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
       could be stale already. */
       ut_ad(page_get_space_id(frame) == 0);
     } else if (fil_crypt_needs_rotation(crypt_data->encryption, kv,
-                                        crypt_data->encrypting_with_key_version,
+                                        key_state->key_version,
                                         key_state->rotate_key_age)) {
       // mtr.set_named_space(space);
       mtr.set_flush_observer(crypt_data->rotate_state.flush_observer);
@@ -1932,8 +2663,7 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
       // assign key version to a page in a buffer - so it would not be rotated
       // more times
       mlog_write_ulint(frame + FIL_PAGE_ENCRYPTION_KEY_VERSION,
-                       crypt_data->encrypting_with_key_version, MLOG_4BYTES,
-                       &mtr);
+                       key_state->key_version, MLOG_4BYTES, &mtr);
 
       /* statistics */
       state->crypt_stat.pages_modified++;
@@ -1942,8 +2672,7 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
        * had the key version assigned. We assign the key version to this page
        * here, as it only exists in buffer */
       mlog_write_ulint(frame + FIL_PAGE_ENCRYPTION_KEY_VERSION,
-                       crypt_data->encrypting_with_key_version, MLOG_4BYTES,
-                       &mtr);
+                       key_state->key_version, MLOG_4BYTES, &mtr);
     } else {
       if (!crypt_data->is_encryption_disabled()) {
         if (kv == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED ||
@@ -2036,16 +2765,14 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
      * real pages, they will be updated anyway when the
      * real page is updated
      */
-    if (space == TRX_SYS_SPACE && buf_dblwr_page_inside(state->offset)) {
+    if (space == TRX_SYS_SPACE && dblwr::v1::is_inside(state->offset)) {
       continue;
     }
 
     DBUG_EXECUTE_IF(
-        "rotate_only_first_100_pages_from_t1",
+        "rotate_only_first_x_pages_from_t1",
         if (strcmp(state->space->name, "test/t1") == 0) {
-          // ib::error() << "rotate_only_first_100_pages_from_t1 is
-          // active" << '\n';
-          if (number_of_t1_pages_rotated >= 100) {
+          if (number_of_t1_pages_rotated >= number_of_t1_pages_to_rotate) {
             state->offset = end;
             return;
           } else
@@ -2510,10 +3237,13 @@ static dberr_t fil_update_encrypted_flag(
       "fail_encryption_flag_update_on_t3",
       if (strcmp(space_name, "test/t3") == 0) { return DB_ERROR; });
 
+  // we set DD's online_encryption flag to N in case we have decrypted
   bool failure =
       (update_operation == UpdateEncryptedFlagOperation::SET
            ? dd_set_encryption_flag(thd, space_name, is_space_being_removed)
-           : dd_clear_encryption_flag(thd, space_name, is_space_being_removed));
+           : dd_clear_encryption_flag(
+                 thd, space_name, is_space_being_removed,
+                 update_operation == UpdateEncryptedFlagOperation::CLEAR));
 
   return (failure ? DB_ERROR : DB_SUCCESS);
 }
@@ -2570,31 +3300,65 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
                           ? CRYPT_SCHEME_UNENCRYPTED
                           : crypt_data->type;
 
-  UpdateEncryptedFlagOperation update_enc_flag_op =
-      (current_type == CRYPT_SCHEME_UNENCRYPTED)
-          ? UpdateEncryptedFlagOperation::CLEAR
-          : UpdateEncryptedFlagOperation::SET;
+  // update DD flags in case we are doing rotation unencrypted => encrypted
+  // or encrypted => unnecrypted. For encrypted => encrypted rotation
+  // i.e. re-encryption, DD flags do not need to be updated.
+  if ((current_type == CRYPT_SCHEME_1 &&
+       crypt_data->min_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) ||
+      (current_type == CRYPT_SCHEME_UNENCRYPTED &&
+       crypt_data->min_key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)) {
+    UpdateEncryptedFlagOperation update_enc_flag_op =
+        (current_type == CRYPT_SCHEME_UNENCRYPTED)
+            ? UpdateEncryptedFlagOperation::CLEAR
+            : UpdateEncryptedFlagOperation::SET;
 
-  if (DB_SUCCESS != fil_update_encrypted_flag(space->name, update_enc_flag_op,
-                                              &space->stop_new_ops,
-                                              state->thd)) {
-    ut_ad(DBUG_EVALUATE_IF("fail_encryption_flag_update_on_t3", 1, 0) ||
-          state->space->stop_new_ops);
-    return (DB_ERROR);
-  }
+    if (DB_SUCCESS != fil_update_encrypted_flag(space->name, update_enc_flag_op,
+                                                &space->stop_new_ops,
+                                                state->thd)) {
+      ut_ad(DBUG_EVALUATE_IF("fail_encryption_flag_update_on_t3", 1, 0) ||
+            state->space->stop_new_ops);
+      return (DB_ERROR);
+    }
 
-  fil_lock_shard_by_id(space->id);
-  if (update_enc_flag_op == UpdateEncryptedFlagOperation::SET) {
-    space->flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
-  } else {
-    ut_ad(update_enc_flag_op == UpdateEncryptedFlagOperation::CLEAR);
-    space->flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
+    fil_lock_shard_by_id(space->id);
+    if (update_enc_flag_op == UpdateEncryptedFlagOperation::SET) {
+      space->flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
+    } else {
+      ut_ad(update_enc_flag_op == UpdateEncryptedFlagOperation::CLEAR);
+      space->flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
+    }
+    fil_unlock_shard_by_id(space->id);
   }
-  fil_unlock_shard_by_id(space->id);
 
   DBUG_EXECUTE_IF("crash_on_t1_flush_after_dd_update",
                   if (strcmp(state->space->name, "test/t1") == 0)
                       DBUG_ABORT(););
+
+  // encrypt encryption_validation_tag with just max_key_version or leave it
+  // unencrypted for unencrypted tablespace
+  if (current_type == CRYPT_SCHEME_UNENCRYPTED) {
+    memcpy(crypt_data->encrypted_validation_tag,
+           ENCRYPTION_KEYRING_VALIDATION_TAG,
+           ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE);
+  } else {
+    // we do not need to obtain crypt_data->mutex here, as flushing flag is set
+    // - which will stop other threads from starting rotating this space and
+    // since we are flushing - we are the only thread which is currently
+    // operating on this space.
+    ut_ad(crypt_data->rotate_state.active_threads == 1 &&
+          crypt_data->local_keys_cache[crypt_data->max_key_version] != nullptr);
+    encrypt_validation_tag(
+        ENCRYPTION_KEYRING_VALIDATION_TAG,
+        ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE,
+        crypt_data->local_keys_cache[crypt_data->max_key_version],
+        crypt_data->encrypted_validation_tag);
+  }
+
+  if (crypt_data->encryption_rotation ==
+      Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+    crypt_data->set_tablespace_key(nullptr);
+    crypt_data->encryption_rotation = Encryption_rotation::ENCRYPTING;
+  }
 
   /* update page 0 */
   mtr_t mtr;
@@ -2606,7 +3370,10 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
     // mtr.set_named_space(space);
     crypt_data->write_page0(space, block->frame, &mtr,
                             crypt_data->rotate_state.min_key_version_found,
-                            current_type, Encryption_rotation::NO_ROTATION);
+                            current_type == CRYPT_SCHEME_UNENCRYPTED
+                                ? ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED
+                                : crypt_data->max_key_version,
+                            current_type);
   }
 
   mtr.commit();
@@ -2661,9 +3428,9 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
      * can check if we reached this point by checking flushing field - it should
      * be 1 if we are here */
     DBUG_EXECUTE_IF(
-        "rotate_only_first_100_pages_from_t1",
+        "rotate_only_first_x_pages_from_t1",
         if (strcmp(state->space->name, "test/t1") == 0 &&
-            number_of_t1_pages_rotated >= 100) {
+            number_of_t1_pages_rotated >= number_of_t1_pages_to_rotate) {
           crypt_data->rotate_state.flushing = true;
           should_flush = false;
         });
@@ -2672,8 +3439,6 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
       /* we're the last active thread */
       ut_ad(crypt_data->rotate_state.flushing == false);
       crypt_data->rotate_state.flushing = true;
-      crypt_data->set_tablespace_key(NULL);
-      crypt_data->encryption_rotation = Encryption_rotation::NO_ROTATION;
     }
 
     DBUG_EXECUTE_IF(
@@ -2706,6 +3471,9 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
         mutex_enter(&crypt_data->mutex);
         crypt_data->min_key_version =
             crypt_data->rotate_state.min_key_version_found;
+        if (current_type == CRYPT_SCHEME_UNENCRYPTED) {
+          crypt_data->max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+        }
         crypt_data->type = current_type;
         crypt_data->rotate_state.flushing = false;
       } else {
@@ -2956,9 +3724,16 @@ void fil_crypt_set_rotation_iops(uint val) {
 Adjust encrypt tables
 @param[in]	val		New setting for innodb-encrypt-tables */
 
-void fil_crypt_set_encrypt_tables(enum_default_table_encryption val) {
+bool fil_crypt_set_encrypt_tables(enum_default_table_encryption val,
+                                  bool is_server_starting) {
+  // It is always OK to set default_table_encryption on server
+  // startup
+  if (!is_server_starting && (srv_n_fil_crypt_threads_requested != 0)) {
+    return false;
+  }
   srv_default_table_encryption = val;
   os_event_set(fil_crypt_threads_event);
+  return true;
 }
 
 /*********************************************************************
@@ -2966,8 +3741,8 @@ Init threads for key rotation */
 
 void fil_crypt_threads_init() {
   if (!fil_crypt_threads_inited) {
-    fil_crypt_event = os_event_create(0);
-    fil_crypt_threads_event = os_event_create(0);
+    fil_crypt_event = os_event_create();
+    fil_crypt_threads_event = os_event_create();
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_MUTEX, &fil_crypt_threads_mutex);
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_SET_CNT_MUTEX,
                  &fil_crypt_threads_set_cnt_mutex);
@@ -3074,6 +3849,7 @@ void fil_space_crypt_get_status(const fil_space_t *space,
     status->scheme = crypt_data->type;
     status->keyserver_requests = crypt_data->keyserver_requests;
     status->min_key_version = crypt_data->min_key_version;
+    status->max_key_version = crypt_data->max_key_version;
     status->key_id = crypt_data->key_id;
 
     if (crypt_data->rotate_state.active_threads > 0 ||
@@ -3232,7 +4008,9 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   char *key_type = nullptr;
   byte *rkey = nullptr;
 
-  if (my_key_fetch(PERCONA_REDO_KEY_NAME, &key_type, nullptr,
+  std::string key_name = get_key_name(server_uuid);
+
+  if (my_key_fetch(key_name.c_str(), &key_type, nullptr,
                    reinterpret_cast<void **>(&rkey), &klen) ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     /* There is no key yet, we'll try to generate one */
@@ -3252,12 +4030,12 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
     return nullptr;
   }
 
-  ut_ad(klen2 == ENCRYPTION_KEY_LEN);
+  ut_ad(klen2 == Encryption::KEY_LEN);
 
   auto it = m_keys.find(version);
 
   if (it != m_keys.end() && it->second.present) {
-    ut_ad(memcmp(it->second.key, rkey2, ENCRYPTION_KEY_LEN) == 0);
+    ut_ad(memcmp(it->second.key, rkey2, Encryption::KEY_LEN) == 0);
     my_free(rkey);
     my_free(rkey2);
     my_free(key_type);
@@ -3267,7 +4045,7 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
   rk->present = true;
-  memcpy(rk->key, rkey2, ENCRYPTION_KEY_LEN);
+  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
 
   my_free(rkey);
   my_free(rkey2);
@@ -3276,7 +4054,8 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   return rk;
 }
 
-redo_log_key *redo_log_keys::load_key_version(THD *thd, uint version) {
+redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
+                                              uint version) {
   auto it = m_keys.find(version);
 
   if (it != m_keys.end() && it->second.present) {
@@ -3287,9 +4066,8 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, uint version) {
   char *key_type = nullptr;
   byte *rkey = nullptr;
 
-  std::ostringstream percona_redo_with_ver_ss;
-  percona_redo_with_ver_ss << PERCONA_REDO_KEY_NAME << ':' << version;
-  if (my_key_fetch(percona_redo_with_ver_ss.str().c_str(), &key_type, nullptr,
+  std::string redo_key_with_ver{get_key_name(uuid, version)};
+  if (my_key_fetch(redo_key_with_ver.c_str(), &key_type, nullptr,
                    reinterpret_cast<void **>(&rkey), &klen) ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     my_free(rkey);
@@ -3302,12 +4080,12 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, uint version) {
     return nullptr;
   }
 
-  ut_ad(klen == ENCRYPTION_KEY_LEN);
+  ut_ad(klen == Encryption::KEY_LEN);
 
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
   rk->present = true;
-  memcpy(rk->key, rkey, ENCRYPTION_KEY_LEN);
+  memcpy(rk->key, rkey, Encryption::KEY_LEN);
 
   my_free(rkey);
   my_free(key_type);
@@ -3315,9 +4093,28 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, uint version) {
   return rk;
 }
 
+std::string redo_log_keys::get_key_name(const char *uuid, uint key_version) {
+  std::ostringstream oss;
+  get_key_name(oss, uuid);
+  oss << ":" << key_version;
+  return oss.str();
+}
+
+std::string redo_log_keys::get_key_name(const char *uuid) {
+  std::ostringstream oss;
+  get_key_name(oss, uuid);
+  return oss.str();
+}
+
+void redo_log_keys::get_key_name(std::ostringstream &oss, const char *uuid) {
+  oss << PERCONA_REDO_KEY_NAME;
+  if (strlen(uuid) > 0) oss << '-' << uuid;
+}
+
 redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
-  if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", nullptr,
-                      ENCRYPTION_KEY_LEN)) {
+  std::string key_name = get_key_name(server_uuid);
+
+  if (my_key_generate(key_name.c_str(), "AES", nullptr, Encryption::KEY_LEN)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN,
@@ -3330,7 +4127,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   byte *rkey = nullptr;
   size_t klen = 0;
 
-  if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, nullptr,
+  if (my_key_fetch(key_name.c_str(), &redo_key_type, nullptr,
                    reinterpret_cast<void **>(&rkey), &klen)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
     if (thd) {
@@ -3349,7 +4146,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
               reinterpret_cast<uchar *>(NullS));
 
-  ut_ad(klen2 == ENCRYPTION_KEY_LEN);
+  ut_ad(klen2 == Encryption::KEY_LEN);
 
   if (err) {
     ib::error(ER_REDO_ENCRYPTION_CANT_PARSE_KEY, rkey);
@@ -3364,7 +4161,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
 
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
-  memcpy(rk->key, rkey2, ENCRYPTION_KEY_LEN);
+  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
   rk->present = true;
 
   my_free(redo_key_type);
@@ -3374,26 +4171,53 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   return rk;
 }
 
-redo_log_key *redo_log_keys::generate_new_key_without_storing() {
+redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   ut_ad(m_keys.empty());
-  Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
-  return &m_keys[0];
-}
+  std::string default_key_name{get_key_name("", 0)};
+  ut_ad(strlen(server_uuid) == 0);
+  ut_ad(default_key_name.length() == strlen("percona_redo:0") &&
+        memcmp(default_key_name.c_str(), "percona_redo:0",
+               default_key_name.length()) == 0);
 
-bool redo_log_keys::store_used_keys() noexcept {
-  /* This is a for loop, but it really only should store a key with current
-  version 0 */
-  for (const auto &item : m_keys) {
-    if (!item.second.persisted()) {
-      ut_ad(item.first == 0);
-      if (my_key_store(PERCONA_REDO_KEY_NAME, "AES", nullptr, item.second.key,
-                       ENCRYPTION_KEY_LEN)) {
-        return false;
-      }
+  char *default_redo_key_type = nullptr;
+  byte *default_rkey = nullptr;
+  size_t default_klen = 0;
+
+  if (my_key_fetch(default_key_name.c_str(), &default_redo_key_type, nullptr,
+                   reinterpret_cast<void **>(&default_rkey), &default_klen)) {
+    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
+    if (thd != nullptr) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+                  ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
     }
+    my_free(default_redo_key_type);
+    my_free(default_rkey);
+    return nullptr;
   }
 
-  return true;
+  if (default_rkey != nullptr) {
+    redo_log_key *rk = &m_keys[0];
+    rk->version = 0;
+    memcpy(rk->key, default_rkey, Encryption::KEY_LEN);
+    rk->present = true;
+    my_free(default_redo_key_type);
+    my_free(default_rkey);
+    return rk;
+  }
+
+  // we use store instead of generate because we want to store system key
+  // with illegal version - percona_redo:0.
+  Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
+
+  if (my_key_store(default_key_name.c_str(), "AES", nullptr, m_keys[0].key,
+                   Encryption::KEY_LEN)) {
+    return nullptr;
+  }
+
+  redo_log_key *rk = &m_keys[0];
+  rk->version = 0;
+  rk->present = true;
+  return rk;
 }
 
 void redo_log_keys::unload_old_keys() noexcept {
@@ -3404,7 +4228,7 @@ void redo_log_keys::unload_old_keys() noexcept {
   for (auto &item : m_keys) {
     if (&item.second != last) {
       item.second.present = false;
-      memset(item.second.key, 0, ENCRYPTION_KEY_LEN);
+      memset(item.second.key, 0, Encryption::KEY_LEN);
     }
   }
 }

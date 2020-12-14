@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,10 +45,6 @@ enum class CmdOptionValueReq {
   optional = 0x03,
 };
 
-using ActionFunc = std::function<void(const std::string &)>;
-using AtEndActionFunc = std::function<void()>;
-using OptionNames = std::vector<std::string>;
-
 /** @brief CmdOption stores information about command line options
  *
  * The CmdOption structure stores information about command line options.
@@ -56,7 +52,7 @@ using OptionNames = std::vector<std::string>;
  */
 struct CmdOption {
   using ActionFunc = std::function<void(const std::string &)>;
-  using AtEndActionFunc = std::function<void()>;
+  using AtEndActionFunc = std::function<void(const std::string &)>;
   using OptionNames = std::vector<std::string>;
 
   OptionNames names;
@@ -71,7 +67,8 @@ struct CmdOption {
   CmdOption(
       OptionNames names_, std::string description_,
       CmdOptionValueReq value_req_, const std::string metavar_,
-      ActionFunc action_, AtEndActionFunc at_end_action_ = [] {})
+      ActionFunc action_,
+      AtEndActionFunc at_end_action_ = [](const std::string &) {})
       : names(names_),
         description(description_),
         value_req(value_req_),
@@ -214,7 +211,8 @@ class HARNESS_EXPORT CmdArgHandler {
       const CmdOption::OptionNames &names, const std::string &description,
       const CmdOptionValueReq &value_req, const std::string &metavar,
       CmdOption::ActionFunc action,
-      CmdOption::AtEndActionFunc at_end_action = [] {}) noexcept;
+      CmdOption::AtEndActionFunc at_end_action = [](const std::string &) {
+      }) noexcept;
 
   void add_option(const CmdOption &other) noexcept;
 
@@ -290,8 +288,8 @@ class HARNESS_EXPORT CmdArgHandler {
    * @param name name of the option as string
    * @returns iterator object
    */
-  OptionContainer::const_iterator find_option(const std::string &name) const
-      noexcept;
+  OptionContainer::const_iterator find_option(
+      const std::string &name) const noexcept;
 
   using UsagePredicate =
       std::function<std::pair<bool, CmdOption>(const CmdOption &)>;
@@ -331,11 +329,9 @@ class HARNESS_EXPORT CmdArgHandler {
         });
   }
 
-  std::vector<std::string> usage_lines_if(const std::string &prefix,
-                                          const std::string &rest_metavar,
-                                          size_t width,
-                                          UsagePredicate predicate) const
-      noexcept;
+  std::vector<std::string> usage_lines_if(
+      const std::string &prefix, const std::string &rest_metavar, size_t width,
+      UsagePredicate predicate) const noexcept;
 
   /** @brief Produces description of all options
    *
@@ -362,9 +358,8 @@ class HARNESS_EXPORT CmdArgHandler {
    * @param indent how much the description should be indented.
    * @return vector of strings
    */
-  std::vector<std::string> option_descriptions(const size_t width,
-                                               const size_t indent) const
-      noexcept;
+  std::vector<std::string> option_descriptions(
+      const size_t width, const size_t indent) const noexcept;
 
   /** @brief Returns an iterator to first option
    *

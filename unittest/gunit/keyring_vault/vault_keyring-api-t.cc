@@ -33,7 +33,7 @@ namespace keyring__api_unittest {
 using ::testing::StrEq;
 using namespace keyring;
 
-std::string credential_file_url = "./keyring_vault.conf";
+std::string credential_file_url = "./keyring_vault_vault_keyring_api.conf";
 
 class Keyring_vault_api_test : public ::testing::Test {
  public:
@@ -125,7 +125,7 @@ TEST_F(Keyring_vault_api_test, CheckIfInmemoryKeyIsNOTXORed) {
             expected_key_signature.length());
   uchar *key_data_fetched = fetched_key->get_key_data();
   size_t key_data_fetched_size = fetched_key->get_key_data_size();
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(memcmp(sample_key_data.c_str(), key_data_fetched,
                      key_data_fetched_size) == 0);
   ASSERT_TRUE(sample_key_data.length() == key_data_fetched_size);
@@ -529,11 +529,11 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  ILogger *logger = new keyring::Mock_logger();
+  std::unique_ptr<keyring::ILogger> logger(new keyring::Mock_logger());
   // create unique secret mount point for this test suite
-  keyring::Vault_mount vault_mount(curl, logger);
+  keyring::Vault_mount vault_mount(curl, logger.get());
 
-  std::string mount_point_path = "cicd/" + uuid;
+  std::string mount_point_path = "cicd/" + uuid + "_vault_keyring_api";
   if (generate_credential_file(keyring__api_unittest::credential_file_url,
                                CORRECT, mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;
@@ -555,7 +555,6 @@ int main(int argc, char **argv) {
   if (vault_mount.unmount_secret_backend()) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete logger;
 
   my_testing::teardown_server_for_unit_tests();
   return ret;

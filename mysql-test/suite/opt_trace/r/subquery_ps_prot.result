@@ -17,26 +17,6 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = `t2`.`a`)"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = `t2`.`a`)) AS `(SELECT a FROM t1 WHERE t1.a=t2.a)`,`t2`.`a` AS `a` from `t2`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -212,26 +192,6 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = `t2`.`a`)"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = `t2`.`a`)) AS `(SELECT a FROM t1 WHERE t1.a=t2.a)`,`t2`.`a` AS `a` from `t2`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -405,36 +365,6 @@ WHERE t1.a= (SELECT b FROM t2 LIMIT 1) AND NOT
 t1.a= (SELECT a FROM t2 LIMIT 1)	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t2`.`b` from `t2` limit 1"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "join_preparation": {
-              "select#": 3,
-              "steps": [
-                {
-                  "expanded_query": "/* select#3 */ select `t2`.`a` from `t2` limit 1"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a` from `t1` where ((`t1`.`a` = (/* select#2 */ select `t2`.`b` from `t2` limit 1)) and (`t1`.`a` <> (/* select#3 */ select `t2`.`a` from `t2` limit 1)))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -539,34 +469,6 @@ WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE a = 50 AND b = 3)	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "EXISTS (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))) is false"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -661,34 +563,6 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER BY b)	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t2`.`a` from `t2`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "EXISTS (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where exists(/* select#2 */ select `t2`.`a` from `t2`) is false"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -914,72 +788,6 @@ alias1.`col_int_key` not in (214) group by field1,field2,field3,
 field4,field5,field6	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "join_preparation": {
-                    "select#": 3,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from `t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`)) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
-                      },
-                      {
-                        "transformation": {
-                          "select#": 3,
-                          "from": "EXISTS (SELECT)",
-                          "to": "semijoin",
-                          "chosen": false
-                        } /* transformation */
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from `t1` `sq1_alias1` join `t5` `sq1_alias2` join `t5` `sq1_alias3` where (exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from `t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`)) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "join_preparation": {
-              "select#": 4,
-              "steps": [
-                {
-                  "expanded_query": "/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "join_preparation": {
-              "select#": 6,
-              "steps": [
-                {
-                  "expanded_query": "/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from `t3` `sq4_alias1` join `t3` `sq4_alias3` join `t2` `sq4_alias2` where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`) and (`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`) and (`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`))"
-                },
-                {
-                  "transformation": {
-                    "select#": 6,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "expanded_query": "/* select#1 */ select `alias1`.`col_varchar_key` AS `field1`,`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from `t1` `sq1_alias1` join `t5` `sq1_alias2` join `t5` `sq1_alias3` where (exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from `t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`)) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`) and (`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) AS `field3`,(/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`) AS `field4`,`sq3_alias2`.`col_varchar_nokey` AS `field5`,`sq3_alias2`.`col_varchar_nokey` AS `field6` from `t4` `alias3` join `t5` `sq3_alias1` join `t4` `sq3_alias2` join `t5` `alias1` where (<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from `t3` `sq4_alias1` join `t3` `sq4_alias3` join `t2` `sq4_alias2` where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`) and (`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`) and (`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`)))) and (`alias1`.`col_int_key` <> 214) and (`alias3`.`col_int_key` = `sq3_alias2`.`pk`) and (`alias3`.`col_varchar_key` = `sq3_alias2`.`col_varchar_key`)) group by `field1`,`field2`,`field3`,`field4`,`field5`,`field6`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -1016,7 +824,7 @@ field4,field5,field6	{
           {
             "table_dependencies": [
               {
-                "table": "`t5` `alias1`",
+                "table": "`t4` `alias3`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1024,21 +832,21 @@ field4,field5,field6	{
               },
               {
                 "table": "`t5` `sq3_alias1`",
-                "row_may_be_null": false,
+                "row_may_be_null": true,
                 "map_bit": 1,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
               },
               {
                 "table": "`t4` `sq3_alias2`",
-                "row_may_be_null": false,
+                "row_may_be_null": true,
                 "map_bit": 2,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
               },
               {
-                "table": "`t4` `alias3`",
-                "row_may_be_null": false,
+                "table": "`t5` `alias1`",
+                "row_may_be_null": true,
                 "map_bit": 3,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -1047,6 +855,18 @@ field4,field5,field6	{
           },
           {
             "ref_optimizer_key_uses": [
+              {
+                "table": "`t4` `alias3`",
+                "field": "col_varchar_key",
+                "equals": "`sq3_alias2`.`col_varchar_key`",
+                "null_rejecting": true
+              },
+              {
+                "table": "`t4` `alias3`",
+                "field": "col_int_key",
+                "equals": "`sq3_alias2`.`pk`",
+                "null_rejecting": true
+              },
               {
                 "table": "`t4` `sq3_alias2`",
                 "field": "pk",
@@ -1058,23 +878,32 @@ field4,field5,field6	{
                 "field": "col_varchar_key",
                 "equals": "`alias3`.`col_varchar_key`",
                 "null_rejecting": true
-              },
-              {
-                "table": "`t4` `alias3`",
-                "field": "col_varchar_key",
-                "equals": "`sq3_alias2`.`col_varchar_key`",
-                "null_rejecting": true
-              },
-              {
-                "table": "`t4` `alias3`",
-                "field": "col_int_key",
-                "equals": "`sq3_alias2`.`pk`",
-                "null_rejecting": false
               }
             ] /* ref_optimizer_key_uses */
           },
           {
             "rows_estimation": [
+              {
+                "table": "`t4` `alias3`",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
+              {
+                "table": "`t5` `sq3_alias1`",
+                "table_scan": {
+                  "rows": 3,
+                  "cost": 0.5085
+                } /* table_scan */
+              },
+              {
+                "table": "`t4` `sq3_alias2`",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
               {
                 "table": "`t5` `alias1`",
                 "range_analysis": {
@@ -1107,27 +936,6 @@ field4,field5,field6	{
                 } /* range_analysis */,
                 "rows": 0,
                 "cause": "impossible_where_condition"
-              },
-              {
-                "table": "`t5` `sq3_alias1`",
-                "table_scan": {
-                  "rows": 3,
-                  "cost": 0.5085
-                } /* table_scan */
-              },
-              {
-                "table": "`t4` `sq3_alias2`",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system",
-                "empty": false
-              },
-              {
-                "table": "`t4` `alias3`",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system",
-                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -1135,8 +943,8 @@ field4,field5,field6	{
             "considered_execution_plans": [
               {
                 "plan_prefix": [
-                  "`t4` `sq3_alias2`",
                   "`t4` `alias3`",
+                  "`t4` `sq3_alias2`",
                   "`t5` `alias1`"
                 ] /* plan_prefix */,
                 "table": "`t5` `sq3_alias1`",
@@ -1218,39 +1026,6 @@ on (table2.`col_varchar_key` = table1.`col_varchar_key` ) ) where (
 table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
 (192,18) order by field1 desc	{
   "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select sum(`subquery1_t1`.`col_int_nokey`) AS `subquery1_field1` from `t1` `subquery1_t1`"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "join_preparation": {
-              "select#": 3,
-              "steps": [
-                {
-                  "expanded_query": "/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true)"
-                }
-              ] /* steps */
-            } /* join_preparation */
-          },
-          {
-            "IN_uses_bisection": true
-          },
-          {
-            "expanded_query": "/* select#1 */ select (/* select#2 */ select sum(`subquery1_t1`.`col_int_nokey`) AS `subquery1_field1` from `t1` `subquery1_t1`) AS `field1` from `t1` `table1` straight_join `t1` `table2` where (<nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true)))) and (`table1`.`pk` in (192,18)) and (`table2`.`col_varchar_key` = `table1`.`col_varchar_key`)) order by `field1` desc"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
     {
       "join_optimization": {
         "select#": 1,
@@ -1675,10 +1450,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 "table_condition_attached": null
               },
               {
-                "table": "`t1` `table2`",
-                "unknown_key_1": {
-                  "constant_condition_in_bnl": "<nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true))))"
-                }
+                "table": "`t1` `table2`"
               }
             ] /* refine_plan */
           }
@@ -1780,23 +1552,23 @@ set optimizer_prune_level=0;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	8	100.00	Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 3))
 # Equality-propagation involving inner field => 1st sj equality is bound
 explain select * from t2 where (b+0,a+0) in (select a,b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	8	100.00	Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = 3) and ((`test`.`t2`.`b` + 0) = 3) and ((`test`.`t2`.`a` + 0) = `test`.`t1`.`b`))
 # Equality-propagation involving outer field => 3rd sj equality is bound.
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1) and filler='abc';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = 'abc') and (`test`.`t2`.`filler` = (`test`.`t1`.`a` * 3)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = 'abc') and (cast(`test`.`t2`.`filler` as double) = cast((`test`.`t1`.`a` * 3) as double)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -1865,7 +1637,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
 1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.b,test.t2.a	1	100.00	Using index; Start temporary; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and (`test`.`t2`.`filler` = (`test`.`t2`.`b` * 3)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and (cast(`test`.`t2`.`filler` as double) = cast((`test`.`t2`.`b` * 3) as double)))
 SELECT show_json_object('"searching_loose_scan_index": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"searching_loose_scan_index": {', TRACE)
@@ -1884,9 +1656,9 @@ where t2.filler=t3.filler and
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	NULL
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using where; Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (`test`.`t3`.`filler` = (`test`.`t1`.`a` * 3)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (cast(`test`.`t3`.`filler` as double) = cast((`test`.`t1`.`a` * 3) as double)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -1957,7 +1729,7 @@ where (t2.b,t2.a,t3.filler+2) in (select a,b,a*3 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	NULL
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using where; Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and ((`test`.`t3`.`filler` + 2) = (`test`.`t1`.`a` * 3)) and ((`test`.`t2`.`filler` + 10) = (`test`.`t3`.`filler` + 20)))
 SELECT show_json_object('"considered_execution_plans": [', TRACE)
@@ -2786,7 +2558,7 @@ WHERE t2.b=t3.b AND
 (t2.b) IN (SELECT b*3 FROM t1 WHERE a=10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = 10) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`b` = (`test`.`t1`.`b` * 3)))
@@ -2812,8 +2584,8 @@ ON it1.a = it2.a
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	it1	NULL	index	a	a	12	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it2	NULL	index	a	a	12	NULL	2	50.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+1	SIMPLE	it2	NULL	index	a	a	12	NULL	2	50.00	Using where; Using index; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it1` join `test`.`it2`) where ((`test`.`it2`.`a` = `test`.`it1`.`a`) and (`test`.`ot1`.`a` = `test`.`it1`.`b`))
 SELECT TRACE LIKE '%"index_can_remove_duplicates": false%'
@@ -2829,7 +2601,7 @@ insert into t1 values(25,'111111'),(25,'1111112');
 explain select * from t1 as t2 where t2.b in (select b from t1 where a=25);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a_b	a_b	5	const	1	100.00	Using index; LooseScan
-1	SIMPLE	t2	NULL	index	NULL	a_b	408	NULL	2	50.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	NULL	a_b	408	NULL	2	50.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` semi join (`test`.`t1`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 25))
 select * from t1 as t2 where t2.b in (select b from t1 where a=25);
@@ -2840,7 +2612,7 @@ alter table t1 drop key a_b, add key a_b_prefix (a,b(2));
 explain select * from t1 as t2 where t2.b in (select b from t1 where a=25);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a_b_prefix	a_b_prefix	5	const	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` semi join (`test`.`t1`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 25))
 select * from t1 as t2 where t2.b in (select b from t1 where a=25);
@@ -3009,25 +2781,25 @@ TRACE
                 "table": "`q`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q` `q1`",
                 "field": "a",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q` `q1`",
                 "field": "a",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

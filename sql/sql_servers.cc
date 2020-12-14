@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -111,6 +112,36 @@ enum enum_servers_table_field {
   SERVERS_FIELD_SCHEME,
   SERVERS_FIELD_OWNER
 };
+
+// mysql.servers table definition.
+static const int MYSQL_SERVERS_TABLE_FIELD_COUNT = 9;
+static const TABLE_FIELD_TYPE
+    mysql_servers_table_fields[MYSQL_SERVERS_TABLE_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Server_name")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {STRING_WITH_LEN("ascii")}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("Username")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Password")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Port")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("Socket")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Wrapper")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Owner")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}}};
+static const TABLE_FIELD_DEF mysql_servers_table_def = {
+    MYSQL_SERVERS_TABLE_FIELD_COUNT, mysql_servers_table_fields};
 
 static bool get_server_from_table_to_cache(TABLE *table);
 
@@ -221,9 +252,9 @@ static bool servers_load(THD *thd, TABLE *table) {
   free_root(&mem, MYF(0));
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, NULL, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return true;
 
   while (!(iterator->Read())) {
@@ -362,7 +393,7 @@ static bool get_server_from_table_to_cache(TABLE *table) {
 static bool close_cached_connection_tables(THD *thd,
                                            const char *connection_string,
                                            size_t connection_length) {
-  TABLE_LIST tmp, *tables = NULL;
+  TABLE_LIST tmp, *tables = nullptr;
   bool result = false;
   DBUG_TRACE;
   DBUG_ASSERT(thd);
@@ -431,22 +462,22 @@ static bool close_cached_connection_tables(THD *thd,
 }
 
 void Server_options::reset() {
-  m_server_name.str = NULL;
+  m_server_name.str = nullptr;
   m_server_name.length = 0;
   m_port = PORT_NOT_SET;
-  m_host.str = NULL;
+  m_host.str = nullptr;
   m_host.length = 0;
-  m_db.str = NULL;
+  m_db.str = nullptr;
   m_db.length = 0;
-  m_username.str = NULL;
+  m_username.str = nullptr;
   m_db.length = 0;
-  m_password.str = NULL;
+  m_password.str = nullptr;
   m_password.length = 0;
-  m_scheme.str = NULL;
+  m_scheme.str = nullptr;
   m_scheme.length = 0;
-  m_socket.str = NULL;
+  m_socket.str = nullptr;
   m_socket.length = 0;
-  m_owner.str = NULL;
+  m_owner.str = nullptr;
   m_owner.length = 0;
 }
 
@@ -619,7 +650,31 @@ bool Sql_cmd_common_server::check_and_open_table(THD *thd) {
   TABLE_LIST tables("mysql", "servers", TL_WRITE);
 
   table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
-  return (table == NULL);
+  if (table == nullptr) return true;
+
+  /*
+    System table mysql.servers is supported by only InnoDB engine. Changing
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. CREATE, ALTER and DROP SERVER
+    operations are not allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return true;
+  }
+
+  /*
+    CREATE, ALTER and DROP SERVER operations are *not* allowed if table
+    structure is changed.
+  */
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_servers_table_def)) return true;
+
+  return false;
 }
 
 bool Sql_cmd_create_server::execute(THD *thd) {
@@ -653,7 +708,7 @@ bool Sql_cmd_create_server::execute(THD *thd) {
 
     /* read index until record is that specified in server_name */
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         HA_WHOLE_KEY, HA_READ_KEY_EXACT);
 
     if (!error) {
@@ -721,7 +776,7 @@ bool Sql_cmd_alter_server::execute(THD *thd) {
         m_server_options->m_server_name.length, system_charset_info);
 
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         ~(longlong)0, HA_READ_KEY_EXACT);
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -783,7 +838,7 @@ bool Sql_cmd_drop_server::execute(THD *thd) {
         m_server_name.str, m_server_name.length, system_charset_info);
 
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         HA_WHOLE_KEY, HA_READ_KEY_EXACT);
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -870,15 +925,15 @@ static FOREIGN_SERVER *clone_server(MEM_ROOT *mem, const FOREIGN_SERVER *server,
   buffer->server_name_length = server->server_name_length;
 
   /* TODO: We need to examine which of these can really be NULL */
-  buffer->db = server->db ? strdup_root(mem, server->db) : NULL;
-  buffer->scheme = server->scheme ? strdup_root(mem, server->scheme) : NULL;
+  buffer->db = server->db ? strdup_root(mem, server->db) : nullptr;
+  buffer->scheme = server->scheme ? strdup_root(mem, server->scheme) : nullptr;
   buffer->username =
-      server->username ? strdup_root(mem, server->username) : NULL;
+      server->username ? strdup_root(mem, server->username) : nullptr;
   buffer->password =
-      server->password ? strdup_root(mem, server->password) : NULL;
-  buffer->socket = server->socket ? strdup_root(mem, server->socket) : NULL;
-  buffer->owner = server->owner ? strdup_root(mem, server->owner) : NULL;
-  buffer->host = server->host ? strdup_root(mem, server->host) : NULL;
+      server->password ? strdup_root(mem, server->password) : nullptr;
+  buffer->socket = server->socket ? strdup_root(mem, server->socket) : nullptr;
+  buffer->owner = server->owner ? strdup_root(mem, server->owner) : nullptr;
+  buffer->host = server->host ? strdup_root(mem, server->host) : nullptr;
 
   return buffer;
 }
@@ -894,7 +949,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
 
   if (!server_name || !strlen(server_name)) {
     DBUG_PRINT("info", ("server_name not defined!"));
-    return (FOREIGN_SERVER *)NULL;
+    return (FOREIGN_SERVER *)nullptr;
   }
 
   DBUG_PRINT("info", ("locking servers_cache"));
@@ -904,7 +959,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
   if (it == servers_cache->end()) {
     DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
                         (unsigned)server_name_length));
-    server = (FOREIGN_SERVER *)NULL;
+    server = (FOREIGN_SERVER *)nullptr;
   }
   /* otherwise, make copy of server */
   else

@@ -5,12 +5,24 @@
 --let t3_IBD = $MYSQLD_DATADIR/test/t3.ibd
 --let t4_IBD = $MYSQLD_DATADIR/test/t4.ibd
 
+# Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
+--let $uuid_file= auto.cnf
+--let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---echo # Restart mysqld --loose-file-key-management-filename=keys2.txt
+--let $datadir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
+--copy_file $datadir/$uuid_file $datadir/original_$uuid_file
+
+--remove_file $datadir/$uuid_file
+--write_file $datadir/$uuid_file
+[auto]
+server_uuid=b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99
+EOF
+
+--echo # Restart mysqld
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
-#-- let $restart_parameters=--loose-file-key-management-filename=$MYSQLTEST_VARDIR/std_data/keys2.txt
--- source include/restart_mysqld.inc
+--source include/restart_mysqld.inc
 
 create table innodb_normal(c1 bigint not null, b char(200)) engine=innodb;
 show warnings;
@@ -84,3 +96,11 @@ drop table innodb_compact;
 drop table innodb_compressed;
 drop table innodb_dynamic;
 drop table innodb_redundant;
+
+# restore initial keyring_file and server_uuid
+--remove_file $datadir/$uuid_file
+--move_file $datadir/original_$uuid_file $datadir/$uuid_file
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/restart_mysqld.inc

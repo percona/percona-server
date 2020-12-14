@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sqlcommand.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_utility.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 
 // Forward declarations
 class THD;
@@ -45,7 +45,7 @@ class Restrictions_aggregator;
 extern MEM_ROOT global_acl_memory;
 
 // Alias declarations
-using db_revocations = memroot_collation_unordered_map<std::string, ulong>;
+using db_revocations = mem_root_collation_unordered_map<std::string, ulong>;
 using Db_access_map = std::map<std::string, unsigned long>;
 
 /**
@@ -80,7 +80,7 @@ class Abstract_restrictions {
 class DB_restrictions final : public Abstract_restrictions {
  public:
   DB_restrictions(MEM_ROOT *mem_root);
-  virtual ~DB_restrictions() override;
+  ~DB_restrictions() override;
 
   db_revocations &operator()(void) { return db_restrictions(); }
   DB_restrictions(const DB_restrictions &restrictions);
@@ -88,13 +88,10 @@ class DB_restrictions final : public Abstract_restrictions {
   DB_restrictions &operator=(const DB_restrictions &restrictions);
   DB_restrictions &operator=(DB_restrictions &&restrictions);
   bool operator==(const DB_restrictions &restrictions) const;
-  void add(const std::string &db_name, const std::set<std::string> &privs);
   void add(const std::string &db_name, const ulong revoke_privs);
   void add(const DB_restrictions &restrictions);
   bool add(const Json_object &json_object);
 
-  void remove(const std::string &db_name,
-              const std::set<std::string> &revoke_privs);
   void remove(const std::string &db_name, const ulong revoke_privs);
   void remove(const ulong revoke_privs);
 
@@ -109,8 +106,8 @@ class DB_restrictions final : public Abstract_restrictions {
 
  private:
   db_revocations &db_restrictions() { return m_restrictions; }
-  void remove(const ulong remove_restrictions, ulong &restrictions_mask) const
-      noexcept;
+  void remove(const ulong remove_restrictions,
+              ulong &restrictions_mask) const noexcept;
 
  private:
   /** Database restrictions */
@@ -137,7 +134,6 @@ class Restrictions {
 
   const DB_restrictions &db() const;
   void set_db(const DB_restrictions &db_restrictions);
-  void add_db(const DB_restrictions &db_restrictions);
   void clear_db();
   bool is_empty() const;
 
@@ -303,7 +299,7 @@ class DB_restrictions_aggregator_set_role final
       Db_access_map *db_map);
 
   Status validate() override;
-  void aggregate(DB_restrictions &restrictions) override;
+  void aggregate(DB_restrictions &db_restrictions) override;
   friend class Restrictions_aggregator_factory;
 
  private:

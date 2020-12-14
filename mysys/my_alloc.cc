@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -183,12 +183,12 @@ void MEM_ROOT::FreeBlocks(Block *start) {
   }
 }
 
-void MEM_ROOT::Claim() {
+void MEM_ROOT::Claim(bool claim) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("root: %p", this));
 
   for (Block *block = m_current_block; block != nullptr; block = block->prev) {
-    my_claim(block);
+    my_claim(block, claim);
   }
 }
 
@@ -226,7 +226,7 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
   va_end(args);
 
   if (!(start = static_cast<char *>(root->Alloc(tot_length))))
-    return 0; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   va_start(args, root);
   res = start;
@@ -244,7 +244,7 @@ char *strdup_root(MEM_ROOT *root, const char *str) {
 }
 
 char *safe_strdup_root(MEM_ROOT *root, const char *str) {
-  return str ? strdup_root(root, str) : 0;
+  return str ? strdup_root(root, str) : nullptr;
 }
 
 void free_root(MEM_ROOT *root, myf flags) {

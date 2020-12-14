@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -80,18 +80,18 @@ class MutexDebug {
 
     /** Reset to unlock state */
     void release() UNIV_NOTHROW {
-      m_mutex = NULL;
+      m_mutex = nullptr;
 
       m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
 
-      m_filename = NULL;
+      m_filename = nullptr;
 
       m_line = ULINT_UNDEFINED;
     }
 
     /** Print information about the latch
     @return the string representation */
-    virtual std::string to_string() const UNIV_NOTHROW {
+    std::string to_string() const override UNIV_NOTHROW {
       std::ostringstream msg;
 
       msg << m_mutex->policy().to_string();
@@ -108,7 +108,7 @@ class MutexDebug {
 
     /** @return the name of the file and line number in the file
     from where the mutex was acquired "filename:line" */
-    virtual std::string locked_from() const {
+    virtual std::string locked_from() const override {
       std::ostringstream msg;
 
       msg << sync_basename(m_filename) << ":" << m_line;
@@ -383,7 +383,7 @@ class AggregateMutexStatsPolicy
 
     meta.get_counter()->sum_deregister(m_count);
 
-    m_count = NULL;
+    m_count = nullptr;
 
     ut_d(MutexDebug<MutexType>::destroy());
   }

@@ -10,7 +10,12 @@ SET GLOBAL innodb_file_per_table = ON;
 create table t1 (a varchar(255)) engine=innodb encryption='KEYRING';
 create table t2 (a varchar(255)) engine=innodb encryption_key_id=5;
 create table t3 (a varchar(255)) engine=innodb;
+# Temporary disable online to keyring encryption to create MK encrypted table
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 create table t4 (a varchar(255)) engine=innodb encryption='Y'; # MK encryption - should get re-encrypted to KEYRING
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 create table t5 (a varchar(255)) engine=innodb;
 create table t6 (a varchar(255)) engine=innodb encryption='N';
 
@@ -27,9 +32,8 @@ insert t6 values (repeat('nosecret', 12));
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --echo # Just make sure that none of the table started re-encrypting
 --sleep 5 # Give a bit of time for re-encryption thread
@@ -38,9 +42,8 @@ insert t6 values (repeat('nosecret', 12));
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2]" = 0
 --source include/assert.inc
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 3
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 3.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $wait_timeout= 600
 # We should have $tables_count - 3 tables encrypted with version 3, as 
@@ -58,13 +61,11 @@ insert t6 values (repeat('nosecret', 12));
 
 --echo # Now, let's rotate key 5 twice
 
---let $assert_text= Successful rotation of percona_innodb-5 to version 2
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-5 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
---let $assert_text= Successful rotation of percona_innodb-5 to version 3
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-5 to version 3.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3 AND CURRENT_KEY_ID = 5
@@ -74,9 +75,8 @@ insert t6 values (repeat('nosecret', 12));
 --echo # in re-encryption of the table
 SET GLOBAL innodb_encryption_rotate_key_age = 1;
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 4
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 4.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --let $wait_timeout= 600
 # We should have $tables_count - 3 tables encrypted with version 4, as
@@ -89,9 +89,7 @@ SET GLOBAL innodb_encryption_rotate_key_age = 1;
 --source include/assert.inc
 
 --echo # Rotate key 5 to version 4 => this should trigger table t2 re-encryption
---let $assert_text= Successful rotation of percona_innodb-5 to version 4
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4 AND CURRENT_KEY_ID = 5
@@ -102,14 +100,11 @@ SET GLOBAL innodb_encryption_rotate_key_age = 0;
 
 --echo # Rotating key should not cause any re-encryption
 
---let $assert_text= Successful rotation of percona_innodb-0 to version 5
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--echo # Rotation of percona_innodb-0 to version 5.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
 --echo # Rotate key 5 to version 5 => this should trigger table t2 re-encryption
---let $assert_text= Successful rotation of percona_innodb-5 to version 5
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-5\\"\\) = 1]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 5;
 
 --echo # Just make sure that none of the table started re-encrypting
 --sleep 5 # Give a bit of time for re-encryption thread
@@ -174,7 +169,9 @@ alter table t6 encryption='N';
 --echo # Now turn off the encryption. Only one table should remain encrypted - the one with explicite encryption
 --echo # ie. t1
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout= 600
 # We should have $tables_count - 2 tables unencrypted (table t1 should stay encrypted with version 4 of key 0 and temporary is never encrypted)
@@ -187,7 +184,10 @@ SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 --source include/assert.inc
 
 # t6 has been marked as unencrypted - turn on the encryption - it should stay unencrypted
+
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout= 600
 # Encrypted tables count should be equal $tables_count - 2 as t6 and temporary should stays unencrypted
@@ -212,13 +212,16 @@ drop table t1, t2, t3, t4, t5, t6, t7;
 # cleanup
 
 # Decrypt all tables
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 # The backup file might be a leftover after calling generate key on existing key
 --error 0,1
 --remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"

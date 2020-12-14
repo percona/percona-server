@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ TEST_F(mem0mem, memheapistop) {
   /* Allocate another chunk and check that our string is not at the
   top anymore. */
   dummy = mem_heap_alloc(heap, 32);
-  ut_a(dummy != NULL);
+  ut_a(dummy != nullptr);
   EXPECT_FALSE(mem_heap_is_top(heap, str_in_heap, str_len + 1));
 
   /* Cause the heap to allocate a second block and retest. */

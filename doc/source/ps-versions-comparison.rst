@@ -59,7 +59,7 @@ List of features available in |Percona Server| releases
      - :ref:`Handle Corrupted Tables <ps80:innodb_corrupt_table_action_page>`
    * - :ref:`Lock-Free SHOW SLAVE STATUS <ps56:show_slave_status_nolock>`
      - :ref:`Lock-Free SHOW SLAVE STATUS <ps57:show_slave_status_nolock>`
-     - :ref:`Lock-Free SHOW SLAVE STATUS <ps80:show_slave_status_nolock>`
+     - :ref:`Lock-Free SHOW REPLICA STATUS <ps80:show_replica_status_nolock>`
    * - :ref:`Expanded Fast Index Creation <ps56:expanded_innodb_fast_index_creation>`
      - :ref:`Expanded Fast Index Creation <ps56:expanded_innodb_fast_index_creation>`
      - :ref:`Expanded Fast Index Creation <ps56:expanded_innodb_fast_index_creation>`
@@ -80,7 +80,7 @@ List of features available in |Percona Server| releases
      - |replaced|
    * - :ref:`Utility user <ps56:psaas_utility_user>`
      - :ref:`Utility user <ps57:psaas_utility_user>`
-     - |-implemented|
+     - :ref:`Utility user <ps80:psaas_utility_user>`
    * - :ref:`Extending the secure-file-priv server option <ps56:secure_file_priv_extended>`
      - :ref:`Extending the secure-file-priv server option <ps57:secure_file_priv_extended>`
      - :ref:`Extending the secure-file-priv server option <ps80:secure_file_priv_extended>`

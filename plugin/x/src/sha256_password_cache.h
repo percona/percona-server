@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/auth/i_sha2_password_common.h"
 
@@ -41,8 +41,7 @@ namespace xpl {
   Class used for storing hashed passwords for each authenticated user. This
   allows for fast authentication.
 */
-class SHA256_password_cache final
-    : public ngs::SHA256_password_cache_interface {
+class SHA256_password_cache final : public iface::SHA256_password_cache {
  public:
   using sha2_cache_entry_t = std::string;
   using password_cache_t = std::unordered_map<std::string, sha2_cache_entry_t>;

@@ -1,4 +1,6 @@
-SET GLOBAL innodb_file_per_table = ON;
+
+# Restart server with keys2.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt --early-plugin-load=keyring_file=KEYRING_PLUGIN --default-table-encryption=ONLINE_TO_KEYRING
 create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=20;
 create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
 create table t3(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb ENCRYPTION='KEYRING' encryption_key_id=20;
@@ -24,3 +26,4 @@ COMMIT;
 # Restart mysqld
 # restart:<hidden args>
 drop table t1,t2,t3,t4;
+# restart:--keyring-file-data=MYSQL_TMP_DIR/mysecret_keyring

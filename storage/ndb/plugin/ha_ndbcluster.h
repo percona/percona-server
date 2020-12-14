@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
   This file defines the NDB Cluster handler: the interface between MySQL and
   NDB Cluster
 */
+
+#include <array>
 
 #include "sql/partitioning/partition_handler.h"
 #include "sql/sql_base.h"
@@ -68,27 +70,56 @@ enum NDB_INDEX_TYPE {
 };
 
 struct NDB_INDEX_DATA {
-  NDB_INDEX_TYPE type;
-  enum { UNDEFINED = 0, ACTIVE = 1, TO_BE_DROPPED = 2 } status;
-  const NdbDictionary::Index *index;
-  const NdbDictionary::Index *unique_index;
-  unsigned char *unique_index_attrid_map;
-  bool null_in_unique_index;
-  /*
-    In mysqld, keys and rows are stored differently (using KEY_PART_INFO for
-    keys and Field for rows).
-    So we need to use different NdbRecord for an index for passing values
-    from a key and from a row.
-  */
-  NdbRecord *ndb_record_key;
-  NdbRecord *ndb_unique_record_key;
-  NdbRecord *ndb_unique_record_row;
-};
+  NDB_INDEX_TYPE type{UNDEFINED_INDEX};
+  const NdbDictionary::Index *index{nullptr};
+  const NdbDictionary::Index *unique_index{nullptr};
 
-// Wrapper class for list to hold NDBFKs
-class Ndb_fk_list : public List<NdbDictionary::ForeignKey> {
+ private:
+  // Map from MySQL key to NDB column order, this is necessary when the order of
+  // the keys used by MySQL does not match the column order in NDB. The map
+  // is only created if necessary, otherwise the default sequential column order
+  // is used. The below table have both its primary key and unique key
+  // specified in a different order than the table:
+  //   CREATE TABLE t1 (
+  //     a int, b int, c int, d int, e int,
+  //     PRIMARY KEY(d,b,c),
+  //     UNIQUE_KEY(e,d,c)
+  //   ) engine = ndb;
+  class Attrid_map {
+    std::vector<unsigned char> m_ids;
+    // Verify that vector's type is large enough to store "index of NDB column"
+    // (currently 32 columns supported by NDB and 16 by MySQL)
+    static_assert(std::numeric_limits<decltype(m_ids)::value_type>::max() >
+                      NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY,
+                  "");
+
+   public:
+    Attrid_map(const KEY *key_info, const NdbDictionary::Table *table);
+    Attrid_map(const KEY *key_info, const NdbDictionary::Index *index);
+
+    void fill_column_map(uint column_map[]) const;
+  };
+  const Attrid_map *attrid_map{nullptr};
+
  public:
-  ~Ndb_fk_list() { delete_elements(); }
+  // Create Attrid_map for primary key, if required
+  void create_attrid_map(const KEY *key_info,
+                         const NdbDictionary::Table *table);
+  // Create Attrid_map for unique key, if required
+  void create_attrid_map(const KEY *key_info,
+                         const NdbDictionary::Index *index);
+  // Delete the Attrid_map
+  void delete_attrid_map();
+  // Fill column_map for given KEY
+  void fill_column_map(const KEY *key_info, uint column_map[]) const;
+
+  bool null_in_unique_index{false};
+  // The keys and rows passed from MySQL Server are in different formats
+  // depending on whether it's a key (using KEY_PART_INFO) or row (using Field),
+  // thus different NdbRecord's need to be setup for each format.
+  NdbRecord *ndb_record_key{nullptr};
+  NdbRecord *ndb_unique_record_key{nullptr};
+  NdbRecord *ndb_unique_record_row{nullptr};
 };
 
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
@@ -96,7 +127,6 @@ class Ndb_fk_list : public List<NdbDictionary::ForeignKey> {
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
-  ulong last_count;
   ha_rows records;
 };
 
@@ -129,6 +159,7 @@ struct st_ndb_status {
 int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
 class ha_ndbcluster : public handler, public Partition_handler {
+  friend class ha_ndbcluster_cond;
   friend class ndb_pushed_builder_ctx;
 
  public:
@@ -140,10 +171,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;
 
- private:
-  void local_close(THD *thd, bool release_metadata);
-
- public:
   int close(void) override;
 
   int optimize(THD *thd, HA_CHECK_OPT *) override;
@@ -234,6 +261,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void update_create_info(HA_CREATE_INFO *create_info) override;
 
  private:
+  int get_old_table_comment_items(THD *thd, bool *comment_items_shown,
+                                  char *comment_str, unsigned comment_len);
   void update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
                            const NdbDictionary::Table *tab);
 
@@ -248,20 +277,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   uint max_supported_key_length() const override;
   uint max_supported_key_part_length(
       HA_CREATE_INFO *create_info) const override;
-
- private:
-  int get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO> *f_key_list,
-                                  bool is_child, bool is_parent);
-
- public:
-  int get_foreign_key_list(THD *thd,
-                           List<FOREIGN_KEY_INFO> *f_key_list) override;
-  int get_parent_foreign_key_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO> *f_key_list) override;
-  uint referenced_by_foreign_key() override;
-
-  char *get_foreign_key_create_info() override;
-  void free_foreign_key_create_info(char *str) override;
 
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table_def,
@@ -380,14 +395,16 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                     const key_range *start_key,
                                     const key_range *end_key);
 
+  int engine_push(AQP::Table_access *table) override;
+
  private:
   bool maybe_pushable_join(const char *&reason) const;
 
  public:
-  int assign_pushed_join(const ndb_pushed_join *pushed_join);
   uint number_of_pushed_joins() const override;
   const TABLE *member_of_pushed_join() const override;
   const TABLE *parent_of_pushed_join() const override;
+  table_map tables_in_pushed_join() const override;
 
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map) override;
@@ -406,7 +423,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool parse_comment_changes(NdbDictionary::Table *new_tab,
                              const NdbDictionary::Table *old_tab,
                              HA_CREATE_INFO *create_info, THD *thd,
-                             bool &max_rows_changed) const;
+                             bool &max_rows_changed,
+                             bool *partition_balance_in_comment = NULL) const;
 
  public:
   bool prepare_inplace_alter_table(TABLE *altered_table,
@@ -427,8 +445,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void notify_table_changed(Alter_inplace_info *alter_info) override;
 
  private:
-  void prepare_inplace__drop_index(uint key_num);
-  int inplace__final_drop_index(TABLE *table_arg);
+  bool open_table_set_key_fields();
+  void release_key_fields();
+  void release_ndb_share();
+  NDB_SHARE *open_table_before_schema_sync(THD *, const char *);
+  void prepare_inplace__drop_index(uint index_num);
 
   enum_alter_inplace_result supported_inplace_field_change(Alter_inplace_info *,
                                                            Field *, Field *,
@@ -438,11 +459,10 @@ class ha_ndbcluster : public handler, public Partition_handler {
   enum_alter_inplace_result supported_inplace_ndb_column_change(
       uint, TABLE *, Alter_inplace_info *, bool, bool) const;
   enum_alter_inplace_result supported_inplace_column_change(
-      THD *, TABLE *, uint, Field *, Alter_inplace_info *) const;
+      NdbDictionary::Dictionary *dict, TABLE *, uint, Field *,
+      Alter_inplace_info *) const;
   enum_alter_inplace_result check_inplace_alter_supported(
       TABLE *altered_table, Alter_inplace_info *ha_alter_info);
-  void check_implicit_column_format_change(
-      TABLE *altered_table, Alter_inplace_info *ha_alter_info) const;
 
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
@@ -469,37 +489,31 @@ class ha_ndbcluster : public handler, public Partition_handler {
   // Index list management
   int create_indexes(THD *thd, TABLE *tab,
                      const NdbDictionary::Table *ndbtab) const;
-  int open_indexes(Ndb *ndb, TABLE *tab);
-  void release_indexes(NdbDictionary::Dictionary *dict, int invalidate);
-  void inplace__renumber_indexes(uint dropped_index_num);
-  int inplace__drop_indexes(Ndb *ndb, TABLE *tab);
-  int add_index_handle(NdbDictionary::Dictionary *dict, KEY *key_info,
+  int open_indexes(NdbDictionary::Dictionary *dict);
+  void release_indexes(NdbDictionary::Dictionary *dict, bool invalidate);
+  int inplace__drop_index(NdbDictionary::Dictionary *dict, uint index_num);
+  int add_index_handle(NdbDictionary::Dictionary *dict, const KEY *key_info,
                        const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
-  int add_index_ndb_record(NdbDictionary::Dictionary *dict, KEY *key_info,
+  int add_index_ndb_record(NdbDictionary::Dictionary *dict, const KEY *key_info,
                            uint index_no);
-  int get_fk_data(THD *thd, Ndb *ndb);
-  void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
   int inplace__drop_fks(THD *, Ndb *, NdbDictionary::Dictionary *,
                         const NdbDictionary::Table *);
-  static int get_fk_data_for_truncate(NdbDictionary::Dictionary *,
-                                      const NdbDictionary::Table *,
-                                      Ndb_fk_list &);
   static int recreate_fk_for_truncate(THD *, Ndb *, const char *,
-                                      Ndb_fk_list &);
-  bool has_fk_dependency(THD *, const NdbDictionary::Column *) const;
+                                      std::vector<NdbDictionary::ForeignKey> *);
+  bool has_fk_dependency(NdbDictionary::Dictionary *dict,
+                         const NdbDictionary::Column *) const;
   int check_default_values(const NdbDictionary::Table *ndbtab);
   int get_metadata(THD *thd, const dd::Table *table_def);
-  void release_metadata(THD *thd, Ndb *ndb);
+  void release_metadata(THD *thd);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
-  NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info,
+  NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
+  NDB_INDEX_TYPE get_index_type_from_key(uint index_num, KEY *key_info,
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
-  bool check_index_fields_not_null(KEY *key_info) const;
 
   bool check_if_pushable(int type,  // NdbQueryOperationDef::Type,
                          uint idx = MAX_KEY) const;
@@ -535,8 +549,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation *op);
   int fetch_next_pushed();
-  int set_auto_inc(THD *thd, Field *field);
-  int set_auto_inc_val(THD *thd, Uint64 value);
+  int set_auto_inc(Ndb *ndb, Field *field);
+  int set_auto_inc_val(Ndb *ndb, Uint64 value) const;
   int next_result(uchar *buf);
   int close_scan();
   int unpack_record(uchar *dst_row, const uchar *src_row);
@@ -620,7 +634,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   NdbTransaction *start_transaction_row(const NdbRecord *ndb_record,
                                         const uchar *record, int &error);
-  NdbTransaction *start_transaction_key(uint index, const uchar *key_data,
+  NdbTransaction *start_transaction_key(uint index_num, const uchar *key_data,
                                         int &error);
 
   friend int check_completed_operations_pre_commit(Thd_ndb *, NdbTransaction *,
@@ -676,10 +690,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
   NDB_SHARE *m_share;
-  NDB_INDEX_DATA m_index[MAX_KEY];
-  static const size_t fk_root_block_size = 1024;
-  MEM_ROOT m_fk_mem_root;
-  struct Ndb_fk_data *m_fk_data;
+
+  std::array<NDB_INDEX_DATA, MAX_INDEXES> m_index;
+  // Cached metadata variable, indicating if the open table have any unique
+  // indexes. Used as a quick optimization to avoid looping the list of indexes.
+  bool m_has_unique_index{false};
 
   /*
     Pointer to row returned from scan nextResult().
@@ -703,7 +718,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_sorted;
   bool m_use_write;
   bool m_ignore_dup_key;
-  bool m_has_unique_index;
   bool m_ignore_no_key;
   bool m_read_before_write_removal_possible;
   bool m_read_before_write_removal_used;
@@ -716,7 +730,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_update_cannot_batch;
   uint m_bytes_per_write;
   bool m_skip_auto_increment;
-  bool m_blobs_pending;
   bool m_slow_path;
   bool m_is_bulk_delete;
 
@@ -748,14 +761,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_disable_multi_read;
   uchar *m_multi_range_result_ptr;
   NdbIndexScanOperation *m_multi_cursor;
-  Ndb *get_ndb(THD *thd) const;
 
   int update_stats(THD *thd, bool do_read_stat, uint part_id = ~(uint)0);
   int add_handler_to_open_tables(THD *, Thd_ndb *, ha_ndbcluster *handler);
 };
 
 // Global handler synchronization
-extern mysql_mutex_t ndbcluster_mutex;
 extern mysql_cond_t ndbcluster_cond;
 
 extern int ndb_setup_complete;

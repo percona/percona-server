@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -48,7 +50,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
                 bool *created_new_share) {
   uint i, j, key_segs, max_length, length;
-  HP_SHARE *share = 0;
+  HP_SHARE *share = nullptr;
   HA_KEYSEG *keyseg;
   HP_KEYDEF *keydef = create_info->keydef;
   uint reclength = create_info->reclength;
@@ -63,10 +65,10 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     share = hp_find_named_heap(name);
     if (share && share->open_count == 0) {
       hp_free(share);
-      share = 0;
+      share = nullptr;
     }
   }
-  *created_new_share = (share == NULL);
+  *created_new_share = (share == nullptr);
 
   if (!share) {
     uint chunk_dataspace_length, chunk_length;
@@ -190,7 +192,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
       We store uchar* del_link inside the data area of deleted records,
       so the data length should be at least sizeof(uchar*)
     */
-    set_if_bigger(chunk_dataspace_length, sizeof(uchar **));
+    chunk_dataspace_length =
+        std::max(chunk_dataspace_length, static_cast<uint>(sizeof(uchar **)));
 
     if (is_variable_size) {
       chunk_length = chunk_dataspace_length + VARIABLE_REC_OVERHEAD;
@@ -307,8 +310,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
         keyseg->null_bit = 0;
         keyseg++;
 
-        init_tree(&keyinfo->rb_tree, 0, 0, sizeof(uchar *), keys_compare, 1,
-                  NULL, NULL);
+        init_tree(&keyinfo->rb_tree, 0, sizeof(uchar *), keys_compare, true,
+                  nullptr, nullptr);
         keyinfo->delete_key = hp_rb_delete_key;
         keyinfo->write_key = hp_rb_write_key;
       } else {
@@ -333,7 +336,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     share->auto_key = create_info->auto_key;
     share->auto_key_type = create_info->auto_key_type;
     share->auto_increment = create_info->auto_increment;
-    share->create_time = (long)time((time_t *)0);
+    share->create_time = (long)time((time_t *)nullptr);
     share->fixed_data_length = fixed_data_length;
     share->fixed_column_count = fixed_column_count;
     share->blobs = create_info->blobs;
@@ -395,7 +398,7 @@ static void init_block(HP_BLOCK *block, uint chunk_length, ulong min_records,
                        ulong max_records) {
   uint i, recbuffer, records_in_block;
 
-  max_records = MY_MAX(min_records, max_records);
+  max_records = std::max(min_records, max_records);
   if (!max_records) max_records = 1000; /* As good as quess as anything */
   /*
     We want to start each chunk at 8 bytes boundary, round recbuffer to the
@@ -428,7 +431,7 @@ static inline void heap_try_free(HP_SHARE *share) {
   if (share->open_count == 0)
     hp_free(share);
   else
-    share->delete_on_close = 1;
+    share->delete_on_close = true;
 }
 
 int heap_delete_table(const char *name) {
@@ -456,7 +459,7 @@ void heap_drop_table(HP_INFO *info) {
 }
 
 void hp_free(HP_SHARE *share) {
-  bool not_internal_table = (share->open_list.data != NULL);
+  bool not_internal_table = (share->open_list.data != nullptr);
   if (not_internal_table) /* If not internal table */
     heap_share_list = list_delete(heap_share_list, &share->open_list);
   hp_clear(share); /* Remove blocks from memory */

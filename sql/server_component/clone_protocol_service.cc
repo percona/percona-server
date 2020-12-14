@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -34,14 +34,12 @@
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"
 #include "sql/sql_thd_internal_api.h"
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/sys_vars_shared.h"
 #include "sql_common.h"
 
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
-
-void clone_protocol_service_init() { return; }
 
 DEFINE_METHOD(void, mysql_clone_start_statement,
               (THD * &thd, PSI_thread_key thread_key,
@@ -87,6 +85,7 @@ DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd)) {
   DBUG_ASSERT(thd->m_statement_psi == nullptr);
 
   my_thread_end();
+  thd->set_psi(nullptr);
   destroy_thd(thd);
 }
 
@@ -122,16 +121,20 @@ DEFINE_METHOD(int, mysql_clone_validate_charsets,
   if (thd == nullptr) {
     return (0);
   }
+
+  int last_error = 0;
+
   for (auto &char_set : char_sets) {
     auto charset_obj = get_charset_by_name(char_set.c_str(), MYF(0));
 
     /* Check if character set collation is available. */
     if (charset_obj == nullptr) {
       my_error(ER_CLONE_CHARSET, MYF(0), char_set.c_str());
-      return (ER_CLONE_CHARSET);
+      /* Continue and check for all other errors. */
+      last_error = ER_CLONE_CHARSET;
     }
   }
-  return (0);
+  return last_error;
 }
 
 /**
@@ -197,14 +200,16 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
 
 DEFINE_METHOD(int, mysql_clone_validate_configs,
               (THD * thd, Mysql_Clone_Key_Values &configs)) {
-  int err = 0;
+  int last_error = 0;
 
   for (auto &key_val : configs) {
     String utf8_str;
     auto &config_name = key_val.first;
-    err = get_utf8_config(thd, config_name, utf8_str);
-    if (err != 0) {
-      break;
+    auto config_err = get_utf8_config(thd, config_name, utf8_str);
+    if (config_err != 0) {
+      last_error = config_err;
+      /* Continue and check for all other errors. */
+      continue;
     }
 
     auto &donor_val = key_val.second;
@@ -216,25 +221,31 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
       continue;
     }
 
-    /* Throw specific error for some configurations. */
+    int critical_error = 0;
+
+    /* Throw specific error for some configurations. These errors are critical
+    because user can no way clone from the current donor. */
     if (config_name.compare("version_compile_os") == 0) {
-      err = ER_CLONE_OS;
+      critical_error = ER_CLONE_OS;
     } else if (config_name.compare("version") == 0) {
-      err = ER_CLONE_DONOR_VERSION;
+      critical_error = ER_CLONE_DONOR_VERSION;
     } else if (config_name.compare("version_compile_machine") == 0) {
-      err = ER_CLONE_PLATFORM;
+      critical_error = ER_CLONE_PLATFORM;
     }
 
-    if (err != 0) {
-      my_error(err, MYF(0), donor_val.c_str(), config_val.c_str());
-    } else {
-      err = ER_CLONE_CONFIG;
-      my_error(ER_CLONE_CONFIG, MYF(0), config_name.c_str(), donor_val.c_str(),
-               config_val.c_str());
+    /* For critical errors, exit immediately. */
+    if (critical_error != 0) {
+      last_error = critical_error;
+      my_error(last_error, MYF(0), donor_val.c_str(), config_val.c_str());
+      break;
     }
-    break;
+
+    last_error = ER_CLONE_CONFIG;
+    my_error(ER_CLONE_CONFIG, MYF(0), config_name.c_str(), donor_val.c_str(),
+             config_val.c_str());
+    /* Continue and check for all other configuration mismatch. */
   }
-  return (err);
+  return last_error;
 }
 
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
@@ -275,9 +286,9 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     OptionalString capath, cipher, ciphersuites, crl, crlpath, version;
 
-    SslAcceptorContext::read_parameters(nullptr, &capath, &version, nullptr,
-                                        &cipher, &ciphersuites, nullptr, &crl,
-                                        &crlpath);
+    server_main_callback.read_parameters(nullptr, &capath, &version, nullptr,
+                                         &cipher, &ciphersuites, nullptr, &crl,
+                                         &crlpath);
 
     mysql_ssl_set(mysql, ssl_ctx->m_ssl_key, ssl_ctx->m_ssl_cert,
                   ssl_ctx->m_ssl_ca, capath.c_str(), cipher.c_str());
@@ -301,7 +312,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
   }
 
   ret_mysql =
-      mysql_real_connect(mysql, host, user, passwd, nullptr, port, 0, 0);
+      mysql_real_connect(mysql, host, user, passwd, nullptr, port, nullptr, 0);
 
   if (ret_mysql == nullptr) {
     char err_buf[MYSYS_ERRMSG_SIZE + 64];
@@ -420,9 +431,10 @@ DEFINE_METHOD(int, mysql_clone_get_response,
   auto func_before = [](NET *, void *, size_t) {};
 
   /* Callback function called after receiving header. */
-  auto func_after = [](NET *net, void *ctx, size_t, bool) {
+  auto func_after = [](NET *net_arg, void *ctx, size_t, bool) {
     auto net_bytes = static_cast<size_t *>(ctx);
-    *net_bytes += static_cast<size_t>(uint3korr(net->buff + net->where_b));
+    *net_bytes +=
+        static_cast<size_t>(uint3korr(net_arg->buff + net_arg->where_b));
   };
 
   /* Use server extension callback to capture network byte information. */
@@ -488,17 +500,6 @@ DEFINE_METHOD(int, mysql_clone_kill,
 DEFINE_METHOD(void, mysql_clone_disconnect,
               (THD * thd, MYSQL *mysql, bool is_fatal, bool clear_error)) {
   DBUG_TRACE;
-
-  if (thd != nullptr) {
-    thd->clear_clone_vio();
-
-    /* clear any session error, if requested */
-    if (clear_error) {
-      thd->clear_error();
-      thd->get_stmt_da()->reset_condition_info(thd);
-    }
-  }
-
   /* Make sure that the other end has switched back from clone protocol. */
   if (!is_fatal) {
     is_fatal = simple_command(mysql, COM_RESET_CONNECTION, nullptr, 0, 0);
@@ -510,6 +511,18 @@ DEFINE_METHOD(void, mysql_clone_disconnect,
 
   /* Disconnect */
   mysql_close(mysql);
+
+  /* There could be some n/w error during disconnect and we need to clear
+  them if requested. */
+  if (thd != nullptr) {
+    thd->clear_clone_vio();
+
+    /* clear any session error, if requested */
+    if (clear_error) {
+      thd->clear_error();
+      thd->get_stmt_da()->reset_condition_info(thd);
+    }
+  }
 }
 
 DEFINE_METHOD(void, mysql_clone_get_error,

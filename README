@@ -1,5 +1,5 @@
 Percona Server 8.0
-------------------
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
 Percona Server is a branch of MySQL 8.0 bringing higher performance,
 reliability and more features.
@@ -11,3 +11,5 @@ Documentation: http://www.percona.com/doc/percona-server/8.0
 Bug Tracker: https://jira.percona.com/projects/PS
 
 Sources: https://github.com/percona/percona-server
+
+Get Technical Forum Help: https://forums.percona.com/categories/mysql-mariadb

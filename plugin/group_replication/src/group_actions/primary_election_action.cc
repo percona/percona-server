@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ int Primary_election_action::process_action_message(
     action_execution_mode = PRIMARY_ELECTION_ACTION_PRIMARY_SWITCH;
     Group_member_info *primary_info =
         group_member_mgr->get_primary_member_info();
-    if (primary_info != NULL) {
+    if (primary_info != nullptr) {
       invoking_member_gcs_id.assign(
           primary_info->get_gcs_member_id().get_member_id());
       is_primary = invoking_member_gcs_id ==
@@ -174,7 +174,7 @@ int Primary_election_action::process_action_message(
 
 Group_action::enum_action_execution_result
 Primary_election_action::execute_action(
-    bool, Plugin_stage_monitor_handler *stage_handler) {
+    bool, Plugin_stage_monitor_handler *stage_handler, Notification_context *) {
   bool mode_is_set = false;
   bool action_terminated = false;
   int error = 0;
@@ -518,7 +518,7 @@ int Primary_election_action::after_view_change(
   if (current_action_phase == PRIMARY_ELECTION_PHASE) {
     Group_member_info *member_info =
         group_member_mgr->get_primary_member_info();
-    if (member_info == NULL || is_appointed_primary_leaving) {
+    if (member_info == nullptr || is_appointed_primary_leaving) {
       DBUG_ASSERT(appointed_primary_gcs_id.empty() ||
                   is_appointed_primary_leaving);
       *skip_primary_election = false;

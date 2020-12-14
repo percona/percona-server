@@ -43,7 +43,7 @@ SELECT COUNT(*) FROM t1;
 connection slave;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --error 0,2013
-START SLAVE;
+START REPLICA;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
@@ -66,7 +66,7 @@ SELECT COUNT(*) FROM t1;
 connection slave;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --error 0,2013
-START SLAVE;
+START REPLICA;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2
@@ -89,7 +89,7 @@ SELECT COUNT(*) FROM t1;
 connection slave;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --error 0,2013
-START SLAVE;
+START REPLICA;
 --source include/wait_until_disconnected.inc
 
 --let $rpl_server_number= 2

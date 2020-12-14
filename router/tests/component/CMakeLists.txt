@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_EXECUTABLE(master_key_test_writer ../helpers/master_key_test_writer.cc)
-SET_TARGET_PROPERTIES(master_key_test_writer PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
+MYSQL_ADD_EXECUTABLE(master_key_test_writer
+  ../helpers/master_key_test_writer.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  )
 
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 FOREACH(test_file
+    test_async_replicaset.cc
     test_bootstrap.cc
+    test_bootstrap_account.cc
     test_bootstrap_system_deployment.cc
     test_component_test_framework.cc
     test_config.cc
@@ -37,7 +41,9 @@ FOREACH(test_file
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
     test_mock_server.cc
+    test_pidfile.cc
     test_rest_api.cc
+    test_rest_api_enable.cc
     test_rest_metadata_cache.cc
     test_rest_mock_server.cc
     test_rest_router.cc
@@ -46,9 +52,11 @@ FOREACH(test_file
     test_routing.cc
     test_routing_connection.cc
     test_routing_strategy.cc
+    test_sd_notify.cc
     test_shutdown.cc
     test_state_file.cc
     test_user_option.cc
+    test_metadata_http_auth_backend.cc
     )
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
@@ -78,6 +86,14 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   routing
   )
 ENDFOREACH()
+
+# Suppress warnings for gcc-5 or older
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0)
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-value" HAVE_NO_UNUSED_VALUE)
+  IF(HAVE_NO_UNUSED_VALUE)
+    ADD_COMPILE_FLAGS(test_rest_api_enable.cc COMPILE_FLAGS "-Wno-unused-value")
+  ENDIF()
+ENDIF()
 
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 #include <initializer_list>
 #include <string>
 #include <utility>
+#include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
@@ -37,7 +38,7 @@ class PFS_string;
 
 class Sql_data_result {
  public:
-  explicit Sql_data_result(ngs::Sql_session_interface *context);
+  explicit Sql_data_result(iface::Sql_session *context);
 
   void disable_binlog();
   void restore_binlog();
@@ -74,6 +75,10 @@ class Sql_data_result {
     return *this;
   }
 
+  bool is_server_status_set(const uint32_t bit) const {
+    return m_resultset.get_info().server_status & bit;
+  }
+
  private:
   typedef Collect_resultset::Field Field_value;
 
@@ -90,14 +95,14 @@ class Sql_data_result {
 
   Field_value *get_value() { return (*m_row_index).fields[m_field_index++]; }
   Field_value &validate_field_index_no_null(
-      std::initializer_list<enum_field_types> field_types);
+      const std::vector<enum_field_types> &field_types);
   void validate_field_index(
-      std::initializer_list<enum_field_types> field_types) const;
+      const std::vector<enum_field_types> &field_types) const;
 
   Collect_resultset m_resultset;
   std::size_t m_field_index;
   Collect_resultset::Row_list::const_iterator m_row_index;
-  ngs::Sql_session_interface *m_context;
+  iface::Sql_session *m_context;
 };
 
 }  // namespace xpl

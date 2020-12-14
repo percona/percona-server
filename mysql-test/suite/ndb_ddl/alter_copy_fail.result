@@ -9,11 +9,11 @@
 SHOW CREATE TABLE t8;
 Table	Create Table
 t8	CREATE TABLE `t8` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(255) DEFAULT NULL,
   `c` datetime NOT NULL,
-  `d` int(10) unsigned DEFAULT NULL,
-  `e` int(11) NOT NULL
+  `d` int unsigned DEFAULT NULL,
+  `e` int NOT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t8 ORDER BY a;
 a	b	c	d	e
@@ -33,11 +33,47 @@ ERROR 01000: Data truncated for column 'd' at row 1
 SHOW CREATE TABLE t8;
 Table	Create Table
 t8	CREATE TABLE `t8` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(255) DEFAULT NULL,
   `c` datetime NOT NULL,
-  `d` int(10) unsigned DEFAULT NULL,
-  `e` int(11) NOT NULL
+  `d` int unsigned DEFAULT NULL,
+  `e` int NOT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+# Bug#31546868 NDB : HA_NDBCLUSTER NOT ROLLING BACK TRANSACTION BEFORE ROLLING BACK DDL
+USE ndb_ddl_test;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+# Following alter should fail with ER_CHECK_CONSTRAINT_VIOLATED
+# as a row violates the check constraint it is trying to enforce
+ALTER TABLE t1
+ADD CONSTRAINT t1_c1 CHECK(a < 5),
+ALGORITHM = COPY;
+ERROR HY000: Check constraint 't1_c1' is violated.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
@@ -49,8 +85,8 @@ USE ndb_ddl_test;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -64,8 +100,8 @@ ERROR HY000: Internal error: Simulated : Failed to rename original table to a te
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -76,10 +112,18 @@ Number of tables with temp name in NDB
 ALTER TABLE t1
 ADD COLUMN c INT,
 ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Failure during the second rename
 #
-USE ndb_ddl_test;
 set debug='+d,ndb_simulate_alter_failure_rename2';
 ALTER TABLE t1
 DROP COLUMN c,
@@ -90,9 +134,9 @@ ERROR HY000: Internal error: Simulated : Failed to rename new table to target na
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -103,3 +147,44 @@ Number of tables with temp name in NDB
 ALTER TABLE t1
 DROP COLUMN c,
 ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# Failure after the table has been renamed to new name
+#
+set debug='+d,ndb_simulate_failure_after_table_rename';
+ALTER TABLE t1
+RENAME TO t1_new,
+ALGORITHM = COPY;
+ERROR HY000: Internal error: Simulated : Failed after renaming the table.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+# ALTER should run now
+ALTER TABLE t1
+RENAME TO t1_new,
+ALGORITHM = COPY;
+SHOW CREATE TABLE t1_new;
+Table	Create Table
+t1_new	CREATE TABLE `t1_new` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

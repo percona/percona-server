@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ public:
                        unsigned len);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(unsigned size, Uint32 dst[], const Uint32 src[]);
 
@@ -94,6 +94,11 @@ public:
    * than checking count() == 0.
    */
   static bool isclear(unsigned size, const Uint32 data[]);
+
+  /**
+   * is_set -  Check if all bits are set.
+   */
+  static bool is_set(unsigned size, const Uint32 data[]);
 
   /**
    * count - Count number of set bits.
@@ -371,6 +376,16 @@ BitmaskImpl::isclear(unsigned size, const Uint32 data[])
 {
   for (unsigned i = 0; i < size; i++) {
     if (data[i] != 0)
+      return false;
+  }
+  return true;
+}
+
+inline bool
+BitmaskImpl::is_set(unsigned size, const Uint32 data[])
+{
+  for (unsigned i = 0; i < size; i++) {
+    if (data[i] != -1U)
       return false;
   }
   return true;
@@ -867,12 +882,12 @@ public:
   unsigned max_size() const { return (size * 32) - 1; }
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   void assign(const typename BitmaskPOD<size>::Data & src);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
   static void assign(Uint32 dst[], const BitmaskPOD<size> & src);
@@ -882,9 +897,9 @@ public:
    * copy this to <em>dst</em>
    */
   void copyto(unsigned sz, Uint32 dst[]) const;
-  
+
   /**
-   * assign <em>this</em> according to <em>src/em>
+   * assign <em>this</em> according to <em>src</em>
    */
   void assign(unsigned sz, const Uint32 src[]);
 
@@ -952,6 +967,12 @@ public:
    */
   static bool isclear(const Uint32 data[]);
   bool isclear() const;
+
+  /**
+   * is_set -  Check if all bits are set.
+   */
+  static bool is_set(const Uint32 data[]);
+  bool is_set() const;
 
   /**
    * count - Count number of set bits.
@@ -1239,6 +1260,20 @@ inline bool
 BitmaskPOD<size>::isclear() const
 {
   return BitmaskPOD<size>::isclear(rep.data);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::is_set(const Uint32 data[])
+{
+  return BitmaskImpl::is_set(size, data);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::is_set() const
+{
+  return BitmaskPOD<size>::is_set(rep.data);
 }
 
 template <unsigned size>

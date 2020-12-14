@@ -1,7 +1,7 @@
 #ifndef SQL_REF_ROW_ITERATORS_H
 #define SQL_REF_ROW_ITERATORS_H
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <memory>
 
 #include "my_alloc.h"
+#include "my_bitmap.h"
 #include "my_inttypes.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"
@@ -46,11 +47,15 @@ class RefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-              QEP_TAB *qep_tab, ha_rows *examined_rows);
+              QEP_TAB *qep_tab, ha_rows *examined_rows)
+      : TableRowIterator(thd, table),
+        m_ref(ref),
+        m_use_order(use_order),
+        m_qep_tab(qep_tab),
+        m_examined_rows(examined_rows) {}
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -72,7 +77,6 @@ class RefOrNullIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -97,7 +101,6 @@ class EQRefIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
   void UnlockRow() override;
-  std::vector<std::string> DebugString() const override;
 
   // Performance schema batch mode on EQRefIterator does not make any sense,
   // since it (by definition) can never scan more than one row. Normally,
@@ -134,8 +137,6 @@ class ConstIterator final : public TableRowIterator {
   */
   void UnlockRow() override {}
 
-  std::vector<std::string> DebugString() const override;
-
  private:
   TABLE_REF *const m_ref;
   bool m_first_record_since_init;
@@ -152,7 +153,6 @@ class FullTextSearchIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -181,7 +181,6 @@ class DynamicRangeIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   QEP_TAB *m_qep_tab;
@@ -199,12 +198,36 @@ class DynamicRangeIterator final : public TableRowIterator {
   bool m_quick_traced_before = false;
 
   ha_rows *const m_examined_rows;
+
+  /**
+    Read set to be used when range optimizer picks covering index. This
+    read set is same as what filter_gcol_for_dynamic_ranage_scan()
+    sets up after filtering out the base columns for virtually generated
+    columns from the original table read set. By filtering out the base
+    columns, it avoids addition of unneeded columns for hash join/BKA.
+  */
+  MY_BITMAP *m_read_set_without_base_columns;
+
+  /**
+    Read set to be used when range optimizer picks a non-covering index
+    or when table scan gets picked. It is setup by adding base columns
+    to the read set setup by filter_gcol_for_dynamic_range_scan().
+    add_virtual_gcol_base_cols() adds the base columns when initializing
+    this iterator.
+  */
+  MY_BITMAP m_read_set_with_base_columns;
 };
 
 /**
    Read a table *assumed* to be included in execution of a pushed join.
    This is the counterpart of RefIterator / EQRefIterator for child
-   tables in a pushed join.
+   tables in a pushed join. As the underlying handler interface for
+   pushed joins are the same for Ref / EQRef operations, we implement
+   both in the same PushedJoinRefIterator class.
+
+   In order to differentiate between a 'range' and 'single-row lookup'
+   in the DebugString(), the class takes a 'bool Unique' C'tor argument.
+   This also offers some optimizations in implementation of ::Read().
 
    When the table access is performed as part of the pushed join,
    all 'linked' child colums are prefetched together with the parent row.
@@ -220,15 +243,15 @@ class PushedJoinRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-                        ha_rows *examined_rows);
+                        bool is_unique, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
   const bool m_use_order;
+  const bool m_is_unique;
   bool m_first_record_since_init;
   ha_rows *const m_examined_rows;
 };
@@ -246,9 +269,9 @@ class AlternativeIterator final : public RowIterator {
  public:
   // Takes ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
-  AlternativeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                      ha_rows *examined_rows,
+  AlternativeIterator(THD *thd, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> source,
+                      unique_ptr_destroy_only<RowIterator> table_scan_iterator,
                       TABLE_REF *ref);
 
   bool Init() override;
@@ -263,17 +286,7 @@ class AlternativeIterator final : public RowIterator {
 
   void UnlockRow() override { m_iterator->UnlockRow(); }
 
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source_iterator.get(), ""},
-                              {m_table_scan_iterator.get(), ""}};
-  }
-
-  std::vector<std::string> DebugString() const override;
-
  private:
-  // The reference value with condition guards that we are switching on.
-  TABLE_REF *m_ref;
-
   // If any of these are false during Init(), we are having a NULL IN ( ... ),
   // and need to fall back to table scan. Extracted from m_ref.
   std::vector<bool *> m_applicable_cond_guards;
@@ -282,12 +295,29 @@ class AlternativeIterator final : public RowIterator {
   // depending on the value of applicable_cond_guards. Set up during Init().
   RowIterator *m_iterator = nullptr;
 
+  // Points to the last iterator that was Init()-ed. Used to reset the handler
+  // when switching from one iterator to the other.
+  RowIterator *m_last_iterator_inited = nullptr;
+
   // The iterator we are normally reading records from (a RefIterator or
   // similar).
   unique_ptr_destroy_only<RowIterator> m_source_iterator;
 
   // Our fallback iterator (possibly wrapped in a TimingIterator).
   unique_ptr_destroy_only<RowIterator> m_table_scan_iterator;
+
+  // The underlying table.
+  TABLE *const m_table;
+
+  /**
+    A read set we can use when we fall back to table scans,
+    to get the base columns we need for virtual generated columns.
+    See add_virtual_gcol_base_cols().
+   */
+  MY_BITMAP m_table_scan_read_set;
+
+  /// The original value of table->read_set.
+  MY_BITMAP *m_original_read_set;
 };
 
 #endif  // SQL_REF_ROW_ITERATORS_H

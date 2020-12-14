@@ -42,9 +42,24 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# 1B. ALTER INSTANCE while clone in progress
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+# In connection DEFAULT
+ERROR HY000: Clone Donor Error: 3633 : Concurrent DDL is performed during clone operation. Please try again..
+SET DEBUG_SYNC = 'RESET';
+# In connection CON1
+SET DEBUG_SYNC = 'RESET';
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
 # 2. ALTER TABLE ADD COLUMN [COPY] while clone in progress
 # In connection DEFAULT
 INSERT INTO t1 values(10), (20), (30);
@@ -69,8 +84,8 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -102,9 +117,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -136,9 +151,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -165,9 +180,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`),
   KEY `col3_idx` (`col3`)
@@ -195,9 +210,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -224,9 +239,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -257,9 +272,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;

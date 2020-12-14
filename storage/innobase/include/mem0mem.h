@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -142,9 +142,13 @@ contains two areas of no mans lands before and after the buffer requested. */
 NOTE: Use the corresponding macros instead of this function.
 A single user buffer of 'size' will fit in the block.
 0 creates a default size block.
-@param[in]	size		Desired start block size.
+@param[in]	size		Desired start block size. */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	file_name	File name where created
-@param[in]	line		Line where created
+@param[in]	line		Line where created */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	type		Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
@@ -330,9 +334,11 @@ UNIV_INLINE
 void mem_block_validate(const mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
+
 /** Validates the contents of a memory heap.
-Asserts that the memory heap is consistent
-@param[in]	heap	Memory heap to validate */
+Checks a memory heap for consistency, prints the contents if any error
+is detected. A fatal error is logged if an error is detected.
+@param[in]	heap	Memory heap to validate. */
 void mem_heap_validate(const mem_heap_t *heap);
 
 #endif /* UNIV_DEBUG */
@@ -411,7 +417,7 @@ class mem_heap_allocator {
     // Do nothing
   }
 
-  ~mem_heap_allocator() { m_heap = 0; }
+  ~mem_heap_allocator() { m_heap = nullptr; }
 
   size_type max_size() const { return (ULONG_MAX / sizeof(T)); }
 
@@ -422,7 +428,7 @@ class mem_heap_allocator {
   allocated by mem_heap_allocator) can be used as a hint to the
   implementation about where the new memory should be allocated in
   order to improve locality. */
-  pointer allocate(size_type n, const_pointer hint = 0) {
+  pointer allocate(size_type n, const_pointer hint = nullptr) {
     return (reinterpret_cast<pointer>(mem_heap_alloc(m_heap, n * sizeof(T))));
   }
 

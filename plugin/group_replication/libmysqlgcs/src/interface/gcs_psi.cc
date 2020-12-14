@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
+#include "template_utils.h"
 
 PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
@@ -178,16 +179,16 @@ static uint64_t current_count = 0;
 /**
   Reports to PSI the allocation of 'size' bytes of data.
 */
-extern "C" int psi_report_mem_alloc(size_t size) {
+int psi_report_mem_alloc(size_t size) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  PSI_thread *owner = NULL;
+  PSI_thread *owner = nullptr;
   PSI_memory_key key = key_MEM_XCOM_xcom_cache;
   if (PSI_MEMORY_CALL(memory_alloc)(key, size, &owner) ==
       PSI_NOT_INSTRUMENTED) {
     return 0;
   }
   /* This instrument is flagged global, so there should be no thread owner. */
-  DBUG_ASSERT(owner == NULL);
+  DBUG_ASSERT(owner == nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
   current_count += size;
   return 1;
@@ -196,14 +197,14 @@ extern "C" int psi_report_mem_alloc(size_t size) {
 /**
   Reports to PSI the deallocation of 'size' bytes of data.
 */
-extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
+void psi_report_mem_free(size_t size, int is_instrumented) {
   if (!is_instrumented) {
     return;
   }
   current_count -= size;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, NULL);
+  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
@@ -212,4 +213,4 @@ extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
   we have allocated data that has not been deallocated (or has not been
   reported as deallocated).
 */
-extern "C" void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }
+void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }

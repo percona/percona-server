@@ -23,8 +23,6 @@
 # ========
 #
 # Commit order deadlock occurs only when MTS + LOGICAL CLOCK are enabled.
---source include/only_mts_slave_parallel_type_logical_clock.inc
---source include/only_mts_slave_parallel_workers.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_debug.inc
 --source include/master-slave.inc
@@ -35,6 +33,10 @@
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --source include/sync_slave_sql_with_master.inc
+
+# switched to slave connection
+--source include/only_mts_slave_parallel_type_logical_clock.inc
+--source include/only_mts_slave_parallel_workers.inc
 
 --echo #
 --echo # 2. Initial setup on Slave.
@@ -160,7 +162,7 @@ COMMIT;
 --echo #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 --echo #      detected the 'commit order deadlock').
 --echo #
---let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 --echo #
@@ -168,9 +170,8 @@ COMMIT;
 --echo #      before throwing ER_DUP_ENTRY error (non-temporary error).
 --echo #
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/rpl_mts_slave_preserve_commit_order_deadlock_error.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_mts_slave_preserve_commit_order_deadlock_error
 --let $assert_count = 1
---let $assert_select = Error 'Duplicate entry '1' for key 'PRIMARY'' on query
+--let $assert_select = Error 'Duplicate entry '1' for key 't2.PRIMARY'' on query
 --let $assert_text = Found 'Duplicate entry' error only once time which proves that transaction is not retried after getting 'non-temporary error'.
 --source include/assert_grep.inc
 

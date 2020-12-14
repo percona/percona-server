@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "m_ctype.h"
 #include "m_string.h"  // strmake
 #include "map_helpers.h"
+#include "mutex_lock.h"  // Mutex_lock
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -67,7 +68,9 @@
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/sql_class.h"    // THD
+#include "sql/rpl_utility.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
@@ -75,7 +78,7 @@
 #include "typelib.h"
 
 int max_binlog_dump_events = 0;  // unlimited
-bool opt_sporadic_binlog_dump_fail = 0;
+bool opt_sporadic_binlog_dump_fail = false;
 
 malloc_unordered_map<uint32, unique_ptr_my_free<SLAVE_INFO>> slave_list{
     key_memory_SLAVE_INFO};
@@ -144,7 +147,7 @@ int register_slave(THD *thd, uchar *packet, size_t packet_length) {
   uchar *p = packet, *p_end = packet + packet_length;
   const char *errmsg = "Wrong parameters to function register_slave";
 
-  if (check_access(thd, REPL_SLAVE_ACL, any_db, nullptr, nullptr, 0, 0))
+  if (check_access(thd, REPL_SLAVE_ACL, any_db, nullptr, nullptr, false, false))
     return 1;
 
   unique_ptr_my_free<SLAVE_INFO> si((SLAVE_INFO *)my_malloc(
@@ -188,7 +191,7 @@ err:
 }
 
 void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
-  if (thd->server_id) {
+  if (thd->server_id && slave_list_inited) {
     if (need_lock_slave_list)
       mysql_mutex_lock(&LOCK_slave_list);
     else
@@ -212,21 +215,25 @@ void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
   @retval true failure
 */
 bool show_slave_hosts(THD *thd) {
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
-  field_list.push_back(new Item_return_int("Server_id", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Server_Id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   if (opt_show_slave_auth_info) {
     field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
     field_list.push_back(new Item_empty_string("Password", 20));
   }
   field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Master_id", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
+  field_list.push_back(new Item_return_int("Source_Id", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Replica_UUID", UUID_LENGTH));
 
-  if (thd->send_result_metadata(&field_list,
+  // TODO: once the old syntax is removed, remove this as well.
+  if (thd->lex->is_replication_deprecated_syntax_used())
+    rename_fields_use_old_replica_source_terms(thd, field_list);
+
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1022,16 +1029,13 @@ String *get_slave_uuid(THD *thd, String *value) {
   if (value == nullptr) return nullptr;
 
   /* Protects thd->user_vars. */
-  mysql_mutex_lock(&thd->LOCK_thd_data);
+  MUTEX_LOCK(lock_guard, &thd->LOCK_thd_data);
 
   const auto it = thd->user_vars.find("slave_uuid");
   if (it != thd->user_vars.end() && it->second->length() > 0) {
     value->copy(it->second->ptr(), it->second->length(), nullptr);
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return value;
   }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return nullptr;
 }
 
@@ -1045,7 +1049,7 @@ String *get_slave_uuid(THD *thd, String *value) {
 class Find_zombie_dump_thread : public Find_THD_Impl {
  public:
   Find_zombie_dump_thread(String value) : m_slave_uuid(value) {}
-  virtual bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     THD *cur_thd = current_thd;
     if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
                            thd->get_command() == COM_BINLOG_DUMP_GTID)) {
@@ -1212,7 +1216,6 @@ bool show_master_status(THD *thd) {
   Protocol *protocol = thd->get_protocol();
   char *gtid_set_buffer = nullptr;
   int gtid_set_size = 0;
-  List<Item> field_list;
 
   DBUG_TRACE;
 
@@ -1226,6 +1229,7 @@ bool show_master_status(THD *thd) {
   }
   global_sid_lock->unlock();
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(
       new Item_return_int("Position", 20, MYSQL_TYPE_LONGLONG));
@@ -1234,7 +1238,7 @@ bool show_master_status(THD *thd) {
   field_list.push_back(
       new Item_empty_string("Executed_Gtid_Set", gtid_set_size));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     my_free(gtid_set_buffer);
     return true;
@@ -1274,7 +1278,6 @@ bool show_binlogs(THD *thd) {
   LOG_INFO cur;
   File file;
   char fname[FN_REFLEN];
-  List<Item> field_list;
   size_t length;
   size_t cur_dir_len;
   Protocol *protocol = thd->get_protocol();
@@ -1285,11 +1288,12 @@ bool show_binlogs(THD *thd) {
     return true;
   }
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(
       new Item_return_int("File_size", 20, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Encrypted", 12));
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1303,7 +1307,8 @@ bool show_binlogs(THD *thd) {
 
   cur_dir_len = dirname_length(cur.log_file_name);
 
-  if (reinit_io_cache(index_file, READ_CACHE, (my_off_t)0, 0, 0)) goto err;
+  if (reinit_io_cache(index_file, READ_CACHE, (my_off_t)0, false, false))
+    goto err;
 
   /* The file ends with EOF or empty line */
   while ((length = my_b_gets(index_file, fname, sizeof(fname))) > 1) {

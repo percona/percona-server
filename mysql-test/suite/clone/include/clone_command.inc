@@ -29,6 +29,10 @@
 # --let clone_require_ssl_certificate = 1
 #
 
+if ($disabled_redo) {
+  ALTER INSTANCE ENABLE INNODB REDO_LOG;
+}
+
 --let $remote_dir_clause = DATA DIRECTORY = '$CLONE_DATADIR'
 
 if ($clone_remote_replace) {
@@ -132,16 +136,18 @@ if($remote_clone) {
     }
   }
 
-  # For remote replace, wait for server to restart
+  # For remote replace, wait for server to restart, unless an error was expected
   if ($clone_remote_replace) {
-    --source include/wait_until_disconnected.inc
-    --enable_reconnect
-    --source include/wait_until_connected_again.inc
-    --disable_reconnect
-    if (!$clone_recovery_error) {
-      --disable_query_log
-      use test;
-      --enable_query_log
+    if (!$clone_err) {
+      --source include/wait_until_disconnected.inc
+      --enable_reconnect
+      --source include/wait_until_connected_again.inc
+      --disable_reconnect
+      if (!$clone_recovery_error) {
+        --disable_query_log
+        use test;
+        --enable_query_log
+      }
     }
   }
 
@@ -204,4 +210,8 @@ if ($clone_err != ER_PLUGIN_IS_NOT_LOADED) {
     DROP TABLE dup_progress;
     --enable_query_log
   }
+}
+
+if ($disabled_redo) {
+  ALTER INSTANCE DISABLE INNODB REDO_LOG;
 }

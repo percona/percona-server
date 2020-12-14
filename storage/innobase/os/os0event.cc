@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,7 +64,7 @@ typedef os_event_list_t::iterator event_iter_t;
 
 /** InnoDB condition variable. */
 struct os_event {
-  os_event(const char *name) UNIV_NOTHROW;
+  os_event() UNIV_NOTHROW;
 
   ~os_event() UNIV_NOTHROW;
 
@@ -142,13 +142,11 @@ struct os_event {
   reset_sig_count. */
   void wait_low(int64_t reset_sig_count) UNIV_NOTHROW;
 
-  /**
-  Waits for an event object until it is in the signaled state or
+  /** Waits for an event object until it is in the signaled state or
   a timeout is exceeded.
-  @param time_in_usec timeout in microseconds,
-                  or OS_SYNC_INFINITE_TIME
-  @param reset_sig_count zero or the value returned by
-                  previous call of os_event_reset().
+  @param  time_in_usec    Timeout in microseconds, or OS_SYNC_INFINITE_TIME
+  @param  reset_sig_count Zero or the value returned by previous call of
+  os_event_reset().
   @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
   ulint wait_time_low(ulint time_in_usec, int64_t reset_sig_count) UNIV_NOTHROW;
 
@@ -416,7 +414,7 @@ struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
 #endif /* HAVE_CLOCK_GETTIME */
     {
       struct timeval tv;
-      if (gettimeofday(&tv, NULL) == -1) {
+      if (gettimeofday(&tv, nullptr) == -1) {
         const auto errno_gettimeofday = errno;
 
 #ifndef UNIV_NO_ERR_MSGS
@@ -447,12 +445,11 @@ struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
 
 #endif /* !_WIN32 */
 
-/**
-Waits for an event object until it is in the signaled state or
+/** Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
-@param time_in_usec - timeout in microseconds, or OS_SYNC_INFINITE_TIME
-@param reset_sig_count - zero or the value returned by previous call
-        of os_event_reset().
+@param  time_in_usec    Timeout in microseconds, or OS_SYNC_INFINITE_TIME
+@param  reset_sig_count Zero or the value returned by previous call of
+os_event_reset().
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 ulint os_event::wait_time_low(ulint time_in_usec,
                               int64_t reset_sig_count) UNIV_NOTHROW {
@@ -505,7 +502,7 @@ ulint os_event::wait_time_low(ulint time_in_usec,
 }
 
 /** Constructor */
-os_event::os_event(const char *name) UNIV_NOTHROW {
+os_event::os_event() UNIV_NOTHROW {
   ut_a(global_initialized);
   init();
 
@@ -531,11 +528,8 @@ Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
-os_event_t os_event_create(const char *name) /*!< in: the name of the
-                                             event, if NULL the event
-                                             is created without a name */
-{
-  os_event_t ret = (UT_NEW_NOKEY(os_event(name)));
+os_event_t os_event_create() {
+  os_event_t ret = (UT_NEW_NOKEY(os_event()));
 /**
  On SuSE Linux we get spurious EBUSY from pthread_mutex_destroy()
  unless we grab and release the mutex here. Current OS version:
@@ -613,9 +607,9 @@ Frees an event object. */
 void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 
 {
-  if (event != NULL) {
+  if (event != nullptr) {
     UT_DELETE(event);
-    event = NULL;
+    event = nullptr;
   }
 }
 

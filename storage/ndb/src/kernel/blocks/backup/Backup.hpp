@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,12 +59,13 @@ class Backup : public SimulatedBlock
 
 public:
   Backup(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Backup();
+  ~Backup() override;
   BLOCK_DEFINES(Backup);
  
   class Dblqh* c_lqh;
   class Dbtup* c_tup;
   class Lgman* c_lgman;
+  class Pgman* c_pgman;
 
   enum CallbackIndex {
     // lgman
@@ -206,6 +207,8 @@ private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
+  Uint32 validateEncryptionPassword(const EncryptionPasswordData* epd);
+
 
 public:
   struct Node {
@@ -580,10 +583,11 @@ public:
                  BackupFile_pool& bp,
                  TriggerRecord_pool& trp)
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
-      , m_first_fragment(false), prepare_table(tp), tables(tp), triggers(trp), files(bp)
+      , m_first_fragment(false), prepare_table(tp), tables(tp)
+      , triggers(trp), files(bp)
       , ctlFilePtr(RNIL), logFilePtr(RNIL)
       , masterData(b), backup(b)
-
+      , m_encrypted_file(false)
       {
         m_wait_end_lcp = false;
         m_wait_empty_queue = false;
@@ -827,6 +831,9 @@ public:
     Uint32 backupDataLen;  // Used for (un)packing backup request
     SimpleProperties props;// Used for (un)packing backup request
 
+    NDB_TICKS m_start_sync_op;
+    NDB_TICKS m_high_res_lcp_start_time;
+
     struct SlaveData {
       SignalCounter trigSendCounter;
       Uint32 gsn;
@@ -901,6 +908,9 @@ public:
     {
       backup.progError(line, cause, extra, check);
     }
+
+    bool m_encrypted_file;
+    EncryptionPasswordData m_encryption_password_data;
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
@@ -921,6 +931,7 @@ public:
 #define MAX_BUFFER_USED_WITHOUT_REDO_ALERT (512 * 1024)
 #define BACKUP_DEFAULT_WRITE_SIZE (256 * 1024)
 #define BACKUP_DEFAULT_BUFFER_SIZE (2 * 1024 * 1024)
+#define BACKUP_DEFAULT_LOGBUFFER_SIZE (16 * 1024 * 1024)
 
   struct Config {
     Uint32 m_dataBufferSize;
@@ -939,6 +950,7 @@ public:
     Uint32 m_o_direct;
     Uint32 m_compressed_backup;
     Uint32 m_compressed_lcp;
+    Uint32 m_encryption_required;
   };
   
   /**
@@ -978,6 +990,12 @@ public:
   Uint64 m_debug_redo_log_count;
 //#endif
 
+  /* Keep track of disk data usage in checkpoints */
+  Uint64 m_current_dd_time_us;
+  Uint32 m_last_lcp_dd_percentage;
+  Uint32 m_undo_log_level_percentage;
+  Uint32 m_max_undo_log_level_percentage;
+
   RedoStateRep::RedoAlertState m_redo_alert_state;
   RedoStateRep::RedoAlertState m_local_redo_alert_state;
   RedoStateRep::RedoAlertState m_global_redo_alert_state;
@@ -1001,6 +1019,8 @@ public:
   Uint64 m_lcp_timing_factor;
   Int64 m_lcp_lag[2];
   Uint32 m_lcp_timing_counter;
+  Uint32 m_redo_percentage;
+  Uint32 m_max_redo_percentage;
   bool m_first_lcp_started;
 
   void init_lcp_timers(Uint64);
@@ -1047,7 +1067,7 @@ public:
                                      Uint64 seconds_since_lcp_cut);
   void measure_change_speed(Signal*, Uint64 millis_since_last_call);
   void debug_report_redo_control(Uint32);
-  void lcp_start_point();
+  void lcp_start_point(Signal*);
   void lcp_end_point();
   Uint64 calculate_proposed_disk_write_speed();
 
@@ -1380,10 +1400,11 @@ public:
   void delete_lcp_file_processing(Signal*);
   void finished_removing_files(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);
+  void send_firstSYNC_EXTENT_PAGES_REQ(Signal*, BackupRecordPtr);
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
 
   void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
-  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
+  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 unused);
   void lcp_open_ctl_file_for_rewrite(Signal*,
                                      DeleteLcpFilePtr,
                                      BackupRecordPtr);
@@ -1492,6 +1513,8 @@ public:
 
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
+
+  void set_undo_log_level(Uint32 percentage_used);
 
   bool check_pause_lcp_backup(BackupRecordPtr ptr,
                               bool is_lcp,

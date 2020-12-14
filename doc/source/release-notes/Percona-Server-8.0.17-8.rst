@@ -74,10 +74,10 @@ Bugs Fixed
 - MyRocks does not allow index condition pushdown optimization for specific data
   types, such as ``varchar``.  Bugs fixed :psbug:`5024`.
 
-Other bugs fixed: :psbug:`5880`, :psbug:`5427`, :psbug:`5838`, :psbug:`5682`,
-:psbug:`5979`, :psbug:`5793`, :psbug:`6020`, :psbug:`6025`, :psbug:`5327`,
+Other bugs fixed: :psbug:`5880`, :psbug:`5838`, :psbug:`5682`,
+:psbug:`5979`, :psbug:`5793`, :psbug:`6020`, :psbug:`5327`,
 :psbug:`5839`, :psbug:`5933`, :psbug:`5939`, :psbug:`5659`, :psbug:`5924`,
-:psbug:`5687`, :psbug:`5926`, :psbug:`5925`, :psbug:`5875`, :psbug:`5533`,
+:psbug:`5926`, :psbug:`5925`, :psbug:`5875`, :psbug:`5533`,
 :psbug:`5867`, :psbug:`5864`, :psbug:`5760`, :psbug:`5909`, :psbug:`5985`,
 :psbug:`5941`, :psbug:`5954`, :psbug:`5790`, and :psbug:`5593`.
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ struct MYSQL;
 
 *****************************************************************************/
 
-class Master_info : public Rpl_info, public Gtid_mode_copy {
+class Master_info : public Rpl_info {
   friend class Rpl_info_factory;
 
  public:
@@ -277,7 +277,17 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
 
   bool ssl;  // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
-  char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN], tls_version[FN_REFLEN];
+  char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
+  char tls_version[FN_REFLEN];
+  /*
+    Ciphersuites used for TLS 1.3 communication with the master server.
+    tls_ciphersuites = NULL means that TLS 1.3 default ciphersuites
+    are enabled. To allow a value that can either be NULL or a string,
+    it is represented by the pair:
+      first:  true if tls_ciphersuites is set to NULL
+      second: the string value when first is false
+  */
+  std::pair<bool, std::string> tls_ciphersuites = {true, ""};
   char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
   char public_key_path[FN_REFLEN];
   bool ssl_verify_server_cert;
@@ -412,7 +422,7 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
     if (need_lock) mysql_mutex_unlock(&data_lock);
   }
 
-  virtual ~Master_info();
+  ~Master_info() override;
 
   /**
     Sets the flag that indicates that a relay log rotation has been requested.
@@ -484,6 +494,51 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   }
 
   /**
+    Checks if Asynchronous Replication Connection Failover feature is enabled.
+
+    @returns true   if Asynchronous Replication Connection Failover feature is
+                    enabled.
+             false  otherwise.
+  */
+  bool is_source_connection_auto_failover() {
+    return m_source_connection_auto_failover;
+  }
+
+  /**
+    Enable Asynchronous Replication Connection Failover feature.
+  */
+  void set_source_connection_auto_failover() {
+    m_source_connection_auto_failover = true;
+  }
+
+  /**
+    Disable Asynchronous Replication Connection Failover feature.
+  */
+  void unset_source_connection_auto_failover() {
+    m_source_connection_auto_failover = false;
+  }
+
+  /**
+    Checks if network error has occurred.
+
+    @returns true   if slave IO thread failure was due to network error,
+             false  otherwise.
+  */
+  bool is_network_error() { return m_network_error; }
+
+  /**
+    Sets m_network_error to true. Its used by async replication connection
+    failover in case of slave IO thread failure to check if it was due to
+    network failure.
+  */
+  void set_network_error() { m_network_error = true; }
+
+  /**
+    Resets m_network_error to false.
+  */
+  void reset_network_error() { m_network_error = false; }
+
+  /**
     This member function shall return true if there are server
     ids configured to be ignored.
 
@@ -524,9 +579,9 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
     mi_description_event = fdle;
   }
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
-  virtual const char *get_for_channel_str(bool upper_case = false) const {
+  const char *get_for_channel_str(bool upper_case = false) const override {
     return reinterpret_cast<const char *>(upper_case ? for_channel_uppercase_str
                                                      : for_channel_str);
   }
@@ -534,10 +589,12 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   void init_master_log_pos();
 
  private:
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
 
-  bool auto_position;
+  bool auto_position{false};
+  bool m_source_connection_auto_failover{false};
+  bool m_network_error{false};
 
   Master_info(
 #ifdef HAVE_PSI_INTERFACE
@@ -564,8 +621,10 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
     It will also be used to verify transactions boundaries on the relay log
     while collecting the Retrieved_Gtid_Set to make sure of only adding GTIDs
     of fully retrieved transactions.
+    Its output is also used to detect when events were not logged using row
+    based logging.
   */
-  Transaction_boundary_parser transaction_parser;
+  Replication_transaction_boundary_parser transaction_parser;
 
  private:
   /*

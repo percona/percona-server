@@ -1,0 +1,20 @@
+#
+# PS-5642 - page tracker thread won't exist if startup fails
+#
+
+--source include/have_debug.inc
+
+call mtr.add_suppression("Last tracked LSN in \'\.\/ib_modified_log_[0-9_]+.xdb\' is [0-9]+, with the last checkpoint LSN is [0-9]+.");
+SELECT 1;
+--source include/shutdown_mysqld.inc
+--error 1
+--exec $MYSQLD_CMD --innodb_track_changed_pages=TRUE --debug=d,ib_dic_boot_error --log-error=$MYSQLTEST_VARDIR/tmp/percona_changed_page_bmp_shutdown_thread.err
+
+--echo # Asserting that the error was not thrown.
+--let log_file_full_path=$MYSQLTEST_VARDIR/tmp/percona_changed_page_bmp_shutdown_thread.err
+--let grep_pattern=threads created by InnoDB had not exited at shutdown
+--let log_expected_matches=0
+--source include/log_grep.inc
+
+--source include/start_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_changed_page_bmp_shutdown_thread.err

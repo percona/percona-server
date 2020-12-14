@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -56,6 +56,9 @@ extern bool innodb_page_cleaner_disabled_debug;
 /** Event to synchronise with the flushing. */
 extern os_event_t buf_flush_event;
 
+/** Event to wait for one flushing step */
+extern os_event_t buf_flush_tick_event;
+
 class ut_stage_alter_t;
 
 /** Remove a block from the flush list of modified blocks.
@@ -86,7 +89,7 @@ bool page_is_uncompressed_type(const byte *page);
 @param[in,out]  page_zip_       compressed page, or NULL if uncompressed
 @param[in]      newest_lsn      newest modification LSN to the page
 @param[in]      skip_checksum   whether to disable the page checksum
-@param[in]      skip_lsn_check  true to skip check for lsn (in DEBUG) */
+@param[in]      skip_lsn_check  true to skip check for LSN (in DEBUG) */
 void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
                                 void *page_zip_, lsn_t newest_lsn,
                                 bool skip_checksum, bool skip_lsn_check);
@@ -100,7 +103,7 @@ buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
 @return true if the page was flushed and the mutex released */
-ibool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
+bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /** Do flushing batch of a given type.
@@ -119,6 +122,21 @@ passed back to caller. Ignored if NULL
 bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
                         lsn_t lsn_limit, ulint *n_processed);
 
+/** This utility flushes dirty blocks from the end of the flush list of all
+buffer pool instances.
+NOTE: The calling thread is not allowed to own any latches on pages!
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
+@param[out]	n_processed	the number of pages which were processed is
+passed back to caller. Ignored if NULL.
+@return true if a batch was queued successfully for each buffer pool
+instance. false if another batch of same type was already running in
+at least one of the buffer pool instance */
+bool buf_flush_lists(ulint min_n, lsn_t lsn_limit, ulint *n_processed);
+
 /** This function picks up a single page from the tail of the LRU
 list, flushes it (if it is dirty), removes it from page_hash and LRU
 list and puts it on the free list. It is called from user threads when
@@ -129,11 +147,10 @@ is not fast enough to keep pace with the workload.
 @return true if success. */
 bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool);
 
-/** Waits until a flush batch of the given type ends */
-void buf_flush_wait_batch_end(
-    buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-    buf_flush_t type);    /*!< in: BUF_FLUSH_LRU
-                          or BUF_FLUSH_LIST */
+/** Waits until a flush batch of the given type ends.
+@param[in] buf_pool             Buffer pool instance.
+@param[in] flush_type           Flush type. */
+void buf_flush_wait_batch_end(buf_pool_t *buf_pool, buf_flush_t flush_type);
 
 /** Waits until a flush batch of the given type ends. This is called by a
 thread that only wants to wait for a flush to end but doesn't do any flushing
@@ -193,7 +210,7 @@ void buf_flush_wait_LRU_batch_end();
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the flush list.
  @return true if ok */
-ibool buf_flush_validate(buf_pool_t *buf_pool);
+bool buf_flush_validate(buf_pool_t *buf_pool);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /** Initialize the red-black tree to speed up insertions into the flush_list
@@ -235,14 +252,19 @@ ulint buf_pool_get_dirty_pages_count(
     FlushObserver *observer); /*!< in: flush observer to check */
 #endif
 
-/** Signal the page cleaner to flush and wait until it and the LRU
-manager clean the buffer pool. */
+/** Synchronously flush dirty blocks from the end of the flush list of all
+ buffer pool instances. NOTE: The calling thread is not allowed to own any
+ latches on pages! */
 void buf_flush_sync_all_buf_pools(void);
 
 /** Request IO burst and wake page_cleaner up.
 @param[in]	lsn_limit	upper limit of LSN to be flushed
 @return true if we requested higher lsn than ever requested so far */
 bool buf_flush_request_force(lsn_t lsn_limit);
+
+/** Reset sync LSN if beyond current log sys LSN. Currently used when
+redo logging is disabled. */
+void reset_buf_flush_sync_lsn();
 
 /** Checks if all flush lists are empty. It is supposed to be used in
 single thread, during startup or shutdown. Hence it does not acquire

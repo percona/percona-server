@@ -1,3 +1,9 @@
+#
+# A series of tests to show the correct file-per-table tablespace behavior.
+# See also; parts.partition_basic_symlink_innodb.test for
+# partition related tests with remote tablespaces.
+# See innodb.innodb-restart for tablespace migration tests.
+#
 SET default_storage_engine=InnoDB;
 #
 # TABLESPACE related tests.
@@ -17,7 +23,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -48,7 +54,7 @@ Warning	1618	<DATA DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -64,7 +70,7 @@ CREATE TABLE t1 (a int KEY, b text) TABLESPACE=`innodb_file_per_table` DATA DIRE
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -95,7 +101,7 @@ t1.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -147,7 +153,7 @@ a	b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -336,7 +342,7 @@ Warning	1618	<DATA DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -372,7 +378,7 @@ a	b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -398,7 +404,7 @@ a	b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -443,10 +449,10 @@ INSERT INTO emp values(3,'IBM','NAIL',70);
 SHOW CREATE TABLE emp;
 Table	Create Table
 emp	CREATE TABLE `emp` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
-  `store_id` int(11) DEFAULT NULL
+  `store_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`store_id`)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
@@ -494,10 +500,10 @@ ALTER TABLE emp DROP PARTITION west;
 SHOW CREATE TABLE emp;
 Table	Create Table
 emp	CREATE TABLE `emp` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
-  `store_id` int(11) DEFAULT NULL
+  `store_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`store_id`)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
@@ -581,10 +587,10 @@ ALTER TABLE emp TRUNCATE PARTITION west;
 SHOW CREATE TABLE emp;
 Table	Create Table
 emp	CREATE TABLE `emp` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
-  `store_id` int(11) DEFAULT NULL
+  `store_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`store_id`)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,

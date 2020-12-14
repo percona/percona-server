@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@
 
 #include "mysql/harness/filesystem.h"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
+#include <functional>
+#include <iterator>
 #include <ostream>
 #ifndef _WIN32
 #include <fcntl.h>
@@ -116,9 +119,23 @@ bool Path::is_regular() const {
   return type() == FileType::REGULAR_FILE;
 }
 
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+#ifdef _WIN32
+  if (path_[0] == '\\' || path_[0] == '/' || path_[1] == ':') return true;
+  return false;
+#else
+  if (path_[0] == '/') return true;
+  return false;
+#endif
+}
+
 bool Path::exists() const {
   validate_non_empty_path();  // throws std::invalid_argument
-  return type() != FileType::FILE_NOT_FOUND && type() != FileType::STATUS_ERROR;
+  // First type() needs to be force refreshed as the type of the file could have
+  // been changed in the meantime (e.g. file was created)
+  return type(true) != FileType::FILE_NOT_FOUND &&
+         type() != FileType::STATUS_ERROR;
 }
 
 bool Path::is_readable() const {
@@ -141,12 +158,42 @@ Path Path::join(const Path &other) const {
   return result;
 }
 
+static const char *file_type_name(Path::FileType type) {
+  switch (type) {
+    case Path::FileType::DIRECTORY_FILE:
+      return "a directory";
+    case Path::FileType::CHARACTER_FILE:
+      return "a character device";
+    case Path::FileType::BLOCK_FILE:
+      return "a block device";
+    case Path::FileType::EMPTY_PATH:
+      return "an empty path";
+    case Path::FileType::FIFO_FILE:
+      return "a FIFO";
+    case Path::FileType::FILE_NOT_FOUND:
+      return "not found";
+    case Path::FileType::REGULAR_FILE:
+      return "a regular file";
+    case Path::FileType::TYPE_UNKNOWN:
+      return "unknown";
+    case Path::FileType::STATUS_ERROR:
+      return "error";
+    case Path::FileType::SOCKET_FILE:
+      return "a socket";
+    case Path::FileType::SYMLINK_FILE:
+      return "a symlink";
+  }
+
+  // in case a non-enum value is passed in, return 'undefined'
+  // [should never happen]
+  //
+  // note: don't use 'default:' in the switch to get a warning for
+  // 'unhandled enunaration' when new values are added.
+  return "undefined";
+}
+
 std::ostream &operator<<(std::ostream &out, Path::FileType type) {
-  static const char *type_names[]{
-      "ERROR",        "not found",        "regular", "directory", "symlink",
-      "block device", "character device", "FIFO",    "socket",    "UNKNOWN",
-  };
-  out << type_names[static_cast<int>(type)];
+  out << file_type_name(type);
   return out;
 }
 
@@ -162,6 +209,53 @@ Directory::DirectoryIterator Directory::glob(const string &pattern) {
 }
 
 Directory::DirectoryIterator Directory::end() { return DirectoryIterator(); }
+
+Directory::DirectoryIterator Directory::cbegin() const {
+  return DirectoryIterator(*this);
+}
+
+Directory::DirectoryIterator Directory::cend() const {
+  return DirectoryIterator();
+}
+
+bool Directory::is_empty() const {
+  return std::none_of(cbegin(), cend(), [](const Directory &dir) {
+    std::string name = dir.basename().str();
+    return name != "." && name != "..";
+  });
+}
+
+std::vector<Path> Directory::list_recursive() const {
+  auto merge_subpaths = [](mysql_harness::Directory dir,
+                           std::vector<mysql_harness::Path> subpaths) {
+    std::transform(
+        std::begin(subpaths), std::end(subpaths), std::begin(subpaths),
+        [&dir](mysql_harness::Path &subpath) { return dir.join(subpath); });
+    return subpaths;
+  };
+
+  // Recursively visit all subdirectories (for files just return their name),
+  // call upper on the stack merges the parent directory name to the returned
+  // path.
+  std::function<std::vector<mysql_harness::Path>(mysql_harness::Directory)>
+      recurse = [&recurse, &merge_subpaths](mysql_harness::Directory dir) {
+        std::vector<mysql_harness::Path> result;
+        for (const auto &file : dir) {
+          if (file.is_directory() &&
+              !mysql_harness::Directory{file}.is_empty()) {
+            auto partial_results = merge_subpaths(
+                file.basename(), recurse(mysql_harness::Directory{file}));
+            std::move(std::begin(partial_results), std::end(partial_results),
+                      std::back_inserter(result));
+          } else {
+            result.push_back(file.basename());
+          }
+        }
+        return result;
+      };
+
+  return recurse(*this);
+}
 
 ///////////////////////////////////////////////////////////
 // Directory members
@@ -679,6 +773,27 @@ void make_file_private(const std::string &file_name,
     throw std::runtime_error("Could not set permissions for file '" +
                              file_name + "': " + e.what());
   }
+#endif
+}
+
+#ifdef _WIN32
+void make_file_readable_for_everyone(const std::string &file_name) {
+  try {
+    set_everyone_group_access_rights(file_name, FILE_GENERIC_READ);
+  } catch (const std::system_error &e) {
+    throw std::system_error(e.code(), "Could not set permissions for file '" +
+                                          file_name + "': " + e.what());
+  }
+}
+#endif
+
+void make_file_readonly(const std::string &file_name) {
+#ifdef _WIN32
+  set_everyone_group_access_rights(file_name,
+                                   FILE_GENERIC_EXECUTE | FILE_GENERIC_READ);
+#else
+  throwing_chmod(file_name,
+                 S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 #endif
 }
 

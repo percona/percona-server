@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class ClusterMgr : public trp_client
   friend void* runClusterMgr_C(void * me);
 public:
   ClusterMgr(class TransporterFacade &);
-  virtual ~ClusterMgr();
+  ~ClusterMgr() override;
   void configure(Uint32 nodeId, const ndb_mgm_configuration* config);
   
   void reportConnected(NodeId nodeId);
@@ -157,6 +157,7 @@ private:
   Uint32        noOfConnectedNodes;
   Uint32        noOfConnectedDBNodes;
   Uint32        minDbVersion;
+  Uint32        minApiVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
 
@@ -223,6 +224,7 @@ private:
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();
+  void recalcMinApiVersion();
   void sendProcessInfoReport(NodeId nodeId);
 
 public:
@@ -233,8 +235,8 @@ public:
    * main thread, we keep the clusterMgrThreadMutex when calling this method,
    * so all signal methods are protected.
    */
-  virtual void trp_deliver_signal(const NdbApiSignal*,
-                                  const LinearSectionPtr p[3]);
+  void trp_deliver_signal(const NdbApiSignal*,
+                          const LinearSectionPtr p[3]) override;
 };
 
 inline
@@ -261,13 +263,13 @@ ClusterMgr::hb_received(NodeId nodeId) {
 
 /*****************************************************************************/
 
+extern "C" void* runArbitMgr_C(void* me);
+
 /**
  * @class ArbitMgr
  * Arbitration manager.  Runs in separate thread.
  * Started only by a request from the kernel.
  */
-
-extern "C" void* runArbitMgr_C(void* me);
 
 class ArbitMgr
 {

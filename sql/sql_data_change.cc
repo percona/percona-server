@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,10 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
   DBUG_ASSERT(current_thd == table->in_use);
   if (multi_alloc_root(table->in_use->mem_root, &the_struct, sizeof(MY_BITMAP),
                        &the_bits, bitmap_buffer_size(number_bits),
-                       NULL) == NULL)
+                       NULL) == nullptr)
     return true;
 
-  if (bitmap_init(the_struct, the_bits, number_bits, false) != 0) return true;
+  if (bitmap_init(the_struct, the_bits, number_bits) != 0) return true;
 
   *bitmap = the_struct;
 
@@ -73,7 +73,7 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
 bool COPY_INFO::get_function_default_columns(TABLE *table) {
   DBUG_TRACE;
 
-  if (m_function_default_columns != NULL) return false;
+  if (m_function_default_columns != nullptr) return false;
 
   if (allocate_column_bitmap(table, &m_function_default_columns)) return true;
 
@@ -89,11 +89,11 @@ bool COPY_INFO::get_function_default_columns(TABLE *table) {
          f->has_insert_default_datetime_value_expression()) ||
         (m_optype == UPDATE_OPERATION &&
          f->has_update_default_datetime_value_expression()))
-      bitmap_set_bit(m_function_default_columns, f->field_index);
+      bitmap_set_bit(m_function_default_columns, f->field_index());
     // if it's a default expression also mark the columns it reads
     if (m_optype == INSERT_OPERATION &&
         f->has_insert_default_general_value_expression()) {
-      bitmap_set_bit(m_function_default_columns, f->field_index);
+      bitmap_set_bit(m_function_default_columns, f->field_index());
       for (uint j = 0; j < table->s->fields; j++) {
         if (bitmap_is_set(&f->m_default_val_expr->base_columns_map, j)) {
           bitmap_set_bit(table->read_set, j);
@@ -114,15 +114,15 @@ bool COPY_INFO::get_function_default_columns(TABLE *table) {
     If the lvalue is an expression tree, we clear all columns in it from the
     bitmap.
   */
-  List<Item> *all_changed_columns[2] = {m_changed_columns, m_changed_columns2};
+  mem_root_deque<Item *> *all_changed_columns[2] = {m_changed_columns,
+                                                    m_changed_columns2};
   for (uint i = 0; i < 2; i++) {
-    if (all_changed_columns[i] != NULL) {
-      List_iterator<Item> lvalue_it(*all_changed_columns[i]);
-      Item *lvalue_item;
-      while ((lvalue_item = lvalue_it++) != NULL)
+    if (all_changed_columns[i] != nullptr) {
+      for (Item *lvalue_item : *all_changed_columns[i]) {
         lvalue_item->walk(
             &Item::remove_column_from_bitmap, enum_walk::SUBQUERY_POSTFIX,
             reinterpret_cast<uchar *>(m_function_default_columns));
+      }
     }
   }
 
@@ -132,7 +132,7 @@ bool COPY_INFO::get_function_default_columns(TABLE *table) {
 bool COPY_INFO::set_function_defaults(TABLE *table) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_function_default_columns != NULL);
+  DBUG_ASSERT(m_function_default_columns != nullptr);
 
   /* Quick reject test for checking the case when no defaults are invoked. */
   if (bitmap_is_clear_all(m_function_default_columns)) return false;

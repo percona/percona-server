@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,10 @@
 #include <string.h>  // memcpy
 
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "storage/ndb/plugin/ndb_name_util.h"  // ndb_name_is_temp
+#include "storage/ndb/plugin/ndb_require.h"    // ndbrequire
+#include "storage/ndb/plugin/ndb_retry.h"      // ndb_trans_retry
 
 void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
                       char (&buf)[512], const char *str, size_t sz) {
@@ -246,10 +249,9 @@ bool ndb_get_tablespace_names(
   return true;
 }
 
-bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
-                                   const std::string &schema_name,
-                                   std::unordered_set<std::string> *table_names,
-                                   bool skip_util_tables) {
+bool ndb_get_table_names_in_schema(
+    const NdbDictionary::Dictionary *dict, const std::string &schema_name,
+    std::unordered_set<std::string> *table_names) {
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0) {
     return false;
@@ -262,17 +264,26 @@ bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
       continue;
     }
 
-    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
-        ndb_name_is_index_stat(elmt.name)) {
+    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
       continue;
     }
 
-    if (skip_util_tables && schema_name == "mysql" &&
+    if (schema_name == "mysql" &&
         (strcmp(elmt.name, "ndb_schema") == 0 ||
          strcmp(elmt.name, "ndb_schema_result") == 0 ||
-         strcmp(elmt.name, "ndb_sql_metadata") == 0)) {
-      // Skip NDB utility tables. These tables and marked as hidden in the DD
-      // and are handled specifically by the binlog thread
+         strcmp(elmt.name, "ndb_sql_metadata") == 0 ||
+         strcmp(elmt.name, "ndb_index_stat_head") == 0 ||
+         strcmp(elmt.name, "ndb_index_stat_sample") == 0)) {
+      // Skip NDB utility tables.
+      //
+      // The first three tables and marked as hidden in the DD and are handled
+      // specifically by the binlog thread.
+      //
+      // The index stat tables are created by the index stat thread and are not
+      // installed in the DD at all. The contents of these tables are
+      // incomprehensible without some kind of parsing and are thus not exposed
+      // to the MySQL Server. They remain visible and accessible via the
+      // ndb_select_all tool.
       continue;
     }
 
@@ -326,7 +337,7 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
 
 bool ndb_get_database_names_in_dictionary(
     NdbDictionary::Dictionary *dict,
-    std::unordered_set<std::string> &database_names) {
+    std::unordered_set<std::string> *database_names) {
   DBUG_TRACE;
 
   /* Get all the list of tables from NDB and read the database names */
@@ -341,14 +352,40 @@ bool ndb_get_database_names_in_dictionary(
        or if it is a temporary or blob table.*/
     if ((elmt.state != NdbDictionary::Object::StateOnline &&
          elmt.state != NdbDictionary::Object::StateBuilding) ||
-        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
+        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_fk_mock_prefix(elmt.name)) {
       DBUG_PRINT("debug", ("Skipping table %s.%s", elmt.database, elmt.name));
       continue;
     }
     DBUG_PRINT("debug", ("Found %s.%s in NDB", elmt.database, elmt.name));
 
-    database_names.insert(elmt.database);
+    database_names->insert(elmt.database);
   }
+  return true;
+}
+
+bool ndb_database_exists(NdbDictionary::Dictionary *dict,
+                         const std::string &database_name, bool &exists) {
+  // Get list of tables from NDB and read database names
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+    return false;
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    // Skip the table if it is not in an expected state or if it is a temporary
+    // or blob table
+    if ((elmt.state != NdbDictionary::Object::StateOnline &&
+         elmt.state != NdbDictionary::Object::StateBuilding) ||
+        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_fk_mock_prefix(elmt.name)) {
+      continue;
+    }
+    if (database_name == elmt.database) {
+      exists = true;
+      return true;
+    }
+  }
+  exists = false;
   return true;
 }
 
@@ -430,4 +467,128 @@ bool ndb_get_tablespace_id_and_version(NdbDictionary::Dictionary *dict,
   id = ts.getObjectId();
   version = ts.getObjectVersion();
   return true;
+}
+
+bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
+                           const NdbDictionary::Table *ndbtab,
+                           unsigned int &index_count) {
+  NdbDictionary::Dictionary::List list;
+  if (dict->listIndexes(list, *ndbtab) != 0) {
+    // List indexes failed
+    return false;
+  }
+  // Separate indexes into ordered and unique indexes
+  std::unordered_set<std::string> ordered_indexes;
+  std::unordered_set<std::string> unique_indexes;
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    switch (elmt.type) {
+      case NdbDictionary::Object::UniqueHashIndex:
+        unique_indexes.insert(elmt.name);
+        break;
+      case NdbDictionary::Object::OrderedIndex:
+        ordered_indexes.insert(elmt.name);
+        break;
+      default:
+        // Unexpected object type
+        return false;
+    }
+  }
+  index_count = ordered_indexes.size();
+  // Iterate through the ordered indexes and check if any of them are
+  // "companion" ordered indexes. This is required since creating a unique key
+  // leads to 2 indexes being created - a unique hash index (of the form
+  // <index_name>$unique) and a companion ordered index. Note that this is not
+  // the case for hash based unique indexes which have no companion ordered
+  // index
+  for (auto &ordered_index : ordered_indexes) {
+    const std::string unique_index = ordered_index + "$unique";
+    if (unique_indexes.find(unique_index) != unique_indexes.end()) {
+      index_count--;
+    }
+  }
+  index_count += unique_indexes.size();
+  return true;
+}
+
+bool ndb_table_scan_and_delete_rows(
+    Ndb *ndb, const THD *thd, const NdbDictionary::Table *ndb_table,
+    NdbError &ndb_err,
+    const std::function<void(NdbScanFilter &)> &ndb_scan_filter_defn) {
+  DBUG_TRACE;
+  unsigned deleted = 0;
+
+  // Function for scanning and deleting all rows returned
+  std::function<const NdbError *(NdbTransaction *)> scan_and_delete_func =
+      [&](NdbTransaction *trans) -> const NdbError * {
+    NdbScanOperation *scan_op = trans->getNdbScanOperation(ndb_table);
+    if (scan_op == nullptr) return &trans->getNdbError();
+
+    if (scan_op->readTuples(NdbOperation::LM_Exclusive) != 0)
+      return &scan_op->getNdbError();
+
+    // Define the scan filters if the caller has provided definition
+    if (ndb_scan_filter_defn) {
+      NdbScanFilter scan_filter(scan_op);
+      ndb_scan_filter_defn(scan_filter);
+      if (scan_filter.getNdbError().code != 0) {
+        // error when scan filter was defined
+        return &scan_filter.getNdbError();
+      }
+    }
+
+    // Start the scan
+    if (trans->execute(NdbTransaction::NoCommit) != 0)
+      return &trans->getNdbError();
+
+    // Loop through all rows
+    bool fetch = true;
+    while (true) {
+      const int r = scan_op->nextResult(fetch);
+      if (r < 0) {
+        // Failed to fetch next row
+        return &scan_op->getNdbError();
+      }
+      fetch = false;  // Don't fetch more until nextResult returns 2
+
+      switch (r) {
+        case 0:  // Found row
+          DBUG_PRINT("info", ("Deleting row"));
+          if (scan_op->deleteCurrentTuple() != 0) {
+            // Failed to delete row
+            return &scan_op->getNdbError();
+          }
+          deleted++;
+          continue;
+
+        case 1:
+          DBUG_PRINT("info", ("No more rows"));
+          // No more rows, commit the transation
+          if (trans->execute(NdbTransaction::Commit) != 0) {
+            // Failed to commit
+            return &trans->getNdbError();
+          }
+          DBUG_PRINT("info", ("Deleted %u rows", deleted));
+          return nullptr;
+
+        case 2:
+          // Need to fetch more rows, first send the deletes
+          DBUG_PRINT("info", ("Need to fetch more rows"));
+          if (deleted > 0) {
+            DBUG_PRINT("info", ("Sending deletes"));
+            if (trans->execute(NdbTransaction::NoCommit) != 0) {
+              // Failed to send
+              return &trans->getNdbError();
+            }
+          }
+          fetch = true;  // Fetch more rows
+          continue;
+      }
+    }
+    // Never reached
+    ndbcluster::ndbrequire(false);
+    return nullptr;
+  };
+
+  return ndb_trans_retry(ndb, thd, ndb_err, scan_and_delete_func);
 }

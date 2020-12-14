@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,26 +27,23 @@
 
 #include "plugin/x/client/xconnection_impl.h"
 
-#include "my_config.h"
-#include "my_dbug.h"
-
 #include <errno.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif  // HAVE_NETINET_IN_H
-#ifdef HAVE_OPENSSL
 #include <openssl/x509v3.h>
-#endif  // HAVE_OPENSSL
 #include <cassert>
-#include <chrono>
-#include <future>
+#include <chrono>  // NOLINT(build/c++11)
+#include <future>  // NOLINT(build/c++11)
 #include <limits>
 #include <sstream>
 #include <string>
 
-#include "errmsg.h"
-#include "my_macros.h"
-#include "scope_guard.h"
+#include "errmsg.h"       // NOLINT(build/include_subdir)
+#include "my_config.h"    // NOLINT(build/include_subdir)
+#include "my_dbug.h"      // NOLINT(build/include_subdir)
+#include "my_macros.h"    // NOLINT(build/include_subdir)
+#include "scope_guard.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/client/context/xconnection_config.h"
 #include "plugin/x/client/context/xssl_config.h"
@@ -61,12 +58,6 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif  // HAVE_SYS_UN_H
-
-#ifdef HAVE_OPENSSL
-#define HAVE_SSL(Y, N) Y
-#else
-#define HAVE_SSL(Y, N) N
-#endif  // HAVE_OPENSSL
 
 #ifdef WIN32
 #define SHUT_RD SD_RECEIVE
@@ -113,15 +104,13 @@ class Connection_state : public XConnection::State {
   std::string get_ssl_version() const override {
     if (nullptr == m_vio->ssl_arg) return "";
 
-    return HAVE_SSL(SSL_get_version(reinterpret_cast<SSL *>(m_vio->ssl_arg)),
-                    "");
+    return SSL_get_version(reinterpret_cast<SSL *>(m_vio->ssl_arg));
   }
 
   std::string get_ssl_cipher() const override {
     if (nullptr == m_vio->ssl_arg) return "";
 
-    return HAVE_SSL(SSL_get_cipher(reinterpret_cast<SSL *>(m_vio->ssl_arg)),
-                    "");
+    return SSL_get_cipher(reinterpret_cast<SSL *>(m_vio->ssl_arg));
   }
 
   Connection_type get_connection_type() const override {
@@ -181,22 +170,10 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
   }
 
   /*
-    Use OpenSSL certificate matching functions instead of our own if we
-    have OpenSSL. The X509_check_* functions return 1 on success.
+    For OpenSSL 1.0.2 and up we already set certificate verification
+    parameters in the new_VioSSLFd() to perform automatic checks.
   */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  const int check_result_for_ip =
-      X509_check_ip_asc(server_cert, server_hostname.c_str(), 0);
-  const int check_result_for_host = X509_check_host(
-      server_cert, server_hostname.c_str(), server_hostname.length(), 0, 0);
-  if ((check_result_for_host != 1) && (check_result_for_ip != 1)) {
-    return XError{
-        CR_SSL_CONNECTION_ERROR,
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions",
-        true};
-  }
-#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
   /*
      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
      Use deprecated X509_get_subject_name() instead.
@@ -242,7 +219,7 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     return XError{CR_SSL_CONNECTION_ERROR, "SSL certificate validation failure",
                   true};
   }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
   return {};
 }
@@ -344,7 +321,7 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
 
   const auto timeout = m_context->m_connection_config.m_timeout_session_connect;
   const auto delay = std::chrono::milliseconds(
-      timeout > 0 ? timeout : std::numeric_limits<std::int32_t>::max());
+      timeout > 0 ? timeout : std::numeric_limits<int32_t>::max());
   if (addr_future.wait_for(delay) == std::future_status::timeout) {
     return XError(CR_X_SESSION_CONNECT_TIMEOUT,
                   "Session_connect_timeout limit exceeded", true);
@@ -539,7 +516,8 @@ XError Connection_impl::get_ssl_error(const int error_id) {
     @retval non 1 for Error
     @retval 1 Success
 */
-int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
+int set_fips_mode(const uint32_t fips_mode,
+                  char err_string[OPENSSL_ERROR_LENGTH]) {
   int rc = -1;
   unsigned int fips_mode_old = -1;
   unsigned long err_library = 0;
@@ -570,23 +548,26 @@ XError Connection_impl::activate_tls() {
     return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_NOT_CONFIGURATED, true};
 
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode(static_cast<int>(m_context->m_ssl_config.m_ssl_fips_mode),
-                    err_string) != 1) {
+  if (set_fips_mode(
+          static_cast<uint32_t>(m_context->m_ssl_config.m_ssl_fips_mode),
+          err_string) != 1) {
     return XError{CR_SSL_CONNECTION_ERROR, err_string, true};
   }
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
 
+  const bool verify_identity =
+      Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode;
   m_vioSslFd = new_VioSSLConnectorFd(
       details::null_when_empty(m_context->m_ssl_config.m_key),
       details::null_when_empty(m_context->m_ssl_config.m_cert),
       details::null_when_empty(m_context->m_ssl_config.m_ca),
       details::null_when_empty(m_context->m_ssl_config.m_ca_path),
-      details::null_when_empty(m_context->m_ssl_config.m_cipher), NULL,
+      details::null_when_empty(m_context->m_ssl_config.m_cipher), nullptr,
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),
-      ssl_ctx_flags);
+      ssl_ctx_flags, verify_identity ? m_hostname.c_str() : nullptr);
 
   if (nullptr == m_vioSslFd) return get_ssl_init_error(m_ssl_init_error);
 
@@ -597,7 +578,7 @@ XError Connection_impl::activate_tls() {
     return get_ssl_error(error);
   }
 
-  if (Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode) {
+  if (verify_identity) {
     auto error = details::ssl_verify_server_cert(m_vio, m_hostname);
 
     if (error) return error;
@@ -619,6 +600,7 @@ XError Connection_impl::shutdown(const Shutdown_type how_to_shutdown) {
 
 XError Connection_impl::write(const uint8_t *data,
                               const std::size_t data_length) {
+  DBUG_DUMP("Connection_impl", data, data_length);
   std::size_t left_data_to_write = data_length;
   const unsigned char *data_to_send = (const unsigned char *)data;
 
@@ -711,7 +693,6 @@ const XConnection::State &Connection_impl::state() {
 
 void Connection_impl::close() {
   if (m_vio) {
-    ::closesocket(vio_fd(m_vio));
     vio_delete(m_vio);
     m_connected = false;
     m_ssl_active = false;

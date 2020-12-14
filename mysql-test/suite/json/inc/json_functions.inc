@@ -2410,6 +2410,7 @@ insert into t_ooa values
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', 'all' ),
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', null );
 
+--sorted_result
 select id, doc, one_or_all, json_search( doc, one_or_all, 'foo%' ) from t_ooa order by id;
 select id, doc, json_search( doc, 'one', 'foo%' ) from t_ooa order by id;
 select id, doc, json_search( doc, 'all', 'foo%' ) from t_ooa order by id;
@@ -2456,6 +2457,7 @@ insert into tt(i, j)
 insert into tt(i, si)
   select count(*), json_extract('{"key17": {"a": {"b": "c"}}, "key88": 100}',
                                '$.key88');
+--sorted_result
 select * from tt order by i;
 
 # This exercises Item_copy_json::val_real
@@ -2485,7 +2487,10 @@ GROUP BY j, i WITH ROLLUP;
 UPDATE tt SET j = CAST(CAST('2015-06-19' AS DATE) AS JSON) WHERE j IS NOT NULL;
 SELECT CAST(j AS DATE), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 
-# Exercise an error path through Item_copy_json::val_str
+# Exercise an error path through Item_copy_json::val_str.
+# Note that most functions would return NULL here, but Field_json::val_str()
+# sets length to zero on error, so it becomes the empty string instead.
+# This is consistent with non-ROLLUP, which we also test for comparison.
 DELETE FROM tt;
 INSERT INTO tt(j) VALUES (JSON_ARRAY(REPEAT('abc', 100)));
 UPDATE tt SET j = JSON_ARRAY(j,j,j,j);
@@ -2494,6 +2499,7 @@ SET GLOBAL max_allowed_packet = 1024;
 CONNECT (con1,localhost,root,,);
 CONNECTION con1;
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
+SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i;
 CONNECTION default;
 DISCONNECT con1;
 SET GLOBAL max_allowed_packet = default;
@@ -3659,7 +3665,11 @@ let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 'x'),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+# View trace, but eliminating update_preparation block which is
+# not produced in -ps mode.
+let $show_trace=
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 's'),
                          j2 = JSON_SET(j2, '\$.a', 'abcdefghi'),
@@ -3668,28 +3678,28 @@ let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 's'),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 --let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.x.y.z', 'abc', '\$.b', 'X')
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 --let $query= UPDATE t SET j1 = JSON_REPLACE(j1, '\$.x', 'abc', '\$.b', 'Y')
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 --let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.x', 'abc', '\$.b', 'Z')
 --eval EXPLAIN FORMAT=JSON $query
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 # No partial update here since input column is different from target column.
 --let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 'ABC')
@@ -3697,7 +3707,7 @@ SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 # No partial update here since JSON_ARRAY doesn't support partial update.
 --let $query= UPDATE t SET j1 = JSON_ARRAY(j1, j1)
@@ -3705,7 +3715,7 @@ SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 # No partial update of j1, but j2 should be partially updated.
 let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 1),
@@ -3714,7 +3724,7 @@ let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 1),
 SET optimizer_trace="enabled=on";
 --eval $query
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+eval $show_trace;
 --eval $dump_table
 DROP TABLE t;
 
@@ -4124,6 +4134,14 @@ SELECT (5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30753642: ASSERTION `FALSE' FAILED. IN ITEM_JSON::VAL_STR
+--echo #
+CREATE TABLE t(a DATETIME);
+INSERT INTO t VALUES ('2019-01-13 00:00:00');
+SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

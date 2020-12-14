@@ -193,3 +193,44 @@ n
 2
 3
 SET SQL_BUFFER_RESULT = DEFAULT;
+#
+# Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
+#
+EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
+(
+SELECT 1
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5
+)
+SELECT * FROM cte;
+EXPLAIN
+-> Table scan on cte  (cost=2.84 rows=3) (actual time=N.NNN..N.NNN rows=5 loops=1)
+    -> Materialize recursive CTE cte  (actual time=N.NNN..N.NNN rows=5 loops=1)
+        -> Rows fetched before execution  (cost=0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+        -> Repeat until convergence
+            -> Filter: (cte.n < 5)  (cost=2.73 rows=1) (actual time=N.NNN..N.NNN rows=2 loops=2)
+                -> Scan new records on cte  (cost=2.73 rows=2) (actual time=N.NNN..N.NNN rows=2 loops=2)
+
+#
+# Bug#31066001 INCORRECT RESULT FROM CTE SUBQUERY WITH OUTER REFERENCE
+#
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+EXISTS(
+WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+SELECT * FROM qn WHERE b=a
+);
+a
+1
+1
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+NOT EXISTS(
+WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+SELECT * FROM qn WHERE b=a
+);
+a

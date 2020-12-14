@@ -35,7 +35,7 @@ send COMMIT;
 
 SET DEBUG_SYNC="now WAIT_FOR commit_ready";
 
---replace_result 637 POSITION 616 POSITION
+--replace_result 638 POSITION 617 POSITION
 SHOW STATUS LIKE 'binlog_snapshot_%';
 
 SET DEBUG_SYNC="now SIGNAL finish_commit";
@@ -96,7 +96,7 @@ reap;
 
 --connection con2
 --echo # connection con2
---replace_result 155 POSITION
+--replace_result 156 POSITION
 reap;
 --disconnect con2
 

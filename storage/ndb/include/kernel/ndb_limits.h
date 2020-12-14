@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,15 @@
  * The maximum number of replicas in the system
  */
 #define MAX_REPLICAS 4
+
+/**
+ * The maximum number of transporters allowed
+ * A maximum is needed to be able to allocate the array of transporters
+ * We need one 
+ */
+#define MAX_NODE_GROUP_TRANSPORTERS 32
+#define MAX_NTRANSPORTERS (MAX_NODES + \
+                           ((MAX_REPLICAS - 1) * MAX_NODE_GROUP_TRANSPORTERS))
 
 /**
  * The maximum number of local checkpoints stored at a time
@@ -155,11 +164,7 @@
 /*
 * The default batch size. Configurable parameter.
 */
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEF_BATCH_SIZE 64
-#else
 #define DEF_BATCH_SIZE 256
-#endif
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -383,6 +388,9 @@
  * handling so as to give priority to API failure handling over normal start
  * and stop subscriptions if they both are competing. */
 #define NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL 3 * 3
+
+// Max. 256 bytes for encryption password given via mgmapi
+#define MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH 256
 
 #ifdef NDB_STATIC_ASSERT
 

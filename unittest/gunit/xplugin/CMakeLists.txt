@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -66,12 +66,17 @@ SET(XPL_TEST_SRC
   xpl/stubs/plugin.cc
   xpl/stubs/security_context_service.cc
   xpl/stubs/sql_session_service.cc
+  xpl/mock/mock_component_services.cc
+  xpl/mock/mock_srv_session_services.cc
 
   xpl/mysqlx_pb_wrapper.cc
 
   xpl/account_verification_handler_t.cc
   xpl/admin_cmd_arguments_object_t.cc
   xpl/admin_cmd_index_t.cc
+  xpl/admin_create_collection_t.cc
+  xpl/admin_get_collection_options_t.cc
+  xpl/admin_modify_collection_options_t.cc
   xpl/broker_input_queue_task_t.cc
   xpl/callback_command_delegate_t.cc
   xpl/capabilities_configurator_t.cc
@@ -91,6 +96,7 @@ SET(XPL_TEST_SRC
   xpl/listener_tcp_t.cc
   xpl/listener_unix_socket_t.cc
   xpl/message_builder_t.cc
+  xpl/meta_schema_validator_t.cc
   xpl/prepared_statement_builder_t.cc
   xpl/prepare_param_handler_t.cc
   xpl/protocol_decoder_t.cc
@@ -101,7 +107,9 @@ SET(XPL_TEST_SRC
   xpl/sasl_plain_auth_t.cc
   xpl/scheduler_t.cc
   xpl/server_client_timeout_t.cc
+  xpl/set_variable_adaptor_t.cc
   xpl/sha256_cache_t.cc
+  xpl/sql_data_context_t.cc
   xpl/socket_acceptor_task_t.cc
   xpl/sql_statement_builder_t.cc
   xpl/sync_variable_t.cc
@@ -114,8 +122,22 @@ SET(XPL_TEST_SRC
   xpl/xmessage_buffer_t.cc
   xpl/xrow_buffer_t.cc
   xpl/xpl_regex_t.cc
+  xpl/socket_events_t.cc
 )
-
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM XPL_TEST_SRC
+    xpl/account_verification_handler_t.cc
+    xpl/admin_cmd_index_t.cc
+    xpl/index_field_t.cc
+    xpl/listener_tcp_t.cc
+    xpl/listener_unix_socket_t.cc
+    xpl/protocol_decoder_t.cc
+    xpl/sql_data_context_t.cc
+    xpl/socket_acceptor_task_t.cc
+    xpl/timeouts_t.cc
+    )
+ENDIF()
 
 IF(MYSQLX_ADDITIONAL_TESTS_ENABLE)
   INCLUDE(mysql_function_names.cmake)
@@ -127,6 +149,7 @@ MYSQL_ADD_EXECUTABLE(${XPL_UNIT_TESTS}
   ${XPL_TEST_SRC}
   ADD_TEST xplugin
 )
+SET_TESTS_PROPERTIES(xplugin PROPERTIES TIMEOUT 180)
 
 ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
@@ -154,7 +177,7 @@ ENDIF()
 
 # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
 # Segfault in the unit test, so lower optimization level there as well
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+IF(MY_COMPILER_IS_SUNPRO)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_SOURCE_DIR}/xpl/callback_command_delegate_t.cc
     COMPILE_FLAGS "-xO2")
@@ -199,10 +222,23 @@ SET(XCL_SRC
   xcl/session_execute_t.cc
   xcl/session_general_t.cc
   xcl/session_options_t.cc
+  xcl/session_negotiation_t.cc
   xcl/sha256_scramble_t.cc
   xcl/ssl_config_t.cc
   xcl/xpriority_list_t.cc
 )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM XCL_SRC
+    xcl/auth_chaining_t.cc
+    xcl/session_capability_t.cc
+    xcl/session_connect_t.cc
+    xcl/session_execute_t.cc
+    xcl/session_general_t.cc
+    xcl/session_options_t.cc
+    xcl/session_negotiation_t.cc
+    )
+ENDIF()
 
 ADD_COMPILE_DEFINITIONS(${XCL_SRC}
   COMPILE_DEFINITIONS USE_MYSQLX_FULL_PROTO
@@ -212,6 +248,7 @@ MYSQL_ADD_EXECUTABLE(${XCL_UNIT_TESTS}
   ${XCL_SRC}
   ADD_TEST xclient
 )
+SET_TESTS_PROPERTIES(xclient PROPERTIES TIMEOUT 180)
 
 ADD_DEPENDENCIES(${XCL_UNIT_TESTS}
   ${MYSQLX_CLIENT_FULL_LIB}

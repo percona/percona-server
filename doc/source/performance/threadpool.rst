@@ -12,9 +12,9 @@ In order to enable the thread pool variable :variable:`thread_handling` should b
 
  thread_handling=pool-of-threads
 
-to the |MySQL| configuration file :file:`my.cnf`.
-
-Although the default values for the thread pool should provide good performance, additional `tuning <https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_ can be performed with the dynamic system variables described below.
+Although the default values for the |thread-pool| should provide good
+performance, additional tuning
+can be performed with the dynamic system variables described in :ref:`tuning`.
 
 .. note::
  

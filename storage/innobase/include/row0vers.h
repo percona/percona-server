@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,19 +48,22 @@ class ReadView;
 
 /** Finds out if an active transaction has inserted or modified a secondary
  index record.
+ @param[in]   rec       record in a secondary index
+ @param[in]   index     the secondary index
+ @param[in]   offsets   rec_get_offsets(rec, index)
  @return 0 if committed, else the active transaction id;
  NOTE that this function can return false positives but never false
- negatives. The caller must confirm all positive results by calling
- trx_is_active() while holding lock_sys->mutex. */
-trx_t *row_vers_impl_x_locked(
-    const rec_t *rec,          /*!< in: record in a secondary index */
-    const dict_index_t *index, /*!< in: the secondary index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
+ negatives. The caller must confirm all positive results by checking if the trx
+ is still active.
+*/
+trx_t *row_vers_impl_x_locked(const rec_t *rec, const dict_index_t *index,
+                              const ulint *offsets);
+
 /** Finds out if we must preserve a delete marked earlier version of a clustered
  index record, because it is >= the purge view.
- @param[in]	trx_id		transaction id in the version
- @param[in]	name		table name
- @param[in,out]	mtr		mini transaction  holding the latch on the
+ @param[in]	trx_id		Transaction id in the version
+ @param[in]	name		Table name
+ @param[in,out]	mtr		Mini-transaction  holding the latch on the
                                  clustered index record; it will also hold
                                   the latch on purge_view
  @return true if earlier version should be preserved */
@@ -116,27 +119,24 @@ dberr_t row_vers_build_for_consistent_read(
     rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo);
 
 /** Constructs the last committed version of a clustered index record,
- which should be seen by a semi-consistent read. */
+ which should be seen by a semi-consistent read.
+@param[in] rec Record in a clustered index; the caller must have a latch on the
+page; this latch locks the top of the stack of versions of this records
+@param[in] mtr Mini-transaction holding the latch on rec
+@param[in] index The clustered index
+@param[in,out] offsets Offsets returned by rec_get_offsets(rec, index)
+@param[in,out] offset_heap Memory heap from which the offsets are allocated
+@param[in] in_heap Memory heap from which the memory for *old_vers is allocated;
+memory for possible intermediate versions is allocated and freed locally within
+the function
+@param[out] old_vers Rec, old version, or null if the record does not exist in
+the view, that is, it was freshly inserted afterwards
+@param[out] vrow Virtual row, old version, or null if it is not updated in the
+view */
 void row_vers_build_for_semi_consistent_read(
-    const rec_t *rec,         /*!< in: record in a clustered index; the
-                              caller must have a latch on the page; this
-                              latch locks the top of the stack of versions
-                              of this records */
-    mtr_t *mtr,               /*!< in: mtr holding the latch on rec */
-    dict_index_t *index,      /*!< in: the clustered index */
-    ulint **offsets,          /*!< in/out: offsets returned by
-                              rec_get_offsets(rec, index) */
-    mem_heap_t **offset_heap, /*!< in/out: memory heap from which
-                          the offsets are allocated */
-    mem_heap_t *in_heap,      /*!< in: memory heap from which the memory for
-                              *old_vers is allocated; memory for possible
-                              intermediate versions is allocated and freed
-                              locally within the function */
-    const rec_t **old_vers,   /*!< out: rec, old version, or NULL if the
-                             record does not exist in the view, that is,
-                             it was freshly inserted afterwards */
-    const dtuple_t **vrow);   /*!< out: holds virtual column info if any
-                              is updated in the view */
+    const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
+    mem_heap_t **offset_heap, mem_heap_t *in_heap, const rec_t **old_vers,
+    const dtuple_t **vrow);
 
 #include "row0vers.ic"
 

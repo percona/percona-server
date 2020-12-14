@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,8 +61,10 @@ TODO:
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "template_utils.h"
@@ -101,6 +103,11 @@ static unique_ptr<collation_unordered_multimap<string, TINA_SHARE *>>
     tina_open_tables;
 static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table,
                                     bool partitioned, MEM_ROOT *mem_root);
+
+/* Interface to mysqld, to check system tables supported by SE */
+static bool tina_is_supported_system_table(const char *db,
+                                           const char *table_name,
+                                           bool is_sql_layer_system_table);
 
 /*****************************************************************************
  ** TINA tables
@@ -176,6 +183,7 @@ static int tina_init_func(void *p) {
       (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | HTON_NO_PARTITION);
   tina_hton->file_extensions = ha_tina_exts;
   tina_hton->rm_tmp_tables = default_rm_tmp_tables;
+  tina_hton->is_supported_system_table = tina_is_supported_system_table;
   return 0;
 }
 
@@ -209,7 +217,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *) {
                          &share, sizeof(*share), &tmp_name, length + 1,
                          NullS)) {
       mysql_mutex_unlock(&tina_mutex);
-      return NULL;
+      return nullptr;
     }
 
     share->use_count = 0;
@@ -228,7 +236,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *) {
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
     if (mysql_file_stat(csv_key_file_data, share->data_file_name, &file_stat,
-                        MYF(MY_WME)) == NULL)
+                        MYF(MY_WME)) == nullptr)
       goto error;
     share->saved_data_file_length = file_stat.st_size;
 
@@ -261,7 +269,7 @@ error:
   mysql_mutex_unlock(&tina_mutex);
   my_free(share);
 
-  return NULL;
+  return nullptr;
 }
 
 /*
@@ -369,8 +377,6 @@ bool ha_tina::check_and_repair(THD *thd) {
   HA_CHECK_OPT check_opt;
   DBUG_TRACE;
 
-  check_opt.init();
-
   return repair(thd, &check_opt);
 }
 
@@ -467,6 +473,39 @@ static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
   return new (mem_root) ha_tina(hton, table);
 }
 
+/**
+  @brief Check if the given db.tablename is a system table for this SE.
+
+  @param db                         database name.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
+*/
+static bool tina_is_supported_system_table(const char *db,
+                                           const char *table_name,
+                                           bool is_sql_layer_system_table) {
+  /*
+   Currently CSV does not support any other SE specific system tables. If
+   in future it does, please see ha_example.cc for reference implementation
+  */
+  if (!is_sql_layer_system_table) return false;
+
+  // Creating system tables in this SE is allowed to support logical upgrade.
+  THD *thd = current_thd;
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_ENGINE,
+                        ER_THD(thd, ER_UNSUPPORTED_ENGINE), "CSV", db,
+                        table_name);
+    return true;
+  }
+
+  // Any other usage is not allowed.
+  return false;
+}
+
 ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
       /*
@@ -476,11 +515,11 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
       current_position(0),
       next_position(0),
       local_saved_data_file_length(0),
-      file_buff(0),
+      file_buff(nullptr),
       chain_alloced(0),
       chain_size(DEFAULT_CHAIN_LENGTH),
       local_data_file_version(0),
-      records_is_known(0),
+      records_is_known(false),
       blobroot(csv_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE) {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, &my_charset_bin);
@@ -573,7 +612,7 @@ int ha_tina::chain_append() {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
         if ((chain = (tina_set *)my_realloc(
                  csv_key_memory_tina_set, (uchar *)chain,
-                 chain_size * sizeof(tina_set), MYF(MY_WME))) == NULL)
+                 chain_size * sizeof(tina_set), MYF(MY_WME))) == nullptr)
           return -1;
       } else {
         tina_set *ptr =
@@ -730,7 +769,7 @@ int ha_tina::find_current_row(uchar *buf) {
       }
     }
 
-    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index())) {
       bool is_enum = ((*field)->real_type() == MYSQL_TYPE_ENUM);
       /*
         Here CHECK_FIELD_WARN checks that all values in the csv file are valid
@@ -744,9 +783,9 @@ int ha_tina::find_current_row(uchar *buf) {
                           is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN)) {
         if (!is_enum) goto err;
       }
-      if ((*field)->flags & BLOB_FLAG) {
+      if ((*field)->is_flag_set(BLOB_FLAG)) {
         Field_blob *blob_field = down_cast<Field_blob *>(*field);
-        size_t length = blob_field->get_length(blob_field->ptr);
+        size_t length = blob_field->get_length();
         // BLOB data is not stored inside buffer. It only contains a
         // pointer to it. Copy the BLOB data into a separate memory
         // area so that it is not overwritten by subsequent calls to
@@ -754,7 +793,7 @@ int ha_tina::find_current_row(uchar *buf) {
         if (length > 0) {
           unsigned char *new_blob = new (&blobroot) unsigned char[length];
           if (new_blob == nullptr) return HA_ERR_OUT_OF_MEM;
-          memcpy(new_blob, blob_field->get_ptr(), length);
+          memcpy(new_blob, blob_field->get_blob_data(), length);
           blob_field->set_ptr(length, new_blob);
         }
       }
@@ -785,7 +824,7 @@ void tina_update_status(void *param) {
 }
 
 /* this should exist and return 0 for concurrent insert to work */
-bool tina_check_status(void *) { return 0; }
+bool tina_check_status(void *) { return false; }
 
 /*
   Save the state of the table
@@ -1074,7 +1113,7 @@ int ha_tina::rnd_init(bool) {
 
   current_position = next_position = 0;
   stats.records = 0;
-  records_is_known = 0;
+  records_is_known = false;
   chain_ptr = chain;
 
   return 0;
@@ -1201,7 +1240,7 @@ int ha_tina::rnd_end() {
   DBUG_TRACE;
 
   blobroot.Clear();
-  records_is_known = 1;
+  records_is_known = true;
 
   if ((chain_ptr - chain) > 0) {
     tina_set *ptr = chain;
@@ -1406,7 +1445,7 @@ int ha_tina::repair(THD *thd, HA_CHECK_OPT *) {
   share->rows_recorded = rows_repaired;
 
   /* write repaired file */
-  while (1) {
+  while (true) {
     write_end = min(file_buff->end(), current_position);
     if ((write_end - write_begin) &&
         (mysql_file_write(repair_file, (uchar *)file_buff->ptr(),
@@ -1509,7 +1548,7 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
     check columns
   */
   for (Field **field = table_arg->s->field; *field; field++) {
-    if ((*field)->real_maybe_null()) {
+    if ((*field)->is_nullable()) {
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "nullable columns");
       return HA_ERR_UNSUPPORTED;
     }
@@ -1592,15 +1631,15 @@ mysql_declare_plugin(csv){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &csv_storage_engine,
     "CSV",
-    "Brian Aker, MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "CSV storage engine",
     PLUGIN_LICENSE_GPL,
     tina_init_func, /* Plugin Init */
-    NULL,           /* Plugin check uninstall */
+    nullptr,        /* Plugin check uninstall */
     tina_done_func, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

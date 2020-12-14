@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ static char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
                                  int *error) {
   char *line = mysql_file_fgets(buffer, static_cast<int>(size), input);
   if (error) {
-    *error = (line == NULL) ? ferror(input->m_file) : 0;
+    *error = (line == nullptr) ? ferror(input->m_file) : 0;
   }
   return line;
 }
@@ -221,7 +221,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
     }
 
     char *query_copy = static_cast<char *>(thd->alloc(query.length() + 1));
-    if (query_copy == NULL) {
+    if (query_copy == nullptr) {
       /* purecov: begin inspected */
       error = true;
       break;
@@ -268,7 +268,6 @@ static int process_iterator(THD *thd, Command_iterator *it,
     }
 
     free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
-    thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
 
     /*
       Make sure bootstrap statements do not change binlog options.
@@ -330,7 +329,7 @@ static void *handle_bootstrap(void *arg) {
     thd_manager->remove_thd(thd);
   }
   my_thread_end();
-  return 0;
+  return nullptr;
 }
 }  // extern "C"
 
@@ -354,7 +353,7 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
 
   THD *thd = new THD;
   thd->system_thread = thread_type;
-  thd->get_protocol_classic()->init_net(NULL);
+  thd->get_protocol_classic()->init_net(nullptr);
   // Skip grants and set the system_user flag in THD.
   thd->security_context()->skip_grants();
 
@@ -428,7 +427,7 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
     /* purecov: end */
   }
   /* Wait for thread to die */
-  my_thread_join(&thread_handle, NULL);
+  my_thread_join(&thread_handle, nullptr);
   // Free Items that were created during this execution.
   thd->free_items();
   delete thd;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #else
 #include <stdlib.h> // aligned_alloc or posix_memalign
 #include <sys/mman.h>
+#include <unistd.h> // sysconf
 #endif
 
 #include <NdbMem.h>
@@ -67,7 +68,7 @@ int NdbMem_MemLock(const void * ptr, size_t len)
 #endif
 }
 
-#ifdef VM_TRACE
+#if defined(VM_TRACE) && !defined(__APPLE__)
 
 /**
  * Experimental functions to manage virtual memory without backing, nor
@@ -103,15 +104,39 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
 #ifdef _WIN32
   p = VirtualAlloc(*ptr, len, MEM_RESERVE, PAGE_NOACCESS);
   *ptr = p;
-  return (p == NULL) ? 0 : -1;
-#else
-  p = mmap(*ptr, len, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  return (p == NULL) ? -1 : 0;
+#elif defined(MAP_NORESERVE)
+  /*
+   * MAP_NORESERVE is essential to not reserve swap space on Solaris.
+   * If this code is activated on operating systems not having the non standard
+   * MAP_NORESERVE one need to find out how to do it instead or make sure these
+   * functions (NdbMem_ReserveSpace(), NdbMem_PopulateSpace(),
+   * NdbMem_FreeSpace()) are not used on that platform.
+   *
+   * This code is currently only used in debug build there can be called with a
+   * huge length as 128TB, not all intended to be backed my storage.
+   *
+   * Even when we start using these function in production code and all mapped
+   * memory should be backed it makes sense not to enforce swap space
+   * reservation since swapping the memory of data node is not recommended, on
+   * the contrary it should be locked to RAM if possible.
+   *
+   * If only memory that should be backed is mapped one could consider skipping
+   * MAP_NORESERVE to have an early error (for badly configured systems) rather
+   * than have some undefined behaviour in later calls to NdbMem_PopulateSpace.
+   */
+  p = mmap(*ptr,
+           len,
+           PROT_NONE,
+           MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE,
+           -1,
+           0);
   if (p == MAP_FAILED)
   {
     *ptr = NULL;
     return -1;
   }
-#ifdef MADV_DONTDUMP
+#if defined(MADV_DONTDUMP)
   if (-1 == madvise(p, len, MADV_DONTDUMP))
   {
     require(0 == munmap(p, len));
@@ -121,8 +146,20 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
 #endif
   *ptr = p;
   return 0;
+#elif defined(MAP_GUARD) /* FreeBSD */
+  p = mmap(*ptr,
+           len,
+           PROT_NONE,
+           MAP_ANONYMOUS | MAP_PRIVATE | MAP_GUARD,
+           -1,
+           0);
+  *ptr = p;
+  return 0;
+#else
+#error Need mmap() to not reserve swap for mapping.
 #endif
 }
+#endif
 
 /**
  * NdbMem_PopulateSpace
@@ -142,8 +179,21 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
 {
 #ifdef _WIN32
   void* p = VirtualAlloc(ptr, len, MEM_COMMIT, PAGE_READWRITE);
-  return (p == NULL) ? 0 : -1;
-#else
+  return (p == NULL) ? -1 : 0;
+#elif defined(MAP_GUARD) /* FreeBSD */
+  void* p = mmap(ptr,
+                 len,
+                 PROT_READ | PROT_WRITE,
+                 MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
+                 -1,
+                 0);
+  if (p == MAP_FAILED)
+  {
+    return -1;
+  }
+  require(p == ptr);
+  return 0;
+#else /* Linux, Solaris */
   int ret = mprotect(ptr, len, PROT_READ | PROT_WRITE);
   if (ret == 0)
   {
@@ -165,6 +215,8 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
   return ret;
 #endif
 }
+
+#if defined(VM_TRACE) && !defined(__APPLE__)
 
 /**
  * NdbMem_FreeSpace
@@ -227,5 +279,16 @@ void NdbMem_AlignedFree(void* p)
   void** qp = (void**)p;
   p = qp[-1];
   free(p);
+#endif
+}
+
+size_t NdbMem_GetSystemPageSize()
+{
+#ifndef _WIN32
+  return (size_t) sysconf(_SC_PAGESIZE);
+#else
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
 #endif
 }

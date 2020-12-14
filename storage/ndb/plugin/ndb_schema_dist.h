@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,14 +72,15 @@ namespace Ndb_schema_dist {
 
 // Schema operation result codes
 enum Schema_op_result_code {
-  NODE_UNSUBSCRIBE = 9001,  // Node unsubscribe during
-  NODE_FAILURE = 9002,      // Node failed during
-  NODE_TIMEOUT = 9003,      // Node timeout during
-  COORD_ABORT = 9004,       // Coordinator aborted
-  CLIENT_ABORT = 9005,      // Client aborted
-  CLIENT_KILLED = 9007,     // Client killed
-  SCHEMA_OP_FAILURE = 9008  // Failure not related to protocol but the actual
-                            // schema operation to be distributed
+  NODE_UNSUBSCRIBE = 9001,   // Node unsubscribe during
+  NODE_FAILURE = 9002,       // Node failed during
+  NODE_TIMEOUT = 9003,       // Node timeout during
+  COORD_ABORT = 9004,        // Coordinator aborted
+  CLIENT_ABORT = 9005,       // Client aborted
+  CLIENT_KILLED = 9007,      // Client killed
+  SCHEMA_OP_FAILURE = 9008,  // Failure not related to protocol but the actual
+                             // schema operation to be distributed
+  NDB_TRANS_FAILURE = 9009   // An NDB read/write transaction failed
 };
 
 /**
@@ -127,6 +128,7 @@ class Ndb_schema_dist_client {
   class THD *const m_thd;
   class Thd_ndb *const m_thd_ndb;
   struct NDB_SHARE *m_share{nullptr};
+  const std::string m_share_reference;
   class Prepared_keys {
     using Key = std::pair<std::string, std::string>;
     std::vector<Key> m_keys;
@@ -146,6 +148,8 @@ class Ndb_schema_dist_client {
     std::string message;
   };
   std::vector<Schema_op_result> m_schema_op_results;
+
+  static bool m_ddl_blocked;
 
   void push_and_clear_schema_op_results();
 
@@ -196,6 +200,9 @@ class Ndb_schema_dist_client {
 
   ~Ndb_schema_dist_client();
 
+  static void block_ddl(bool ddl_blocked) { m_ddl_blocked = ddl_blocked; }
+  static bool is_ddl_blocked() { return m_ddl_blocked; }
+
   /*
     @brief Generate unique id for distribution of objects which doesn't have
            global id in NDB.
@@ -227,7 +234,7 @@ class Ndb_schema_dist_client {
            The rename case is different as two different "keys" may be used
            and need to be prepared.
     @param db database name
-    @param table_name table name
+    @param tabname table name
     @param new_db new database name
     @param new_tabname new table name
     @note Always done early to avoid changing metadata which is
@@ -254,7 +261,7 @@ class Ndb_schema_dist_client {
           code(or none at all) should be returned for this error.
     @note Always done early to avoid changing metadata which is
           hard to rollback at a later stage.
-    @param invalid_identifer The name of the identifier that failed the check
+    @param invalid_identifier The name of the identifier that failed the check
     @return true if check succeed
   */
   bool check_identifier_limits(std::string &invalid_identifier);
@@ -280,7 +287,6 @@ class Ndb_schema_dist_client {
 
   /**
    * @brief Convert SCHEMA_OP_TYPE to string
-   * @param type
    * @return string describing the type
    */
   static const char *type_name(SCHEMA_OP_TYPE type);

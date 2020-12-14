@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Compiler options
 IF(UNIX)  
 
-  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT SOLARIS_SPARC)
     SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
   ELSE()
     SET(SECTIONS_FLAG)
@@ -71,12 +71,18 @@ IF(UNIX)
     SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
   ENDIF()
 
+  # Faster TLS model
+  IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT SOLARIS AND NOT LINUX_RHEL6)
+    STRING_APPEND(COMMON_C_FLAGS     " -ftls-model=initial-exec")
+    STRING_APPEND(COMMON_CXX_FLAGS   " -ftls-model=initial-exec")
+  ENDIF()
+
   # Solaris flags
   IF(SOLARIS)
     # Link mysqld with mtmalloc on Solaris 10 and later
     SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
 
-    IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    IF(MY_COMPILER_IS_SUNPRO)
       SET(SUNPRO_FLAGS     "")
       STRING_APPEND(SUNPRO_FLAGS     " -xbuiltin=%all")
       STRING_APPEND(SUNPRO_FLAGS     " -xlibmil")

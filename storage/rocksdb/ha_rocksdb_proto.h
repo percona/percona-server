@@ -26,6 +26,9 @@
 #include "rocksdb/table.h"
 #include "rocksdb/utilities/transaction_db.h"
 
+/* MyRocks header files */
+#include "./rdb_global.h"
+
 namespace myrocks {
 
 enum RDB_IO_ERROR_TYPE {
@@ -68,6 +71,7 @@ class Rdb_cf_manager;
 Rdb_cf_manager &rdb_get_cf_manager();
 
 const rocksdb::BlockBasedTableOptions &rdb_get_table_options();
+bool rdb_is_table_scan_index_stats_calculation_enabled();
 bool rdb_is_ttl_enabled();
 bool rdb_is_ttl_read_filtering_enabled();
 #if !defined(DBUG_OFF)

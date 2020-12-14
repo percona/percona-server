@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,15 +92,15 @@ using my_testing::Server_initializer;
 
 class OptRangeTest : public ::testing::Test {
  protected:
-  OptRangeTest() : m_opt_param(NULL) {}
+  OptRangeTest() : m_opt_param(nullptr) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_alloc,
                    thd()->variables.range_alloc_block_size, 0);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete m_opt_param;
 
     initializer.TearDown();
@@ -206,7 +206,7 @@ class OptRangeTest : public ::testing::Test {
 
     @param type            The type of range predicate operator requested
     @param fld             The field used in the range predicate
-    @param val1            The value used in the range predicate
+    @param value           The value used in the range predicate
 
     @return Item for the specified range predicate
   */
@@ -314,7 +314,7 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
       result = new Item_func_xor(new Item_field(fld), new Item_int(value));
       break;
     default:
-      result = NULL;
+      result = nullptr;
       DBUG_ASSERT(false);
       return result;
   }
@@ -333,7 +333,7 @@ Item_func_xor *OptRangeTest::create_xor_item(Item *item1, Item *item2) {
 void OptRangeTest::check_use_count(SEL_TREE *tree) {
   for (uint i = 0; i < m_opt_param->keys; i++) {
     SEL_ROOT *cur_range = tree->keys[i];
-    if (cur_range != NULL) {
+    if (cur_range != nullptr) {
       EXPECT_FALSE(cur_range->test_use_count(cur_range));
     }
   }
@@ -428,9 +428,9 @@ TEST_F(OptRangeTest, AllocateImplicit) {
   We cannot do EXPECT_NE(NULL, get_mm_tree(...))
   because of limits in google test.
  */
-const SEL_TREE *null_tree = NULL;
-const SEL_ROOT *null_root = NULL;
-const SEL_ARG *null_arg = NULL;
+const SEL_TREE *null_tree = nullptr;
+const SEL_ROOT *null_root = nullptr;
+const SEL_ARG *null_arg = nullptr;
 
 static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi) {
@@ -1565,7 +1565,7 @@ class Mock_SEL_ARG : public SEL_ARG {
     part = 1;
     min_flag = 0;
     max_flag = 0;
-    maybe_flag = 0;
+    maybe_flag = false;
   }
 };
 
@@ -1579,8 +1579,8 @@ static Item_row *new_Item_row(int a, int b) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1589,9 +1589,9 @@ static Item_row *new_Item_row(int a, int b, int c) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(c));
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
+  items.push_back(new Item_int(c));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1601,7 +1601,7 @@ static Item_row *new_Item_row(Field **fields, int count) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
+  mem_root_deque<Item *> items(*THR_MALLOC);
   for (int i = count - 1; i > 0; --i)
     items.push_front(new Item_field(fields[i]));
   return new Item_row(POS(), new Item_field(fields[0]), items);
@@ -1627,7 +1627,7 @@ TEST_F(OptRangeTest, RowConstructorIn2) {
 
   SEL_TREE *sel_tree = get_mm_tree(m_opt_param, cond);
 
-  EXPECT_FALSE(sel_tree == NULL);
+  EXPECT_FALSE(sel_tree == nullptr);
   EXPECT_EQ(Key_map(1), sel_tree->keys_map);
 
   const char *expected =
@@ -1657,7 +1657,7 @@ TEST_F(OptRangeTest, RowConstructorIn3) {
 
   SEL_TREE *sel_tree = get_mm_tree(m_opt_param, cond);
 
-  EXPECT_FALSE(sel_tree == NULL);
+  EXPECT_FALSE(sel_tree == nullptr);
   EXPECT_EQ(Key_map(1), sel_tree->keys_map);
 
   const char *expected =
@@ -1734,11 +1734,11 @@ TEST_F(OptRangeTest, CombineAlways2) {
    public:
     Fake_sel_arg() {
       part = 0;
-      left = NULL;
-      next = NULL;
-      min_flag = max_flag = maybe_flag = 0;
+      left = nullptr;
+      next = nullptr;
+      min_flag = max_flag = maybe_flag = false;
       set_endpoints(1, 2);
-      next_key_part = NULL;
+      next_key_part = nullptr;
       make_root();
     }
 
@@ -1773,8 +1773,8 @@ TEST_F(OptRangeTest, CombineAlways2) {
   always_root.min_flag = NO_MIN_RANGE;
   always_root.max_flag = NO_MAX_RANGE;
   SEL_ROOT always(&always_root), key_range(&key_range_root);
-  Mock_field_long field1("col_1", false);
-  Mock_field_long field2("col_2", false);
+  Mock_field_long field1("col_1", false, false);
+  Mock_field_long field2("col_2", false, false);
   Fake_TABLE table(&field1, &field2);
   String res(1000), so_far(1000);
   Fake_key_part_info key_part_info[] = {Fake_key_part_info(&field1),
@@ -1783,7 +1783,8 @@ TEST_F(OptRangeTest, CombineAlways2) {
   Fake_sel_arg other_root;
   other_root.add_next_key_part(&key_range);
   SEL_ROOT other(&other_root);
-  append_range_all_keyparts(NULL, &res, &so_far, &other, key_part_info, true);
+  append_range_all_keyparts(nullptr, &res, &so_far, &other, key_part_info,
+                            true);
 
   // Let's make sure we built the expression we expected ...
   EXPECT_STREQ("(1 <= col_1 <= 2 AND 1 <= col_2 <= 2)", res.ptr());
@@ -1793,7 +1794,7 @@ TEST_F(OptRangeTest, CombineAlways2) {
 
 TEST_F(OptRangeTest, AppendRange) {
   String out(100);
-  Mock_field_long field("my_field", false);
+  Mock_field_long field("my_field", false, false);
   Fake_TABLE table(&field);
   KEY_PART_INFO kp;
   kp.field = &field;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -175,7 +175,15 @@ V
 lock_sys_wait_mutex			Mutex protecting lock timeout data
 |
 V
-lock_sys_mutex				Mutex protecting lock_sys_t
+lock_sys->global_sharded_latch		Sharded rw-latch protecting lock_sys_t
+|
+V
+lock_sys->table_mutexes			Mutexes protecting lock_sys_t table
+|					lock queues
+|
+V
+lock_sys->page_mutexes			Mutexes protecting lock_sys_t page
+|					lock queues
 |
 V
 trx_sys->mutex				Mutex protecting trx_sys_t
@@ -225,8 +233,6 @@ enum latch_level_t {
 
   SYNC_FIL_SHARD,
 
-  SYNC_DOUBLEWRITE,
-
   SYNC_PAGE_ARCH_OPER,
 
   SYNC_BUF_FLUSH_LIST,
@@ -238,6 +244,8 @@ enum latch_level_t {
   SYNC_BUF_PAGE_HASH,
   SYNC_BUF_LRU_LIST,
   SYNC_BUF_CHUNKS,
+
+  SYNC_DBLWR,
 
   SYNC_SEARCH_SYS,
 
@@ -257,6 +265,7 @@ enum latch_level_t {
   SYNC_LOG_CLOSER,
   SYNC_LOG_CHECKPOINTER,
   SYNC_LOG_SN,
+  SYNC_LOG_SN_MUTEX,
   SYNC_PAGE_ARCH,
   SYNC_PAGE_ARCH_CLIENT,
   SYNC_LOG_ARCH,
@@ -266,13 +275,13 @@ enum latch_level_t {
   SYNC_PAGE_CLEANER,
   SYNC_PURGE_QUEUE,
   SYNC_TRX_SYS_HEADER,
-  SYNC_REC_LOCK,
   SYNC_THREADS,
   SYNC_TRX,
   SYNC_POOL,
   SYNC_POOL_MANAGER,
   SYNC_TRX_SYS,
-  SYNC_LOCK_SYS,
+  SYNC_LOCK_SYS_SHARDED,
+  SYNC_LOCK_SYS_GLOBAL,
   SYNC_LOCK_WAIT_SYS,
 
   SYNC_INDEX_ONLINE_LOG,
@@ -352,6 +361,7 @@ enum latch_id_t {
   LATCH_ID_BUF_POOL_ZIP_FREE,
   LATCH_ID_BUF_POOL_ZIP_HASH,
   LATCH_ID_BUF_POOL_FLUSH_STATE,
+  LATCH_ID_DBLWR,
   LATCH_ID_CACHE_LAST_READ,
   LATCH_ID_DICT_FOREIGN_ERR,
   LATCH_ID_DICT_SYS,
@@ -368,7 +378,12 @@ enum latch_id_t {
   LATCH_ID_IBUF,
   LATCH_ID_IBUF_PESSIMISTIC_INSERT,
   LATCH_ID_LOCK_FREE_HASH,
+  LATCH_ID_LOCK_SYS_GLOBAL,
+  LATCH_ID_LOCK_SYS_PAGE,
+  LATCH_ID_LOCK_SYS_TABLE,
+  LATCH_ID_LOCK_SYS_WAIT,
   LATCH_ID_LOG_SN,
+  LATCH_ID_LOG_SN_MUTEX,
   LATCH_ID_LOG_CHECKPOINTER,
   LATCH_ID_LOG_CLOSER,
   LATCH_ID_LOG_WRITER,
@@ -401,20 +416,16 @@ enum latch_id_t {
   LATCH_ID_RTR_PATH_MUTEX,
   LATCH_ID_RW_LOCK_LIST,
   LATCH_ID_RW_LOCK_MUTEX,
-  LATCH_ID_SRV_DICT_TMPFILE,
   LATCH_ID_SRV_INNODB_MONITOR,
   LATCH_ID_SRV_MISC_TMPFILE,
   LATCH_ID_SRV_MONITOR_FILE,
   LATCH_ID_SYNC_THREAD,
-  LATCH_ID_BUF_DBLWR,
   LATCH_ID_TRX_UNDO,
   LATCH_ID_TRX_POOL,
   LATCH_ID_TRX_POOL_MANAGER,
   LATCH_ID_TEMP_POOL_MANAGER,
   LATCH_ID_TEMP_POOL_TBLSP,
   LATCH_ID_TRX,
-  LATCH_ID_LOCK_SYS,
-  LATCH_ID_LOCK_SYS_WAIT,
   LATCH_ID_TRX_SYS,
   LATCH_ID_SRV_SYS,
   LATCH_ID_SRV_SYS_TASKS,
@@ -464,6 +475,7 @@ enum latch_id_t {
   LATCH_ID_CLONE_TASK,
   LATCH_ID_CLONE_SNAPSHOT,
   LATCH_ID_PARALLEL_READ,
+  LATCH_ID_DBLR,
   LATCH_ID_REDO_LOG_ARCHIVE_ADMIN_MUTEX,
   LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX,
   LATCH_ID_TEST_MUTEX,
@@ -486,7 +498,7 @@ struct OSMutex {
     InitializeCriticalSection((LPCRITICAL_SECTION)&m_mutex);
 #else
     {
-      int ret = pthread_mutex_init(&m_mutex, NULL);
+      int ret = pthread_mutex_init(&m_mutex, nullptr);
       ut_a(ret == 0);
     }
 #endif /* _WIN32 */
@@ -510,8 +522,12 @@ struct OSMutex {
     ret = pthread_mutex_destroy(&m_mutex);
 
     if (ret != 0) {
-      ib::error() << "Return value " << ret
-                  << " when calling pthread_mutex_destroy().";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1372)
+#endif
+          << "Return value " << ret << " when calling pthread_mutex_destroy().";
     }
 #endif /* _WIN32 */
     ut_d(m_freed = true);
@@ -644,10 +660,7 @@ class LatchCounter {
   ~LatchCounter() UNIV_NOTHROW {
     m_mutex.destroy();
 
-    for (Counters::iterator it = m_counters.begin(); it != m_counters.end();
-         ++it) {
-      Count *count = *it;
-
+    for (Count *count : m_counters) {
       UT_DELETE(count);
     }
   }
@@ -659,10 +672,8 @@ class LatchCounter {
   void reset() UNIV_NOTHROW {
     m_mutex.enter();
 
-    Counters::iterator end = m_counters.end();
-
-    for (Counters::iterator it = m_counters.begin(); it != end; ++it) {
-      (*it)->reset();
+    for (Count *count : m_counters) {
+      count->reset();
     }
 
     m_mutex.exit();
@@ -689,7 +700,7 @@ class LatchCounter {
 
   /** Deregister the count. We don't do anything
   @param[in]	count		The count instance to deregister */
-  void sum_deregister(Count *count) UNIV_NOTHROW { /* Do nothing */
+  void sum_deregister(Count *count) const UNIV_NOTHROW { /* Do nothing */
   }
 
   /** Register a single instance counter */
@@ -714,22 +725,20 @@ class LatchCounter {
 
   /** Iterate over the counters */
   template <typename Callback>
-  void iterate(Callback &callback) const UNIV_NOTHROW {
-    Counters::const_iterator end = m_counters.end();
-
-    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
-      callback(*it);
+  void iterate(Callback &&callback) const UNIV_NOTHROW {
+    m_mutex.enter();
+    for (const Count *count : m_counters) {
+      std::forward<Callback>(callback)(count);
     }
+    m_mutex.exit();
   }
 
   /** Disable the monitoring */
   void enable() UNIV_NOTHROW {
     m_mutex.enter();
 
-    Counters::const_iterator end = m_counters.end();
-
-    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
-      (*it)->m_enabled = true;
+    for (Count *count : m_counters) {
+      count->m_enabled = true;
     }
 
     m_active = true;
@@ -741,10 +750,8 @@ class LatchCounter {
   void disable() UNIV_NOTHROW {
     m_mutex.enter();
 
-    Counters::const_iterator end = m_counters.end();
-
-    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
-      (*it)->m_enabled = false;
+    for (Count *count : m_counters) {
+      count->m_enabled = false;
     }
 
     m_active = false;
@@ -765,7 +772,7 @@ class LatchCounter {
   typedef std::vector<Count *> Counters;
 
   /** Mutex protecting m_counters */
-  Mutex m_mutex;
+  mutable Mutex m_mutex;
 
   /** Counters for the latches */
   Counters m_counters;
@@ -940,7 +947,7 @@ std::string sync_mutex_to_string(latch_id_t id, const std::string &created);
 
 /** Get the latch name from a sync level
 @param[in]	level		Latch level to lookup
-@return 0 if not found. */
+@return nullptr if not found. */
 const char *sync_latch_get_name(latch_level_t level);
 
 /** Print the filename "basename"
@@ -1034,7 +1041,7 @@ struct latch_t {
     for library. We will never reach here because
     mutexes are disabled in library. */
     ut_error;
-    return (NULL);
+    return (nullptr);
 #endif /* !UNIV_LIBRARY */
   }
 
@@ -1064,12 +1071,12 @@ struct btrsea_sync_check : public sync_check_functor_t {
       : m_result(), m_has_search_latch(has_search_latch) {}
 
   /** Destructor */
-  virtual ~btrsea_sync_check() {}
+  ~btrsea_sync_check() override {}
 
   /** Called for every latch owned by the calling thread.
   @param[in]	level		Level of the existing latch
   @return true if the predicate check fails */
-  virtual bool operator()(const latch_level_t level) {
+  bool operator()(const latch_level_t level) override {
     /* If calling thread doesn't hold search latch then
     check if there are latch level exception provided.
 
@@ -1092,9 +1099,14 @@ struct btrsea_sync_check : public sync_check_functor_t {
          level != SYNC_DICT_OPERATION && level != SYNC_TRX_I_S_LAST_READ &&
          level != SYNC_TRX_I_S_RWLOCK)) {
       m_result = true;
-      ib::error() << "Debug: Calling thread does not hold search "
-                     "latch but does hold latch level "
-                  << level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1373)
+#endif
+          << "Debug: Calling thread does not hold search "
+             "latch but does hold latch level "
+          << level << ".";
 
       return (m_result);
     }
@@ -1103,7 +1115,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
   }
 
   /** @return result from the check */
-  virtual bool result() const { return (m_result); }
+  bool result() const override { return (m_result); }
 
  private:
   /** True if all OK */
@@ -1122,18 +1134,23 @@ struct dict_sync_check : public sync_check_functor_t {
       : m_result(), m_dict_mutex_allowed(dict_mutex_allowed) {}
 
   /** Destructor */
-  virtual ~dict_sync_check() {}
+  ~dict_sync_check() override {}
 
   /** Check the latching constraints
   @param[in]	level		The level held by the thread */
-  virtual bool operator()(const latch_level_t level) {
+  bool operator()(const latch_level_t level) override {
     if (!m_dict_mutex_allowed ||
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&
          level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
-      ib::error() << "Debug: Dictionary latch order violation for level "
-                  << level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1374)
+#endif
+          << "Debug: Dictionary latch order violation for level " << level
+          << ".";
 
       return (true);
     }
@@ -1142,7 +1159,7 @@ struct dict_sync_check : public sync_check_functor_t {
   }
 
   /** @return the result of the check */
-  virtual bool result() const { return (m_result); }
+  virtual bool result() const override { return (m_result); }
 
  private:
   /** True if all OK */
@@ -1167,10 +1184,9 @@ struct sync_allowed_latches : public sync_check_functor_t {
 
   @param[in]	level	The latch level to check
   @return true if there is a latch ordering violation */
-  virtual bool operator()(const latch_level_t level) {
-    for (latches_t::const_iterator it = m_latches.begin();
-         it != m_latches.end(); ++it) {
-      if (level == *it) {
+  virtual bool operator()(const latch_level_t level) override {
+    for (latch_level_t allowed_level : m_latches) {
+      if (level == allowed_level) {
         m_result = false;
 
         /* No violation */
@@ -1178,13 +1194,18 @@ struct sync_allowed_latches : public sync_check_functor_t {
       }
     }
 
-    ib::error() << "Debug: sync_allowed_latches violation for level=" << level;
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::error(ER_IB_MSG_1375)
+#endif
+        << "Debug: sync_allowed_latches violation for level=" << level;
     m_result = true;
     return (m_result);
   }
 
   /** @return the result of the check */
-  virtual bool result() const { return (m_result); }
+  virtual bool result() const override { return (m_result); }
 
  private:
   /** Save the result of validation check here
@@ -1199,7 +1220,7 @@ struct sync_allowed_latches : public sync_check_functor_t {
 
 /** Get the latch id from a latch name.
 @param[in]	name	Latch name
-@return LATCH_ID_NONE. */
+@return latch id if found else LATCH_ID_NONE. */
 latch_id_t sync_latch_get_id(const char *name);
 
 typedef ulint rw_lock_flags_t;

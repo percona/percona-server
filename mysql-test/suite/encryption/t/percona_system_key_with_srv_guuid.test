@@ -1,0 +1,110 @@
+# PS-5729: Add server's UUID to percona system keys.
+
+CREATE TABLE t1 (a varchar(255)) ENCRYPTION='KEYRING'; # default encryption_key_id=0
+CREATE TABLE t2 (a varchar(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1;
+CREATE TABLE t3 (a varchar(255)) ENCRYPTION_KEY_ID=2;
+CREATE TABLE t4 (a varchar(255)) ENCRYPTION_KEY_ID=3;
+
+--let keyring_file=$MYSQL_TMP_DIR/mysecret_keyring
+--let $server_uuid=`SELECT @@GLOBAL.SERVER_UUID`
+
+--echo # Check that percona_innodb-0 with version 1 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-0-$server_uuid:1
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$keyring_file
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-1 with version 1 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-1-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-2 with version 1 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-2-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-3 with version 1 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-3-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+CREATE TABLE t5 (a varchar(255));
+ALTER TABLE t5 ENCRYPTION_KEY_ID=4;
+
+--echo # Check that percona_innodb-4 with version 1 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-4-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Now rotate key 0 and check if new and old versions of the keys exist in keyring
+--echo # Successful rotation of percona_innodb-0 to version 2
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+
+--echo # Check that percona_innodb-0 with version 1 and server_uuid STILL exists in keyring
+--let SEARCH_PATTERN=percona_innodb-0-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-0 with version 2 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-0-$server_uuid:2
+--source include/search_pattern_in_file.inc
+
+--echo # Now rotate key 1 and check if new and old versions of the keys exist in keyring
+--echo # Successful rotation of percona_innodb-1 to version 2
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 1;
+
+--echo # Check that percona_innodb-1 with version 1 and server_uuid STILL exists in keyring
+--let SEARCH_PATTERN=percona_innodb-1-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-1 with version 2 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-1-$server_uuid:2
+--source include/search_pattern_in_file.inc
+
+--echo # Now rotate key 2 and check if new and old versions of the keys exist in keyring
+--echo # Successful rotation of percona_innodb-2 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 2;
+
+--echo # Check that percona_innodb-2 with version 1 and server_uuid STILL exists in keyring
+--let SEARCH_PATTERN=percona_innodb-2-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-2 with version 2 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-2-$server_uuid:2
+--source include/search_pattern_in_file.inc
+
+--echo # Now rotate key 3 and check if new and old versions of the keys exist in keyring
+--echo # Successful rotation of percona_innodb-3 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 3;
+
+--echo # Check that percona_innodb-3 with version 1 and server_uuid STILL exists in keyring
+--let SEARCH_PATTERN=percona_innodb-3-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-3 with version 2 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-3-$server_uuid:2
+--source include/search_pattern_in_file.inc
+
+--echo # Now rotate key 4 and check if new and old versions of the keys exist in keyring.
+--echo # Successful rotation of percona_innodb-4 to version 2.
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4;
+
+--echo # Check that percona_innodb-4 with version 1 and server_uuid STILL exists in keyring
+--let SEARCH_PATTERN=percona_innodb-4-$server_uuid:1
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-4 with version 2 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-4-$server_uuid:2
+--source include/search_pattern_in_file.inc
+
+# Check one more key rotation just to be sure
+--echo # Now rotate key 4 and check if new and old versions of the keys exist in keyring
+--echo # Successful rotation of percona_innodb-4 to version 3
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4;
+
+--echo # Check that percona_innodb-4 with version 2 and server_uuid STILL exists in keyring
+--let SEARCH_PATTERN=percona_innodb-4-$server_uuid:2
+--source include/search_pattern_in_file.inc
+
+--echo # Check that percona_innodb-4 with version 3 and server_uuid exists in keyring
+--let SEARCH_PATTERN=percona_innodb-4-$server_uuid:3
+--source include/search_pattern_in_file.inc
+
+# cleanup
+DROP TABLE t1,t2,t3,t4,t5;

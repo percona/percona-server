@@ -124,7 +124,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SET GLOBAL innodb_compressed_columns_zip_level = -1;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_zip_le value: '-1'
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_level value: '-1'
 SELECT @@global.innodb_compressed_columns_zip_level;
 @@global.innodb_compressed_columns_zip_level
 0
@@ -141,7 +141,7 @@ SELECT @@global.innodb_compressed_columns_zip_level;
 INSERT INTO t1 VALUES(REPEAT('abcd', 200));
 SET GLOBAL innodb_compressed_columns_zip_level = 10;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_zip_le value: '10'
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_level value: '10'
 SELECT @@global.innodb_compressed_columns_zip_level;
 @@global.innodb_compressed_columns_zip_level
 9
@@ -156,7 +156,7 @@ SET @old_innodb_compressed_columns_threshold = @@global.innodb_compressed_column
 TRUNCATE TABLE t1;
 SET GLOBAL innodb_compressed_columns_threshold = 0;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_thresh value: '0'
+Warning	1292	Truncated incorrect innodb_compressed_columns_threshold value: '0'
 SELECT @@global.innodb_compressed_columns_threshold;
 @@global.innodb_compressed_columns_threshold
 1
@@ -179,9 +179,9 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d BLOB COLUMN_F
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `d` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -216,9 +216,9 @@ ALTER TABLE t2 MODIFY COLUMN d BLOB;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `d` blob,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1837 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

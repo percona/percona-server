@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -910,7 +910,7 @@ public:
   typedef SLFifoList<TakeOverRecord_pool> TakeOverRecord_fifo;
 
 
-  virtual bool getParam(const char * param, Uint32 * retVal) { 
+  bool getParam(const char * param, Uint32 * retVal) override { 
     if (param && strcmp(param, "ActiveMutexes") == 0)
     {
       if (retVal)
@@ -924,7 +924,7 @@ public:
   
 public:
   Dbdih(Block_context& ctx);
-  virtual ~Dbdih();
+  ~Dbdih() override;
 
   struct RWFragment {
     Uint32 pageIndex;
@@ -1049,6 +1049,7 @@ private:
   void execCHECK_LCP_IDLE_ORD(Signal *);
 
   void execDIH_GET_TABINFO_REQ(Signal*);
+  void execSET_UP_MULTI_TRP_CONF(Signal*);
 
   /**
    * A number of functions used to find out if any node is currently is
@@ -1097,7 +1098,6 @@ private:
   void dequeue_lcp_rep(Signal*);
   void start_copy_meta_data(Signal*);
   void start_lcp(Signal*);
-  bool check_if_pause_lcp_possible(void);
   void start_lcp_before_mutex(Signal*);
   void queue_lcp_frag_rep(Signal *signal, LcpFragRep *lcpReport);
   void queue_lcp_complete_rep(Signal *signal, Uint32 lcpId);
@@ -1113,7 +1113,6 @@ private:
    * lcp protocol with all nodes.
    */
   bool c_lcp_runs_with_pause_support; /* Master state */
-  bool c_old_node_waiting_for_lcp_end; /* Master state */
 
   /**
    * This is the state in the master that keeps track of where the master is 
@@ -1620,7 +1619,9 @@ private:
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
   Uint32 compute_max_failure_time();
-  void setGCPStopTimeouts(Signal*);
+  void setGCPStopTimeouts(Signal*,
+                          bool set_gcp_save_max_lag = true,
+                          bool set_micro_gcp_max_lag = true);
   void sendINFO_GCP_STOP_TIMER(Signal*);
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
@@ -2203,6 +2204,10 @@ private:
       Uint32 m_gci;
       Uint32 m_elapsed_ms; //MilliSec since last GCP_SAVEed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
+      bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
+#ifdef ERROR_INSERT
+      bool test_set_max_lag; // Testing
+#endif
     } m_gcp_save;
 
     struct
@@ -2210,9 +2215,17 @@ private:
       Uint64 m_gci;
       Uint32 m_elapsed_ms; //MilliSec since last GCP_COMMITed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
+      bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
+#ifdef ERROR_INSERT
+      bool test_set_max_lag; // Testing
+#endif
     } m_micro_gcp;
 
     NDB_TICKS m_last_check; //Time GCP monitor last checked
+
+#ifdef ERROR_INSERT
+    Uint32 m_savedMaxCommitLag;  // Testing
+#endif
   } m_gcp_monitor;
 
   /*------------------------------------------------------------------------*/
@@ -2583,6 +2596,11 @@ private:
      */
     Uint32 waitGCI;
 
+    /**
+     * Special value indicating a request for shutdown sync
+     */
+    static const Uint32 ShutdownSyncGci = 0xffffffff;
+
     union { Uint32 nextPool; Uint32 nextList; };
     Uint32 prevList;
   };
@@ -2605,8 +2623,13 @@ private:
 
   void checkWaitGCPProxy(Signal*, NodeId failedNodeId);
   void checkWaitGCPMaster(Signal*, NodeId failedNodeId);
+  void checkShutdownSync();
   void emptyWaitGCPMasterQueue(Signal*, Uint64, WaitGCPList&);
-  
+
+  void getNodeBitmap(NdbNodeBitmask& map,
+                     Uint32 listHead,
+                     int (*versionFunction) (Uint32));
+
   /**
    * Stop me
    */
@@ -2709,7 +2732,8 @@ private:
     enum State {
       LS_INITIAL = 0,
       LS_RUNNING = 1,
-      LS_COMPLETE = 2
+      LS_COMPLETE = 2,
+      LS_RUNNING_MTO_TAB_SAVED = 3
     } m_state;
     
     StartLcpReq m_start_lcp_req;
@@ -2720,6 +2744,7 @@ private:
     
     void reset();
     void init(const StartLcpReq*);
+    void init_master_take_over_idle_to_tab_saved();
     void lcp_frag_rep(const LcpFragRep*);
     void lcp_complete_rep(Uint32 gci);
     
@@ -2781,8 +2806,15 @@ private:
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
   bool m_master_lcp_req_lcp_already_completed;
 
+  void complete_restart_nr(Signal*);
+
   /* The highest data node id in the cluster. */
   Uint32 m_max_node_id;
+  bool m_set_up_multi_trp_in_node_restart;
+public:
+  bool is_master() { return isMaster(); }
+  
+  NdbNodeBitmask c_shutdownReqNodes;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)

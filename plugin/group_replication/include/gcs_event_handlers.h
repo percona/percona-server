@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,18 +66,18 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
                             Recovery_module *recovery_module,
                             Compatibility_module *compatibility_manager,
                             ulong components_stop_timeout);
-  virtual ~Plugin_gcs_events_handler();
+  ~Plugin_gcs_events_handler() override;
 
   /*
    Implementation of all callback methods
    */
-  void on_message_received(const Gcs_message &message) const;
+  void on_message_received(const Gcs_message &message) const override;
   void on_view_changed(const Gcs_view &new_view,
-                       const Exchanged_data &exchanged_data) const;
-  Gcs_message_data *get_exchangeable_data() const;
+                       const Exchanged_data &exchanged_data) const override;
+  Gcs_message_data *get_exchangeable_data() const override;
   void on_suspicions(
       const std::vector<Gcs_member_identifier> &members,
-      const std::vector<Gcs_member_identifier> &unreachable) const;
+      const std::vector<Gcs_member_identifier> &unreachable) const override;
 
   /**
     Sets the component stop timeout.
@@ -229,27 +229,24 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
       1) GTID assignment block size
       2) Write set hash algorithm
 
-    @return
-      @retval 0     Joiner has the same value as all other members
-      @retval !=0   Otherwise
+    @retval 0     Joiner has the same value as all other members
+    @retval !=0   Otherwise
   */
   int compare_member_option_compatibility() const;
 
   /**
     Check if a member is not entering a group where an action is running
 
-    @return
-      @retval false     no group action is running
-      @retval true   a group action is running
+    @retval false     no group action is running
+    @retval true   a group action is running
   */
   bool is_group_running_a_configuration_change() const;
 
   /**
     Check if the group is running a primary election
 
-    @return
-      @retval false  no primary election is running
-      @retval true   a primary election is running
+    @retval false  no primary election is running
+    @retval true   a primary election is running
   */
   bool is_group_running_a_primary_election() const;
 
@@ -259,9 +256,8 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
 
     @param[in]  view        the view delivered by the GCS
 
-    @return
-        @retval true   the member was expelled
-        @retval false  otherwise
+    @retval true   the member was expelled
+    @retval false  otherwise
   */
   bool was_member_expelled_from_group(const Gcs_view &view) const;
 

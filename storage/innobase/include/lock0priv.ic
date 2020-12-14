@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -100,26 +100,21 @@ lock_t *lock_rec_get_next_on_page(lock_t *lock) /*!< in: a record lock */
   return ((lock_t *)lock_rec_get_next_on_page_const(lock));
 }
 
-/** Gets the first record lock on a page, where the page is identified by its
- file address.
- @return	first lock, NULL if none exists */
 UNIV_INLINE
-lock_t *lock_rec_get_first_on_page_addr(
-    hash_table_t *lock_hash, /*!< in: Lock hash table */
-    space_id_t space,        /*!< in: space */
-    page_no_t page_no)       /*!< in: page number */
-{
-  ut_ad(lock_mutex_own());
+lock_t *lock_rec_get_first_on_page_addr(hash_table_t *lock_hash,
+                                        const page_id_t &page_id) {
+  ut_ad(locksys::owns_page_shard(page_id));
 
   for (lock_t *lock = static_cast<lock_t *>(
-           HASH_GET_FIRST(lock_hash, lock_rec_hash(space, page_no)));
-       lock != NULL; lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
-    if (lock->space_id() == space && lock->page_no() == page_no) {
+           HASH_GET_FIRST(lock_hash, lock_rec_hash(page_id)));
+       lock != nullptr;
+       lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
+    if (page_id == lock->rec_lock.page_id) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the first record lock on a page, where the page is identified by a
@@ -130,20 +125,20 @@ lock_t *lock_rec_get_first_on_page(
     hash_table_t *lock_hash,  /*!< in: lock hash table */
     const buf_block_t *block) /*!< in: buffer block */
 {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
 
-  space_id_t space = block->page.id.space();
-  page_no_t page_no = block->page.id.page_no();
+  const page_id_t page_id = block->page.id;
   ulint hash = buf_block_get_lock_hash_val(block);
 
   for (lock_t *lock = static_cast<lock_t *>(HASH_GET_FIRST(lock_hash, hash));
-       lock != NULL; lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
-    if (lock->space_id() == space && lock->page_no() == page_no) {
+       lock != nullptr;
+       lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
+    if (page_id == lock->rec_lock.page_id) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the next explicit lock request on a record.
@@ -153,7 +148,7 @@ UNIV_INLINE
 lock_t *lock_rec_get_next(ulint heap_no, /*!< in: heap number of the record */
                           lock_t *lock)  /*!< in: lock */
 {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
 
   do {
     ut_ad(lock_get_type_low(lock) == LOCK_REC);
@@ -175,24 +170,6 @@ const lock_t *lock_rec_get_next_const(
 }
 
 /** Gets the first explicit lock request on a record.
-@param[in]	hash		Record hash
-@param[in]	rec_id		Record ID
-@return	first lock, nullptr if none exists */
-UNIV_INLINE
-lock_t *lock_rec_get_first(hash_table_t *hash, const RecID &rec_id) {
-  ut_ad(lock_mutex_own());
-
-  auto lock = lock_rec_get_first_on_page_addr(hash, rec_id.m_space_id,
-                                              rec_id.m_page_no);
-
-  if (lock != nullptr && !lock_rec_get_nth_bit(lock, rec_id.m_heap_no)) {
-    lock = lock_rec_get_next(rec_id.m_heap_no, lock);
-  }
-
-  return (lock);
-}
-
-/** Gets the first explicit lock request on a record.
  @return	first lock, NULL if none exists */
 UNIV_INLINE
 lock_t *lock_rec_get_first(
@@ -200,7 +177,7 @@ lock_t *lock_rec_get_first(
     const buf_block_t *block, /*!< in: block containing the record */
     ulint heap_no)            /*!< in: heap number of the record */
 {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
 
   for (lock_t *lock = lock_rec_get_first_on_page(hash, block); lock;
        lock = lock_rec_get_next_on_page(lock)) {
@@ -209,7 +186,7 @@ lock_t *lock_rec_get_first(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the nth bit of a record lock.
@@ -238,20 +215,18 @@ UNIV_INLINE
 const lock_t *lock_rec_get_next_on_page_const(
     const lock_t *lock) /*!< in: a record lock */
 {
-  ut_ad(lock_mutex_own());
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
-
-  space_id_t space = lock->space_id();
-  page_no_t page_no = lock->page_no();
+  const auto page_id = lock->rec_lock.page_id;
+  ut_ad(locksys::owns_page_shard(page_id));
 
   while ((lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) !=
-         NULL) {
-    if (lock->space_id() == space && lock->page_no() == page_no) {
+         nullptr) {
+    if (page_id == lock->rec_lock.page_id) {
       return (lock);
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Gets the mode of a lock.
@@ -299,44 +274,21 @@ ulint lock_get_wait(const lock_t *lock) /*!< in: lock */
 UNIV_INLINE
 void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
 {
-  ut_ad(lock->trx->lock.wait_lock == lock);
+  ut_ad(locksys::owns_lock_shard(lock));
   ut_ad(lock_get_wait(lock));
-  ut_ad(lock_mutex_own());
-
+  ut_ad(lock->trx->lock.wait_lock == lock);
   /* We intentionally don't clear trx->lock.blocking_trx here, as
   lock_reset_lock_and_trx_wait() is called also during movements of locks from
   one page to another, which does not really change the structure of the
   wait-for graph. Instead the lock_reset_wait_and_release_thread_if_suspended()
   is responsible for clearing the blocking_trx field once it is sure that
   we really want to remove the edge from the wait-for graph.*/
-  lock->trx->lock.wait_lock = NULL;
+  lock->trx->lock.wait_lock = nullptr;
+
   /* We intentionally don't clear lock->trx->lock.wait_lock_type here, to make
   it easier to obtain stats about the last wait in lock_wait_suspend_thread().
   @see trx_lock_t::wait_lock_type for more detailed explanation. */
   lock->type_mode &= ~LOCK_WAIT;
-}
-
-/** Looks for a suitable type record lock struct by the same trx on the same
- page. This can be used to save space when a new record lock should be set on a
- page: no new struct is needed, if a suitable old is found.
- @return lock or NULL */
-UNIV_INLINE
-lock_t *lock_rec_find_similar_on_page(
-    ulint type_mode,  /*!< in: lock type_mode field */
-    ulint heap_no,    /*!< in: heap number of the record */
-    lock_t *lock,     /*!< in: lock_rec_get_first_on_page() */
-    const trx_t *trx) /*!< in: transaction */
-{
-  ut_ad(lock_mutex_own());
-
-  for (/* No op */; lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
-    if (lock->trx == trx && lock->type_mode == type_mode &&
-        lock_rec_get_n_bits(lock) > heap_no) {
-      return (lock);
-    }
-  }
-
-  return (NULL);
 }
 
 UNIV_INLINE
@@ -344,6 +296,7 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
                     lock_mode in_mode) {
   ut_ad(!trx_mutex_own(trx));
   trx_mutex_enter(trx);
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
 
   if (trx->lock.table_locks.empty()) {
     trx_mutex_exit(trx);
@@ -365,7 +318,7 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
 
     ut_ad(trx == lock->trx);
     ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-    ut_ad(lock->tab_lock.table != NULL);
+    ut_ad(lock->tab_lock.table != nullptr);
 
     if (table == lock->tab_lock.table &&
         lock_mode_stronger_or_eq(mode, in_mode)) {
@@ -384,8 +337,7 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
 @param[i]	lock		Lock to compare with
 @return true if <space, page_no, heap_no> matches the lock. */
 bool RecID::matches(const lock_t *lock) const {
-  return (lock->rec_lock.space == m_space_id &&
-          lock->rec_lock.page_no == m_page_no &&
+  return (lock->rec_lock.page_id == get_page_id() &&
           lock_rec_get_nth_bit(lock, m_heap_no));
 }
 

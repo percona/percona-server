@@ -1,0 +1,304 @@
+--echo #
+--echo # PS-6106: ALTER TABLE without ENCRYPTION clause causes tables to get encrypted
+--echo #
+
+
+--let $number_of_records = 10000
+--let MYSQLD_DATADIR = `SELECT @@datadir`
+
+--let DB_NAME = `SELECT DATABASE()`
+--let $t1_ibd = $MYSQLD_DATADIR/$DB_NAME/t1.ibd
+--let $t2_ibd = $MYSQLD_DATADIR/$DB_NAME/t2.ibd
+--let $t3_ibd = $MYSQLD_DATADIR/$DB_NAME/t3.ibd
+--let $t4_ibd = $MYSQLD_DATADIR/$DB_NAME/t4.ibd
+--let $t4_dup_ibd = $MYSQLD_DATADIR/$DB_NAME/t4_dup.ibd
+--let $t5_ibd = $MYSQLD_DATADIR/$DB_NAME/t5.ibd
+--let $t6_ibd = $MYSQLD_DATADIR/test_enc_n/t6.ibd
+--let $ts_encryption_n = $MYSQLD_DATADIR/ts_encryption_n.ibd
+--let $ts_altered_to_n = $MYSQLD_DATADIR/ts_altered_to_n.ibd
+
+# Create tablespace and ALTER its ENCRYPTION to N.
+# Check if ENCRYPTION='N' is visible in INFORMATION_SCHEMA.INNODB_TABLESPACES
+CREATE TABLESPACE ts_altered_to_n ADD DATAFILE 'ts_altered_to_n.ibd';
+CREATE TABLE t1_in_ts_altered_to_n (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) TABLESPACE ts_altered_to_n;
+ALTER TABLESPACE ts_altered_to_n ENCRYPTION='N';
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='KEYRING';
+CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB COMPRESSION="zlib";
+CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
+CREATE TABLE t4 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='N';
+CREATE TABLE t4_dup LIKE t4;
+CREATE TABLE t5 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
+CREATE TABLESPACE ts1;
+CREATE TABLESPACE ts_encryption_n ADD DATAFILE 'ts_encryption_n.ibd' ENCRYPTION='N';
+CREATE TABLE t1_in_ts_encryption_n (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) TABLESPACE ts_encryption_n;
+
+--echo # Make sure that all tables, apart from the ones with ENCRYPTION='N', have encryption set to 'Y'
+--echo # in INFORMATION_SCHEMA.INNODB_TABLESPACES (from DD tablespace options). All should be encrypted because
+--echo # we have default_table_encryption set to ONLINE_TO_KEYRING.
+--let $assert_text = Make sure t1s ENCRYPTION field is set to Y
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'test/t1\\']" = "Y"
+--source include/assert.inc
+--let $assert_text = Make sure t2s ENCRYPTION field is set to Y
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'test/t2\\']" = "Y"
+--source include/assert.inc
+--let $assert_text = Make sure t3s ENCRYPTION field is set to Y
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'test/t3\\']" = "Y"
+--source include/assert.inc
+--let $assert_text = Make sure ts1s ENCRYPTION field is set to Y
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'ts1\\']" = "Y"
+--source include/assert.inc
+--let $assert_text = Make sure t5s ENCRYPTION field is set to Y
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'test/t5\\']" = "Y"
+--source include/assert.inc
+--let $assert_text = Make sure t4s ENCRYPTION field is set to N
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'test/t4\\']" = "N"
+--source include/assert.inc
+--let $assert_text = Make sure t4_dups ENCRYPTION field is set to N
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'test/t4_dup\\']" = "N"
+--source include/assert.inc
+--let $assert_text = Make sure ts_encryption_ns ENCRYPTION field is set to N
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'ts_encryption_n\\']" = "N"
+--source include/assert.inc
+--let $assert_text = Make sure ts_altered_to_n ENCRYPTION field is set to N
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \\'ts_altered_to_n\\']" = "N"
+--source include/assert.inc
+
+SHOW CREATE TABLE t4_dup;
+
+--error ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH
+CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+USE test_enc_n;
+CREATE TABLE t6 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
+USE test;
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+CREATE TABLESPACE ts_d_t_e_off;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+delimiter //;
+CREATE PROCEDURE innodb_insert_proc(repeat_count INT)
+BEGIN
+  DECLARE current_num INT;
+  SET current_num = 0;
+  WHILE current_num < repeat_count DO
+    INSERT INTO t1 VALUES (current_num, REPEAT('foobar', 42));
+    INSERT INTO t2 VALUES (current_num, REPEAT('temp'  , 42));
+    INSERT INTO t3 VALUES (current_num, REPEAT('barfoo', 42));
+    INSERT INTO t4 VALUES (current_num, REPEAT('secret', 42));
+    INSERT INTO t4_dup VALUES (current_num, REPEAT('fbar', 42));
+    INSERT INTO t5 VALUES (current_num, REPEAT('feee', 42));
+    INSERT INTO test_enc_n.t6 VALUES (current_num, REPEAT('secsec', 42));
+    INSERT INTO t1_in_ts_encryption_n VALUES (current_num, REPEAT('sososo', 42));
+    INSERT INTO t1_in_ts_altered_to_n VALUES (current_num, REPEAT('xxxxxx', 42));
+    SET current_num = current_num + 1;
+  END WHILE;
+END//
+delimiter ;//
+COMMIT;
+
+SET autocommit = 0;
+eval CALL innodb_insert_proc($number_of_records);
+COMMIT;
+SET autocommit = 1;
+
+--let $tables_count = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES`
+
+--echo # Wait max 2 min for key encryption threads to encrypt all spaces
+--let $wait_timeout = 600
+# All tables should get encrypted, apart from temporary tablespace, t4, t4_dup, ts_encryption_n and ts_altered_to_n
+--let $wait_condition = SELECT COUNT(*) = $tables_count - 5 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t4 is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t4"] = 1
+--source include/assert.inc
+
+--let $assert_text = Make sure t4_dup is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t4_dup"] = 1
+--source include/assert.inc
+
+--let $assert_text = Make sure ts_encryption_n is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "ts_encryption_n"] = 1
+--source include/assert.inc
+
+--let $assert_text = Make sure ts_altered_to_n is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "ts_altered_to_n"] = 1
+--source include/assert.inc
+
+--let $assert_text = Make sure t6 is encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "test_enc_n/t6"] = 1
+--source include/assert.inc
+
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+ALTER TABLE t2 ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+ALTER TABLE t3 ENGINE InnoDB;
+SHOW CREATE TABLE t3;
+# before bug fix this would get t4 encrypted
+ALTER TABLE t4 ENGINE InnoDB;
+SHOW CREATE TABLE t4;
+ALTER TABLE t4_dup ENGINE InnoDB;
+SHOW CREATE TABLE t4_dup;
+ALTER TABLE t5 ENGINE InnoDB;
+SHOW CREATE TABLE t5;
+ALTER TABLE test_enc_n.t6 ENGINE InnoDB;
+SHOW CREATE TABLE test_enc_n.t6;
+ALTER TABLESPACE ts1 ENGINE InnoDB;
+ALTER TABLESPACE ts_encryption_n ENGINE InnoDB;
+ALTER TABLESPACE ts_d_t_e_off ENGINE InnoDB;
+ALTER TABLESPACE ts_altered_to_n ENGINE InnoDB;
+
+--let $assert_text = Make sure t1 is encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t1"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t2 is encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t2"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t3 is encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t3"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t4 is not encrypted, before bug fix this would fail, because t4 would get encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t4"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t4_dup is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t4_dup"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t5 is encrypted with key_id 2
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t5" AND CURRENT_KEY_ID = 2] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t6 is encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "test_enc_n/t6"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure ts_encryption_n is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "ts_encryption_n"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure ts_altered_to_n is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "ts_altered_to_n"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure ts1 is encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "ts1"] = 1
+--source include/assert.inc
+
+
+--echo # Tablespaces, apart from t4 should be encrypted after restart
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = temp
+--let SEARCH_FILE = $t2_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barfoo
+--let SEARCH_FILE = $t3_ibd
+--source include/search_pattern_in_file.inc
+# t4 should stay unenecrypted, before the bug fix this would fail
+# as t4 would get encrypted
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = secret
+--let SEARCH_FILE = $t4_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = fbar
+--let SEARCH_FILE = $t4_dup_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = feee
+--let SEARCH_FILE = $t5_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = secsec
+--let SEARCH_FILE = $t6_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = sososo
+--let SEARCH_FILE = $ts_encryption_n
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = xxxxxx
+--let SEARCH_FILE = $ts_altered_to_n
+--source include/search_pattern_in_file.inc
+
+ALTER TABLE t1 ENCRYPTION='N';
+--let $assert_text = Make sure t1 is marked as excluded in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond = "[SELECT EXCLUDED FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\'$DB_NAME/t1\\']" = "Y"
+--source include/assert.inc
+
+--error ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
+ALTER DATABASE test DEFAULT ENCRYPTION='Y';
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ON;
+SET GLOBAL innodb_encryption_threads=4;
+ALTER DATABASE test DEFAULT ENCRYPTION='Y';
+SHOW CREATE TABLE t4;
+SHOW CREATE TABLE t4_dup;
+ALTER DATABASE test DEFAULT ENCRYPTION='N';
+
+--source include/restart_mysqld.inc
+
+--echo # t1 should be decrypted
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+DROP TABLE t1,t2,t3,t4,t4_dup,t5,test_enc_n.t6,t1_in_ts_encryption_n,t1_in_ts_altered_to_n;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts_encryption_n;
+DROP TABLESPACE ts_d_t_e_off;
+DROP TABLESPACE ts_altered_to_n;
+DROP PROCEDURE innodb_insert_proc;
+DROP DATABASE test_enc_n;
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # Wait for key encryption threads to decrypt all spaces
+--let $wait_timeout = 600
+--let $wait_condition = SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+
+--echo #
+--echo # PS-7168: Assertion "ctx->trx"
+--echo #
+
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1(ol_o_id int,ol_d_id int,ol_w_id int,ol_number int,ol_tmp int,KEY (ol_w_id,ol_d_id,ol_o_id,ol_number)) PARTITION BY HASH (ol_w_id);
+ALTER TABLE t1 ADD COLUMN v2 CHAR(1),ALGORITHM=INSTANT;
+--echo # Below statement used to crash the server, due to PS-7168
+ALTER TABLE t1 ENCRYPTION='N';
+
+CREATE TABLE t2(ol_o_id int,ol_d_id int,ol_w_id int,ol_number int,ol_tmp int,KEY (ol_w_id,ol_d_id,ol_o_id,ol_number)) PARTITION BY HASH (ol_w_id);
+
+ALTER TABLE t2 TABLESPACE innodb_file_per_table ENCRYPTION='N';
+
+SET GLOBAL innodb_file_per_table=ON;
+
+CREATE TABLE t3(a INT);
+CREATE TABLESPACE ts1;
+
+ALTER TABLE t3 TABLESPACE=ts1 ENCRYPTION='N';
+
+CREATE TABLE t4(a INT) TABLESPACE innodb_system;
+ALTER TABLE t4 ENCRYPTION='N';
+
+DROP TABLE t1,t2,t3,t4;
+DROP TABLESPACE ts1;
+
+

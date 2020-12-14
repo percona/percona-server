@@ -134,14 +134,7 @@ with recursive qn as (
 select a+1 from qn where a<3)
 select * from qn;
 
---echo # no LIMIT as it's not pushed down to UNION members
---error ER_NOT_SUPPORTED_YET
-with recursive qn as (
-select 1 as a from dual union all
-select 1 from qn
-limit 10)
-select * from qn;
-
+--echo # No LIMIT inside recursive query block
 --error ER_NOT_SUPPORTED_YET
 with recursive qn as (
 select 1 as a from dual union all
@@ -281,29 +274,37 @@ select * from qn;
 --echo # Prove that a materialized QN is shared among all references:
 
 flush status;
+--sorted_result
 with recursive qn as (
 select 123 as a union all
 select 1+a from qn where a<125)
 select * from qn;
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like "handler_write";
 flush status;
+--sorted_result
 with recursive qn as (
 select 123 as a union all
 select 1+a from qn where a<125)
 select * from qn, qn as qn1;
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like "handler_write";
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like 'Created_tmp%table%';
 
 --echo # Also works if references are nested inside other query names:
 flush status;
+--sorted_result
 with recursive inner_ as (
 select 123 as a union all
 select 1+a from inner_ where a<125),
 outer_ as (select * from inner_ limit 10)
 select * from outer_, outer_ as outer1;
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like "handler_write";
 
 flush status;
+--sorted_result
 with recursive inner_ as (
 select 123 as a union all
 select 1+a from inner_ where a<125),
@@ -311,10 +312,12 @@ outer_ as
 (select inner_.a, inner1.a as a1
 from inner_, inner_ as inner1 limit 10)
 select * from outer_;
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like "handler_write";
 
 --echo # Even if the two query names are recursive:
 flush status;
+--sorted_result
 with recursive inner_ as (
 select 123 as a union all
 select 1+a from inner_ where a<125),
@@ -322,6 +325,7 @@ outer_ as
 (select a from inner_ union all
 select a*2 from outer_ where a<1000)
 select a from outer_;
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like "handler_write";
 
 --echo # Optimizer must be allowed to put the recursive reference first
@@ -873,6 +877,7 @@ select count(*), max(depth) from cte;
 
 --echo # Can use cycle detection:
 
+--sorted_result
 with recursive cte as
 (
   select id, cast(id as char(200)) as path, 0 as is_cycle
@@ -885,6 +890,7 @@ with recursive cte as
 select * from cte;
 
 --echo # It is simpler with DISTINCT:
+--sorted_result
 with recursive cte as
 (
   select id from nodes where id=1
@@ -899,6 +905,10 @@ drop table nodes, arcs;
 --echo # key to force hash field, to see if it switches to InnoDB.
 
 --echo # Not too long key (500 bytes in latin1)
+
+flush status;
+
+--sorted_result
 with recursive cte as
  (
   select 1 as n,
@@ -910,9 +920,11 @@ with recursive cte as
   from cte where n<100)
 select sum(n) from cte;
 
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like 'Created_tmp_disk_tables';
 
 --echo # Too long key (>3000 bytes in latin1)
+--sorted_result
 with recursive cte as
  (
   select 1 as n,
@@ -930,6 +942,8 @@ select sum(n) from cte;
 --echo # In query planning, the recursive reference's row count is
 --echo # said to be the estimated row count of all non-recursive query
 --echo # blocks
+
+flush status;
 
 create table t1(a int);
 --echo # 15 rows:
@@ -949,4 +963,5 @@ explain with recursive qn as
 select * from qn;
 drop table t1;
 
+--skip_if_hypergraph  # Fails due to previous query being skipped.
 show status like 'Created_tmp_disk_tables';

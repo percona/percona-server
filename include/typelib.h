@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,13 +53,12 @@ extern int find_type_or_exit(const char *x, TYPELIB *typelib,
 #define FIND_TYPE_COMMA_TERM (1 << 3)
 
 extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
-extern void make_type(char *to, unsigned int nr, TYPELIB *typelib);
 extern const char *get_type(TYPELIB *typelib, unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 
 extern TYPELIB sql_protocol_typelib;
 
-uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
+uint64_t find_set_from_flags(const TYPELIB *lib, int default_name,
                              uint64_t cur_set, uint64_t default_set,
                              const char *str, unsigned int length,
                              const char **err_pos, unsigned int *err_len);

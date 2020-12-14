@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -110,10 +110,10 @@ hash_table_t *hash_create(ulint n) /*!< in: number of array cells */
   table->adaptive = FALSE;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   table->n_sync_obj = 0;
-  table->sync_obj.mutexes = NULL;
-  table->heaps = NULL;
+  table->sync_obj.mutexes = nullptr;
+  table->heaps = nullptr;
 #endif /* !UNIV_HOTBACKUP */
-  table->heap = NULL;
+  table->heap = nullptr;
   ut_d(table->magic_n = HASH_TABLE_MAGIC_N);
 
   /* Initialize the cell array */
@@ -132,11 +132,11 @@ void hash_table_free(hash_table_t *table) /*!< in, own: hash table */
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Creates a sync object array to protect a hash table. "::sync_obj" can be
 mutexes or rw_locks depening on the type of hash table.
 @param[in]	table		hash table
-@param[in]	type		HASH_TABLE_SYNC_MUTEX or
-                                HASH_TABLE_SYNC_RW_LOCK
+@param[in]	type		HASH_TABLE_SYNC_MUTEX or HASH_TABLE_SYNC_RW_LOCK
 @param[in]	id		latch ID
 @param[in]	n_sync_obj	number of sync objects, must be a power of 2 */
 void hash_create_sync_obj(hash_table_t *table, enum hash_table_sync_t type,

@@ -5,37 +5,9 @@ call mtr.add_suppression("Check keyring plugin fail, please check the keyring pl
 call mtr.add_suppression("Redo log key generation failed.");
 CREATE DATABASE tde_db;
 USE tde_db;
-SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
-Warnings:
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
-SHOW WARNINGS;
-Level	Code	Message
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
-CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
-INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
-SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
-# restart
-SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
-DROP TABLE tde_db.t4;
-DROP DATABASE tde_db;
-CREATE DATABASE tde_db;
-USE tde_db;
-# Starting server with keyring plugin
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
 KEYRING_KEY
-INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
-ERROR HY000: Function 'keyring_file' already exists
-UNINSTALL PLUGIN keyring_file;
-# Starting server with keyring plugin
-SET GLOBAL innodb_redo_log_encrypt = 0;
-SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-OFF
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 UNINSTALL PLUGIN keyring_file;
@@ -73,6 +45,13 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 a	LEFT(b,10)
 1	aaaaaaaaaa
 FLUSH LOGS;
+# Kill and restart:<hidden args>
+SELECT
+PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE '%keyring_file%';
+PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE
+keyring_file	ACTIVE	KEYRING
 SELECT a,LEFT(b,10) FROM tde_db.t1;
 a	LEFT(b,10)
 1	aaaaaaaaaa
@@ -88,7 +67,7 @@ a	LEFT(b,10)
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-OFF
+KEYRING_KEY
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
 ENCRYPTION='Y' ENGINE=InnoDB;
@@ -140,7 +119,6 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 a	LEFT(b,10)
 2	aaaaaaaaaa
 COMMIT;
-# Kill and restart:<hidden args>
 SELECT
 PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
 FROM INFORMATION_SCHEMA.PLUGINS
@@ -211,5 +189,4 @@ SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
 KEYRING_KEY
 # In connection default
-UNINSTALL PLUGIN keyring_file;
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;

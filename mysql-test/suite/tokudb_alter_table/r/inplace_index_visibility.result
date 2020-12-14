@@ -3,9 +3,9 @@ alter table t1 alter index ko invisible;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(30) DEFAULT NULL,
-  `other` int(11) DEFAULT NULL,
+  `other` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `ko` (`other`) /*!80000 INVISIBLE */
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -14,9 +14,9 @@ alter table t1 alter index ko visible;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(30) DEFAULT NULL,
-  `other` int(11) DEFAULT NULL,
+  `other` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `ko` (`other`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

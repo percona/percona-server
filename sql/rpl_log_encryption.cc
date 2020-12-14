@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,9 @@
 #include "libbinlogevents/include/event_reader.h"
 #include "mutex_lock.h"
 #include "my_byteorder.h"
+#include "sql/basic_istream.h"
+#include "sql/basic_ostream.h"
+#include "sql/sql_class.h"
 
 #ifdef MYSQL_SERVER
 #include "libbinlogevents/include/byteorder.h"

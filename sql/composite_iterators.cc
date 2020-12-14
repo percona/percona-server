@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "sql/composite_iterators.h"
 
 #include <string.h>
+
 #include <atomic>
 #include <string>
 #include <vector>
@@ -52,6 +53,7 @@
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"  // Table_function
 #include "sql/temp_table_param.h"
 #include "sql/timing_iterator.h"
 
@@ -156,35 +158,21 @@ int LimitOffsetIterator::Read() {
     }
   }
 
-  ++m_seen_rows;
-  return m_source->Read();
-}
-
-vector<RowIterator::Child> FilterIterator::children() const {
-  // Return the source iterator, and also iterators for any subqueries in the
-  // condition.
-  vector<Child> ret{{m_source.get(), ""}};
-
-  ForEachSubselect(m_condition, [&ret](int select_number, bool is_dependent,
-                                       bool is_cacheable,
-                                       RowIterator *iterator) {
-    char description[256];
-    if (is_dependent) {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in condition; dependent)", select_number);
-    } else if (!is_cacheable) {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in condition; uncacheable)",
-               select_number);
-    } else {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in condition; run only once)",
-               select_number);
+  const int result = m_source->Read();
+  if (m_reject_multiple_rows) {
+    if (result != 0) {
+      ++m_seen_rows;
+      return result;
     }
-    ret.push_back(Child{iterator, description});
-  });
+    // We read a row. Check for scalar subquery cardinality violation
+    if (m_seen_rows - m_offset > 0) {
+      my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+      return 1;
+    }
+  }
 
-  return ret;
+  ++m_seen_rows;
+  return result;
 }
 
 AggregateIterator::AggregateIterator(
@@ -195,50 +183,15 @@ AggregateIterator::AggregateIterator(
       m_join(join),
       m_output_slice(output_slice),
       m_temp_table_param(temp_table_param),
-      m_rollup(rollup) {
-  // If we have rollup, the rollup rows will contain a different set of items
-  // from the normal rows. (In particular, fields that are not normally nullable
-  // can be NULL, and the rollup aggregates are also different Items.)
-  // Unfortunately, we don't have any good way of returning rows from iterators;
-  // the executor will send whatever is in join->fields.
-  //
-  // However, there is no problem in programming that can't be solved with
-  // another layer of indirection. Thus, we replace the entire field list with a
-  // set of Item_ref, which work as pointers into either the original fields or
-  // to the rollup fields, depending on what we want to output. (For outputting
-  // to temporary tables, we don't need this, as join->fields isn't used.)
-  //
-  // If we do this, ConvertItemsToCopy() needs to be careful to propagate the
-  // result fields correctly (so we mark in the JOIN that it needs to do so),
-  // but it runs after this constructor, so it should be fine.
-  m_replace_field_list =
-      m_rollup && m_output_slice == REF_SLICE_ORDERED_GROUP_BY;
-  if (m_replace_field_list) {
-    m_join->replaced_items_for_rollup = true;
-    m_original_fields = m_join->fields;
-    m_current_fields = new (thd->mem_root)
-        Mem_root_array<Item *>(thd->mem_root, m_original_fields->size());
-
-    // Create the new list of items.
-    List<Item> *ref_items = new (thd->mem_root) List<Item>;
-    size_t item_index = 0;
-    for (Item &item : *m_original_fields) {
-      (*m_current_fields)[item_index] = &item;
-      Item_ref *ref = new (thd->mem_root) Item_ref(
-          /*name_resolution_context=*/nullptr,
-          &((*m_current_fields)[item_index]),
-          /*table_name=*/nullptr, /*field_name=*/nullptr,
-          /*alias_of_expr=*/false);
-      ref->set_result_field(item.get_result_field());
-      ref_items->push_back(ref);
-      ++item_index;
-    }
-    m_join->fields = ref_items;
-  }
-}
+      m_rollup(rollup) {}
 
 bool AggregateIterator::Init() {
   DBUG_ASSERT(!m_join->tmp_table_param.precomputed_group_by);
+
+  // Disable any leftover rollup items used in children.
+  m_current_rollup_position = -1;
+  SetRollupLevel(INT_MAX);
+
   if (m_source->Init()) {
     return true;
   }
@@ -250,13 +203,20 @@ bool AggregateIterator::Init() {
   m_save_nullinfo = 0;
 
   // Not really used, just to be sure.
-  m_current_rollup_position = 0;
   m_last_unchanged_group_item_idx = 0;
 
-  m_current_fields_source = nullptr;
   m_state = READING_FIRST_ROW;
 
   return false;
+}
+
+void AggregateIterator::copy_sum_funcs() {
+  for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
+    Field *f = (*item)->get_result_field();
+    if (f != nullptr) {
+      (*item)->save_in_field(f, true);
+    }
+  }
 }
 
 int AggregateIterator::Read() {
@@ -273,14 +233,15 @@ int AggregateIterator::Read() {
         m_seen_eof = true;
         m_state = DONE_OUTPUTTING_ROWS;
         if (m_join->grouped || m_join->group_optimized_away) {
+          SetRollupLevel(m_join->send_group_parts);
           return -1;
         } else {
           // If there's no GROUP BY, we need to output a row even if there are
           // no input rows.
 
           // Calculate aggregate functions for no rows
-          for (Item &item : *m_join->get_current_fields()) {
-            item.no_rows_in_result();
+          for (Item *item : *m_join->get_current_fields()) {
+            item->no_rows_in_result();
           }
 
           /*
@@ -296,7 +257,6 @@ int AggregateIterator::Read() {
           if (copy_fields_and_funcs(m_temp_table_param, m_join->thd)) {
             return 1;
           }
-          SwitchFieldList(m_original_fields);
           return 0;
         }
       }
@@ -311,6 +271,8 @@ int AggregateIterator::Read() {
       // Fall through.
 
     case LAST_ROW_STARTED_NEW_GROUP: {
+      SetRollupLevel(m_join->send_group_parts);
+
       // This is the start of a new group. Make a copy of the group expressions,
       // because they risk being overwritten on the next call to
       // m_source->Read(). We cannot reuse the Item_cached_* fields in
@@ -356,10 +318,14 @@ int AggregateIterator::Read() {
         return 1;
       }
 
-      if (init_sum_functions(
-              m_join->sum_funcs,
-              m_join->sum_funcs_end[m_last_unchanged_group_item_idx])) {
-        return 1;
+      for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
+        if (m_rollup) {
+          if (down_cast<Item_rollup_sum_switcher *>(*item)
+                  ->reset_and_add_for_rollup(m_last_unchanged_group_item_idx))
+            return true;
+        } else {
+          if ((*item)->reset_and_add()) return true;
+        }
       }
 
       m_state = READING_ROWS;
@@ -384,9 +350,7 @@ int AggregateIterator::Read() {
 
           // Store the result in the temporary table, if we are outputting
           // to that.
-          SwitchFieldList(m_original_fields);
-          copy_sum_funcs(m_join->sum_funcs,
-                         m_join->sum_funcs_end[m_join->send_group_parts]);
+          copy_sum_funcs();
           if (m_temp_table_param->items_to_copy != nullptr) {
             if (copy_funcs(m_temp_table_param, m_join->thd,
                            CFT_DEPENDING_ON_AGGREGATE)) {
@@ -397,10 +361,11 @@ int AggregateIterator::Read() {
           if (m_rollup && m_join->send_group_parts > 0) {
             // Also output the final groups, including the total row
             // (with NULLs in all fields).
-            m_current_rollup_position = m_join->send_group_parts - 1;
+            SetRollupLevel(m_join->send_group_parts);
             m_last_unchanged_group_item_idx = 0;
             m_state = OUTPUTTING_ROLLUP_ROWS;
           } else {
+            SetRollupLevel(m_join->send_group_parts);
             m_state = DONE_OUTPUTTING_ROWS;
           }
           return 0;
@@ -415,9 +380,7 @@ int AggregateIterator::Read() {
 
           // Store the result in the temporary table, if we are outputting
           // to that.
-          SwitchFieldList(m_original_fields);
-          copy_sum_funcs(m_join->sum_funcs,
-                         m_join->sum_funcs_end[m_join->send_group_parts]);
+          copy_sum_funcs();
           if (m_temp_table_param->items_to_copy != nullptr) {
             if (copy_funcs(m_temp_table_param, m_join->thd,
                            CFT_DEPENDING_ON_AGGREGATE)) {
@@ -434,9 +397,10 @@ int AggregateIterator::Read() {
             m_last_unchanged_group_item_idx = first_changed_idx + 1;
             if (static_cast<unsigned>(first_changed_idx) <
                 m_join->send_group_parts - 1) {
-              m_current_rollup_position = m_join->send_group_parts - 1;
+              SetRollupLevel(m_join->send_group_parts);
               m_state = OUTPUTTING_ROLLUP_ROWS;
             } else {
+              SetRollupLevel(m_join->send_group_parts);
               m_state = LAST_ROW_STARTED_NEW_GROUP;
             }
           } else {
@@ -446,37 +410,49 @@ int AggregateIterator::Read() {
           return 0;
         }
 
-        // We're still in the same group, so just loop back.
-        if (update_sum_func(m_join->sum_funcs)) {
-          return 1;
+        // Give the new values to all the new aggregate functions.
+        for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
+          if (m_rollup) {
+            if (down_cast<Item_rollup_sum_switcher *>(*item)
+                    ->aggregator_add_all()) {
+              return 1;
+            }
+          } else {
+            if ((*item)->aggregator_add()) {
+              return 1;
+            }
+          }
         }
+
+        // We're still in the same group, so just loop back.
       }
 
     case OUTPUTTING_ROLLUP_ROWS: {
-      m_join->copy_ref_item_slice(
-          m_join->ref_items[REF_SLICE_ACTIVE],
-          m_join->rollup.ref_item_arrays[m_current_rollup_position]);
       m_join->current_ref_item_slice = -1;
 
-      SwitchFieldList(&m_join->rollup.fields_list[m_current_rollup_position]);
+      SetRollupLevel(m_current_rollup_position - 1);
+
+      // Save fields that are now NULL (we can't call copy_fields_and_funcs(),
+      // or the next group would bleed over).
+      for (Item_copy *item : m_temp_table_param->grouped_expressions) {
+        if (has_rollup_result(item->get_item())) {
+          if (item->copy(thd())) return true;
+        }
+      }
 
       // Store the result in the temporary table, if we are outputting to that.
-      copy_sum_funcs(m_join->sum_funcs_end[m_current_rollup_position + 1],
-                     m_join->sum_funcs_end[m_current_rollup_position]);
+      copy_sum_funcs();
       if (m_temp_table_param->items_to_copy != nullptr) {
         if (copy_funcs(m_temp_table_param, m_join->thd,
                        CFT_DEPENDING_ON_AGGREGATE)) {
           return 1;
         }
-      }
-      for (Item &item : m_join->rollup.all_fields[m_current_rollup_position]) {
-        if (has_rollup_result(&item) && item.get_result_field() != nullptr) {
-          item.save_in_result_field(true);
+        if (copy_funcs(m_temp_table_param, m_join->thd, CFT_ROLLUP_NULLS)) {
+          return 1;
         }
       }
 
-      --m_current_rollup_position;
-      if (m_current_rollup_position < m_last_unchanged_group_item_idx) {
+      if (m_current_rollup_position <= m_last_unchanged_group_item_idx) {
         // Done outputting rollup rows; on next Read() call, deal with the new
         // group instead.
         if (m_seen_eof) {
@@ -496,6 +472,8 @@ int AggregateIterator::Read() {
         m_join->restore_fields(m_save_nullinfo);
         m_save_nullinfo = 0;
       }
+      SetRollupLevel(INT_MAX);  // Higher-level iterators up above should not
+                                // activate any rollup.
       return -1;
   }
 
@@ -503,34 +481,16 @@ int AggregateIterator::Read() {
   return 1;
 }
 
-vector<string> AggregateIterator::DebugString() const {
-  Item_sum **sum_funcs_end =
-      m_rollup ? m_join->sum_funcs_end[m_join->send_group_parts]
-               : m_join->sum_funcs_end[0];
-
-  string ret;
-  if (m_join->grouped || m_join->group_optimized_away) {
-    if (m_join->sum_funcs == sum_funcs_end) {
-      ret = "Group (no aggregates)";
-    } else if (m_rollup) {
-      ret = "Group aggregate with rollup: ";
-    } else {
-      ret = "Group aggregate: ";
+void AggregateIterator::SetRollupLevel(int level) {
+  if (m_rollup && m_current_rollup_position != level) {
+    m_current_rollup_position = level;
+    for (Item_rollup_group_item *item : m_join->rollup_group_items) {
+      item->set_current_rollup_level(level);
     }
-  } else {
-    ret = "Aggregate: ";
-  }
-
-  bool first = true;
-  for (Item_sum **item = m_join->sum_funcs; item != sum_funcs_end; ++item) {
-    if (first) {
-      first = false;
-    } else {
-      ret += ", ";
+    for (Item_rollup_sum_switcher *item : m_join->rollup_sums) {
+      item->set_current_rollup_level(level);
     }
-    ret += ItemToString(*item);
   }
-  return {ret};
 }
 
 bool PrecomputedAggregateIterator::Init() {
@@ -553,33 +513,6 @@ int PrecomputedAggregateIterator::Read() {
   }
   SwitchSlice(m_join, m_output_slice);
   return 0;
-}
-
-vector<string> PrecomputedAggregateIterator::DebugString() const {
-  string ret;
-
-  // If precomputed_group_by is set, there's always grouping; thus, our
-  // EXPLAIN output should always say “group”, unlike AggregateIterator.
-  // Do note that neither m_join->grouped nor m_join->group_optimized_away
-  // need to be set (in particular, this seems to be the case for
-  // skip index scan).
-  if (m_join->sum_funcs == m_join->sum_funcs_end[0]) {
-    ret = "Group (computed in earlier step, no aggregates)";
-  } else {
-    ret = "Group aggregate (computed in earlier step): ";
-  }
-
-  bool first = true;
-  for (Item_sum **item = m_join->sum_funcs; item != m_join->sum_funcs_end[0];
-       ++item) {
-    if (first) {
-      first = false;
-    } else {
-      ret += ", ";
-    }
-    ret += ItemToString(*item);
-  }
-  return {ret};
 }
 
 bool NestedLoopIterator::Init() {
@@ -611,10 +544,14 @@ int NestedLoopIterator::Read() {
       if (m_pfs_batch_mode) {
         m_source_inner->StartPSIBatchMode();
       }
+
+      // Init() could read the NULL row flags (e.g., when building a hash
+      // table), so unset them before instead of after.
+      m_source_inner->SetNullRowFlag(false);
+
       if (m_source_inner->Init()) {
         return 1;
       }
-      m_source_inner->SetNullRowFlag(false);
       m_state = READING_FIRST_INNER_ROW;
     }
     DBUG_ASSERT(m_state == READING_INNER_ROWS ||
@@ -667,33 +604,11 @@ int NestedLoopIterator::Read() {
   }
 }
 
-vector<string> NestedLoopIterator::DebugString() const {
-  switch (m_join_type) {
-    case JoinType::INNER:
-      return {"Nested loop inner join"};
-    case JoinType::OUTER:
-      return {"Nested loop left join"};
-    case JoinType::ANTI:
-      return {"Nested loop anti-join"};
-    case JoinType::SEMI:
-      return {"Nested loop semijoin"};
-    default:
-      DBUG_ASSERT(false);
-      return {"Nested loop <error>"};
-  }
-}
-
-vector<string> CacheInvalidatorIterator::DebugString() const {
-  string ret =
-      string("Invalidate materialized tables (row from ") + m_name + ")";
-  return {ret};
-}
-
 MaterializeIterator::MaterializeIterator(
     THD *thd, Mem_root_array<QueryBlock> query_blocks_to_materialize,
     TABLE *table, unique_ptr_destroy_only<RowIterator> table_iterator,
-    const Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
-    int ref_slice, bool rematerialize, ha_rows limit_rows)
+    Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
+    bool rematerialize, ha_rows limit_rows, bool reject_multiple_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(std::move(query_blocks_to_materialize)),
       m_table_iterator(move(table_iterator)),
@@ -702,6 +617,7 @@ MaterializeIterator::MaterializeIterator(
       m_join(join),
       m_ref_slice(ref_slice),
       m_rematerialize(rematerialize),
+      m_reject_multiple_rows(reject_multiple_rows),
       m_limit_rows(limit_rows),
       m_invalidators(thd->mem_root) {
   if (ref_slice != -1) {
@@ -716,10 +632,10 @@ MaterializeIterator::MaterializeIterator(
 MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
-    unique_ptr_destroy_only<RowIterator> table_iterator,
-    const Common_table_expr *cte, int select_number, SELECT_LEX_UNIT *unit,
-    JOIN *join, int ref_slice, bool copy_fields_and_items, bool rematerialize,
-    ha_rows limit_rows)
+    unique_ptr_destroy_only<RowIterator> table_iterator, Common_table_expr *cte,
+    int select_number, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
+    bool copy_fields_and_items, bool rematerialize, ha_rows limit_rows,
+    bool reject_multiple_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(thd->mem_root, 1),
       m_table_iterator(move(table_iterator)),
@@ -728,6 +644,7 @@ MaterializeIterator::MaterializeIterator(
       m_join(join),
       m_ref_slice(ref_slice),
       m_rematerialize(rematerialize),
+      m_reject_multiple_rows(reject_multiple_rows),
       m_limit_rows(limit_rows),
       m_invalidators(thd->mem_root) {
   DBUG_ASSERT(m_table_iterator != nullptr);
@@ -800,20 +717,27 @@ bool MaterializeIterator::Init() {
     }
     empty_record(table());
   } else {
-    if (table()->file->inited) {
-      // If we're being called several times (in particular, as part of a
-      // LATERAL join), the table iterator may have started a scan, so end it
-      // before we start our own.
-      //
-      // If we're in a recursive CTE, this also provides a signal to
-      // FollowTailIterator that we're starting a new recursive materalization.
-      table()->file->ha_index_or_rnd_end();
-    }
+    table()->file->ha_index_or_rnd_end();  // @todo likely unneeded => remove
     table()->file->ha_delete_all_rows();
   }
 
-  if (m_unit != nullptr) {
-    m_unit->clear_correlated_query_blocks();
+  if (m_unit != nullptr)
+    if (m_unit->clear_correlated_query_blocks()) return true;
+
+  if (m_cte != nullptr) {
+    // This is needed in a special case. Consider:
+    // SELECT FROM ot WHERE EXISTS(WITH RECURSIVE cte (...)
+    //                             SELECT * FROM cte)
+    // and assume that the CTE is outer-correlated. When EXISTS is
+    // evaluated, SELECT_LEX_UNIT::ClearForExecution() calls
+    // clear_correlated_query_blocks(), which scans the WITH clause and clears
+    // the CTE, including its references to itself in its recursive definition.
+    // But, if the query expression owning WITH is merged up, e.g. like this:
+    // FROM ot SEMIJOIN cte ON TRUE,
+    // then there is no SELECT_LEX_UNIT anymore, so its WITH clause is
+    // not reached. But this "lateral CTE" still needs comprehensive resetting.
+    // That's done here.
+    if (m_cte->clear_all_references()) return true;
   }
 
   // If we are removing duplicates by way of a hash field
@@ -838,7 +762,10 @@ bool MaterializeIterator::Init() {
     ha_rows stored_rows = 0;
     for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
       if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
-      if (stored_rows >= m_limit_rows) {
+      if (m_reject_multiple_rows && stored_rows > 1) {
+        my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+        return true;
+      } else if (stored_rows >= m_limit_rows) {
         break;
       }
     }
@@ -935,8 +862,6 @@ bool MaterializeIterator::MaterializeRecursive() {
         }
       });
 
-  DBUG_ASSERT(m_limit_rows == HA_POS_ERROR);
-
   ha_rows stored_rows = 0;
 
   // Give each recursive iterator access to the stored number of rows
@@ -1007,6 +932,14 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
   JOIN *join = query_block.join;
   if (join != nullptr) {
     join->set_executed();  // The dynamic range optimizer expects this.
+
+    // TODO(sgunders): Consider doing this in some iterator instead.
+    if (join->m_windows.elements > 0 && !join->m_windowing_steps) {
+      // Initialize state of window functions as end_write_wf() will be shortcut
+      for (Window &w : join->m_windows) {
+        w.reset_all_wf_state();
+      }
+    }
   }
 
   if (query_block.subquery_iterator->Init()) {
@@ -1053,9 +986,9 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
 
       // Inform each reader that the table has changed under their feet,
       // so they'll need to reposition themselves.
-      for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
-        if (query_block.is_recursive_reference) {
-          query_block.recursive_reader->RepositionCursorAfterSpillToDisk();
+      for (const QueryBlock &query_b : m_query_blocks_to_materialize) {
+        if (query_b.is_recursive_reference) {
+          query_b.recursive_reader->RepositionCursorAfterSpillToDisk();
         }
       }
     } else {
@@ -1081,128 +1014,6 @@ int MaterializeIterator::Read() {
     }
   }
   return m_table_iterator->Read();
-}
-
-vector<string> MaterializeIterator::DebugString() const {
-  // The table iterator could be a whole string of iterators
-  // (sort, filter, etc.) due to add_sorting_to_table(), so show them all.
-  //
-  // TODO: Make the optimizer put these on top of the MaterializeIterator
-  // instead (or perhaps better yet, on the subquery iterator), so that
-  // table_iterator is always just a single basic iterator.
-  vector<string> ret;
-  RowIterator *sub_iterator = m_table_iterator.get();
-  for (;;) {
-    for (string str : FullDebugString(thd(), *sub_iterator)) {
-      if (sub_iterator->children().size() > 1) {
-        // This can happen if e.g. a filter has subqueries in it.
-        // TODO: Consider having a RowIterator::parent(), so that we can
-        // show the entire tree.
-        str += " [other sub-iterators not shown]";
-      }
-      ret.push_back(str);
-    }
-    if (sub_iterator->children().empty()) break;
-    sub_iterator = sub_iterator->children()[0].iterator;
-  }
-
-  const bool is_union = m_query_blocks_to_materialize.size() > 1;
-  string str;
-
-  if (m_cte != nullptr && m_cte->recursive) {
-    str = "Materialize recursive CTE " + to_string(m_cte->name);
-  } else if (m_cte != nullptr) {
-    if (is_union) {
-      str = "Materialize union CTE " + to_string(m_cte->name);
-    } else {
-      str = "Materialize CTE " + to_string(m_cte->name);
-    }
-    if (m_cte->tmp_tables.size() > 1) {
-      str += " if needed";
-      if (m_cte->tmp_tables[0]->table != table()) {
-        // See children().
-        str += " (query plan printed elsewhere)";
-      }
-    }
-  } else if (is_union) {
-    str = "Union materialize";
-  } else if (m_rematerialize) {
-    str = "Temporary table";
-  } else {
-    str = "Materialize";
-  }
-
-  if (doing_deduplication()) {
-    str += " with deduplication";
-  }
-
-  if (!m_invalidators.empty()) {
-    bool first = true;
-    str += " (invalidate on row from ";
-    for (const Invalidator &invalidator : m_invalidators) {
-      if (!first) {
-        str += "; ";
-      }
-      first = false;
-      str += invalidator.iterator->name();
-    }
-    str += ")";
-  }
-
-  ret.push_back(str);
-  return ret;
-}
-
-vector<RowIterator::Child> MaterializeIterator::children() const {
-  // If a CTE is referenced multiple times, only bother printing its query plan
-  // once, instead of repeating it over and over again.
-  //
-  // TODO: Consider printing CTE query plans on the top level of the query block
-  // instead?
-  if (m_cte != nullptr && m_cte->tmp_tables[0]->table != table()) {
-    return {};
-  }
-
-  char heading[256] = "";
-
-  if (m_limit_rows != HA_POS_ERROR) {
-    // We call this “Limit table size” as opposed to “Limit”, to be able
-    // to distinguish between the two in EXPLAIN when debugging.
-    if (doing_deduplication()) {
-      snprintf(heading, sizeof(heading), "Limit table size: %llu unique row(s)",
-               m_limit_rows);
-    } else {
-      snprintf(heading, sizeof(heading), "Limit table size: %llu row(s)",
-               m_limit_rows);
-    }
-  }
-
-  // We don't list the table iterator as an explicit child; we mark it in
-  // our DebugString() instead. (Anything else would look confusingly much
-  // like a join.)
-  vector<Child> ret;
-  for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
-    string this_heading = heading;
-
-    if (query_block.disable_deduplication_by_hash_field) {
-      if (this_heading.empty()) {
-        this_heading = "Disable deduplication";
-      } else {
-        this_heading += ", disable deduplication";
-      }
-    }
-
-    if (query_block.is_recursive_reference) {
-      if (this_heading.empty()) {
-        this_heading = "Repeat until convergence";
-      } else {
-        this_heading += ", repeat until convergence";
-      }
-    }
-
-    ret.emplace_back(Child{query_block.subquery_iterator.get(), this_heading});
-  }
-  return ret;
 }
 
 void MaterializeIterator::EndPSIBatchModeIfStarted() {
@@ -1243,11 +1054,12 @@ void MaterializeIterator::AddInvalidator(
 StreamingIterator::StreamingIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
-    bool copy_fields_and_items)
+    bool copy_fields_and_items, bool provide_rowid)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_temp_table_param(temp_table_param),
-      m_copy_fields_and_items(copy_fields_and_items) {
+      m_copy_fields_and_items(copy_fields_and_items),
+      m_provide_rowid(provide_rowid) {
   DBUG_ASSERT(m_subquery_iterator != nullptr);
 
   // If we have weedout in this query, it will expect to have row IDs that
@@ -1255,17 +1067,7 @@ StreamingIterator::StreamingIterator(
   // do not actually write these rows to anywhere). Use the row number as a
   // fake ID; since the real handler on this temporary table is never called,
   // it is safe to replace it with something of the same length.
-  //
-  // We notify other iterators that we provide the row ID so that they won't
-  // try to call position(), but will just blindly trust the pointer we give it.
-  // But only do so if a row ID is actually needed for this table. Otherwise,
-  // iterators above us might start copying the row ID when it is not needed.
-  QEP_TAB *qep_tab = table->reginfo.qep_tab;
-  m_provide_rowid =
-      qep_tab != nullptr && qep_tab->rowid_status != NO_ROWID_NEEDED;
   if (m_provide_rowid) {
-    qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
-
     if (table->file->ref_length < sizeof(m_row_number)) {
       table->file->ref_length = sizeof(m_row_number);
       table->file->ref = nullptr;
@@ -1306,13 +1108,12 @@ int StreamingIterator::Read() {
 TemptableAggregateIterator::TemptableAggregateIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
-    unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex,
-    JOIN *join, int ref_slice)
+    unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join,
+    int ref_slice)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_table_iterator(move(table_iterator)),
       m_temp_table_param(temp_table_param),
-      m_select_lex(select_lex),
       m_join(join),
       m_ref_slice(ref_slice) {}
 
@@ -1323,7 +1124,7 @@ bool TemptableAggregateIterator::Init() {
   Opt_trace_context *const trace = &thd()->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "temp_table_aggregate");
-  trace_exec.add_select_number(m_select_lex->select_number);
+  trace_exec.add_select_number(m_join->select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
   if (m_subquery_iterator->Init()) {
@@ -1346,7 +1147,7 @@ bool TemptableAggregateIterator::Init() {
   }
 
   // Initialize the index used for finding the groups.
-  if (table()->file->ha_index_init(0, 0)) {
+  if (table()->file->ha_index_init(0, false)) {
     return true;
   }
   auto end_unique_index =
@@ -1354,10 +1155,10 @@ bool TemptableAggregateIterator::Init() {
 
   PFSBatchMode pfs_batch_mode(m_subquery_iterator.get());
   for (;;) {
-    int error = m_subquery_iterator->Read();
-    if (error > 0 || thd()->is_error())  // Fatal error
+    int read_error = m_subquery_iterator->Read();
+    if (read_error > 0 || thd()->is_error())  // Fatal error
       return true;
-    else if (error < 0)
+    else if (read_error < 0)
       break;
     else if (thd()->killed)  // Aborted by user
     {
@@ -1372,7 +1173,7 @@ bool TemptableAggregateIterator::Init() {
     // (FIXME: Is this comment really still current? It seems to date back
     // to pre-2000, but I can't see that it's really true.)
     if (copy_fields(m_temp_table_param, thd()))
-      return 1; /* purecov: inspected */
+      return true; /* purecov: inspected */
 
     // See if we have seen this row already; if so, we want to update it,
     // not insert a new one.
@@ -1386,7 +1187,7 @@ bool TemptableAggregateIterator::Init() {
         in group are found.
       */
       if (copy_funcs(m_temp_table_param, thd()))
-        return 1; /* purecov: inspected */
+        return true; /* purecov: inspected */
       group_found = !check_unique_constraint(table());
     } else {
       for (ORDER *group = table()->group; group; group = group->next) {
@@ -1409,7 +1210,7 @@ bool TemptableAggregateIterator::Init() {
           table()->file->ha_update_row(table()->record[1], table()->record[0]);
       if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
         PrintError(error);
-        return 1;
+        return true;
       }
       continue;
     }
@@ -1450,10 +1251,10 @@ bool TemptableAggregateIterator::Init() {
           memcpy(table()->record[0] + key_part->offset - 1, group->buff - 1, 1);
       }
       /* See comment on copy_funcs above. */
-      if (copy_funcs(m_temp_table_param, thd())) return 1;
+      if (copy_funcs(m_temp_table_param, thd())) return true;
     }
     init_tmptable_sum_functions(m_join->sum_funcs);
-    error = table()->file->ha_write_row(table()->record[0]);
+    int error = table()->file->ha_write_row(table()->record[0]);
     if (error != 0) {
       /*
          If the error is HA_ERR_FOUND_DUPP_KEY and the grouping involves a
@@ -1468,20 +1269,20 @@ bool TemptableAggregateIterator::Init() {
         for (ORDER *group = table()->group; group; group = group->next) {
           if (group->field_in_tmp_table->type() == MYSQL_TYPE_TIMESTAMP) {
             my_error(ER_GROUPING_ON_TIMESTAMP_IN_DST, MYF(0));
-            return 1;
+            return true;
           }
         }
       }
-      if (create_ondisk_from_heap(thd(), table(), error, false, NULL)) {
+      if (create_ondisk_from_heap(thd(), table(), error, false, nullptr)) {
         end_unique_index.commit();
-        return 1;  // Not a table_is_full error.
+        return true;  // Not a table_is_full error.
       }
       // Table's engine changed, index is not initialized anymore
       error = table()->file->ha_index_init(0, false);
       if (error != 0) {
         end_unique_index.commit();
         PrintError(error);
-        return 1;
+        return true;
       }
     }
   }
@@ -1508,19 +1309,6 @@ int TemptableAggregateIterator::Read() {
   return m_table_iterator->Read();
 }
 
-vector<string> TemptableAggregateIterator::DebugString() const {
-  vector<string> ret = FullDebugString(thd(), *m_table_iterator);
-  ret.push_back("Aggregate using temporary table");
-  return ret;
-}
-
-vector<RowIterator::Child> TemptableAggregateIterator::children() const {
-  // We don't list the table iterator as an explicit child; we mark it in
-  // our DebugString() instead. (Anything else would look confusingly much
-  // like a join.)
-  return vector<Child>{{m_subquery_iterator.get(), ""}};
-}
-
 MaterializedTableFunctionIterator::MaterializedTableFunctionIterator(
     THD *thd, Table_function *table_function, TABLE *table,
     unique_ptr_destroy_only<RowIterator> table_iterator)
@@ -1544,27 +1332,30 @@ bool MaterializedTableFunctionIterator::Init() {
 
 WeedoutIterator::WeedoutIterator(THD *thd,
                                  unique_ptr_destroy_only<RowIterator> source,
-                                 SJ_TMP_TABLE *sj)
+                                 SJ_TMP_TABLE *sj,
+                                 table_map tables_to_get_rowid_for)
     : RowIterator(thd),
       m_source(move(source)),
       m_sj(sj),
-      m_rowid_status(PSI_NOT_INSTRUMENTED) {
+      m_tables_to_get_rowid_for(tables_to_get_rowid_for) {
   // Confluent weedouts should have been rewritten to LIMIT 1 earlier.
   DBUG_ASSERT(!m_sj->is_confluent);
   DBUG_ASSERT(m_sj->tmp_table != nullptr);
-
-  // Cache the value of rowid_status, as iterators above this one may change the
-  // value later (see QEP_TAB::rowid_status for details around this). The value
-  // indicates whether it is safe to call position().
-  for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
-    DBUG_ASSERT(tab->qep_tab->rowid_status != NO_ROWID_NEEDED);
-    m_rowid_status.push_back(tab->qep_tab->rowid_status);
-  }
 }
 
 bool WeedoutIterator::Init() {
   if (m_sj->tmp_table->file->ha_delete_all_rows()) {
     return true;
+  }
+  if (m_sj->tmp_table->hash_field != nullptr &&
+      !m_sj->tmp_table->file->inited) {
+    m_sj->tmp_table->file->ha_index_init(0, false);
+  }
+  for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    TABLE *table = tab->qep_tab->table();
+    if (m_tables_to_get_rowid_for & table->pos_in_table_list->map()) {
+      table->prepare_for_position();
+    }
   }
   return m_source->Init();
 }
@@ -1577,10 +1368,9 @@ int WeedoutIterator::Read() {
       return ret;
     }
 
-    size_t tmp_table_idx = 0;
-    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
       TABLE *table = tab->qep_tab->table();
-      if (m_rowid_status[tmp_table_idx++] == NEED_TO_CALL_POSITION_FOR_ROWID &&
+      if ((m_tables_to_get_rowid_for & table->pos_in_table_list->map()) &&
           can_call_position(table)) {
         table->file->position(table->record[0]);
       }
@@ -1599,24 +1389,6 @@ int WeedoutIterator::Read() {
 
     // Duplicate, so read the next row instead.
   }
-}
-
-vector<string> WeedoutIterator::DebugString() const {
-  string ret = "Remove duplicate ";
-  if (m_sj->tabs_end == m_sj->tabs + 1) {  // Only one table.
-    ret += m_sj->tabs->qep_tab->table()->alias;
-  } else {
-    ret += "(";
-    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
-      if (tab != m_sj->tabs) {
-        ret += ", ";
-      }
-      ret += tab->qep_tab->table()->alias;
-    }
-    ret += ")";
-  }
-  ret += " rows using temporary table (weedout)";
-  return {ret};
 }
 
 RemoveDuplicatesIterator::RemoveDuplicatesIterator(
@@ -1655,10 +1427,6 @@ int RemoveDuplicatesIterator::Read() {
     key_copy(m_key_buf, m_table->record[0], m_key, m_key_len);
     return 0;
   }
-}
-
-vector<string> RemoveDuplicatesIterator::DebugString() const {
-  return {string("Remove duplicates from input sorted on ") + m_key->name};
 }
 
 NestedLoopSemiJoinWithDuplicateRemovalIterator::
@@ -1740,12 +1508,6 @@ int NestedLoopSemiJoinWithDuplicateRemovalIterator::Read() {
   }
 }
 
-vector<string> NestedLoopSemiJoinWithDuplicateRemovalIterator::DebugString()
-    const {
-  return {string("Nested loop semijoin with duplicate removal on ") +
-          m_key->name};
-}
-
 WindowingIterator::WindowingIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source,
     Temp_table_param *temp_table_param, JOIN *join, int output_slice)
@@ -1790,10 +1552,6 @@ int WindowingIterator::Read() {
     return 1;
 
   return 0;
-}
-
-vector<string> WindowingIterator::DebugString() const {
-  return {"Window aggregate"};
 }
 
 BufferingWindowingIterator::BufferingWindowingIterator(
@@ -1848,9 +1606,10 @@ int BufferingWindowingIterator::Read() {
         change so we had to finalize the previous partition first.
         Bring back saved row for next partition.
       */
-      if (bring_back_frame_row(thd(), *m_window, m_temp_table_param,
-                               Window::FBC_FIRST_IN_NEXT_PARTITION,
-                               Window::REA_WONT_UPDATE_HINT)) {
+      if (bring_back_frame_row(
+              thd(), m_window, m_temp_table_param,
+              Window::FBC_FIRST_IN_NEXT_PARTITION,
+              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
         return 1;
       }
 
@@ -1917,9 +1676,10 @@ int BufferingWindowingIterator::Read() {
         between out tmp record and frame buffer record, instead of
         involving the in record. FIXME.
       */
-      if (bring_back_frame_row(thd(), *m_window, nullptr /* no copy to OUT */,
-                               Window::FBC_LAST_BUFFERED_ROW,
-                               Window::REA_WONT_UPDATE_HINT)) {
+      if (bring_back_frame_row(
+              thd(), m_window, nullptr /* no copy to OUT */,
+              Window::FBC_LAST_BUFFERED_ROW,
+              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
         return 1;
       }
     }
@@ -1955,60 +1715,28 @@ int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
   }
 }
 
-vector<string> BufferingWindowingIterator::DebugString() const {
-  return {"Window aggregate with buffering"};
-}
-
 MaterializeInformationSchemaTableIterator::
     MaterializeInformationSchemaTableIterator(
-        THD *thd, QEP_TAB *qep_tab,
-        unique_ptr_destroy_only<RowIterator> table_iterator)
+        THD *thd, unique_ptr_destroy_only<RowIterator> table_iterator,
+        TABLE_LIST *table_list, Item *condition)
     : RowIterator(thd),
       m_table_iterator(move(table_iterator)),
-      m_qep_tab(qep_tab) {}
+      m_table_list(table_list),
+      m_condition(condition) {}
 
 bool MaterializeInformationSchemaTableIterator::Init() {
-  TABLE_LIST *const table_list = m_qep_tab->table_ref;
+  m_table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
+  m_table_list->table->file->ha_delete_all_rows();
+  free_io_cache(m_table_list->table);
+  m_table_list->table->set_not_started();
 
-  table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
-  table_list->table->file->ha_delete_all_rows();
-  free_io_cache(table_list->table);
-  table_list->table->set_not_started();
-
-  if (do_fill_information_schema_table(thd(), table_list, m_qep_tab)) {
+  if (do_fill_information_schema_table(thd(), m_table_list, m_condition)) {
     return true;
   }
 
-  table_list->schema_table_state = PROCESSED_BY_JOIN_EXEC;
+  m_table_list->schema_table_state = PROCESSED_BY_JOIN_EXEC;
 
   return m_table_iterator->Init();
-}
-
-vector<string> MaterializeInformationSchemaTableIterator::DebugString() const {
-  // The table iterator could be a whole string of iterators
-  // (sort, filter, etc.) due to add_sorting_to_table(), so show them all.
-  //
-  // TODO(sgunders): Make the optimizer put these above us instead (or perhaps
-  // better yet, on the subquery iterator), so that table_iterator is
-  // always just a single basic iterator.
-  vector<string> ret;
-  RowIterator *sub_iterator = m_table_iterator.get();
-  for (;;) {
-    for (string str : sub_iterator->DebugString()) {
-      if (sub_iterator->children().size() > 1) {
-        // This can happen if e.g. a filter has subqueries in it.
-        // TODO(sgunders): Consider having a RowIterator::parent(), so that we
-        // can show the entire tree.
-        str += " [other sub-iterators not shown]";
-      }
-      ret.push_back(str);
-    }
-    if (sub_iterator->children().empty()) break;
-    sub_iterator = sub_iterator->children()[0].iterator;
-  }
-  ret.push_back("Fill information schema table " +
-                string(m_qep_tab->table()->alias));
-  return ret;
 }
 
 AppendIterator::AppendIterator(
@@ -2046,14 +1774,6 @@ int AppendIterator::Read() {
     m_sub_iterators[m_current_iterator_index]->StartPSIBatchMode();
   }
   return Read();  // Try again, with the new iterator as current.
-}
-
-vector<RowIterator::Child> AppendIterator::children() const {
-  vector<Child> children;
-  for (const unique_ptr_destroy_only<RowIterator> &child : m_sub_iterators) {
-    children.emplace_back(Child{child.get(), ""});
-  }
-  return children;
 }
 
 void AppendIterator::SetNullRowFlag(bool is_null_row) {

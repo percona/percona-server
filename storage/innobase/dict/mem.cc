@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -39,7 +39,9 @@ external tools. */
 
 #include "dict0dict.h"
 #ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 #include "lock0lock.h"
+#endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
@@ -116,7 +118,7 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 #endif /* !UNIV_HOTBACKUP */
 
   ut_free(table->name.m_name);
-  table->name.m_name = NULL;
+  table->name.m_name = nullptr;
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
@@ -130,18 +132,50 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  if (table->s_cols != NULL) {
+  if (table->s_cols != nullptr) {
     UT_DELETE(table->s_cols);
   }
 
 #ifndef UNIV_HOTBACKUP
-  if (table->temp_prebuilt != NULL) {
+  if (table->temp_prebuilt != nullptr) {
     ut_ad(table->is_intrinsic());
     UT_DELETE(table->temp_prebuilt);
   }
 #endif /* !UNIV_HOTBACKUP */
 
   mem_heap_free(table->heap);
+}
+
+/** System databases */
+static std::string innobase_system_databases[] = {
+    "mysql/", "information_schema/", "performance_schema/", ""};
+
+/** Determines if a table is a system table
+@param[in]  name  table_name
+@return true if table is system table */
+static bool dict_mem_table_is_system(const std::string name) {
+  /* Table has the following format: database/table and some system table are
+  of the form SYS_* */
+  if (name.find('/') != std::string::npos) {
+    size_t table_len = name.length();
+
+    std::string system_db = std::string(innobase_system_databases[0]);
+    int i = 0;
+
+    while (system_db.compare("") != 0) {
+      size_t len = system_db.length();
+
+      if (table_len > len && name.compare(0, len, system_db) == 0) {
+        return true;
+      }
+
+      system_db = std::string(innobase_system_databases[++i]);
+    }
+
+    return false;
+  } else {
+    return true;
+  }
 }
 
 /** Creates a table memory object.
@@ -185,6 +219,7 @@ dict_table_t *dict_mem_table_create(
   table->flags = (unsigned int)flags;
   table->flags2 = (unsigned int)flags2;
   table->name.m_name = mem_strdup(name);
+  table->is_system_table = dict_mem_table_is_system(table->name.m_name);
   table->space = (unsigned int)space;
   table->dd_space_id = dd::INVALID_OBJECT_ID;
   table->n_t_cols = (unsigned int)(n_cols + table->get_n_sys_cols());
@@ -227,7 +262,7 @@ dict_table_t *dict_mem_table_create(
     table->fts = fts_create(table);
     table->fts->cache = fts_cache_create(table);
   } else {
-    table->fts = NULL;
+    table->fts = nullptr;
   }
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
@@ -242,7 +277,6 @@ dict_table_t *dict_mem_table_create(
   table->is_dd_table = false;
   table->explicitly_non_lru = false;
   table->is_corrupt = false;
-  table->file_unreadable = false;
 
   return (table);
 }
@@ -290,14 +324,9 @@ dict_index_t *dict_mem_index_create(
 }
 
 /** Adds a column definition to a table. */
-void dict_mem_table_add_col(
-    dict_table_t *table, /*!< in: table */
-    mem_heap_t *heap,    /*!< in: temporary memory heap, or NULL */
-    const char *name,    /*!< in: column name, or NULL */
-    ulint mtype,         /*!< in: main datatype */
-    ulint prtype,        /*!< in: precise type */
-    ulint len)           /*!< in: precision */
-{
+void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
+                            const char *name, ulint mtype, ulint prtype,
+                            ulint len, bool is_visible) {
   dict_col_t *col;
   ulint i;
 
@@ -327,18 +356,13 @@ void dict_mem_table_add_col(
 
   col = table->get_col(i);
 
-  dict_mem_fill_column_struct(col, i, mtype, prtype, len);
+  dict_mem_fill_column_struct(col, i, mtype, prtype, len, is_visible);
 }
 
 /** This function populates a dict_col_t memory structure with
- supplied information. */
-void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
-                                                     be filled */
-                                 ulint col_pos,      /*!< in: column position */
-                                 ulint mtype,        /*!< in: main data type */
-                                 ulint prtype,       /*!< in: precise type */
-                                 ulint col_len)      /*!< in: column length */
-{
+supplied information. */
+void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
+                                 ulint prtype, ulint col_len, bool is_visible) {
   column->ind = (unsigned int)col_pos;
   column->ord_part = 0;
   column->max_prefix = 0;
@@ -346,6 +370,7 @@ void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
   column->prtype = (unsigned int)prtype;
   column->len = (unsigned int)col_len;
   column->instant_default = nullptr;
+  column->is_visible = is_visible;
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
   ulint mbminlen;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define PLUGIN_X_CLIENT_XPROTOCOL_IMPL_H_
 
 #include <sys/types.h>
+#include <zlib.h>
+
 #include <functional>
 #include <list>
 #include <map>
@@ -33,8 +35,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <zlib.h>
 
 #include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xargument.h"
@@ -81,6 +81,11 @@ class Protocol_impl : public XProtocol,
   XConnection &get_connection() override { return *m_connection; }
 
   XError send(const Client_message_type_id mid, const Message &msg) override;
+  XError send_compressed_frame(const Client_message_type_id mid,
+                               const Message &msg) override;
+  XError send_compressed_multiple_frames(
+      const std::vector<std::pair<Client_message_type_id, const Message *>>
+          &messages) override;
 
   XError send(const Header_message_type_id mid, const uint8_t *buffer,
               const std::size_t length) override;
@@ -237,6 +242,10 @@ class Protocol_impl : public XProtocol,
                               const std::string &schema,
                               const std::string &method = "") override;
 
+  void use_compression(const Compression_algorithm algo) override;
+  void use_compression(const Compression_algorithm algo,
+                       const int32_t level) override;
+
  private:
   using CodedInputStream = google::protobuf::io::CodedInputStream;
   template <typename Handler>
@@ -303,8 +312,6 @@ class Protocol_impl : public XProtocol,
                                     const std::string &pass,
                                     const std::string &db);
 
-  XError perform_close();
-
   /**
     Dispatch notice to each registered handler. If the handler processed the
     message it should return "Handler_consumed" to stop dispatching to other
@@ -334,6 +341,7 @@ class Protocol_impl : public XProtocol,
   void dispatch_send_message(const Client_message_type_id id,
                              const Message &message);
 
+  Message *read_compressed(Server_message_type_id *mid, XError *out_error);
   void skip_not_parsed(CodedInputStream *input_stream, XError *out_error);
   bool send_impl(const Client_message_type_id mid, const Message &msg,
                  ZeroCopyOutputStream *input_stream);
@@ -348,10 +356,14 @@ class Protocol_impl : public XProtocol,
 
   std::unique_ptr<XConnection> m_connection;
   std::shared_ptr<Connection_input_stream> m_connection_input_stream;
+  std::shared_ptr<ZeroCopyInputStream> m_compressed_payload_input_stream;
+  std::shared_ptr<ZeroCopyInputStream> m_compressed_input_stream;
   std::vector<uint8_t> m_static_recv_buffer;
 
   z_stream m_out_stream;
   std::unique_ptr<XCompression> m_compression;
+  Mysqlx::Connection::Compression m_compressed;
+  Server_message_type_id m_compression_inner_message_id{Sid::COMPRESSION};
 };
 
 template <typename Auth_continue_handler>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,19 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_METADATA_BUILDER_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_METADATA_BUILDER_H_
 
+#include <cstdint>
 #include <vector>
 
-#include "my_inttypes.h"
+#include "m_ctype.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+
+namespace xpl {
+namespace iface {
+
+struct Encode_column_info;
+}  // namespace iface
+}  // namespace xpl
 
 namespace ngs {
 

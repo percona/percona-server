@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -618,6 +618,7 @@ end). Actions taken for each plugin function are as follows:
 
 #include "config_parser.h"
 #include "filesystem.h"
+#include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/plugin.h"
 
@@ -639,6 +640,8 @@ end). Actions taken for each plugin function are as follows:
 #include <string>
 #include <thread>
 #include <tuple>
+
+typedef void (*log_reopen_callback)(const std::string);
 
 #ifdef FRIEND_TEST
 // TODO replace by #include after merge:
@@ -746,8 +749,8 @@ class HARNESS_EXPORT PluginFuncEnv {
   void set_running() noexcept;
   void clear_running() noexcept;
   bool is_running() const noexcept;
-  bool wait_for_stop(uint32_t milliseconds) const
-      noexcept;  // 0 = infinite wait
+  bool wait_for_stop(
+      uint32_t milliseconds) const noexcept;  // 0 = infinite wait
 
   // error handling
   // (see also corresponding Harness API functions in plugin.h for more info)
@@ -866,8 +869,6 @@ class HARNESS_EXPORT Loader {
     Unloading,
   };
 
-  void platform_specific_init();
-
   /**
    * Load the named plugin from a specific library.
    *
@@ -878,10 +879,10 @@ class HARNESS_EXPORT Loader {
    *
    * @throws bad_plugin (std::runtime_error) on load error
    */
-  Plugin *load_from(const std::string &plugin_name,
-                    const std::string &library_name);
+  const Plugin *load_from(const std::string &plugin_name,
+                          const std::string &library_name);
 
-  Plugin *load(const std::string &plugin_name);
+  const Plugin *load(const std::string &plugin_name);
 
   /**
    * Load the named plugin and all dependent plugins.
@@ -897,7 +898,7 @@ class HARNESS_EXPORT Loader {
    * plugins required by that plugin will be loaded.
    */
   /** @overload */
-  Plugin *load(const std::string &plugin_name, const std::string &key);
+  const Plugin *load(const std::string &plugin_name, const std::string &key);
 
   // IMPORTANT design note: start_all() will block until PluginFuncEnv objects
   // have been created for all plugins. This guarantees that the required
@@ -944,30 +945,18 @@ class HARNESS_EXPORT Loader {
    */
   class HARNESS_EXPORT PluginInfo {
    public:
-    PluginInfo(const std::string &folder,
-               const std::string &library);  // throws bad_plugin
-    PluginInfo(const PluginInfo &) = delete;
-    PluginInfo(PluginInfo &&);
-    PluginInfo(void *h, Plugin *ext) : handle(h), plugin(ext) {}
-    ~PluginInfo();
+    PluginInfo(const std::string &folder, const std::string &libname);
+    PluginInfo(const Plugin *const plugin) : plugin_(plugin) {}
 
-    void load_plugin(const std::string &name);  // throws bad_plugin
+    void load_plugin_descriptor(const std::string &name);  // throws bad_plugin
 
-    /**
-     * Pointer to plugin structure.
-     *
-     * @note This pointer can be null, so remember to check it before
-     * using it.
-     *
-     * @todo Make this member private to avoid exposing the internal
-     * state.
-     */
-    void *handle;
-    Plugin *plugin;
+    const Plugin *plugin() const { return plugin_; }
+
+    const DynamicLibrary &library() const { return module_; }
 
    private:
-    class Impl;
-    Impl *impl_{nullptr};
+    DynamicLibrary module_;
+    const Plugin *plugin_{};
   };
 
   using PluginMap = std::map<std::string, PluginInfo>;
@@ -1014,6 +1003,13 @@ class HARNESS_EXPORT Loader {
   std::string program_;
   AppInfo appinfo_;
 
+  void spawn_signal_handler_thread();
+
+  std::mutex signal_thread_ready_m_;
+  std::condition_variable signal_thread_ready_cond_;
+  bool signal_thread_ready_{false};
+  std::thread signal_thread_;
+
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
   friend class ::LifecycleTest;
@@ -1058,10 +1054,146 @@ class HARNESS_EXPORT Loader {
 
 };  // class Loader
 
+class LogReopenThread {
+ public:
+  /**
+   * @throws std::system_error if out of threads
+   */
+  LogReopenThread() : reopen_thr_{}, state_{REOPEN_NONE}, errmsg_{""} {
+    // rely on move semantics
+    reopen_thr_ =
+        std::thread{&LogReopenThread::log_reopen_thread_function, this};
+  }
+
+  /**
+   * stop the log_reopen_thread_function.
+   *
+   * @throws std::system_error from request_application_shutdown()
+   */
+  void stop();
+
+  /**
+   * join the log_reopen thread.
+   *
+   * @throws std::system_error same as std::thread::join
+   */
+  void join();
+
+  /**
+   * destruct the thread.
+   *
+   * Same as std::thread it may call std::terminate in case the thread isn't
+   * joined yet, but joinable.
+   *
+   * In case join() fails as best-effort, a log-message is attempted to be
+   * written.
+   */
+  ~LogReopenThread();
+
+  /**
+   * thread function
+   */
+  static void log_reopen_thread_function(LogReopenThread *t);
+
+  /*
+   * request reopen
+   *
+   * @note Empty dst will cause reopen only, and the old content will not be
+   * moved to dst.
+   * @note This method uses mutex::try_lock() to avoid blocking the interrupt
+   * handler if a signal is received during an already ongoing concurrent
+   * reopen. The consequence is that reopen requests are ignored if rotation is
+   * already in progress.
+   *
+   * @param dst filename to use for old log file during reopen
+   * @throws std::system_error same as std::unique_lock::lock does
+   */
+  void request_reopen(const std::string dst = "");
+
+  /* Log reopen state triplet */
+  enum LogReopenState { REOPEN_NONE, REOPEN_REQUESTED, REOPEN_ACTIVE };
+
+  /* Check log reopen completed */
+  bool is_completed() const { return (state_ == REOPEN_NONE); }
+
+  /* Check log reopen requested */
+  bool is_requested() const { return (state_ == REOPEN_REQUESTED); }
+
+  /* Check log reopen active */
+  bool is_active() const { return (state_ == REOPEN_ACTIVE); }
+
+  /* Retrieve error from the last reopen */
+  std::string get_last_error() const { return errmsg_; }
+
+ private:
+  /* The thread handle */
+  std::thread reopen_thr_;
+
+  /* The log reopen thread state */
+  LogReopenState state_;
+
+  /* The last error message from the log reopen thread */
+  std::string errmsg_;
+
+  /* The destination filename to use for the old logfile during reopen */
+  std::string dst_;
+
+};  // class LogReopenThread
+
 }  // namespace mysql_harness
 
+/**
+ * Setter for the log reopen thread completion callback function.
+ *
+ * @param cb Function to call at completion.
+ */
 HARNESS_EXPORT
-void request_application_shutdown();
+void set_log_reopen_complete_callback(log_reopen_callback cb);
+
+/**
+ * The default implementation for log reopen thread completion callback
+ * function.
+ *
+ * @param errmsg Error message. Empty string assumes successful completion.
+ */
+HARNESS_EXPORT
+void default_log_reopen_complete_cb(const std::string errmsg);
+
+/*
+ * Reason for shutdown
+ */
+enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
+
+/**
+ * request application shutdown.
+ *
+ * @param reason reason for the shutdown
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
+HARNESS_EXPORT
+void request_application_shutdown(
+    const ShutdownReason reason = SHUTDOWN_REQUESTED);
+
+/**
+ * notify a "log_reopen" is requested with optional filename for old logfile.
+ *
+ * @param dst rename old logfile to filename before reopen
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
+HARNESS_EXPORT
+void request_log_reopen(const std::string dst = "");
+
+/**
+ * check reopen completed
+ */
+HARNESS_EXPORT
+bool log_reopen_completed();
+
+/**
+ * get last log reopen error
+ */
+HARNESS_EXPORT
+std::string log_reopen_get_error();
 
 #ifdef _WIN32
 HARNESS_EXPORT

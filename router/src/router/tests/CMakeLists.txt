@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 INCLUDE_DIRECTORIES(../include ../src ../../../tests/helpers)
 
 SET(TESTS
+  test_certificate_generator.cc
+  test_certificate_handler.cc
   test_cluster_metadata.cc
   test_config_files.cc
   test_config_generator.cc
@@ -32,12 +34,16 @@ SET(TESTS
   test_uri.cc
   test_utils.cc
   test_windows_service.cc
-  mysqlrouter_app.cc
-  mysqlrouter_utils.cc
+  test_mysqlrouter_app.cc
+  test_mysqlrouter_utils.cc
   )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM TESTS test_mysqlrouter_app.cc)
+ENDIF()
 
 FOREACH(TEST_FILE ${TESTS})
-  add_test_file(${TEST_FILE}
+  ADD_TEST_FILE(${TEST_FILE}
     MODULE "router"
     #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
     LIB_DEPENDS test-helpers
@@ -45,7 +51,7 @@ FOREACH(TEST_FILE ${TESTS})
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
 
-add_test_file(test_keyring_frontend.cc
+ADD_TEST_FILE(test_keyring_frontend.cc
   MODULE "router"
   #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   LIB_DEPENDS test-helpers
@@ -61,7 +67,7 @@ FOREACH(test_file
     issues/test_bug22572346.cc
     issues/test_bug24909259.cc
     )
-  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+  ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE issues
   LIB_DEPENDS test-helpers
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
@@ -71,6 +77,17 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
 # Use configuration file templates to generate configuration files
-CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR})
-COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR})
+SET(FILE_TEMPLATES
+  mysqlrouter.conf.in
+  mysqlrouter_consolelogger.conf.in
+  mysqlrouter_extra.conf.in
+  mysqlrouter_nologger.conf.in
+)
+CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR} "${FILE_TEMPLATES}")
+COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}
+  "config_a.conf;config_b.conf;config_c.ini;parse_error.conf"
+  )

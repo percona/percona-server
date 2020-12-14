@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,14 +69,16 @@
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_parse.h"   // check_string_char_length
-#include "sql/sql_plugin.h"  // check_valid_path
-#include "sql/sql_table.h"   // write_bin_log
-#include "sql/table.h"       // TABLE_LIST
+#include "sql/sql_parse.h"               // check_string_char_length
+#include "sql/sql_plugin.h"              // check_valid_path
+#include "sql/sql_system_table_check.h"  // System_table_intact
+#include "sql/sql_table.h"               // write_bin_log
+#include "sql/table.h"                   // TABLE_LIST
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_*
 #include "thr_lock.h"
+#include "udf_registration_imp.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -99,7 +101,7 @@
   \ref mem and \ref THR_LOCK_udf are always initialized, even in
   --skip-grant-tables mode.
 */
-static bool initialized = 0;
+static bool initialized = false;
 static MEM_ROOT mem;
 static collation_unordered_map<std::string, udf_func *> *udf_hash;
 static mysql_rwlock_t THR_LOCK_udf;
@@ -108,6 +110,21 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
                          Item_udftype typ);
 static void udf_hash_delete(udf_func *udf);
 static void *find_udf_dl(const char *dl);
+
+// mysql.func table definition.
+static const int MYSQL_UDF_TABLE_FIELD_COUNT = 4;
+static const TABLE_FIELD_TYPE
+    mysql_udf_table_fields[MYSQL_UDF_TABLE_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("name")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("ret")}, {STRING_WITH_LEN("tinyint")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("dl")}, {STRING_WITH_LEN("char(128)")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("type")},
+         {STRING_WITH_LEN("enum('function','aggregate')")},
+         {STRING_WITH_LEN("utf8")}}};
+static const TABLE_FIELD_DEF mysql_udf_table_def = {MYSQL_UDF_TABLE_FIELD_COUNT,
+                                                    mysql_udf_table_fields};
 
 static char *init_syms(udf_func *tmp, char *nm) {
   char *end;
@@ -139,7 +156,7 @@ static char *init_syms(udf_func *tmp, char *nm) {
     if (!opt_allow_suspicious_udfs) return nm;
     LogErr(WARNING_LEVEL, ER_FAILED_TO_FIND_DL_ENTRY, nm);
   }
-  return 0;
+  return nullptr;
 }
 
 static PSI_memory_key key_memory_udf_mem;
@@ -206,7 +223,7 @@ void udf_read_functions_table() {
     return;
   }
 
-  initialized = 1;
+  initialized = true;
 
   THD *new_thd = new (std::nothrow) THD;
   if (new_thd == nullptr) {
@@ -231,8 +248,9 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  iterator = init_table_iterator(new_thd, table, NULL, false,
-                                 /*ignore_not_found_rows=*/false);
+  iterator = init_table_iterator(new_thd, table, nullptr,
+                                 /*ignore_not_found_rows=*/false,
+                                 /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;
   while (!(error = iterator->Read())) {
     DBUG_PRINT("info", ("init udf record"));
@@ -240,7 +258,7 @@ void udf_read_functions_table() {
     name.str = get_field(&mem, table->field[0]);
     name.length = strlen(name.str);
     char *dl_name = get_field(&mem, table->field[2]);
-    bool new_dl = 0;
+    bool new_dl = false;
     Item_udftype udftype = UDFTYPE_FUNCTION;
     if (table->s->fields >= 4)  // New func table
       udftype = (Item_udftype)table->field[3]->val_int();
@@ -256,7 +274,7 @@ void udf_read_functions_table() {
     LEX_CSTRING name_cstr = {name.str, name.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
         check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
-                                 system_charset_info, 1)) {
+                                 system_charset_info, true)) {
       LogErr(ERROR_LEVEL, ER_UDF_INVALID_ROW_IN_FUNCTION_TABLE, name.str);
       continue;
     }
@@ -268,7 +286,7 @@ void udf_read_functions_table() {
     }
 
     void *dl = find_udf_dl(tmp->dl);
-    if (dl == NULL) {
+    if (dl == nullptr) {
       char dlpath[FN_REFLEN];
       strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl, NullS);
       (void)unpack_filename(dlpath, dlpath);
@@ -283,7 +301,7 @@ void udf_read_functions_table() {
         // Keep the udf in the hash so that we can remove it later
         continue;
       }
-      new_dl = 1;
+      new_dl = true;
     }
     tmp->dlhandle = dl;
     {
@@ -320,7 +338,7 @@ void udf_unload_udfs() {
         for (auto it2 = std::next(it1); it2 != udf_hash->end(); ++it2) {
           udf_func *tmp = it2->second;
           if (udf->dlhandle == tmp->dlhandle)
-            tmp->dlhandle = 0;  // Already closed
+            tmp->dlhandle = nullptr;  // Already closed
         }
         dlclose(udf->dlhandle);
       }
@@ -343,7 +361,7 @@ void udf_deinit_globals() {
     udf_hash = nullptr;
   }
   free_root(&mem, MYF(0));
-  initialized = 0;
+  initialized = false;
 
   mysql_rwlock_destroy(&THR_LOCK_udf);
 }
@@ -398,11 +416,8 @@ void free_udf(udf_func *udf) {
       while another thread still was using the udf
     */
     const auto it = udf_hash->find(to_string(udf->name));
-    if (it == udf_hash->end()) {
-      DBUG_ASSERT(false);
-      return;
-    }
-    udf_hash->erase(it);
+    if (it != udf_hash->end()) udf_hash->erase(it);
+
     using_udf_functions = !udf_hash->empty();
     if (udf->dlhandle && !find_udf_dl(udf->dl)) dlclose(udf->dlhandle);
   }
@@ -412,10 +427,10 @@ void free_udf(udf_func *udf) {
 /* This is only called if using_udf_functions != 0 */
 
 udf_func *find_udf(const char *name, size_t length, bool mark_used) {
-  udf_func *udf = 0;
+  udf_func *udf = nullptr;
   DBUG_TRACE;
 
-  if (!initialized) return NULL;
+  if (!initialized) return nullptr;
 
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
@@ -437,17 +452,17 @@ udf_func *find_udf(const char *name, size_t length, bool mark_used) {
 static void *find_udf_dl(const char *dl) {
   DBUG_TRACE;
 
-  if (!dl) return 0;
+  if (!dl) return nullptr;
   /*
     Because only the function name is hashed, we have to search trough
     all rows to find the dl.
   */
   for (const auto &key_and_value : *udf_hash) {
     udf_func *udf = key_and_value.second;
-    if (udf->dl && !strcmp(dl, udf->dl) && udf->dlhandle != NULL)
+    if (udf->dl && !strcmp(dl, udf->dl) && udf->dlhandle != nullptr)
       return udf->dlhandle;
   }
-  return 0;
+  return nullptr;
 }
 
 /* Assume that name && dl is already allocated */
@@ -469,7 +484,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   mysql_rwlock_wrlock(&THR_LOCK_udf);
 
   udf_hash->emplace(to_string(tmp->name), tmp);
-  using_udf_functions = 1;
+  using_udf_functions = true;
 
   mysql_rwlock_unlock(&THR_LOCK_udf);
   return tmp;
@@ -573,7 +588,7 @@ static bool udf_end_transaction(THD *thd, bool rollback, udf_func *udf,
 
 bool mysql_create_function(THD *thd, udf_func *udf) {
   bool error = true;
-  void *dl = 0;
+  void *dl = nullptr;
   int new_dl = 0;
   TABLE *table;
 
@@ -602,7 +617,7 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
   }
   LEX_CSTRING udf_name_cstr = {udf->name.str, udf->name.length};
   if (check_string_char_length(udf_name_cstr, "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
     return error;
   }
@@ -616,6 +631,26 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;
   table = tables.table;
+
+  /*
+    System table mysql.func is supported by only InnoDB engine. Changing system
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. CREATE FUNCTION operation is
+    *not* allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return error;
+  }
+
+  // CREATE FUNCTION operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_udf_table_def)) return error;
+
   /*
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for CREATE FUNCTION command.
@@ -722,6 +757,25 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;
   table = tables.table;
+
+  /*
+    System table mysql.func is supported by only InnoDB engine. Changing system
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. DROP and CREATE FUNCTION
+    operations are not allowed in this case.
+  */
+  if (!table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return error;
+  }
+
+  // DROP FUNCTION operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_udf_table_def)) return error;
+
   /*
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for DROP FUNCTION command.
@@ -747,8 +801,8 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   table->use_all_columns();
   table->field[0]->store(udf->name.str, udf->name.length, &my_charset_bin);
   if (!table->file->ha_index_read_idx_map(table->record[0], 0,
-                                          table->field[0]->ptr, HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT)) {
+                                          table->field[0]->field_ptr(),
+                                          HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
     int delete_err;
     if ((delete_err = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(delete_err, MYF(0));
@@ -774,19 +828,17 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   return error;
 }
 
-#include "sql/udf_registration_imp.h"
-
 bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc) {
   mysql_rwlock_wrlock(&THR_LOCK_udf);
 
-  DBUG_ASSERT(ufunc->dl == NULL);
-  DBUG_ASSERT(ufunc->dlhandle == NULL);
+  DBUG_ASSERT(ufunc->dl == nullptr);
+  DBUG_ASSERT(ufunc->dlhandle == nullptr);
 
   auto res = udf_hash->emplace(to_string(ufunc->name), ufunc);
   if (!res.second)
     ufunc = nullptr;
   else
-    using_udf_functions = 1;
+    using_udf_functions = true;
 
   mysql_rwlock_unlock(&THR_LOCK_udf);
   return ufunc == nullptr;
@@ -800,7 +852,7 @@ udf_func *mysql_udf_registration_imp::alloc_udf(const char *name,
   udf_func *ufunc;
 
   ufunc = (udf_func *)mem.Alloc(sizeof(udf_func));
-  if (!ufunc) return NULL;
+  if (!ufunc) return nullptr;
   memset(ufunc, 0, sizeof(udf_func));
   ufunc->name.str = strdup_root(&mem, name);
   ufunc->name.length = strlen(name);
@@ -849,7 +901,7 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
 
 DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
                    (const char *name, int *was_present)) {
-  udf_func *udf = NULL;
+  udf_func *udf = nullptr;
 
   if (was_present) *was_present = 0;
   mysql_rwlock_wrlock(&THR_LOCK_udf);
@@ -865,10 +917,10 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
       udf_hash->erase(it);
       using_udf_functions = !udf_hash->empty();
     } else  // error
-      udf = NULL;
+      udf = nullptr;
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
-  return udf != NULL ? false : true;
+  return udf != nullptr ? false : true;
 }
 
 void udf_hash_rlock(void) { mysql_rwlock_rdlock(&THR_LOCK_udf); }

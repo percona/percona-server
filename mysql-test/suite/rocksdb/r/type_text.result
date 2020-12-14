@@ -13,7 +13,7 @@ l LONGTEXT
 ) ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
-pk	int(11)	NO	PRI	NULL	auto_increment
+pk	int	NO	PRI	NULL	auto_increment
 t	text	YES		NULL	
 t0	tinytext	YES		NULL	
 t1	tinytext	YES		NULL	

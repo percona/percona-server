@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,8 @@ ndb_desc \-c \fIconnection_string\fR \fIindex_name\fR \-d \fIdb_name\fR \-t \fIt
 Additional options that can be used with
 \fBndb_desc\fR
 are listed later in this section\&.
-Sample Output.PP
+Sample Output
+.PP
 MySQL table creation and population statements:
 .sp
 .if n \{\
@@ -63,10 +64,10 @@ MySQL table creation and population statements:
 .nf
 USE test;
 CREATE TABLE fish (
-    id INT(11) NOT NULL AUTO_INCREMENT,
+    id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(20) NOT NULL,
-    length_mm INT(11) NOT NULL,
-    weight_gm INT(11) NOT NULL,
+    length_mm INT NOT NULL,
+    weight_gm INT NOT NULL,
     PRIMARY KEY pk (id),
     UNIQUE KEY uk (name)
 ) ENGINE=NDB;
@@ -122,8 +123,8 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   0               0               
-1               4               4               32768                   32768                   0               0               
+0               2               2               32768                   32768                   0               0
+1               4               4               32768                   32768                   0               0
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -326,7 +327,7 @@ NDBT_ProgramExit: 0 \- OK
 .\}
 .PP
 For more information about these table properties, see
-Section\ \&13.1.20.11, \(lqSetting NDB_TABLE Options\(rq\&.
+Section\ \&13.1.20.10, \(lqSetting NDB_TABLE Options\(rq\&.
 .PP
 The
 Extent_space
@@ -367,9 +368,9 @@ ALTER TABLESPACE ts_1
 .\}
 .PP
 (For more information on the statements just shown and the objects created by them, see
-Section\ \&22.5.13.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
-Section\ \&13.1.16, \(lqCREATE LOGFILE GROUP Syntax\(rq, and
-Section\ \&13.1.21, \(lqCREATE TABLESPACE Syntax\(rq\&.)
+Section\ \&22.5.10.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
+Section\ \&13.1.16, \(lqCREATE LOGFILE GROUP Statement\(rq, and
+Section\ \&13.1.21, \(lqCREATE TABLESPACE Statement\(rq\&.)
 .PP
 Now we can create and populate a version of the
 fish
@@ -379,11 +380,12 @@ table that stores 2 of its columns on disk (deleting the previous version of the
 .RS 4
 .\}
 .nf
+DROP TABLE IF EXISTS fish;
 CREATE TABLE fish (
-    id INT(11) NOT NULL AUTO_INCREMENT,
+    id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(20) NOT NULL,
-    length_mm INT(11) NOT NULL,
-    weight_gm INT(11) NOT NULL,
+    length_mm INT NOT NULL,
+    weight_gm INT NOT NULL,
     PRIMARY KEY pk (id),
     UNIQUE KEY uk (name)
 ) TABLESPACE ts_1 STORAGE DISK
@@ -415,7 +417,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 4
 Number of primary keys: 1
-Length of frm data: 346
+Length of frm data: 1001
 Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
@@ -423,15 +425,17 @@ SingleUserMode: 0
 ForceVarPart: 1
 PartitionCount: 2
 FragmentCount: 2
-FragmentCountType: ONE_PER_LDM_PER_NODE
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT\-HASHMAP\-3840\-2
+Tablespace id: 16
+Tablespace: ts_1
 \-\- Attributes \-\-
 id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+name Varchar(80;utf8mb4_0900_ai_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
 length_mm Int NOT NULL AT=FIXED ST=DISK
 weight_gm Int NOT NULL AT=FIXED ST=DISK
 \-\- Indexes \-\-
@@ -441,8 +445,8 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   1048576         1044440        
-1               4               4               32768                   32768                   1048576         1044400        
+0               2               2               32768                   32768                   1048576         1044440
+1               4               4               32768                   32768                   1048576         1044400
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -457,9 +461,14 @@ table only; for this reason, it is not visible when selecting from the
 INFORMATION_SCHEMA\&.FILES
 table\&.
 .PP
+Tablespace id
+and
+Tablespace
+are displayed for Disk Data tables beginning with NDB 8\&.0\&.21\&.
+.PP
 For fully replicated tables,
 \fBndb_desc\fR
-shows only the nodes holding primary partition fragment replicas; nodes with copy fragment replicas (only) are ignored\&. Beginning with NDB 7\&.5\&.4, you can obtain such information, using the
+shows only the nodes holding primary partition fragment replicas; nodes with copy fragment replicas (only) are ignored\&. You can obtain such information, using the
 \fBmysql\fR
 client, from the
 table_distribution_status,
@@ -479,7 +488,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.332.\ \&Command\-line options for the ndb_desc program
+.B Table\ \&22.260.\ \&Command\-line options for the ndb_desc program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -497,86 +506,111 @@ l l l
 l l l
 l l l
 l l l
+l l l
+l l l
 l l l.
 T{
 .PP
---blob-info,
+\fB--auto-inc\fR,
 .PP
--b
+\fB \fR\fB-a\fR\fB \fR
+T}:T{
+Show next value for AUTO_INCREMENT oolumn if table has one
+T}:T{
+.PP
+ADDED: NDB 8.0.21
+T}
+T{
+.PP
+\fB--blob-info\fR,
+.PP
+\fB \fR\fB-b\fR\fB \fR
 T}:T{
 Include partition information for BLOB tables in output. Requires that
               the -p option also be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---database=dbname,
+\fB--context\fR,
 .PP
--d
+\fB \fR\fB-x\fR\fB \fR
+T}:T{
+Show extra information for table such as database, schema, name,
+              internal ID
+T}:T{
+.PP
+ADDED: NDB 8.0.21
+T}
+T{
+.PP
+\fB--database=dbname\fR,
+.PP
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Name of database containing table
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---extra-node-info,
+\fB--extra-node-info\fR,
 .PP
--n
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 Include partition-to-data-node mappings in output. Requires that the -p
               option also be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---extra-partition-info,
+\fB--extra-partition-info\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Display information about partitions
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---retries=#,
+\fB--retries=#\fR,
 .PP
--r
+\fB \fR\fB-r\fR\fB \fR
 T}:T{
 Number of times to retry the connection (once per second)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---table=tbl_name,
+\fB--table=tbl_name\fR,
 .PP
--t
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
 Specify the table in which to find an index. When this option is used,
-              -p and -n have no effect and are ignored.
+              -p and -n have no effect and are ignored
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---unqualified,
+\fB--unqualified\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Use unqualified table names
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -589,9 +623,23 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-auto\-inc\fR,
+\fB\-a\fR
+Show the next value for a table\*(Aqs
+AUTO_INCREMENT
+column, if it has one\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-blob\-info\fR,
 \fB\-b\fR
-.sp
 Include information about subordinate
 BLOB
 and
@@ -611,9 +659,21 @@ Use of this option also requires the use of the
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-context\fR,
+\fB\-x\fR
+Show additional contextual information for the table such as schema, database name, table name, and the table\*(Aqs internal ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-d\fR
-.sp
 Specify the database in which the table should be found\&.
 .RE
 .sp
@@ -627,7 +687,6 @@ Specify the database in which the table should be found\&.
 .\}
 \fB\-\-extra\-node\-info\fR,
 \fB\-n\fR
-.sp
 Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in NDB Cluster\&.
 .sp
 Use of this option also requires the use of the
@@ -645,7 +704,6 @@ Use of this option also requires the use of the
 .\}
 \fB\-\-extra\-partition\-info\fR,
 \fB\-p\fR
-.sp
 Print additional information about the table\*(Aqs partitions\&.
 .RE
 .sp
@@ -659,7 +717,6 @@ Print additional information about the table\*(Aqs partitions\&.
 .\}
 \fB\-\-retries=\fR\fB\fI#\fR\fR,
 \fB\-r\fR
-.sp
 Try to connect this many times before giving up\&. One connect attempt is made per second\&.
 .RE
 .sp
@@ -673,7 +730,6 @@ Try to connect this many times before giving up\&. One connect attempt is made p
 .\}
 \fB\-\-table=\fR\fB\fItbl_name\fR\fR,
 \fB\-t\fR
-.sp
 Specify the table in which to look for an index\&.
 .RE
 .sp
@@ -687,15 +743,14 @@ Specify the table in which to look for an index\&.
 .\}
 \fB\-\-unqualified\fR,
 \fB\-u\fR
-.sp
 Use unqualified table names\&.
 .RE
 .PP
-In NDB 7\&.5\&.3 and later, table indexes listed in the output are ordered by ID\&. Previously, this was not deterministic and could vary between platforms\&. (Bug #81763, Bug #23547742)
+Table indexes listed in the output are ordered by ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

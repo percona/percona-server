@@ -4,9 +4,6 @@
  Utility user
 ==============
 
-:Availability: This feature is **Experimental** quality.
-
-
 |Percona Server| has implemented ability to have a |MySQL| user who has system access to do administrative tasks but limited access to user schema. This feature is especially useful to those operating |MySQL| As A Service. 
 
 This user has a mixed and special scope of abilities and protection:
@@ -52,6 +49,10 @@ Option :variable:`utility_user_schema_access` specifies the name(s) of the schem
 Option :variable:`utility_user_privileges` allows a comma-separated list of extra access privileges to grant to the utility user.
 
  Example: :option:`--utility-user-privileges` ="CREATE,DROP,LOCK TABLES"
+
+Option :variable:`utility_user_dynamic_privileges` allows a comma-separated list of extra access dynamic privileges to grant to the utility user.
+
+ Example: :option:`--utility-user-dynamic-privileges` ="SYSTEM_USER,AUDIT_ADMIN"
 
 Version Specific Information
 ============================
@@ -105,3 +106,49 @@ Specifies the schemas that the utility user has access to in a comma delimited l
    :default: NULL
 
 This variable can be used to specify a comma-separated list of extra access privileges to grant to the utility user. Supported values for the privileges list are: ``SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, GRANT, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE``
+
+.. variable:: utility_user_dynamic_privileges
+
+    :version 8.0.20-11: Feature implemented
+    :cli: Yes
+    :conf: utility_user_dynamic_privileges=<privilege1>,<privilege2>,<privilege3>
+    :scope: Global
+    :dyn: No
+    :vartype: String
+    :default: NULL
+
+This variable was added in |Percona Server| 8.0.20-11.
+
+This variable allows a comma-separated list of extra access dynamic privileges to grant to the utility user. The supported values for the dynamic privileges are:
+
+* APPLICATION_PASSWORD_ADMIN
+* AUDIT_ADMIN
+* BACKUP_ADMIN
+* BINLOG_ADMIN
+* BINLOG_ENCRYPTION_ADMIN
+* CLONE_ADMIN
+* CONNECTION_ADMIN
+* ENCRYPTION_KEY_ADMIN
+* FIREWALL_ADMIN
+* FIREWALL_USER
+* GROUP_REPLICATION_ADMIN
+* INNODB_REDO_LOG_ARCHIVE
+* NDB_STORED_USER
+* PERSIST_RO_VARIABLES_ADMIN
+* REPLICATION_APPLIER
+* REPLICATION_SLAVE_ADMIN
+* RESOURCE_GROUP_ADMIN
+* RESOURCE_GROUP_USER
+* ROLE_ADMIN 
+* SESSION_VARIABLES_ADMIN
+* SET_USER_ID
+* SHOW_ROUTINE
+* SYSTEM_USER
+* SYSTEM_VARIABLES_ADMIN
+* TABLE_ENCRYPTION_ADMIN
+* VERSION_TOKEN_ADMIN
+* XA_RECOVER_ADMIN
+
+Other dynamic privileges may be defined by plugins.
+
+

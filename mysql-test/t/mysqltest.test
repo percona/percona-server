@@ -1145,13 +1145,12 @@ source $x/tmp/sourced.inc;
 
 sleep 0.5;
 sleep 1;
-real_sleep 1;
 
 # Parameter from variable, legal and illegal
 let $sleep_var= 0.1;
 sleep $sleep_var;
 let $sleep_var= 1;
---real_sleep $sleep_var
+--sleep $sleep_var
 
 --write_file $MYSQL_TMP_DIR/sleep.inc
 let $sleep_var= xyz;
@@ -1161,25 +1160,13 @@ EOF
 --exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
 --remove_file $MYSQL_TMP_DIR/sleep.inc
 
---write_file $MYSQL_TMP_DIR/sleep.inc
-let $sleep_var= xyz;
-real_sleep $sleep_var;
-EOF
---error 1
---exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
---remove_file $MYSQL_TMP_DIR/sleep.inc
-
 # Missing parameter
 --error 1
 --exec echo "sleep ;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "real_sleep ;" | $MYSQL_TEST 2>&1
 
 # Illegal parameter
 --error 1
 --exec echo "sleep abc;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "real_sleep abc;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test inc
@@ -4878,3 +4865,100 @@ SELECT $val AS res;
 --let $val = 200
 SELECT $val AS res;
 --reap
+
+--echo #
+--echo # Bug#29901754: ADD SUPORT FOR COLUMN MASKING TO DIFF_TABLES.INC
+--echo #
+
+CREATE TABLE t1(col1 INT, col2 INT, col3 INT);
+INSERT INTO t1 VALUES(1, RAND(), 4);
+INSERT INTO t1 VALUES(2, RAND(), 5);
+INSERT INTO t1 VALUES(3, RAND(), 6);
+
+CREATE TABLE t2(col1 INT, col2 INT, col3 INT);
+INSERT INTO t2 VALUES(1, RAND(), 4);
+INSERT INTO t2 VALUES(2, RAND(), 5);
+INSERT INTO t2 VALUES(3, RAND(), 6);
+
+# Check if the two tables are identical, while
+# masking col2, which could vary.
+--let $mask_column_list=col2
+--let $diff_tables=default:t1, default:t2
+--source include/diff_tables.inc
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo #Bug#29769715 MTR: --REPLACE_* COMMANDS DON'T WORK WITH CAT_FILE COMMAND
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+abc 456.27
+EOF
+
+--replace_result abc def
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+# Check that replacement doesn't affect next query or command
+SELECT "abc 456.27" as c1;
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+--replace_regex /abc/def/
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+# Should not get replaced
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+--replace_numeric_round 1
+--cat_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+
+# Should not get replaced
+SELECT "abc 456.27" as c1;
+
+# Check whether long strings get replaced when used with
+# the 'cat_file' mysqltest command
+--perl
+  my $vardir= $ENV{'MYSQLTEST_VARDIR'};
+  open(FILE, ">", "$vardir/tmp/600chars.txt");
+  print FILE "a"x600 . "\n";
+  close(FILE)
+EOF
+
+--let $replace_string= `SELECT REPEAT('a', 600)`
+--replace_result $replace_string long_string
+--cat_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+--replace_regex /a+/long_string/
+--cat_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+##
+## Test assert()
+##
+assert(1);
+
+let $x= 1;
+assert($x);
+
+let $y= 0;
+assert(! $y);
+
+CREATE TABLE t1 (i int primary key not null);
+INSERT INTO t1 values(3);
+assert(`select count(*) from t1`);
+assert(! `select count(*) from t1 where i = 4`);
+DROP TABLE t1;
+
+if(1)
+{
+--assert(2)
+}
+
+if(1)
+{
+  assert(3);
+}
+
+--assert(4)

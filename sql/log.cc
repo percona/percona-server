@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_time.h"
+#include "server_component/log_sink_buffer.h"  // log_sink_buffer_flush()
 #include "sql_string.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -107,7 +108,7 @@
 #else
 #endif
 
-#include "../components/mysql_server/log_builtins_imp.h"
+#include "sql/server_component/log_builtins_imp.h"
 
 using std::max;
 using std::min;
@@ -131,30 +132,36 @@ enum enum_slow_query_log_table_field {
 static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] = {
     {{STRING_WITH_LEN("start_time")},
      {STRING_WITH_LEN("timestamp(6)")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("user_host")},
      {STRING_WITH_LEN("mediumtext")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("query_time")}, {STRING_WITH_LEN("time(6)")}, {NULL, 0}},
-    {{STRING_WITH_LEN("lock_time")}, {STRING_WITH_LEN("time(6)")}, {NULL, 0}},
-    {{STRING_WITH_LEN("rows_sent")}, {STRING_WITH_LEN("int(11)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("query_time")},
+     {STRING_WITH_LEN("time(6)")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("lock_time")},
+     {STRING_WITH_LEN("time(6)")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("rows_sent")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
     {{STRING_WITH_LEN("rows_examined")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+     {STRING_WITH_LEN("int")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("db")},
      {STRING_WITH_LEN("varchar(512)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("last_insert_id")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("insert_id")}, {STRING_WITH_LEN("int(11)")}, {NULL, 0}},
+     {STRING_WITH_LEN("int")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("insert_id")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
     {{STRING_WITH_LEN("server_id")},
-     {STRING_WITH_LEN("int(10) unsigned")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("sql_text")}, {STRING_WITH_LEN("mediumblob")}, {NULL, 0}},
+     {STRING_WITH_LEN("int unsigned")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("sql_text")},
+     {STRING_WITH_LEN("mediumblob")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("thread_id")},
-     {STRING_WITH_LEN("bigint(21) unsigned")},
-     {NULL, 0}}};
+     {STRING_WITH_LEN("bigint unsigned")},
+     {nullptr, 0}}};
 
 static const TABLE_FIELD_DEF slow_query_log_table_def = {
     SQLT_FIELD_COUNT, slow_query_log_table_fields};
@@ -172,29 +179,29 @@ enum enum_general_log_table_field {
 static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] = {
     {{STRING_WITH_LEN("event_time")},
      {STRING_WITH_LEN("timestamp(6)")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("user_host")},
      {STRING_WITH_LEN("mediumtext")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("thread_id")},
-     {STRING_WITH_LEN("bigint(21) unsigned")},
-     {NULL, 0}},
+     {STRING_WITH_LEN("bigint unsigned")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("server_id")},
-     {STRING_WITH_LEN("int(10) unsigned")},
-     {NULL, 0}},
+     {STRING_WITH_LEN("int unsigned")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("command_type")},
      {STRING_WITH_LEN("varchar(64)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("argument")},
      {STRING_WITH_LEN("mediumblob")},
-     {NULL, 0}}};
+     {nullptr, 0}}};
 
 static const TABLE_FIELD_DEF general_log_table_def = {GLT_FIELD_COUNT,
                                                       general_log_table_fields};
 
 class Query_log_table_intact : public Table_check_intact {
  protected:
-  void report_error(uint ecode, const char *fmt, ...)
+  void report_error(uint ecode, const char *fmt, ...) override
       MY_ATTRIBUTE((format(printf, 3, 4))) {
     longlong log_ecode = 0;
     switch (ecode) {
@@ -243,9 +250,9 @@ class Silence_log_table_errors : public Internal_error_handler {
  public:
   Silence_log_table_errors() { m_message[0] = '\0'; }
 
-  virtual bool handle_condition(THD *, uint, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) {
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     strmake(m_message, msg, sizeof(m_message) - 1);
     return true;
   }
@@ -254,7 +261,7 @@ class Silence_log_table_errors : public Internal_error_handler {
 };
 
 static void ull2timeval(ulonglong utime, struct timeval *tv) {
-  DBUG_ASSERT(tv != NULL);
+  DBUG_ASSERT(tv != nullptr);
   DBUG_ASSERT(utime > 0); /* should hold true in this context */
   tv->tv_sec = static_cast<long>(utime / 1000000);
   tv->tv_usec = utime % 1000000;
@@ -379,7 +386,7 @@ class File_query_log {
 };
 
 File_query_log::File_query_log(enum_log_table_type log_type)
-    : m_log_type(log_type), name(NULL), write_error(false), log_open(false) {
+    : m_log_type(log_type), name(nullptr), write_error(false), log_open(false) {
   mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 #ifdef HAVE_PSI_INTERFACE
   if (log_type == QUERY_LOG_GENERAL)
@@ -420,8 +427,8 @@ bool is_valid_log_name(const char *name, size_t len) {
   @param          opened_file_name      Name of the open fd.
   @param [out]    real_file_name        Buffer for actual name of the fd.
 
-  @retval file descriptor to open file with 'real_file_name', or '-1'
-          in case of errors.
+  @returns file descriptor to open file with 'real_file_name', or '-1'
+           in case of errors.
 */
 
 static File mysql_file_real_name_reopen(File file,
@@ -454,7 +461,7 @@ static File mysql_file_real_name_reopen(File file,
   return file;
 #else
   /* On *nix, get realpath, open realpath with O_NOFOLLOW. */
-  if (realpath(opened_file_name, real_file_name) == NULL) {
+  if (realpath(opened_file_name, real_file_name) == nullptr) {
     (void)mysql_file_close(file, MYF(0));
     return -1;
   }
@@ -540,7 +547,7 @@ bool File_query_log::open() {
       goto err;
   }
 
-  if (init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE, pos, 0,
+  if (init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE, pos, false,
                     MYF(MY_WME | MY_NABP)))
     goto err;
 
@@ -640,8 +647,8 @@ bool File_query_log::write_general(ulonglong event_utime,
 
   /* Note that my_b_write() assumes it knows the length for this */
   char local_time_buff[iso8601_size];
-  int time_buff_len =
-      make_iso8601_timestamp(local_time_buff, event_utime, opt_log_timestamps);
+  int time_buff_len = make_iso8601_timestamp(local_time_buff, event_utime,
+                                             iso8601_sysvar_logtimestamps);
 
   if (my_b_write(&log_file, pointer_cast<uchar *>(local_time_buff),
                  time_buff_len))
@@ -695,7 +702,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT)) {
     char my_timestamp[iso8601_size];
 
-    make_iso8601_timestamp(my_timestamp, current_utime, opt_log_timestamps);
+    make_iso8601_timestamp(my_timestamp, current_utime,
+                           iso8601_sysvar_logtimestamps);
 
     buff_len = snprintf(buff, sizeof buff, "# Time: %s\n", my_timestamp);
 
@@ -745,12 +753,14 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 
     if (query_start_utime) {
       make_iso8601_timestamp(start_time_buff, query_start_utime,
-                             opt_log_timestamps);
+                             iso8601_sysvar_logtimestamps);
       make_iso8601_timestamp(end_time_buff, query_start_utime + query_utime,
-                             opt_log_timestamps);
+                             iso8601_sysvar_logtimestamps);
     } else {
       start_time_buff[0] = '\0'; /* purecov: inspected */
-      make_iso8601_timestamp(end_time_buff, current_utime, opt_log_timestamps);
+      make_iso8601_timestamp(
+          end_time_buff, current_utime,
+          iso8601_sysvar_logtimestamps); /* purecov: inspected */
     }
 
     if (my_b_printf(
@@ -769,7 +779,9 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             " Start: %s End: %s Schema: %s Rows_affected: %llu\n",
             query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
             (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
-            (ulong)thd->get_protocol_classic()->get_net()->last_errno,
+            (ulong)(thd->is_classic_protocol()
+                        ? thd->get_protocol_classic()->get_net()->last_errno
+                        : 0),
             (ulong)thd->killed,
             (ulong)(thd->status_var.bytes_received -
                     query_start->bytes_received),
@@ -906,7 +918,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     This ensures logs can be used to replicate queries accurately.
   */
   end = my_stpcpy(end, ",timestamp=");
-  end = int10_to_str((long)(query_start_utime / 1000000), end, 10);
+  end = longlong10_to_str(query_start_utime / 1000000, end, 10);
 
   if (end != buff) {
     *end++ = ';';
@@ -942,7 +954,7 @@ bool Log_to_csv_event_handler::log_general(
     size_t user_host_len, my_thread_id thread_id, const char *command_type,
     size_t command_type_len, const char *sql_text, size_t sql_text_len,
     const CHARSET_INFO *client_cs) {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   bool result = true;
   bool need_close = false;
   bool need_rnd_end = false;
@@ -986,7 +998,7 @@ bool Log_to_csv_event_handler::log_general(
     goto err;
 
   if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init(false))
     goto err;
 
   need_rnd_end = true;
@@ -1069,7 +1081,7 @@ bool Log_to_csv_event_handler::log_slow(
     const char *user_host, size_t user_host_len, ulonglong query_utime,
     ulonglong lock_utime, bool, const char *sql_text, size_t sql_text_len,
     struct System_status_var *) {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   bool result = true;
   bool need_close = false;
   bool need_rnd_end = false;
@@ -1107,7 +1119,7 @@ bool Log_to_csv_event_handler::log_slow(
   }
 
   if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0)) {
+      table->file->ha_rnd_init(false)) {
     reason = "mark log or init failed";
     goto err;
   }
@@ -1137,18 +1149,24 @@ bool Log_to_csv_event_handler::log_slow(
       839 hours (~35 days)
     */
     MYSQL_TIME t;
-    t.neg = 0;
+    t.neg = false;
+
+    // overflow TIME-max
+    DBUG_EXECUTE_IF("slow_log_table_max_rows_examined", {
+      query_utime = (longlong)1555826389LL * 1000000 + 1;
+      lock_utime = query_utime;
+    });
 
     /* fill in query_time field */
-    calc_time_from_sec(&t,
-                       static_cast<long>(min((longlong)(query_utime / 1000000),
-                                             (longlong)TIME_MAX_VALUE_SECONDS)),
+    query_utime = min((ulonglong)query_utime,
+                      (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
+    calc_time_from_sec(&t, static_cast<long>(query_utime / 1000000LL),
                        query_utime % 1000000);
     table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t);
     /* lock_time */
-    calc_time_from_sec(&t,
-                       static_cast<long>(min((longlong)(lock_utime / 1000000),
-                                             (longlong)TIME_MAX_VALUE_SECONDS)),
+    lock_utime = min((ulonglong)lock_utime,
+                     (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
+    calc_time_from_sec(&t, static_cast<long>(lock_utime / 1000000LL),
                        lock_utime % 1000000);
     table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t);
     /* rows_sent */
@@ -1257,7 +1275,7 @@ bool Log_to_csv_event_handler::activate_log(
                         TL_WRITE_CONCURRENT_INSERT);
 
   Open_tables_backup open_tables_backup;
-  if (open_log_table(thd, &table_list, &open_tables_backup) != NULL) {
+  if (open_log_table(thd, &table_list, &open_tables_backup) != nullptr) {
     close_log_table(thd, &open_tables_backup);
     return false;
   }
@@ -1277,22 +1295,21 @@ class Log_to_file_event_handler : public Log_event_handler {
      Wrapper around File_query_log::write_slow() for slow log.
      @see Log_event_handler::log_slow().
   */
-  virtual bool log_slow(THD *thd, ulonglong current_utime,
-                        ulonglong query_start_arg, const char *user_host,
-                        size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len,
-                        struct System_status_var *query_start_status);
+  bool log_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
+                const char *user_host, size_t user_host_len,
+                ulonglong query_utime, ulonglong lock_utime, bool is_command,
+                const char *sql_text, size_t sql_text_len,
+                struct System_status_var *query_start_status) override;
 
   /**
      Wrapper around File_query_log::write_general() for general log.
      @see Log_event_handler::log_general().
   */
-  virtual bool log_general(THD *thd, ulonglong event_utime,
-                           const char *user_host, size_t user_host_len,
-                           my_thread_id thread_id, const char *command_type,
-                           size_t command_type_len, const char *sql_text,
-                           size_t sql_text_len, const CHARSET_INFO *client_cs);
+  bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
+                   size_t user_host_len, my_thread_id thread_id,
+                   const char *command_type, size_t command_type_len,
+                   const char *sql_text, size_t sql_text_len,
+                   const CHARSET_INFO *client_cs) override;
 
  private:
   Log_to_file_event_handler()
@@ -1367,7 +1384,7 @@ void Query_logger::cleanup() {
   DBUG_ASSERT(file_log_handler);
   file_log_handler->cleanup();
   delete file_log_handler;
-  file_log_handler = NULL;
+  file_log_handler = nullptr;
 }
 
 bool Query_logger::slow_log_write(
@@ -1526,44 +1543,44 @@ void Query_logger::init_query_log(enum_log_table_type log_type,
                                   ulonglong log_printer) {
   if (log_type == QUERY_LOG_SLOW) {
     if (log_printer & LOG_NONE) {
-      slow_log_handler_list[0] = NULL;
+      slow_log_handler_list[0] = nullptr;
       return;
     }
 
     switch (log_printer) {
       case LOG_FILE:
         slow_log_handler_list[0] = file_log_handler;
-        slow_log_handler_list[1] = NULL;
+        slow_log_handler_list[1] = nullptr;
         break;
       case LOG_TABLE:
         slow_log_handler_list[0] = &table_log_handler;
-        slow_log_handler_list[1] = NULL;
+        slow_log_handler_list[1] = nullptr;
         break;
       case LOG_TABLE | LOG_FILE:
         slow_log_handler_list[0] = file_log_handler;
         slow_log_handler_list[1] = &table_log_handler;
-        slow_log_handler_list[2] = NULL;
+        slow_log_handler_list[2] = nullptr;
         break;
     }
   } else if (log_type == QUERY_LOG_GENERAL) {
     if (log_printer & LOG_NONE) {
-      general_log_handler_list[0] = NULL;
+      general_log_handler_list[0] = nullptr;
       return;
     }
 
     switch (log_printer) {
       case LOG_FILE:
         general_log_handler_list[0] = file_log_handler;
-        general_log_handler_list[1] = NULL;
+        general_log_handler_list[1] = nullptr;
         break;
       case LOG_TABLE:
         general_log_handler_list[0] = &table_log_handler;
-        general_log_handler_list[1] = NULL;
+        general_log_handler_list[1] = nullptr;
         break;
       case LOG_TABLE | LOG_FILE:
         general_log_handler_list[0] = file_log_handler;
         general_log_handler_list[1] = &table_log_handler;
-        general_log_handler_list[2] = NULL;
+        general_log_handler_list[2] = nullptr;
         break;
     }
   } else
@@ -1824,9 +1841,9 @@ void log_slow_do(THD *thd, struct System_status_var *query_start_status) {
   THD_STAGE_INFO(thd, stage_logging_slow_query);
   thd->status_var.long_query_count++;
 
-  if (thd->rewritten_query.length())
-    query_logger.slow_log_write(thd, thd->rewritten_query.c_ptr_safe(),
-                                thd->rewritten_query.length(),
+  if (thd->rewritten_query().length())
+    query_logger.slow_log_write(thd, thd->rewritten_query().ptr(),
+                                thd->rewritten_query().length(),
                                 query_start_status);
   else
     query_logger.slow_log_write(thd, thd->query().str, thd->query().length,
@@ -2057,7 +2074,7 @@ static bool error_log_initialized = false;
 static mysql_mutex_t LOCK_error_log;
 // This variable is different from log_error_dest.
 // E.g. log_error_dest is "stderr" if we are not logging to file.
-static const char *error_log_file = NULL;
+static const char *error_log_file = nullptr;
 
 void discard_error_log_messages() {
   log_sink_buffer_flush(LOG_BUFFER_DISCARD_ONLY);
@@ -2089,7 +2106,7 @@ bool init_error_log() {
 
   if (log_builtins_init() < 0) {
     log_write_errstream(
-        STRING_WITH_LEN("failed to initialized basic error logging"));
+        STRING_WITH_LEN("failed to initialize basic error logging"));
     return true;
   } else
     return false;
@@ -2125,7 +2142,7 @@ bool open_error_log(const char *filename, bool get_lock) {
   if (errors) goto fail;
 
   /* The error stream must be unbuffered. */
-  setbuf(stderr, NULL);
+  setbuf(stderr, nullptr);
 
   error_log_file = filename;  // Remember name for later reopen
 
@@ -2171,7 +2188,8 @@ bool reopen_error_log() {
     mysql_mutex_unlock(&LOCK_error_log);
 
     if (result)
-      my_error(ER_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".", "");
+      my_error(ER_DA_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".",
+               ""); /* purecov: inspected */
   }
 
   return result;
@@ -2423,6 +2441,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
     if (ll.item[ll.count].type == LOG_ITEM_LOG_MESSAGE) {
       size_t msg_len = vsnprintf(buff, sizeof(buff),
                                  ll.item[ll.count].data.data_string.str, fili);
+      if (msg_len > (sizeof(buff) - 1)) msg_len = sizeof(buff) - 1;
 
       buff[sizeof(buff) - 1] = '\0';
       ll.item[ll.count].data.data_string.str = buff;

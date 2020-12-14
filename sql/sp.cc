@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -68,8 +69,7 @@
 #include "sql/error_handler.h"     // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/lock.h"  // lock_object_name
-#include "sql/log.h"
+#include "sql/lock.h"       // lock_object_name
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // trust_function_creators
@@ -97,7 +97,6 @@
 #include "sql/transaction_info.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_lock.h"
 
 class sp_rcontext;
 
@@ -128,7 +127,7 @@ bool load_charset(MEM_ROOT *mem_root, Field *field, const CHARSET_INFO *dflt_cs,
 
   *cs = get_charset_by_csname(cs_name.c_ptr(), MY_CS_PRIMARY, MYF(0));
 
-  if (*cs == NULL) {
+  if (*cs == nullptr) {
     *cs = dflt_cs;
     return true;
   }
@@ -149,7 +148,7 @@ bool load_collation(MEM_ROOT *mem_root, Field *field,
 
   *cl = get_charset_by_name(cl_name.c_ptr(), MYF(0));
 
-  if (*cl == NULL) {
+  if (*cl == nullptr) {
     *cl = dflt_cl;
     return true;
   }
@@ -172,9 +171,9 @@ Stored_routine_creation_ctx::create_routine_creation_ctx(
   const CHARSET_INFO *db_cl =
       dd_get_mysql_charset(routine->schema_collation_id());
 
-  DBUG_ASSERT(client_cs != NULL);
-  DBUG_ASSERT(connection_cl != NULL);
-  DBUG_ASSERT(db_cl != NULL);
+  DBUG_ASSERT(client_cs != nullptr);
+  DBUG_ASSERT(connection_cl != nullptr);
+  DBUG_ASSERT(db_cl != nullptr);
 
   // Create the context.
   return new (*THR_MALLOC)
@@ -215,7 +214,7 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
   }
 
   if (load_collation(thd->mem_root,
-                     proc_tbl->field[MYSQL_PROC_FIELD_DB_COLLATION], NULL,
+                     proc_tbl->field[MYSQL_PROC_FIELD_DB_COLLATION], nullptr,
                      &db_cl)) {
     LogErr(WARNING_LEVEL, ER_SR_BOGUS_VALUE, db_name, sr_name,
            "mysql.proc.db_collation.");
@@ -240,6 +239,20 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
       Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
 }
 
+Stored_program_creation_ctx *Stored_routine_creation_ctx::clone(
+    MEM_ROOT *mem_root) {
+  return new (mem_root)
+      Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+}
+
+Object_creation_ctx *Stored_routine_creation_ctx::create_backup_ctx(
+    THD *thd) const {
+  DBUG_TRACE;
+  return new (thd->mem_root) Stored_routine_creation_ctx(thd);
+}
+
+void Stored_routine_creation_ctx::delete_backup_ctx() { destroy(this); }
+
 /**
   Acquire Shared MDL lock on the routine object.
 
@@ -252,7 +265,7 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
   @retval true                Error
 */
 
-static bool lock_routine_name(THD *thd, enum_sp_type type, sp_name *name,
+static bool lock_routine_name(THD *thd, enum_sp_type type, const sp_name *name,
                               enum_mdl_type mdl_lock_type) {
   DBUG_TRACE;
 
@@ -318,13 +331,14 @@ static void recursion_level_error(THD *thd, sp_head *sp) {
 */
 
 static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
-                                           sp_name *name, sp_head **sphp) {
+                                           const sp_name *name,
+                                           sp_head **sphp) {
   DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
 
-  *sphp = NULL;  // In case of errors
+  *sphp = nullptr;  // In case of errors
 
   // Grab shared MDL lock on routine object.
   if (lock_routine_name(thd, type, name, MDL_SHARED)) return SP_INTERNAL_ERROR;
@@ -332,7 +346,7 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
   // Find routine in the data dictionary.
   enum_sp_return_code ret;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Routine *routine = NULL;
+  const dd::Routine *routine = nullptr;
 
   bool error;
   if (type == enum_sp_type::FUNCTION)
@@ -361,7 +375,7 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
   // Create stored routine creation context from the dd::Routine object.
   Stored_program_creation_ctx *creation_ctx =
       Stored_routine_creation_ctx::create_routine_creation_ctx(routine);
-  if (creation_ctx == NULL) return SP_INTERNAL_ERROR;
+  if (creation_ctx == nullptr) return SP_INTERNAL_ERROR;
 
   DBUG_EXECUTE_IF("fail_stored_routine_load", return SP_PARSE_ERROR;);
 
@@ -429,19 +443,19 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   if (parser_state.init(thd, defstr->c_ptr(), defstr->length())) {
     thd->variables.sql_mode = old_sql_mode;
     thd->variables.select_limit = old_select_limit;
-    return NULL;
+    return nullptr;
   }
 
   lex_start(thd);
   thd->push_internal_handler(&warning_handler);
-  thd->sp_runtime_ctx = NULL;
+  thd->sp_runtime_ctx = nullptr;
 
-  thd->m_digest = NULL;
-  thd->m_statement_psi = NULL;
-  if (parse_sql(thd, &parser_state, creation_ctx) || thd->lex == NULL) {
+  thd->m_digest = nullptr;
+  thd->m_statement_psi = nullptr;
+  if (parse_sql(thd, &parser_state, creation_ctx) || thd->lex == nullptr) {
     sp = thd->lex->sphead;
     sp_head::destroy(sp);
-    sp = 0;
+    sp = nullptr;
   } else {
     sp = thd->lex->sphead;
   }
@@ -453,7 +467,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->variables.sql_mode = old_sql_mode;
   thd->variables.select_limit = old_select_limit;
 #ifdef HAVE_PSI_SP_INTERFACE
-  if (sp != NULL)
+  if (sp != nullptr)
     sp->m_sp_share =
         MYSQL_GET_SP_SHARE(static_cast<uint>(sp->m_type), sp->m_db.str,
                            sp->m_db.length, sp->m_name.str, sp->m_name.length);
@@ -465,9 +479,9 @@ class Bad_db_error_handler : public Internal_error_handler {
  public:
   Bad_db_error_handler() : m_error_caught(false) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_BAD_DB_ERROR) {
       m_error_caught = true;
       return true;
@@ -498,7 +512,7 @@ enum_sp_return_code db_load_routine(
 
   thd->lex = &newlex;
   newlex.thd = thd;
-  newlex.set_current_select(NULL);
+  newlex.set_current_select(nullptr);
 
   String defstr;
   defstr.set_charset(creation_ctx->get_client_cs());
@@ -506,8 +520,8 @@ enum_sp_return_code db_load_routine(
   LEX_CSTRING user = {definer_user, strlen(definer_user)};
   LEX_CSTRING host = {definer_host, strlen(definer_host)};
 
-  if (!create_string(thd, &defstr, type, NULL, 0, sp_name, sp_name_len, params,
-                     strlen(params), returns, strlen(returns), body,
+  if (!create_string(thd, &defstr, type, nullptr, 0, sp_name, sp_name_len,
+                     params, strlen(params), returns, strlen(returns), body,
                      strlen(body), sp_chistics, user, host, sql_mode)) {
     ret = SP_INTERNAL_ERROR;
     goto end;
@@ -527,7 +541,7 @@ enum_sp_return_code db_load_routine(
   }
   thd->pop_internal_handler();
   if (db_not_exists_handler.error_caught()) {
-    ret = SP_INTERNAL_ERROR;
+    ret = SP_NO_DB_ERROR;
     my_error(ER_BAD_DB_ERROR, MYF(0), sp_db);
 
     goto end;
@@ -544,7 +558,7 @@ enum_sp_return_code db_load_routine(
     if (cur_db_changed &&
         mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true)) {
       sp_head::destroy(*sphp);
-      *sphp = NULL;
+      *sphp = nullptr;
       ret = SP_INTERNAL_ERROR;
       goto end;
     }
@@ -570,31 +584,10 @@ enum_sp_return_code db_load_routine(
   }
 
 end:
-  thd->lex->sphead = NULL;
+  thd->lex->sphead = nullptr;
   lex_end(thd->lex);
   thd->lex = old_lex;
   return ret;
-}
-
-static void sp_returns_type(THD *thd, String &result, sp_head *sp) {
-  TABLE table;
-  TABLE_SHARE share;
-  Field *field;
-  table.in_use = thd;
-  table.s = &share;
-  field = sp->create_result_field(0, nullptr, &table);
-  field->sql_type(result);
-
-  if (field->has_charset()) {
-    result.append(STRING_WITH_LEN(" CHARSET "));
-    result.append(field->charset()->csname);
-    if (!(field->charset()->state & MY_CS_PRIMARY)) {
-      result.append(STRING_WITH_LEN(" COLLATE "));
-      result.append(field->charset()->name);
-    }
-  }
-
-  destroy(field);
 }
 
 /**
@@ -774,10 +767,10 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
 
     String retstr(64);
     retstr.set_charset(system_charset_info);
-    if (sp->m_type == enum_sp_type::FUNCTION) sp_returns_type(thd, retstr, sp);
+    if (sp->m_type == enum_sp_type::FUNCTION) sp->returns_type(thd, &retstr);
 
     if (!create_string(thd, &log_query, sp->m_type,
-                       (sp->m_explicit_name ? sp->m_db.str : NULL),
+                       (sp->m_explicit_name ? sp->m_db.str : nullptr),
                        (sp->m_explicit_name ? sp->m_db.length : 0),
                        sp->m_name.str, sp->m_name.length, sp->m_params.str,
                        sp->m_params.length, retstr.c_ptr(), retstr.length(),
@@ -865,7 +858,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Routine *routine = NULL;
+  const dd::Routine *routine = nullptr;
 
   bool error;
   if (type == enum_sp_type::FUNCTION)
@@ -1219,26 +1212,17 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   DBUG_TRACE;
 
   /*
-    Before WL#7897 changes, full access to routine information is provided to
-    the definer of routine and to the user having SELECT privilege on
-    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
-    definer user can not have full access on the routine. So backup of routine
-    or getting exact create string of stored routine is not possible with this
-    change.
-    So as workaround for this issue, currently full access on stored routine
-    is provided to any user having global SELECT privilege.
-    Correct solution to this issue will be provided with the WL#8131 and
-    WL#9049.
+    Check if user has full access to the routine properties (i.e including
+    stored routine code), or partial access (i.e to view its other properties).
   */
-  Security_context *sctx = thd->security_context();
-  bool full_access =
-      (sctx->check_access(SELECT_ACL, sp->m_db.str) ||
-       (!strcmp(routine->definer_user().c_str(), sctx->priv_user().str) &&
-        !strcmp(routine->definer_host().c_str(), sctx->priv_host().str)));
+
+  bool full_access = has_full_view_routine_access(
+      thd, sp->m_db.str, routine->definer_user().c_str(),
+      routine->definer_host().c_str());
 
   if (!full_access &&
-      check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
-                                type == enum_sp_type::PROCEDURE))
+      !has_partial_view_routine_access(thd, sp->m_db.str, sp->m_name.str,
+                                       type == enum_sp_type::PROCEDURE))
     return true;
 
   // prepare st_sp_chistics object from the dd::Routine.
@@ -1253,7 +1237,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   String defstr;
   defstr.set_charset(system_charset_info);
   if (!create_string(
-          thd, &defstr, type, NULL, 0, routine->name().c_str(),
+          thd, &defstr, type, nullptr, 0, routine->name().c_str(),
           routine->name().length(), routine->parameter_str().c_str(),
           routine->parameter_str().length(), return_type_str.c_str(),
           return_type_str.length(), routine->definition().c_str(),
@@ -1268,7 +1252,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   sql_mode_string_representation(thd, routine->sql_mode(), &sql_mode);
 
   /* Send header. */
-  List<Item> fields;
+  mem_root_deque<Item *> fields(thd->mem_root);
   // Column type
   const char *col1_caption =
       (type == enum_sp_type::PROCEDURE) ? "Procedure" : "Function";
@@ -1306,7 +1290,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   fields.push_back(
       new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
 
-  if (thd->send_result_metadata(&fields,
+  if (thd->send_result_metadata(fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1376,7 +1360,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
 
   // Find routine in data dictionary.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Routine *routine = NULL;
+  const dd::Routine *routine = nullptr;
 
   bool error;
   if (type == enum_sp_type::FUNCTION)
@@ -1433,7 +1417,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                        static_cast<int>(type), cache_only));
 
   sp_head *sp = sp_cache_lookup(cp, name);
-  if (sp != NULL) return sp;
+  if (sp != nullptr) return sp;
 
   if (!cache_only) {
     if (db_find_routine(thd, type, name, &sp) == SP_OK) {
@@ -1468,7 +1452,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
                        static_cast<int>(type)));
 
   sp_head *sp = sp_cache_lookup(cp, name);
-  if (sp == NULL) return NULL;
+  if (sp == nullptr) return nullptr;
 
   DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
 
@@ -1484,7 +1468,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
     DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
     if (sp->m_first_free_instance->m_recursion_level > depth) {
       recursion_level_error(thd, sp);
-      return NULL;
+      return nullptr;
     }
     return sp->m_first_free_instance;
   }
@@ -1498,14 +1482,14 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   ulong level = sp->m_last_cached_sp->m_recursion_level + 1;
   if (level > depth) {
     recursion_level_error(thd, sp);
-    return NULL;
+    return nullptr;
   }
 
   const char *returns = "";
   String retstr(64);
   retstr.set_charset(sp->get_creation_ctx()->get_client_cs());
   if (type == enum_sp_type::FUNCTION) {
-    sp_returns_type(thd, retstr, sp);
+    sp->returns_type(thd, &retstr);
     returns = retstr.ptr();
   }
 
@@ -1516,7 +1500,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
                       sp->m_chistics, sp->m_definer_user.str,
                       sp->m_definer_host.str, sp->m_created, sp->m_modified,
                       sp->get_creation_ctx()) != SP_OK)
-    return NULL;
+    return nullptr;
 
   sp->m_last_cached_sp->m_next_cached_sp = new_sp;
   new_sp->m_recursion_level = level;
@@ -1536,9 +1520,8 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   @param is_proc  Indicates whether routines in the list are procedures
                   or functions.
 
-  @return
-    @retval false Found.
-    @retval true  Not found
+  @retval false Found.
+  @retval true  Not found
 */
 
 bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
@@ -1555,11 +1538,11 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
     lex_name.str = thd->strmake(routine->table_name, lex_name.length);
     name = new (thd->mem_root) sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
-    sp_object_found = is_proc
-                          ? sp_find_routine(thd, enum_sp_type::PROCEDURE, name,
-                                            &thd->sp_proc_cache, false) != NULL
-                          : sp_find_routine(thd, enum_sp_type::FUNCTION, name,
-                                            &thd->sp_func_cache, false) != NULL;
+    sp_object_found =
+        is_proc ? sp_find_routine(thd, enum_sp_type::PROCEDURE, name,
+                                  &thd->sp_proc_cache, false) != nullptr
+                : sp_find_routine(thd, enum_sp_type::FUNCTION, name,
+                                  &thd->sp_func_cache, false) != nullptr;
     thd->get_stmt_da()->reset_condition_info(thd);
     if (!sp_object_found) {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), is_proc ? "PROCEDURE" : "FUNCTION",
@@ -1786,7 +1769,7 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx) {
         std::string(not_own_rt->m_key, not_own_rt->m_key_length));
   }
 
-  *prelocking_ctx->sroutines_list_own_last = NULL;
+  *prelocking_ctx->sroutines_list_own_last = nullptr;
   prelocking_ctx->sroutines_list.next = prelocking_ctx->sroutines_list_own_last;
   prelocking_ctx->sroutines_list.elements =
       prelocking_ctx->sroutines_list_own_elements;
@@ -1897,8 +1880,9 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   @retval non-SP_OK  Error while loading routine from DD table.
 */
 
-enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                                     bool lookup_only, sp_head **sp) {
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
+                                     const sp_name *name, bool lookup_only,
+                                     sp_head **sp) {
   enum_sp_return_code ret = SP_OK;
   sp_cache **spc = (type == enum_sp_type::FUNCTION) ? &thd->sp_func_cache
                                                     : &thd->sp_proc_cache;
@@ -2047,7 +2031,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
   enum_sp_type type = is_dd_routine_type_function(routine)
                           ? enum_sp_type::FUNCTION
                           : enum_sp_type::PROCEDURE;
-  *free_sp_head = 0;
+  *free_sp_head = false;
   sp_cache **spc = (type == enum_sp_type::FUNCTION) ? &thd->sp_func_cache
                                                     : &thd->sp_proc_cache;
   sp_name sp_name_obj(
@@ -2063,7 +2047,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
   // Create stored program creation context from routine object.
   Stored_program_creation_ctx *creation_ctx =
       Stored_routine_creation_ctx::create_routine_creation_ctx(routine);
-  if (creation_ctx == NULL) return NULL;
+  if (creation_ctx == nullptr) return nullptr;
 
   // Prepare stored routine return type string.
   dd::String_type return_type_str;
@@ -2096,15 +2080,15 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
                      return_type_str.c_str(), return_type_str.length(),
                      sr_body.str, sr_body.length, &sp_chistics, definer_user,
                      definer_host, routine->sql_mode()))
-    return 0;
+    return nullptr;
 
   LEX *old_lex = thd->lex, newlex;
   thd->lex = &newlex;
   newlex.thd = thd;
-  newlex.set_current_select(NULL);
+  newlex.set_current_select(nullptr);
   sp = sp_compile(thd, &defstr, routine->sql_mode(), creation_ctx);
-  *free_sp_head = 1;
-  thd->lex->sphead = NULL;
+  *free_sp_head = true;
+  thd->lex->sphead = nullptr;
   lex_end(thd->lex);
   thd->lex = old_lex;
   return sp;
@@ -2135,7 +2119,7 @@ sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
                  MEM_ROOT_PREALLOC);
 
   void *rawmem = own_root.Alloc_aligned(sizeof(sp_head), alignof(sp_head));
-  if (!rawmem) return NULL;
+  if (!rawmem) return nullptr;
 
   sp_head *sp = new (rawmem) sp_head(std::move(own_root), sp_type);
 
@@ -2147,7 +2131,7 @@ sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
 
   sp->m_root_parsing_ctx = new (thd->mem_root) sp_pcontext(thd);
 
-  if (!sp->m_root_parsing_ctx) return NULL;
+  if (!sp->m_root_parsing_ctx) return nullptr;
 
   thd->lex->set_sp_current_parsing_ctx(sp->m_root_parsing_ctx);
 
@@ -2179,6 +2163,7 @@ void sp_finish_parsing(THD *thd) {
 Item_result sp_map_result_type(enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2200,6 +2185,7 @@ Item_result sp_map_result_type(enum enum_field_types type) {
 Item::Type sp_map_item_type(enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2297,13 +2283,13 @@ uint sp_get_flags_for_command(LEX *lex) {
       break;
     case SQLCOM_CREATE_TABLE:
       if (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
-        flags = 0;
+        flags = sp_head::HAS_TEMP_TABLE_DDL;
       else
         flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
     case SQLCOM_DROP_TABLE:
       if (lex->drop_temporary)
-        flags = 0;
+        flags = sp_head::HAS_TEMP_TABLE_DDL;
       else
         flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
@@ -2388,7 +2374,7 @@ uint sp_get_flags_for_command(LEX *lex) {
 */
 
 bool sp_check_name(LEX_STRING *ident) {
-  DBUG_ASSERT(ident != NULL && ident->str != NULL);
+  DBUG_ASSERT(ident != nullptr && ident->str != nullptr);
 
   if (!ident->str[0] || ident->str[ident->length - 1] == ' ') {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
@@ -2397,7 +2383,7 @@ bool sp_check_name(LEX_STRING *ident) {
 
   LEX_CSTRING ident_cstr = {ident->str, ident->length};
   if (check_string_char_length(ident_cstr, "", NAME_CHAR_LEN,
-                               system_charset_info, 1)) {
+                               system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
     return true;
   }
@@ -2419,12 +2405,20 @@ bool sp_check_name(LEX_STRING *ident) {
 Item *sp_prepare_func_item(THD *thd, Item **it_addr) {
   it_addr = (*it_addr)->this_item_addr(thd, it_addr);
 
-  if (!(*it_addr)->fixed &&
-      ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1))) {
-    DBUG_PRINT("info", ("fix_fields() failed"));
-    return NULL;
+  if ((*it_addr)->fixed) {
+    thd->lex->set_exec_started();
+    return *it_addr;
   }
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  Prepare_error_tracker tracker(thd);
+
+  if ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1)) {
+    DBUG_PRINT("info", ("fix_fields() failed"));
+    return nullptr;
+  }
+  thd->lex->unit->set_prepared();
+  thd->lex->save_cmd_properties(thd);
   thd->lex->set_exec_started();
 
   return *it_addr;
@@ -2523,7 +2517,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
     case STRING_RESULT: {
       String *result = item->val_str(str);
 
-      if (!result) return NULL;
+      if (!result) return nullptr;
 
       {
         char buf_holder[STRING_BUFFER_USUAL_SIZE];
@@ -2548,6 +2542,6 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
 
     case ROW_RESULT:
     default:
-      return NULL;
+      return nullptr;
   }
 }

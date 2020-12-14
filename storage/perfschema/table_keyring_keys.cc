@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +70,8 @@ Plugin_table table_keyring_keys::s_table_def(
 PFS_engine_table_share table_keyring_keys::s_share = {
     &pfs_readonly_acl,
     table_keyring_keys::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_keyring_keys::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &s_table_lock,
@@ -143,8 +143,8 @@ int table_keyring_keys::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case FO_KEY_ID:
           set_field_varchar_utf8(f, m_row->m_key_id.c_str(),
                                  static_cast<uint>(m_row->m_key_id.length()));

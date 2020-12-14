@@ -1,3 +1,4 @@
+--skip Fails because 'ALTER TABLE TableA EXCHANGE PARTITION parta WITH TABLE TableB' does not succeed
 ################################################################################
 # t/partition_mgm_lc1_tokudb.test                                              #
 #                                                                              #

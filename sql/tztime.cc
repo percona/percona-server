@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,8 @@
 
 #include "sql/tztime.h"
 
+#include <algorithm>
+
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
@@ -41,6 +43,7 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "guard.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"  // strmake
@@ -226,14 +229,14 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
   if (!(file =
             mysql_file_fopen(0, name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
-    return 1;
+    return true;
   {
     union {
       struct tzhead tzhead;
       uchar buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
                 TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
 #ifdef ABBR_ARE_USED
-                MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
+                std::max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
 #endif
                 sizeof(LS_INFO) * TZ_MAX_LEAPS];
     } u;
@@ -243,9 +246,9 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
     read_from_file = mysql_file_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
 
-    if (mysql_file_fclose(file, MYF(MY_WME)) != 0) return 1;
+    if (mysql_file_fclose(file, MYF(MY_WME)) != 0) return true;
 
-    if (read_from_file < sizeof(struct tzhead)) return 1;
+    if (read_from_file < sizeof(struct tzhead)) return true;
 
     ttisstdcnt = int4net(u.tzhead.tzh_ttisgmtcnt);
     ttisgmtcnt = int4net(u.tzhead.tzh_ttisstdcnt);
@@ -259,7 +262,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
         sp->charcnt > TZ_MAX_CHARS ||
         (ttisstdcnt != sp->typecnt && ttisstdcnt != 0) ||
         (ttisgmtcnt != sp->typecnt && ttisgmtcnt != 0))
-      return 1;
+      return true;
     if ((uint)(read_from_file - (p - u.buf)) <
         sp->timecnt * 4 +           /* ats */
             sp->timecnt +           /* types */
@@ -268,7 +271,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
             sp->leapcnt * (4 + 4) + /* lsinfos */
             ttisstdcnt +            /* ttisstds */
             ttisgmtcnt)             /* ttisgmts */
-      return 1;
+      return true;
 
 #ifdef ABBR_ARE_USED
     size_t start_of_zone_abbrev = sizeof(struct tzhead) +
@@ -296,7 +299,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
               ALIGN_SIZE(abbrs_buf_len) +
 #endif
               sp->leapcnt * sizeof(LS_INFO))))
-      return 1;
+      return true;
 
     sp->ats = (my_time_t *)tzinfo_buf;
     tzinfo_buf += ALIGN_SIZE(sp->timecnt * sizeof(my_time_t));
@@ -314,7 +317,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
     for (i = 0; i < sp->timecnt; i++) {
       sp->types[i] = *p++;
-      if (sp->types[i] >= sp->typecnt) return 1;
+      if (sp->types[i] >= sp->typecnt) return true;
     }
     for (i = 0; i < sp->typecnt; i++) {
       TRAN_TYPE_INFO *ttisp;
@@ -323,9 +326,9 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       ttisp->tt_gmtoff = int4net(p);
       p += 4;
       ttisp->tt_isdst = *p++;
-      if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1) return 1;
+      if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1) return true;
       ttisp->tt_abbrind = *p++;
-      if (ttisp->tt_abbrind > sp->charcnt) return 1;
+      if (ttisp->tt_abbrind > sp->charcnt) return true;
     }
     for (i = 0; i < sp->charcnt; i++) sp->chars[i] = *p++;
     sp->chars[i] = '\0'; /* ensure '\0' at end */
@@ -526,7 +529,7 @@ static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
   }
 
   /* check if we have had enough space */
-  if (sp->revcnt == TZ_MAX_REV_RANGES - 1) return 1;
+  if (sp->revcnt == TZ_MAX_REV_RANGES - 1) return true;
 
   /* set maximum end_l as finisher */
   revts[sp->revcnt] = end_l;
@@ -536,12 +539,12 @@ static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
                                                 (sp->revcnt + 1))) ||
       !(sp->revtis =
             (REVT_INFO *)storage->Alloc(sizeof(REVT_INFO) * sp->revcnt)))
-    return 1;
+    return true;
 
   memcpy(sp->revts, revts, sizeof(my_time_t) * (sp->revcnt + 1));
   memcpy(sp->revtis, revtis, sizeof(REVT_INFO) * sp->revcnt);
 
-  return 0;
+  return false;
 }
 
 #if !defined(TZINFO2SQL)
@@ -575,7 +578,7 @@ static const uint year_lengths[2] = {DAYS_PER_NYEAR, DAYS_PER_LYEAR};
     initialization. Funny but with removing of these we almost have
     glibc's offtime function.
 */
-static void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, long offset) {
+void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset) {
   long days;
   long rem;
   int y;
@@ -626,9 +629,10 @@ static void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, long offset) {
   tmp->day = (uint)(days + 1);
 
   /* filling MySQL specific MYSQL_TIME members */
-  tmp->neg = 0;
+  tmp->neg = false;
   tmp->second_part = 0;
   tmp->time_type = MYSQL_TIMESTAMP_DATETIME;
+  tmp->time_zone_displacement = 0;
 }
 
 /*
@@ -777,6 +781,31 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
   tmp->second += hit;
 }
 
+/**
+  Converts time from a MYSQL_TIME struct to a unix timestamp-like 64 bit
+  integer. The function is guaranteed to use 64 bits on any platform.
+
+  @todo Make sec_since_epoch() call this function instead of duplicating the
+  code.
+
+  @param mt The time to convert.
+  @return A value compatible with a 64 bit Unix timestamp.
+*/
+static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
+  DBUG_ASSERT(mt.month > 0 && mt.month < 13);
+  // The year can be negative wrt to the epoch, hence the cast to signed.
+  auto year = static_cast<int64_t>(mt.year);
+  int64_t days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
+                 LEAPS_THRU_END_OF(year - 1) -
+                 LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
+  days += mon_starts[isleap(year)][mt.month - 1];
+  days += mt.day - 1;
+
+  return ((days * HOURS_PER_DAY + mt.hour) * MINS_PER_HOUR + mt.minute) *
+             SECS_PER_MIN +
+         mt.second;
+}
+
 /*
   Converts local time in broken down representation to local
   time zone analog of my_time_t represenation.
@@ -810,6 +839,13 @@ static my_time_t sec_since_epoch(int year, int mon, int mday, int hour, int min,
 
   return ((days * HOURS_PER_DAY + hour) * MINS_PER_HOUR + min) * SECS_PER_MIN +
          sec;
+}
+
+static my_time_t sec_since_epoch(const MYSQL_TIME &mt) {
+  return sec_since_epoch(static_cast<int>(mt.year), static_cast<int>(mt.month),
+                         static_cast<int>(mt.day), static_cast<int>(mt.hour),
+                         static_cast<int>(mt.minute),
+                         static_cast<int>(mt.second));
 }
 
 /*
@@ -959,7 +995,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       Now we are returning my_time_t value corresponding to the
       beginning of the gap.
     */
-    *in_dst_time_gap = 1;
+    *in_dst_time_gap = true;
     local_t = sp->revts[i] + saved_seconds - sp->revtis[i].rt_offset;
   } else
     local_t = local_t + saved_seconds - sp->revtis[i].rt_offset;
@@ -981,6 +1017,81 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   String with names of SYSTEM time zone.
 */
 static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
+static const String tz_UTC_name("UTC", 3, &my_charset_latin1);
+
+Time_zone *my_tz_find(const int64 displacement);
+
+static void raise_time_zone_conversion_error(const MYSQL_TIME &mt) {
+  char str[MAX_DATE_STRING_REP_LENGTH];
+  // TODO(mhansson) Get the correct number of decimal places into the error
+  // message.  This is non-trivial, as this is part of the meta-data, which
+  // (for some reason) is not included in a MYSQL_TIME.
+  my_datetime_to_str(mt, str, 0);
+
+  my_error(ER_TRUNCATED_WRONG_VALUE, myf(0), "temporal", str);
+}
+
+/**
+  Checks that this temporal value can be converted from its specified time
+  zone (if any) to the current time zone. Specifically, temporal values with
+  zero months or days cannot be converted between time zones.
+
+  @param mt The time to check.
+  @retval false The temporal value has no time zone or can be converted.
+  @retval true Otherwise, and an error was raised.
+*/
+bool check_time_zone_convertibility(const MYSQL_TIME &mt) {
+  if (mt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ &&
+      (mt.month < 1 || mt.day < 1)) {
+    raise_time_zone_conversion_error(mt);
+    return true;
+  }
+  return false;
+}
+
+/**
+  Converts a date/time value with time zone to the corresponding date/time value
+  without time zone, converted to be in time zone specified by argument @p tz.
+
+  Since MySQL doesn't have a data type for temporal values with time zone
+  information, all such values are converted to a value without time zone
+  using this function.
+
+  This function is intended only for values with a time zone, and is a no-op
+  for all other types.
+
+  The converted value may not fall outside the range of the `DATETIME` type.
+  Also some invalid values cannot be converted because the conversion result
+  would be undefined. In these cases an error is raised.
+
+  @param tz The time zone to convert according to.
+  @param[in,out] mt Date/Time value to be converted.
+
+  @return false on success. true if an error was raised.
+*/
+bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
+  if (mt->time_type != MYSQL_TIMESTAMP_DATETIME_TZ) return false;
+
+  if (check_time_zone_convertibility(*mt)) return true;
+
+  MYSQL_TIME out;
+  std::int64_t epoch_secs_in_utc =
+      sec_since_epoch64(*mt) - mt->time_zone_displacement;
+
+  ulong microseconds = mt->second_part;
+
+  tz->gmt_sec_to_TIME(&out, epoch_secs_in_utc);
+  out.second_part = microseconds;
+
+  if (check_datetime_range(out)) {
+    raise_time_zone_conversion_error(out);
+    return true;
+  }
+
+  *mt = out;
+  DBUG_ASSERT(mt->time_type == MYSQL_TIMESTAMP_DATETIME);
+  return false;
+}
 
 /*
   Instance of this class represents local time zone used on this system
@@ -994,11 +1105,10 @@ static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
 */
 class Time_zone_system : public Time_zone {
  public:
-  Time_zone_system() {} /* Remove gcc warning */
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 };
 
 /*
@@ -1026,10 +1136,13 @@ class Time_zone_system : public Time_zone {
   RETURN VALUE
     Corresponding my_time_t value or 0 in case of error
 */
-my_time_t Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *t,
+my_time_t Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *mt,
                                             bool *in_dst_time_gap) const {
+  if (mt->time_type == MYSQL_TIMESTAMP_DATETIME_TZ)
+    return sec_since_epoch(*mt) - mt->time_zone_displacement;
+
   long not_used;
-  return my_system_gmt_sec(*t, &not_used, in_dst_time_gap);
+  return my_system_gmt_sec(*mt, &not_used, in_dst_time_gap);
 }
 
 /*
@@ -1078,11 +1191,10 @@ const String *Time_zone_system::get_name() const { return &tz_SYSTEM_name; }
 */
 class Time_zone_utc : public Time_zone {
  public:
-  Time_zone_utc() {} /* Remove gcc warning */
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 };
 
 /*
@@ -1097,20 +1209,12 @@ class Time_zone_utc : public Time_zone {
                         value passed doesn't really exist (i.e. falls into
                         spring time-gap) and is not touched otherwise.
 
-  DESCRIPTION
-    Since Time_zone_utc is used only internally for my_time_t -> TIME
-    conversions, this function of Time_zone interface is not implemented for
-    this class and should not be called.
-
   RETURN VALUE
-    0
+    Corresponding my_time_t value, or 0 in case of error.
 */
 my_time_t Time_zone_utc::TIME_to_gmt_sec(
-    const MYSQL_TIME *t MY_ATTRIBUTE((unused)),
-    bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
-  /* Should be never called */
-  DBUG_ASSERT(0);
-  return 0;
+    const MYSQL_TIME *mt, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
+  return sec_since_epoch(*mt);
 }
 
 /*
@@ -1140,19 +1244,10 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
   SYNOPSIS
     get_name()
 
-  DESCRIPTION
-    Since Time_zone_utc is used only internally by SQL's UTC_* functions it
-    is not accessible directly, and hence this function of Time_zone
-    interface is not implemented for this class and should not be called.
-
   RETURN VALUE
-    0
+    Name of time zone as String
 */
-const String *Time_zone_utc::get_name() const {
-  /* Should be never called */
-  DBUG_ASSERT(0);
-  return 0;
-}
+const String *Time_zone_utc::get_name() const { return &tz_UTC_name; }
 
 /*
   Instance of this class represents some time zone which is
@@ -1161,10 +1256,10 @@ const String *Time_zone_utc::get_name() const {
 class Time_zone_db : public Time_zone {
  public:
   Time_zone_db(TIME_ZONE_INFO *tz_info_arg, const String *tz_name_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 
  private:
   TIME_ZONE_INFO *tz_info;
@@ -1188,28 +1283,28 @@ Time_zone_db::Time_zone_db(TIME_ZONE_INFO *tz_info_arg,
                            const String *tz_name_arg)
     : tz_info(tz_info_arg), tz_name(tz_name_arg) {}
 
-/*
-  Converts local time in time zone described from TIME
-  representation to its my_time_t representation.
+/**
+  Converts the date/time value to my_time_t representation.
+  If the date/time value has a time zone displacement, it is taken to be in UTC
+  and the displacement is subtracted. Otherwise, it gets interpreted as being in
+  the time zone described by this object.
 
-  SYNOPSIS
-    TIME_to_gmt_sec()
-      t               - pointer to MYSQL_TIME structure with local time
-                        in broken-down representation.
-      in_dst_time_gap - pointer to bool which is set to true if datetime
-                        value passed doesn't really exist (i.e. falls into
-                        spring time-gap) and is not touched otherwise.
+  @param mt Pointer to MYSQL_TIME structure with local time in broken-down
+  representation.
 
-  DESCRIPTION
-    Please see ::TIME_to_gmt_sec for function description and
+  @param[out] in_dst_time_gap Set to true if datetime value passed doesn't
+  really exist (i.e. falls into spring time-gap,) not touched otherwise.
+
+  @see ::TIME_to_gmt_sec() for function description and
     parameter restrictions.
 
-  RETURN VALUE
-    Corresponding my_time_t value or 0 in case of error
+  @return Corresponding my_time_t value or 0 in case of error.
 */
-my_time_t Time_zone_db::TIME_to_gmt_sec(const MYSQL_TIME *t,
+my_time_t Time_zone_db::TIME_to_gmt_sec(const MYSQL_TIME *mt,
                                         bool *in_dst_time_gap) const {
-  return ::TIME_to_gmt_sec(t, tz_info, in_dst_time_gap);
+  if (mt->time_type == MYSQL_TIMESTAMP_DATETIME_TZ)
+    return sec_since_epoch(*mt) - mt->time_zone_displacement;
+  return ::TIME_to_gmt_sec(mt, tz_info, in_dst_time_gap);
 }
 
 /*
@@ -1244,10 +1339,10 @@ const String *Time_zone_db::get_name() const { return tz_name; }
 class Time_zone_offset : public Time_zone {
  public:
   Time_zone_offset(long tz_offset_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                            bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 
  private:
   /* Extra reserve because of snprintf */
@@ -1272,45 +1367,42 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg) : offset(tz_offset_arg) {
   name.set(name_buff, length, &my_charset_latin1);
 }
 
-/*
-  Converts local time in time zone described as offset from UTC
-  from MYSQL_TIME representation to its my_time_t representation.
+/**
+  Converts time in time zone defined as a displacement from UTC from MYSQL_TIME
+  representation to its my_time_t representation.
 
-  SYNOPSIS
-    TIME_to_gmt_sec()
-      t               - pointer to MYSQL_TIME structure with local time
-                        in broken-down representation.
-      in_dst_time_gap - pointer to bool which should be set to true if
-                        datetime  value passed doesn't really exist
-                        (i.e. falls into spring time-gap) and is not
-                        touched otherwise.
-                        It is not really used in this class.
+  @param t MYSQL_TIME structure with local time in broken-down representation.
 
-  RETURN VALUE
-    Corresponding my_time_t value or 0 in case of error
+  @param[out] in_dst_time_gap Pointer to bool which should be set to true if
+  datetime value passed doesn't really exist (i.e. falls into spring time-gap)
+  and is not touched otherwise. It is not really used in this class.
+
+  @return Corresponding my_time_t value or 0 for invalid datetime values.
 */
 my_time_t Time_zone_offset::TIME_to_gmt_sec(
     const MYSQL_TIME *t, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
-  longlong local_t;
-  int shift = 0;
-
   /*
-    Check timestamp range.we have to do this as calling function relies on
+    Check timestamp range. We have to do this as the caller relies on
     us to make all validation checks here.
   */
   if (!validate_timestamp_range(*t)) return 0;
 
   /*
     Do a temporary shift of the boundary dates to avoid
-    overflow of my_time_t if the time value is near it's
+    overflow of my_time_t if the time value is near its
     maximum range
   */
-  if ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && t->day > 4)
-    shift = 2;
+  int shift = ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && t->day > 4)
+                  ? 2
+                  : 0;
 
-  local_t = sec_since_epoch(t->year, t->month, (t->day - shift), t->hour,
-                            t->minute, t->second) -
-            offset;
+  longlong local_t = sec_since_epoch(t->year, t->month, (t->day - shift),
+                                     t->hour, t->minute, t->second);
+
+  if (t->time_type == MYSQL_TIMESTAMP_DATETIME_TZ)
+    local_t -= t->time_zone_displacement;
+  else
+    local_t -= offset;
 
   if (shift) {
     /* Add back the shifted time */
@@ -1359,29 +1451,45 @@ Time_zone *my_tz_SYSTEM = &tz_SYSTEM;
 
 static MEM_ROOT tz_storage;
 
-/*
-  These mutex protects offset_tzs and tz_storage.
-  These protection needed only when we are trying to set
-  time zone which is specified as offset, and searching for existing
-  time zone in offset_tzs or creating if it didn't existed before in
-  tz_storage. So contention is low.
+/**
+  This mutex has two orthogonal purposes:
+
+  -# When the caller of my_tz_find() needs a Time_zone object
+     representing a time zone specified as a numeric displacement. The mutex is
+     then taken in order to protect the offset_tzs map and the
+     performance_schema key tz_storage. my_tz_find() uses a shared pool of
+     Time_zone objects and will search to see if there is an existing time zone,
+     and will otherwise create and insert one. So contention is low.
+
+  -# When the caller of my_tz_find() needs a Time_zone object
+     by name. First the tz_names map is searched, and if nothing is found, the
+     database tables are consulted. If nothing is found there either, an
+     error is thrown. If one is found, tz_load_from_open_tables() tries to
+     insert it in the map, and if it is already there, it fails, logging an "out
+     of memory" event. And that's the reason the whole procedure must take place
+     under a mutex, so that another session couldn't have inserted it in the
+     mean time.
+
+  It is not clear why the same mutex is used for both operations, or for that
+  matter why it is taken even before we have decided which of the two paths
+  above to take.
 */
 static mysql_mutex_t tz_LOCK;
-static bool tz_inited = 0;
+static bool tz_inited = false;
 
 /*
   This two static variables are inteded for holding info about leap seconds
   shared by all time zones.
 */
 static uint tz_leapcnt = 0;
-static LS_INFO *tz_lsis = 0;
+static LS_INFO *tz_lsis = nullptr;
 
 /*
   Shows whenever we have found time zone tables during start-up.
   Used for avoiding of putting those tables to global table list
   for queries that use time zone info.
 */
-static bool time_zone_tables_exist = 1;
+static bool time_zone_tables_exist = true;
 
 /*
   Names of tables (with their lengths) that are needed
@@ -1493,7 +1601,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   TABLE_LIST tz_tables[1 + MY_TZ_TABLES_COUNT];
   TABLE *table;
   Tz_names_entry *tmp_tzname;
-  bool return_val = 1;
+  bool return_val = true;
   LEX_CSTRING db = {STRING_WITH_LEN("mysql")};
   int res;
   DBUG_TRACE;
@@ -1505,14 +1613,14 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
-  if (!(thd = new THD)) return 1;
+  if (!(thd = new THD)) return true;
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
   /* Init all memory structures that require explicit destruction */
   init_sql_alloc(key_memory_tz_storage, &tz_storage, 32 * 1024, 0);
   mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
-  tz_inited = 1;
+  tz_inited = true;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
   if (!(tmp_tzname = new (&tz_storage) Tz_names_entry())) {
@@ -1525,7 +1633,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
 
   if (bootstrap) {
     /* If we are in bootstrap mode we should not load time zone tables */
-    return_val = time_zone_tables_exist = 0;
+    return_val = time_zone_tables_exist = false;
     goto end_with_setting_default_tz;
   }
 
@@ -1554,7 +1662,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     LogErr(WARNING_LEVEL, ER_TZ_CANT_OPEN_AND_LOCK_TIME_ZONE_TABLE,
            thd->get_stmt_da()->message_text());
     /* We will try emulate that everything is ok */
-    return_val = time_zone_tables_exist = 0;
+    return_val = time_zone_tables_exist = false;
     goto end_with_setting_default_tz;
   }
 
@@ -1577,7 +1685,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
 
   table = tz_tables[0].table;
 
-  if (table->file->ha_index_init(0, 1)) goto end_with_close;
+  if (table->file->ha_index_init(0, true)) goto end_with_close;
   table->use_all_columns();
 
   tz_leapcnt = 0;
@@ -1615,7 +1723,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     Loading of info about leap seconds succeeded
   */
 
-  return_val = 0;
+  return_val = false;
 
 end_with_close:
   close_trans_system_tables(thd);
@@ -1632,7 +1740,7 @@ end_with_setting_default_tz:
     if (!(global_system_variables.time_zone = my_tz_find(thd, &tmp_tzname2))) {
       LogErr(ERROR_LEVEL, ER_TZ_UNKNOWN_OR_ILLEGAL_DEFAULT_TIME_ZONE,
              default_tzname);
-      return_val = 1;
+      return_val = true;
     }
   }
 
@@ -1660,7 +1768,7 @@ void my_tz_free() {
   if (tz_inited) {
     default_tz = nullptr;
     global_system_variables.time_zone = my_tz_SYSTEM;
-    tz_inited = 0;
+    tz_inited = false;
     mysql_mutex_destroy(&tz_LOCK);
     offset_tzs.clear();
     tz_names.clear();
@@ -1683,6 +1791,7 @@ void my_tz_free() {
     tz_tables should be time_zone_name, next time_zone, then
     time_zone_transition_type and time_zone_transition should be last).
     It will also update information in hash used for time zones lookup.
+    Therefore, it is assumed that this function is called while tz_LOCK is held.
 
   RETURN VALUES
     Returns pointer to newly created Time_zone object or 0 in case of error.
@@ -1691,17 +1800,17 @@ void my_tz_free() {
 
 static Time_zone *tz_load_from_open_tables(const String *tz_name,
                                            TABLE_LIST *tz_tables) {
-  TABLE *table = 0;
-  TIME_ZONE_INFO *tz_info = NULL;
+  TABLE *table = nullptr;
+  TIME_ZONE_INFO *tz_info = nullptr;
   Tz_names_entry *tmp_tzname;
-  Time_zone *return_val = 0;
+  Time_zone *return_val = nullptr;
   int res;
   uint tzid, ttid;
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
-  char *alloc_buff = NULL;
-  char *tz_name_buff = NULL;
+  char *alloc_buff = nullptr;
+  char *tz_name_buff = nullptr;
   /*
     Temporary arrays that are used for loading of data for filling
     TIME_ZONE_INFO structure
@@ -1710,7 +1819,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   uchar types[TZ_MAX_TIMES];
   TRAN_TYPE_INFO ttis[TZ_MAX_TYPES];
 #ifdef ABBR_ARE_USED
-  char chars[MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
+  char chars[std::max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
 #endif
   /*
     Used as a temporary tz_info until we decide that we actually want to
@@ -1729,9 +1838,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   tz_tables = tz_tables->next_local;
   table->field[0]->store(tz_name->ptr(), tz_name->length(), &my_charset_latin1);
 
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (res) {
     /*
@@ -1764,9 +1874,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table = tz_tables->table;
   tz_tables = tz_tables->next_local;
   table->field[0]->store((longlong)tzid, true);
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (res) {
     DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
@@ -1792,9 +1903,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table = tz_tables->table;
   tz_tables = tz_tables->next_local;
   table->field[0]->store((longlong)tzid, true);
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res) {
     ttid = (uint)table->field[1]->val_int();
@@ -1841,7 +1953,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
     tmp_tz_info.typecnt = ttid + 1;
 
     res = table->file->ha_index_next_same(table->record[0],
-                                          table->field[0]->ptr, 4);
+                                          table->field[0]->field_ptr(), 4);
   }
 
   if (res != HA_ERR_END_OF_FILE) {
@@ -1859,9 +1971,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   */
   table = tz_tables->table;
   table->field[0]->store((longlong)tzid, true);
-  if (table->file->ha_index_init(0, 1)) goto end;
+  if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res) {
     ttime = (my_time_t)table->field[1]->val_int();
@@ -1886,7 +1999,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
          (ulong)ttime, ttid));
 
     res = table->file->ha_index_next_same(table->record[0],
-                                          table->field[0]->ptr, 4);
+                                          table->field[0]->field_ptr(), 4);
   }
 
   /*
@@ -1900,7 +2013,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   }
 
   (void)table->file->ha_index_end();
-  table = 0;
+  table = nullptr;
 
   /*
     Let us check how correct our time zone description is. We don't check for
@@ -1915,7 +2028,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   if (!(alloc_buff = (char *)tz_storage.Alloc(sizeof(TIME_ZONE_INFO) +
                                               tz_name->length() + 1))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
-    return 0;
+    return nullptr;
   }
 
   /* Move the temporary tz_info into the allocated area */
@@ -1968,6 +2081,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
       (tmp_tzname->name.set(tz_name_buff, tz_name->length(),
                             &my_charset_latin1),
        !tz_names.emplace(to_string(tmp_tzname->name), tmp_tzname).second)) {
+    /*
+       We get here if either some new operator or String::set() returned
+       nullptr, or if *the time zone is already in the map*.
+    */
     LogErr(ERROR_LEVEL, ER_TZ_OOM_WHILE_LOADING_TIME_ZONE);
     goto end;
   }
@@ -2002,20 +2119,20 @@ end:
     0 - Ok
     1 - String doesn't contain valid time zone offset
 */
-static bool str_to_offset(const char *str, size_t length, long *offset) {
+static bool str_to_offset(const char *str, size_t length, int *offset) {
   const char *end = str + length;
   bool negative;
   ulong number_tmp;
   long offset_tmp;
 
-  if (length < 4) return 1;
+  if (length < 4) return true;
 
   if (*str == '+')
-    negative = 0;
+    negative = false;
   else if (*str == '-')
-    negative = 1;
+    negative = true;
   else
-    return 1;
+    return true;
   str++;
 
   number_tmp = 0;
@@ -2025,7 +2142,7 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
     str++;
   }
 
-  if (str + 1 >= end || *str != ':') return 1;
+  if (str + 1 >= end || *str != ':') return true;
   str++;
 
   offset_tmp = number_tmp * MINS_PER_HOUR;
@@ -2036,7 +2153,7 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
     str++;
   }
 
-  if (str != end) return 1;
+  if (str != end) return true;
 
   offset_tmp = (offset_tmp + number_tmp) * SECS_PER_MIN;
 
@@ -2047,80 +2164,89 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
     (from -12:59 to 13:00).
   */
 
-  if (number_tmp > 59 || offset_tmp < -13 * SECS_PER_HOUR + 1 ||
-      offset_tmp > 13 * SECS_PER_HOUR)
-    return 1;
+  if (number_tmp > 59 ||
+      offset_tmp < -MAX_TIME_ZONE_HOURS * SECS_PER_HOUR + 1 ||
+      offset_tmp > MAX_TIME_ZONE_HOURS * SECS_PER_HOUR)
+    return true;
 
   *offset = offset_tmp;
 
-  return 0;
+  return false;
 }
 
-/*
+/**
   Get Time_zone object for specified time zone.
 
-  SYNOPSIS
-    my_tz_find()
-      thd  - pointer to thread THD structure
-      name - time zone specification
+  @param[in] thd  Pointer to thread THD structure.
+  @param[in] name Time zone specification.
 
-  DESCRIPTION
+  @note
     This function checks if name is one of time zones described in db,
     predefined SYSTEM time zone or valid time zone specification as
     offset from UTC (In last case it will create proper Time_zone_offset
     object if there were not any.). If name is ok it returns corresponding
     Time_zone object.
 
+  @note
     Clients of this function are not responsible for releasing resources
     occupied by returned Time_zone object so they can just forget pointers
     to Time_zone object if they are not needed longer.
 
+  @note
     Other important property of this function: if some Time_zone found once
     it will be for sure found later, so this function can also be used for
     checking if proper Time_zone object exists (and if there will be error
     it will be reported during first call).
 
+  @note
     If name pointer is 0 then this function returns 0 (this allows to pass 0
     values as parameter without additional external check and this property
     is used by @@time_zone variable handling code).
 
+  @note
     It will perform lookup in system tables (mysql.time_zone*),
     opening and locking them, and closing afterwards. It won't perform
     such lookup if no time zone describing tables were found during
     server start up.
 
-  RETURN VALUE
-    Pointer to corresponding Time_zone object. 0 - in case of bad time zone
-    specification or other error.
-
+  @retval
+    0        bad time zone specification or other error.
+  @retval
+    Time_zone object pointer.
 */
 Time_zone *my_tz_find(THD *thd, const String *name) {
-  Time_zone *result_tz = 0;
-  long offset;
   DBUG_TRACE;
 
-  if (!name || name->is_empty()) return 0;
+  if (!name || name->is_empty()) return nullptr;
 
-  mysql_mutex_lock(&tz_LOCK);
+  Mutex_guard guard(&tz_LOCK);
 
-  if (!str_to_offset(name->ptr(), name->length(), &offset)) {
-    const auto it = offset_tzs.find(offset);
-    if (it != offset_tzs.end()) {
-      result_tz = it->second;
-    } else {
+  int displacement;
+  if (!str_to_offset(name->ptr(), name->length(), &displacement)) {
+    // The time zone information is a valid numeric displacement.
+    const auto it = offset_tzs.find(displacement);
+    if (it != offset_tzs.end())
+      return it->second;
+    else {
       DBUG_PRINT("info", ("Creating new Time_zone_offset object"));
 
-      if ((result_tz = new (&tz_storage) Time_zone_offset(offset))) {
-        offset_tzs.emplace(offset, down_cast<Time_zone_offset *>(result_tz));
+      auto new_tz = new (&tz_storage) Time_zone_offset(displacement);
+      if (new_tz != nullptr) {
+        offset_tzs.emplace(displacement, new_tz);
+        return new_tz;
       } else {
         LogErr(ERROR_LEVEL, ER_TZ_OOM_WHILE_SETTING_TIME_ZONE);
+        return nullptr;
       }
     }
   } else {
-    result_tz = 0;
+    /*
+      The time zone information is not a valid numeric displacement, so we
+      assume it's a time zone *name*.
+    */
     const auto it = tz_names.find(to_string(*name));
     if (it != tz_names.end())
-      result_tz = it->second->tz;
+      return it->second->tz;
     else if (time_zone_tables_exist) {
       TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];
 
@@ -2129,15 +2255,14 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
       DEBUG_SYNC(thd, "my_tz_find");
 
       if (!open_trans_system_tables_for_read(thd, tz_tables)) {
-        result_tz = tz_load_from_open_tables(name, tz_tables);
+        Time_zone *result_tz = tz_load_from_open_tables(name, tz_tables);
         close_trans_system_tables(thd);
+        return result_tz;
       }
     }
   }
 
-  mysql_mutex_unlock(&tz_LOCK);
-
-  return result_tz;
+  return nullptr;
 }
 
 /**
@@ -2276,7 +2401,7 @@ static bool scan_tz_dir(char *name_end) {
   char *name_end_tmp;
   uint i;
 
-  if (!(cur_dir = my_dir(fullname, MYF(MY_WANT_STAT)))) return 1;
+  if (!(cur_dir = my_dir(fullname, MYF(MY_WANT_STAT)))) return true;
 
   name_end = strmake(name_end, "/", FN_REFLEN - (name_end - fullname));
 
@@ -2288,7 +2413,7 @@ static bool scan_tz_dir(char *name_end) {
       if (MY_S_ISDIR(cur_dir->dir_entry[i].mystat->st_mode)) {
         if (scan_tz_dir(name_end_tmp)) {
           my_dirend(cur_dir);
-          return 1;
+          return true;
         }
       } else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode)) {
         init_alloc_root(PSI_NOT_INSTRUMENTED, &tz_storage, 32768, 0);
@@ -2307,7 +2432,7 @@ static bool scan_tz_dir(char *name_end) {
 
   my_dirend(cur_dir);
 
-  return 0;
+  return false;
 }
 
 int main(int argc, char **argv) {

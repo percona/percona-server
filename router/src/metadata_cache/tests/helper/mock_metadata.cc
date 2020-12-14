@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,38 +32,19 @@
 
 using namespace std;
 
-/** @brief Constructor
- * @param user The user name used to authenticate to the metadata server.
- * @param password The password used to authenticate to the metadata server.
- * @param connect_timeout The time after which trying to connect to the
- *                        metadata server should timeout.
- * @param read_timeout The time after which read from metadata server should
- *                     timeout.
- * @param connection_attempts The number of times a connection to metadata must
- *                            be attempted, when a connection attempt fails.
- * @param ttl The TTL of the cached data.
- * @param ssl_options SSL related options for connections
- * @param use_gr_notifications Flag indicating if the metadata cache should
- *                             use GR notifications as an additional trigger
- *                             for metadata refresh
- */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connect_timeout, int read_timeout, int connection_attempts,
-               std::chrono::milliseconds ttl,
                const mysqlrouter::SSLOptions &ssl_options,
-               const bool use_gr_notifications)
-    : ClusterMetadata(user, password, connect_timeout, read_timeout,
-                      connection_attempts, ttl, ssl_options,
-                      use_gr_notifications) {
+               const bool use_cluster_notifications)
+    : GRClusterMetadata(user, password, connect_timeout, read_timeout,
+                        connection_attempts, ssl_options,
+                        use_cluster_notifications) {
   ms1.replicaset_name = "replicaset-1";
   ms1.mysql_server_uuid = "instance-1";
   ms1.host = "host-1";
   ms1.port = 3306;
   ms1.xport = 33060;
   ms1.mode = metadata_cache::ServerMode::ReadWrite;
-  ms1.role = "master";
-  ms1.weight = 1;
-  ms1.version_token = 0;
 
   ms2.replicaset_name = "replicaset-1";
   ms2.mysql_server_uuid = "instance-2";
@@ -71,9 +52,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms2.port = 3306;
   ms2.xport = 33060;
   ms2.mode = metadata_cache::ServerMode::ReadOnly;
-  ms2.role = "master";
-  ms2.weight = 1;
-  ms2.version_token = 0;
 
   ms3.replicaset_name = "replicaset-1";
   ms3.mysql_server_uuid = "instance-3";
@@ -81,9 +59,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms3.port = 3306;
   ms3.xport = 33060;
   ms3.mode = metadata_cache::ServerMode::ReadOnly;
-  ms3.role = "scale-out";
-  ms3.weight = 1;
-  ms3.version_token = 0;
 
   ms4.replicaset_name = "replicaset-2";
   ms4.mysql_server_uuid = "instance-4";
@@ -91,9 +66,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms4.port = 3306;
   ms4.xport = 33060;
   ms4.mode = metadata_cache::ServerMode::ReadWrite;
-  ms4.role = "master";
-  ms4.weight = 1;
-  ms4.version_token = 0;
 
   ms5.replicaset_name = "replicaset-2";
   ms5.mysql_server_uuid = "instance-5";
@@ -101,9 +73,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms5.port = 3306;
   ms5.xport = 33060;
   ms5.mode = metadata_cache::ServerMode::ReadOnly;
-  ms5.role = "master";
-  ms5.weight = 1;
-  ms5.version_token = 0;
 
   ms6.replicaset_name = "replicaset-2";
   ms6.mysql_server_uuid = "instance-6";
@@ -111,9 +80,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms6.port = 3306;
   ms6.xport = 33060;
   ms6.mode = metadata_cache::ServerMode::ReadOnly;
-  ms6.role = "scale-out";
-  ms6.weight = 1;
-  ms6.version_token = 0;
 
   ms7.replicaset_name = "replicaset-3";
   ms7.mysql_server_uuid = "instance-7";
@@ -121,9 +87,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms7.port = 3306;
   ms7.xport = 33060;
   ms7.mode = metadata_cache::ServerMode::ReadWrite;
-  ms7.role = "master";
-  ms7.weight = 1;
-  ms7.version_token = 0;
 
   ms8.replicaset_name = "replicaset-3";
   ms8.mysql_server_uuid = "instance-8";
@@ -131,9 +94,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms8.port = 3306;
   ms8.xport = 33060;
   ms8.mode = metadata_cache::ServerMode::ReadWrite;
-  ms8.role = "master";
-  ms8.weight = 1;
-  ms8.version_token = 0;
 
   ms9.replicaset_name = "replicaset-3";
   ms9.mysql_server_uuid = "instance-9";
@@ -141,9 +101,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms9.port = 3306;
   ms9.xport = 33060;
   ms9.mode = metadata_cache::ServerMode::ReadWrite;
-  ms9.role = "scale-out";
-  ms9.weight = 1;
-  ms9.version_token = 0;
 
   replicaset_1_vector.push_back(ms1);
   replicaset_1_vector.push_back(ms2);
@@ -174,7 +131,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
  *
  * Disconnect and release the connection to the metadata node.
  */
-MockNG::~MockNG() {}
+MockNG::~MockNG() = default;
 
 /** @brief Returns relation between replicaset ID and list of servers
  *
@@ -184,9 +141,14 @@ MockNG::~MockNG() {}
  * @return Map of replicaset ID, server list pairs.
  */
 ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
-    const std::string &cluster_name, const string &group_replication_id) {
-  (void)cluster_name;
-  (void)group_replication_id;
+    const std::string & /*cluster_name*/,
+    const string & /*group_replication_id*/) {
+  return replicaset_map;
+}
+
+ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
+    const std::vector<metadata_cache::ManagedInstance> & /*instances*/,
+    const string & /*group_replication_id*/, size_t & /*instance_id*/) {
   return replicaset_map;
 }
 
@@ -196,17 +158,14 @@ ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
  *
  * @return a boolean to indicate if the connection was successful.
  */
-bool MockNG::connect(
+bool MockNG::connect_and_setup_session(
     const metadata_cache::ManagedInstance &metadata_server) noexcept {
   (void)metadata_server;
   return true;
 }
 
-/** @brief Mock connect method.
- *
- * Mock connect method, does nothing.
- *
- * @return a boolean to indicate if the connection was successful.
+/**
+ * Mock disconnect method, does nothing.
  */
 void MockNG::disconnect() noexcept {}
 

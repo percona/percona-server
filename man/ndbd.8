@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.325.\ \&Command\-line options for the ndbd program
+.B Table\ \&22.253.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -79,156 +79,155 @@ l l l
 l l l.
 T{
 .PP
---bind-address=name
+\fB \fR\fB--bind-address=name\fR\fB \fR
 T}:T{
 Local bind address
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect-delay=#
+\fB \fR\fB--connect-delay=#\fR\fB \fR
 T}:T{
 Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect-retries=#
+\fB \fR\fB--connect-retries=#\fR\fB \fR
 T}:T{
 Set the number of times to retry a connection before giving up; 0 means
               1 attempt only (and no retries)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect-retry-delay=#
+\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
 T}:T{
 Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---daemon,
+\fB--daemon\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Start ndbd as daemon (default); override with --nodaemon
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---foreground
+\fB \fR\fB--foreground\fR\fB \fR
 T}:T{
 Run ndbd in foreground, provided for debugging purposes (implies
               --nodaemon)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---initial
+\fB \fR\fB--initial\fR\fB \fR
 T}:T{
-Perform initial start of ndbd, including cleaning the file system.
-              Consult the documentation before using this option
+Perform initial start of ndbd, including file system cleanup; consult
+              documentation before using this option
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---initial-start
+\fB \fR\fB--initial-start\fR\fB \fR
 T}:T{
 Perform partial initial start (requires --nowait-nodes)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---install[=name]
+\fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
-Used to install the data node process as a Windows service. Does not
-              apply on non-Windows platforms.
+Used to install data node process as Windows service; does not apply on
+              other platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---logbuffer-size=#
+\fB \fR\fB--logbuffer-size=#\fR\fB \fR
 T}:T{
-Control size of log buffer. For use when debugging with many log
+Control size of log buffer; for use when debugging with many log
               messages being generated; default is sufficient for normal
-              operations.
+              operations
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nostart,
-.PP
--n
-T}:T{
-Don't start ndbd immediately; ndbd waits for command to start from
-              ndb_mgmd
-T}:T{
-.PP
-All NDB 8.0 releases
-T}
-T{
-.PP
---nodaemon
+\fB \fR\fB--nodaemon\fR\fB \fR
 T}:T{
 Do not start ndbd as daemon; provided for testing purposes
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nowait-nodes=list
+\fB--nostart\fR,
+.PP
+\fB \fR\fB-n\fR\fB \fR
+T}:T{
+Do not start ndbd immediately; ndbd waits for command to start from
+              ndb_mgm
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
 Do not wait for these data nodes to start (takes comma-separated list of
-              node IDs). Also requires --ndb-nodeid to be used.
+              node IDs); requires --ndb-nodeid
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---remove[=name]
+\fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
-Used to remove a data node process that was previously installed as a
-              Windows service. Does not apply on non-Windows platforms.
+Used to remove data node process that was previously installed as
+              Windows service; does not apply on other platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---verbose,
+\fB--verbose\fR,
 .PP
--v
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
-Causes the data log to write extra debugging information to the node
-              log.
+Write extra debugging information to node log
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -264,28 +263,21 @@ wherever the latter occurs in this section\&.
 \fB\-\-bind\-address\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --bind-address=name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -306,46 +298,39 @@ to bind to a specific network interface (host name or IP address)\&. This option
 \fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-delay=#
 T}
 T{
-\fBDeprecated\fR
+Deprecated
 T}:T{
 Yes
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 5
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 3600
 T}
@@ -371,40 +356,33 @@ instead\&.
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-retries=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 12
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 65535
 T}
@@ -426,40 +404,33 @@ option\&.
 \fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-retry-delay=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 5
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 4294967295
 T}
@@ -486,28 +457,21 @@ option, which is now deprecated and subject to removal in a future release of ND
 \fB\-d\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --daemon
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 TRUE
 T}
@@ -539,28 +503,21 @@ on Windows platforms\&.
 \fB\-\-foreground\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --foreground
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -592,28 +549,21 @@ on Windows platforms\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --initial
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -713,32 +663,15 @@ configuration parameters from having any effect\&.
 .br
 This option does
 \fInot\fR
-affect either of the following types of files:
+affect backup files that have already been created by the affected node\&.
 .sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Backup files that have already been created by the affected node
-.RE
+Prior to NDB 8\&.0\&.21, the
+\fB\-\-initial\fR
+option also did not affect any Disk Data files\&. In NDB 8\&.0\&.21 and later, when used to perform an initial restart of the cluster, the option causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
+Section\ \&22.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-NDB Cluster Disk Data files (see
-Section\ \&22.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
-.RE
-.sp
-This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
+This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running (unless they also were started with
+\fB\-\-initial\fR, as part of an initial restart)\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
 .sp .5v
 .RE
 It is permissible to use this option when starting the cluster for the very first time (that is, before any data node files have been created); however, it is
@@ -757,28 +690,21 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --initial-start
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -835,34 +761,27 @@ option for
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --install[=name]
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ndbd
 T}
@@ -908,40 +827,33 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-logbuffer\-size=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --logbuffer-size=#
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 32768
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 2048
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 4294967295
 T}
@@ -961,28 +873,21 @@ Sets the size of the data node log buffer\&. When debugging with high amounts of
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nodaemon
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1015,28 +920,21 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 \fB\-n\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nostart
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -1049,7 +947,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&22.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&22.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1063,28 +961,21 @@ Section\ \&22.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --nowait-nodes=list
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1117,34 +1008,27 @@ If you wanted to start up the same cluster as in the previous example without on
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --remove[=name]
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 ndbd
 T}
@@ -1170,7 +1054,6 @@ option has no effect on non\-Windows platforms\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Causes extra debug output to be written to the node log\&.
 .sp
 You can also use
@@ -1374,7 +1257,7 @@ Section\ \&22.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

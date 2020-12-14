@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,50 +24,156 @@
 
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 
-#include "my_config.h"
-
-#include <stdlib.h>
 #include <algorithm>
+#include <cstdlib>
 #include <iterator>
+#include <set>
+
+#include "my_config.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/module_mysqlx.h"
+#include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/xpl_performance_schema.h"
+
+extern bool check_address_is_wildcard(const char *address_value,
+                                      size_t address_length);
 
 namespace ngs {
 
 Socket_acceptors_task::Socket_acceptors_task(
-    Listener_factory_interface &listener_factory,
-    const std::string &tcp_bind_address, const std::string &network_namespace,
-    const uint16 tcp_port, const uint32 tcp_port_open_timeout,
-    const std::string &unix_socket_file, const uint32 backlog,
-    const std::shared_ptr<Socket_events_interface> &event)
-    : m_event(event),
-      m_bind_address(tcp_bind_address),
-      m_tcp_socket(listener_factory.create_tcp_socket_listener(
-          m_bind_address, network_namespace, tcp_port, tcp_port_open_timeout,
-          *m_event, backlog)),
-#if defined(HAVE_SYS_UN_H)
-      m_unix_socket(listener_factory.create_unix_socket_listener(
-          unix_socket_file, *m_event, backlog)),
-#endif
-      m_time_and_event_state(State_listener_initializing,
+    const xpl::iface::Listener_factory &listener_factory,
+    const std::string &multi_bind_address, const uint16_t tcp_port,
+    const uint32_t tcp_port_open_timeout, const std::string &unix_socket_file,
+    const uint32_t backlog,
+    const std::shared_ptr<xpl::iface::Socket_events> &event)
+    : m_listener_factory(listener_factory),
+      m_event(event),
+      m_multi_bind_address(multi_bind_address),
+      m_tcp_port(tcp_port),
+      m_tcp_port_open_timeout(tcp_port_open_timeout),
+      m_unix_socket_file(unix_socket_file),
+      m_backlog(backlog),
+      m_time_and_event_state(xpl::iface::Listener::State::k_initializing,
                              KEY_mutex_x_socket_acceptors_sync,
-                             KEY_cond_x_socket_acceptors_sync) {
+                             KEY_cond_x_socket_acceptors_sync) {}
+
+namespace {
+
+bool parse_bind_address_value(const char *begin_address_value,
+                              std::string *address_value,
+                              std::string *network_namespace) {
+  const char *namespace_separator = strchr(begin_address_value, '/');
+
+  if (namespace_separator != nullptr) {
+    if (begin_address_value == namespace_separator)
+      /*
+        Parse error: there is no character before '/',
+        that is missed address value
+      */
+      return true;
+
+    if (*(namespace_separator + 1) == 0)
+      /*
+        Parse error: there is no character immediately after '/',
+        that is missed namespace name.
+      */
+      return true;
+
+    /*
+      Found namespace delimiter. Extract namespace and address values
+    */
+    *address_value = std::string(begin_address_value, namespace_separator);
+    *network_namespace = std::string(namespace_separator + 1);
+  } else {
+    *address_value = begin_address_value;
+  }
+  return false;
+}
+
+void trim(std::string *value) {
+  static const char *k_whitespace = " \n\r\t\f\v";
+  const std::size_t first = value->find_first_not_of(k_whitespace);
+  if (first == std::string::npos) {
+    *value = "";
+    return;
+  }
+  const std::size_t last = value->find_last_not_of(k_whitespace);
+  if (last == std::string::npos) {
+    *value = value->substr(first);
+    return;
+  }
+  *value = value->substr(first, last - first + 1);
+}
+
+void split(const std::string &value, char delim,
+           std::vector<std::string> *result) {
+  std::stringstream ss(value);
+  std::string item;
+  while (std::getline(ss, item, delim)) result->push_back(item);
+}
+
+bool is_address_valid(const std::string &address, const bool is_multi_address,
+                      std::string *host, std::string *net_namespace) {
+  if (parse_bind_address_value(address.c_str(), host, net_namespace)) {
+    log_error(ER_XPLUGIN_FAILED_TO_VALIDATE_ADDRESS, address.c_str(),
+              "can't be parsed as an address");
+    return false;
+  }
+  const bool is_wildcard =
+      check_address_is_wildcard(host->c_str(), host->length());
+
+  if (!net_namespace->empty() && is_wildcard) {
+    log_error(ER_XPLUGIN_FAILED_TO_VALIDATE_ADDRESS, address.c_str(),
+              "network namespace are not allowed for wildcards");
+    return false;
+  }
+
+  if (is_wildcard && is_multi_address) {
+    log_error(ER_XPLUGIN_FAILED_TO_VALIDATE_ADDRESS, address.c_str(),
+              "wildcards are not allowed when there are more than one address");
+    return false;
+  }
+
+  return true;
+}
+}  // namespace
+
+void Socket_acceptors_task::prepare_listeners() {
+  const bool skip_networking =
+      xpl::Plugin_system_variables::get_system_variable("skip_networking") ==
+      "ON";
+
+  if (!skip_networking) {
+    std::vector<std::string> addresses;
+    split(m_multi_bind_address, ',', &addresses);
+
+    const bool is_multi_address = addresses.size() > 1;
+    for (auto &address : addresses) {
+      trim(&address);
+      std::string host, net_namespace;
+      if (is_address_valid(address, is_multi_address, &host, &net_namespace))
+        m_tcp_socket.push_back(m_listener_factory.create_tcp_socket_listener(
+            host, net_namespace, m_tcp_port, m_tcp_port_open_timeout,
+            m_event.get(), m_backlog));
+    }
+  }
+
+  if (xpl::Plugin_system_variables::get_system_variable("socket") ==
+      m_unix_socket_file) {
+    log_warning(ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER);
+  } else {
+#if defined(HAVE_SYS_UN_H)
+    m_unix_socket = m_listener_factory.create_unix_socket_listener(
+        m_unix_socket_file, m_event.get(), m_backlog);
+#endif
+  }
 }
 
 bool Socket_acceptors_task::prepare_impl(
-    Server_task_interface::Task_context *context) {
-  if (context->m_skip_networking) {
-    m_tcp_socket->close_listener();
-    m_tcp_socket->report_properties(
-        [context](const Server_property_ids id, const std::string &value) {
-          (*context->m_properties)[id] = value;
-        });
-
-    m_tcp_socket.reset();
-  }
-
+    xpl::iface::Server_task::Task_context *context) {
   Listener_interfaces listeners = get_array_of_listeners();
 
   if (listeners.empty()) {
@@ -78,7 +184,7 @@ bool Socket_acceptors_task::prepare_impl(
 
   const size_t number_of_prepared_listeners =
       std::count_if(listeners.begin(), listeners.end(),
-                    [context](Listener_interface *l) -> bool {
+                    [context](xpl::iface::Listener *l) -> bool {
                       return l->setup_listener(context->m_on_connection);
                     });
 
@@ -93,25 +199,46 @@ bool Socket_acceptors_task::prepare_impl(
 }
 
 bool Socket_acceptors_task::prepare(
-    Server_task_interface::Task_context *context) {
+    xpl::iface::Server_task::Task_context *context) {
+  prepare_listeners();
+
   const bool result = prepare_impl(context);
   Listener_interfaces listeners = get_array_of_listeners();
   Server_properties properties;
+  std::set<std::string> configuration_variables;
 
   for (auto &l : listeners) {
-    log_listener_state(l);
+    if (!l->report_status())
+      configuration_variables.insert(l->get_configuration_variable());
 
     l->report_properties(
         [&properties](const Server_property_ids id, const std::string &value) {
-          properties[id] = value;
+          auto &p = properties[id];
+          if (id == Server_property_ids::k_tcp_bind_address) {
+            if (p.empty()) {
+              p = value;
+              return;
+            }
+            if (value == ngs::PROPERTY_NOT_CONFIGURED) return;
+            if (p == ngs::PROPERTY_NOT_CONFIGURED) {
+              p = value;
+              return;
+            }
+            p += "," + value;
+            return;
+          }
+          p = value;
         });
   }
+
+  for (const auto &var : configuration_variables)
+    log_info(ER_XPLUGIN_LISTENER_SYS_VARIABLE_ERROR, var.c_str());
+
   properties[Server_property_ids::k_number_of_interfaces] =
       std::to_string(listeners.size());
 
+  if (result) show_startup_log(properties);
   if (context && context->m_properties) context->m_properties->swap(properties);
-  if (result) show_startup_log();
-
   return result;
 }
 
@@ -120,92 +247,78 @@ void Socket_acceptors_task::stop(const Stop_cause cause) {
 
   m_event->break_loop();
 
-  for (auto &listener : listeners) listener->close_listener();
+  XSYNC_POINT_CHECK("xacceptor_stop_wait", "xacceptor_pre_loop_wait");
 
   switch (cause) {
     case Stop_cause::k_abort:
-      m_time_and_event_state.set(State_listener_stopped);
+      m_time_and_event_state.set(xpl::iface::Listener::State::k_stopped);
       break;
 
     case Stop_cause::k_normal_shutdown:
-      m_time_and_event_state.wait_for(State_listener_stopped);
+      m_time_and_event_state.wait_for(xpl::iface::Listener::State::k_stopped);
       break;
 
     case Stop_cause::k_server_task_triggered_event:
       break;
   }
+  XSYNC_POINT_CHECK(nullptr, "xacceptor_post_loop_wait");
 }
 
-void Socket_acceptors_task::show_startup_log() {
-  Listener_interfaces listeners = get_array_of_listeners();
-
-  std::size_t pos = listeners.size();
-  if (pos != 0) {
-    std::string combined_status;
-    while (pos > 1) {
-      const auto listener = listeners[pos - 1];
-      if (listener->get_state().is(State_listener_prepared))
-        combined_status += listener->get_name_and_configuration() + " ";
-      pos--;
-    }
-    if (listeners[0]->get_state().is(State_listener_prepared))
-      combined_status += listeners[0]->get_name_and_configuration();
-
-    auto first_non_blank_pos = combined_status.find_first_not_of("\t ");
-    if (first_non_blank_pos != std::string::npos) {
-      combined_status[first_non_blank_pos] =
-          ::toupper(combined_status[first_non_blank_pos]);
-    }
-    log_system(ER_XPLUGIN_LISTENER_STATUS_MSG, combined_status.c_str());
+void Socket_acceptors_task::show_startup_log(
+    const Server_properties &properties) const {
+  std::string combined_status;
+  Server_properties::const_iterator i =
+      properties.find(Server_property_ids::k_tcp_bind_address);
+  if (i != properties.end()) {
+    const auto &bind_address = i->second;
+    if (!bind_address.empty() && bind_address != ngs::PROPERTY_NOT_CONFIGURED)
+      combined_status += "Bind-address: '" + bind_address +
+                         "' port: " + std::to_string(m_tcp_port);
   }
+  i = properties.find(Server_property_ids::k_unix_socket);
+  if (i != properties.end()) {
+    const auto &unix_socket = i->second;
+    if (!unix_socket.empty() && unix_socket != ngs::PROPERTY_NOT_CONFIGURED)
+      combined_status +=
+          (combined_status.empty() ? "Socket: " : ", socket: ") + unix_socket;
+  }
+  log_system(ER_XPLUGIN_LISTENER_STATUS_MSG, combined_status.c_str());
 }
 
 Socket_acceptors_task::Listener_interfaces
 Socket_acceptors_task::get_array_of_listeners() {
   Listener_interfaces result;
 
-  if (m_tcp_socket) result.push_back(m_tcp_socket.get());
+  for (auto &s : m_tcp_socket)
+    if (s) result.push_back(s.get());
 
   if (m_unix_socket) result.push_back(m_unix_socket.get());
 
   return result;
 }
 
-void Socket_acceptors_task::log_listener_state(Listener_interface *listener) {
-  if (!listener->get_state().is(State_listener_prepared)) {
-    log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED,
-              listener->get_name_and_configuration().c_str(),
-              listener->get_last_error().c_str());
-
-    std::string listener_configuration_variable =
-        xpl::join(listener->get_configuration_variables(), "','");
-
-    if (!listener_configuration_variable.empty()) {
-      log_info(ER_XPLUGIN_LISTENER_SYS_VARIABLE_ERROR,
-               listener_configuration_variable.c_str());
-    }
-
-    return;
-  }
-
-  log_info(ER_XPLUGIN_LISTENER_STATUS_MSG,
-           listener->get_name_and_configuration().c_str());
-}
-
 void Socket_acceptors_task::pre_loop() {
-  m_time_and_event_state.set(State_listener_running);
+  log_debug("Socket_acceptors_task::pre_loop");
+
+  m_time_and_event_state.set(xpl::iface::Listener::State::k_running);
   auto listeners = get_array_of_listeners();
 
-  for (auto &listener : listeners)
-    listener->get_state().set(State_listener_running);
+  XSYNC_POINT_CHECK("xacceptor_pre_loop_wait");
+
+  for (auto &listener : listeners) {
+    listener->pre_loop();
+  }
 }
 
 void Socket_acceptors_task::post_loop() {
+  log_debug("Socket_acceptors_task::post_loop");
   auto listeners = get_array_of_listeners();
 
-  m_time_and_event_state.set(State_listener_stopped);
+  m_time_and_event_state.set(xpl::iface::Listener::State::k_stopped);
 
-  for (auto &l : listeners) l->get_state().set(State_listener_stopped);
+  for (auto &listener : listeners) listener->close_listener();
+
+  XSYNC_POINT_CHECK("xacceptor_post_loop_wait", "xacceptor_stop_wait");
 }
 
 void Socket_acceptors_task::loop() { m_event->loop(); }

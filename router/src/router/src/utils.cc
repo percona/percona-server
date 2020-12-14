@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,13 @@
 
 #include "mysqlrouter/utils.h"
 
-#include "common.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/string_utils.h"
-
-#include <string.h>
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <climits>
 #include <cstdarg>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -59,11 +55,14 @@ extern "C" bool g_windows_service;
 }
 #endif
 
-using mysql_harness::trim;
-using std::string;
+#include "common.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/string_utils.h"
 
-const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
-const string kValidPortChars = "0123456789";
+using mysql_harness::trim;
+
+const char kValidPortChars[] = "0123456789";
 
 namespace mysqlrouter {
 
@@ -101,47 +100,6 @@ void MockOfstream::open(const char *filename,
 #else
   return std::string("C:\\temp\\mysqlrouter_mockfile") + std::to_string(i);
 #endif
-}
-
-std::vector<string> wrap_string(const string &to_wrap, size_t width,
-                                size_t indent_size) {
-  size_t curr_pos = 0;
-  size_t wrap_pos = 0;
-  size_t prev_pos = 0;
-  string work{to_wrap};
-  std::vector<string> res{};
-  auto indent = string(indent_size, ' ');
-  auto real_width = width - indent_size;
-
-  size_t str_size = work.size();
-  if (str_size < real_width) {
-    res.push_back(indent + work);
-  } else {
-    work.erase(std::remove(work.begin(), work.end(), '\r'), work.end());
-    std::replace(work.begin(), work.end(), '\t', ' '), work.end();
-    str_size = work.size();
-
-    do {
-      curr_pos = prev_pos + real_width;
-
-      // respect forcing newline
-      wrap_pos = work.find("\n", prev_pos);
-      if (wrap_pos == string::npos || wrap_pos > curr_pos) {
-        // No new line found till real_width
-        wrap_pos = work.find_last_of(" ", curr_pos);
-      }
-      if (wrap_pos != string::npos) {
-        res.push_back(indent + work.substr(prev_pos, wrap_pos - prev_pos));
-        prev_pos = wrap_pos + 1;  // + 1 to skip space
-      } else {
-        break;
-      }
-    } while (str_size - prev_pos > real_width ||
-             work.find("\n", prev_pos) != string::npos);
-    res.push_back(indent + work.substr(prev_pos));
-  }
-
-  return res;
 }
 
 bool my_check_access(const std::string &path) {
@@ -197,17 +155,17 @@ bool substitute_envvar(std::string &line) noexcept {
   size_t pos_end;
 
   pos_start = line.find("ENV{");
-  if (pos_start == string::npos) {
+  if (pos_start == std::string::npos) {
     return true;  // no environment variable placeholder found -> this is not an
                   // error, just a no-op
   }
 
   pos_end = line.find("}", pos_start + 4);
-  if (pos_end == string::npos) {
+  if (pos_end == std::string::npos) {
     return false;  // environment placeholder not closed (missing '}')
   }
 
-  string env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
+  std::string env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
   if (env_var.empty()) {
     return false;  // no environment variable name found in placeholder
   }
@@ -240,7 +198,7 @@ std::string substitute_variable(const std::string &s, const std::string &name,
     return r;
 }
 
-string string_format(const char *format, ...) {
+std::string string_format(const char *format, ...) {
   va_list args;
   va_start(args, format);
   va_list args_next;
@@ -253,7 +211,7 @@ string string_format(const char *format, ...) {
   std::vsnprintf(buf.data(), buf.size(), format, args_next);
   va_end(args_next);
 
-  return string(buf.begin(), buf.end() - 1);
+  return std::string(buf.begin(), buf.end() - 1);
 }
 
 std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {
@@ -264,51 +222,61 @@ std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {
   return os.str();
 }
 
-std::pair<string, uint16_t> split_addr_port(string data) {
-  size_t pos;
-  string addr;
-  uint16_t port = 0;
+std::pair<std::string, uint16_t> split_addr_port(std::string data) {
   trim(data);
 
+  if (data.empty()) {
+    return std::make_pair("", 0);
+  }
+
+  size_t pos;
+  uint16_t port = 0;
+  std::string addr;
   if (data.at(0) == '[') {
     // IPv6 with port
     pos = data.find(']');
-    if (pos == string::npos) {
+    if (pos == std::string::npos) {
       throw std::runtime_error(
           "invalid IPv6 address: missing closing square bracket");
     }
     addr.assign(data, 1, pos - 1);
-    if (addr.find_first_not_of(kValidIPv6Chars) != string::npos) {
-      throw std::runtime_error("invalid IPv6 address: illegal character(s)");
+    const auto addr_res = net::ip::make_address_v6(addr.c_str());
+    if (!addr_res) {
+      throw std::system_error(addr_res.error(),
+                              "invalid IPv6 address: illegal character(s)");
     }
     pos = data.find(":", pos);
-    if (pos != string::npos) {
+    if (pos != std::string::npos) {
       try {
         port = get_tcp_port(data.substr(pos + 1));
       } catch (const std::runtime_error &exc) {
-        throw std::runtime_error("invalid TCP port: " + string(exc.what()));
+        throw std::runtime_error("invalid TCP port: " +
+                                 std::string(exc.what()));
       }
     }
   } else if (std::count(data.begin(), data.end(), ':') > 1) {
     // IPv6 without port
     pos = data.find(']');
-    if (pos != string::npos) {
+    if (pos != std::string::npos) {
       throw std::runtime_error(
           "invalid IPv6 address: missing opening square bracket");
     }
-    if (data.find_first_not_of(kValidIPv6Chars) != string::npos) {
-      throw std::runtime_error("invalid IPv6 address: illegal character(s)");
+    const auto addr_res = net::ip::make_address_v6(data.c_str());
+    if (!addr_res) {
+      throw std::system_error(addr_res.error(),
+                              "invalid IPv6 address: illegal character(s)");
     }
     addr.assign(data);
   } else {
     // IPv4 or address
     pos = data.find(":");
     addr = data.substr(0, pos);
-    if (pos != string::npos) {
+    if (pos != std::string::npos) {
       try {
         port = get_tcp_port(data.substr(pos + 1));
       } catch (const std::runtime_error &exc) {
-        throw std::runtime_error("invalid TCP port: " + string(exc.what()));
+        throw std::runtime_error("invalid TCP port: " +
+                                 std::string(exc.what()));
       }
     }
   }
@@ -316,11 +284,11 @@ std::pair<string, uint16_t> split_addr_port(string data) {
   return std::make_pair(addr, port);
 }
 
-uint16_t get_tcp_port(const string &data) {
+uint16_t get_tcp_port(const std::string &data) {
   int port;
 
   // We refuse data which is bigger than 5 characters
-  if (data.find_first_not_of(kValidPortChars) != string::npos ||
+  if (data.find_first_not_of(kValidPortChars) != std::string::npos ||
       data.size() > 5) {
     throw std::runtime_error("invalid characters or too long");
   }
@@ -329,9 +297,9 @@ uint16_t get_tcp_port(const string &data) {
     port = data.empty()
                ? 0
                : static_cast<int>(std::strtol(data.c_str(), nullptr, 10));
-  } catch (const std::invalid_argument &exc) {
+  } catch (const std::invalid_argument &) {
     throw std::runtime_error("convertion to integer failed");
-  } catch (const std::out_of_range &exc) {
+  } catch (const std::out_of_range &) {
     throw std::runtime_error("impossible port number (out-of-range)");
   }
 
@@ -341,8 +309,8 @@ uint16_t get_tcp_port(const string &data) {
   return static_cast<uint16_t>(port);
 }
 
-string hexdump(const unsigned char *buffer, size_t count, long start,
-               bool literals) {
+std::string hexdump(const unsigned char *buffer, size_t count, long start,
+                    bool literals) {
   std::ostringstream os;
 
   using std::hex;
@@ -421,7 +389,7 @@ std::string get_last_error(int myerrnum) {
 }
 
 #ifndef _WIN32
-static string default_prompt_password(const string &prompt) {
+static std::string default_prompt_password(const std::string &prompt) {
   struct termios console;
   bool no_terminal = false;
   if (tcgetattr(STDIN_FILENO, &console) != 0) {
@@ -436,7 +404,7 @@ static string default_prompt_password(const string &prompt) {
     console.c_lflag &= ~(uint)ECHO;
     tcsetattr(STDIN_FILENO, TCSANOW, &console);
   }
-  string result;
+  std::string result;
   std::getline(std::cin, result);
 
   if (!no_terminal) {
@@ -448,7 +416,7 @@ static string default_prompt_password(const string &prompt) {
   return result;
 }
 #else
-static string default_prompt_password(const string &prompt) {
+static std::string default_prompt_password(const std::string &prompt) {
   std::cout << prompt << ": " << std::flush;
 
   // prevent showing input
@@ -458,7 +426,7 @@ static string default_prompt_password(const string &prompt) {
   mode &= ~ENABLE_ECHO_INPUT;
   SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
 
-  string result;
+  std::string result;
   std::getline(std::cin, result);
 
   // reset
@@ -469,7 +437,7 @@ static string default_prompt_password(const string &prompt) {
 }
 #endif
 
-static std::function<string(const string &)> g_prompt_password =
+static std::function<std::string(const std::string &)> g_prompt_password =
     default_prompt_password;
 
 void set_prompt_password(
@@ -477,7 +445,7 @@ void set_prompt_password(
   g_prompt_password = f;
 }
 
-string prompt_password(const std::string &prompt) {
+std::string prompt_password(const std::string &prompt) {
   return g_prompt_password(prompt);
 }
 
@@ -519,7 +487,10 @@ void write_windows_event_log(const std::string &msg) {
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {
   bool result = true;
 
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(socket);
+  UNREFERENCED_PARAMETER(err_msg);
+#else
   result = socket.size() <= (sizeof(sockaddr_un().sun_path) - 1);
   err_msg = "Socket file path can be at most " +
             to_string(sizeof(sockaddr_un().sun_path) - 1) +
@@ -534,13 +505,13 @@ static RET strtoX_checked_common(const char *value,
                                  RET default_value) noexcept {
   static_assert(std::is_integral<RET>::value,
                 "This template function is meant for integers.");
-  static_assert(sizeof(RET) <= sizeof(decltype(
-                                   std::strtol((char *)0, (char **)0, (int)0))),
+  static_assert(sizeof(RET) <= sizeof(decltype(std::strtol(
+                                   (char *)nullptr, (char **)nullptr, (int)0))),
                 "This function uses strtol() to convert signed integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");
   static_assert(sizeof(RET) <= sizeof(decltype(std::strtoul(
-                                   (char *)0, (char **)0, (int)0))),
+                                   (char *)nullptr, (char **)nullptr, (int)0))),
                 "This function uses strtoul() to convert unsigned integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");

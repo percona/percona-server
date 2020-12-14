@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,15 @@
 #include "kdf_pbkdf2.h"
 
 #include <algorithm>
+#include <cstdint>  // uint8_t
+#include <cstdlib>  // std::strtol
 #include <cstring>
+#include <iterator>  // std::distance
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // std::tie
 #include <vector>
-
-#include <iostream>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -42,6 +44,9 @@
 
 constexpr char Pbkdf2McfType::kTypeSha256[];
 constexpr char Pbkdf2McfType::kTypeSha512[];
+constexpr unsigned long Pbkdf2McfAdaptor::kMaxRounds;
+constexpr unsigned long Pbkdf2McfAdaptor::kMinRounds;
+constexpr size_t Pbkdf2McfAdaptor::kMaxSaltLength;
 
 std::vector<uint8_t> Pbkdf2::salt() {
   std::vector<uint8_t> out(16);

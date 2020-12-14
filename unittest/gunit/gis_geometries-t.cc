@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,11 +68,11 @@ class GeometriesTest : public ::testing::Test {
  public:
   GeometriesTest() {}
 
-  ~GeometriesTest() {}
+  ~GeometriesTest() override {}
 };
 
 typedef ::testing::Types<Cartesian_types, Geographic_types> Types;
-TYPED_TEST_CASE(GeometriesTest, Types);
+TYPED_TEST_SUITE(GeometriesTest, Types);
 
 TYPED_TEST(GeometriesTest, Point) {
   typename TypeParam::Point pt;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,9 @@
 #define TLS_CLIENT_METHOD() SSLv23_client_method()
 #endif
 
-TlsClientContext::TlsClientContext() : TlsContext(TLS_CLIENT_METHOD()) {
-  verify(TlsVerify::PEER);
+TlsClientContext::TlsClientContext(TlsVerify mode)
+    : TlsContext(TLS_CLIENT_METHOD()) {
+  verify(mode);
 }
 
 void TlsClientContext::verify(TlsVerify verify) {
@@ -49,7 +50,7 @@ void TlsClientContext::verify(TlsVerify verify) {
       mode = SSL_VERIFY_PEER;
       break;
   }
-  SSL_CTX_set_verify(ssl_ctx_.get(), mode, NULL);
+  SSL_CTX_set_verify(ssl_ctx_.get(), mode, nullptr);
 }
 
 void TlsClientContext::cipher_suites(const std::string &ciphers) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,36 +62,38 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   Partition_index_impl(const Partition_index_impl &src, Partition_impl *parent,
                        Index *index);
 
-  virtual ~Partition_index_impl() {}
+  ~Partition_index_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
   /////////////////////////////////////////////////////////////////////////
   // is_disabled.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_disabled() const noexcept { return m_index->is_disabled(); }
+  virtual bool is_disabled() const noexcept override {
+    return m_index->is_disabled();
+  }
 
-  virtual void set_disabled(bool disable) noexcept {
+  virtual void set_disabled(bool disable) noexcept override {
     m_index->set_disabled(disable);
   }
 
-  virtual Index::enum_index_type type() const noexcept {
+  virtual Index::enum_index_type type() const noexcept override {
     return m_index->type();
   }
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint) {}
 
@@ -104,9 +106,9 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   // Partition.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Partition &partition() const;
+  const Partition &partition() const override;
 
-  virtual Partition &partition();
+  Partition &partition() override;
 
   Partition_impl &partition_impl() { return *m_partition; }
 
@@ -114,23 +116,23 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   // Index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Index &index() const;
+  const Index &index() const override;
 
-  virtual Index &index();
+  Index &index() override;
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return m_options; }
+  const Properties &options() const override { return m_options; }
 
-  virtual Properties &options() { return m_options; }
+  Properties &options() override { return m_options; }
 
-  virtual bool set_options(const Properties &options) {
+  bool set_options(const Properties &options) override {
     return m_options.insert_values(options);
   }
 
-  virtual bool set_options(const String_type &options_raw) {
+  bool set_options(const String_type &options_raw) override {
     return m_options.insert_values(options_raw);
   }
 
@@ -138,17 +140,17 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const {
+  const Properties &se_private_data() const override {
     return m_se_private_data;
   }
 
-  virtual Properties &se_private_data() { return m_se_private_data; }
+  Properties &se_private_data() override { return m_se_private_data; }
 
-  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+  bool set_se_private_data(const String_type &se_private_data_raw) override {
     return m_se_private_data.insert_values(se_private_data_raw);
   }
 
-  virtual bool set_se_private_data(const Properties &se_private_data) {
+  bool set_se_private_data(const Properties &se_private_data) override {
     return m_se_private_data.insert_values(se_private_data);
   }
 
@@ -156,23 +158,23 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   // Tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id tablespace_id() const { return m_tablespace_id; }
+  Object_id tablespace_id() const override { return m_tablespace_id; }
 
-  virtual void set_tablespace_id(Object_id tablespace_id) {
+  void set_tablespace_id(Object_id tablespace_id) override {
     m_tablespace_id = tablespace_id;
   }
 
  public:
   static Partition_index_impl *restore_item(Partition_impl *partition) {
-    return new (std::nothrow) Partition_index_impl(partition, NULL);
+    return new (std::nothrow) Partition_index_impl(partition, nullptr);
   }
 
   static Partition_index_impl *clone(const Partition_index_impl &other,
                                      Partition_impl *partition);
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  private:
   // Fields.

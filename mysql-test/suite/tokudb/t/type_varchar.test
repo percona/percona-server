@@ -16,8 +16,10 @@ select v='a' from t1;
 select binary v='a' from t1;
 select binary v='a ' from t1;
 insert into t1 values('a');
+--disable_result_log
 --error ER_DUP_ENTRY
 alter table t1 add primary key (v);
+--enable_result_log
 drop table t1;
 create table t1 (v varbinary(20));
 insert into t1 values('a');

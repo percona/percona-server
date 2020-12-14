@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,16 +40,19 @@ struct mtr_t;
 /** Logging modes for a mini-transaction */
 enum mtr_log_t {
   /** Default mode: log all operations modifying disk-based data */
-  MTR_LOG_ALL = 21,
+  MTR_LOG_ALL = 0,
 
   /** Log no operations and dirty pages are not added to the flush list */
-  MTR_LOG_NONE = 22,
+  MTR_LOG_NONE = 1,
 
   /** Don't generate REDO log but add dirty pages to flush list */
-  MTR_LOG_NO_REDO = 23,
+  MTR_LOG_NO_REDO = 2,
 
   /** Inserts are logged in a shorter form */
-  MTR_LOG_SHORT_INSERTS = 24
+  MTR_LOG_SHORT_INSERTS = 3,
+
+  /** Last element */
+  MTR_LOG_MODE_MAX = 4
 };
 
 /** @name Log item types
@@ -238,14 +241,17 @@ enum mlog_id_t {
   /** create a SDI compact page */
   MLOG_COMP_PAGE_CREATE_SDI = 64,
 
+  /** Extend the space */
+  MLOG_FILE_EXTEND = 65,
+
   /** Used in tests of redo log. It must never be used outside unit tests. */
-  MLOG_TEST = 65,
+  MLOG_TEST = 66,
 
   /** biggest value (used in assertions) */
   MLOG_BIGGEST_TYPE = MLOG_TEST
 };
 
-/* @} */
+/** @} */
 
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */

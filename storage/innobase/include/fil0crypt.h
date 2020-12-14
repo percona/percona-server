@@ -89,9 +89,9 @@ extern os_event_t fil_crypt_threads_event;
 
 /* Cached L or key for given key_version */
 struct key_struct {
-  uint key_version;                      /*!< Version of the key */
-  uint key_length;                       /*!< Key length */
-  unsigned char key[ENCRYPTION_KEY_LEN]; /*!< Cached key
+  uint key_version;                       /*!< Version of the key */
+  uint key_length;                        /*!< Key length */
+  unsigned char key[Encryption::KEY_LEN]; /*!< Cached key
                                           (that is L in CRYPT_SCHEME_1) */
 };
 
@@ -117,7 +117,7 @@ struct Cached_key {
 
   ~Cached_key() {
     if (key != NULL) {
-      memset_s(key, ENCRYPTION_KEY_LEN, 0, ENCRYPTION_KEY_LEN);
+      memset_s(key, Encryption::KEY_LEN, 0, Encryption::KEY_LEN);
       my_free(key);
     }
   }
@@ -156,17 +156,20 @@ struct fil_space_rotate_state_t {
 #ifndef UNIV_INNOCHECKSUM
 
 enum Crypt_key_operation { FETCH_KEY, FETCH_OR_GENERATE_KEY };
+enum class Validation_key_verions_result {
+  MISSING_KEY_VERSIONS,
+  CORRUPTED_OR_WRONG_KEY_VERSIONS,
+  SUCCESS
+};
 
 struct fil_space_crypt_t {
  public:
   /** Constructor. Does not initialize the members!
   The object is expected to be placed in a buffer that
   has been zero-initialized. */
-  fil_space_crypt_t(uint new_type, uint new_min_key_version, uint new_key_id,
+  fil_space_crypt_t(uint new_min_key_version, uint new_key_id, const char *uuid,
                     fil_encryption_t new_encryption,
-                    Crypt_key_operation key_operation,
-                    Encryption_rotation encryption_rotation =
-                        Encryption_rotation::NO_ROTATION);
+                    Crypt_key_operation key_operation);
 
   /** Destructor */
   ~fil_space_crypt_t() {
@@ -174,11 +177,8 @@ struct fil_space_crypt_t {
     mutex_free(&start_rotate_mutex);
     if (tablespace_key != nullptr) ut_free(tablespace_key);
 
-    for (std::list<byte *>::iterator iter = fetched_keys.begin();
-         iter != fetched_keys.end(); iter++) {
-      memset_s(*iter, ENCRYPTION_KEY_LEN, 0, ENCRYPTION_KEY_LEN);
-      my_free(*iter);
-    }
+    unload_keys_from_local_cache();
+
     rotate_state.destroy_flush_observer();
   }
 
@@ -216,10 +216,12 @@ struct fil_space_crypt_t {
   /** Write crypt data to a page (0)
   @param[in]	space	tablespace
   @param[in,out]	page0	first page of the tablespace
-  @param[in,out]	mtr	mini-transaction */
+  @param[in,out]	mtr	mini-transaction
+  @param[in]	        a_min_key_verion min key version used in encryption
+  @param[in]            a_max_key_verion max key version used in encryption
+  @param[in]            a_type encryption type */
   void write_page0(const fil_space_t *space, byte *page0, mtr_t *mtr,
-                   uint a_min_key_version, uint a_type,
-                   Encryption_rotation current_encryption_rotation);
+                   uint a_min_key_version, uint a_max_key_version, uint a_type);
 
   void set_tablespace_key(const uchar *tablespace_key) {
     if (tablespace_key == NULL) {
@@ -227,26 +229,25 @@ struct fil_space_crypt_t {
       this->tablespace_key = NULL;
     } else {
       if (this->tablespace_key == NULL)
-        this->tablespace_key = (byte *)ut_malloc_nokey(ENCRYPTION_KEY_LEN);
-      memcpy(this->tablespace_key, tablespace_key, ENCRYPTION_KEY_LEN);
+        this->tablespace_key = (byte *)ut_malloc_nokey(Encryption::KEY_LEN);
+      memcpy(this->tablespace_key, tablespace_key, Encryption::KEY_LEN);
     }
   }
 
   void set_iv(const uchar *iv) { memcpy(this->iv, iv, CRYPT_SCHEME_1_IV_LEN); }
 
-  bool load_needed_keys_into_local_cache();
-  uchar *get_min_key_version_key();
-  uchar *get_key_currently_used_for_encryption();
-
   uint min_key_version;         // min key version for this space
+  uint max_key_version;         // max key version for this space
   fil_encryption_t encryption;  // Encryption setup
 
-  // key being used for encryption
-  Cached_key cached_encryption_key;
-  // in normal situation the only key needed to decrypt the tablespace
-  Cached_key cached_min_key_version_key;
+  using Key_map = std::map<uint, byte *>;
+  Key_map local_keys_cache;
 
-  uchar *get_cached_key(Cached_key &cached_key, uint key_version);
+  /** Load needed keys for encryption/decryption to local cache
+  @return true - success, false - failure */
+  bool load_keys_to_local_cache();
+  /** Remove keys from local cache */
+  void unload_keys_from_local_cache();
 
   ib_mutex_t
       start_rotate_mutex;  // mutex protecting starting of rotation of the space
@@ -260,6 +261,9 @@ struct fil_space_crypt_t {
   // uint key_found;
   // uint found_key_version;
   bool key_found;
+
+  // false if we are holding a mutex in backgroud thread
+  bool mutex_lock_needed{false};
 
   fil_space_rotate_state_t rotate_state;
 
@@ -276,17 +280,43 @@ struct fil_space_crypt_t {
   // pages and encrypt pages with KEYRING.
   unsigned char iv[CRYPT_SCHEME_1_IV_LEN];
 
-  uint encrypting_with_key_version;
   unsigned int keyserver_requests;
   unsigned int key_id;
   unsigned int type;
 
-  std::list<byte *> fetched_keys;  // TODO: temp for test
+  // Internally we have three versions of crypt_data written to page 0.
+  // One starting with magic PSA, the second one starting with PSB and
+  // the last onw tih PSC.
+  // Here we store which magic we read : 1 - PSA, 2 - PSB, 3 - PSC
+  size_t private_version{3};
 
-  // Internally we have two versions of crypt_data written to page 0.
-  // One starting with magic PSA and the second one starting with PSB.
-  // Here we store which magic we read : 1 - PSA, 2 - PSB.
-  size_t private_version{2};
+  char uuid[Encryption::SERVER_UUID_LEN + 1];
+
+  // A fix text that we encrypt with range of key versions: from min_key_version
+  // to max_key_version. When we validate that key versions loaded from keyring
+  // are the valid keys to decrypt space, we decrypt the validation tag starting
+  // with max key version till min key version.
+  byte encrypted_validation_tag[MY_AES_BLOCK_SIZE];
+
+  /** Validate that encrypted_validation_tag can be decrypted by keys in range
+  [min_key_version, max_key_Version] */
+  Validation_key_verions_result validate_encryption_key_versions();
+
+  /** Re encrypt validation tag with key versions from
+  from_key_version to to_key_version
+  @param[in]	        from_key_version - starting version
+  @param[in]	        to_key_version   - ending version
+  @return false - error, true - success */
+  bool re_encrypt_validation_tag(const uint from_key_version,
+                                 const uint to_key_version);
+
+ private:
+  /** load copies of keys from keyring to local cache.
+  @param[in]            from_key_version - starting version
+  @param[in]            to_key_version   - ending version
+  @return false - error, true - success */
+  bool load_keys_to_local_cache(const uint from_key_version,
+                                const uint to_key_version);
 };
 
 /** Status info about encryption */
@@ -294,6 +324,7 @@ struct fil_space_crypt_status_t {
   space_id_t space;                  /*!< tablespace id */
   ulint scheme;                      /*!< encryption scheme */
   uint min_key_version;              /*!< min key version */
+  uint max_key_version;              /*!< max key version */
   uint current_key_version;          /*!< current key version */
   uint keyserver_requests;           /*!< no of key requests to key server */
   uint key_id;                       /*!< current key_id */
@@ -326,12 +357,10 @@ struct fil_space_scrub_status_t {
 
 struct redo_log_key final {
   uint version;
-  char key[ENCRYPTION_KEY_LEN];
+  char key[Encryption::KEY_LEN];
   ulint read_count;
   ulint write_count;
   bool present;
-
-  bool persisted() const noexcept { return version != 0; }
 };
 
 /** Handles the fetching/generation/storing/etc of keyring redo log keys.
@@ -353,22 +382,39 @@ class redo_log_keys final {
   MY_NODISCARD
   redo_log_key *load_latest_key(THD *thd, bool generate);
   MY_NODISCARD
-  redo_log_key *load_key_version(THD *thd, uint version);
+  redo_log_key *load_key_version(THD *thd, const char *uuid, uint version);
 
   MY_NODISCARD
   redo_log_key *generate_and_store_new_key(THD *thd);
 
-  /** These two methods are used during bootstrap encryption, when wo do not yet
-  have an uuid */
+  /** Fetch if exists default percona_redo key, in case it does not
+  exist - generate it in keyring. Should be used when server_uuid is not
+  yet available
+  @param[in] thd - connection thread
+  @return percona_redo default key */
   MY_NODISCARD
-  redo_log_key *generate_new_key_without_storing();
-
-  MY_NODISCARD
-  bool store_used_keys() noexcept;
+  redo_log_key *fetch_or_generate_default_key(THD *thd);
 
   void unload_old_keys() noexcept;
 
  private:
+  /**
+  Get KEYRING encryption redo key name
+  @param[in] - uuid key's UUID
+  @param[in] - key_version key's version
+  @return KEYRING encryption redo key name */
+  std::string get_key_name(const char *uuid, uint key_version);
+  /**
+  Get KEYRING encryption redo key name
+  @param[in] uuid - key's UUID
+  @return KEYRING encryption redo key name */
+  std::string get_key_name(const char *uuid);
+  /**
+  Get KEYRING encryption redo key name
+  @param[in,out]  oss - output string stream
+  @param[in] uuid - key's UUID */
+  void get_key_name(std::ostringstream &oss, const char *uuid);
+
   using key_map = std::map<ulint, redo_log_key>;
   key_map m_keys;
 };
@@ -376,13 +422,32 @@ class redo_log_keys final {
 extern redo_log_keys redo_log_key_mgr;
 
 /**
-Exclude tablespace from encryption threads rotation
+Exclude tablespace from encryption threads rotation. This is "permament"
+exclusion, i.e. ENCRYPTION of a tablespace was explicitly set to 'N'.
 @param[in] space tablespace to exclude
 @return false tablespace cannot be excluded because there are encryption
               threads currently operating on it.
         true  success
 */
-bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space);
+bool fil_crypt_exclude_tablespace_from_rotation_permanently(fil_space_t *space);
+
+/**
+Exclude tablespace from encryption threads rotation. This is "temporary"
+exclusion, i.e. tablespace ENCRYPTION is set to Y for Master Key encryption
+or to N for Master Key decryption. While the Master Key encryption/decryption
+is running, encryption threads should not interfere.
+@param[in] space tablespace to exclude
+@return false tablespace cannot be excluded because there are encryption
+              threads currently operating on it.
+        true  success
+*/
+bool fil_crypt_exclude_tablespace_from_rotation_temporarily(fil_space_t *space);
+
+/**
+Re-adds temporarily excluded tablespace to rotation threads
+@param[in] space tablespace to re-added
+*/
+void fil_crypt_readd_space_to_rotation(space_id_t space_id);
 
 /*********************************************************************
 Init space crypt */
@@ -401,7 +466,7 @@ Create a fil_space_crypt_t object
 @param[in]	key_id		Encryption key id
 @return crypt object */
 fil_space_crypt_t *fil_space_create_crypt_data(
-    fil_encryption_t encrypt_mode, uint key_id,
+    fil_encryption_t encrypt_mode, uint key_id, const char *uuid,
     Crypt_key_operation key_operation =
         Crypt_key_operation::FETCH_OR_GENERATE_KEY)
     MY_ATTRIBUTE((warn_unused_result));
@@ -447,6 +512,18 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
 @return position on log buffer */
 byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
                                     const byte *end_ptr, ulint len)
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
+@param[in]  space_id  id of space that this log entry refers to
+@param[in]  ptr  Log entry start
+@param[in]  end_ptr  Log entry end
+@param[in]  len  Log entry length
+@param[in]  recv_needed_recovery  Missing keys will report an error
+@return position on log buffer */
+byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
+                                    const byte *end_ptr, ulint len,
+                                    bool recv_needed_recovery)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -517,8 +594,9 @@ void fil_crypt_set_rotation_iops(uint val);
 
 /*********************************************************************
 Adjust encrypt tables
-@param[in]	val		New setting for innodb-encrypt-tables */
-void fil_crypt_set_encrypt_tables(enum_default_table_encryption val);
+@param[in]	val		New setting for innodb-encrypt-tables
+@param[in]      is_server_starting - true if server is starting */
+bool fil_crypt_set_encrypt_tables(enum_default_table_encryption val, bool is_server_starting);
 
 /*********************************************************************
 Init threads for key rotation */
@@ -555,7 +633,26 @@ return 0 if data found */
 void fil_space_get_scrub_status(const fil_space_t *space,
                                 fil_space_scrub_status_t *status);
 
-//#include "fil0crypt.ic"
+/**
+Checks if tablespace is encrypted with KEYRING encryption v1
+
+@param[in] space Tablespace
+return true - fully or partially encrypted with keyring
+              encryption v1
+       false - is not encrypted, fully or partially with
+              keyring encryption v1 */
+bool is_space_keyring_pre_v3_encrypted(fil_space_t *space);
+
+/**
+Checks if tablespace is encrypted with KEYRING encryption v1
+
+@param[in] space_id Tablespace's id
+return true - fully or partially encrypted with keyring
+              encryption v1
+       false - is not encrypted, fully or partially with
+              keyring encryption v1 */
+bool is_space_keyring_pre_v3_encrypted(space_id_t space_id);
+
 #endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* fil0crypt_h */

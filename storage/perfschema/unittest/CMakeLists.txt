@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ ADD_DEPENDENCIES(pfs_server_stubs GenError)
 MACRO (PFS_ADD_TEST name)
   MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
   TARGET_LINK_LIBRARIES(${name}-t
-    mytap perfschema mysys pfs_server_stubs strings ${ICU_LIBRARIES})
+    mytap perfschema mysys pfs_server_stubs strings sql_main ${ICU_LIBRARIES})
 ENDMACRO()
 
 SET(tests
@@ -61,13 +61,18 @@ MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   EXCLUDE_ON_SOLARIS
   ADD_TEST pfs_connect_attr
 )
+IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
+  # We get ODR violations because of multiple bison parsers.
+  MY_CHECK_CXX_COMPILER_WARNING("error=odr" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    MY_TARGET_LINK_OPTIONS(pfs_connect_attr-t "${HAS_WARN_FLAG}")
+  ENDIF()
+ENDIF()
 
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
 # We need to explicitly link in everything referenced in sql/sql_builtin.cc
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t
   mytap
-  perfschema
-  sql_main
+  server_unittest_library
   ${MYSQLD_STATIC_PLUGIN_LIBS}
-  ${ICU_LIBRARIES}
   )

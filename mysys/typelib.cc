@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,21 +131,6 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
 } /* find_type */
 
 /**
-  Get name of type nr
-
-  @note
-  first type is 1, 0 = empty field
-*/
-
-void make_type(char *to, uint nr, TYPELIB *typelib) {
-  DBUG_TRACE;
-  if (!nr)
-    to[0] = 0;
-  else
-    (void)my_stpcpy(to, get_type(typelib, nr - 1));
-} /* make_type */
-
-/**
   Get type
 
   @note
@@ -213,35 +198,36 @@ TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from) {
   TYPELIB *to;
   uint i;
 
-  if (!from) return NULL;
+  if (!from) return nullptr;
 
-  if (!(to = (TYPELIB *)root->Alloc(sizeof(TYPELIB)))) return NULL;
+  if (!(to = (TYPELIB *)root->Alloc(sizeof(TYPELIB)))) return nullptr;
 
   if (!(to->type_names = (const char **)root->Alloc(
             (sizeof(char *) + sizeof(int)) * (from->count + 1))))
-    return NULL;
+    return nullptr;
   to->type_lengths = (unsigned int *)(to->type_names + from->count + 1);
   to->count = from->count;
   if (from->name) {
-    if (!(to->name = strdup_root(root, from->name))) return NULL;
+    if (!(to->name = strdup_root(root, from->name))) return nullptr;
   } else
-    to->name = NULL;
+    to->name = nullptr;
 
   for (i = 0; i < from->count; i++) {
     if (!(to->type_names[i] =
               strmake_root(root, from->type_names[i], from->type_lengths[i])))
-      return NULL;
+      return nullptr;
     to->type_lengths[i] = from->type_lengths[i];
   }
-  to->type_names[to->count] = NULL;
+  to->type_names[to->count] = nullptr;
   to->type_lengths[to->count] = 0;
 
   return to;
 }
 
-static const char *on_off_default_names[] = {"off", "on", "default", 0};
+static const char *on_off_default_names[] = {"off", "on", "default", nullptr};
 static TYPELIB on_off_default_typelib = {
-    array_elements(on_off_default_names) - 1, "", on_off_default_names, 0};
+    array_elements(on_off_default_names) - 1, "", on_off_default_names,
+    nullptr};
 
 /**
   Parse a TYPELIB name from the buffer
@@ -256,15 +242,17 @@ static TYPELIB on_off_default_typelib = {
   followed by comma, '=', or end of the buffer.
 
   @retval
+    -1  Too many matching values
+  @retval
     0   No matching name
   @retval
     >0  Offset+1 in typelib for matched name
 */
 
-static uint parse_name(const TYPELIB *lib, const char **strpos,
-                       const char *end) {
+static int parse_name(const TYPELIB *lib, const char **strpos,
+                      const char *end) {
   const char *pos = *strpos;
-  uint find = find_type(pos, lib, FIND_TYPE_COMMA_TERM);
+  int find = find_type(pos, lib, FIND_TYPE_COMMA_TERM);
   for (; pos != end && *pos != '=' && *pos != ','; pos++)
     ;
   *strpos = pos;
@@ -306,22 +294,23 @@ static uint parse_name(const TYPELIB *lib, const char **strpos,
     Parsed set value if (*errpos == NULL), otherwise undefined
 */
 
-uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
+uint64_t find_set_from_flags(const TYPELIB *lib, int default_name,
                              uint64_t cur_set, uint64_t default_set,
                              const char *str, uint length, const char **err_pos,
                              uint *err_len) {
   const char *end = str + length;
   uint64_t flags_to_set = 0, flags_to_clear = 0, res;
-  bool set_defaults = 0;
+  bool set_defaults = false;
 
-  *err_pos = 0; /* No error yet */
+  *err_pos = nullptr; /* No error yet */
   if (str != end) {
     const char *start = str;
     for (;;) {
       const char *pos = start;
-      uint flag_no, value;
+      uint value;
 
-      if (!(flag_no = parse_name(lib, &pos, end))) goto err;
+      int flag_no = parse_name(lib, &pos, end);
+      if (flag_no <= 0) goto err;
 
       if (flag_no == default_name) {
         /* Using 'default' twice isn't allowed. */

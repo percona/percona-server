@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,15 +133,14 @@ bool View_error_handler::handle_condition(THD *thd, uint sql_errno,
     // ER_TABLE_NOT_LOCKED cannot happen here.
     case ER_NO_SUCH_TABLE: {
       TABLE_LIST *top = m_top_view->top_table();
-      my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
+      my_error(ER_VIEW_INVALID, MYF(0), top->db, top->table_name);
       return true;
     }
 
     case ER_NO_DEFAULT_FOR_FIELD: {
       TABLE_LIST *top = m_top_view->top_table();
       // TODO: make correct error message
-      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), top->view_db.str,
-               top->view_name.str);
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), top->db, top->table_name);
       return true;
     }
   }
@@ -240,11 +239,21 @@ Functional_index_error_handler::Functional_index_error_handler(
     // This field is only used by one functional index, so it's OK to just fetch
     // the first key that matches.
     for (uint i = 0; i < field->table->s->keys; ++i) {
-      if (field->part_of_key.is_set(i)) {
-        m_functional_index_name.assign(field->table->s->key_info[i].name);
-        break;
+      const KEY &index = field->table->key_info[i];
+      if (!index.is_functional_index()) {
+        continue;
+      }
+
+      for (uint j = 0; j < index.actual_key_parts; ++j) {
+        const KEY_PART_INFO &key_part = index.key_part[j];
+        if (key_part.field->field_index() == field->field_index()) {
+          m_functional_index_name.assign(index.name);
+          return;
+        }
       }
     }
+
+    assert(false);
   }
 }
 
@@ -414,9 +423,9 @@ class Repair_mrg_table_error_handler : public Internal_error_handler {
   Repair_mrg_table_error_handler()
       : m_handled_errors(false), m_unhandled_errors(false) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) {
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE) {
       m_handled_errors = true;
       return true;
@@ -515,6 +524,26 @@ bool Foreign_key_error_handler::handle_condition(
         return true;
       }
     }
+  }
+  return false;
+}
+
+Ignore_json_syntax_handler::Ignore_json_syntax_handler(THD *thd, bool enabled)
+    : m_thd(thd), m_enabled(enabled) {
+  if (enabled) thd->push_internal_handler(this);
+}
+
+Ignore_json_syntax_handler::~Ignore_json_syntax_handler() {
+  if (m_enabled) m_thd->pop_internal_handler();
+}
+
+bool Ignore_json_syntax_handler::handle_condition(
+    THD *, uint sql_errno, const char *,
+    Sql_condition::enum_severity_level *level, const char *) {
+  switch (sql_errno) {
+    case ER_INVALID_JSON_TEXT_IN_PARAM:
+      (*level) = Sql_condition::SL_WARNING;
+      break;
   }
   return false;
 }

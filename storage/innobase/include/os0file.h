@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -43,8 +43,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "my_dbug.h"
 #include "my_io.h"
+
 #include "os/file.h"
-#include "univ.i"
+#include "os0atomic.h"
+#include "os0enc.h"
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -60,7 +62,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include <functional>
 #include <stack>
-#include "keyring_encryption_key_info.h"
 
 /** Prefix all files and directory created under data directory with special
 string so that it never conflicts with MySQL schema directory. */
@@ -88,6 +89,29 @@ extern bool default_master_key_used;
 
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
+
+/** Free a page after sync IO
+@param[in,out]	block		The block to free/release */
+void os_free_block(file::Block *block) noexcept;
+
+namespace file {
+/** Blocks for doing IO, used in the transparent compression
+and encryption code. */
+struct Block {
+  /** Default constructor */
+  Block() : m_ptr(), m_in_use() {}
+
+  byte *m_ptr;
+
+  byte pad[ut::INNODB_CACHE_LINE_SIZE - sizeof(ulint)];
+  lock_word_t m_in_use;
+};
+
+struct Block_deleter {
+  void operator()(Block *ptr) const noexcept { os_free_block(ptr); }
+};
+
+}  // namespace file
 
 #ifdef _WIN32
 
@@ -189,11 +213,10 @@ enum os_file_create_t {
   that the above values stay below 128. */
 
   OS_FILE_ON_ERROR_NO_EXIT = 128, /*!< do not exit on unknown errors */
-  OS_FILE_ON_ERROR_SILENT = 256,  /*!< don't print diagnostic messages to
+  OS_FILE_ON_ERROR_SILENT = 256   /*!< don't print diagnostic messages to
                             the log unless it is a fatal error,
                             this flag is only used if
                             ON_ERROR_NO_EXIT is set */
-  OS_FILE_O_SYNC = 512            /*!< Open file with O_SYNC */
 };
 
 /** Options for os_file_advise_func @{ */
@@ -220,7 +243,7 @@ static const ulint OS_FILE_READ_ALLOW_DELETE = 555;
 /* Options for file_create */
 static const ulint OS_FILE_AIO = 61;
 static const ulint OS_FILE_NORMAL = 62;
-/* @} */
+/** @} */
 
 /** Types for file create @{ */
 static const ulint OS_DATA_FILE = 100;
@@ -234,8 +257,12 @@ static const ulint OS_BUFFERED_FILE = 102;
 static const ulint OS_CLONE_DATA_FILE = 103;
 static const ulint OS_CLONE_LOG_FILE = 104;
 
+/** Doublewrite files. */
+static const ulint OS_DBLWR_FILE = 105;
+
+/** Redo log archive file. */
 static const ulint OS_REDO_LOG_ARCHIVE_FILE = 105;
-/* @} */
+/** @} */
 
 /** Error codes from os_file_get_last_error @{ */
 static const ulint OS_FILE_NOT_FOUND = 71;
@@ -254,440 +281,7 @@ static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
 static const ulint OS_FILE_NAME_TOO_LONG = 82;
 static const ulint OS_FILE_ERROR_MAX = 100;
-/* @} */
-
-/** Encryption key length */
-static const ulint ENCRYPTION_KEY_LEN = 32;
-
-/** Encryption magic bytes size */
-static const ulint ENCRYPTION_MAGIC_SIZE = 3;
-
-/** Encryption magic bytes for 5.7.11, it's for checking the encryption
-information version. */
-static const char ENCRYPTION_KEY_MAGIC_V1[] = "lCA";
-
-/** Encryption magic bytes for 5.7.12+, it's for checking the encryption
-information version. */
-static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
-
-/** Encryption magic bytes for 8.0.5+, it's for checking the encryption
-information version. */
-static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
-
-static const char ENCRYPTION_KEY_MAGIC_RK[] = "lRK";
-
-static const char ENCRYPTION_KEY_MAGIC_PS_V1[] = "PSA";
-
-static const char ENCRYPTION_KEY_MAGIC_PS_V2[] = "PSB";
-
-/** Encryption master key prifix */
-static const char ENCRYPTION_MASTER_KEY_PRIFIX[] = "INNODBKey";
-
-/** Encryption master key prifix size */
-static const ulint ENCRYPTION_MASTER_KEY_PRIFIX_LEN = 9;
-
-static const char ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC[] = "RK";
-
-static const ulint ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN = 2;
-
-/** Encryption master key prifix */
-// TODO: Change this to percona_innodb_idb
-static const char ENCRYPTION_PERCONA_SYSTEM_KEY_PREFIX[] = "percona_innodb";
-
-/** Encryption master key prifix size */
-static const ulint ENCRYPTION_PERCONA_SYSTEM_KEY_PREFIX_LEN =
-    array_elements(ENCRYPTION_PERCONA_SYSTEM_KEY_PREFIX);
-
-/** Encryption master key prifix size */
-static const ulint ENCRYPTION_MASTER_KEY_NAME_MAX_LEN = 100;
-
-/** UUID of server instance, it's needed for composing master key name */
-static const ulint ENCRYPTION_SERVER_UUID_LEN = 36;
-
-/** Encryption information total size: magic number + master_key_id +
-key + iv + server_uuid + checksum */
-static const ulint ENCRYPTION_INFO_SIZE =
-    (ENCRYPTION_MAGIC_SIZE + sizeof(uint32) + (ENCRYPTION_KEY_LEN * 2) +
-     ENCRYPTION_SERVER_UUID_LEN + sizeof(uint32));
-
-/** Maximum size of Encryption information considering all formats v1, v2 & v3.
- */
-static const ulint ENCRYPTION_INFO_MAX_SIZE =
-    (ENCRYPTION_INFO_SIZE + sizeof(uint32));
-
-/** Default master key for bootstrap */
-static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
-
-/** Default master key id for bootstrap */
-static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
-
-/** (Un)Encryption Operation information size */
-static const uint ENCRYPTION_OPERATION_INFO_SIZE = 1;
-
-/** Encryption Progress information size */
-static const uint ENCRYPTION_PROGRESS_INFO_SIZE = sizeof(uint);
-
-/** Flag bit to indicate if Encryption/Decryption is in progress */
-#define ENCRYPTION_IN_PROGRESS (1 << 0)
-#define UNENCRYPTION_IN_PROGRESS (1 << 1)
-
-class IORequest;
-
-enum class Encryption_rotation : std::uint8_t {
-  NO_ROTATION,
-  MASTER_KEY_TO_KEYRING
-};
-
-/** Encryption algorithm. */
-struct Encryption {
-  /** Algorithm types supported */
-  enum Type {
-
-    /** No encryption */
-    NONE = 0,
-
-    /** Use AES */
-    AES = 1,
-
-    KEYRING = 2
-  };
-
-  /** Encryption information format version */
-  enum Version {
-
-    /** Version in 5.7.11 */
-    ENCRYPTION_VERSION_1 = 0,
-
-    /** Version in > 5.7.11 */
-    ENCRYPTION_VERSION_2 = 1,
-
-    /** Version in > 8.0.4 */
-    ENCRYPTION_VERSION_3 = 2,
-  };
-
-  /** Default constructor */
-  Encryption() noexcept
-      : m_type(NONE),
-        m_key(nullptr),
-        m_klen(0),
-        m_key_allocated(false),
-        m_iv(nullptr),
-        m_tablespace_key(nullptr),
-        m_key_version(0),
-        m_key_id(0),
-        m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {}
-
-  /** Specific constructor
-  @param[in]	type		Algorithm type */
-  explicit Encryption(Type type)
-      : m_type(type),
-        m_key(nullptr),
-        m_klen(0),
-        m_key_allocated(false),
-        m_iv(nullptr),
-        m_tablespace_key(nullptr),
-        m_key_version(0),
-        m_key_id(0),
-        m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
-#ifdef UNIV_DEBUG
-    switch (m_type) {
-      case NONE:
-      case AES:
-
-      default:
-        ut_error;
-    }
-#endif /* UNIV_DEBUG */
-  }
-
-  /** Copy constructor */
-  Encryption(const Encryption &other) noexcept;
-
-  Encryption &operator=(const Encryption &other) {
-    Encryption tmp(other);
-    swap(tmp);
-    return *this;
-  }
-
-  void swap(Encryption &other) {
-    std::swap(m_type, other.m_type);
-    std::swap(m_key, other.m_key);
-    std::swap(m_klen, other.m_klen);
-    std::swap(m_key_allocated, other.m_key_allocated);
-    std::swap(m_iv, other.m_iv);
-    std::swap(m_tablespace_key, other.m_tablespace_key);
-    std::swap(m_key_version, other.m_key_version);
-    std::swap(m_key_id, other.m_key_id);
-    std::swap(m_checksum, other.m_checksum);
-    std::swap(m_encryption_rotation, other.m_encryption_rotation);
-  }
-
-  ~Encryption();
-
-  void set_key(byte *key, ulint key_len, bool allocated);
-
-  /** Check if page is encrypted page or not
-  @param[in]	page	page which need to check
-  @return true if it is an encrypted page */
-  static bool is_encrypted_page(const byte *page)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Check if a log block is encrypted or not
-  @param[in]	block	block which need to check
-  @return true if it is an encrypted block */
-  static bool is_encrypted_log(const byte *block)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Check the encryption option and set it
-  @param[in]	option		encryption option
-  @param[in,out]	encryption	The encryption type
-  @return DB_SUCCESS or DB_UNSUPPORTED */
-  dberr_t set_algorithm(const char *option, Encryption *type)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Validate the algorithm string.
-  @param[in]	option		Encryption option
-  @return DB_SUCCESS or error code */
-  static dberr_t validate(const char *option)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Validate the algorithm string for tablespace
-  @param[in]	option		Encryption option
-  @return DB_SUCCESS or error code */
-  MY_NODISCARD static dberr_t validate_for_tablespace(const char *option);
-
-  /** Convert to a "string".
-  @param[in]      type            The encryption type
-  @return the string representation */
-  static const char *to_string(Type type) MY_ATTRIBUTE((warn_unused_result));
-
-  /** Check if the string is "" or "n".
-@param[in]      algorithm       Encryption algorithm to check
-@return true if no algorithm requested */
-  static bool is_none(const char *algorithm) MY_ATTRIBUTE((warn_unused_result));
-
-  /** Check if the NO algorithm was explicitly specified.
-  @param[in]      algorithm       Encryption algorithm to check
-  @return true if no algorithm explicitly requested */
-  static bool none_explicitly_specified(
-      ulong create_info_used_fields,
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
-
-  static bool is_master_key_encryption(const char *algorithm)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  static bool is_empty(const char *algorithm)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  static bool is_keyring(const char *algoritm)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  static bool is_online_encryption_on() MY_ATTRIBUTE((warn_unused_result));
-
-  static bool should_be_keyring_encrypted(ulong create_info_used_fields,
-                                          const char *algorithm)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Generate random encryption value for key and iv.
-  @param[in,out]	value	Encryption value */
-  static void random_value(byte *value);
-
-  /** Create tablespace key
-  @param[in,out]	tablespace_key	tablespace key - null if failure
-  @param[in]		key_id		tablespace key id */
-  static void create_tablespace_key(byte **tablespace_key, uint key_id);
-
-  /** Create new master key for key rotation.
-  @param[in,out]	master_key	master key */
-  static void create_master_key(byte **master_key);
-
-  static bool tablespace_key_exists_or_create_new_one_if_does_not_exist(
-      uint key_id);
-
-  static bool tablespace_key_exists(uint key_id);
-
-  static bool is_encrypted_and_compressed(const byte *page);
-
-  static uint encryption_get_latest_version(uint key_id);
-
-  // TODO:Robert: Te dwa są potrzebne.
-  static void get_latest_tablespace_key(uint key_id,
-                                        uint *tablespace_key_version,
-                                        byte **tablespace_key);
-
-  static void get_latest_tablespace_key_or_create_new_one(
-      uint key_id, uint *tablespace_key_version, byte **tablespace_key);
-
-  static bool get_tablespace_key(uint key_id, uint tablespace_key_version,
-                                 byte **tablespace_key, size_t *key_len);
-
-  /** Create tablespace key
-  @param[in]	key_id          keyring encryption key info
-  @return true  failure
-          false success */
-  static bool create_tablespace_key(const EncryptionKeyId key_id);
-
-  /** Get master key by key id.
-  @param[in]	master_key_id	master key id
-  @param[in]	srv_uuid	uuid of server instance
-  @param[in,out]	master_key	master key */
-  static void get_master_key(ulint master_key_id, char *srv_uuid,
-                             byte **master_key);
-
-  /** Get current master key and key id.
-  @param[in,out]	master_key_id	master key id
-  @param[in,out]	master_key	master key */
-  static void get_master_key(ulint *master_key_id, byte **master_key);
-
-  static bool is_keyring_alive();
-
-  static bool can_page_be_keyring_encrypted(ulint page_type);
-  static bool can_page_be_keyring_encrypted(byte *page);
-
-  /** Fill the encryption information.
-  @param[in]		key		encryption key
-  @param[in]		iv		encryption iv
-  @param[in,out]	encrypt_info	encryption information
-  @param[in]		is_boot		if it's for bootstrap
-  @param[in]		encrypt_key	encrypt with master key
-  @return true if success. */
-  static bool fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                   bool is_boot, bool encrypt_key);
-
-  static bool fill_encryption_info(uint key_version, byte *iv,
-                                   byte *encrypt_info);
-
-  /** Get master key from encryption information
-  @param[in]	encrypt_info	encryption information
-  @param[in]	version		version of encryption information
-  @param[in,out]	m_key_id	master key id
-  @param[in,out]	srv_uuid	server uuid
-  @param[in,out]	master_key	master key
-  @return position after master key id or uuid, or the old position
-  if can't get the master key. */
-  static byte *get_master_key_from_info(byte *encrypt_info, Version version,
-                                        uint32_t *m_key_id, char *srv_uuid,
-                                        byte **master_key);
-
-  /** Decoding the encryption info from the first page of a tablespace.
-  @param[in,out]	key		key
-  @param[in,out]	iv		iv
-  @param[in]		encryption_info	encryption info
-  @param[in]		decrypt_key	decrypt key using master key
-  @return true if success */
-  static bool decode_encryption_info(byte *key, byte *iv, byte *encryption_info,
-                                     bool decrypt_key);
-
-  /** Encrypt the redo log block.
-  @param[in]	type		IORequest
-  @param[in,out]	src_ptr		log block which need to encrypt
-  @param[in,out]	dst_ptr		destination area
-  @return true if success. */
-  bool encrypt_log_block(const IORequest &type, byte *src_ptr, byte *dst_ptr);
-
-  /** Encrypt the redo log data contents.
-  @param[in]	type		IORequest
-  @param[in,out]	src		page data which need to encrypt
-  @param[in]	src_len		size of the source in bytes
-  @param[in,out]	dst		destination area
-  @param[in,out]	dst_len		size of the destination in bytes
-  @return buffer data, dst_len will have the length of the data */
-  byte *encrypt_log(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                    ulint *dst_len);
-
-  /** Encrypt the page data contents. Page type can't be
-  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
-  FIL_PAGE_ENCRYPTED_RTREE.
-  @param[in]	type		IORequest
-  @param[in,out]	src		page data which need to encrypt
-  @param[in]	src_len		size of the source in bytes
-  @param[in,out]	dst		destination area
-  @param[in,out]	dst_len		size of the destination in bytes
-  @return buffer data, dst_len will have the length of the data */
-  byte *encrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                ulint *dst_len) MY_ATTRIBUTE((warn_unused_result));
-
-  /** Decrypt the log block.
-  @param[in]	type		IORequest
-  @param[in,out]	src		data read from disk, decrypted data
-                                  will be copied to this page
-  @param[in,out]	dst		scratch area to use for decryption
-  @return DB_SUCCESS or error code */
-  dberr_t decrypt_log_block(const IORequest &type, byte *src, byte *dst);
-
-  /** Decrypt the log data contents.
-  @param[in]	type		IORequest
-  @param[in,out]	src		data read from disk, decrypted data
-                                  will be copied to this page
-  @param[in]	src_len		source data length
-  @param[in,out]	dst		scratch area to use for decryption
-  @param[in]	dst_len		size of the scratch area in bytes
-  @return DB_SUCCESS or error code */
-  dberr_t decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                      byte *dst, ulint dst_len);
-
-  /** Decrypt the page data contents. Page type must be
-  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
-  FIL_PAGE_ENCRYPTED_RTREE, if not then the source contents are
-  left unchanged and DB_SUCCESS is returned.
-  @param[in]	type		IORequest
-  @param[in,out]	src		data read from disk, decrypt
-                                  data will be copied to this page
-  @param[in]	src_len		source data length
-  @param[in,out]	dst		scratch area to use for decrypt
-  @param[in]	dst_len		size of the scratch area in bytes
-  @return DB_SUCCESS or error code */
-  dberr_t decrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                  ulint dst_len) MY_ATTRIBUTE((warn_unused_result));
-
-  /** Check if keyring plugin loaded. */
-  MY_NODISCARD static bool check_keyring();
-
-  /** Encrypt type */
-  Type m_type;
-
-  /** Encrypt key */
-  byte *m_key;
-
-  /** Encrypt key length*/
-  ulint m_klen;
-
-  /** Encrypt key allocated */
-  bool m_key_allocated;
-
-  /** Encrypt initial vector */
-  byte *m_iv;
-
-  byte *m_tablespace_key;
-
-  uint m_key_version;
-
-  uint m_key_id;
-
-  uint32 m_checksum;
-
-  /** Current master key id */
-  static ulint s_master_key_id;
-
-  /** Current uuid of server instance */
-  static char s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
-
-  Encryption_rotation m_encryption_rotation;
-
- private:
-  // TODO: Robert: Is it needed here?
-  static void get_keyring_key(const char *key_name, byte **key,
-                              size_t *key_len);
-
-  static void get_latest_system_key(const char *system_key_name, byte **key,
-                                    uint *key_version, size_t *key_length);
-
-  static void fill_key_name(char *key_name, uint key_id);
-
-  static void fill_key_name(char *key_name, uint key_id, uint key_version);
-};
+/** @} */
 
 /** Types for AIO operations @{ */
 
@@ -707,8 +301,8 @@ class IORequest {
     READ = 1,
     WRITE = 2,
 
-    /** Double write buffer recovery. */
-    DBLWR_RECOVER = 4,
+    /** Request for a doublewrite page IO */
+    DBLWR = 4,
 
     /** Enumerations below can be ORed to READ/WRITE above*/
 
@@ -743,8 +337,13 @@ class IORequest {
     and the truncate redo log. */
     NO_COMPRESSION = 512,
 
+    /** We optimise cases where punch hole is not done if the compressed length
+    of the page is the same as the original size of the page. Ignore such
+    optimisations if this flag is set. */
+    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024,
+
     /** Force write of decrypted pages in encrypted tablespace. */
-    NO_ENCRYPTION = 1024
+    NO_ENCRYPTION = 2048
   };
 
   /** Default constructor */
@@ -822,9 +421,19 @@ class IORequest {
     return ((m_type & PUNCH_HOLE) == PUNCH_HOLE);
   }
 
+  /** @return true if punch hole needs to be done always if it's supported and
+  if the page is to be compressed. */
+  bool is_punch_hole_optimisation_disabled() const
+      MY_ATTRIBUTE((warn_unused_result)) {
+    ut_ad(is_compressed() && punch_hole());
+
+    return (m_type & DISABLE_PUNCH_HOLE_OPTIMISATION) ==
+           DISABLE_PUNCH_HOLE_OPTIMISATION;
+  }
+
   /** @return true if the read should be validated */
   bool validate() const MY_ATTRIBUTE((warn_unused_result)) {
-    ut_a(is_read() ^ is_write());
+    ut_ad(is_read() ^ is_write());
 
     return (!is_read() || !punch_hole());
   }
@@ -833,6 +442,13 @@ class IORequest {
   void set_punch_hole() {
     if (is_punch_hole_supported()) {
       m_type |= PUNCH_HOLE;
+    }
+  }
+
+  /** Set the force punch hole flag */
+  void disable_punch_hole_optimisation() {
+    if (is_punch_hole_supported()) {
+      m_type |= DISABLE_PUNCH_HOLE_OPTIMISATION;
     }
   }
 
@@ -910,24 +526,27 @@ class IORequest {
       return;
     }
 
-    m_encryption.m_type = type;
+    m_encryption.set_type(type);
   }
 
   /** Set encryption key and iv
   @param[in] key		The encryption key to use
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
-  void encryption_key(byte *key, ulint key_len, bool key_allocated, byte *iv,
-                      uint key_version, uint key_id, byte *tablespace_key) {
-    m_encryption.set_key(key, key_len, key_allocated);
-    m_encryption.m_iv = iv;
-    m_encryption.m_key_version = key_version;
-    m_encryption.m_key_id = key_id;
-    m_encryption.m_tablespace_key = tablespace_key;
+  void encryption_key(byte *key, ulint key_len, byte *iv, uint key_version,
+                      uint key_id, byte *tablespace_key, const char *uuid,
+                      std::map<uint, byte *> *key_versions_cache) {
+    m_encryption.set_key(key, key_len);
+    m_encryption.set_key_versions_cache(key_versions_cache);
+    m_encryption.set_initial_vector(iv);
+    m_encryption.set_key_version(key_version);
+    m_encryption.set_key_id(key_id);
+    m_encryption.set_tablespace_key(tablespace_key);
+    m_encryption.set_key_id_uuid(uuid);
   }
 
   void encryption_rotation(Encryption_rotation encryption_rotation) {
-    m_encryption.m_encryption_rotation = encryption_rotation;
+    m_encryption.set_encryption_rotation(encryption_rotation);
   }
 
   /** Set encryption key and iv
@@ -935,9 +554,9 @@ class IORequest {
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
   void encryption_key(byte *key, ulint key_len, byte *iv) {
-    m_encryption.m_key = key;
-    m_encryption.m_klen = key_len;
-    m_encryption.m_iv = iv;
+    m_encryption.set_key(key);
+    m_encryption.set_key_length(key_len);
+    m_encryption.set_initial_vector(iv);
   }
 
   /** Get the encryption algorithm.
@@ -948,17 +567,18 @@ class IORequest {
 
   /** @return true if the page should be encrypted. */
   bool is_encrypted() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_encryption.m_type != Encryption::NONE);
+    return (m_encryption.get_type() != Encryption::NONE);
   }
 
   /** Clear all encryption related flags */
   void clear_encrypted() {
-    m_encryption.set_key(nullptr, 0, false);
-    m_encryption.m_iv = nullptr;
-    m_encryption.m_type = Encryption::NONE;
-    m_encryption.m_encryption_rotation = Encryption_rotation::NO_ROTATION;
-    m_encryption.m_key_id = 0;
-    m_encryption.m_tablespace_key = nullptr;
+    m_encryption.set_key(nullptr, 0);
+    m_encryption.set_initial_vector(nullptr);
+    m_encryption.set_key_versions_cache(nullptr);
+    m_encryption.set_type(Encryption::NONE);
+    m_encryption.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
+    m_encryption.set_key_id(0);
+    m_encryption.set_tablespace_key(nullptr);
   }
 
   void mark_page_zip_compressed() { m_is_page_zip_compressed = true; }
@@ -973,12 +593,12 @@ class IORequest {
     m_zip_page_physical_size = zip_page_physical_size;
   }
 
-  /** Note that the IO is for double write recovery. */
-  void dblwr_recover() { m_type |= DBLWR_RECOVER; }
+  /** Note that the IO is for double write buffer page write. */
+  void dblwr() { m_type |= DBLWR; }
 
-  /** @return true if the request is from the dblwr recovery */
-  bool is_dblwr_recover() const MY_ATTRIBUTE((warn_unused_result)) {
-    return ((m_type & DBLWR_RECOVER) == DBLWR_RECOVER);
+  /** @return true if the request is for a dblwr page. */
+  bool is_dblwr() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & DBLWR) == DBLWR);
   }
 
   /** @return true if punch hole is supported */
@@ -993,6 +613,53 @@ class IORequest {
 #else
     return (false);
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE || _WIN32 */
+  }
+
+  /** @return string representation. */
+  std::string to_string() const {
+    std::ostringstream os;
+
+    os << "bs: " << m_block_size << " flags:";
+
+    if (m_type & READ) {
+      os << " READ";
+    } else if (m_type & WRITE) {
+      os << " WRITE";
+    } else if (m_type & DBLWR) {
+      os << " DBLWR";
+    }
+
+    /** Enumerations below can be ORed to READ/WRITE above*/
+
+    /** Data file */
+    if (m_type & DATA_FILE) {
+      os << " | DATA_FILE";
+    }
+
+    if (m_type & LOG) {
+      os << " | LOG";
+    }
+
+    if (m_type & DISABLE_PARTIAL_IO_WARNINGS) {
+      os << " | DISABLE_PARTIAL_IO_WARNINGS";
+    }
+
+    if (m_type & DO_NOT_WAKE) {
+      os << " | IGNORE_MISSING";
+    }
+
+    if (m_type & PUNCH_HOLE) {
+      os << " | PUNCH_HOLE";
+    }
+
+    if (m_type & NO_COMPRESSION) {
+      os << " | NO_COMPRESSION";
+    }
+
+    os << ", comp: " << m_compression.to_string();
+    os << ", enc: " << m_encryption.to_string(m_encryption.get_type());
+
+    return (os.str());
   }
 
  private:
@@ -1013,7 +680,7 @@ class IORequest {
   ulint m_zip_page_physical_size;
 };
 
-/* @} */
+/** @} */
 
 /** Sparse file size information. */
 struct os_file_size_t {
@@ -1047,7 +714,7 @@ enum class AIO_mode : size_t {
   or write, causing a bottleneck for parallelism. */
   SYNC = 24
 };
-/* @} */
+/** @} */
 
 extern ulint os_n_file_reads;
 extern ulint os_n_file_writes;
@@ -1114,22 +781,22 @@ struct os_file_stat_t {
 #ifndef UNIV_HOTBACKUP
 /** Create a temporary file. This function is like tmpfile(3), but
 the temporary file is created in the given parameter path. If the path
-is null then it will create the file in the mysql server configuration
+is NULL then it will create the file in the MySQL server configuration
 parameter (--tmpdir).
 @param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE *os_file_create_tmpfile(const char *path);
 #endif /* !UNIV_HOTBACKUP */
 
-/**
-This function attempts to create a directory named pathname. The new directory
-gets default permissions. On Unix, the permissions are (0770 & ~umask). If the
-directory exists already, nothing is done and the call succeeds, unless the
-fail_if_exists arguments is true.
-
+/** This function attempts to create a directory named pathname. The new
+directory gets default permissions. On Unix the permissions are
+(0770 & ~umask). If the directory exists already, nothing is done and
+the call succeeds, unless the fail_if_exists arguments is true.
+If another error occurs, such as a permission error, this does not crash,
+but reports the error and returns false.
 @param[in]	pathname	directory name as null-terminated string
-@param[in]	fail_if_exists	if true, pre-existing directory is treated
-                                as an error.
+@param[in]	fail_if_exists	if true, pre-existing directory is treated as
+                                an error.
 @return true if call succeeds, false on error */
 bool os_file_create_directory(const char *pathname, bool fail_if_exists);
 
@@ -1146,7 +813,7 @@ for each entry.
 @param[in]	is_drop		attempt to drop the directory after scan
 @return true if call succeeds, false on error */
 bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
-                            bool is_delete);
+                            bool is_drop);
 
 /** NOTE! Use the corresponding macro os_file_create_simple(), not directly
 this function!
@@ -1155,9 +822,9 @@ A simple function to open or create a file.
                                 string
 @param[in]	create_mode	create mode
 @param[in]	access_type	OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]	read_only	if true read only mode checks are enforced
+@param[in]	read_only	if true, read only checks are enforced
 @param[out]	success		true if succeed, false if error
-@return own: handle to the file, not defined if error, error number
+@return handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
                                      ulint access_type, bool read_only,
@@ -1185,25 +852,19 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	operation_name	"open" or "create"; used in the diagnostic
                                 message
-@param[in]	failure_warning	if true (the default), the failure to disable
-caching is diagnosed at warning severity, and at note severity otherwise
 @return true if operation is success and false */
 bool os_file_set_nocache(int fd, const char *file_name,
-                         const char *operation_name,
-                         bool failure_warning = true);
+                         const char *operation_name);
 
 /** Tries to disable OS caching on an opened file file.
 @param[in]	file		file to alter
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	name		"open" or "create"; used in the diagnostic
 message
-@param[in]	failure_warning	if true (the default), the failure to disable
-caching is diagnosed at warning severity, and at note severity otherwise
 @return true if operation is success and false */
 UNIV_INLINE
 bool os_file_set_nocache(pfs_os_file_t file, const char *file_name,
-                         const char *operation_name,
-                         bool failure_warning = true);
+                         const char *operation_name);
 
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
@@ -1217,7 +878,7 @@ Opens an existing file or creates a new.
                                 and srv_.. variables whether we really use
                                 async I/O or unbuffered I/O: look in the
                                 function source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
+@param[in]	type		OS_DATA_FILE, OS_LOG_FILE etc.
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in]	success		true if succeeded
 @return own: handle to the file, not defined if error, error number
@@ -1247,11 +908,11 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath);
 
-/** NOTE! Use the corresponding macro os_file_close(), not directly this
-function!
+/** NOTE! Use the corresponding macro os_file_close(), not directly
+this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@param[in]	file		own: handle to a file
+@param[in]	file		Handle to a file
 @return true if success */
 bool os_file_close_func(os_file_t file);
 
@@ -1267,12 +928,12 @@ bool os_file_close_no_error_handling_func(os_file_t file);
 /* Keys to register InnoDB I/O with performance schema */
 extern mysql_pfs_key_t innodb_log_file_key;
 extern mysql_pfs_key_t innodb_temp_file_key;
+extern mysql_pfs_key_t innodb_dblwr_file_key;
 extern mysql_pfs_key_t innodb_arch_file_key;
 extern mysql_pfs_key_t innodb_clone_file_key;
 extern mysql_pfs_key_t innodb_data_file_key;
 extern mysql_pfs_key_t innodb_tablespace_open_file_key;
 extern mysql_pfs_key_t innodb_bmp_file_key;
-extern mysql_pfs_key_t innodb_parallel_dblwrite_file_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
@@ -1289,7 +950,7 @@ are used to register file deletion operations*/
   do {                                                                       \
     locker = PSI_FILE_CALL(get_thread_file_name_locker)(state, key.m_value,  \
                                                         op, name, &locker);  \
-    if (locker != NULL) {                                                    \
+    if (locker != nullptr) {                                                 \
       PSI_FILE_CALL(start_file_open_wait)                                    \
       (locker, src_file, static_cast<uint>(src_line));                       \
     }                                                                        \
@@ -1297,19 +958,25 @@ are used to register file deletion operations*/
 
 #define register_pfs_file_open_end(locker, file, result)              \
   do {                                                                \
-    if (locker != NULL) {                                             \
+    if (locker != nullptr) {                                          \
       file.m_psi = PSI_FILE_CALL(end_file_open_wait)(locker, result); \
     }                                                                 \
   } while (0)
 
-#define register_pfs_file_rename_begin(state, locker, key, op, name, src_file, \
-                                       src_line)                               \
-  register_pfs_file_open_begin(state, locker, key, op, name, src_file,         \
-                               static_cast<uint>(src_line))
+#define register_pfs_file_rename_begin(state, locker, key, op, from, to,    \
+                                       src_file, src_line)                  \
+  do {                                                                      \
+    locker = PSI_FILE_CALL(get_thread_file_name_locker)(state, key.m_value, \
+                                                        op, from, &locker); \
+    if (locker != nullptr) {                                                \
+      PSI_FILE_CALL(start_file_rename_wait)                                 \
+      (locker, (size_t)0, from, to, src_file, static_cast<uint>(src_line)); \
+    }                                                                       \
+  } while (0)
 
 #define register_pfs_file_rename_end(locker, from, to, result)       \
   do {                                                               \
-    if (locker != NULL) {                                            \
+    if (locker != nullptr) {                                         \
       PSI_FILE_CALL(end_file_rename_wait)(locker, from, to, result); \
     }                                                                \
   } while (0)
@@ -1319,7 +986,7 @@ are used to register file deletion operations*/
   do {                                                                        \
     locker = PSI_FILE_CALL(get_thread_file_name_locker)(state, key.m_value,   \
                                                         op, name, &locker);   \
-    if (locker != NULL) {                                                     \
+    if (locker != nullptr) {                                                  \
       PSI_FILE_CALL(start_file_close_wait)                                    \
       (locker, src_file, static_cast<uint>(src_line));                        \
     }                                                                         \
@@ -1327,7 +994,7 @@ are used to register file deletion operations*/
 
 #define register_pfs_file_close_end(locker, result)       \
   do {                                                    \
-    if (locker != NULL) {                                 \
+    if (locker != nullptr) {                              \
       PSI_FILE_CALL(end_file_close_wait)(locker, result); \
     }                                                     \
   } while (0)
@@ -1337,7 +1004,7 @@ are used to register file deletion operations*/
   do {                                                                       \
     locker =                                                                 \
         PSI_FILE_CALL(get_thread_file_stream_locker)(state, file.m_psi, op); \
-    if (locker != NULL) {                                                    \
+    if (locker != nullptr) {                                                 \
       PSI_FILE_CALL(start_file_wait)                                         \
       (locker, count, src_file, static_cast<uint>(src_line));                \
     }                                                                        \
@@ -1345,7 +1012,7 @@ are used to register file deletion operations*/
 
 #define register_pfs_file_io_end(locker, count)    \
   do {                                             \
-    if (locker != NULL) {                          \
+    if (locker != nullptr) {                       \
       PSI_FILE_CALL(end_file_wait)(locker, count); \
     }                                              \
   } while (0)
@@ -1392,14 +1059,16 @@ The wrapper functions have the prefix of "innodb_". */
   pfs_os_aio_func(type, mode, name, file, buf, offset, n, read_only, message1, \
                   message2, space_id, trx, should_buffer, __FILE__, __LINE__)
 
-#define os_file_read_pfs(type, file_name, file, buf, offset, n) \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, __FILE__, __LINE__)
+#define os_file_read_pfs(type, file_name, file, buf, offset, n)         \
+  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, \
+                        __FILE__, __LINE__)
 
 #define os_file_read_trx_pfs(file, buf, offset, n, trx) \
   pfs_os_file_read_func(file, buf, offset, n, trx, __FILE__, __LINE__)
 
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit) \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, __LINE__, exit)
+#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit)    \
+  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, \
+                                   __LINE__, exit)
 
 #define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)          \
   pfs_os_file_copy_func(src, src_offset, dest, dest_offset, size, __FILE__, \
@@ -1546,9 +1215,10 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-                              os_offset_t offset, ulint n, trx_t *trx,
-                              const char *src_file, uint src_line);
+dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
+                              pfs_os_file_t file, void *buf, os_offset_t offset,
+                              ulint n, trx_t *trx, const char *src_file,
+                              uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1565,8 +1235,8 @@ of page 0 of IBD file
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
-                                         void *buf, ulint n,
+dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                         pfs_os_file_t file, void *buf, ulint n,
                                          const char *src_file, uint src_line,
                                          bool exit_on_err);
 
@@ -1812,9 +1482,10 @@ to original un-instrumented file I/O APIs */
                                            n, o)                               \
   os_file_read_no_error_handling_func(type, file_name, file, buf, offset, n, o)
 
-#define os_file_read_no_error_handling_int_fd(type, file_name, file, buf, \
-                                              offset, n, o)               \
-  os_file_read_no_error_handling_func(type, file_name, file, buf, offset, n, o)
+#define os_file_read_no_error_handling_int_fd(type, file_name, file, buf,     \
+                                              offset, n, o)                   \
+  os_file_read_no_error_handling_func(type, file_name, OS_FILE_FROM_FD(file), \
+                                      buf, offset, n, o)
 
 #define os_file_read_trx_pfs(file, buf, offset, n, trx) \
   os_file_read_func(file, buf, offset, n, trx)
@@ -1823,7 +1494,7 @@ to original un-instrumented file I/O APIs */
   os_file_write_func(type, name, file, buf, offset, n)
 
 #define os_file_write_int_fd(type, name, file, buf, offset, n) \
-  os_file_write_func(type, name, file, buf, offset, n)
+  os_file_write_func(type, name, OS_FILE_FROM_FD(file), buf, offset, n)
 
 #define os_file_flush_pfs(file) os_file_flush_func(file)
 
@@ -1929,17 +1600,31 @@ bool os_file_advise(pfs_os_file_t file, os_offset_t offset, os_offset_t len,
                     ulint advice);
 
 /** Gets a file size.
-@param[in]	filename	handle to a file
-@return file size if OK, else set m_total_size to ~0 and m_alloc_size
-        to errno */
+@param[in]	filename	Full path to the filename to check
+@return file size if OK, else set m_total_size to ~0 and m_alloc_size to
+        errno */
 os_file_size_t os_file_get_size(const char *filename)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets a file size.
-@param[in]	file		handle to a file
+@param[in]	file		Handle to a file
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t os_file_get_size(pfs_os_file_t file)
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Allocate a block to file using fallocate from the given offset if
+fallocate is supported. Falls back to the old slower method of writing
+zeros otherwise.
+@param[in]	name		name of the file
+@param[in]	file		handle to the file
+@param[in]	offset		file offset
+@param[in]	size		file size
+@param[in]	read_only	enable read-only checks if true
+@param[in]	flush		flush file content to disk
+@return true if success */
+bool os_file_set_size_fast(const char *name, pfs_os_file_t file,
+                           os_offset_t offset, os_offset_t size, bool read_only,
+                           bool flush) MY_ATTRIBUTE((warn_unused_result));
 
 /** Write the specified number of zeros to a file from specific offset.
 @param[in]	name		name of the file or path as a null-terminated
@@ -1947,8 +1632,8 @@ os_offset_t os_file_get_size(pfs_os_file_t file)
 @param[in]	file		handle to a file
 @param[in]	offset		file offset
 @param[in]	size		file size
-@param[in]	read_only	Enable read-only checks if true
-@param[in]	flush		Flush file content to disk
+@param[in]	read_only	enable read-only checks if true
+@param[in]	flush		flush file content to disk
 @return true if success */
 bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
                       os_offset_t size, bool read_only, bool flush)
@@ -1959,11 +1644,12 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
 @return true if success */
 bool os_file_set_eof(FILE *file); /*!< in: file to be truncated */
 
-/** Truncates a file to a specified size in bytes. Do nothing if the size
-preserved is smaller or equal than current size of file.
+/** Truncates a file to a specified size in bytes.
+Do nothing if the size to preserve is greater or equal to the current
+size of the file.
 @param[in]	pathname	file path
 @param[in]	file		file to be truncated
-@param[in]	size		size preserved in bytes
+@param[in]	size		size to preserve in bytes
 @return true if success */
 bool os_file_truncate(const char *pathname, pfs_os_file_t file,
                       os_offset_t size);
@@ -1999,18 +1685,19 @@ the OS error number + 100 is returned.
 @return error number, or OS error number + 100 */
 ulint os_file_get_last_error(bool report_all_errors);
 
-/** NOTE! Use the corresponding macro os_file_read(), not directly this
-function!
-Requests a synchronous read operation.
+/** NOTE! Use the corresponding macro os_file_read_first_page(), not directly
+this function!
+Requests a synchronous read operation of page 0 of IBD file.
 @param[in]	type		IO request context
 @param[in]  file_name file name
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
 @param[in]	n		number of bytes to read
-@return DB_SUCCESS if request was successful */
-dberr_t os_file_read_func(IORequest &type, const char* file_name, os_file_t file, void *buf,
-                          os_offset_t offset, ulint n, trx_t *trx)
+@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
+dberr_t os_file_read_func(IORequest &type, const char *file_name,
+                          os_file_t file, void *buf, os_offset_t offset,
+                          ulint n, trx_t *trx)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
@@ -2022,12 +1709,13 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[out]	buf		buffer where to read
 @param[in]	n		number of bytes to read
 @param[in]	exit_on_err	if true then exit on error
-@return DB_SUCCESS if request was successful */
-dberr_t os_file_read_first_page_func(IORequest &type, const char* file_name, os_file_t file, void *buf,
-                                     ulint n, bool exit_on_err)
+@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
+dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                     os_file_t file, void *buf, ulint n,
+                                     bool exit_on_err)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** copy data from one file to another file. Data is read/written
+/** Copy data from one file to another file. Data is read/written
 at current file offset.
 @param[in]	src_file	file handle to copy from
 @param[in]	src_offset	offset to copy from
@@ -2042,9 +1730,9 @@ dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
 /** Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files.
-@param[in,out]	file		file to read from
-@param[in,out]	str		buffer where to read
-@param[in]	size		size of buffer */
+@param[in,out]	file		File to read from
+@param[in,out]	str		Buffer where to read
+@param[in]	size		Size of buffer */
 void os_file_read_string(FILE *file, char *str, ulint size);
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
@@ -2078,12 +1766,19 @@ dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
                            const void *buf, os_offset_t offset, ulint n)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Check the existence and type of the given file.
-@param[in]	path		pathname of the file
-@param[out]	exists		true if file exists
-@param[out]	type		type of the file (if it exists)
+/** Check the existence and type of a given path.
+@param[in]   path    pathname of the file
+@param[out]  exists  true if file exists
+@param[out]  type    type of the file (if it exists)
 @return true if call succeeded */
 bool os_file_status(const char *path, bool *exists, os_file_type_t *type);
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+bool os_file_exists(const char *path);
 
 /** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */
@@ -2111,14 +1806,13 @@ void os_create_block_cache();
 
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
-array is divided logically into n_read_segs and n_write_segs
+array is divided logically into n_readers and n_writers
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
-@param[in]	n_slots_sync	number of slots in the sync aio array */
-
+@param[in]	n_slots_sync	number of dblwr slots in the sync aio array */
 bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync);
 
 /**
@@ -2172,24 +1866,23 @@ call os_aio_simulated_wake_handler_threads later to ensure the threads
 are not left sleeping! */
 void os_aio_simulated_put_read_threads_to_sleep();
 
-/** This is the generic AIO handler interface function.
-Waits for an aio operation to complete. This function is used to wait the
+/** Waits for an AIO operation to complete. This function is used to wait the
 for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the aio slot,
+for. NOTE: this function will also take care of freeing the AIO slot,
 therefore no other thread is allowed to do the freeing!
-@param[in]	segment		the number of the segment in the aio arrays to
+@param[in]	segment		The number of the segment in the AIO arrays to
                                 wait for; segment 0 is the ibuf I/O thread,
                                 segment 1 the log I/O thread, then follow the
                                 non-ibuf read threads, and as the last are the
                                 non-ibuf write threads; if this is
                                 ULINT_UNDEFINED, then it means that sync AIO
                                 is used, and this parameter is ignored
-@param[out]	m1		the messages passed with the AIO request;
-                                note that also in the case where the AIO
-                                operation failed, these output parameters
-                                are valid and can be used to restart the
-                                operation, for example
+@param[out]	m1		the messages passed with the AIO request; note
+                                that also in the case where the AIO operation
+                                failed, these output parameters are valid and
+                                can be used to restart the operation,
+                                for example
 @param[out]	m2		callback message
 @param[out]	request		OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
@@ -2210,7 +1903,7 @@ bool os_aio_all_slots_free();
 #ifdef UNIV_DEBUG
 
 /** Prints all pending IO
-@param[in]	file	file where to print */
+@param[in]	file		File where to print */
 void os_aio_print_pending_io(FILE *file);
 
 #endif /* UNIV_DEBUG */
@@ -2223,10 +1916,10 @@ dberr_t os_get_free_space(const char *path, uint64_t &free_space);
 
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
-@param[in]	stat_info	information of a file in a directory
+@param[out]	stat_info	information of a file in a directory
 @param[in]	check_rw_perm	for testing whether the file can be opened
                                 in RW mode
-@param[in]	read_only	if true read only mode checks are enforced
+@param[in]	read_only	true if file is opened in read-only mode
 @return DB_SUCCESS if all OK */
 dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
                            bool check_rw_perm, bool read_only);
@@ -2235,12 +1928,13 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
 
 /** return any of the tmpdir path */
 char *innobase_mysql_tmpdir();
+
 /** Creates a temporary file in the location specified by the parameter
-path. If the path is NULL then it will be created on --tmpdir location.
-This function is defined in ha_innodb.cc.
+path. If the path is NULL, then it will be created in --tmpdir.
 @param[in]	path	location for creating temporary file
 @return temporary file descriptor, or < 0 on error */
 int innobase_mysql_tmpfile(const char *path);
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** If it is a compressed page return the compressed page data + footer size
@@ -2287,13 +1981,15 @@ bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh)
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_recover	true of double write recovery in progress
+@param[in]	dblwr_read	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression
-@param[in]	dst_len		Size of the scratch area in bytes
+@param[in,out]	dst		Scratch area to use for decompression or
+                                nullptr.
+@param[in]	dst_len		If dst is valid, then size of the scratch area
+                                in bytes
 @return DB_SUCCESS or error code */
-dberr_t os_file_decompress_page(bool dblwr_recover, byte *src, byte *dst,
+dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,
                                 ulint dst_len)
     MY_ATTRIBUTE((warn_unused_result));
 
@@ -2314,6 +2010,21 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 @retval	false	if O_DIRECT is not supported. */
 bool os_is_o_direct_supported() MY_ATTRIBUTE((warn_unused_result));
 
+/** Fill the pages with NULs
+@param[in] file		File handle
+@param[in] name		File name
+@param[in] page_size	physical page size
+@param[in] start	Offset from the start of the file in bytes
+@param[in] len		Length in bytes
+@param[in] read_only_mode
+                        if true, then read only mode checks are enforced.
+@return DB_SUCCESS or error code */
+dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
+                            ulint page_size, os_offset_t start, ulint len,
+                            bool read_only_mode)
+    MY_ATTRIBUTE((warn_unused_result));
+
+#ifndef UNIV_NONINL
 /** Class to scan the directory heirarchy using a depth first scan. */
 class Dir_Walker {
  public:
@@ -2358,9 +2069,9 @@ class Dir_Walker {
   using Function = std::function<void(const Path &, size_t)>;
 
   /** Depth first traversal of the directory starting from basedir
-  @param[in]      basedir    Start scanning from this directory
-  @param[in]      recursive  `true` if scan should be recursive
-  @param[in]      f          Callback for each entry found */
+  @param[in]  basedir     Start scanning from this directory
+  @param[in]  recursive  `true` if scan should be recursive
+  @param[in]  f           Function to call for each entry */
 #ifdef _WIN32
   static void walk_win32(const Path &basedir, bool recursive, Function &&f);
 #else
@@ -2368,31 +2079,22 @@ class Dir_Walker {
 #endif /* _WIN32 */
 };
 
+/** Allocate a page for sync IO
+@return pointer to page */
+file::Block *os_alloc_block() noexcept;
+
 /** Submit buffered AIO requests on the given segment to the kernel. */
 void os_aio_dispatch_read_array_submit();
 
-struct fil_space_t;
-
-/** Encrypt a doublewrite buffer page. The page is encrypted
-using the key of tablespace object provided.
-Caller should allocate buffer for encrypted page
-@param[in]	space			tablespace object
-@param[in]	in_page			unencrypted page
-@param[in,out]	encrypted_buf		buffer to hold the encrypted page
-@param[in]	encrypted_buf_len	length of the encrypted buffer
-@return true on success, false on failure */
-bool os_dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
-                           page_t *encrypted_buf, ulint encrypted_buf_len);
-
-/** Decrypt a page from doublewrite buffer. Tablespace object
-(fil_space_t) must have encryption key, iv set properly.
-The decrpyted page will be written in the same buffer of input page.
-@param[in]	space	tablespace obejct
-@param[in,out]	page	in: encrypted page
-                        out: decrypted page
-@return DB_SUCCESS on success, others on failure */
-dberr_t os_dblwr_decrypt_page(fil_space_t *space, page_t *in_page);
+/** Encrypt a page content when write it to disk.
+@param[in]      type    IO flags
+@param[out]     buf     buffer to read or write
+@param[in,out]  n       number of bytes to read/write, starting from
+                        offset
+@return pointer to the encrypted page */
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n);
 
 #include "os0file.ic"
+#endif /* UNIV_NONINL */
 
 #endif /* os0file_h */

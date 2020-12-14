@@ -75,6 +75,11 @@ int ProcessWrapper::kill() {
 int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
     std::chrono::milliseconds timeout) {
   namespace ch = std::chrono;
+  auto step = 1ms;
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+    step *= 200;
+  }
   ch::time_point<ch::steady_clock> timeout_timestamp =
       ch::steady_clock::now() + timeout;
 
@@ -84,7 +89,7 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
   // exit until we deal with its output.
   std::exception_ptr eptr;
   exit_code_set_ = false;
-  while (ch::steady_clock::now() < timeout_timestamp) {
+  do {
     read_and_autorespond_to_output(0ms);
 
     try {
@@ -103,13 +108,13 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
       break;
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
+    std::this_thread::sleep_for(step);
+  } while (ch::steady_clock::now() < timeout_timestamp);
 
   if (exit_code_set_) {
     // the child exited, but there might still be some data left in the pipe to
     // read, so let's consume it all
-    while (read_and_autorespond_to_output(1ms, false))
+    while (read_and_autorespond_to_output(step, false))
       ;  // false = disable autoresponder
     return exit_code_;
   } else {

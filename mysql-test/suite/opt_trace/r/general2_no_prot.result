@@ -447,8 +447,8 @@ ON t2.i = t1.i
 WHERE t3.i IS NULL
 ;
 i	i	i
-3	3	NULL
 2	NULL	NULL
+3	3	NULL
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {
@@ -711,8 +711,8 @@ HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having true order by `test`.`t1`.`f2`
@@ -739,14 +739,6 @@ TRACE
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -883,14 +875,6 @@ TRACE
                                       "chosen": true
                                     }
                                   ] /* considered_execution_plans */
-                                },
-                                {
-                                  "transformation": {
-                                    "select#": 2,
-                                    "from": "IN (SELECT)",
-                                    "to": "EXISTS (CORRELATED SELECT)",
-                                    "put_1_in_SELECT_list": true
-                                  } /* transformation */
                                 },
                                 {
                                   "attaching_conditions_to_tables": {
@@ -1175,7 +1159,7 @@ TRACE
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 3
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -1187,11 +1171,11 @@ TRACE
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 3,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
@@ -1205,7 +1189,7 @@ TRACE
               "key_size": "XXX",
               "row_size": "XXX",
               "max_rows_per_buffer": "XXX",
-              "num_rows_estimate": 18446744073709551615,
+              "num_rows_estimate": 15,
               "num_rows_found": 4,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -1549,16 +1533,6 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 select 1	{
   "steps": [
     {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_optimization": {
         "select#": 1,
         "steps": [
@@ -1624,14 +1598,6 @@ jump_if_not 2(2) exists(select 1)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 1"
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "EXISTS (SELECT)",
-              "to": "semijoin",
-              "chosen": false
-            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -1671,14 +1637,6 @@ jump_if_not 4(4) exists(select 2)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 2"
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "EXISTS (SELECT)",
-              "to": "semijoin",
-              "chosen": false
-            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -2248,27 +2206,6 @@ set b@1 (select (2 + x@0))	{
           }
         ] /* steps */
       } /* join_preparation */
-    },
-    {
-      "subselect_execution": {
-        "select#": 2,
-        "steps": [
-          {
-            "join_optimization": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* join_optimization */
-          },
-          {
-            "join_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
-          }
-        ] /* steps */
-      } /* subselect_execution */
     }
   ] /* steps */
 }	0	0
@@ -2815,7 +2752,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select (`test`.`t1`.`a` + `test`.`t1`.`a`) from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`)))))
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -2832,14 +2769,6 @@ from t0 where a in
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -3543,14 +3472,6 @@ from t0 where a in
             ] /* considered_execution_plans */
           },
           {
-            "transformation": {
-              "select#": 2,
-              "from": "IN (SELECT)",
-              "to": "EXISTS (CORRELATED SELECT)",
-              "put_1_in_SELECT_list": true
-            } /* transformation */
-          },
-          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`) and (<cache>(`t0`.`a`) = (`t1`.`a` + `t1`.`a`)))",
               "attached_conditions_computation": [
@@ -3804,7 +3725,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t2`",
                       "field": "ID",
                       "equals": "`t1`.`OBJECTID`",
-                      "null_rejecting": false
+                      "null_rejecting": true
                     },
                     {
                       "table": "`t2`",
@@ -3816,7 +3737,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t3`",
                       "field": "ID",
                       "equals": "`t1`.`OBJECTID`",
-                      "null_rejecting": false
+                      "null_rejecting": true
                     },
                     {
                       "table": "`t3`",
@@ -4374,13 +4295,13 @@ link_alias_148._field_156	{
                 "table": "`t3`",
                 "field": "t3_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t4`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t7` `link_alias_142`",
@@ -4392,7 +4313,7 @@ link_alias_148._field_156	{
                 "table": "`t6`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `link_alias_133`",
@@ -4404,7 +4325,7 @@ link_alias_148._field_156	{
                 "table": "`t2`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t5` `link_alias_148`",
@@ -5337,7 +5258,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "write_method": "continuously_update_group_row"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -5370,11 +5291,11 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             } /* temp_table_aggregate */
           },
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "col_int_key"
+                "expression": "`alias1`.`col_int_key`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
@@ -5387,13 +5308,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "memory_available": 262144,
               "key_size": "XXX",
               "row_size": "XXX",
-              "max_rows_per_buffer": 18,
-              "num_rows_estimate": 18,
+              "max_rows_per_buffer": "XXX",
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 8,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+              "unpacked_addon_fields": "skip_heuristic",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             } /* filesort_summary */
           }
         ] /* steps */
@@ -5477,7 +5399,7 @@ select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
                 "table": "`t2`",
                 "field": "b",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -5527,6 +5449,10 @@ insert into t1 values(1),(2),(3);
 create database mysqltest2;
 create table mysqltest2.t2(a int);
 insert into mysqltest2.t2 values(1),(2);
+analyze table t1, mysqltest2.t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+mysqltest2.t2	analyze	status	OK
 select * from t1,mysqltest2.t2;
 a	a
 1	1

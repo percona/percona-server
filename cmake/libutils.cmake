@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,10 +36,6 @@
 # libraries (we need it for perconaserverclient) and to create shared library out of 
 # convenience libraries(again, for perconaserverclient)
 
-
-GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # CREATE_EXPORT_FILE (VAR target api_functions)
 # Internal macro, used on Windows to export API functions as dllexport.
 # Returns a list of extra files that should be linked into the library
@@ -61,7 +57,7 @@ MACRO(CREATE_EXPORT_FILE VAR TARGET API_FUNCTIONS)
 ENDMACRO()
 
 
-# ADD_CONVENIENCE_LIBRARY(name source1...sourceN)
+# ADD_CONVENIENCE_LIBRARY(name sources... options/keywords...)
 # Create an OBJECT library ${name}_objlib containing all object files.
 # Create a STATIC library ${name} which can be used for linking.
 #
@@ -69,21 +65,29 @@ ENDMACRO()
 # For APPLE, we create a STATIC library only,
 # see comments in MERGE_CONVENIENCE_LIBRARIES for Xcode
 #
-# Optional arguments:
-# [COMPILE_DEFINITIONS ...] for TARGET_COMPILE_DEFINITIONS
-# [COMPILE_OPTIONS ...]     for TARGET_COMPILE_OPTIONS
-# [DEPENDENCIES ...]        for ADD_DEPENDENCIES
-# [INCLUDE_DIRECTORIES ...] for TARGET_INCLUDE_DIRECTORIES
-# [LINK_LIBRARIES ...]      for TARGET_LINK_LIBRARIES
-MACRO(ADD_CONVENIENCE_LIBRARY)
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "COMPILE_DEFINITIONS;COMPILE_OPTIONS;DEPENDENCIES;INCLUDE_DIRECTORIES;LINK_LIBRARIES"
-    "EXCLUDE_FROM_ALL"
+MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
+  SET(LIBRARY_OPTIONS
+    EXCLUDE_FROM_ALL
+    )
+  SET(LIBRARY_ONE_VALUE_KW
+    )
+  SET(LIBRARY_MULTI_VALUE_KW
+    COMPILE_DEFINITIONS # for TARGET_COMPILE_DEFINITIONS
+    COMPILE_OPTIONS     # for TARGET_COMPILE_OPTIONS
+    DEPENDENCIES        # for ADD_DEPENDENCIES
+    INCLUDE_DIRECTORIES # for TARGET_INCLUDE_DIRECTORIES
+    LINK_LIBRARIES      # for TARGET_LINK_LIBRARIES
+    )
+
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "${LIBRARY_OPTIONS}"
+    "${LIBRARY_ONE_VALUE_KW}"
+    "${LIBRARY_MULTI_VALUE_KW}"
     ${ARGN}
     )
-  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
-  SET(SOURCES ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT SOURCES 0)
+
+  SET(TARGET ${TARGET_ARG})
+  SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
 
   # For APPLE, we create a STATIC library only,
   IF(APPLE)
@@ -143,15 +147,16 @@ ENDMACRO()
 
 # Create libs from libs.
 # Merge static libraries, creates shared libraries out of convenience libraries.
-MACRO(MERGE_LIBRARIES_SHARED)
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "EXPORTS;OUTPUT_NAME;COMPONENT"
-    "SKIP_INSTALL;EXCLUDE_FROM_ALL"
+MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "EXCLUDE_FROM_ALL;SKIP_INSTALL"
+    "COMPONENT;OUTPUT_NAME"
+    "EXPORTS"
     ${ARGN}
     )
-  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
-  SET(LIBS ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT LIBS 0)
+
+  SET(TARGET ${TARGET_ARG})
+  SET(LIBS ${ARG_UNPARSED_ARGUMENTS})
 
   FOREACH(LIB ${LIBS})
     LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${LIB} FOUNDIT)
@@ -210,18 +215,11 @@ MACRO(MERGE_LIBRARIES_SHARED)
     SET_TARGET_PROPERTIES(
       ${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
   ENDIF()
-  SET_TARGET_PROPERTIES(
-    ${TARGET} PROPERTIES LINK_FLAGS "${export_link_flags}")
+
+  MY_TARGET_LINK_OPTIONS(${TARGET} "${export_link_flags}")
 
   IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-      COMMAND install_name_tool -change
-      "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
-      $<TARGET_SONAME_FILE:${TARGET}>
-      COMMAND install_name_tool -change
-      "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
-      $<TARGET_SONAME_FILE:${TARGET}>
-      )
+    SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${TARGET})
     # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
     # Create a symlink so that this works for Xcode also.
     IF(NOT BUILD_IS_SINGLE_CONFIG)
@@ -237,12 +235,7 @@ MACRO(MERGE_LIBRARIES_SHARED)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT})
     ENDIF()
-    IF(LINUX_INSTALL_RPATH_ORIGIN)
-      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/")
-    ENDIF()
-
-    MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
-
+    MYSQL_INSTALL_TARGET(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
   ENDIF()
 ENDMACRO()
 
@@ -266,15 +259,16 @@ FUNCTION(GET_DEPENDEND_OS_LIBS target result)
 ENDFUNCTION()
 
 
-MACRO(MERGE_CONVENIENCE_LIBRARIES)
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "OUTPUT_NAME;COMPONENT"
-    "SKIP_INSTALL;EXCLUDE_FROM_ALL"
+MACRO(MERGE_CONVENIENCE_LIBRARIES TARGET_ARG)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "EXCLUDE_FROM_ALL;SKIP_INSTALL"
+    "COMPONENT;OUTPUT_NAME"
+    ""
     ${ARGN}
     )
-  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
-  SET(LIBS ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT LIBS 0)
+
+  SET(TARGET ${TARGET_ARG})
+  SET(LIBS ${ARG_UNPARSED_ARGUMENTS})
 
   SET(SOURCE_FILE
     ${CMAKE_BINARY_DIR}/archive_output_directory/${TARGET}_depends.c)
@@ -342,7 +336,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     STRING(REGEX REPLACE "[ ]+" ";" STATIC_LIBS_STRING "${STATIC_LIBS_STRING}" )
     ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
       COMMAND rm $<TARGET_FILE:${TARGET}>
-      COMMAND /usr/bin/libtool -static -o $<TARGET_FILE:${TARGET}>
+      COMMAND /usr/bin/libtool -static -no_warning_for_no_symbols
+      -o $<TARGET_FILE:${TARGET}>
       ${STATIC_LIBS_STRING}
       )
   ELSE()
@@ -376,7 +371,7 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
       SET(COMP COMPONENT ${ARG_COMPONENT})
     ENDIF()
     IF(INSTALL_STATIC_LIBRARIES)
-      MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
+      MYSQL_INSTALL_TARGET(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
     ENDIF()
   ENDIF()
 ENDMACRO()

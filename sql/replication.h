@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,6 @@ extern "C" {
   Struct to share server ssl variables
 */
 struct st_server_ssl_variables {
-  bool have_ssl_opt;
   char *ssl_ca;
   char *ssl_capath;
   char *tls_version;
@@ -98,7 +97,7 @@ typedef struct Trans_table_info {
  */
 typedef struct Trans_context_info {
   bool binlog_enabled;
-  ulong gtid_mode;  // enum values in enum_gtid_mode
+  ulong gtid_mode;  // enum values in Gtid_mode::value_type
   bool log_slave_updates;
   ulong binlog_checksum_options;  // enum values in enum
                                   // enum_binlog_checksum_alg
@@ -191,6 +190,11 @@ typedef struct Trans_param {
 
   /// pointer to immediate_server_version
   uint32_t *immediate_server_version;
+
+  /*
+    Flag to identify a 'CREATE TABLE ... AS SELECT'.
+  */
+  bool is_create_table_as_select;
 } Trans_param;
 
 /**
@@ -695,7 +699,9 @@ typedef int (*after_reset_slave_t)(Binlog_relay_IO_param *param);
   This callback is called before event gets applied
 
   @param param  Observer common parameter
-  @param reason Event skip reason
+  @param trans_param The parameter for transaction observers
+  @param out Return value from observer execution to help validate event
+  according to observer requirement.
 
   @retval 0 Success
   @retval 1 Failure

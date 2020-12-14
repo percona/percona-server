@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _m_string_h
-#define _m_string_h
+#ifndef M_STRING_INCLUDED
+#define M_STRING_INCLUDED
 
 /**
   @file include/m_string.h
@@ -35,6 +35,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <algorithm>
 
 #include "decimal.h"
 #include "lex_string.h"
@@ -58,9 +60,9 @@ extern void *(*my_str_malloc)(size_t);
 extern void *(*my_str_realloc)(void *, size_t);
 extern void (*my_str_free)(void *);
 
-/* Declared in int2str() */
-extern char _dig_vec_upper[];
-extern char _dig_vec_lower[];
+/* Declared in int2str.cc. */
+extern const char _dig_vec_upper[];
+extern const char _dig_vec_lower[];
 
 /* Prototypes for string functions */
 
@@ -161,6 +163,13 @@ static inline char *my_stpnmov(char *dst, const char *src, size_t n) {
 */
 static inline char *my_stpcpy(char *dst, const char *src) {
 #if defined(HAVE_BUILTIN_STPCPY)
+  /*
+    If __builtin_stpcpy() is available, use it instead of stpcpy(), since GCC in
+    some situations is able to transform __builtin_stpcpy() into more efficient
+    strcpy() or memcpy() calls. It does not perform these transformations for a
+    plain call to stpcpy() when the compiler runs in strict mode. See GCC bug
+    82429.
+  */
   return __builtin_stpcpy(dst, src);
 #elif defined(HAVE_STPCPY)
   return stpcpy(dst, src);
@@ -277,26 +286,17 @@ static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
   MAX_DECPT_FOR_F_FORMAT zeros for cases when |x|<1 and the 'f' format is used).
 */
 #define MY_GCVT_MAX_FIELD_WIDTH \
-  (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT))
+  (DBL_DIG + 4 + std::max(5, MAX_DECPT_FOR_F_FORMAT))
 
-extern char *int2str(long val, char *dst, int radix, int upcase);
-C_MODE_START
-extern char *int10_to_str(long val, char *dst, int radix);
-C_MODE_END
-extern const char *str2int(const char *src, int radix, long lower, long upper,
-                           long *val);
+const char *str2int(const char *src, int radix, long lower, long upper,
+                    long *val);
 longlong my_strtoll10(const char *nptr, const char **endptr, int *error);
-#if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define ll2str(A, B, C, D) int2str((A), (B), (C), (D))
-#define longlong10_to_str(A, B, C) int10_to_str((A), (B), (C))
-#undef strtoll
-#define strtoll(A, B, C) strtol((A), (B), (C))
-#define strtoull(A, B, C) strtoul((A), (B), (C))
-#else
-extern char *ll2str(longlong val, char *dst, int radix, int upcase);
-extern char *longlong10_to_str(longlong val, char *dst, int radix);
-#endif
-#define longlong2str(A, B, C) ll2str((A), (B), (C), 1)
+char *ll2str(int64_t val, char *dst, int radix, bool upcase);
+char *longlong10_to_str(int64_t val, char *dst, int radix);
+
+inline char *longlong2str(int64_t val, char *dst, int radix) {
+  return ll2str(val, dst, radix, true);
+}
 
 /*
   This function saves a longlong value in a buffer and returns the pointer to
@@ -351,7 +351,9 @@ static inline void human_readable_num_bytes(char *buf, int buf_len,
   for (i = 0; dbl_val > 1024 && i < sizeof(size) - 1; i++) dbl_val /= 1024;
   const char mult = size[i];
   // 18446744073709551615 Yottabytes should be enough for most ...
-  if (dbl_val > ULLONG_MAX)
+  // ULLONG_MAX is not exactly representable as a double. This is the largest
+  // double that is still below ULLONG_MAX.
+  if (dbl_val > 18446744073709549568.0)
     snprintf(buf, buf_len, "+INF");
   else
     snprintf(buf, buf_len, "%llu%c", (unsigned long long)dbl_val, mult);
@@ -367,4 +369,4 @@ static inline void lex_cstring_set(LEX_CSTRING *lex_str, const char *c_str) {
   lex_str->length = strlen(c_str);
 }
 
-#endif
+#endif  // M_STRING_INCLUDED

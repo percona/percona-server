@@ -60,42 +60,42 @@ insert into t6_force_default values (42);
 show create table t1_default_explicit_on;
 Table	Create Table
 t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t2_default_explicit_off;
 Table	Create Table
 t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t3_on_default;
 Table	Create Table
 t3_on_default	CREATE TABLE `t3_on_default` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t4_on_explicit_off;
 Table	Create Table
 t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t5_off_explicit_off;
 Table	Create Table
 t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t6_force_default;
 Table	Create Table
 t6_force_default	CREATE TABLE `t6_force_default` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t6_force_default_dup;
 Table	Create Table
 t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t5_off_explicit_off_dup;
 Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
 alter table t1_default_explicit_on encryption="N";
@@ -133,83 +133,83 @@ alter table t4_on_explicit_off change b a int;
 show create table t1_default_explicit_on;
 Table	Create Table
 t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t2_default_explicit_off;
 Table	Create Table
 t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t3_on_default;
 Table	Create Table
 t3_on_default	CREATE TABLE `t3_on_default` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t4_on_explicit_off;
 Table	Create Table
 t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t5_off_explicit_off;
 Table	Create Table
 t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t6_force_default;
 Table	Create Table
 t6_force_default	CREATE TABLE `t6_force_default` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t6_force_default_dup;
 Table	Create Table
 t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t5_off_explicit_off_dup;
 Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 flush tables;
 show create table t1_default_explicit_on;
 Table	Create Table
 t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t2_default_explicit_off;
 Table	Create Table
 t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t3_on_default;
 Table	Create Table
 t3_on_default	CREATE TABLE `t3_on_default` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t4_on_explicit_off;
 Table	Create Table
 t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t5_off_explicit_off;
 Table	Create Table
 t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t6_force_default;
 Table	Create Table
 t6_force_default	CREATE TABLE `t6_force_default` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t6_force_default_dup;
 Table	Create Table
 t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t5_off_explicit_off_dup;
 Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 select * from t1_default_explicit_on;
 a
@@ -240,13 +240,13 @@ create table t7(a INT);
 show create table t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 alter table t7 tablespace=ts1;
 show create table t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 drop table t7;
 drop tablespace ts1;

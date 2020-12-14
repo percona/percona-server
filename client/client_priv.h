@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,6 +178,10 @@ enum options_client {
   OPT_DROP_COMPRESSION_DICTIONARY,
   OPT_ORDER_BY_PRIMARY_DESC,
   OPT_TLS_CIPHERSUITES,
+  OPT_MYSQL_BINARY_AS_HEX,
+  OPT_START_SQL_FILE,
+  OPT_FINISH_SQL_FILE,
+  OPT_LOAD_DATA_LOCAL_DIR,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

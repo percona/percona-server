@@ -66,7 +66,7 @@ hex(a)
 1
 1
 alter table t1 add unique (a);
-ERROR 23000: Duplicate entry '' for key 'a'
+ERROR 23000: Duplicate entry '\x01' for key 't1.a'
 drop table t1;
 create table t1 (a bit(2)) engine=innodb;
 insert ignore into t1 values (b'00'), (b'01'), (b'10'), (b'100');
@@ -277,20 +277,6 @@ a+0	b+0
 49	345
 56	379
 68	454
-set @@max_length_for_sort_data=0;
-Warnings:
-Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
-select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
-a+0	b+0
-57	135
-61	152
-59	188
-68	206
-44	307
-60	343
-49	345
-56	379
-68	454
 select hex(min(a)) from t1;
 hex(min(a))
 0
@@ -422,3 +408,14 @@ a
 `
 drop table t1;
 End of 5.0 tests
+#
+# Bug #31564742 	LOST ULLONG_MAX VALUE IN TABLE WITH TYPE OF BIT(64)
+#
+CREATE TABLE t1 (a BIT(64));
+INSERT INTO t1 VALUES
+(b'1111111111111111111111111111111111111111111111111111111111111111');
+SELECT HEX(a) FROM t1 WHERE a =
+b'1111111111111111111111111111111111111111111111111111111111111111';
+HEX(a)
+FFFFFFFFFFFFFFFF
+DROP TABLE t1;

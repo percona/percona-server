@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // dd::get_sql_type_by_field_info
+#include "sql/dd/dd_utility.h"               // check_if_server_ddse_readonly
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_boot...
 #include "sql/dd/impl/bootstrap/bootstrapper.h"   // dd::Column
 #include "sql/dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
@@ -65,7 +66,6 @@
 #include "sql/dd/types/system_view_definition.h"  // dd::System_view_definition
 #include "sql/dd/types/view.h"
 #include "sql/dd_sql_view.h"  // update_referencing_views_metadata
-#include "sql/handler.h"
 #include "sql/item_create.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"     // opt_readonly
@@ -76,6 +76,7 @@
 #include "sql/sql_profile.h"
 #include "sql/sql_show.h"
 #include "sql/sql_zip_dict.h"
+#include "sql/sql_zip_dict.h"  // skip_bootstrap
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -88,33 +89,6 @@ const dd::String_type PLUGIN_VERSION_STRING("plugin_version");
 const dd::String_type SERVER_I_S_TABLE_STRING("server_i_s_table");
 
 }  // namespace
-
-/**
-  Check if DDSE (Data Dictionary Storage Engine) is in
-  readonly mode.
-
-  @param thd                 Thread
-  @param schema_name_abbrev  Abbreviation of schema (I_S or P_S) for use
-                             in warning message output
-
-  @returns false on success, otherwise true.
-*/
-bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev) {
-  /*
-    We must check if the DDSE is started in a way that makes the DD
-    read only. For now, we only support InnoDB as SE for the DD. The call
-    to retrieve the handlerton for the DDSE should be replaced by a more
-    generic mechanism.
-  */
-  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
-    LogErr(WARNING_LEVEL, ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE,
-           schema_name_abbrev);
-    return true;
-  }
-
-  return false;
-}
 
 namespace {
 
@@ -305,13 +279,10 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
   @param      thd            Thread ID
   @param      plugin         Reference to a plugin.
-  @param      arg            Pointer to Context for I_S update.
-  @param[out] plugin_exists  Flag is set if plugin metadata already exists in
-                             data-dictionary.
+  @param      ctx            Pointer to Context for I_S update.
 
-  @return
-    false on success
-    true when fails to store the metadata.
+  @retval false on success
+  @retval true when fails to store the metadata.
 */
 
 static bool store_plugin_metadata(THD *thd, plugin_ref plugin,
@@ -379,7 +350,7 @@ bool store_plugin_and_referencing_views_metadata(THD *thd, plugin_ref plugin,
 */
 bool update_plugins_I_S_metadata(THD *thd) {
   //  Warn if we have DDSE in read only mode and continue server startup.
-  if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
+  if (dd::check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return false;
 
   /*
@@ -452,6 +423,10 @@ bool update_plugins_I_S_metadata(THD *thd) {
   return dd::end_transaction(thd, error);
 }
 
+bool create_non_dd_based_system_views(THD *thd) {
+  return dd::info_schema::create_system_views(thd, true, false);
+}
+
 /**
   Does following during server restart.
 
@@ -484,7 +459,7 @@ bool update_server_I_S_metadata(THD *thd) {
     Stop server restart if I_S version is changed and the server is
     started with DDSE in read-only mode.
   */
-  if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
+  if (dd::check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return true;
 
   Update_context ctx(thd, true);
@@ -531,10 +506,36 @@ bool update_server_I_S_metadata(THD *thd) {
     3) Update the target IS version in DD.
   */
   error = error || dd::info_schema::store_server_I_S_metadata(thd) ||
-          dd::info_schema::create_system_views(thd) ||
-          dd::info_schema::create_non_dd_views(thd, true);
+          dd::info_schema::create_system_views(thd);
 
   return dd::end_transaction(thd, error);
+}
+
+bool initialize(THD *thd, bool non_dd_based_system_view) {
+  /*
+    Set tx_read_only to false to allow installing system views even
+    if the server is started with --transaction-read-only=true.
+  */
+  thd->variables.transaction_read_only = false;
+  thd->tx_read_only = false;
+
+  Disable_autocommit_guard autocommit_guard(thd);
+
+  dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
+  DBUG_ASSERT(d);
+
+  if (!non_dd_based_system_view) {
+    if (dd::info_schema::create_system_views(thd) ||
+        dd::info_schema::store_server_I_S_metadata(thd))
+      return true;
+  } else {
+    bool error = create_non_dd_based_system_views(thd);
+    return dd::end_transaction(thd, error);
+  }
+
+  LogErr(INFORMATION_LEVEL, ER_CREATED_SYSTEM_WITH_VERSION,
+         (int)d->get_target_dd_version());
+  return false;
 }
 
 }  // namespace
@@ -542,113 +543,8 @@ bool update_server_I_S_metadata(THD *thd) {
 namespace dd {
 namespace info_schema {
 
-/*
-  Create INFORMATION_SCHEMA system views.
-*/
 bool create_system_views(THD *thd) {
-  // Force use of utf8 charset.
-  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
-  const CHARSET_INFO *cs = thd->variables.collation_connection;
-  const CHARSET_INFO *m_client_cs, *m_connection_cl;
-
-  resolve_charset("utf8", system_charset_info, &m_client_cs);
-  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
-
-  thd->variables.character_set_client = m_client_cs;
-  thd->variables.collation_connection = m_connection_cl;
-  thd->update_charset();
-
-  // Iterate over system view definitions.
-  dd::System_views::Const_iterator it = dd::System_views::instance()->begin(
-      dd::System_views::Types::INFORMATION_SCHEMA);
-
-  bool error = false;
-  for (; it != dd::System_views::instance()->end();) {
-    const dd::system_views::System_view_definition *view_def =
-        (*it)->entity()->view_definition();
-
-    // Build the CREATE VIEW DDL statement and execute it.
-    if (view_def == nullptr ||
-        dd::execute_query(thd, view_def->build_ddl_create_view())) {
-      error = true;
-      break;
-    }
-    it = dd::System_views::instance()->next(
-        it, dd::System_views::Types::INFORMATION_SCHEMA);
-  }
-
-  // Restore the original character set.
-  thd->variables.character_set_client = client_cs;
-  thd->variables.collation_connection = cs;
-  thd->update_charset();
-
-  return error;
-}
-
-/** Create INFORMATION_SCHEMA views on non-DD tables like
-mysql.compression_dictionary and mysql.compression_dictionary_cols tables
-@param[in,out]    thd                   Session context
-@param[in]        store_i_s_version     when true, stores the I_S version
-                                        false doesn't store, used when I_S
-                                        tables are created on startup
-                                        mysql-8.0 to PS-8.0
-@return false on success, true on failure */
-bool create_non_dd_views(THD *thd, bool store_i_s_version) {
-  // Force use of utf8mb4 charset.
-  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
-  const CHARSET_INFO *cs = thd->variables.collation_connection;
-  const CHARSET_INFO *m_client_cs, *m_connection_cl;
-
-  resolve_charset("utf8mb4", system_charset_info, &m_client_cs);
-  resolve_collation("utf8mb4_general_ci", system_charset_info,
-                    &m_connection_cl);
-
-  thd->variables.character_set_client = m_client_cs;
-  thd->variables.collation_connection = m_connection_cl;
-  thd->update_charset();
-
-  // Iterate over system view definitions.
-  dd::System_views::Const_iterator it = dd::System_views::instance()->begin(
-      dd::System_views::Types::INFORMATION_SCHEMA_NON_DD);
-
-  bool error = false;
-  for (; it != dd::System_views::instance()->end();) {
-#ifndef DBUG_OFF
-    // Skip creating I_S views on compression dictionary tables as
-    // the tables are not created during bootstrap. This is done
-    // to simulate upgrade from mysql datadir to percona server
-    if (compression_dict::skip_bootstrap) {
-      it = dd::System_views::instance()->next(
-          it, dd::System_views::Types::INFORMATION_SCHEMA_NON_DD);
-      continue;
-    }
-#endif
-
-    const dd::system_views::System_view_definition *view_def =
-        (*it)->entity()->view_definition();
-
-    // Build the CREATE VIEW DDL statement and execute it.
-    if (view_def == nullptr ||
-        execute_query(thd, view_def->build_ddl_create_view())) {
-      error = true;
-      break;
-    }
-    it = dd::System_views::instance()->next(
-        it, dd::System_views::Types::INFORMATION_SCHEMA_NON_DD);
-  }
-
-  // Store the target I_S version.
-  if (store_i_s_version && !error) {
-    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
-    error = d->set_I_S_version(thd, d->get_target_I_S_version());
-  }
-
-  // Restore the original character set.
-  thd->variables.character_set_client = client_cs;
-  thd->variables.collation_connection = cs;
-  thd->update_charset();
-
-  return error;
+  return create_system_views(thd, false, false);
 }
 
 /*
@@ -720,7 +616,7 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name) {
   DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Remove view from DD tables.
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
   if (thd->dd_client()->drop(at)) {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return (true);
@@ -729,27 +625,9 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name) {
   return (false);
 }
 
-bool initialize(THD *thd) {
-  /*
-    Set tx_read_only to false to allow installing system views even
-    if the server is started with --transaction-read-only=true.
-  */
-  thd->variables.transaction_read_only = false;
-  thd->tx_read_only = false;
+bool initialize(THD *thd) { return ::initialize(thd, false); }
 
-  Disable_autocommit_guard autocommit_guard(thd);
-
-  Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
-
-  if (create_system_views(thd) || create_non_dd_views(thd, true) ||
-      store_server_I_S_metadata(thd))
-    return true;
-
-  LogErr(INFORMATION_LEVEL, ER_CREATED_SYSTEM_WITH_VERSION,
-         (int)d->get_target_dd_version());
-  return false;
-}
+bool init_non_dd_based_system_view(THD *thd) { return ::initialize(thd, true); }
 
 /*
   Get create view definition for the given I_S system view.
@@ -771,6 +649,93 @@ bool get_I_S_view_definition(const dd::String_type &schema_name,
   *definition = view_def->build_ddl_create_view();
 
   return (false);
+}
+
+/*
+  Create INFORMATION_SCHEMA system views.
+*/
+bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
+  // Force use of utf8 charset.
+  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
+  const CHARSET_INFO *cs = thd->variables.collation_connection;
+  const CHARSET_INFO *m_client_cs, *m_connection_cl;
+  Disable_binlog_guard binlog_guard(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
+
+  dd::System_views::Types sv_type =
+      is_non_dd_based ? dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA
+                      : dd::System_views::Types::INFORMATION_SCHEMA;
+
+  // Iterate over system view definitions.
+  bool error = false;
+  for (dd::System_views::Const_iterator it =
+           dd::System_views::instance()->begin(sv_type);
+       it != dd::System_views::instance()->end();
+       it = dd::System_views::instance()->next(it, sv_type)) {
+    const dd::system_views::System_view_definition *view_def =
+        (*it)->entity()->view_definition();
+
+    const bool is_comp_dict =
+        (*it)->entity()->name().find("compression") != std::string::npos ||
+        (*it)->entity()->name().find("COMPRESSION") != std::string::npos;
+
+    if (only_comp_dict && !is_comp_dict) {
+      continue;
+    }
+
+    // Build the CREATE VIEW DDL statement and execute it.
+    if (view_def == nullptr) {
+#ifndef DBUG_OFF
+      if (is_comp_dict && compression_dict::skip_bootstrap) {
+        continue;
+      }
+#endif
+      error = true;
+      break;
+    }
+
+    if (is_non_dd_based && is_comp_dict) {
+      resolve_charset("utf8mb4", system_charset_info, &m_client_cs);
+      resolve_collation("utf8mb4_general_ci", system_charset_info,
+                        &m_connection_cl);
+    } else {
+      // compression dictionaries require mb4. Other views do not...
+      resolve_charset("utf8", system_charset_info, &m_client_cs);
+      resolve_collation("utf8_general_ci", system_charset_info,
+                        &m_connection_cl);
+    }
+
+    thd->variables.character_set_client = m_client_cs;
+    thd->variables.collation_connection = m_connection_cl;
+    thd->update_charset();
+
+    if (dd::execute_query(thd, view_def->build_ddl_create_view())) {
+#ifndef DBUG_OFF
+      if (is_comp_dict && compression_dict::skip_bootstrap) {
+        continue;
+      }
+#endif
+      error = true;
+      break;
+    }
+  }
+
+  // Store the target I_S version.
+  if (!error && !is_non_dd_based) {
+    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
+    if (!opt_initialize)
+      dd::bootstrap::DD_bootstrap_ctx::instance().set_actual_I_S_version(
+          d->get_actual_I_S_version(thd));
+    error = d->set_I_S_version(thd, d->get_target_I_S_version());
+    dd::bootstrap::DD_bootstrap_ctx::instance().set_I_S_upgrade_done();
+  }
+
+  // Restore the original character set.
+  thd->variables.character_set_client = client_cs;
+  thd->variables.collation_connection = cs;
+  thd->update_charset();
+
+  return error;
 }
 
 }  // namespace info_schema

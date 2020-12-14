@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -380,7 +380,8 @@ static int handle_end_row(void *pctx) {
   if (ctx->cmd == COM_STMT_PREPARE && ctx->current_row == 0 &&
       ctx->tables.size() == 1 && ctx->tables[0].columns.size() == 4 &&
       ctx->tables[0].columns[0].row_values.size() == 1) {
-    ctx->stmt_id = std::stoul(ctx->tables[0].columns[0].row_values[0], 0, 10);
+    ctx->stmt_id =
+        std::stoul(ctx->tables[0].columns[0].row_values[0], nullptr, 10);
   }
   ctx->tables.back().num_rows++;
   ctx->current_row++;
@@ -443,7 +444,7 @@ static int handle_store_longlong(void *pctx, longlong value, uint is_unsigned) {
 static const char *test_decimal_as_string(char *buff, const decimal_t *val,
                                           int *length) {
   if (!val) return "NULL";
-  (void)decimal2string(val, buff, length, 0, 0, 0);
+  (void)decimal2string(val, buff, length);
   return buff;
 }
 
@@ -624,10 +625,14 @@ static const char *fieldtype2str(enum enum_field_types type) {
       return "BIT";
     case MYSQL_TYPE_BLOB:
       return "BLOB";
+    case MYSQL_TYPE_BOOL:
+      return "BOOL";
     case MYSQL_TYPE_DATE:
       return "DATE";
     case MYSQL_TYPE_DATETIME:
       return "DATETIME";
+    case MYSQL_TYPE_INVALID:
+      return "?-invalid-?";
     case MYSQL_TYPE_NEWDECIMAL:
       return "NEWDECIMAL";
     case MYSQL_TYPE_DECIMAL:
@@ -1677,6 +1682,46 @@ static void test_10(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 }
 
+static void test_11(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_11");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("CREATE PREPARED STATEMENT\n");
+  cmd.com_stmt_prepare.query = "SELECT * from t1 where a = ?";
+  cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
+  run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
+
+  PS_PARAM params[1];
+  params[0].type = MYSQL_TYPE_INVALID;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"invalid";
+  params[0].length = 1;
+
+  cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_execute.parameter_count = 1;
+  cmd.com_stmt_execute.parameters = params;
+  cmd.com_stmt_execute.open_cursor = false;
+  cmd.com_stmt_execute.has_new_types = true;
+
+  WRITE_STR("EXECUTE THE PS WITH INVALID PARAMETER TYPE\n");
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  params[0].type = MYSQL_TYPE_BOOL;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"bool";
+  params[0].length = 1;
+
+  WRITE_STR("EXECUTE THE PS WITH BOOL PARAMETER TYPE\n");
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  DBUG_VOID_RETURN;
+}
+
 static void tear_down_test(MYSQL_SESSION session, void *p) {
   DBUG_TRACE;
 
@@ -1733,7 +1778,8 @@ static struct my_stmt_tests_st my_tests[] = {
     {"Test COM_STMT_EXECUTE with out-params as placeholders", test_8},
     {"Test COM_STMT_EXECUTE with out-params as variables", test_9},
     {"Test COM_QUERY with out-params as placeholders", test_10},
-    {0, 0}};
+    {"Test COM_STMT_EXECUTE with wrong parameters", test_11},
+    {nullptr, nullptr}};
 
 static void test_sql(void *p) {
   DBUG_TRACE;
@@ -1795,7 +1841,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -1830,7 +1876,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -1873,16 +1919,16 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_sql_stmt",
-    "Catalin Besleaga",
+    PLUGIN_AUTHOR_ORACLE,
     "Tests prepared statements",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;
 /* purecov: end */

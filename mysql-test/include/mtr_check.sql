@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,8 @@ BEGIN
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name',
-                                'keyring_file_data')
+                                'keyring_file_data',
+                                'innodb_thread_sleep_delay')
   ORDER BY VARIABLE_NAME;
 
   -- Dump all persisted variables, those that may change.
@@ -118,6 +119,7 @@ BEGIN
 
   -- Dump all events, there should be none
   SELECT * FROM INFORMATION_SCHEMA.EVENTS;
+
   -- Dump all triggers except mtr internals, only those in the sys schema should exist
   -- do not select the CREATED column however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_MANIPULATION,
@@ -128,6 +130,7 @@ BEGIN
     FROM INFORMATION_SCHEMA.TRIGGERS
       WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert')
       ORDER BY TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME;
+
   -- Dump all created procedures, only those in the sys schema should exist
   -- do not select the CREATED or LAST_ALTERED columns however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
@@ -136,12 +139,18 @@ BEGIN
          IS_DETERMINISTIC,SQL_DATA_ACCESS,SQL_PATH,SECURITY_TYPE,SQL_MODE,ROUTINE_COMMENT,DEFINER,
          CHARACTER_SET_CLIENT,COLLATION_CONNECTION,DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.ROUTINES ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE;
+
   -- Dump all views, only those in the sys schema should exist
   SELECT * FROM INFORMATION_SCHEMA.VIEWS
     ORDER BY TABLE_SCHEMA, TABLE_NAME;
+
   -- Dump all plugins, loaded with plugin-loading options or through
   -- INSTALL/UNINSTALL command
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
+
+  -- Leave InnoDB metrics in the same state
+  SELECT name, status FROM INFORMATION_SCHEMA.INNODB_METRICS
+    ORDER BY name;
 
   -- Dump all created compression dictionaries
   SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY DICT_NAME;

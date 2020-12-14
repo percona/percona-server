@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@
 #include "my_thread.h"
 #include "my_thread_local.h"
 
+#include <mysql/components/service_implementation.h>
+
 struct PFS_thread;
 class PFS_table_context;
 
@@ -59,6 +61,7 @@ extern struct PSI_system_bootstrap pfs_system_bootstrap;
 extern struct PSI_table_bootstrap pfs_table_bootstrap;
 extern struct PSI_thread_bootstrap pfs_thread_bootstrap;
 extern struct PSI_transaction_bootstrap pfs_transaction_bootstrap;
+extern struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap;
 
 /** Performance schema Thread Local Storage.  */
 extern thread_local PFS_thread *THR_PFS;

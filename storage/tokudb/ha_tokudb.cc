@@ -523,13 +523,13 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,
     /* The remaining two cases should not be used but are included for
        compatibility */
     case HA_KEYTYPE_FLOAT:
-      float4get(&float_tmp, key); /* Note: float4get is a macro */
+      float_tmp = float4get(key); /* Note: float4get is a macro */
       signed_autoinc = (longlong)float_tmp;
       autoinc_type = signed_type;
       break;
 
     case HA_KEYTYPE_DOUBLE:
-      float8get(&double_tmp, key); /* Note: float8get is a macro */
+      double_tmp = float8get(key); /* Note: float8get is a macro */
       signed_autoinc = (longlong)double_tmp;
       autoinc_type = signed_type;
       break;
@@ -547,7 +547,7 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,
 }
 
 static inline ulong field_offset(const Field &field, const TABLE &table) {
-  return static_cast<ulong>(field.ptr - table.record[0]);
+  return static_cast<ulong>(field.field_ptr() - table.record[0]);
 }
 
 static inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
@@ -1057,7 +1057,7 @@ bool ha_tokudb::has_auto_increment_flag(uint *index) {
   uint ai_index = 0;
   for (uint i = 0; i < table_share->fields; i++, ai_index++) {
     Field *field = table->field[i];
-    if (field->flags & AUTO_INCREMENT_FLAG) {
+    if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
       ai_found = true;
       *index = ai_index;
       break;
@@ -3918,6 +3918,8 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
   DBUG_PRINT("enter",
              ("table: '%s'  key: %d", table_share->table_name.str, keynr));
 
+  restore_cached_transaction_pointer(thd);
+
   /*
      Under some very rare conditions (like full joins) we may already have
      an active cursor at this point
@@ -4996,6 +4998,13 @@ cleanup:
   TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
+void ha_tokudb::restore_cached_transaction_pointer(THD *thd) {
+  // Cached transaction may be already commited (and destroyed) and new
+  // transaction cached pointer.
+  tokudb_trx_data *trx = (tokudb_trx_data *)thd_get_ha_data(thd, tokudb_hton);
+  transaction = trx ? trx->sub_sp_level : nullptr;
+}
+
 //
 // Initialize a scan of the table (which is why index_init is called on
 // primary_key) Parameters:
@@ -5008,6 +5017,9 @@ int ha_tokudb::rnd_init(bool scan) {
   TOKUDB_HANDLER_DBUG_ENTER("");
   int error = 0;
   range_lock_grabbed = false;
+
+  restore_cached_transaction_pointer(ha_thd());
+
   error = index_init(MAX_KEY, 0);
   if (error) {
     goto cleanup;
@@ -5446,8 +5458,6 @@ int ha_tokudb::info(uint flag) {
   }
   if ((flag & HA_STATUS_CONST)) {
     stats.max_data_file_length = 9223372036854775807ULL;
-  }
-  if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
     share->set_cardinality_counts_in_table(table);
   }
 
@@ -6033,7 +6043,7 @@ void ha_tokudb::trace_create_table_info(TABLE *form) {
     for (i = 0; i < form->s->fields; i++) {
       Field *field = form->s->field[i];
       TOKUDB_HANDLER_TRACE("field:%d:%s:type=%d:flags=%x", i, field->field_name,
-                           field->type(), field->flags);
+                           field->type(), field->all_flags());
     }
     for (i = 0; i < form->s->keys; i++) {
       KEY *key = &form->s->key_info[i];
@@ -6045,7 +6055,7 @@ void ha_tokudb::trace_create_table_info(TABLE *form) {
         Field *field = key_part->field;
         TOKUDB_HANDLER_TRACE("key:%d:%d:length=%d:%s:type=%d:flags=%x", i, p,
                              key_part->length, field->field_name, field->type(),
-                             field->flags);
+                             field->all_flags());
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@
 
 #include "sql/sql_lex_hints.h"
 
-#include <limits.h>
+#include <climits>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
@@ -52,7 +53,6 @@ Hint_scanner::Hint_scanner(THD *thd_arg, size_t lineno_arg, const char *buf,
     : thd(thd_arg),
       cs(thd->charset()),
       is_ansi_quotes(thd->variables.sql_mode & MODE_ANSI_QUOTES),
-      backslash_escapes(!(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)),
       lineno(lineno_arg),
       char_classes(cs->state_maps->hint_map),
       input_buf(buf),
@@ -64,6 +64,54 @@ Hint_scanner::Hint_scanner(THD *thd_arg, size_t lineno_arg, const char *buf,
       yytext(ptr),
       yyleng(0),
       has_hints(false) {}
+
+int Hint_scanner::scan() {
+  int whitespaces = 0;
+  for (;;) {
+    start_token();
+    switch (peek_class()) {
+      case HINT_CHR_NL:
+        skip_newline();
+        whitespaces++;
+        continue;
+      case HINT_CHR_SPACE:
+        skip_byte();
+        whitespaces++;
+        continue;
+      case HINT_CHR_DIGIT:
+        return scan_number_or_multiplier_or_ident();
+      case HINT_CHR_IDENT:
+        return scan_ident_or_keyword();
+      case HINT_CHR_MB:
+        return scan_ident();
+      case HINT_CHR_QUOTE:
+        return scan_quoted<HINT_CHR_QUOTE>();
+      case HINT_CHR_BACKQUOTE:
+        return scan_quoted<HINT_CHR_BACKQUOTE>();
+      case HINT_CHR_DOUBLEQUOTE:
+        return scan_quoted<HINT_CHR_DOUBLEQUOTE>();
+      case HINT_CHR_ASTERISK:
+        if (peek_class2() == HINT_CHR_SLASH) {
+          ptr += 2;  // skip "*/"
+          input_buf_end = ptr;
+          return HINT_CLOSE;
+        } else
+          return get_byte();
+      case HINT_CHR_AT:
+        if (prev_token == '(' ||
+            (prev_token == HINT_ARG_IDENT && whitespaces == 0))
+          return scan_query_block_name();
+        else
+          return get_byte();
+      case HINT_CHR_DOT:
+        return scan_fraction_digits();
+      case HINT_CHR_EOF:
+        return 0;
+      default:
+        return get_byte();
+    }
+  }
+}
 
 void HINT_PARSER_error(THD *thd MY_ATTRIBUTE((unused)), Hint_scanner *scanner,
                        PT_hint_list **, const char *msg) {
@@ -95,12 +143,9 @@ void Hint_scanner::syntax_warning(const char *msg) const {
 
 /**
   Add hint tokens to main lexer's digest calculation buffer.
-
-  @note This function adds transformed hint keyword token values with the help
-        of the TOK_HINT_ADJUST() adjustment macro.
 */
 void Hint_scanner::add_hint_token_digest() {
-  if (digest_state == NULL) return;  // cant add: digest buffer is full
+  if (digest_state == nullptr) return;  // cant add: digest buffer is full
 
   if (prev_token == 0 || prev_token == HINT_ERROR) return;  // nothing to add
 
@@ -115,6 +160,7 @@ void Hint_scanner::add_hint_token_digest() {
 
   switch (prev_token) {
     case HINT_ARG_NUMBER:
+    case HINT_ARG_FLOATING_POINT_NUMBER:
       add_digest(NUM);
       break;
     case HINT_ARG_IDENT:
@@ -169,11 +215,21 @@ void Hint_scanner::add_hint_token_digest() {
           case NO_SKIP_SCAN_HINT:
           case HASH_JOIN_HINT:
           case NO_HASH_JOIN_HINT:
+          case INDEX_HINT:
+          case NO_INDEX_HINT:
+          case JOIN_INDEX_HINT:
+          case NO_JOIN_INDEX_HINT:
+          case GROUP_INDEX_HINT:
+          case NO_GROUP_INDEX_HINT:
+          case ORDER_INDEX_HINT:
+          case NO_ORDER_INDEX_HINT:
+          case DERIVED_CONDITION_PUSHDOWN_HINT:
+          case NO_DERIVED_CONDITION_PUSHDOWN_HINT:
             break;
           default:
             DBUG_ASSERT(false);
         }
-        add_digest(TOK_HINT_ADJUST(prev_token));
+        add_digest(prev_token);
       }
   }
 }

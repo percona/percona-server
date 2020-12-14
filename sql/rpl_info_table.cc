@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -366,7 +366,7 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
     goto end;
   }
 
-  if (!(handler_error = table->file->ha_index_init(0, 1))) {
+  if (!(handler_error = table->file->ha_index_init(0, true))) {
     KEY *key_info = table->key_info;
 
     /*
@@ -387,7 +387,7 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
     table->field[fieldnr]->store(channel_name, strlen(channel_name),
                                  &my_charset_bin);
     uint key_len = key_info->key_part[0].store_length;
-    uchar *key_buf = table->field[fieldnr]->ptr;
+    uchar *key_buf = table->field[fieldnr]->field_ptr();
 
     if (!(handler_error = table->file->ha_index_read_map(
               table->record[0], key_buf, (key_part_map)1, HA_READ_KEY_EXACT))) {
@@ -692,7 +692,7 @@ Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
     return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
   } else {
     if (field_values->value[pos].length()) {
-      *value = strtoul(field_values->value[pos].c_ptr_safe(), 0, 10);
+      *value = strtoul(field_values->value[pos].c_ptr_safe(), nullptr, 10);
       return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
     } else if (default_value) {
       *value = default_value;
@@ -777,7 +777,7 @@ bool Rpl_info_table::do_update_is_transactional() {
   error = false;
 
 end:
-  error = access->close_table(thd, table, &backup, 0) || error;
+  error = access->close_table(thd, table, &backup, false) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);

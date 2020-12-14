@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,28 +42,12 @@
 #define HINT_COMMENT_STARTER "/*+"
 #define HINT_COMMENT_TERMINATOR "*/"
 
-#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, false
-#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS, false
-#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS, false
-#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS, false
+#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS
+#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS
+#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS
+#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS
 
-/*
- * Percona defined tokens are located together with upstream tokens
- * in sql_yacc.yy. However we put them at the end of the token list, after
- * hints tokens (sql_hints.yy). When we add add Percona token to the digest
- * generator input buffer, we need to adjust its value (shift it up)
- * to not clash with adjusted (shifted up) hint tockens.
- * That is why we need to detect Percona tokens (following macro)
- *
- * Example:
- * EFFECTIVE_SYM in sql_yacc.h is 1001.
- * But hint tag RESOURCE_GROUP after applying shift in Hint_scanner::add_hint_token_digest()
- * is 1001 as well. So these 2 would result with the same token in digest
- * generator input. To prevent this we detect Percona token and adjust its value
- * before adding to digest generator input (Lex_input_stream::add_digest_token())
- * Read comments in get_lex_token.cc for additional info.
- */
-#define SYM_PERCONA(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, true
+#define SYM_PERCONA(T, A) SYM(T, A)
 
 /*
   Symbols are broken into separated arrays to allow field names with
@@ -110,6 +94,7 @@ static const SYMBOL symbols[] = {
     {SYM("ASCII", ASCII_SYM)},
     {SYM("ASENSITIVE", ASENSITIVE_SYM)},
     {SYM("AT", AT_SYM)},
+    {SYM("ATTRIBUTE", ATTRIBUTE_SYM)},
     {SYM("AUTO_INCREMENT", AUTO_INC)},
     {SYM("AUTOEXTEND_SIZE", AUTOEXTEND_SIZE_SYM)},
     {SYM("AVG", AVG_SYM)},
@@ -246,6 +231,7 @@ static const SYMBOL symbols[] = {
     {SYM("ENDS", ENDS_SYM)},
     {SYM("ENFORCED", ENFORCED_SYM)},
     {SYM("ENGINE", ENGINE_SYM)},
+    {SYM("ENGINE_ATTRIBUTE", ENGINE_ATTRIBUTE_SYM)},
     {SYM("ENGINES", ENGINES_SYM)},
     {SYM("ENUM", ENUM_SYM)},
     {SYM("ERROR", ERROR_SYM)},
@@ -267,6 +253,7 @@ static const SYMBOL symbols[] = {
     {SYM("EXPLAIN", DESCRIBE)},
     {SYM("EXTENDED", EXTENDED_SYM)},
     {SYM("EXTENT_SIZE", EXTENT_SIZE_SYM)},
+    {SYM("FAILED_LOGIN_ATTEMPTS", FAILED_LOGIN_ATTEMPTS_SYM)},
     {SYM("FALSE", FALSE_SYM)},
     {SYM("FAST", FAST_SYM)},
     {SYM("FAULTS", FAULTS_SYM)},
@@ -362,6 +349,7 @@ static const SYMBOL symbols[] = {
     {SYM("JOIN", JOIN_SYM)},
     {SYM("JSON", JSON_SYM)},
     {SYM("JSON_TABLE", JSON_TABLE_SYM)},
+    {SYM("JSON_VALUE", JSON_VALUE_SYM)},
     {SYM("KEY", KEY_SYM)},
     {SYM("KEYS", KEYS)},
     {SYM("KEY_BLOCK_SIZE", KEY_BLOCK_SIZE)},
@@ -397,12 +385,15 @@ static const SYMBOL symbols[] = {
     {SYM("LONGTEXT", LONGTEXT_SYM)},
     {SYM("LOOP", LOOP_SYM)},
     {SYM("LOW_PRIORITY", LOW_PRIORITY)},
+    {SYM("SOURCE_CONNECTION_AUTO_FAILOVER",
+         SOURCE_CONNECTION_AUTO_FAILOVER_SYM)},
     {SYM("MASTER", MASTER_SYM)},
     {SYM("MASTER_AUTO_POSITION", MASTER_AUTO_POSITION_SYM)},
     {SYM("MASTER_BIND", MASTER_BIND_SYM)},
     {SYM("MASTER_CONNECT_RETRY", MASTER_CONNECT_RETRY_SYM)},
     {SYM("MASTER_COMPRESSION_ALGORITHMS", MASTER_COMPRESSION_ALGORITHM_SYM)},
     {SYM("MASTER_DELAY", MASTER_DELAY_SYM)},
+    {SYM("MASTER_HEARTBEAT_PERIOD", MASTER_HEARTBEAT_PERIOD_SYM)},
     {SYM("MASTER_HOST", MASTER_HOST_SYM)},
     {SYM("MASTER_LOG_FILE", MASTER_LOG_FILE_SYM)},
     {SYM("MASTER_LOG_POS", MASTER_LOG_POS_SYM)},
@@ -414,15 +405,15 @@ static const SYMBOL symbols[] = {
     {SYM("MASTER_SSL", MASTER_SSL_SYM)},
     {SYM("MASTER_SSL_CA", MASTER_SSL_CA_SYM)},
     {SYM("MASTER_SSL_CAPATH", MASTER_SSL_CAPATH_SYM)},
-    {SYM("MASTER_TLS_VERSION", MASTER_TLS_VERSION_SYM)},
     {SYM("MASTER_SSL_CERT", MASTER_SSL_CERT_SYM)},
     {SYM("MASTER_SSL_CIPHER", MASTER_SSL_CIPHER_SYM)},
     {SYM("MASTER_SSL_CRL", MASTER_SSL_CRL_SYM)},
     {SYM("MASTER_SSL_CRLPATH", MASTER_SSL_CRLPATH_SYM)},
     {SYM("MASTER_SSL_KEY", MASTER_SSL_KEY_SYM)},
     {SYM("MASTER_SSL_VERIFY_SERVER_CERT", MASTER_SSL_VERIFY_SERVER_CERT_SYM)},
+    {SYM("MASTER_TLS_CIPHERSUITES", MASTER_TLS_CIPHERSUITES_SYM)},
+    {SYM("MASTER_TLS_VERSION", MASTER_TLS_VERSION_SYM)},
     {SYM("MASTER_USER", MASTER_USER_SYM)},
-    {SYM("MASTER_HEARTBEAT_PERIOD", MASTER_HEARTBEAT_PERIOD_SYM)},
     {SYM("MASTER_ZSTD_COMPRESSION_LEVEL", MASTER_ZSTD_COMPRESSION_LEVEL_SYM)},
     {SYM("MATCH", MATCH)},
     {SYM("MAX_CONNECTIONS_PER_HOUR", MAX_CONNECTIONS_PER_HOUR)},
@@ -484,6 +475,7 @@ static const SYMBOL symbols[] = {
     {SYM("NUMERIC", NUMERIC_SYM)},
     {SYM("NVARCHAR", NVARCHAR_SYM)},
     {SYM("OF", OF_SYM)},
+    {SYM("OFF", OFF_SYM)},
     {SYM("OFFSET", OFFSET_SYM)},
     {SYM("OJ", OJ_SYM)},
     {SYM("OLD", OLD_SYM)},
@@ -515,6 +507,7 @@ static const SYMBOL symbols[] = {
     {SYM("PARTITIONING", PARTITIONING_SYM)},
     {SYM("PARTITIONS", PARTITIONS_SYM)},
     {SYM("PASSWORD", PASSWORD)},
+    {SYM("PASSWORD_LOCK_TIME", PASSWORD_LOCK_TIME_SYM)},
     {SYM("PERCENT_RANK", PERCENT_RANK_SYM)},
     {SYM("PERSIST", PERSIST_SYM)},
     {SYM("PERSIST_ONLY", PERSIST_ONLY_SYM)},
@@ -572,6 +565,8 @@ static const SYMBOL symbols[] = {
     {SYM("REORGANIZE", REORGANIZE_SYM)},
     {SYM("REPAIR", REPAIR)},
     {SYM("REPEATABLE", REPEATABLE_SYM)},
+    {SYM("REPLICA", REPLICA_SYM)},
+    {SYM("REPLICAS", REPLICAS_SYM)},
     {SYM("REPLICATION", REPLICATION)},
     {SYM("REPLICATE_DO_DB", REPLICATE_DO_DB)},
     {SYM("REPLICATE_IGNORE_DB", REPLICATE_IGNORE_DB)},
@@ -582,6 +577,9 @@ static const SYMBOL symbols[] = {
     {SYM("REPLICATE_REWRITE_DB", REPLICATE_REWRITE_DB)},
     {SYM("REPEAT", REPEAT_SYM)},
     {SYM("REQUIRE", REQUIRE_SYM)},
+    {SYM("REQUIRE_ROW_FORMAT", REQUIRE_ROW_FORMAT_SYM)},
+    {SYM("REQUIRE_TABLE_PRIMARY_KEY_CHECK",
+         REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM)},
     {SYM("RESET", RESET_SYM)},
     {SYM("RESPECT", RESPECT_SYM)},
     {SYM("RESIGNAL", RESIGNAL_SYM)},
@@ -593,6 +591,7 @@ static const SYMBOL symbols[] = {
     {SYM("RETAIN", RETAIN_SYM)},
     {SYM("RETURNED_SQLSTATE", RETURNED_SQLSTATE_SYM)},
     {SYM("RETURN", RETURN_SYM)},
+    {SYM("RETURNING", RETURNING_SYM)},
     {SYM("RETURNS", RETURNS_SYM)},
     {SYM("REUSE", REUSE_SYM)},
     {SYM("REVERSE", REVERSE_SYM)},
@@ -619,6 +618,7 @@ static const SYMBOL symbols[] = {
     {SYM("SECOND_MICROSECOND", SECOND_MICROSECOND_SYM)},
     {SYM("SECONDARY", SECONDARY_SYM)},
     {SYM("SECONDARY_ENGINE", SECONDARY_ENGINE_SYM)},
+    {SYM("SECONDARY_ENGINE_ATTRIBUTE", SECONDARY_ENGINE_ATTRIBUTE_SYM)},
     {SYM("SECONDARY_LOAD", SECONDARY_LOAD_SYM)},
     {SYM("SECONDARY_UNLOAD", SECONDARY_UNLOAD_SYM)},
     {SYM("SECURITY", SECURITY_SYM)},
@@ -627,6 +627,7 @@ static const SYMBOL symbols[] = {
     {SYM("SERIAL", SERIAL_SYM)},
     {SYM("SERIALIZABLE", SERIALIZABLE_SYM)},
     {SYM("SESSION", SESSION_SYM)},
+    {SYM_PERCONA("SEQUENCE_TABLE", SEQUENCE_TABLE_SYM)},
     {SYM("SERVER", SERVER_SYM)},
     {SYM("SET", SET_SYM)},
     {SYM("SHARE", SHARE_SYM)},
@@ -682,6 +683,7 @@ static const SYMBOL symbols[] = {
     {SYM("STORAGE", STORAGE_SYM)},
     {SYM("STORED", STORED_SYM)},
     {SYM("STRAIGHT_JOIN", STRAIGHT_JOIN)},
+    {SYM("STREAM", STREAM_SYM)},
     {SYM("STRING", STRING_SYM)},
     {SYM("SUBCLASS_ORIGIN", SUBCLASS_ORIGIN_SYM)},
     {SYM("SUBJECT", SUBJECT_SYM)},
@@ -714,6 +716,7 @@ static const SYMBOL symbols[] = {
     {SYM("TINYBLOB", TINYBLOB_SYM)},
     {SYM("TINYINT", TINYINT_SYM)},
     {SYM("TINYTEXT", TINYTEXT_SYN)},
+    {SYM("TLS", TLS_SYM)},
     {SYM("TO", TO_SYM)},
     {SYM("TRAILING", TRAILING)},
     {SYM("TRANSACTION", TRANSACTION_SYM)},
@@ -781,6 +784,7 @@ static const SYMBOL symbols[] = {
     {SYM("YEAR", YEAR_SYM)},
     {SYM("YEAR_MONTH", YEAR_MONTH_SYM)},
     {SYM("ZEROFILL", ZEROFILL_SYM)},
+    {SYM("ZONE", ZONE_SYM)},
     {SYM("||", OR_OR_SYM)},
     /*
       Place keywords that accept optimizer hints below this comment.
@@ -869,6 +873,17 @@ static const SYMBOL symbols[] = {
     {SYM_H("SKIP_SCAN", SKIP_SCAN_HINT)},
     {SYM_H("NO_SKIP_SCAN", NO_SKIP_SCAN_HINT)},
     {SYM_H("HASH_JOIN", HASH_JOIN_HINT)},
-    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)}};
+    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)},
+    {SYM_H("INDEX", INDEX_HINT)},
+    {SYM_H("NO_INDEX", NO_INDEX_HINT)},
+    {SYM_H("JOIN_INDEX", JOIN_INDEX_HINT)},
+    {SYM_H("NO_JOIN_INDEX", NO_JOIN_INDEX_HINT)},
+    {SYM_H("GROUP_INDEX", GROUP_INDEX_HINT)},
+    {SYM_H("NO_GROUP_INDEX", NO_GROUP_INDEX_HINT)},
+    {SYM_H("ORDER_INDEX", ORDER_INDEX_HINT)},
+    {SYM_H("NO_ORDER_INDEX", NO_ORDER_INDEX_HINT)},
+    {SYM_H("DERIVED_CONDITION_PUSHDOWN", DERIVED_CONDITION_PUSHDOWN_HINT)},
+    {SYM_H("NO_DERIVED_CONDITION_PUSHDOWN",
+           NO_DERIVED_CONDITION_PUSHDOWN_HINT)}};
 
 #endif /* LEX_INCLUDED */

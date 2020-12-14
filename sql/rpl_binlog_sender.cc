@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,14 +165,14 @@ void Binlog_sender::init() {
   }
 
   if (m_using_gtid_protocol) {
-    enum_gtid_mode gtid_mode = get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE);
-    if (gtid_mode != GTID_MODE_ON) {
+    auto gtid_mode = global_gtid_mode.get();
+    if (gtid_mode != Gtid_mode::ON) {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
               "The replication sender thread cannot start in "
               "AUTO_POSITION mode: this server has GTID_MODE = %.192s "
               "instead of ON.",
-              get_gtid_mode_string(gtid_mode));
+              Gtid_mode::to_string(gtid_mode));
       set_fatal_error(buf);
       return;
     }
@@ -319,7 +319,7 @@ void Binlog_sender::run() {
       }
       is_index_file_reopened_on_binlog_disable = true;
     }
-    int error = mysql_bin_log.find_next_log(&m_linfo, 0);
+    int error = mysql_bin_log.find_next_log(&m_linfo, false);
     mysql_bin_log.unlock_index();
     if (unlikely(error)) {
       DBUG_EXECUTE_IF("waiting_for_disable_binlog", {
@@ -338,7 +338,7 @@ void Binlog_sender::run() {
   }
 
   THD_STAGE_INFO(m_thd, stage_waiting_to_finalize_termination);
-  char error_text[MAX_SLAVE_ERRMSG];
+  char error_text[MAX_SLAVE_ERRMSG + 100];
 
   /*
     If the dump thread was killed because of a duplicate slave UUID we
@@ -356,12 +356,12 @@ void Binlog_sender::run() {
   if (reader.is_open()) {
     if (is_fatal_error()) {
       /* output events range to error message */
-      snprintf(error_text, sizeof(error_text),
-               "%s; the first event '%s' at %lld, "
-               "the last event read from '%s' at %lld, "
-               "the last byte read from '%s' at %lld.",
-               m_errmsg, m_start_file, m_start_pos, m_last_file, m_last_pos,
-               log_file, reader.position());
+      my_snprintf_8bit(nullptr, error_text, sizeof(error_text),
+                       "%s; the first event '%s' at %lld, "
+                       "the last event read from '%s' at %lld, "
+                       "the last byte read from '%s' at %lld.",
+                       m_errmsg, m_start_file, m_start_pos, m_last_file,
+                       m_last_pos, log_file, reader.position());
       set_fatal_error(error_text);
     }
 
@@ -595,7 +595,7 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       GTID_MODE to ON when the slave has not yet replicated all
       anonymous transactions.
     */
-    else if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) {
+    else if (global_gtid_mode.get() == Gtid_mode::ON) {
       char buf[MYSQL_ERRMSG_SIZE];
       snprintf(buf, MYSQL_ERRMSG_SIZE,
                ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
@@ -611,7 +611,7 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       GTID_MODE to OFF when the slave has not yet replicated all GTID
       transactions.
     */
-    if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF) {
+    if (global_gtid_mode.get() == Gtid_mode::OFF) {
       char buf[MYSQL_ERRMSG_SIZE];
       snprintf(buf, MYSQL_ERRMSG_SIZE,
                ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
@@ -791,19 +791,7 @@ int Binlog_sender::check_start_file() {
       is thrown from there.
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid)) {
-      Gtid_set gtid_missing(gtid_state->get_lost_gtids()->get_sid_map());
-      gtid_missing.add_gtid_set(gtid_state->get_lost_gtids());
-      gtid_missing.remove_gtid_set(m_exclude_gtid);
-
-      String tmp_uuid;
-      get_slave_uuid(m_thd, &tmp_uuid);
-      char *missing_gtids = nullptr;
-      gtid_missing.to_string(&missing_gtids, false, nullptr);
-      LogErr(WARNING_LEVEL, ER_FOUND_MISSING_GTIDS, tmp_uuid.ptr(),
-             missing_gtids);
-      my_free(missing_gtids);
-
-      errmsg = ER_THD(m_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      mysql_bin_log.report_missing_purged_gtids(m_exclude_gtid, &errmsg);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;

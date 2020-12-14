@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,6 +113,18 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
   } while (0);
   return result;
 }
+
+#define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
+  ndbout << "ERR: "<< m \
+           << "   " << "File: " << __FILE__ \
+           << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
+  return NDBT_FAILED; } }
+
+#define CHECK2(b) if (!(b)) { \
+  g_err << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  result = NDBT_FAILED; \
+  break; }
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -768,8 +780,11 @@ int runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
-
-int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
+/* runNamedRestartTest()
+   This will call into a test-specific function in NdbRestarts.cpp based on
+   the name of the test case.
+*/
+int runNamedRestartTest(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   NDBT_TestCase* pCase = ctx->getCase();
@@ -1382,6 +1397,70 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   return NDBT_OK;
 }
 
+int run_suma_handover_test(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas < 3)
+  {
+    return NDBT_OK;
+  }
+  int restart_node_id = getFirstNodeInNodeGroup(restarter, 0);
+  int delay_node_id = getNextNodeInNodeGroup(restarter, restart_node_id, 0);
+  if (restarter.insertErrorInNode(delay_node_id, 13054))
+    return NDBT_FAILED;
+  if (restarter.restartOneDbNode(restart_node_id,
+				 /** initial */ false,
+				 /** nostart */ false,
+				 /** abort   */ false))
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+  if (restarter.insertErrorInNode(delay_node_id, 0))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
+int run_suma_handover_with_node_failure(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas < 3)
+  {
+    return NDBT_OK;
+  }
+  int restart_node = getFirstNodeInNodeGroup(restarter, 0);
+  int takeover_node = getNextNodeInNodeGroup(restarter, restart_node, 0);
+
+  // restart_node is shutdown and starts handing over buckets to takeover_node
+  // crash another node after starting takeover to interleave node-failure
+  // handling with shutdown takeover
+  if (restarter.insertErrorInNode(takeover_node, 13056))
+    return NDBT_FAILED;
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateAllNodes(val2, 2))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(restart_node,
+				 /** initial */ false,
+				 /** nostart */ true,
+				 /** abort   */ false))
+    return NDBT_FAILED;
+
+  if (restarter.startAll())
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+  if (restarter.insertErrorInNode(takeover_node, 0))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
 int runBug15632(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
@@ -1605,13 +1684,10 @@ err:
 
 int 
 runBug18612(NDBT_Context* ctx, NDBT_Step* step){
-
-  // Assume two replicas
   NdbRestarter restarter;
-  if (restarter.getNumDbNodes() < 2)
+  if (restarter.getMaxConcurrentNodeFailures() < 1)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
-    ctx->stopTest();
+    g_err << "[SKIPPED] Configuration cannot handle 1 node failure." << endl;
     return NDBT_OK;
   }
 
@@ -1629,13 +1705,7 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
     for (Uint32 i = 0; i<cnt/2; i++)
     {
       do { 
-	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
-	if (tmp == -1)
-	{
-	  ctx->stopTest();
-	  return NDBT_OK;
-	}
-	node1 = tmp;
+	node1 = restarter.getRandomNodePreferOtherNodeGroup(node1, rand());
       } while(nodesmask.get(node1));
       
       partition0[i] = node1;
@@ -1715,18 +1785,20 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
 
 int 
 runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
-
-  // Assume two replicas
   NdbRestarter restarter;
 
   return NDBT_OK; /* Until we fix handling of partitioned clusters */
-  if (restarter.getNumDbNodes() < 2)
+
+  if (restarter.getNumReplicas() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
-    ctx->stopTest();
+    g_err << "[SKIPPED] Test requires 2 or more replicas." << endl;
     return NDBT_OK;
   }
-
+ if (restarter.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
+    return NDBT_OK;
+  }
   Uint32 cnt = restarter.getNumDbNodes();
 
   for(int loop = 0; loop < ctx->getNumLoops(); loop++)
@@ -1952,9 +2024,9 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step)
   
   HugoTransactions hugoTrans(*ctx->getTab());
 
-  if (restarter.getNumDbNodes() < 4)
+  if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -1966,7 +2038,7 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step)
   for (; loops; loops --)
   {
     int node0 = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
-    int node1 = restarter.getRandomNodeOtherNodeGroup(node0, rand());
+    int node1 = restarter.getRandomNodePreferOtherNodeGroup(node0, rand());
 
     restarter.restartOneDbNode(node0, false, true, true);
     restarter.waitNodesNoStart(&node0, 1);
@@ -2000,9 +2072,9 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   int loops = ctx->getNumLoops();
   
-  if (restarter.getNumDbNodes() < 4)
+  if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -2011,7 +2083,7 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step)
   for (; loops; loops --)
   {
     int master = restarter.getMasterNodeId();
-    int victim = restarter.getRandomNodeOtherNodeGroup(master, rand());
+    int victim = restarter.getRandomNodePreferOtherNodeGroup(master, rand());
     int second = restarter.getRandomNodeSameNodeGroup(victim, rand());
     
     int dump[] = { 935, victim } ;
@@ -2122,7 +2194,10 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
     case 4:
       node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
       if (node1 == -1)
-	node1 = master;
+      {
+        // only one node group in cluster
+        node1 = master;
+      }
       node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
       break;
     }
@@ -2134,7 +2209,7 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
     if (restarter.dumpStateOneNode(node2, val2, 2))
       return NDBT_FAILED;
 
-    if (restarter.insertErrorInNode(node1, 7178))
+    if (restarter.insertError2InNode(node1, 7178, node2))
       return NDBT_FAILED;
 
     int val1 = 7099;
@@ -2159,16 +2234,16 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
   int loops = ctx->getNumLoops();
   NdbRestarter restarter;
   
-  if (restarter.getNumDbNodes() < 4)
+  if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
   for (int i = 0; i<loops; i++)
   {
     int master = restarter.getMasterNodeId();
-    int node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
+    int node1 = restarter.getRandomNodePreferOtherNodeGroup(master, rand());
     restarter.restartOneDbNode(node1, false, true, true);
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
@@ -2321,9 +2396,15 @@ int
 runBug26457(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
-  if (res.getNumDbNodes() < 4)
+
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -2487,6 +2568,90 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
   if (trans.selectCount(pNdb) != 0)
     return NDBT_FAILED;
 
+  return NDBT_OK;
+}
+
+int
+run_test_multi_socket(NDBT_Context* ctx, NDBT_Step* step)
+{
+  static const int errnos[] = { 951, 952, 953, 954, 955,
+                                956, 957, 958, 959, 960, 0 };
+  static const int delay_nos[] = { 970, 971, 972, 973, 974, 975,
+                                   976, 977, 978, 979, 980, 981,
+                                   982, 983, 984, 985, 0 };
+  int nodegroup_nodes[MAX_NDB_NODES];
+  NdbRestarter res;
+  getNodeGroups(res);
+  int node_id = getFirstNodeInNodeGroup(res,
+                                        NO_NODE_GROUP);
+  int first_node_group = res.getNodeGroup(node_id);
+  Uint32 index = 0;
+  nodegroup_nodes[index++] = node_id;
+  ndbout_c("Node group %u used", first_node_group);
+  ndbout_c("Node[%u] = %u", index - 1, node_id);
+  while ((node_id = getNextNodeInNodeGroup(res,
+                                           node_id,
+                                           first_node_group)) != 0)
+  {
+    nodegroup_nodes[index++] = node_id;
+    ndbout_c("Node[%u] = %u", index - 1, node_id);
+  }
+  if (index < 2)
+  {
+    /* Test requires at least 2 replicas */
+    return NDBT_OK;
+  }
+  int pos = 0;
+  int start_index = 1;
+  while (errnos[pos] != 0)
+  {
+    for (Uint32 i = start_index; i < index; i++)
+    {
+      int restart_node = nodegroup_nodes[i];
+      ndbout_c("Restart node %u", restart_node);
+      if (res.restartOneDbNode(restart_node, true, true, true))
+        return NDBT_FAILED;
+      ndbout_c("Wait node %u no start", restart_node);
+      if (res.waitNodesNoStart(&restart_node, 1))
+        return NDBT_FAILED;
+      ndbout_c("Insert error %u into node %u", errnos[pos], restart_node);
+      if (res.insertErrorInNode(restart_node, errnos[pos]))
+        return NDBT_FAILED;
+      if (res.insertErrorInNode(restart_node, 1006))
+        return NDBT_FAILED;
+    }
+    g_err << "Start nodes, expect crash" << endl;
+
+    res.startNodes(&nodegroup_nodes[start_index],
+                   index - 1);
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+    pos++;
+  }
+  pos = 0;
+  while (delay_nos[pos] != 0)
+  {
+    for (Uint32 i = start_index; i < index; i++)
+    {
+      int restart_node = nodegroup_nodes[i];
+      ndbout_c("Restart node %u", restart_node);
+      if (res.restartOneDbNode(restart_node, true, true, true))
+        return NDBT_FAILED;
+      ndbout_c("Wait node %u no start", restart_node);
+      if (res.waitNodesNoStart(&restart_node, 1))
+        return NDBT_FAILED;
+      ndbout_c("Insert error %u into node %u", delay_nos[pos], restart_node);
+      if (res.insertErrorInNode(restart_node, delay_nos[pos]))
+        return NDBT_FAILED;
+    }
+    g_err << "Start nodes" << endl;
+
+    res.startNodes(&nodegroup_nodes[start_index],
+                   index - 1); //Expect crash
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+    pos++;
+  }
   return NDBT_OK;
 }
 
@@ -2712,7 +2877,7 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   int master = res.getMasterNodeId();
-  int node0 = res.getRandomNodeOtherNodeGroup(master, rand());
+  int node0 = res.getRandomNodePreferOtherNodeGroup(master, rand());
   int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
   
   ndbout_c("master: %d node0: %d node1: %d", master, node0, node1);
@@ -4033,13 +4198,16 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 {
-  //int result = NDBT_OK;
-  //int loops = ctx->getNumLoops();
   NdbRestarter res;
 
-  if (res.getNumDbNodes() < 4)
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -4050,6 +4218,7 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
   {
     victim = res.getRandomNodeOtherNodeGroup(nextMaster, rand());
   }
+  require(victim != -1);
 
   ndbout_c("master: %u next master: %u victim: %u",
            master, nextMaster, victim);
@@ -4084,15 +4253,18 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 
 int 
 runBug36246(NDBT_Context* ctx, NDBT_Step* step)
-{ 
-  //int result = NDBT_OK;
-  //int loops = ctx->getNumLoops();
+{
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
-  if (res.getNumDbNodes() < 4)
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -4178,18 +4350,21 @@ loop:
 
 int 
 runBug36247(NDBT_Context* ctx, NDBT_Step* step)
-{ 
-  //int result = NDBT_OK;
-  //int loops = ctx->getNumLoops();
+{
   NdbRestarter res;
-  Ndb* pNdb = GETNDB(step);
 
-  if (res.getNumDbNodes() < 4)
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
+  Ndb* pNdb = GETNDB(step);
   HugoOperations hugoOps(*ctx->getTab());
 
 restartloop:
@@ -4289,7 +4464,12 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
   }
-  
+  if (res.getNumNodeGroups() < 2)
+  {
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
   int victim = res.getRandomNodeSameNodeGroup(nextMaster, rand());
@@ -4297,6 +4477,7 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
   {
     victim = res.getRandomNodeOtherNodeGroup(nextMaster, rand());
   }
+  require(victim != -1);  // having tried both same group and other group
 
   ndbout_c("master: %u nextMaster: %u victim: %u",
            master, nextMaster, victim);
@@ -4326,15 +4507,18 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
 
 int 
 runBug36245(NDBT_Context* ctx, NDBT_Step* step)
-{ 
-  //int result = NDBT_OK;
-  //int loops = ctx->getNumLoops();
+{
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
-  if (res.getNumDbNodes() < 4)
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -4662,13 +4846,18 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
   
-  if (res.getNumDbNodes() < 4)
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
-    ctx->stopTest();
+    g_err << "[SKIPPED] Need at least 2 node groups to run the test" << endl;
     return NDBT_OK;
   }
-  
+
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
+    return NDBT_OK;
+  }
+
   int loops = ctx->getNumLoops();
   while (--loops >= 0)
   {
@@ -4678,6 +4867,12 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
     ndbout_c("target: %u", nodeId);
     int node2 = res.getRandomNodeOtherNodeGroup(nodeId, rand());
     ndbout_c("node 2: %u", node2);
+
+    if (node2 == -1)
+    {
+      g_err << "Could not get node from other node group" << endl;
+      return NDBT_FAILED;
+    }
     
     res.restartOneDbNode(nodeId,
                          /** initial */ false, 
@@ -4831,12 +5026,6 @@ runBug43888(NDBT_Context* ctx, NDBT_Step* step)
   ctx->stopTest();
   return NDBT_OK;
 }
-
-#define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
-  ndbout << "ERR: "<< m \
-           << "   " << "File: " << __FILE__ \
-           << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
-  return NDBT_FAILED; } }
 
 int
 runBug44952(NDBT_Context* ctx, NDBT_Step* step)
@@ -5319,7 +5508,7 @@ runBug58453(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     int node = (int)hugoOps.getTransaction()->getConnectedNodeId();
-    int node0 = res.getRandomNodeOtherNodeGroup(node, rand());
+    int node0 = res.getRandomNodePreferOtherNodeGroup(node, rand());
     int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
 
     ndbout_c("node %u err: %u, node: %u err: %u",
@@ -5944,7 +6133,7 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
 
-  const int nodeCount = restarter.getNumDbNodes();
+  const unsigned nodeCount = restarter.getNumDbNodes();
   
   if (nodeCount < 4)
   {
@@ -5982,7 +6171,7 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
     sequentially for each node. Finally, the master should decide that
     it cannot form a viable cluster and stop itself.
    */
-  for (int i = 0; i < nodeCount; i++)
+  for (unsigned i = 0; i < nodeCount; i++)
   {
     if (restarter.getDbNodeId(i) != masterId)
     {
@@ -6046,9 +6235,17 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_info << "Mgmd event: " << buff << endl;
-    if (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).seconds() > 100)
+
+    /**
+     * Assume default heartbeatIntervalDbDb (= 5 seconds).
+     * After missing four heartbeat intervals in a row, a node is declared dead.
+     * Thus, the maximum time for discovering a failure through the heartbeat mechanism
+     * is five times the heartbeat interval = 25 seconds.
+     */
+    if (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).seconds() > (25 * nodeCount))
     {
-      g_err << "Waited 100 seconds for master to restart." << endl;
+      g_err << "Waited " << (25 * nodeCount)
+            << " seconds for master to restart." << endl;
       return NDBT_FAILED;
     }
   }
@@ -6058,7 +6255,7 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
     unblocked automatically as it restarts.
   */
 
-  for (int i = 0; i < nodeCount; i++)
+  for (unsigned i = 0; i < nodeCount; i++)
   {
     if (restarter.getDbNodeId(i) != masterId)
     {
@@ -6099,7 +6296,7 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   int master = res.getMasterNodeId();
-  int otherVictim = res.getRandomNodeOtherNodeGroup(master, rand());
+  int otherVictim = res.getRandomNodePreferOtherNodeGroup(master, rand());
   int nextMaster = res.getNextMasterNodeId(master);
   nextMaster = (nextMaster == otherVictim) ? res.getNextMasterNodeId(otherVictim) :
     nextMaster;
@@ -6429,7 +6626,7 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
       int master = res.getMasterNodeId();
       int next = res.getNextMasterNodeId(master);
   loop:
-      int victim = res.getRandomNodeOtherNodeGroup(master, rand());
+      int victim = res.getRandomNodePreferOtherNodeGroup(master, rand());
       while (next == victim)
         goto loop;
 
@@ -6484,10 +6681,14 @@ runBug16007980(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
 
-  if (res.getNumDbNodes() < 4)
+  if (res.getNumNodeGroups() < 2)
   {
-    g_err << "Insufficient nodes for test." << endl;
-    ctx->stopTest();
+    g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
+    return NDBT_OK;
+  }
+  if (res.getMaxConcurrentNodeFailures() < 2)
+  {
+    g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
 
@@ -7059,7 +7260,8 @@ runDelayedNodeFail(NDBT_Context *ctx, NDBT_Step *step)
       ctx->stopTest();
       return NDBT_FAILED;
     }
-    NdbSleep_SecSleep(10);
+    g_err << "Waiting for node " << victim << " to die" << endl;
+    restarter.waitNodesNoStart(&victim, 1);
     ndbout_c("  start node");
     if (restarter.startNodes(&victim, 1) != 0)
     {
@@ -9194,7 +9396,7 @@ int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
   NdbSleep_MilliSleep(10000);
 
   ndbout_c("Getting Master to kill other when Master LCP complete %u", master);
-  restarter.insertErrorInNode(master, 7178);
+  restarter.insertError2InNode(master, 7178, other);
 
   ndbout_c("Releasing scans in node %u", other);
   restarter.insertErrorInNode(other, 0);
@@ -9224,6 +9426,769 @@ int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+/* Check whether the deceased node died within max_timeout_sec*/
+int checkOneNodeDead(int deceased, int max_timeout_sec)
+{
+  int timeout = 0;
+  NdbRestarter restarter;
+
+  int victim_status = NDB_MGM_NODE_STATUS_UNKNOWN;
+  while (timeout++ < max_timeout_sec)
+  {
+    victim_status = restarter.getNodeStatus(deceased);
+    if (victim_status == NDB_MGM_NODE_STATUS_STARTED)
+    {
+      NdbSleep_SecSleep(1);
+    }
+    else
+    {
+      g_info << "Node " << deceased
+             << " died after " << timeout << "secs, "
+             << " node's status " << victim_status << endl;
+      return 0;
+    }
+  }
+  g_err << "Node " << deceased
+        << " has not died after " << timeout << "secs, " << endl;
+  return 1;
+}
+
+/**
+ * Reads a config variable id and value from the test context
+ * change the config and restarts the data nodes.
+ */
+
+int runChangeDataNodeConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_config_vars = ctx->getProperty("NumConfigVars", Uint32(1));
+
+  ctx->setProperty("NumConfigVars", Uint32(0));
+
+  for (int c=1; c <= num_config_vars; c++)
+  {
+    BaseString varId;
+    BaseString varVal;
+    varId.assfmt("ConfigVarId%u", c);
+    varVal.assfmt("ConfigValue%u", c);
+
+    Uint32 new_value_read = 0;
+    int config_var_id =
+      ctx->getProperty(varId.c_str(), (Uint32)new_value_read);
+
+    Uint32 new_config_value =
+      ctx->getProperty(varVal.c_str(), (Uint32)new_value_read);
+
+    g_err << "Setting config " << config_var_id << " val " << new_config_value << endl;
+
+    // Override the config
+    NdbMgmd mgmd;
+    Uint32 old_config_value = 0;
+    CHECK(mgmd.change_config32(new_config_value,
+                               &old_config_value,
+                               CFG_SECTION_NODE,
+                               config_var_id),
+          "Change config failed");
+
+    g_err << "  Success, old val : " << old_config_value << endl;
+
+    // Save the old_value in the test property 'config_var%u'.
+    ctx->setProperty(varVal.c_str(), old_config_value);
+    ctx->setProperty("NumConfigVars", Uint32(c));
+  }
+
+  g_err << "Restarting nodes with new config." << endl;
+
+  // Restart cluster to get the new config value
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll() == 0, "Restart all failed");
+
+  CHECK(restarter.waitClusterStarted() == 0,
+         "Cluster has not started");
+  g_err << "Nodes restarted with new config." << endl;
+  return NDBT_OK;
+}
+
+int runPauseGcpCommitUntilNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() > 4)
+  {
+    g_err << endl
+          << "ERROR: This test was not run since #data nodes exceeded 4"
+          << endl << endl;
+
+    ctx->stopTest();
+    return result;
+  }
+
+  int master = restarter.getMasterNodeId();
+  int victim = restarter.getRandomNotMasterNodeId(rand());
+
+  /* Save current gcp commit lag */
+  int dump = DumpStateOrd::DihSaveGcpCommitLag;
+
+  restarter.dumpStateOneNode(master, &dump, 1);
+
+  while (true)
+  {
+    // Delay gcp commit conf at victim participant,
+    // causing master to kill it eventually
+    CHECK2(restarter.insertErrorInNode(victim, 7239) == 0);
+
+    // Error insert to hit CRASH INSERTION on failure so
+    // that test framework does not report failure
+    CHECK2(restarter.insertErrorInNode(victim, 1005) == 0);
+
+    // Error insert on master to stall takeover when it comes
+    CHECK2(restarter.insertErrorInNode(master, 8118) == 0);
+
+    g_err << "Waiting for node " << victim << " to fail." << endl;
+
+    CHECK2(checkOneNodeDead(victim, 400) == 0);
+    g_err << "Victim died" << endl;
+
+    // Now master is stalled on takeover
+
+    g_err << "Checking commit lag is unchanged" << endl;
+
+    int dump = DumpStateOrd::DihCheckGcpCommitLag;
+
+    restarter.dumpStateOneNode(master, &dump, 1);
+
+    g_err << "OK : GCP timeout not changed" << endl;
+
+
+    g_err << "Cleaning up" << endl;
+    /**
+     * Release master
+     */
+    CHECK2(restarter.insertErrorInNode(master, 0) == 0);
+
+    g_err << "Waiting victim node " << victim << " to start" << endl;
+    CHECK2(restarter.waitNodesStarted(&victim, 1) == 0);
+    break;
+  }
+
+  ctx->stopTest();
+  return result;
+}
+
+static const char* NbTabName = "NBTAB";
+
+int runCreateCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  {
+    NdbDictionary::Table nbTab;
+
+    nbTab.setName(NbTabName);
+
+    const char* charsetName;
+    if (ctx->getProperty("CSCharset", Uint32(0)) == 0)
+    {
+      ndbout_c("Using non case-sensitive charset");
+      charsetName = "latin1_swedish_ci";
+//    charsetName = "utf8_unicode_ci";
+    }
+    else
+    {
+      ndbout_c("Using case-sensitive charset");
+      charsetName = "latin1_general_cs";
+    };
+
+    const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+    ndbout_c("Using %u data columns", numDataCols);
+
+    { NdbDictionary::Column c;
+      c.setName("Key");
+      c.setType(NdbDictionary::Column::Varchar);
+      c.setLength(40);
+      c.setCharset(get_charset_by_name(charsetName, MYF(0)));
+      /* Charset, length */
+      c.setPrimaryKey(true);
+      nbTab.addColumn(c);
+    }
+
+    for (Uint32 i=0; i < numDataCols; i++)
+    {
+      NdbDictionary::Column c;
+      BaseString name;
+      name.assfmt("Data_%u", i);
+      c.setName(name.c_str());
+      c.setType(NdbDictionary::Column::Unsigned);
+      nbTab.addColumn(c);
+    }
+
+    CHECK(pDict->createTable(nbTab) == 0, pDict->getNdbError());
+  }
+
+  CHECK(pDict->getTable(NbTabName) != NULL, pDict->getNdbError());
+
+  return NDBT_OK;
+}
+
+int runDropCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  CHECK(pDict->dropTable(NbTabName) == 0, pDict->getNdbError());
+
+  return NDBT_OK;
+}
+
+const Uint32 DataSetRows = 26;
+const Uint32 NumDataSets = 5;
+
+int runLoadCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
+
+  const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+
+  /* Load table with rows keyed lower case a to z 0|1|2... */
+  for (Uint32 p=0; p < NumDataSets; p++)  // a0, b0, ..z0, a1, .. z1, a2, ... z2, ...
+  {
+    for (Uint32 i=0; i < DataSetRows; i++)
+    {
+      NdbTransaction* trans = pNdb->startTransaction();
+      CHECK(trans != NULL, pNdb->getNdbError());
+
+      NdbOperation* op = trans->getNdbOperation(nbTab);
+      CHECK(op != NULL, trans->getNdbError());
+
+      CHECK((op->insertTuple() == 0), op->getNdbError());
+
+      char keyBuf[3];
+      keyBuf[0] = 2;
+      keyBuf[1] = 'a'+i;
+      keyBuf[2] = '0' + p;
+
+      CHECK(op->equal("Key", &keyBuf[0]) == 0, op->getNdbError());
+      for (Uint32 c=0; c < numDataCols; c++)
+      {
+        BaseString name;
+        name.assfmt("Data_%u", c);
+        CHECK(op->setValue(name.c_str(), i) == 0, op->getNdbError());
+      }
+
+      CHECK(trans->execute(Commit) == 0, trans->getNdbError());
+
+      trans->close();
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runCheckCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Check that table has all the expected datasets, and nothing more */
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
+  const Uint32 totalRows = NumDataSets * DataSetRows;
+  Uint32 rows[totalRows];
+
+  bool unexpectedValue;
+  const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+  NdbRecAttr* ras[512];
+  Uint32 scanRetries = 20;
+
+  do
+  {
+    for (Uint32 i=0; i < totalRows; i++)
+    {
+      rows[i] = 0;
+    }
+
+    unexpectedValue = false;
+    NdbTransaction* trans = pNdb->startTransaction();
+    CHECK(trans != NULL, pNdb->getNdbError());
+
+    NdbScanOperation* sop = trans->getNdbScanOperation(nbTab);
+    CHECK(sop != NULL, trans->getNdbError());
+
+    CHECK((sop->readTuples(NdbOperation::LM_CommittedRead) == 0),
+          sop->getNdbError());
+
+    NdbRecAttr* key;
+
+    CHECK(((key = sop->getValue("Key")) != NULL), sop->getNdbError());
+    for (Uint32 c=0; c < numDataCols; c++)
+    {
+      BaseString name;
+      name.assfmt("Data_%u", c);
+      CHECK(((ras[c] = sop->getValue(name.c_str())) != NULL), sop->getNdbError());
+    }
+
+    CHECK(trans->execute(NoCommit) == 0, trans->getNdbError());
+      /* TODO : Temporary error handling */
+
+    int scanRc;
+    while ((scanRc = sop->nextResult()) == 0)
+    {
+      /* For each result, we check that the key is as
+       * expected, and that the data columns are as
+       * expected
+       */
+
+      /* Expect key of form xy
+       * x = a..z
+       * y = 0..NumDataSets-1
+       */
+      const char* keyData = (const char*) key->aRef();
+      const Uint32 keyLen = keyData[0];
+      const Uint32 keyChar = keyData[1];
+      const Uint32 keySetSym = keyData[2];
+      if (keyLen == 2 &&
+          (keyChar >= 'a' &&
+           keyChar <= 'z') &&
+          (keySetSym >= '0' &&
+           keySetSym <= ((char) ('0' + NumDataSets))))
+      {
+        /* Value in range, count */
+        const Uint32 dataSetNum = keySetSym - '0';
+        const Uint32 rowNum = keyChar - 'a';
+        const Uint32 index = (dataSetNum * DataSetRows) + rowNum;
+        rows[index] ++;
+      }
+      else
+      {
+        ndbout_c("Found unexpected key value in table : ");
+        unexpectedValue = true;
+
+        for (int i=0; i < keyData[0]; i++)
+        {
+          ndbout_c(" %u : %u %c", i, keyData[1+i], keyData[1+i]);
+        }
+      }
+
+      /* Check data */
+      /* Require that each data col key is at most 1 less than first
+       * and updates are in sequence
+       * e.g.
+       *  ok
+       *   33 ... 33
+       *   33 ... 32
+       *  not ok
+       *   33 ... 31
+       *   33 ... 32 ... 33
+       *   32 ... 33
+       */
+      Uint32 firstValue = 0;
+      Uint32 prevValue = 0;
+      for (Uint32 c=0; c < numDataCols; c++)
+      {
+        Uint32 val = ras[c]->u_32_value();
+
+        if (c == 0)
+        {
+          firstValue = prevValue = val;
+        }
+        else
+        {
+          if (val != prevValue)
+          {
+            if (val == (prevValue - 1) &&
+                prevValue == firstValue)
+            {
+              /* Step down, ok */
+              prevValue = val;
+            }
+            else
+            {
+              /* Something wrong */
+              ndbout_c("Row has incorrect sequences :");
+              ndbout_c("Key length %u : %c%c",
+                       keyLen,
+                       keyChar,
+                       keySetSym);
+
+              for (Uint32 k=0; k < numDataCols; k++)
+              {
+                ndbout_c(" %u : %u",
+                         k, ras[k]->u_32_value());
+              }
+              unexpectedValue = true;
+              break;
+            }
+          }
+        }
+      }
+    } // while nextResult()
+
+    if (scanRc != 1)
+    {
+      const bool retry = (sop->getNdbError().status ==
+                          NdbError::TemporaryError);
+      ndbout_c("Scan problem : %u : %s ",
+               sop->getNdbError().code,
+               sop->getNdbError().message);
+      trans->close();
+
+      if (retry &&
+          scanRetries--)
+      {
+        ndbout_c("Retrying scan, %u retries remain",
+                 scanRetries);
+        continue;
+      }
+      else
+      {
+        return NDBT_FAILED;
+      }
+    }
+
+    trans->close();
+
+    break;
+  } while (true);
+
+  /* Check results */
+  for (Uint32 i=0; i < totalRows; i++)
+  {
+    if (rows[i] != 1)
+    {
+      const char key = 'a' + (i % DataSetRows);
+      const Uint32 dataSet = i / DataSetRows;
+
+      unexpectedValue = true;
+
+      if (rows[i] < 1)
+      {
+        ndbout_c("Missing row %c%u", key, dataSet);
+      }
+      else
+      {
+        ndbout_c("Extra row %c%u", key, dataSet);
+      }
+    }
+  }
+
+  if (! unexpectedValue)
+  {
+    g_info << "Table content ok" << endl;
+    return NDBT_OK;
+  }
+
+  return NDBT_FAILED;
+}
+
+static
+int defineDeleteOp(NdbTransaction* trans,
+                   const NdbDictionary::Table* nbTab,
+                   char keyLen,
+                   char byte0,
+                   char byte1,
+                   char byte2)
+{
+  const char key[4] = {keyLen, byte0, byte1, byte2};
+
+  NdbOperation* delOp = trans->getNdbOperation(nbTab);
+  CHECK(delOp != NULL, trans->getNdbError());
+
+  CHECK(delOp->deleteTuple() == 0, delOp->getNdbError());
+  CHECK(delOp->equal("Key", &key[0]) == 0, delOp->getNdbError());
+
+  return NDBT_OK;
+}
+
+static
+int defineInsertOp(NdbTransaction* trans,
+                   const NdbDictionary::Table* nbTab,
+                   Uint32 numDataCols,
+                   char keyLen,
+                   char byte0,
+                   char byte1,
+                   char byte2,
+                   Uint32 i)
+{
+  const char key[4] = {keyLen, byte0, byte1, byte2};
+
+  NdbOperation* insOp = trans->getNdbOperation(nbTab);
+  CHECK(insOp != NULL, trans->getNdbError());
+
+  CHECK(insOp->insertTuple() == 0, insOp->getNdbError());
+  CHECK(insOp->equal("Key", &key[0]) == 0, insOp->getNdbError());
+
+  for (Uint32 c=0; c < numDataCols; c++)
+  {
+    BaseString name;
+    name.assfmt("Data_%u", c);
+    CHECK(insOp->setValue(name.c_str(), i) == 0, insOp->getNdbError());
+  }
+  return NDBT_OK;
+}
+
+static
+int defineUpdateOp(NdbTransaction* trans,
+                   const NdbDictionary::Table* nbTab,
+                   Uint32 numDataCols,
+                   char keyLen,
+                   char byte0,
+                   char byte1,
+                   char byte2,
+                   Uint32 i,
+                   Uint32 iterations,
+                   Uint32 offset)
+{
+  const char key[4] = {keyLen, byte0, byte1, byte2};
+
+  NdbOperation* insOp = trans->getNdbOperation(nbTab);
+  CHECK(insOp != NULL, trans->getNdbError());
+
+  CHECK(insOp->updateTuple() == 0, insOp->getNdbError());
+  CHECK(insOp->equal("Key", &key[0]) == 0, insOp->getNdbError());
+
+  /* We just update one column */
+  /* Updates retain invariant that col(n+1) = col(0) | col(0)+1 */
+
+  const Uint32 colnum = (iterations-1) % numDataCols; /* 0...numDataCols */
+  BaseString name;
+  name.assfmt("Data_%u", colnum);
+  CHECK(insOp->setValue(name.c_str(), (offset + i)) == 0, insOp->getNdbError());
+
+  return NDBT_OK;
+}
+
+int runChangePkCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
+
+  const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+  const bool case_sensitive_collation =
+    (ctx->getProperty("CSCharset", Uint32(0)) != 0);
+
+  bool cycle = false;
+  Uint32 iterations = 0;
+  Uint32 offset;
+
+  /**
+   * Run transactions until stopped which contain
+   *
+   *   BEGIN
+   *     # Same logical key, different actual key
+   *       Delete row where pk = 'a0'|'A0'
+   *       Insert row setting pk = 'A0' | 'a0'
+   *
+   *     # Different logical key, different actual key
+   *       Delete row where pk = 'a1'|'AQ'
+   *       Insert row setting pk = 'AQ'|'a1'
+   *
+   *     # Delete or Insert just to mix rowids a little
+   *       Delete row where pk = 'a2'
+   *       or
+   *       Insert row where pk = 'A2'
+   *
+   *     # Same logical key, different actual key
+   *        via trailing spaces
+   *       Delete row where pk = 'a3' |'A3 '
+   *       Insert row setting pk = 'A3 ' | 'a3'
+   *
+   *     # Same logical key, updating data in a pattern
+   *        over time
+   *       Update row where pk = 'a4' set col X = y
+   *
+   *   COMMIT
+   *
+   * As the table has a case-insensitive (non binary)
+   * collation, we need proper collation aware comparisons
+   * to be used as appropriate.
+   * We can describe the key of a row being looked up (for
+   * read, update, delete) using any case and trailing spaces,
+   * and expect it to be found.
+   * When we insert a row we expect :
+   *  - Trailing spaces and case are preserved
+   *
+   * Mix of different variants to help surface bugs.
+   */
+  while (!ctx->isTestStopped())
+  {
+    cycle = !cycle;
+    offset = 1 + (iterations / numDataCols);
+    iterations++;
+
+    /**
+     * Periodically check the table content on the
+     * true cycle, when data should be in its original
+     * state
+     */
+    if (cycle &&
+        (iterations % 33) == 0)
+    {
+      if (runCheckCharKeyTable(ctx, step) != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+
+    for (Uint32 i=0; i < DataSetRows; i++)
+    {
+      while(true) // Temp retry loop
+      {
+        /**
+         * For case-sensitive collations, we must use correct case
+         * when specifying keys.
+         * For case-insenstive collations, we do not need to, so use
+         * the 'to' case for the key, and the 'to' value.
+         */
+        const char toCaseKey = ((cycle? 'A' : 'a') + i);
+        const char fromCaseKey = case_sensitive_collation ?
+          ((cycle? 'a' : 'A') + i) :
+          toCaseKey;
+
+
+        NdbTransaction* trans = pNdb->startTransaction();
+        CHECK(trans != NULL, pNdb->getNdbError());
+
+        {
+          /* Case 1 */
+          /* Single transaction, Key changes only case */
+          /* a0..z0 */
+          /* a0 -> A0, A0 -> a0 */
+          CHECK(defineDeleteOp(trans, nbTab, 2, fromCaseKey, '0', 0) == NDBT_OK,
+                "Failed to define delete op 1");
+          CHECK(defineInsertOp(trans, nbTab, numDataCols, 2, toCaseKey, '0', 0, i) == NDBT_OK,
+                "Failed to define insert op 1");
+        }
+
+        {
+          /* Case 2 */
+          /* Single transaction, Key changes case and other value */
+          /* a1..z1 */
+          /* a1 -> AQ, AQ -> a1 */
+          const char fromKey = cycle ? '1' : 'Q';
+          const char toKey = cycle ? 'Q' : '1';
+
+          CHECK(defineDeleteOp(trans, nbTab, 2, fromCaseKey, fromKey, 0) == NDBT_OK,
+                "Failed to define delete op 2");
+          CHECK(defineInsertOp(trans, nbTab, numDataCols, 2, toCaseKey, toKey, 0, i) == NDBT_OK,
+                "Failed to define insert op 2");
+        }
+
+        {
+          /* Case 3 */
+          /* Separate transactions, Delete or Insert (of every second row) */
+          /* a2..z2 */
+          /* b2 -> -, - -> B2 */
+
+          if (i % 2 == 1)
+          {
+            if (cycle)
+            {
+              CHECK(defineDeleteOp(trans, nbTab, 2, fromCaseKey, '2', 0) == NDBT_OK,
+                    "Failed to define delete op 3");
+            }
+            else
+            {
+              CHECK(defineInsertOp(trans, nbTab, numDataCols, 2, toCaseKey, '2', 0,i) == NDBT_OK,
+                    "Failed to define insert op 3");
+            }
+          }
+        }
+
+        {
+          /* Case 4 */
+          /* Single transaction Same key, different data due to trailing space */
+          /* a3..z3 */
+          /* 'a3' -> 'a3 ', 'a3 ' -> 'a3' */
+
+          /* Length of key, without + with trailing data */
+          const char keyLen = (cycle? 3 : 2);
+          const char lowerCaseKey = 'a' + i;
+          const char caseKey = (case_sensitive_collation?
+                                lowerCaseKey : /* Stick with lower case */
+                                toCaseKey);    /* Also flip case */
+
+          CHECK(defineDeleteOp(trans, nbTab, keyLen, caseKey, '3', ' ') == NDBT_OK,
+                "Failed to define delete op 1");
+          CHECK(defineInsertOp(trans, nbTab, numDataCols, keyLen, caseKey, '3', ' ', i) == NDBT_OK,
+                "Failed to define insert op 1");
+
+        }
+
+        {
+          /* Case 5 */
+          /* Update column values inplace, using diff key */
+          /* a4..z4 */
+          /* UPDATE A4 set data_2 = <next> */
+          /* UPDATE A4 set data_3 = <next> */
+          /* e.g. :
+           *  Key  Col0  Col1  Col2  Col3 .. Coln
+           *  'a4'    0     0     0     0       0
+           *          1     0     0     0       0
+           *          1     1     0     0       0
+           *          ...
+           *          1     1     1     1       1
+           *          2     1     1     1       1
+           *          ...
+           *
+           * Intention is that missing updates on replicas
+           * become visible (as the pattern above is broken)
+           * This is checked in runCheckCharKeyTable()
+           */
+          const char lowerCaseKey = 'a' + i;
+          const char upperCaseKey = 'A' + i;
+          const char caseKey = (case_sensitive_collation?
+                                lowerCaseKey : /* Stick with lower case */
+                                upperCaseKey); /* Always use the 'wrong' case */
+
+          CHECK(defineUpdateOp(trans, nbTab, numDataCols, 2, caseKey, '4', 0, i, iterations, offset)
+                == NDBT_OK,
+                "Failed to define update op");
+        }
+
+        if (trans->execute(Commit) != 0)
+        {
+          char buf[2] = {toCaseKey, 0};
+          g_err << "Failed to execute transaction " << trans->getNdbError() << endl;
+          g_err << "Cycle " << cycle << " i " << i << " toCaseKey " << buf << endl;
+          if (trans->getNdbError().status == NdbError::TemporaryError)
+          {
+            /* Ignore temporary errors due to restarts etc */
+            trans->close();
+            continue;
+          }
+          return NDBT_FAILED;
+        }
+        trans->close();
+
+        break;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runErrorInsertSlowCopyFrag(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Slow down CopyFrag, to give more time to find errors */
+  NdbRestarter restarter;
+
+  return restarter.insertErrorInAllNodes(5106);
+}
+
+int runClearErrorInsert(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  return restarter.insertErrorInAllNodes(0);
+}
+
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -9345,7 +10310,7 @@ TESTCASE("RestartRandomNode",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9354,7 +10319,7 @@ TESTCASE("RestartRandomNodeError",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9363,7 +10328,7 @@ TESTCASE("RestartRandomNodeInitial",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9372,7 +10337,7 @@ TESTCASE("RestartNFDuringNR",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   STEP(runPkUpdateUntilStopped);
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
@@ -9383,7 +10348,7 @@ TESTCASE("RestartMasterNodeError",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9403,7 +10368,7 @@ TESTCASE("TwoNodeFailure",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9413,7 +10378,7 @@ TESTCASE("TwoMasterNodeFailure",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9423,7 +10388,7 @@ TESTCASE("FiftyPercentFail",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9433,7 +10398,7 @@ TESTCASE("RestartAllNodes",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9443,7 +10408,7 @@ TESTCASE("RestartAllNodesAbort",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9453,7 +10418,7 @@ TESTCASE("RestartAllNodesError9999",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9463,7 +10428,7 @@ TESTCASE("FiftyPercentStopAndWait",
 	 "number of times"){
   INITIALIZER(runCheckAllNodesStarted); 
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9472,7 +10437,7 @@ TESTCASE("RestartNodeDuringLCP",
 	 "number of times"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   STEP(runPkUpdateUntilStopped);
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
@@ -9483,7 +10448,7 @@ TESTCASE("StopOnError",
 	 "should restart automatically when an error occurs"){ 
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
-  STEP(runRestarts);
+  STEP(runNamedRestartTest);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -9989,6 +10954,11 @@ TESTCASE("StartDuringNodeRestart",
 {
   STEP(runTestStartNode);
 }
+TESTCASE("MultiSocketRestart",
+         "Test failures in setup phase of multi sockets for multi failures");
+{
+  STEP(run_test_multi_socket);
+}
 TESTCASE("NodeFailLcpStall",
          "Check that node failure does not result in LCP stall")
 {
@@ -9997,6 +10967,64 @@ TESTCASE("NodeFailLcpStall",
   STEP(runNodeFailLcpStall);
   FINALIZER(dropManyTables);
 }
+TESTCASE("PostponeRecalculateGCPCommitLag",
+         "check that a slow TC takeover does not result in "
+         "another GCP failure in a shorter period")
+{
+  TC_PROPERTY("NumConfigVars", Uint32(3));
+  TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MICRO_GCP_TIMEOUT));
+  TC_PROPERTY("ConfigValue1", Uint32(1000));
+  TC_PROPERTY("ConfigVarId2", Uint32(CFG_DB_HEARTBEAT_INTERVAL));
+  TC_PROPERTY("ConfigValue2", Uint32(5000));
+  TC_PROPERTY("ConfigVarId3", Uint32(CFG_DB_LCP_SCAN_WATCHDOG_LIMIT));
+  // 10000 sec - long enough not to expire before GCP max lags expire
+  TC_PROPERTY("ConfigValue3", Uint32(10000));
+
+  INITIALIZER(runChangeDataNodeConfig);
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPauseGcpCommitUntilNodeFailure);
+  FINALIZER(runChangeDataNodeConfig);
+}
+TESTCASE("SumaHandover3rpl",
+         "Test Suma handover with multiple GCIs and more than 2 replicas")
+{
+  INITIALIZER(run_suma_handover_test);
+}
+TESTCASE("SumaHandoverNF",
+         "Test Suma handover with multiple GCIs and more than 2 replicas")
+{
+  INITIALIZER(run_suma_handover_with_node_failure);
+}
+TESTCASE("InplaceCharPkChangeCS",
+         "Check that pk changes which are binary different, but "
+         "collation-compare the same, are ok during restarts")
+{
+  TC_PROPERTY("CSCharset", Uint32(1));
+  TC_PROPERTY("NumDataColumns", Uint32(10));
+  INITIALIZER(runCreateCharKeyTable);
+  INITIALIZER(runLoadCharKeyTable);
+  INITIALIZER(runErrorInsertSlowCopyFrag);
+  STEP(runChangePkCharKeyTable);
+  STEP(runRestarter);
+  FINALIZER(runClearErrorInsert);
+  FINALIZER(runDropCharKeyTable);
+}
+TESTCASE("InplaceCharPkChangeCI",
+         "Check that pk changes which are binary different, but "
+         "collation-compare the same, are ok during restarts")
+{
+  TC_PROPERTY("CSCharset", Uint32(0));
+  TC_PROPERTY("NumDataColumns", Uint32(10));
+  INITIALIZER(runCreateCharKeyTable);
+  INITIALIZER(runLoadCharKeyTable);
+  INITIALIZER(runErrorInsertSlowCopyFrag);
+  STEP(runChangePkCharKeyTable);
+  STEP(runRestarter);
+  FINALIZER(runClearErrorInsert);
+  FINALIZER(runDropCharKeyTable);
+}
+
 
 NDBT_TESTSUITE_END(testNodeRestart)
 

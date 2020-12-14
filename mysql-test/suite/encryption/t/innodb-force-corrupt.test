@@ -1,3 +1,7 @@
+--skip # Should be removed because
+#it is checking whether corruption error is decryption failure. Since we are checking now if key is the correct one at the server
+#startup, it is not longer needed
+
 call mtr.add_suppression("\\[InnoDB\\] Space to be marked as encrypted was not found for id");
 call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
 call mtr.add_suppression("\\[InnoDB\\] Post - encryption checksum verification failed - decryption failed for space id");

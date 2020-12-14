@@ -144,9 +144,10 @@ bool my_init() {
   my_umask_dir = 0750; /* Default umask for new directories */
 
   /* Default creation of new files */
-  if ((str = getenv("UMASK")) != 0) my_umask = (int)(atoi_octal(str) | 0600);
+  if ((str = getenv("UMASK")) != nullptr)
+    my_umask = (int)(atoi_octal(str) | 0600);
   /* Default creation of new dir's */
-  if ((str = getenv("UMASK_DIR")) != 0)
+  if ((str = getenv("UMASK_DIR")) != nullptr)
     my_umask_dir = (int)(atoi_octal(str) | 0700);
 
   instrumented_stdin.m_file = stdin;
@@ -158,7 +159,7 @@ bool my_init() {
   if (my_thread_init()) return true;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
-  if ((home_dir = getenv("HOME")) != 0)
+  if ((home_dir = getenv("HOME")) != nullptr)
     home_dir = intern_filename(home_dir_buff, home_dir);
 
   {
@@ -167,6 +168,8 @@ bool my_init() {
 #ifdef _WIN32
     my_win_init();
 #endif
+    MyFileInit();
+
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
     return false;
   }
@@ -183,6 +186,11 @@ void my_end(int infoflag) {
 
   if (!my_init_done) return;
 
+  MyFileEnd();
+#ifdef _WIN32
+  MyWinfileEnd();
+#endif /* WIN32 */
+
   if ((infoflag & MY_CHECK_ERROR) || (info_file != stderr))
 
   { /* Test if some file is left open */
@@ -192,7 +200,6 @@ void my_end(int infoflag) {
                my_stream_opened);
       my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
-      my_print_open_files();
     }
   }
   my_error_unregister_all();
@@ -421,6 +428,8 @@ static void my_win_init() {
 
   win_init_registry();
   win32_init_tcp_ip();
+
+  MyWinfileInit();
 }
 #endif /* _WIN32 */
 
@@ -510,6 +519,8 @@ static PSI_memory_info all_mysys_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_win_PACL, "win_PACL", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_win_handle_info, "win_handle_to_fd_mapping", 0, 0,
      PSI_DOCUMENT_ME},
 #endif
 

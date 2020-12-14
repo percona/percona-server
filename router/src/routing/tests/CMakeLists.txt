@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,12 @@ INCLUDE_DIRECTORIES(
   ../src
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
   ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/harness/tests
   ../../../tests/helpers
 )
+
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 INCLUDE_DIRECTORIES(SYSTEM
@@ -63,21 +67,27 @@ IF(MY_COMPILER_IS_CLANG)
 ENDIF()
 
 SET(TEST_MODULE "routing")
-FOREACH(test_file
-    test_block_clients.cc
-    test_classic_protocol.cc
-    test_config.cc
-    test_connection.cc
-    test_connection_container.cc
-    test_first_available.cc
-    test_metadata_cache_group.cc
-    test_next_available.cc
-    test_round_robin.cc
-    test_routing.cc
-    test_setup_named_socket_service.cc
-    test_setup_tcp_service.cc
-    test_x_protocol.cc
-    )
+SET(test_files
+  test_block_clients.cc
+  test_classic_protocol.cc
+  test_config.cc
+  test_connection.cc
+  test_connection_container.cc
+  test_first_available.cc
+  test_metadata_cache_group.cc
+  test_next_available.cc
+  test_round_robin.cc
+  test_routing.cc
+  test_setup_named_socket_service.cc
+  test_setup_tcp_service.cc
+  test_x_protocol.cc
+  )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM test_files test_connection.cc)
+ENDIF()
+
+FOREACH(test_file ${test_files})
   add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE ${TEST_MODULE}
   LIB_DEPENDS routing_tests test-helpers
@@ -126,6 +136,8 @@ TARGET_COMPILE_DEFINITIONS(${test_target}
 ROUTERTEST_GET_TARGET(test_target "test_routing.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+TARGET_LINK_LIBRARIES(${test_target}
+  harness_net_ts)
 
 ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}

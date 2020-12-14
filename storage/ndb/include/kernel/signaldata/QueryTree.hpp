@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,8 +138,22 @@ struct DABits
      *
      * In Sql terms this is an INNER JOIN. Not setting an INNER_JOIN 
      * is similar to 'LEFT OUTER JOIN' result being produced.
-     */ 
+     */
     NI_INNER_JOIN = 0x400,
+
+    /**
+     * A FIRST_MATCH may return only a single matching row for each
+     * key / range specified.
+     */
+    NI_FIRST_MATCH = 0x800,
+
+    /**
+     * A ANTI_JOIN return only the rows not having a match on the right side.
+     * .. it is the inverse of NI_INNER_JOIN.
+     * It also implies FIRST_MATCH like behaviour as we can conclude that
+     * the row should not be returned as soon as a FIRST_MATCH has been found.
+     */
+    NI_ANTI_JOIN = 0x1000,
 
     NI_END = 0
   };

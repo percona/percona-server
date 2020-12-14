@@ -5,8 +5,8 @@ PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB, PART
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   CLUSTERING KEY `b` (`b`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -19,8 +19,8 @@ PARTITION BY HASH(x) PARTITIONS 2;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `x` int(11) NOT NULL,
-  `y` int(11) NOT NULL,
+  `x` int NOT NULL,
+  `y` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`x`)
@@ -29,8 +29,8 @@ ALTER TABLE t ADD CLUSTERING KEY(y);
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `x` int(11) NOT NULL,
-  `y` int(11) NOT NULL,
+  `x` int NOT NULL,
+  `y` int NOT NULL,
   PRIMARY KEY (`x`),
   CLUSTERING KEY `y` (`y`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

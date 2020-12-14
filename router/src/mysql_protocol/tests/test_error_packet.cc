@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,17 +21,13 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include "mysqlrouter/mysql_protocol.h"
 
-#include <gmock/gmock.h>
-
-#include <string.h>
 #include <cstdlib>
 #include <cstring>
 
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/utils.h"
+#include <gmock/gmock.h>
 
-using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::NotNull;
@@ -51,20 +47,17 @@ class MySQLProtocolTest : public ::testing::Test {
       0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x74,
       0x65, 0x73, 0x74, 0x20, 0x65, 0x72, 0x72, 0x6f, 0x72,
   };
-
- protected:
-  virtual void SetUp() {}
 };
 
 TEST_F(MySQLProtocolTest, Constructor) {
-  string msg = "This is a test error";
+  std::string msg = "This is a test error";
   uint16_t code = 3999;
 
   auto error_packet = mysql_protocol::ErrorPacket(0, code, msg, "XY123");
 
   ASSERT_EQ(0U, error_packet.get_capabilities().bits());
   ASSERT_EQ(case_wo_sqlstate.size(), error_packet.size());
-  ASSERT_THAT(error_packet, ContainerEq(case_wo_sqlstate));
+  ASSERT_THAT(error_packet.message(), ContainerEq(case_wo_sqlstate));
 }
 
 TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
@@ -74,7 +67,7 @@ TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
 
     ASSERT_EQ(0U, p.get_capabilities().bits());
     ASSERT_EQ(case_wo_sqlstate.size(), p.size());
-    ASSERT_THAT(p, ContainerEq(case_wo_sqlstate));
+    ASSERT_THAT(p.message(), ContainerEq(case_wo_sqlstate));
     ASSERT_EQ("", p.get_sql_state());
     ASSERT_EQ("This is a test error", p.get_message());
   }
@@ -86,7 +79,7 @@ TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
 
     ASSERT_EQ(Capabilities::PROTOCOL_41, p.get_capabilities());
     ASSERT_EQ(case_w_sqlstate.size(), p.size());
-    ASSERT_THAT(p, ContainerEq(case_w_sqlstate));
+    ASSERT_THAT(p.message(), ContainerEq(case_w_sqlstate));
     ASSERT_EQ("XY123", p.get_sql_state());
     ASSERT_EQ("This is a test error", p.get_message());
   }
@@ -97,14 +90,14 @@ TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
 
     ASSERT_EQ(0U, p.get_capabilities().bits());
     ASSERT_EQ(case_w_sqlstate.size(), p.size());
-    ASSERT_THAT(p, ContainerEq(case_w_sqlstate));
+    ASSERT_THAT(p.message(), ContainerEq(case_w_sqlstate));
     ASSERT_EQ("XY123", p.get_sql_state());
     ASSERT_EQ("This is a test error", p.get_message());
   }
 }
 
 TEST_F(MySQLProtocolTest, ConstructorWithCapabilities) {
-  string msg = "This is a test error";
+  std::string msg = "This is a test error";
   uint16_t code = 3999;
 
   auto error_packet = mysql_protocol::ErrorPacket(0, code, msg, "XY123",
@@ -112,7 +105,7 @@ TEST_F(MySQLProtocolTest, ConstructorWithCapabilities) {
 
   ASSERT_EQ(error_packet.get_capabilities(), Capabilities::PROTOCOL_41);
   ASSERT_EQ(case_w_sqlstate.size(), error_packet.size());
-  ASSERT_THAT(error_packet, ContainerEq(case_w_sqlstate));
+  ASSERT_THAT(error_packet.message(), ContainerEq(case_w_sqlstate));
 }
 
 TEST_F(MySQLProtocolTest, ParsePayloadErrors) {
@@ -161,4 +154,9 @@ TEST_F(MySQLProtocolTest, ParsePayloadErrors) {
                   HasSubstr("Error packet does not contain SQL state"));
     }
   }
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

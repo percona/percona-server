@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <array>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 #ifdef _WIN32
-#include <direct.h>  // getcwd
 #include <winsock2.h>
-#else
-#include <limits.h>  // PATH_MAX
-#include <unistd.h>  // getcwd
 #endif
 
 #include "dim.h"
@@ -39,13 +37,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
-
-#ifndef PATH_MAX
-#ifdef _MAX_PATH
-// windows has _MAX_PATH instead
-#define PATH_MAX _MAX_PATH
-#endif
-#endif
+#include "mysql/harness/stdx/filesystem.h"
 
 constexpr unsigned kHelpScreenWidth = 72;
 constexpr unsigned kHelpScreenIndent = 8;
@@ -53,6 +45,7 @@ constexpr unsigned kHelpScreenIndent = 8;
 struct MysqlServerMockConfig {
   std::string queries_filename;
   std::string module_prefix;
+  std::string bind_address{"0.0.0.0"};
   unsigned port{3306};
   unsigned http_port{0};
   unsigned xport{0};
@@ -132,13 +125,14 @@ class MysqlServerMockFrontend {
     registry.set_ready();
 
     if (config_.module_prefix.empty()) {
-      char cwd[PATH_MAX];
+      std::error_code ec;
 
-      if (nullptr == getcwd(cwd, sizeof(cwd))) {
-        throw std::system_error(errno, std::generic_category());
+      auto cwd = stdx::filesystem::current_path(ec);
+      if (ec) {
+        throw std::system_error(ec);
       }
 
-      config_.module_prefix = cwd;
+      config_.module_prefix = cwd.native();
     }
 
     // log to stderr
@@ -175,6 +169,7 @@ class MysqlServerMockFrontend {
 
     auto &mock_server_config = loader_config->add("mock_server", "classic");
     mock_server_config.set("library", "mock_server");
+    mock_server_config.set("bind_address", config_.bind_address);
     mock_server_config.set("port", std::to_string(config_.port));
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
@@ -225,6 +220,15 @@ class MysqlServerMockFrontend {
                             "filename", [this](const std::string &filename) {
                               config_.queries_filename = filename;
                             });
+
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"-B", "--bind-address"}),
+        "TCP address to bind to listen on for classic protocol connections.",
+        CmdOptionValueReq::required, "string",
+        [this](const std::string &bind_address) {
+          config_.bind_address = bind_address;
+        });
+
     arg_handler_.add_option(
         CmdOption::OptionNames({"-P", "--port"}),
         "TCP port to listen on for classic protocol connections.",

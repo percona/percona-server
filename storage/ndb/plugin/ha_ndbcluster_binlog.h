@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@ struct SHOW_VAR;
 namespace dd {
 class Table;
 }
+class Ndb_sync_pending_objects_table;
+class Ndb_sync_excluded_objects_table;
 
 /*
   Initialize the binlog part of the ndbcluster plugin
@@ -39,6 +41,8 @@ void ndbcluster_binlog_init(struct handlerton *hton);
 int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
                                   const dd::Table *table_def);
+
+void ndbcluster_handle_incomplete_binlog_setup();
 
 int ndbcluster_binlog_wait_synch_drop_table(THD *thd, struct NDB_SHARE *share);
 
@@ -66,11 +70,20 @@ size_t ndbcluster_show_status_binlog(char *buf, size_t buf_size);
 int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
 
 /**
- @brief Validate the blacklist of objects
+ @brief Validate excluded objects
  @param thd  Thread handle
- @return void
 */
-void ndbcluster_binlog_validate_sync_blacklist(THD *thd);
+void ndbcluster_binlog_validate_sync_excluded_objects(THD *thd);
+
+/**
+ @brief Clear the list of objects excluded from sync
+*/
+void ndbcluster_binlog_clear_sync_excluded_objects();
+
+/**
+ @brief Clear the list of objects whose synchronization have been retried
+*/
+void ndbcluster_binlog_clear_sync_retry_objects();
 
 /**
  @brief Queue up tables which the ndb binlog thread needs to check for changes
@@ -98,8 +111,38 @@ bool ndbcluster_binlog_check_logfile_group_async(const std::string &lfg_name);
 bool ndbcluster_binlog_check_tablespace_async(
     const std::string &tablespace_name);
 
-/*
-  Called as part of SHOW STATUS or performance_schema queries. Returns
-  information about the number of NDB metadata objects synched
+/**
+ @brief Queue up schema items which the ndb binlog thread needs to check for
+        changes
+ @param schema_name  The name of the schema to check. This cannot be empty
+ @return true if the workitem was accepted, false if not
 */
-int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *);
+bool ndbcluster_binlog_check_schema_async(const std::string &schema_name);
+
+/**
+ @brief Retrieve information about objects currently excluded from sync
+ @param excluded_table  Pointer to excluded objects table object
+ @return void
+*/
+void ndbcluster_binlog_retrieve_sync_excluded_objects(
+    Ndb_sync_excluded_objects_table *excluded_table);
+
+/**
+ @brief Get the number of objects currently excluded from sync
+ @return excluded objects count
+*/
+unsigned int ndbcluster_binlog_get_sync_excluded_objects_count();
+
+/**
+ @brief Retrieve information about objects currently pending sync
+ @param pending_table  Pointer to pending objects table object
+ @return void
+*/
+void ndbcluster_binlog_retrieve_sync_pending_objects(
+    Ndb_sync_pending_objects_table *pending_table);
+
+/**
+ @brief Get the number of objects currently awaiting sync
+ @return pending objects count
+*/
+unsigned int ndbcluster_binlog_get_sync_pending_objects_count();

@@ -39,6 +39,13 @@ static bool gen_blacklist_init(UDF_INIT *initid, UDF_ARGS *args,
     DBUG_RETURN(true);
   }
 
+  if (mysql::plugins::Charset_service::set_return_value_charset(initid) ||
+      mysql::plugins::Charset_service::set_args_charset(args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for UDF");
+    DBUG_RETURN(true);
+  }
+
   initid->maybe_null = 1;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
@@ -85,9 +92,7 @@ static std::string _gen_blacklist(const char *str, const char *dictionary_name,
       g_data_masking_dict->count(s_dictname_b) == 1) {
     std::vector<std::string> *a = &(g_data_masking_dict->at(s_dictname_a));
     std::vector<std::string> *b = &(g_data_masking_dict->at(s_dictname_b));
-    std::vector<std::string>::iterator it =
-        std::find(a->begin(), a->end(), res);
-    if (it != a->end()) {
+    if (std::binary_search(a->begin(), a->end(), res)) {
       // found, we choose a value from b
       res = (*b)[mysql::plugins::random_number(0, b->size() - 1)];
     }

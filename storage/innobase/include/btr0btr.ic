@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,13 +53,17 @@ trace. */
 
 #ifndef UNIV_HOTBACKUP
 /** Gets a buffer page and declares its latching order level.
-@param[in]	page_id	page id
-@param[in]	mode	latch mode
-@param[in]	file	file name
-@param[in]	line	line where called
-@param[in]	index	index tree, may be NULL if it is not an insert buffer
-tree
-@param[in,out]	mtr	mini-transaction
+@param[in]	page_id	Page id
+@param[in]	mode	Latch mode
+@param[in]	file	File name
+@param[in]	line	Line where called */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	index	Index tree, may be NULL if it is not an insert buffer
+tree */
+#endif /* UNIV_DEBUG */
+/**
+@param[in,out]	mtr	Mini-transaction
 @return block */
 UNIV_INLINE
 buf_block_t *btr_block_get_func(const page_id_t &page_id,
@@ -67,21 +71,14 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                 const char *file, ulint line,
                                 const dict_index_t *index, mtr_t *mtr) {
   buf_block_t *block;
-  dberr_t err = DB_SUCCESS;
 
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,
-                           Page_fetch::NORMAL, file, line, mtr, false, &err);
+                           Page_fetch::NORMAL, file, line, mtr);
 
-  if (err == DB_IO_DECRYPT_FAIL) {
-    if (index && index->table) {
-      index->table->set_file_unreadable();
-    }
-  } else {
-    SRV_CORRUPT_TABLE_CHECK(block, ; /* do nothing */);
-  }
+  SRV_CORRUPT_TABLE_CHECK(block, ; /* do nothing */);
 
   if (block && mode != RW_NO_LATCH) {
-    buf_block_dbg_add_level(block, index != NULL && dict_index_is_ibuf(index)
+    buf_block_dbg_add_level(block, index != nullptr && dict_index_is_ibuf(index)
                                        ? SYNC_IBUF_TREE_NODE
                                        : SYNC_TREE_NODE);
   }
@@ -141,8 +138,8 @@ void btr_page_set_level(
     ulint level,              /*!< in: level, leaf level == 0 */
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
-  ut_ad(page != NULL);
-  ut_ad(mtr != NULL);
+  ut_ad(page != nullptr);
+  ut_ad(mtr != nullptr);
   ut_ad(level <= BTR_MAX_NODE_LEVEL);
 
   if (page_zip) {
@@ -161,8 +158,8 @@ page_no_t btr_page_get_next(const page_t *page, /*!< in: index page */
                             mtr_t *mtr MY_ATTRIBUTE((unused)))
 /*!< in: mini-transaction handle */
 {
-  ut_ad(page != NULL);
-  ut_ad(mtr != NULL);
+  ut_ad(page != nullptr);
+  ut_ad(mtr != nullptr);
 
   return (mach_read_from_4(page + FIL_PAGE_NEXT));
 }
@@ -176,8 +173,8 @@ void btr_page_set_next(
     page_no_t next,           /*!< in: next page number */
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
-  ut_ad(page != NULL);
-  ut_ad(mtr != NULL);
+  ut_ad(page != nullptr);
+  ut_ad(mtr != nullptr);
 
   if (page_zip) {
     mach_write_to_4(page + FIL_PAGE_NEXT, next);
@@ -194,8 +191,8 @@ page_no_t btr_page_get_prev(
     const page_t *page,                /*!< in: index page */
     mtr_t *mtr MY_ATTRIBUTE((unused))) /*!< in: mini-transaction handle */
 {
-  ut_ad(page != NULL);
-  ut_ad(mtr != NULL);
+  ut_ad(page != nullptr);
+  ut_ad(mtr != nullptr);
 
   return (mach_read_from_4(page + FIL_PAGE_PREV));
 }
@@ -209,8 +206,8 @@ void btr_page_set_prev(
     page_no_t prev,           /*!< in: previous page number */
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
-  ut_ad(page != NULL);
-  ut_ad(mtr != NULL);
+  ut_ad(page != nullptr);
+  ut_ad(mtr != nullptr);
 
   if (page_zip) {
     mach_write_to_4(page + FIL_PAGE_PREV, prev);

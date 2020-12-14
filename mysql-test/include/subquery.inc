@@ -3297,6 +3297,7 @@ create table t3 (a int);
 insert into t3 values (NULL), (NULL);
 flush status;
 select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 select ' ^ This must show 11' Z;
 
@@ -3329,6 +3330,7 @@ select oref, a, a in (select a from t1 where oref=t2.oref) z from t2;
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
 # This will only show access to t2:
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read_rnd_next';
 
 # Check that repeated NULL-scans are not cached (subq. is not correlated):
@@ -3337,6 +3339,7 @@ insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 
 flush status;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
 
@@ -4461,31 +4464,31 @@ INSERT INTO t1 VALUES (1),(2);
 
 CREATE TABLE t2( a INT, b INT );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * 
 FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * 
 FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * 
 FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ( 
   SELECT 1 a 
   UNION 
   SELECT a INTO @var FROM t1 WHERE a = 2 
 ) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ( 
   SELECT 1 a 
   UNION 
   SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ( 
   SELECT 1 a 
   UNION 
@@ -4512,25 +4515,25 @@ SELECT * FROM (
 SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
 SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
 
 SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
@@ -4580,41 +4583,41 @@ SELECT * FROM t1 WHERE a = ALL ( SELECT 1 );
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 );
 SELECT * FROM t1 WHERE a = ANY ( SELECT 3 UNION SELECT 1 );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO @a);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
 
 SELECT * FROM t1 WHERE a = ( SELECT 1 );
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO @a);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO DUMPFILE 'file' );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO @a);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 INTO @v );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 INTO DUMPFILE 'file' );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 UNION SELECT 1 INTO @v );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
 
 # Make sure context is popped when we leave the nested select
@@ -4626,31 +4629,31 @@ SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
 
 # Make sure the parser does not allow nested UNIONs anywhere
 
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 --error ER_PARSE_ERROR
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 
---error ER_PARSE_ERROR
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 --error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_NOT_SUPPORTED_YET
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 
 SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
@@ -4663,17 +4666,17 @@ SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 UNION SELECT 1 INTO @v );
 SELECT EXISTS(SELECT 1+1);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT EXISTS(SELECT 1+1 INTO @test);
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a IN ( SELECT 1 UNION SELECT 1 INTO @v );
 
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 INTO @v );
---error ER_PARSE_ERROR
+--error ER_MISPLACED_INTO
 SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
 
 DROP TABLE t1, t2;
@@ -4812,6 +4815,7 @@ WHERE (i1, i2)
 --echo # Check that the subquery only has to be evaluated once 
 --echo # for all-NULL values even though there are two (NULL,NULL) records
 --echo # Baseline:
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 --echo 
@@ -4827,6 +4831,7 @@ WHERE (i1, i2)
 --echo 
 --echo # Handler_read_rnd_next should be one more than baseline 
 --echo # (read record from t1, but do not read from t2)
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 
@@ -5009,6 +5014,7 @@ WHERE (i1, i2)
 --echo # Check that the subquery only has to be evaluated once 
 --echo # for all-NULL values even though there are two (NULL,NULL) records
 --echo # Baseline:
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 --echo 
@@ -5024,6 +5030,7 @@ WHERE (i1, i2)
 --echo 
 --echo # Handler_read_rnd_next should be one more than baseline 
 --echo # (read record from t1, but do not read from t2)
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 DROP TABLE t1,t2;
 
@@ -5564,6 +5571,7 @@ SELECT DISTINCT f1_key
 FROM t2 
 WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -5894,6 +5902,7 @@ let $query=select * from t1 where a in (select a from t2 where b=3);
 eval explain $query;
 flush status;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "handler_read%";
 drop table t1,t2;
 

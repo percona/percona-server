@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class Ndb_schema_objects {
       return nullptr;
     }
 
-    for (const auto entry : m_hash) {
+    for (const auto &entry : m_hash) {
       NDB_SCHEMA_OBJECT *schema_object = entry.second;
       if (schema_object->schema_op_id() == schema_op_id) return schema_object;
     }
@@ -90,14 +90,6 @@ void NDB_SCHEMA_OBJECT::init(uint32 nodeid) {
   // Make sure that no active schema clients exist when function is called
   DBUG_ASSERT(active_schema_clients.m_hash.size() == 0);
   active_schema_clients.m_own_nodeid = nodeid;
-}
-
-void NDB_SCHEMA_OBJECT::get_schema_op_ids(std::vector<uint32> &ids) {
-  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
-  for (const auto entry : active_schema_clients.m_hash) {
-    NDB_SCHEMA_OBJECT *schema_object = entry.second;
-    ids.push_back(schema_object->schema_op_id());
-  }
 }
 
 static uint32 next_schema_op_id() {
@@ -367,8 +359,12 @@ void NDB_SCHEMA_OBJECT::fail_participants_not_in_list(
       continue;
     }
 
-    // Participant is not in list, mark it as failed
+    // Participant is not in list.
     State::Participant &participant = it.second;
+    // Mark it as failed if it has not completed already
+    if (participant.m_completed) {
+      continue;
+    }
     participant.m_completed = true;
     participant.m_result = result;
     participant.m_message = message;
@@ -379,6 +375,8 @@ bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
     const std::unordered_set<uint32> &new_subscribers, uint32 result,
     const char *message) const {
   std::unique_lock<std::mutex> lock_state(state.m_lock);
+  // Can be called only after the coordinator has registered participants
+  DBUG_ASSERT(state.m_participants.size() > 0);
 
   // Fail participants not in list of nodes
   fail_participants_not_in_list(new_subscribers, result, message);
@@ -446,7 +444,7 @@ void NDB_SCHEMA_OBJECT::fail_schema_op(uint32 result,
 void NDB_SCHEMA_OBJECT::fail_all_schema_ops(uint32 result,
                                             const char *message) {
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
-  for (const auto entry : active_schema_clients.m_hash) {
+  for (const auto &entry : active_schema_clients.m_hash) {
     const NDB_SCHEMA_OBJECT *schema_object = entry.second;
     schema_object->fail_schema_op(result, message);
   }

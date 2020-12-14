@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -324,6 +324,9 @@ int Trans_delegate::before_commit(THD *thd, bool all,
       thd->variables.group_replication_consistency;
   param.original_server_version = &(thd->variables.original_server_version);
   param.immediate_server_version = &(thd->variables.immediate_server_version);
+  param.is_create_table_as_select =
+      (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+       !thd->lex->select_lex->field_list_is_empty());
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -382,7 +385,7 @@ void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
   // Gather table information
   std::vector<Trans_table_info> table_info_holder;
   for (; open_tables != nullptr; open_tables = open_tables->next) {
-    Trans_table_info table_info = {0, 0, 0, 0};
+    Trans_table_info table_info = {nullptr, 0, 0, false};
 
     if (open_tables->no_replicate) {
       continue;
@@ -740,12 +743,12 @@ int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags) {
 
 int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
                                              String *packet) {
-/* NOTE2ME: Maximum extra header size for each observer, I hope 32
-   bytes should be enough for each Observer to reserve their extra
-   header. If later found this is not enough, we can increase this
-   /HEZX
-*/
-#define RESERVE_HEADER_SIZE 32
+  /*
+    NOTE2ME: Maximum extra header size for each observer, I hope 32
+    bytes should be enough for each Observer to reserve their
+    extra header. If later found this is not enough, we can increase this /HEZX
+   */
+  constexpr int RESERVE_HEADER_SIZE = 32;
   unsigned char header[RESERVE_HEADER_SIZE];
   ulong hlen;
   Binlog_transmit_param param;
@@ -1058,9 +1061,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     // if select is an udf function
     SELECT_LEX *select_lex_elem = lex->unit->first_select();
     while (select_lex_elem != nullptr) {
-      Item *item;
-      List_iterator_fast<Item> it(select_lex_elem->fields_list);
-      while ((item = it++)) {
+      for (Item *item : select_lex_elem->visible_fields()) {
         if (item->type() == Item::FUNC_ITEM) {
           Item_func *func_item = down_cast<Item_func *>(item);
           Item_func::Functype functype = func_item->functype();
@@ -1071,12 +1072,12 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
       select_lex_elem = select_lex_elem->next_select();
     }
 
-    if (!is_udf && all_tables == 0x00) {
+    if (!is_udf && all_tables == nullptr) {
       // SELECT that don't use tables and isn't a UDF
       hold_command = false;
     }
 
-    if (hold_command && all_tables != 0x00) {
+    if (hold_command && all_tables != nullptr) {
       // SELECT that use tables
       bool is_perf_schema_table = false;
       bool is_process_list = false;

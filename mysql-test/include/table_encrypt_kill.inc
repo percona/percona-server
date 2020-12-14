@@ -58,16 +58,16 @@ SELECT @@innodb_file_per_table;
 # Create a table with encryption
 CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON , 
+                       c4 JSON,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL SRID 0,
-                       spatial INDEX idx2 (c7)    
+                       spatial INDEX idx2 (c7)
                        ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON ,
+                       c4 JSON,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL SRID 0,
@@ -80,7 +80,7 @@ CREATE PROCEDURE tde_db.populate_t_encrypt()
 begin
         declare i int default 1;
         declare has_error int default 0;
-        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;   
+        DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
         while (i <= 5000) DO
                 insert into tde_db.t_encrypt(c2,c3,c4,c7) VALUES(i,CONCAT(REPEAT('a',200),LPAD(CAST(i AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
                 set i = i + 1;
@@ -103,8 +103,8 @@ begin
         declare has_error int default 0;
         DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
         while (i <= 5000) DO
-                SET @sql_text =  CONCAT (' UPDATE tde_db.t_encrypt SET c3 =' ,  'CONCAT(REPEAT(a,200),LPAD(CAST(',i, 'AS CHAR),4,0) ORDER BY RAND() LIMIT 1');             
-                PREPARE stmt FROM @sql_text;  
+                SET @sql_text =  CONCAT (' UPDATE tde_db.t_encrypt SET c3 =',  'CONCAT(REPEAT(a,200),LPAD(CAST(',i, 'AS CHAR),4,0) ORDER BY RAND() LIMIT 1');
+                PREPARE stmt FROM @sql_text;
                 EXECUTE stmt;
                 DEALLOCATE PREPARE stmt;
                 set i = i + 1;
@@ -118,8 +118,8 @@ begin
         declare has_error int default 0;
         DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
         while (i <= 5000) DO
-                SET @sql_text =  CONCAT (' DELETE FROM tde_db.t_encrypt LIMIT 1');             
-                PREPARE stmt FROM @sql_text;  
+                SET @sql_text =  CONCAT (' DELETE FROM tde_db.t_encrypt LIMIT 1');
+                PREPARE stmt FROM @sql_text;
                 EXECUTE stmt;
                 DEALLOCATE PREPARE stmt;
                 set i = i + 1;
@@ -140,7 +140,7 @@ begin
         declare i int default 1;
         declare has_error int default 0;
         while (i <= 5000) DO
-                ALTER INSTANCE ROTATE INNODB MASTER KEY; 
+                ALTER INSTANCE ROTATE INNODB MASTER KEY;
                 set i = i + 1;
         end while;
 end|
@@ -148,11 +148,11 @@ CREATE PROCEDURE tde_db.create_t_encrypt(encrypt VARCHAR(5), tcnt INT)
 begin
         declare i int default 1;
         declare has_error int default 0;
-        DECLARE CONTINUE HANDLER FOR 1050 SET has_error = 1;   
-        SET i = tcnt ;   
+        DECLARE CONTINUE HANDLER FOR 1050 SET has_error = 1;
+        SET i = tcnt ;
         while (i <= 5000) DO
-                SET @sql_text = CONCAT('CREATE TABLE ',CONCAT('tde_db.t_encrypt_',encrypt,'_',i),' (c1 INT) ENCRYPTION="',encrypt,'"' ,' ENGINE=InnoDB');
-                PREPARE stmt FROM @sql_text;  
+                SET @sql_text = CONCAT('CREATE TABLE ',CONCAT('tde_db.t_encrypt_',encrypt,'_',i),' (c1 INT) ENCRYPTION="',encrypt,'"',' ENGINE=InnoDB');
+                PREPARE stmt FROM @sql_text;
                 EXECUTE stmt;
                 DEALLOCATE PREPARE stmt;
                 set i = i + 1;
@@ -177,7 +177,7 @@ send call tde_db.populate_t_non_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = $KEYRING_RESTART_PARAM;
+--let $restart_parameters = $KEYRING_RESTART_PARAM
 --sleep 3
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
@@ -206,7 +206,7 @@ DROP TABLE tde_db.t_encrypt;
 DROP TABLE tde_db.t_non_encrypt;
 CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON ,
+                       c4 JSON,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL SRID 0,
@@ -215,7 +215,7 @@ CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON ,
+                       c4 JSON,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL SRID 0,
@@ -235,7 +235,7 @@ send call tde_db.delete_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = $KEYRING_RESTART_PARAM;
+--let $restart_parameters = $KEYRING_RESTART_PARAM
 --sleep 3
 
 --let $_server_id= `SELECT @@server_id`
@@ -265,7 +265,7 @@ DROP TABLE tde_db.t_encrypt;
 DROP TABLE tde_db.t_non_encrypt;
 CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON ,
+                       c4 JSON,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL SRID 0,
@@ -274,7 +274,7 @@ CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 
 CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON ,
+                       c4 JSON,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL SRID 0,
@@ -291,8 +291,8 @@ send call tde_db.read_t_encrypt();
 
 --connection default
 --echo # kill and restart the server
-let $restart_parameters = $KEYRING_RESTART_PARAM;
-let $restart_hide_args=1;
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --sleep 1
 --source include/kill_and_restart_mysqld.inc
 
@@ -322,7 +322,7 @@ SELECT 1;
 
 #--connection default
 #--echo # kill and restart the server
-#let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT ;
+#let $restart_parameters = restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT ;
 #--sleep 3
 #--source include/kill_and_restart_mysqld.inc
 #--disconnect con1
@@ -341,6 +341,6 @@ DROP DATABASE tde_db;
 
 # Cleanup
 --echo # restart server without keyring
-let $restart_parameters = restart: ;
+--let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

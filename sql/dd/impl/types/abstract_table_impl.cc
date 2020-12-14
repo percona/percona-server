@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,9 +87,8 @@ static const std::set<String_type> default_valid_option_keys = {
     "tablespace",
     "timestamp",
     "view_valid",
-    "encryption_key_id",     // Added by Percona InnoDB rotated key encryption
-    "explicit_encryption"};  // Added by Percona InnoDB rotated key
-                             // encryption
+    "encryption_key_id",     // Added by Percona InnoDB KEYRING encryption
+    "explicit_encryption"};  // Added by Percona InnoDB KEYRING encryption
 
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.
@@ -195,9 +194,9 @@ bool Abstract_table::update_id_key(Id_key *key, Object_id id) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(Tables::FIELD_VIEW_DEFINITION == 24,
-              "Tables definition has changed, review (de)ser member function"
-              "s (also in derived classes");
+static_assert(Tables::NUMBER_OF_FIELDS == 37,
+              "Tables definition has changed, check if serialize() and "
+              "deserialize() needs to be updated!");
 
 void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   Entity_object_impl::serialize(wctx, w);
@@ -279,7 +278,7 @@ Column *Abstract_table_impl::get_column(Object_id column_id) {
     if (c->id() == column_id) return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -289,7 +288,7 @@ const Column *Abstract_table_impl::get_column(Object_id column_id) const {
     if (c->id() == column_id) return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -302,7 +301,7 @@ Column *Abstract_table_impl::get_column(const String_type &name) {
       return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -315,7 +314,7 @@ const Column *Abstract_table_impl::get_column(const String_type &name) const {
       return c;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////

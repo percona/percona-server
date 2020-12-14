@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,11 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${NDB_SOURCE_DIR}/src/mgmapi)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 
 ADD_CONVENIENCE_LIBRARY(ndbapi
-  ${NDB_SOURCE_DIR}/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
-  ${NDB_SOURCE_DIR}/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
   AssembleFragments.cpp
   ClusterMgr.cpp
   DictCache.cpp
@@ -40,7 +40,6 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
   NdbEventOperationImpl.cpp
   NdbIndexOperation.cpp
   NdbIndexStat.cpp
-  NdbIndexStatFrmData.cpp
   NdbIndexStatImpl.cpp
   NdbInfo.cpp
   NdbInfoScanNodes.cpp

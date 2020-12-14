@@ -931,8 +931,7 @@
   Test cases which use <b>not_parallel.inc</b> are run at the end with
   a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
   option value. Such test cases will be executed at the end of the test
-  run one at a time. These tests also require
-  <b>`--non-parallel-test`</b> option to be ON.
+  run one at a time.
 */
 
 ###############################################################################
@@ -1426,7 +1425,7 @@
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  Warning 1366  Incorrect integer value: 'hej' for column 'a' at row 1
   DROP TABLE t1;
   @endverbatim
 
@@ -2905,11 +2904,10 @@
       supports fractions of a second. For example, <b>sleep 0.2</b>;
       sleeps 0.2 seconds.
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands
-      more than necessary. The more of them there are, the slower the
-      test suite becomes. In some cases, heavy reliance on sleep
-      operations is an indicator that the logic of a test should be
-      reconsidered.
+      Try not to use the <b>sleep</b> command more than necessary.
+      The more of them there are, the slower the test suite becomes.
+      In some cases, heavy reliance on sleep operations is an indicator
+      that the logic of a test should be reconsidered.
     </li>
 
     <li>
@@ -3375,17 +3373,6 @@
       <tt>`--skip-safemalloc`</tt>
 
       Do not use memory allocation checking.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>num</b>, -T <b>num</b></tt>
-
-      Cause all <b>sleep</b> commands in the test case file to sleep
-      <b><em>num</em></b> seconds. This option does not affect
-      <b>real_sleep</b> commands.
-
-      An option value of 0 can also be used, which effectively
-      disables <b>sleep</b> commands in the test case.
     </li>
 
     <li>
@@ -4856,15 +4843,6 @@
     </li>
 
     <li>
-      <tt>`--non-parallel-test`</tt>
-
-      Allow tests marked as "non-parallel" to run. Tests can be thus
-      marked by including the line
-      <b>`--source` include/not_parallel.inc</b>, and they will only
-      be run if this option is enabled.
-    </li>
-
-    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -4943,13 +4921,6 @@
       <b>`--skip-*`</b> options not otherwise recognized by @ref
       PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" are passed to the
       master server.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>N</b></tt>
-
-      Pass <b>`--sleep`=<em>N</em></b> to @ref PAGE_MYSQLTEST
-      "mysqltest".
     </li>
 
     <li>
@@ -5837,6 +5808,22 @@
       @endverbatim
     </li>
 
+     <li>
+       <tt>assert (<b>expr</b>)</tt>
+
+       Assert that <b>expr</b> is true; otherwise terminate the test program
+       with an error message indicating that <b>expr</b> failed.
+       <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
+       as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
+
+       @verbatim
+         assert(1);
+         assert($x);
+         assert(!$x);
+         assert(`select count(*) from t1`);
+      @endverbatim
+    </li>
+
     <li>
       <tt>cat_file <b>file_name</b></tt>
 
@@ -5966,6 +5953,10 @@
             </li>
 
             <li>
+              <tt>SSL</tt>:Use SSL network protocol to have encrypted connection.
+            </li>
+
+            <li>
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
 
@@ -5998,13 +5989,6 @@
           to be applied when zstd compression algorithm is used. It is passed to
           the <b>mysql_options()</b> C API function using the
           <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
-        </li>
-
-        <li>
-          <b><em>compression algorithm</em></b> is the name of compression
-          algorithm to be used to comrpess data transferred between client
-          server. It is passed to the <b>mysql_options()</b> C API function
-          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
 
         <li>
@@ -6231,6 +6215,23 @@
       @verbatim
   --disable_abort_on_error
   --enable_abort_on_error
+      @endverbatim
+    </li>
+
+    <li>
+      <tt>disable_async_client</tt>, <tt>enable_async_client</tt>
+
+      Disable or enable asynchronous communication between the client and
+      the server. With this setting enabled, @ref PAGE_MYSQLTEST "mysqltest"
+      uses non-blocking C API's to communicate with the server.<br> Please
+      note that <b>disable_async_client</b> disables asynchronous
+      communication if it had been enabled either by the
+      <b>--enable_async_client</b> command or the <b>--async-client</b>
+      command line option.
+
+      @verbatim
+  --disable_async_client
+  --enable_async_client
       @endverbatim
     </li>
 
@@ -7127,24 +7128,6 @@
     </li>
 
     <li>
-      <tt>real_sleep <b>num</b></tt>
-
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. Unlike the <b>sleep</b> command,
-      <b>real_sleep</b> is not affected by the
-      <b>`--sleep command-line`</b> option.
-
-      @verbatim
-  --real_sleep 10
-  real_sleep 5;
-     @endverbatim
-
-     Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-     than necessary. The more of them there are, the slower the test
-     suite becomes.
-    </li>
-
-    <li>
       <tt>reap</tt>
 
       Receive the result of the statement sent with the <b>send</b>
@@ -7483,21 +7466,17 @@
     <li>
       <tt>sleep <b>num</b></tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. If the <b>`--sleep`</b> command-line option
-      was given, the option value overrides the value given in the
-      <b>sleep</b> command. For example, if @ref PAGE_MYSQLTEST
-      "mysqltest" is started with <b>`--sleep`=10</b>, the command
-      <b>sleep 15</b> sleeps 10 seconds, not 15.
+      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> need not be
+      a whole number and can have a fractional part as well i.e., the
+      command supports sleeping for intervals shorter than 1 second.
 
       @verbatim
   --sleep 10
   sleep 0.5;
       @endverbatim
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-      than necessary. The more of them there are, the slower the test
-      suite becomes.
+      Try not to use <b>sleep</b> command more than necessary. The
+      more of them there are, the slower the test suite becomes.
     </li>
 
     <li>

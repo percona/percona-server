@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,6 +345,8 @@ enum Log_event_type {
   */
   PARTIAL_UPDATE_ROWS_EVENT = 39,
 
+  TRANSACTION_PAYLOAD_EVENT = 40,
+
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -362,6 +364,16 @@ enum Log_event_type {
   MARIA_EVENTS_BEGIN = 160,
 
   ENUM_END_EVENT /* end marker */
+};
+
+/**
+  Struct to pass basic information about a event: type, query, is it ignorable
+*/
+struct Log_event_basic_info {
+  Log_event_type event_type{UNKNOWN_EVENT};
+  const char *query{nullptr};
+  size_t query_length{0};
+  bool ignorable_event{false};
 };
 
 /**
@@ -838,6 +850,7 @@ class Binary_log_event {
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
     XA_PREPARE_HEADER_LEN = 0,
+    TRANSACTION_PAYLOAD_HEADER_LEN = 0,
     START_5_7_ENCRYPTION_HEADER_LEN = 0
   };  // end enum_post_header_length
  protected:
@@ -944,8 +957,8 @@ class Unknown_event : public Binary_log_event {
 
   Unknown_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 }  // end namespace binary_log

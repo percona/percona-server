@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,32 +81,36 @@ static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("type")},
      {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("specific_name")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("language")},
      {STRING_WITH_LEN("enum('SQL')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("sql_data_access")},
      {STRING_WITH_LEN(
          "enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("is_deterministic")},
      {STRING_WITH_LEN("enum('YES','NO')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("security_type")},
      {STRING_WITH_LEN("enum('INVOKER','DEFINER')")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("param_list")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("param_list")}, {STRING_WITH_LEN("blob")}, {nullptr, 0}},
 
-    {{STRING_WITH_LEN("returns")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
-    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("returns")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
     {{STRING_WITH_LEN("definer")},
      {STRING_WITH_LEN("char(93)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
-    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("created")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("modified")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("sql_mode")},
      {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
@@ -121,7 +125,7 @@ static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
          "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("text")},
      {STRING_WITH_LEN("utf8")}},
@@ -134,7 +138,9 @@ static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
     {{STRING_WITH_LEN("db_collation")},
      {STRING_WITH_LEN("char(32)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
+    {{STRING_WITH_LEN("body_utf8")},
+     {STRING_WITH_LEN("longblob")},
+     {nullptr, 0}}};
 
 static const TABLE_FIELD_DEF proc_table_def = {MYSQL_PROC_FIELD_COUNT,
                                                proc_table_fields};
@@ -152,32 +158,36 @@ static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("type")},
      {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("specific_name")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("language")},
      {STRING_WITH_LEN("enum('SQL')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("sql_data_access")},
      {STRING_WITH_LEN(
          "enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("is_deterministic")},
      {STRING_WITH_LEN("enum('YES','NO')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("security_type")},
      {STRING_WITH_LEN("enum('INVOKER','DEFINER')")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("param_list")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("param_list")}, {STRING_WITH_LEN("blob")}, {nullptr, 0}},
 
-    {{STRING_WITH_LEN("returns")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
-    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("returns")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
     {{STRING_WITH_LEN("definer")},
      {STRING_WITH_LEN("char(77)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
-    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("created")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
+    {{STRING_WITH_LEN("modified")},
+     {STRING_WITH_LEN("timestamp")},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("sql_mode")},
      {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
@@ -192,7 +202,7 @@ static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
          "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("text")},
      {STRING_WITH_LEN("utf8")}},
@@ -205,7 +215,9 @@ static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
     {{STRING_WITH_LEN("db_collation")},
      {STRING_WITH_LEN("char(32)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
+    {{STRING_WITH_LEN("body_utf8")},
+     {STRING_WITH_LEN("longblob")},
+     {nullptr, 0}}};
 
 static const TABLE_FIELD_DEF proc_table_def_old = {MYSQL_PROC_FIELD_COUNT,
                                                    proc_table_fields_old};
@@ -224,7 +236,7 @@ static bool set_st_sp_chistics(THD *thd, TABLE *proc_table,
   memset(chistics, 0, sizeof(st_sp_chistics));
 
   if ((ptr = get_field(thd->mem_root,
-                       proc_table->field[MYSQL_PROC_FIELD_ACCESS])) == NULL)
+                       proc_table->field[MYSQL_PROC_FIELD_ACCESS])) == nullptr)
     return true;
 
   switch (ptr[0]) {
@@ -247,7 +259,7 @@ static bool set_st_sp_chistics(THD *thd, TABLE *proc_table,
   // Deterministic
   if ((ptr = get_field(thd->mem_root,
                        proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC])) ==
-      NULL)
+      nullptr)
     return true;
 
   chistics->detistic = (ptr[0] != 'N');
@@ -255,7 +267,7 @@ static bool set_st_sp_chistics(THD *thd, TABLE *proc_table,
   // Security type
   if ((ptr = get_field(thd->mem_root,
                        proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE])) ==
-      NULL)
+      nullptr)
     return true;
 
   chistics->suid = (ptr[0] == 'I' ? SP_IS_NOT_SUID : SP_IS_SUID);
@@ -263,7 +275,7 @@ static bool set_st_sp_chistics(THD *thd, TABLE *proc_table,
   // Fetch SP/SF comment
   proc_table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
 
-  ptr = 0;
+  ptr = nullptr;
   if ((length = str.length()))
     ptr = strmake_root(thd->mem_root, str.ptr(), length);
   chistics->comment.str = ptr;
@@ -287,15 +299,16 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
 
   // Fetch SP/SF name, datbase name, definer and type.
   if ((sp_db = get_field(thd->mem_root,
-                         proc_table->field[MYSQL_PROC_FIELD_DB])) == NULL)
+                         proc_table->field[MYSQL_PROC_FIELD_DB])) == nullptr)
     return true;
 
-  if ((sp_name1 = get_field(thd->mem_root,
-                            proc_table->field[MYSQL_PROC_FIELD_NAME])) == NULL)
+  if ((sp_name1 = get_field(
+           thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_NAME])) == nullptr)
     return true;
 
-  if ((definer = get_field(
-           thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DEFINER])) == NULL)
+  if ((definer = get_field(thd->mem_root,
+                           proc_table->field[MYSQL_PROC_FIELD_DEFINER])) ==
+      nullptr)
     return true;
 
   routine_type =
@@ -304,7 +317,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   // Fetch SP/SF parameters string
   if ((params = get_field(thd->mem_root,
                           proc_table->field[MYSQL_PROC_FIELD_PARAM_LIST])) ==
-      NULL)
+      nullptr)
     params = "";
 
   // Create return type string for SF
@@ -312,7 +325,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
     returns = "";
   else if ((returns = get_field(thd->mem_root,
                                 proc_table->field[MYSQL_PROC_FIELD_RETURNS])) ==
-           NULL)
+           nullptr)
     return true;
 
   st_sp_chistics chistics;
@@ -324,7 +337,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
 
   // Fetch SP/SF body
   if ((body = get_field(thd->mem_root,
-                        proc_table->field[MYSQL_PROC_FIELD_BODY])) == NULL)
+                        proc_table->field[MYSQL_PROC_FIELD_BODY])) == nullptr)
     return true;
 
   dd::upgrade::Routine_event_context_guard routine_ctx_guard(thd);
@@ -372,11 +385,21 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   // This function fixes sp_head to use in sp_create_routine()
-  if (db_load_routine(thd, routine_type, sp_db_str.str, sp_db_str.length,
-                      sp_name_str.str, sp_name_str.length, &sp,
-                      thd->variables.sql_mode, params, returns, body, &chistics,
-                      definer_user_name_holder, definer_host_name_holder,
-                      created, modified, creation_ctx)) {
+  enum_sp_return_code sp_ret_code = db_load_routine(
+      thd, routine_type, sp_db_str.str, sp_db_str.length, sp_name_str.str,
+      sp_name_str.length, &sp, thd->variables.sql_mode, params, returns, body,
+      &chistics, definer_user_name_holder, definer_host_name_holder, created,
+      modified, creation_ctx);
+
+  if (sp_ret_code != SP_OK) {
+    if (sp_ret_code == SP_NO_DB_ERROR) {
+      // Schema does not exist. Fail with an error indicating the presence of an
+      // orphan routine.
+      LogErr(ERROR_LEVEL, ER_UPGRADE_NONEXISTENT_SCHEMA, sp_db_str.str,
+             "routine", sp_name_str.str, "routines");
+      goto err;
+    }
+
     /*
       Parsing of routine body failed. Use empty routine body and report a
       warning if the routine does not belong to sys schema. Sys schema routines
@@ -460,7 +483,7 @@ bool migrate_routines_to_dd(THD *thd) {
 
   System_table_close_guard proc_table_guard(thd, proc_table);
 
-  if (proc_table->file->ha_index_init(0, 1)) {
+  if (proc_table->file->ha_index_init(0, true)) {
     LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
     return true;
   }

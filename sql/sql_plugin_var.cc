@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,47 @@
 #include "sql_string.h"
 #include "template_utils.h"
 #include "typelib.h"
+
+namespace {
+/**
+  Apply system default check to a variable value. This will
+  not take into account custom check method provided for a
+  variable during its definition.
+
+  @param[in]     thd   Thread context.
+  @param[in]     var   Plugin variable.
+  @param[in,out] dest  Destination memory pointer.
+  @param[in]     value New value.
+
+  @return Completion status
+  @retval 0 Success
+  @retval 1 Failure
+*/
+int do_def_check(THD *thd, SYS_VAR *var, void *dest,
+                 struct st_mysql_value *value) {
+  switch (var->flags & PLUGIN_VAR_TYPEMASK) {
+    case PLUGIN_VAR_BOOL:
+      return check_func_bool(thd, var, dest, value);
+    case PLUGIN_VAR_INT:
+      return check_func_int(thd, var, dest, value);
+    case PLUGIN_VAR_LONG:
+      return check_func_long(thd, var, dest, value);
+    case PLUGIN_VAR_LONGLONG:
+      return check_func_longlong(thd, var, dest, value);
+    case PLUGIN_VAR_STR:
+      return check_func_str(thd, var, dest, value);
+    case PLUGIN_VAR_ENUM:
+      return check_func_enum(thd, var, dest, value);
+    case PLUGIN_VAR_SET:
+      return check_func_set(thd, var, dest, value);
+    case PLUGIN_VAR_DOUBLE:
+      return check_func_double(thd, var, dest, value);
+    default:
+      DBUG_ASSERT(0);
+      return 1;
+  }
+}
+}  // namespace
 
 /**
   Set value for global variable with PLUGIN_VAR_MEMALLOC flag.
@@ -120,7 +161,7 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
                                         const char *value)
 
 {
-  LIST *old_element = NULL;
+  LIST *old_element = nullptr;
   struct System_variables *vars = &thd->variables;
   DBUG_TRACE;
 
@@ -226,7 +267,7 @@ int item_value_type(st_mysql_value *value) {
 const char *item_val_str(st_mysql_value *value, char *buffer, int *length) {
   String str(buffer, *length, system_charset_info), *res;
   if (!(res = ((st_item_value_holder *)value)->item->val_str(&str)))
-    return NULL;
+    return nullptr;
   *length = static_cast<int>(res->length());
   if (res->c_ptr_quick() == buffer) return buffer;
 
@@ -280,7 +321,7 @@ uchar *sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type) {
   DBUG_ASSERT(thd || (type == OPT_GLOBAL) || (type == OPT_PERSIST));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL) {
     /* scope of OPT_PERSIST is always GLOBAL */
-    if (type == OPT_GLOBAL || type == OPT_PERSIST) thd = NULL;
+    if (type == OPT_GLOBAL || type == OPT_PERSIST) thd = nullptr;
 
     return intern_sys_var_ptr(thd, *(int *)(plugin_var + 1), false);
   }
@@ -298,9 +339,9 @@ TYPELIB *sys_var_pluginvar::plugin_var_typelib(void) {
     case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
       return ((thdvar_set_t *)plugin_var)->typelib;
     default:
-      return NULL;
+      return nullptr;
   }
-  return NULL; /* Keep compiler happy */
+  return nullptr; /* Keep compiler happy */
 }
 
 uchar *sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd,
@@ -313,7 +354,7 @@ uchar *sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd,
     result = pointer_cast<uchar *>(const_cast<char *>(
         get_type(plugin_var_typelib(), *pointer_cast<ulong *>(result))));
   else if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
-    result = (uchar *)set_to_string(running_thd, 0, *(ulonglong *)result,
+    result = (uchar *)set_to_string(running_thd, nullptr, *(ulonglong *)result,
                                     plugin_var_typelib()->type_names);
   return result;
 }
@@ -329,6 +370,9 @@ bool sys_var_pluginvar::do_check(THD *thd, set_var *var) {
   value.is_unsigned = item_is_unsigned;
   value.item = var->value;
 
+  if (var->type == OPT_PERSIST_ONLY) {
+    return do_def_check(thd, plugin_var, &var->save_result, &value);
+  }
   return plugin_var->check(thd, plugin_var, &var->save_result, &value);
 }
 
@@ -427,48 +471,6 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
     plugin_var->update(thd, plugin_var, tgt, src);
 
   return rc;
-}
-
-bool sys_var_pluginvar::is_default(THD *thd, set_var *var) {
-  void *tgt = real_value_ptr(thd, var->type);
-
-  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL)) {
-    case PLUGIN_VAR_INT:
-      return (((sysvar_uint_t *)plugin_var)->def_val == *(uint *)tgt);
-    case PLUGIN_VAR_LONG:
-      return (((sysvar_ulong_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_LONGLONG:
-      return (((sysvar_ulonglong_t *)plugin_var)->def_val == *(ulonglong *)tgt);
-    case PLUGIN_VAR_ENUM:
-      return (((sysvar_enum_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_SET:
-      return (((sysvar_set_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_BOOL:
-      return (((sysvar_bool_t *)plugin_var)->def_val == *(bool *)tgt);
-    case PLUGIN_VAR_STR:
-      return !strcmp(pointer_cast<sysvar_str_t *>(plugin_var)->def_val,
-                     *static_cast<char **>(tgt));
-    case PLUGIN_VAR_DOUBLE:
-      return (((sysvar_double_t *)plugin_var)->def_val == *(double *)tgt);
-    case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_uint_t *)plugin_var)->def_val == *(uint *)tgt);
-    case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_ulong_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_ulonglong_t *)plugin_var)->def_val == *(ulonglong *)tgt);
-    case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_enum_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_set_t *)plugin_var)->def_val == *(ulong *)tgt);
-    case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_bool_t *)plugin_var)->def_val == *(bool *)tgt);
-    case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-      return !strcmp(pointer_cast<thdvar_str_t *>(plugin_var)->def_val,
-                     *static_cast<char **>(tgt));
-    case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_double_t *)plugin_var)->def_val == *(double *)tgt);
-  }
-  return 0;
 }
 
 longlong sys_var_pluginvar::get_min_value() {
@@ -578,7 +580,7 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR:
-        if (((sysvar_str_t *)plugin_var)->def_val != NULL)
+        if (((sysvar_str_t *)plugin_var)->def_val != nullptr)
           strcpy(def_val, ((sysvar_str_t *)plugin_var)->def_val);
         else /* no default: consider empty */
           def_val[0] = 0;
@@ -586,7 +588,7 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
       case PLUGIN_VAR_DOUBLE:
         var->save_result.double_value =
             ((sysvar_double_t *)plugin_var)->def_val;
-        my_fcvt(var->save_result.double_value, 6, def_val, NULL);
+        my_fcvt(var->save_result.double_value, 6, def_val, nullptr);
         return;
       case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
         var->save_result.ulonglong_value =
@@ -614,7 +616,7 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-        if (((thdvar_str_t *)plugin_var)->def_val != NULL)
+        if (((thdvar_str_t *)plugin_var)->def_val != nullptr)
           strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
         else /* no default: consider empty */
           def_val[0] = 0;
@@ -622,10 +624,78 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
       case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
         var->save_result.double_value =
             ((thdvar_double_t *)plugin_var)->def_val;
-        my_fcvt(var->save_result.double_value, 6, def_val, NULL);
+        my_fcvt(var->save_result.double_value, 6, def_val, nullptr);
         return;
       default:
         DBUG_ASSERT(0);
+    }
+  }
+}
+
+/**
+  Set a PERSIST_ONLY value for a variable. The resulting value should be
+  set to a string representation of the actual value.
+
+  @param[in]     thd   Thread context.
+  @param[in]     var   Plugin variable.
+  @param[in,out] dest  Destination string pointer.
+*/
+void sys_var_pluginvar::persist_only_to_string(THD *thd, set_var *var,
+                                               String *dest) {
+  if (var->value) {
+    const auto *val = static_cast<const void *>(&var->save_result);
+    switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+      case PLUGIN_VAR_BOOL: {
+        if (*static_cast<const bool *>(val)) {
+          dest->set("ON", 2, system_charset_info);
+        } else {
+          dest->set("OFF", 3, system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_INT:
+        dest->set_int(*static_cast<const int *>(val), false,
+                      system_charset_info);
+        return;
+      case PLUGIN_VAR_LONG:
+        dest->set_int(*static_cast<const long *>(val), false,
+                      system_charset_info);
+        return;
+      case PLUGIN_VAR_LONGLONG:
+        dest->set(*static_cast<const ulonglong *>(val), system_charset_info);
+        return;
+      case PLUGIN_VAR_STR: {
+        const char *str =
+            *(static_cast<const char **>(const_cast<void *>(val)));
+        if (str != nullptr) {
+          dest->copy(str, strlen(str), system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_SET: {
+        const auto *str =
+            set_to_string(thd, nullptr, *static_cast<const ulonglong *>(val),
+                          plugin_var_typelib()->type_names);
+        if (str != nullptr) {
+          dest->copy(str, strlen(str), system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_ENUM: {
+        const auto *str =
+            plugin_var_typelib()->type_names[*static_cast<const long *>(val)];
+        if (str != nullptr) {
+          dest->copy(str, strlen(str), system_charset_info);
+        }
+        return;
+      }
+      case PLUGIN_VAR_DOUBLE:
+        dest->set_real(*static_cast<const double *>(val), 6,
+                       system_charset_info);
+        return;
+      default:
+        DBUG_ASSERT(0);
+        return;
     }
   }
 }
@@ -643,7 +713,7 @@ int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value) {
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
     length = sizeof(buff);
     if (!(str = value->val_str(value, buff, &length)) ||
-        (result = find_type(&bool_typelib, str, length, 1) - 1) < 0)
+        (result = find_type(&bool_typelib, str, length, true) - 1) < 0)
       goto err;
   } else {
     if (value->val_int(value, &tmp) < 0) goto err;
@@ -748,7 +818,8 @@ int check_func_enum(THD *, SYS_VAR *var, void *save, st_mysql_value *value) {
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
     length = sizeof(buff);
     if (!(str = value->val_str(value, buff, &length))) goto err;
-    if ((result = (long)find_type(typelib, str, length, 0) - 1) < 0) goto err;
+    if ((result = (long)find_type(typelib, str, length, false) - 1) < 0)
+      goto err;
   } else {
     if (value->val_int(value, &tmp)) goto err;
     if (tmp < 0 || tmp >= static_cast<long long>(typelib->count)) goto err;
@@ -779,7 +850,7 @@ int check_func_set(THD *, SYS_VAR *var, void *save, st_mysql_value *value) {
     length = sizeof(buff);
     if (!(str = value->val_str(value, buff, &length))) goto err;
     result =
-        find_set(typelib, str, length, NULL, &error, &error_len, &not_used);
+        find_set(typelib, str, length, nullptr, &error, &error_len, &not_used);
     if (error_len) goto err;
   } else {
     if (value->val_int(value, (long long *)&result)) goto err;
@@ -839,7 +910,7 @@ st_bookmark *find_bookmark(const char *plugin, const char *name, int flags) {
   size_t namelen, length, pluginlen = 0;
   char *varname, *p;
 
-  if (!(flags & PLUGIN_VAR_THDLOCAL)) return NULL;
+  if (!(flags & PLUGIN_VAR_THDLOCAL)) return nullptr;
 
   namelen = strlen(name);
   if (plugin) pluginlen = strlen(plugin) + 1;

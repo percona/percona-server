@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,9 @@
 #include "scripts/sql_commands_system_tables_data_fix.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/dd_tablespace.h"            // dd::fill_table_and_parts...
-#include "sql/dd/dd_trigger.h"               // dd::create_trigger
+#include "sql/dd/dd_table.h"  // dd::warn_on_deprecated_prefix_key_partition
+#include "sql/dd/dd_tablespace.h"                 // dd::fill_table_and_parts...
+#include "sql/dd/dd_trigger.h"                    // dd::create_trigger
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::DD_bootstrap_ctx
 #include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::DD_properties
@@ -65,7 +66,7 @@ extern const char *fill_help_tables[];
 
 const char *upgrade_modes[] = {"NONE", "MINIMAL", "AUTO", "FORCE", NullS};
 TYPELIB upgrade_mode_typelib = {array_elements(upgrade_modes) - 1, "",
-                                upgrade_modes, NULL};
+                                upgrade_modes, nullptr};
 
 namespace dd {
 namespace upgrade {
@@ -410,7 +411,7 @@ bool fix_sys_schema(THD *thd) {
   const char **query_ptr;
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA);
   thd->user_var_events_alloc = thd->mem_root;
-  for (query_ptr = &mysql_sys_schema[0]; *query_ptr != NULL; query_ptr++)
+  for (query_ptr = &mysql_sys_schema[0]; *query_ptr != nullptr; query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
   thd->mem_root->Clear();
   return false;
@@ -419,18 +420,27 @@ bool fix_sys_schema(THD *thd) {
 bool fix_mysql_tables(THD *thd) {
   const char **query_ptr;
 
+  DBUG_EXECUTE_IF(
+      "schema_read_only",
+      if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
+          dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
+          dd::execute_query(thd, "DROP SCHEMA schema_read_only") ||
+          dd::execute_query(thd, "CREATE TABLE IF NOT EXISTS S.upgrade(i INT)"))
+          DBUG_ASSERT(false););
+
   if (ignore_error_and_execute(thd, "USE mysql")) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
     return true;
   }
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_MYSQL_TABLES);
-  for (query_ptr = &mysql_fix_privilege_tables[0]; *query_ptr != NULL;
+  for (query_ptr = &mysql_fix_privilege_tables[0]; *query_ptr != nullptr;
        query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYSTEM_TABLES);
-  for (query_ptr = &mysql_system_tables_data_fix[0]; *query_ptr != NULL;
+  for (query_ptr = &mysql_system_tables_data_fix[0]; *query_ptr != nullptr;
        query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
 
@@ -443,7 +453,7 @@ bool upgrade_help_tables(THD *thd) {
     return true;
   }
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "started");
-  for (const char **query_ptr = &fill_help_tables[0]; *query_ptr != NULL;
+  for (const char **query_ptr = &fill_help_tables[0]; *query_ptr != nullptr;
        query_ptr++)
     if (dd::execute_query(thd, *query_ptr)) {
       LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_HELP_TABLE_STATUS, "failed");
@@ -484,51 +494,6 @@ bool do_server_upgrade_checks(THD *thd) {
   Upgrade_error_counter error_count;
 
   /*
-    If we upgrade from server version 8.0.14, 8.0.15 or 8.0.16, then we
-    must reject upgrade if all of the below hold:
-    - We are running with l_c_t_n == 1.
-    - We are running on a case sensitive file system.
-    - We have partitioned tables in our system.
-    - The user does not submit 'upgrade=FORCE' on the command line.
-  */
-  if (dd::bootstrap::DD_bootstrap_ctx::instance().upgraded_server_version_is(
-          bootstrap::SERVER_VERSION_80014) ||
-      dd::bootstrap::DD_bootstrap_ctx::instance().upgraded_server_version_is(
-          bootstrap::SERVER_VERSION_80015) ||
-      dd::bootstrap::DD_bootstrap_ctx::instance().upgraded_server_version_is(
-          bootstrap::SERVER_VERSION_80016)) {
-    if (lower_case_table_names == 1 && lower_case_file_system == 0 &&
-        opt_upgrade_mode != UPGRADE_FORCE) {
-      /*
-        We could do SELECT COUNT(*), but then we would need to analyze the
-        result set. With the query below, we can determine whether there
-        are partitioned tables just by comparing the end markers of the
-        result set iterator.
-      */
-      dd::String_type query = "SELECT id FROM mysql.table_partitions";
-      LEX_STRING str;
-      lex_string_strmake(thd->mem_root, &str, query.c_str(), query.size());
-      Ed_connection con(thd);
-      if (con.execute_direct(str)) {
-        LogErr(ERROR_LEVEL, ER_DD_INITIALIZE_SQL_ERROR, query.c_str(),
-               con.get_last_errno(), con.get_last_error());
-        return dd::end_transaction(thd, true);
-      }
-      List<Ed_row> &rows = *con.get_result_sets();
-      /*
-        If rows are found, then there are partitioned tables, and we reject
-        upgrade.
-      */
-      if (rows.begin() != rows.end()) {
-        LogErr(ERROR_LEVEL, ER_UPGRADE_WITH_PARTITIONED_TABLES_REJECTED,
-               dd::bootstrap::DD_bootstrap_ctx::instance()
-                   .get_upgraded_server_version());
-        return dd::end_transaction(thd, true);
-      }
-    }
-  }
-
-  /*
     For any server upgrade, we will analyze events, routines, views and
     triggers and reject upgrade if we find invalid syntax that would not
     have been accepted in a CREATE statement.
@@ -547,6 +512,9 @@ bool do_server_upgrade_checks(THD *thd) {
 
     if (examine_each(&error_count, &tables, [&](const dd::Table *table) {
           (void)invalid_triggers(thd, schema->name().c_str(), *table);
+          // Check for usage of prefix key index in PARTITION BY KEY() function.
+          dd::warn_on_deprecated_prefix_key_partition(
+              thd, schema->name().c_str(), table->name().c_str(), table, true);
         }))
       break;
 
@@ -695,11 +663,29 @@ bool do_server_upgrade_checks(THD *thd) {
         ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
     handlerton *hton =
         (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
-    DBUG_ASSERT(hton != nullptr && hton->is_there_mk_to_keyring_rotation);
+    DBUG_ASSERT(hton != nullptr &&
+                hton->is_tablespace_keyring_pre_v3_encrypted);
 
-    if (hton->is_there_mk_to_keyring_rotation()) {
-      LogErr(ERROR_LEVEL, ER_UPGRADE_MK_TO_KEYRING_ROTATION);
+    /*
+      Get hold of all tablespaces, keep the non-implicit InnoDB spaces
+      in a map.
+    */
+    std::vector<const dd::Tablespace *> tablespaces;
+    if (thd->dd_client()->fetch_global_components(&tablespaces))
       return dd::end_transaction(thd, true);
+
+    for (const dd::Tablespace *space : tablespaces) {
+      if (my_strcasecmp(system_charset_info, space->engine().c_str(),
+                        "InnoDB") != 0)
+        continue;
+
+      int error = 0;
+      bool is_tablespace_keyring_pre_v3_encrypted =
+          hton->is_tablespace_keyring_pre_v3_encrypted(*space, error);
+      if (is_tablespace_keyring_pre_v3_encrypted) {
+        LogErr(ERROR_LEVEL, ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
+        return dd::end_transaction(thd, true);
+      }
     }
   }
 
@@ -792,7 +778,7 @@ bool invalid_sql(THD *thd, const char *dbname, const dd::String_type &sql) {
   lex_start(thd);
 
   thd->m_parser_state = &parser_state;
-  parser_state.m_lip.m_digest = NULL;
+  parser_state.m_lip.m_digest = nullptr;
 
   if (thd->sql_parser())
     error = (thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR);
@@ -884,7 +870,7 @@ bool upgrade_system_schemas(THD *thd) {
    * close everything.
    */
   close_thread_tables(thd);
-  close_cached_tables(NULL, NULL, false, LONG_TIMEOUT);
+  close_cached_tables(nullptr, nullptr, false, LONG_TIMEOUT);
 
   return dd::end_transaction(thd, err);
 }
@@ -892,6 +878,12 @@ bool upgrade_system_schemas(THD *thd) {
 bool no_server_upgrade_required() {
   return !(dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
            opt_upgrade_mode == UPGRADE_FORCE);
+}
+
+bool I_S_upgrade_required() {
+  return dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
+         dd::bootstrap::DD_bootstrap_ctx::instance().I_S_upgrade_done() ||
+         opt_upgrade_mode == UPGRADE_FORCE;
 }
 
 }  // namespace upgrade

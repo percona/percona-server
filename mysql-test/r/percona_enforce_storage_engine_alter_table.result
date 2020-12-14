@@ -68,7 +68,7 @@ After ALTER TABLE with ALGORITHM=COPY
 Checking 't1': Engine = 'InnoDB'
 engine_match
 1
-Checking 't1': Column = 'int(11)'
+Checking 't1': Column = 'int'
 column_match
 1
 ALTER TABLE t1 ENGINE=Memory;
@@ -87,7 +87,7 @@ After unsuccessful ALTER TABLE statements (NO_ENGINE_SUBSTITUTION enabled)
 Checking 't1': Engine = 'InnoDB'
 engine_match
 1
-Checking 't1': Column = 'int(11)'
+Checking 't1': Column = 'int'
 column_match
 1
 ALTER TABLE t2 ENGINE=MyISAM;
@@ -101,7 +101,7 @@ ALTER TABLE t3 MODIFY a INT, ENGINE=MyISAM;
 Checking 't3': Engine = 'MyISAM'
 engine_match
 1
-Checking 't3': Column = 'int(11)'
+Checking 't3': Column = 'int'
 column_match
 1
 SET sql_mode = '';
@@ -137,7 +137,7 @@ After ALTER TABLE with ALGORITHM=COPY
 Checking 't4': Engine = 'InnoDB'
 engine_match
 1
-Checking 't4': Column = 'int(11)'
+Checking 't4': Column = 'int'
 column_match
 1
 ALTER TABLE t5 ENGINE=MyISAM;
@@ -151,12 +151,10 @@ ALTER TABLE t6 MODIFY a INT, ENGINE=MyISAM;
 Checking 't6': Engine = 'MyISAM'
 engine_match
 1
-Checking 't6': Column = 'int(11)'
+Checking 't6': Column = 'int'
 column_match
 1
 ALTER TABLE t7 ENGINE=Memory;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't7'
 Checking 't7': Engine = 'MyISAM'
 engine_match
 1
@@ -164,17 +162,13 @@ Checking 't7': Column = 'varchar(1)'
 column_match
 1
 ALTER TABLE t8 MODIFY a INT, ENGINE=Memory;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't8'
 Checking 't8': Engine = 'MyISAM'
 engine_match
 1
-Checking 't8': Column = 'int(11)'
+Checking 't8': Column = 'int'
 column_match
 1
 ALTER TABLE t9 ENGINE=InnoDB;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't9'
 Checking 't9': Engine = 'MyISAM'
 engine_match
 1
@@ -182,12 +176,10 @@ Checking 't9': Column = 'varchar(1)'
 column_match
 1
 ALTER TABLE t10 MODIFY a INT, ENGINE=InnoDB;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't10'
 Checking 't10': Engine = 'MyISAM'
 engine_match
 1
-Checking 't10': Column = 'int(11)'
+Checking 't10': Column = 'int'
 column_match
 1
 # restart
@@ -198,7 +190,7 @@ enforce_storage_engine_is_disabled
 Checking 't1': Engine = 'InnoDB'
 engine_match
 1
-Checking 't1': Column = 'int(11)'
+Checking 't1': Column = 'int'
 column_match
 1
 Checking 't2': Engine = 'MyISAM'
@@ -210,13 +202,13 @@ column_match
 Checking 't3': Engine = 'MyISAM'
 engine_match
 1
-Checking 't3': Column = 'int(11)'
+Checking 't3': Column = 'int'
 column_match
 1
 Checking 't4': Engine = 'InnoDB'
 engine_match
 1
-Checking 't4': Column = 'int(11)'
+Checking 't4': Column = 'int'
 column_match
 1
 Checking 't5': Engine = 'MyISAM'
@@ -228,7 +220,7 @@ column_match
 Checking 't6': Engine = 'MyISAM'
 engine_match
 1
-Checking 't6': Column = 'int(11)'
+Checking 't6': Column = 'int'
 column_match
 1
 Checking 't7': Engine = 'MyISAM'
@@ -240,7 +232,7 @@ column_match
 Checking 't8': Engine = 'MyISAM'
 engine_match
 1
-Checking 't8': Column = 'int(11)'
+Checking 't8': Column = 'int'
 column_match
 1
 Checking 't9': Engine = 'MyISAM'
@@ -252,7 +244,7 @@ column_match
 Checking 't10': Engine = 'MyISAM'
 engine_match
 1
-Checking 't10': Column = 'int(11)'
+Checking 't10': Column = 'int'
 column_match
 1
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;

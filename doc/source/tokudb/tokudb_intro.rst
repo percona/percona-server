@@ -16,7 +16,7 @@ that delivers indexing-based query acceleration, improved replication
 performance, unparalleled compression, and live schema modification. The
 |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine
 that provides indexing-based query improvements, offers online schema
-modifications, and reduces slave lag for both hard disk drives and flash
+modifications, and reduces replica lag for both hard disk drives and flash
 memory. This storage engine is specifically designed for high performance on
 write-intensive workloads which is achieved with Fractal Tree indexing.
 
@@ -39,7 +39,7 @@ Additional features unique to |TokuDB| include:
 
 - Up to 25x Data Compression
 - Fast Inserts
-- Eliminates Slave Lag with :ref:`Read Free Replication <tokudb_read_free_replication>`
+- Eliminates Replica Lag with :ref:`Read Free Replication <tokudb_read_free_replication>`
 - Hot Schema Changes
 - Hot Index Creation - |TokuDB| tables support insertions, deletions and queries
   with no down time while indexes are being added to that table
@@ -48,6 +48,12 @@ Additional features unique to |TokuDB| include:
   deletes, expands, or renames columns
 - On-line Backup 
 
+.. note::
+
+   The |TokuDB| storage engine does not support the |sql.no-wait| and
+   |sql.skip-locked| modifiers introduced in the |InnoDB| storage
+   engine with |MySQL| 8.0.
+  
 For more information on installing and using |TokuDB| click on the following
 links:
 
@@ -80,15 +86,15 @@ Fast Insertions and Deletions
    indexing sweet spot (sequential data) and are up to two orders of magnitude
    faster for random data with high cardinality.
 
-Eliminates Slave Lag
-   |TokuDB| replication slaves can be configured to process
+Eliminates Replica Lag
+   |TokuDB| replication replicas can be configured to process
    the replication stream with virtually no read IO. Uniqueness checking is
-   performed on the |TokuDB| master and can be skipped on all |TokuDB|
-   slaves. Also, row based replication ensures that all before and after row
-   images are captured in the binary logs, so the |TokuDB| slaves can harness
+   performed on the |TokuDB| source and can be skipped on all |TokuDB|
+   replica. Also, row based replication ensures that all before and after row
+   images are captured in the binary logs, so the |TokuDB| replicas can harness
    the power of Fractal Tree indexes and bypass traditional read-modify-write
-   behavior. This "Read Free Replication" ensures that replication slaves do not
-   fall behind the master and can be used for read scaling, backups, and
+   behavior. This "Read Free Replication" ensures that replication replicas do not
+   fall behind the source and can be used for read scaling, backups, and
    disaster recovery, without sharding, expensive hardware, or limits on what
    can be replicated.
 
@@ -161,3 +167,4 @@ Progress Tracking
 
 Fast Recovery
    |TokuDB| supports very fast recovery, typically less than a minute.
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,11 +46,11 @@
     Execution will be retried only if the THD has not been killed. To disable
     this check, pass nullptr to thd param instead of passing a valid pointer.
 
-  @param ndb*               The Ndb object.
-  @param thd*               THD object pointer.
+  @param ndb                The Ndb object.
+  @param thd                THD object pointer.
   @param retry_sleep        The amount of time(in ms) to sleep before retrying
                             in case of a temporary error.
-  @param last_ndb_err[out]  The last NdbError in case of failure
+  @param[out] last_ndb_err  The last NdbError in case of failure
   @param ndb_func           The std::function instance of the function that
                             needs to be executed by this wrapper. The function
                             should take a NdbTransaction* parameter followed by
@@ -65,8 +65,8 @@
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_execute_and_retry(
     Ndb *ndb, const THD *thd, unsigned int retry_sleep, NdbError &last_ndb_err,
-    std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
-        ndb_func,
+    const std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
+        &ndb_func,
     FunctionArgs... args) {
   int retries = 100;
   const NdbError *ndbError;
@@ -123,8 +123,8 @@ bool ndb_execute_and_retry(
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_trans_retry(
     Ndb *ndb, const THD *thd, NdbError &last_ndb_err,
-    std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
-        ndb_func,
+    const std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
+        &ndb_func,
     FunctionArgs... args) {
   return ndb_execute_and_retry<FunctionArgTypes...>(
       ndb, thd, 30, last_ndb_err, ndb_func,

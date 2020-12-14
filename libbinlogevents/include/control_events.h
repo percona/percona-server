@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,8 @@
 #include "binlog_event.h"
 #include "template_utils.h"
 #include "uuid.h"
+
+#include "compression/base.h"
 
 namespace binary_log {
 /**
@@ -153,11 +155,11 @@ class Rotate_event : public Binary_log_event {
   Rotate_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &);
-  void print_long_info(std::ostream &);
+  void print_event_info(std::ostream &) override;
+  void print_long_info(std::ostream &) override;
 #endif
 
-  ~Rotate_event() {
+  ~Rotate_event() override {
     if (flags & DUP_NAME) bapi_free(const_cast<char *>(new_log_ident));
   }
 };
@@ -361,10 +363,10 @@ class Format_description_event : public Binary_log_event {
   */
   void calc_server_version_split();
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
-  ~Format_description_event();
+  ~Format_description_event() override;
 
   bool header_is_valid() const {
     return ((common_header_len >= LOG_EVENT_MINIMAL_HEADER_LEN) &&
@@ -411,8 +413,8 @@ class Stop_event : public Binary_log_event {
   Stop_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -499,8 +501,8 @@ class Incident_event : public Binary_log_event {
   */
   Incident_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
  protected:
   enum_incident incident;
@@ -555,8 +557,8 @@ class Xid_event : public Binary_log_event {
   Xid_event(const char *buf, const Format_description_event *fde);
   uint64_t xid;
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -646,8 +648,8 @@ class XA_prepare_event : public Binary_log_event {
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 
@@ -690,8 +692,8 @@ class Ignorable_event : public Binary_log_event {
   */
   Ignorable_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 
@@ -728,6 +730,196 @@ class Ignorable_event : public Binary_log_event {
 struct gtid_info {
   int32_t rpl_gtid_sidno;
   int64_t rpl_gtid_gno;
+};
+
+/**
+  This event is a wrapper event and encloses many other events.
+
+  It is mostly used for carrying compressed payloads as its content
+  can be compressed, in which case, its metadata shall contain
+  information about the compression metadata as well.
+ */
+class Transaction_payload_event : public Binary_log_event {
+ private:
+  Transaction_payload_event &operator=(const Transaction_payload_event &) =
+      delete;
+  Transaction_payload_event(const Transaction_payload_event &) = delete;
+
+ public:
+  /**
+    The on-the-wire fields
+   */
+  enum fields {
+    /** Marks the end of the payload header. */
+    OTW_PAYLOAD_HEADER_END_MARK = 0,
+
+    /** The payload field */
+    OTW_PAYLOAD_SIZE_FIELD = 1,
+
+    /** The compression type field */
+    OTW_PAYLOAD_COMPRESSION_TYPE_FIELD = 2,
+
+    /** The uncompressed size field */
+    OTW_PAYLOAD_UNCOMPRESSED_SIZE_FIELD = 3,
+
+    /** Other fields are appended here. */
+  };
+
+ protected:
+  /**
+    The raw bytes which are the data that this event contains.
+   */
+  const char *m_payload{nullptr};
+
+  /**
+    The size of the data.
+   */
+  uint64_t m_payload_size{0};
+
+  /**
+    If the data is compressed, which compression was used.
+
+    For now, the only compressors supported are: ZSTD or NONE.
+
+    NONE means no compression at all. ZSTD means using ZSTD compression.
+   */
+  transaction::compression::type m_compression_type{
+      transaction::compression::type::NONE};
+
+  /**
+    The size of the data uncompressed. This is the same as @c m_payload_size if
+    there is no compression involved.
+   */
+  uint64_t m_uncompressed_size{0};
+
+ public:
+  static const unsigned short COMPRESSION_TYPE_MIN_LENGTH = 1;
+  static const unsigned short COMPRESSION_TYPE_MAX_LENGTH = 9;
+  static const unsigned short PAYLOAD_SIZE_MIN_LENGTH = 0;
+  static const unsigned short PAYLOAD_SIZE_MAX_LENGTH = 9;
+  static const unsigned short UNCOMPRESSED_SIZE_MIN_LENGTH = 0;
+  static const unsigned short UNCOMPRESSED_SIZE_MAX_LENGTH = 9;
+
+  static const int MAX_DATA_LENGTH = COMPRESSION_TYPE_MAX_LENGTH +
+                                     PAYLOAD_SIZE_MAX_LENGTH +
+                                     UNCOMPRESSED_SIZE_MAX_LENGTH;
+
+  /**
+    Creates @c Transaction_payload_event with the given data which has the
+    given size.
+
+    @param payload the data that this event shall wrap.
+    @param payload_size the size of the payload.
+
+    The data shall not be compressed. However, there is no other validation
+    that this is the case.
+   */
+  Transaction_payload_event(const char *payload, uint64_t payload_size);
+
+  /**
+    Creates @c Transaction_payload_event with the given data which has the
+    given size. The data provided may or may not have been compressed. In
+    any case the compression_type must be set.
+
+    @param payload the data that this event shall wrap.
+    @param payload_size the size of the payload.
+    @param compression_type the compression type used for the data provided.
+    @param uncompressed_size the size of the data when uncompressed.
+
+    The data may or may not be compressed. There is no validation or check
+    that it is or that the payload matches the metadata provided.
+   */
+  Transaction_payload_event(const char *payload, uint64_t payload_size,
+                            uint16_t compression_type,
+                            uint64_t uncompressed_size);
+
+  /**
+    This constructor takes a raw buffer and a format descriptor event and
+    decodes the buffer. It populates this event metadata with the contents
+    of the buffer.
+
+    @param buf the buffer to decode.
+    @param fde the format description event used to decode the buffer.
+   */
+  Transaction_payload_event(const char *buf,
+                            const Format_description_event *fde);
+
+  /**
+    This destroys the transaction payload event.
+   */
+  ~Transaction_payload_event() override;
+
+  /**
+    Shall set the compression type used for the enclosed payload.
+
+    @param type the compression type.
+   */
+  void set_compression_type(transaction::compression::type type) {
+    m_compression_type = type;
+  }
+
+  /**
+    Shall return the compression type used for the enclosed payload.
+
+    @return the compression type.
+   */
+  transaction::compression::type get_compression_type() const {
+    return m_compression_type;
+  }
+
+  /**
+    Shall set the size of the payload inside this event.
+
+    @param size The payload size.
+   */
+  void set_payload_size(uint64_t size) { m_payload_size = size; }
+
+  /**
+    Shall get the size of the payload inside this event.
+
+    @return The payload size.
+   */
+  uint64_t get_payload_size() const { return m_payload_size; }
+
+  /**
+    Shall set the uncompressed size of the payload.
+
+    @param size the uncompressed size of the payload.
+   */
+  void set_uncompressed_size(uint64_t size) { m_uncompressed_size = size; }
+
+  /**
+    Shall get the uncompressed size of the event.
+
+    @return uncompressed_size.
+   */
+  uint64_t get_uncompressed_size() const { return m_uncompressed_size; }
+
+  /**
+    Shall set the payload of the event.
+
+    @param data the payload of the event.
+   */
+  void set_payload(const char *data) { m_payload = data; }
+
+  /**
+    Shall get the payload of the event.
+
+    @return the payload of the event.
+   */
+  const char *get_payload() const { return m_payload; }
+
+  /**
+    Shall return a textual representation of this event.
+
+    @return a textial representation of this event.
+   */
+  std::string to_string() const;
+
+#ifndef HAVE_MYSYS
+  virtual void print_event_info(std::ostream &) override;
+  virtual void print_long_info(std::ostream &) override;
+#endif
 };
 
 /**
@@ -881,8 +1073,8 @@ class Gtid_event : public Binary_log_event {
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
  protected:
   static const int ENCODED_FLAG_LENGTH = 1;
@@ -958,6 +1150,7 @@ class Gtid_event : public Binary_log_event {
   static const int MAX_DATA_LENGTH = FULL_COMMIT_TIMESTAMP_LENGTH +
                                      TRANSACTION_LENGTH_MAX_LENGTH +
                                      FULL_SERVER_VERSION_LENGTH;
+
   static const int MAX_EVENT_LENGTH =
       LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
   /**
@@ -1033,8 +1226,8 @@ class Previous_gtids_event : public Binary_log_event {
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
  protected:
   size_t buf_size;
@@ -1118,7 +1311,7 @@ class Transaction_context_event : public Binary_log_event {
         thread_id(thread_id_arg),
         gtid_specified(is_gtid_specified_arg) {}
 
-  virtual ~Transaction_context_event();
+  ~Transaction_context_event() override;
 
   static const char *read_data_set(const char *pos, uint32_t set_len,
                                    std::list<const char *> *set,
@@ -1127,8 +1320,8 @@ class Transaction_context_event : public Binary_log_event {
   static void clear_set(std::list<const char *> *set);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 
  protected:
@@ -1215,11 +1408,11 @@ class View_change_event : public Binary_log_event {
 
   explicit View_change_event(const char *raw_view_id);
 
-  virtual ~View_change_event();
+  ~View_change_event() override;
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 
  protected:

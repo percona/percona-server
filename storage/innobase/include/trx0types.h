@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,10 +48,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT IB_ID_FMT
-
-/** maximum length that a formatted trx_t::id could take, not including
-the terminating NUL character. */
-static const ulint TRX_ID_MAX_LEN = 17;
 
 /** Space id of the transaction system page (the system tablespace) */
 static const space_id_t TRX_SYS_SPACE = 0;
@@ -119,7 +115,7 @@ enum trx_dict_op_t {
 };
 
 /** Memory objects */
-/* @{ */
+/** @{ */
 /** Transaction */
 struct trx_t;
 /** The locks and state of an active transaction */
@@ -140,7 +136,7 @@ struct roll_node_t;
 struct commit_node_t;
 /** SAVEPOINT command node in a query graph */
 struct trx_named_savept_t;
-/* @} */
+/** @} */
 
 /** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
 typedef ib_id_t row_id_t;
@@ -160,7 +156,7 @@ struct trx_savept_t {
 };
 
 /** File objects */
-/* @{ */
+/** @{ */
 /** Transaction system header */
 typedef byte trx_sysf_t;
 /** Rollback segment array header */
@@ -175,7 +171,7 @@ typedef byte trx_ulogf_t;
 typedef byte trx_upagef_t;
 /** Undo log record */
 typedef byte trx_undo_rec_t;
-/* @} */
+/** @} */
 
 typedef ib_mutex_t RsegMutex;
 typedef ib_mutex_t TrxMutex;
@@ -185,30 +181,71 @@ typedef ib_mutex_t TrxSysMutex;
 
 /** The rollback segment memory object */
 struct trx_rseg_t {
+#ifdef UNIV_DEBUG
+  /** Validate the curr_size member by re-calculating it.
+  @param[in]  take_mutex  take the rseg->mutex. default is true.
+  @return true if valid, false otherwise. */
+  bool validate_curr_size(bool take_mutex = true);
+#endif /* UNIV_DEBUG */
+
+  /** Enter the rseg->mutex. */
+  void latch() {
+    mutex_enter(&mutex);
+    ut_ad(validate_curr_size(false));
+  }
+
+  /** Exit the rseg->mutex. */
+  void unlatch() {
+    ut_ad(validate_curr_size(false));
+    mutex_exit(&mutex);
+  }
+
+  /** Decrement the current size of the rollback segment by the given number
+  of pages.
+  @param[in]  npages  number of pages to reduce in size. */
+  void decr_curr_size(page_no_t npages = 1) {
+    ut_ad(curr_size >= npages);
+    curr_size -= npages;
+  }
+
+  /** Increment the current size of the rollback segment by the given number
+  of pages. */
+  void incr_curr_size() { ++curr_size; }
+
+  /* Get the current size of the rollback segment in pages.
+   @return current size of the rollback segment in pages. */
+  page_no_t get_curr_size() const { return (curr_size); }
+
+  /* Set the current size of the rollback segment in pages.
+  @param[in]  npages  new value for the current size. */
+  void set_curr_size(page_no_t npages) { curr_size = npages; }
+
   /*--------------------------------------------------------*/
   /** rollback segment id == the index of its slot in the trx
   system file copy */
-  ulint id;
+  size_t id{};
 
   /** mutex protecting the fields in this struct except id,space,page_no
   which are constant */
   RsegMutex mutex;
 
   /** space ID where the rollback segment header is placed */
-  space_id_t space_id;
+  space_id_t space_id{};
 
   /** page number of the rollback segment header */
-  page_no_t page_no;
+  page_no_t page_no{};
 
   /** page size of the relevant tablespace */
   page_size_t page_size;
 
   /** maximum allowed size in pages */
-  ulint max_size;
+  page_no_t max_size{};
 
+ private:
   /** current size in pages */
-  ulint curr_size;
+  page_no_t curr_size{};
 
+ public:
   /*--------------------------------------------------------*/
   /* Fields for update undo logs */
   /** List of update undo logs */
@@ -229,20 +266,31 @@ struct trx_rseg_t {
 
   /** Page number of the last not yet purged log header in the history
   list; FIL_NULL if all list purged */
-  page_no_t last_page_no;
+  page_no_t last_page_no{};
 
   /** Byte offset of the last not yet purged log header */
-  ulint last_offset;
+  size_t last_offset{};
 
   /** Transaction number of the last not yet purged log */
   trx_id_t last_trx_no;
 
-  /** TRUE if the last not yet purged log needs purging */
-  ibool last_del_marks;
+  /** true if the last not yet purged log needs purging */
+  bool last_del_marks{};
 
   /** Reference counter to track rseg allocated transactions. */
-  std::atomic<ulint> trx_ref_count;
+  std::atomic<size_t> trx_ref_count{};
+
+  std::ostream &print(std::ostream &out) const {
+    out << "[trx_rseg_t: this=" << (void *)this << ", id=" << id
+        << ", space_id=" << space_id << ", page_no=" << page_no
+        << ", curr_size=" << curr_size << "]";
+    return (out);
+  }
 };
+
+inline std::ostream &operator<<(std::ostream &out, const trx_rseg_t &rseg) {
+  return (rseg.print(out));
+}
 
 using Rsegs_Vector = std::vector<trx_rseg_t *, ut_allocator<trx_rseg_t *>>;
 using Rseg_Iterator = Rsegs_Vector::iterator;
@@ -363,10 +411,7 @@ class Rsegs {
   /** Make the undo tablespace inactive so that it will not be
   used for new transactions.  The purge thread will clear out
   all the undo logs, truncate it, and then mark it empty. */
-  void set_inactive_explicit() {
-    ut_ad(m_state == ACTIVE || m_state == INACTIVE_IMPLICIT);
-    m_state = INACTIVE_EXPLICIT;
-  }
+  void set_inactive_explicit() { m_state = INACTIVE_EXPLICIT; }
 
   /** Set the state of the undo tablespace to empty so that it
   can be dropped. */
@@ -466,7 +511,7 @@ class Rsegs {
   };
 
   /** The current state of this undo tablespace. */
-  enum undo_space_states m_state;
+  undo_space_states m_state;
 };
 
 /** Rollback segements from a given transaction with trx-no
@@ -543,7 +588,7 @@ typedef std::vector<trx_id_t, ut_allocator<trx_id_t>> trx_ids_t;
 /** Mapping read-write transactions from id to transaction instance, for
 creating read views and during trx id lookup for MVCC and locking. */
 struct TrxTrack {
-  explicit TrxTrack(trx_id_t id, trx_t *trx = NULL) : m_id(id), m_trx(trx) {
+  explicit TrxTrack(trx_id_t id, trx_t *trx = nullptr) : m_id(id), m_trx(trx) {
     // Do nothing
   }
 

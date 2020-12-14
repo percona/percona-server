@@ -122,7 +122,7 @@ ANALYZE TABLE t2;
 SELECT * FROM t2 ORDER BY a;
 --enable_result_log
 --source include/log_stop.inc
---let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4\$
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 5\$
 --let log_expected_matches= 1
 --source include/log_grep.inc
 

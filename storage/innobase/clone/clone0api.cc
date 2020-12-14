@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -249,6 +249,12 @@ static int clone_drop_binary_logs(THD *thd);
 @return error code */
 static int clone_drop_user_data(THD *thd, bool allow_threads);
 
+/** Initialize transparent page compression in innodb space by checking
+all innodb tables in DD. Usually this initialization is done later when
+user opens a table. Clone needs to read this from innodb space object.
+@param[in,out]	thd	session THD */
+static void clone_init_compression(THD *thd);
+
 /** Set security context to skip privilege check.
 @param[in,out]	thd	session THD
 @param[in,out]	sctx	security context */
@@ -290,6 +296,13 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     }
 
     return (ER_CLONE_DDL_IN_PROGRESS);
+  }
+
+  if (!mtr_t::s_logging.is_enabled()) {
+    if (thd != nullptr) {
+      my_error(ER_INNODB_REDO_DISABLED, MYF(0));
+    }
+    return (ER_INNODB_REDO_DISABLED);
   }
 
   /* Check of clone is already in progress for the reference locator. */
@@ -389,6 +402,12 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     be freed till we release it. */
     mutex_exit(clone_sys->get_mutex());
     err = clone_hdl->add_task(thd, nullptr, 0, task_id);
+
+    /* Initialize compression option for all compressed tablesapces. */
+    if (err == 0 && task_id == 0) {
+      clone_init_compression(thd);
+    }
+
     mutex_enter(clone_sys->get_mutex());
   }
 
@@ -1284,10 +1303,7 @@ void clone_update_gtid_status(std::string &gtids) {
 
 void clone_files_error() {
   /* Check if clone file directory exists. */
-  os_file_type_t type;
-  bool exists = false;
-  auto ret = os_file_status(CLONE_FILES_DIR, &exists, &type);
-  if (!ret || !exists) {
+  if (!os_file_exists(CLONE_FILES_DIR)) {
     return;
   }
 
@@ -1446,11 +1462,7 @@ void clone_files_recovery(bool finished) {
 
 dberr_t clone_init() {
   /* Check if incomplete cloned data directory */
-  os_file_type_t type;
-  bool exists = false;
-  auto status = os_file_status(CLONE_INNODB_IN_PROGRESS_FILE, &exists, &type);
-
-  if (status && exists) {
+  if (os_file_exists(CLONE_INNODB_IN_PROGRESS_FILE)) {
     return (DB_ABORT_INCOMPLETE_CLONE);
   }
 
@@ -1576,7 +1588,7 @@ class Fixup_data {
   bool fix_config_tables(THD *thd);
 
   /** Number of system configuration tables. */
-  static const size_t S_NUM_CONFIG_TABLES = 2;
+  static const size_t S_NUM_CONFIG_TABLES = 0;
 
   /** Array of configuration tables. */
   static const std::array<const char *, S_NUM_CONFIG_TABLES> s_config_tables;
@@ -1602,8 +1614,7 @@ class Fixup_data {
   size_t get_num_tasks() const { return (m_num_tasks); }
 
   /** Calculate and set number of new tasks to spawn.
-  @param[in]	num_entries	number of entries to handle
-  @param[in]	concurrent	allow multiple threads */
+  @param[in]	num_entries	number of entries to handle */
   void set_num_tasks(size_t num_entries) {
     /* Check if we are allowed to spawn multiple threads. Disable
     multithreading while dropping objects for now. We need more
@@ -1794,10 +1805,7 @@ class Fixup_data {
       undo::Tablespace undo_space(space_id);
       const char *log_file_name = undo_space.log_file_name();
 
-      os_file_type_t type;
-      bool exists = false;
-      auto ret = os_file_status(log_file_name, &exists, &type);
-      if (ret && exists) {
+      if (os_file_exists(log_file_name)) {
         clone_add_to_list_file(CLONE_INNODB_OLD_FILES, log_file_name);
       }
     }
@@ -1849,7 +1857,7 @@ class Fixup_data {
 /** All configuration tables for which data should not be cloned. From
 replication configurations only clone slave_master_info table needed by GR. */
 const std::array<const char *, Fixup_data::S_NUM_CONFIG_TABLES>
-    Fixup_data::s_config_tables = {"slave_relay_log_info", "slave_worker_info"};
+    Fixup_data::s_config_tables = {};
 
 bool Fixup_data::fix_config_tables(THD *thd) {
   /* No privilege check needed for individual tables. */
@@ -2224,6 +2232,7 @@ static int clone_drop_binary_logs(THD *thd) {
 
 static int clone_drop_user_data(THD *thd, bool allow_threads) {
   ib::warn(ER_IB_CLONE_USER_DATA, "Started");
+  Clone_handler::set_drop_data();
 
   auto dc = dd::get_dd_client(thd);
   Releaser releaser(dc);
@@ -2278,4 +2287,57 @@ static int clone_drop_user_data(THD *thd, bool allow_threads) {
   ib::info(ER_IB_CLONE_SQL) << "Clone Drop: finished successfully";
   ib::warn(ER_IB_CLONE_USER_DATA, "Finished");
   return (0);
+}
+
+static void clone_init_compression(THD *thd) {
+  /* Need to call once in server lifetime. No Concurrency involved as
+  one clone operation is supported at a time. */
+  static bool compression_initialized = false;
+  if (compression_initialized) {
+    return;
+  }
+
+  auto dc = dd::get_dd_client(thd);
+  Releaser releaser(dc);
+
+  /* We don't bother about MDL lock here as clone holds X backup lock
+  preventing all DDL. */
+  DD_Objs<dd::Table> dd_tables;
+
+  if (dc->fetch_global_components(&dd_tables)) {
+    ut_ad(false);
+    return;
+  }
+
+  for (auto dd_table : dd_tables) {
+    /* Skip non-innodb tables. */
+    auto se =
+        ha_resolve_by_name_raw(thd, lex_cstring_handle(dd_table->engine()));
+    auto se_type = ha_legacy_type(se ? plugin_data<handlerton *>(se) : nullptr);
+    plugin_unlock(thd, se);
+
+    if (se_type != DB_TYPE_INNODB) {
+      continue;
+    }
+
+    auto &options = dd_table->options();
+
+    if (!options.exists("compress")) {
+      continue;
+    }
+
+    dd::String_type compress_option;
+    options.get("compress", &compress_option);
+    auto dd_index = dd_first_index(dd_table);
+
+    if (dd_index == nullptr) {
+      /* Innodb table must have index. */
+      ut_ad(false);
+      continue;
+    }
+
+    dd_set_tablespace_compression(dc, compress_option.c_str(),
+                                  dd_index->tablespace_id());
+  }
+  compression_initialized = true;
 }

@@ -1,7 +1,7 @@
 .. _innodb_show_status:
 
 ====================================
-Extended Show Engine |InnoDB| Status
+Extended Show Engine InnoDB Status
 ====================================
 
 This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS``
@@ -95,8 +95,8 @@ output is: ::
   srv_master_thread loops: 1 srv_active, 0 srv_shutdown, 11844 srv_idle
   srv_master_thread log flush and writes: 11844
 
-|InnoDB| has a master thread which performs background tasks depending on the
-server state, once per second. If the server is under workload, the master
+|InnoDB| has a source thread which performs background tasks depending on the
+server state, once per second. If the server is under workload, the source
 thread runs the following: performs background table drops; performs change
 buffer merge, adaptively; flushes the redo log to disk; evicts tables from the
 dictionary cache if needed to satisfy its size limit; makes a checkpoint. If
@@ -126,7 +126,7 @@ for idle server states.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the number of times the |InnoDB| master thread has written
+This variable shows the number of times the |InnoDB| source thread has written
 and flushed the redo log.
 
 SEMAPHORES
@@ -390,6 +390,16 @@ the system.
    :column READ_VIEW_LOW_LIMIT_TRX_NUMBER: This is the highest transactions number at the time the view was created.
    :column READ_VIEW_UPPER_LIMIT_TRX_ID: This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
    :column READ_VIEW_LOW_LIMIT_TRX_ID: This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.
+
+.. note::
+
+    Starting with |Percona Server| 8.0.20-11, in ``INFORMATION_SCHEMA.XTRADB_READ_VIEW``, the data type for the following columns is changed from ``VARCHAR(18)`` to ``BIGINT UNSIGNED``:
+
+    * ``READ_VIEW_LOW_LIMIT_TRX_NUMBER`` 
+    * ``READ_VIEW_UPPER_LIMIT_TRX_ID`` 
+    * ``READ_VIWE_LOW_LIMIT_TRX_ID`` 
+    
+The columns contain 64-bit integers, which is too large for ``VARCHAR(18)``.
 
 The following table contains information about the memory usage for
 InnoDB/XtraDB hash tables.

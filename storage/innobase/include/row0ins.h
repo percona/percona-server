@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -80,14 +80,13 @@ void ins_node_set_new_row(
  @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
  @return error code */
 dberr_t row_ins_clust_index_entry_low(
-    ulint flags,         /*!< in: undo logging and locking flags */
+    uint32_t flags,      /*!< in: undo logging and locking flags */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                          depending on whether we wish optimistic or
                          pessimistic descent down the index tree */
     dict_index_t *index, /*!< in: clustered index */
     ulint n_uniq,        /*!< in: 0 or index->n_uniq */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     que_thr_t *thr,      /*!< in: query thread,  or NULL if
                          flags & (BTR_NO_LOCKING_FLAG
                          | BTR_NO_UNDO_LOG_FLAG) and a duplicate
@@ -118,7 +117,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
+dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
                                     dict_index_t *index,
                                     mem_heap_t *offsets_heap, mem_heap_t *heap,
                                     dtuple_t *entry, trx_id_t trx_id,
@@ -129,7 +128,8 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
 columns in row.
 @param[in]	index	index handler
 @param[out]	entry	index entry to make
-@param[in]	row	row */
+@param[in]	row	row
+@return DB_SUCCESS if the set is successful */
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row);
 
@@ -142,7 +142,6 @@ dberr_t row_ins_clust_index_entry(
     dict_index_t *index, /*!< in: clustered index */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
     que_thr_t *thr,      /*!< in: query thread */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     bool dup_chk_only)
     /*!< in: if true, just do duplicate check
     and return. don't execute actual insert. */
@@ -215,7 +214,5 @@ struct ins_node_t {
 #define INS_NODE_INSERT_ENTRIES          \
   3 /* index entries should be built and \
     inserted */
-
-#include "row0ins.ic"
 
 #endif

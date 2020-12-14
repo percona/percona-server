@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,31 +180,12 @@ bool Gcs_xcom_proxy_impl::xcom_client_send_data(unsigned long long len,
 
 void Gcs_xcom_proxy_impl::xcom_init(xcom_port xcom_listen_port) {
   /* Init XCom */
-  ::xcom_fsm(xa_init, int_arg(0)); /* Basic xcom init */
+  ::xcom_fsm(x_fsm_init, int_arg(0)); /* Basic xcom init */
 
   ::xcom_taskmain2(xcom_listen_port);
 }
 
-bool Gcs_xcom_proxy_impl::xcom_exit(bool xcom_input_open) {
-  bool successful = false;
-  if (xcom_input_open) {
-    /* Stop XCom */
-    app_data_ptr data = new_app_data();
-    data = init_terminate_command(data);
-    /* Takes ownership of data. */
-    successful = xcom_input_try_push(data);
-    if (!successful) {
-      MYSQL_GCS_LOG_DEBUG("xcom_exit: Failed to push into XCom.");
-    }
-  }
-  if (!xcom_input_open || !successful) {
-    /* The input channel was not yet open, or we failed to push, so use basic
-       XCom stop. */
-    this->set_should_exit(1);
-    successful = true;
-  }
-  return successful;
-}
+void Gcs_xcom_proxy_impl::xcom_exit() { this->set_should_exit(true); }
 
 void Gcs_xcom_proxy_impl::xcom_set_cleanup() {
   xcom_set_ready(false);
@@ -271,7 +252,7 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
       m_lock_xcom_exit(),
       m_cond_xcom_exit(),
       m_is_xcom_exit(false),
-      m_socket_util(NULL),
+      m_socket_util(nullptr),
       m_server_key_file(),
       m_server_cert_file(),
       m_client_key_file(),
@@ -285,14 +266,14 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
       m_tls_ciphersuites(),
       m_should_exit(false) {
   m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
-                         NULL);
+                         nullptr);
   m_cond_xcom_ready.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_ready);
   m_lock_xcom_comms_status.init(
-      key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status, NULL);
+      key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status, nullptr);
   m_cond_xcom_comms_status.init(
       key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_comms_status);
   m_lock_xcom_exit.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
-                        NULL);
+                        nullptr);
   m_cond_xcom_exit.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit);
 
   m_socket_util = new My_xp_socket_util_impl();
@@ -310,7 +291,7 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
       m_lock_xcom_exit(),
       m_cond_xcom_exit(),
       m_is_xcom_exit(false),
-      m_socket_util(NULL),
+      m_socket_util(nullptr),
       m_server_key_file(),
       m_server_cert_file(),
       m_client_key_file(),
@@ -324,14 +305,14 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
       m_tls_ciphersuites(),
       m_should_exit(false) {
   m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
-                         NULL);
+                         nullptr);
   m_cond_xcom_ready.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_ready);
   m_lock_xcom_comms_status.init(
-      key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status, NULL);
+      key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status, nullptr);
   m_cond_xcom_comms_status.init(
       key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_comms_status);
   m_lock_xcom_exit.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
-                        NULL);
+                        nullptr);
   m_cond_xcom_exit.init(key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit);
 
   m_socket_util = new My_xp_socket_util_impl();
@@ -737,8 +718,8 @@ bool Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,
 bool Gcs_xcom_proxy_base::serialize_nodes_information(Gcs_xcom_nodes &nodes,
                                                       node_list &nl) {
   unsigned int len = 0;
-  char **addrs = NULL;
-  blob *uuids = NULL;
+  char **addrs = nullptr;
+  blob *uuids = nullptr;
   nl = {0, nullptr};
 
   if (nodes.get_size() == 0) {

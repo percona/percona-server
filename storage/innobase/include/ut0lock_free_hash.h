@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -128,7 +128,7 @@ class ut_lock_free_cnt_t {
         mem = ut_malloc(s, mem_key_ut_lock_free_hash_t);
       }
 
-      ut_a(mem != NULL);
+      ut_a(mem != nullptr);
 
       m_cnt[i] = new (mem) std::atomic<int64_t>;
 
@@ -219,7 +219,7 @@ class ut_lock_free_list_node_t {
   /** Constructor.
   @param[in]	n_elements	number of elements to create */
   explicit ut_lock_free_list_node_t(size_t n_elements)
-      : m_n_base_elements(n_elements), m_pending_free(false), m_next(NULL) {
+      : m_n_base_elements(n_elements), m_pending_free(false), m_next(nullptr) {
     m_base = UT_NEW_ARRAY(T, m_n_base_elements, mem_key_ut_lock_free_hash_t);
 
     ut_ad(n_elements > 0);
@@ -257,7 +257,7 @@ class ut_lock_free_list_node_t {
     /* Publish the allocated entry. If somebody did this in the
     meantime then just discard the allocated entry and do
     nothing. */
-    next_t expected = NULL;
+    next_t expected = nullptr;
     if (!m_next.compare_exchange_strong(expected, new_arr,
                                         std::memory_order_relaxed)) {
       /* Somebody just did that. */
@@ -265,7 +265,7 @@ class ut_lock_free_list_node_t {
 
       /* 'expected' has the current value which
       must be != NULL because the CAS failed. */
-      ut_ad(expected != NULL);
+      ut_ad(expected != nullptr);
 
       *grown_by_this_thread = false;
 
@@ -448,7 +448,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   }
 
   /** Destructor. Not thread safe. */
-  ~ut_lock_free_hash_t() {
+  ~ut_lock_free_hash_t() override {
     mutex_destroy(&m_optimize_latch);
 
     arr_node_t *arr = m_data.load(std::memory_order_relaxed);
@@ -459,7 +459,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       UT_DELETE(arr);
 
       arr = next;
-    } while (arr != NULL);
+    } while (arr != nullptr);
 
     while (!m_hollow_objects->empty()) {
       UT_DELETE(m_hollow_objects->front());
@@ -471,7 +471,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   /** Get the value mapped to a given key.
   @param[in]	key	key to look for
   @return the value that corresponds to key or NOT_FOUND. */
-  int64_t get(uint64_t key) const {
+  int64_t get(uint64_t key) const override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -480,7 +480,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     for (;;) {
       const key_val_t *tuple = get_tuple(key, &arr);
 
-      if (tuple == NULL) {
+      if (tuple == nullptr) {
         return (NOT_FOUND);
       }
 
@@ -514,7 +514,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
       arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
 
-      ut_a(next != NULL);
+      ut_a(next != nullptr);
 
       arr->end_access();
 
@@ -533,7 +533,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   present with value either val_a or val_b.
   @param[in]	key	key whose value to set
   @param[in]	val	value to be set */
-  void set(uint64_t key, int64_t val) {
+  void set(uint64_t key, int64_t val) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
     ut_ad(val != NOT_FOUND);
@@ -561,7 +561,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   It is undefined which one of [1] or [2] will happen. It is up to the
   caller to accept this behavior or prevent it at a higher level.
   @param[in]	key	key whose pair to delete */
-  void del(uint64_t key) {
+  void del(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -570,7 +570,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
     for (;;) {
       key_val_t *tuple = get_tuple(key, &arr);
 
-      if (tuple == NULL) {
+      if (tuple == nullptr) {
         /* Nothing to delete. */
         return;
       }
@@ -608,7 +608,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
       arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
 
-      ut_a(next != NULL);
+      ut_a(next != nullptr);
 
       arr->end_access();
 
@@ -631,7 +631,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   Thread 2: set(key, val)
   when both have finished the value will be either val or val + 1.
   @param[in]	key	key whose value to increment or insert as 1 */
-  void inc(uint64_t key) {
+  void inc(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -645,7 +645,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   that the calls will execute in isolation, but the order in which they
   will execute is undeterministic.
   @param[in]	key	key whose value to decrement */
-  void dec(uint64_t key) {
+  void dec(uint64_t key) override {
     ut_ad(key != UNUSED);
     ut_ad(key != AVOID);
 
@@ -751,11 +751,11 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       if (cur_key == key) {
         return (cur_tuple);
       } else if (cur_key == UNUSED || cur_key == AVOID) {
-        return (NULL);
+        return (nullptr);
       }
     }
 
-    return (NULL);
+    return (nullptr);
   }
 
   /** Get the array cell of a key.
@@ -775,7 +775,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       key_val_t *t =
           get_tuple_from_array((*arr)->m_base, (*arr)->m_n_base_elements, key);
 
-      if (t != NULL) {
+      if (t != nullptr) {
         /* end_access() will be invoked by the
         caller. */
         return (t);
@@ -785,8 +785,8 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
       (*arr)->end_access();
 
-      if (next == NULL) {
-        return (NULL);
+      if (next == nullptr) {
+        return (nullptr);
       }
 
       *arr = next;
@@ -851,7 +851,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       /* Skip through tuples with key == AVOID. */
     }
 
-    return (NULL);
+    return (nullptr);
   }
 
   /** Copy all used elements from one array to another. Flag the ones
@@ -978,7 +978,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 
       arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
 
-      if (next == NULL) {
+      if (next == nullptr) {
         break;
       }
 
@@ -1011,7 +1011,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       /* The destructor of arr will call UT_DELETE_ARRAY()
       on m_base again. Make sure it is a noop and avoid
       double free. */
-      arr->m_base = NULL;
+      arr->m_base = nullptr;
 
       m_hollow_objects->push_back(arr);
     }
@@ -1061,14 +1061,14 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
       of the tuple is GOTO_NEXT_ARRAY, so we must go to the
       next array. */
 
-      if (t != NULL && update_tuple(t, val, is_delta)) {
+      if (t != nullptr && update_tuple(t, val, is_delta)) {
         arr->end_access();
         break;
       }
 
       arr_node_t *next = arr->m_next.load(std::memory_order_relaxed);
 
-      if (next != NULL) {
+      if (next != nullptr) {
         arr->end_access();
         arr = next;
         /* Prevent any subsequent memory operations

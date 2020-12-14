@@ -1,5 +1,5 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -20,14 +20,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT GMOCK_FOUND)
+IF(NOT GMOCK_FOUND OR NOT WITH_UNIT_TESTS)
   RETURN()
+ENDIF()
+
+IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
+  # We get ODR violations because of multiple bison parsers.
+  MY_CHECK_CXX_COMPILER_WARNING("error=odr" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
 ENDIF()
 
 # Some tests require Boost.
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
+
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 
@@ -43,6 +54,17 @@ SET(DISABLE_PSI_DEFINITIONS
 # Set these in the cache to make them available globally
 SET(DISABLE_PSI_DEFINITIONS ${DISABLE_PSI_DEFINITIONS} CACHE INTERNAL "")
 
+# Set up valgrind options to use with ctest.
+# Use `ctest (...) -D ExperimentalMemCheck` to run.
+IF(LINUX OR FREEBSD)
+  FIND_PROGRAM(MEMORYCHECK_COMMAND valgrind)
+  SET(MEMORYCHECK_COMMAND_OPTIONS
+    "--leak-check=full --errors-for-leak-kinds=definite,indirect --error-exitcode=42"
+    CACHE INTERNAL "")
+  SET(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/mysql-test/valgrind.supp"
+    CACHE INTERNAL "")
+ENDIF()
+
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 
 # main-wrapper libraries (with tap-compatible option).
@@ -52,7 +74,6 @@ ADD_LIBRARY(gunit_small STATIC
   gunit_test_main.cc
   skip_trailing.cc
   strnxfrm.cc
-  tap_event_listener.cc
   thread_utils.cc
   fake_table.cc
 )
@@ -72,7 +93,6 @@ SET_TARGET_PROPERTIES(libmysql_errmsg
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
   gunit_test_main_server.cc
-  tap_event_listener.cc
   test_utils.cc
   thread_utils.cc
 )
@@ -95,7 +115,7 @@ ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
 ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
-# Add tests (link them with gunit/gmock libraries) 
+# Add tests (link them with gunit/gmock libraries)
 SET(TESTS
   alignment
   bounds_checked_array
@@ -105,16 +125,20 @@ SET(TESTS
   calloc
   cost_estimate
   decimal
+  dphyp
   dynarray
   filesort_buffer
   filesort_compare
+  filesort_mergechunk
   float_compare
   inplace_vector
+  integer_digits
   intrusive_list_iterator
   key
   like_range
   m_string
   mdl
+  mem_root_deque
   my_bitmap
   my_error
   my_fileutils
@@ -162,6 +186,8 @@ SET(TESTS
   varlen_sort
   collation_loader
   my_rcu_lock
+  unhex
+  dns_srv_data
   )
 
 SET(ALL_SMALL_TESTS)
@@ -169,7 +195,7 @@ FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-# Add tests (link them with gunit/gmock libraries and the server libraries) 
+# Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
   character_set_deprecation
   copy_info
@@ -193,6 +219,7 @@ SET(SERVER_TESTS
   gis_is_simple
   gis_isvalid
   gis_relops
+  gis_rtree_support
   gis_srs
   gis_wkb_parser
   gis_wkb_writer
@@ -238,6 +265,7 @@ SET(SERVER_TESTS
   sql_table
   subquery_syntax
   table_cache
+  table_list
   table_factor_syntax
   tc_log_mmap
   temptable_allocator
@@ -261,19 +289,28 @@ IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(segfault-t.cc COMPILE_FLAGS ${HAS_WARN_FLAG})
 ENDIF()
 
+# Suppress warnings for gcc-10 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES integer_digits-t.cc)
+ENDIF()
+
+# Warnings about missing PGO profile data are not useful for unit tests.
+DISABLE_MISSING_PROFILE_WARNING()
+
 SET(ALL_LARGE_TESTS)
 FOREACH(test ${SERVER_TESTS})
   LIST(APPEND ALL_LARGE_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-SET(SQL_GUNIT_LIB_SOURCE 
-  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
+SET(SQL_GUNIT_LIB_SOURCE
+  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc
   ${CMAKE_SOURCE_DIR}/sql/mdl.cc
   ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
   ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
+  ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
   )
 
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
@@ -285,7 +322,8 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ENABLE_EXPORTS
   ADD_TEST merge_small_tests)
-TARGET_LINK_LIBRARIES(merge_small_tests-t sqlgunitlib gunit_small)
+TARGET_LINK_LIBRARIES(merge_small_tests-t
+  sqlgunitlib gunit_small)
 
 IF(WIN32)
   LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -299,9 +337,7 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
 
 TARGET_LINK_LIBRARIES(merge_large_tests-t
   gunit_large
-  perfschema
-  sql_main
-  ${ICU_LIBRARIES}
+  server_unittest_library
   )
 
 FOREACH(test ${TESTS})
@@ -333,11 +369,19 @@ FOREACH(test ${SERVER_TESTS})
 
   TARGET_LINK_LIBRARIES(${test}-t
     gunit_large
-    perfschema
-    sql_main
-    ${ICU_LIBRARIES}
+    server_unittest_library
     )
 ENDFOREACH()
+
+ADD_LIBRARY(rpl_channel_credentials_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/rpl_channel_credentials.cc
+)
+
+MYSQL_ADD_EXECUTABLE(rpl_channel_credentials-t rpl_channel_credentials-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_channel_credentials
+  LINK_LIBRARIES rpl_channel_credentials_lib gunit_small
+)
 
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
@@ -348,4 +392,4 @@ ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)
 ADD_SUBDIRECTORY(keyring_vault)
 ADD_SUBDIRECTORY(temptable)
-
+ADD_SUBDIRECTORY(binlogevents)

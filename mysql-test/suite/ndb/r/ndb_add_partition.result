@@ -37,7 +37,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -154,7 +154,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -196,8 +196,10 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -313,7 +315,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -352,7 +354,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -469,7 +471,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -764,7 +766,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -881,7 +883,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -914,8 +916,10 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -1031,7 +1035,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1070,7 +1074,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1187,7 +1191,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1236,7 +1240,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-2-3
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1353,7 +1357,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-2-3
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1386,8 +1390,10 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-6
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -1503,7 +1509,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-6
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1536,7 +1542,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-4-6
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1653,7 +1659,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-4-6
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1900,7 +1906,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-3-5
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2017,7 +2023,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-3-5
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2050,8 +2056,10 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-6-7
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -2167,7 +2175,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-6-7
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2200,7 +2208,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-6-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2317,7 +2325,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-6-8
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2522,7 +2530,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-3-4
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2641,7 +2649,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-3-4
 -- Attributes --
 b Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -2716,7 +2724,7 @@ PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: HASHMAP-3840-3-4
 -- Attributes --
 c Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,6 +79,7 @@ TODO:
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
@@ -138,7 +139,7 @@ static void init_functions(IO_CACHE *info) {
       break;
     case SEQ_READ_APPEND:
       info->read_function = _my_b_seq_read;
-      info->write_function = 0; /* Force a core if used */
+      info->write_function = nullptr; /* Force a core if used */
       break;
     default:
       info->read_function = info->share ? _my_b_read_r : _my_b_read;
@@ -189,10 +190,10 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   info->file_key = file_key;
   info->type = TYPE_NOT_SET; /* Don't set it until mutex are created */
   info->pos_in_file = seek_offset;
-  info->pre_close = info->pre_read = info->post_read = 0;
-  info->arg = 0;
-  info->alloced_buffer = 0;
-  info->buffer = 0;
+  info->pre_close = info->pre_read = info->post_read = nullptr;
+  info->arg = nullptr;
+  info->alloced_buffer = false;
+  info->buffer = nullptr;
   info->seek_not_done = false;
 
   if (file >= 0) {
@@ -214,7 +215,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   }
 
   info->disk_writes = 0;
-  info->share = 0;
+  info->share = nullptr;
 
   if (!cachesize && !(cachesize = my_default_record_cache_size))
     return 1; /* No cache requested */
@@ -230,7 +231,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       /* Trim cache size if the file is very small */
       if ((my_off_t)cachesize > end_of_file - seek_offset + IO_SIZE * 2 - 1) {
         cachesize = (size_t)(end_of_file - seek_offset) + IO_SIZE * 2 - 1;
-        use_async_io = 0; /* No need to use async */
+        use_async_io = false; /* No need to use async */
       }
     }
   }
@@ -252,11 +253,11 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       if (cachesize == min_cache) flags |= (myf)MY_WME;
 
       if ((info->buffer = (uchar *)my_malloc(key_memory_IO_CACHE, buffer_block,
-                                             flags)) != 0) {
+                                             flags)) != nullptr) {
         info->write_buffer = info->buffer;
         if (type == SEQ_READ_APPEND)
           info->write_buffer = info->buffer + cachesize;
-        info->alloced_buffer = 1;
+        info->alloced_buffer = true;
         break; /* Enough memory found */
       }
       if (cachesize == min_cache) return 2; /* Can't alloc cache */
@@ -369,7 +370,7 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
     if (info->type == WRITE_CACHE && type == READ_CACHE)
       info->end_of_file = my_b_tell(info);
     /* flush cache if we want to reuse it */
-    if (!clear_cache && my_b_flush_io_cache(info, 1)) return 1;
+    if (!clear_cache && my_b_flush_io_cache(info, 1)) return true;
     info->pos_in_file = seek_offset;
     /* Better to do always do a seek */
     info->seek_not_done = true;
@@ -391,7 +392,9 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
   if (info->m_decryptor != nullptr)
     info->m_decryptor->set_stream_offset(seek_offset);
 
-  return 0;
+  if (DBUG_EVALUATE_IF("fault_injection_reinit_io_cache", true, false))
+    return true;
+  return false;
 } /* reinit_io_cache */
 
 /*
@@ -640,14 +643,14 @@ void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
   cshare->total_threads = num_threads;
   cshare->error = 0; /* Initialize. */
   cshare->buffer = read_cache->buffer;
-  cshare->read_end = NULL; /* See function comment of lock_io_cache(). */
-  cshare->pos_in_file = 0; /* See function comment of lock_io_cache(). */
+  cshare->read_end = nullptr; /* See function comment of lock_io_cache(). */
+  cshare->pos_in_file = 0;    /* See function comment of lock_io_cache(). */
   cshare->source_cache = write_cache; /* Can be NULL. */
 
   read_cache->share = cshare;
   read_cache->read_function = _my_b_read_r;
-  read_cache->current_pos = NULL;
-  read_cache->current_end = NULL;
+  read_cache->current_pos = nullptr;
+  read_cache->current_end = nullptr;
 
   if (write_cache) write_cache->share = cshare;
 }
@@ -689,12 +692,12 @@ void remove_io_thread(IO_CACHE *cache) {
   DBUG_PRINT("io_cache_share", ("remaining threads: %u", total));
 
   /* Detach from share. */
-  cache->share = NULL;
+  cache->share = nullptr;
 
   /* If the writer goes, let the readers know. */
   if (cache == cshare->source_cache) {
     DBUG_PRINT("io_cache_share", ("writer leaves"));
-    cshare->source_cache = NULL;
+    cshare->source_cache = nullptr;
   }
 
   /* If all threads are waiting for me to join the lock, wake them. */
@@ -1050,7 +1053,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
     It can be bigger if _my_b_write() is called with a big length.
   */
   while (write_length) {
-    size_t copy_length = MY_MIN(write_length, write_cache->buffer_length);
+    size_t copy_length = std::min(write_length, write_cache->buffer_length);
     int MY_ATTRIBUTE((unused)) rc;
 
     rc = lock_io_cache(write_cache, write_cache->pos_in_file);
@@ -1198,7 +1201,7 @@ read_append_buffer:
       TODO: figure out if the assert below is needed or correct.
     */
     DBUG_ASSERT(pos_in_file == info->end_of_file);
-    copy_len = MY_MIN(Count, len_in_buff);
+    copy_len = std::min(Count, len_in_buff);
     memcpy(Buffer, info->append_read_pos, copy_len);
     info->append_read_pos += copy_len;
     Count -= copy_len;
@@ -1479,13 +1482,20 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
       else
         info->error = 0;
       if (!append_cache) {
-        set_if_bigger(info->end_of_file, (pos_in_file + length));
+        info->end_of_file = std::max(info->end_of_file, (pos_in_file + length));
       } else {
         info->end_of_file += (info->write_pos - info->append_read_pos);
         DBUG_ASSERT(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
       }
 
       info->append_read_pos = info->write_pos = info->write_buffer;
+      if (info->disk_sync) {
+        if (mysql_file_sync(info->file, MYF(MY_WME))) {
+          UNLOCK_APPEND_BUFFER;
+          return -1;
+        }
+        if (info->disk_sync_delay) my_sleep(info->disk_sync_delay * 1000);
+      }
       ++info->disk_writes;
       UNLOCK_APPEND_BUFFER;
       return info->error;
@@ -1526,14 +1536,14 @@ int end_io_cache(IO_CACHE *info) {
 
   if ((pre_close = info->pre_close)) {
     (*pre_close)(info);
-    info->pre_close = 0;
+    info->pre_close = nullptr;
   }
   if (info->alloced_buffer) {
-    info->alloced_buffer = 0;
+    info->alloced_buffer = false;
     if (info->file != -1) /* File doesn't exist */
       error = my_b_flush_io_cache(info, 1);
     my_free(info->buffer);
-    info->buffer = info->read_pos = (uchar *)0;
+    info->buffer = info->read_pos = (uchar *)nullptr;
   }
   if (info->m_encryptor != nullptr) delete info->m_encryptor;
   if (info->m_decryptor != nullptr) delete info->m_decryptor;
@@ -1569,7 +1579,8 @@ static int open_file(const char *fname, IO_CACHE *info, int cache_size) {
   int fd;
   if ((fd = my_open(fname, O_CREAT | O_RDWR, MYF(MY_WME))) < 0)
     die("Could not open %s", fname);
-  if (init_io_cache(info, fd, cache_size, SEQ_READ_APPEND, 0, 0, MYF(MY_WME)))
+  if (init_io_cache(info, fd, cache_size, SEQ_READ_APPEND, 0, false,
+                    MYF(MY_WME)))
     die("failed in init_io_cache()");
   return fd;
 }

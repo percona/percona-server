@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ extern PFS_engine_table_share_proxy ename_st_share;
 extern mysql_mutex_t LOCK_ename_records_array;
 
 /* A structure to denote a single row of the table. */
-struct {
+struct Ename_Record {
  public:
   PSI_int e_number;
   char f_name[20];
@@ -54,7 +54,7 @@ struct {
 
   /* If there is a value in this row */
   bool m_exist;
-} typedef Ename_Record;
+};
 
 /**
  * An array to keep rows of the tables.
@@ -100,7 +100,7 @@ class Ename_index_by_emp_num : public Ename_index {
  public:
   PSI_plugin_key_integer m_emp_num;
 
-  bool match(Ename_Record *record) {
+  bool match(Ename_Record *record) override {
     return table_svc->match_key_integer(false, record->e_number.val,
                                         &m_emp_num);
   }
@@ -112,14 +112,14 @@ class Ename_index_by_emp_fname : public Ename_index {
   PSI_plugin_key_string m_emp_fname;
   char m_emp_fname_buffer[20];
 
-  bool match(Ename_Record *record) {
+  bool match(Ename_Record *record) override {
     return table_svc->match_key_string(false, record->f_name,
                                        record->f_name_length, &m_emp_fname);
   }
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct {
+struct Ename_Table_Handle {
   /* Current position instance */
   Ename_POS m_pos;
   /* Next position instance */
@@ -134,7 +134,7 @@ typedef struct {
 
   /* Index indicator */
   unsigned int index_num;
-} Ename_Table_Handle;
+};
 
 PSI_table_handle *ename_open_table(PSI_pos **pos);
 void ename_close_table(PSI_table_handle *handle);

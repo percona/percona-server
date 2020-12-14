@@ -33,6 +33,7 @@ extern std::string uuid;
 
 namespace keyring__vault_keys_container_unittest {
 using namespace keyring;
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Invoke;
@@ -40,9 +41,9 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 using ::testing::WithArgs;
-using ::testing::_;
 
-static std::string credential_file_url = "./keyring_vault.conf";
+static std::string credential_file_url =
+    "./keyring_vault_vault_keys_container.conf";
 
 class Vault_keys_container_test : public ::testing::Test {
  public:
@@ -142,7 +143,7 @@ TEST_F(Vault_keys_container_test, StoreFetchRemove) {
                    reinterpret_cast<const char *>(key_data_fetched),
                    key_data_fetched_size),
             0);
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(sample_key_data.length() == key_data_fetched_size);
 
   vault_keys_container->remove_key(&key_id);
@@ -382,7 +383,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_key != nullptr);
 
   Vault_key key(fetched_key->get_key_id()->c_str(),
-                fetched_key->get_key_type()->c_str(),
+                fetched_key->get_key_type_as_string()->c_str(),
                 fetched_key->get_user_id()->c_str(),
                 fetched_key->get_key_data(), fetched_key->get_key_data_size());
   key.xor_data();
@@ -397,7 +398,7 @@ TEST_F(Vault_keys_container_test,
   std::string key_data_with_version = "2:" + key_data3;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   Vault_key latest_innodb_key("percona_innodb1_2_3:0", nullptr, nullptr,
@@ -407,7 +408,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_innodb_key != nullptr);
 
   Vault_key innodb_key(fetched_innodb_key->get_key_id()->c_str(),
-                       fetched_innodb_key->get_key_type()->c_str(),
+                       fetched_innodb_key->get_key_type_as_string()->c_str(),
                        fetched_innodb_key->get_user_id()->c_str(),
                        fetched_innodb_key->get_key_data(),
                        fetched_innodb_key->get_key_data_size());
@@ -423,7 +424,7 @@ TEST_F(Vault_keys_container_test,
   key_data_with_version = "1:" + ik_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   my_free(fetched_key->release_key_data());
@@ -459,7 +460,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_key != nullptr);
 
   Vault_key key(fetched_key->get_key_id()->c_str(),
-                fetched_key->get_key_type()->c_str(),
+                fetched_key->get_key_type_as_string()->c_str(),
                 fetched_key->get_user_id()->c_str(),
                 fetched_key->get_key_data(), fetched_key->get_key_data_size());
   key.xor_data();
@@ -474,7 +475,7 @@ TEST_F(Vault_keys_container_test,
   std::string key_data_with_version = "4:" + key_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string sk_data1("sk_data_1");
@@ -500,7 +501,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_key_2 != nullptr);
 
   Vault_key key_2(fetched_key_2->get_key_id()->c_str(),
-                  fetched_key_2->get_key_type()->c_str(),
+                  fetched_key_2->get_key_type_as_string()->c_str(),
                   fetched_key_2->get_user_id()->c_str(),
                   fetched_key_2->get_key_data(),
                   fetched_key_2->get_key_data_size());
@@ -515,7 +516,7 @@ TEST_F(Vault_keys_container_test,
   key_data_with_version = "5:" + key_data3;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string key_data4("system_key_data_4");
@@ -534,7 +535,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_key_3 != nullptr);
 
   Vault_key key_3(fetched_key_3->get_key_id()->c_str(),
-                  fetched_key_3->get_key_type()->c_str(),
+                  fetched_key_3->get_key_type_as_string()->c_str(),
                   fetched_key_3->get_user_id()->c_str(),
                   fetched_key_3->get_key_data(),
                   fetched_key_3->get_key_data_size());
@@ -549,7 +550,7 @@ TEST_F(Vault_keys_container_test,
   key_data_with_version = "6:" + key_data4;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string sk_data2("sk_data_2");
@@ -564,7 +565,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_sk != nullptr);
 
   Vault_key sk(fetched_sk->get_key_id()->c_str(),
-               fetched_sk->get_key_type()->c_str(),
+               fetched_sk->get_key_type_as_string()->c_str(),
                fetched_sk->get_user_id()->c_str(), fetched_sk->get_key_data(),
                fetched_sk->get_key_data_size());
   sk.xor_data();
@@ -577,7 +578,7 @@ TEST_F(Vault_keys_container_test,
   key_data_with_version = "1:" + sk_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_sk->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_sk->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   my_free(fetched_key->release_key_data());
@@ -668,7 +669,7 @@ TEST_F(Vault_keys_container_test,
   std::string key_data_with_version = "11:" + key_data2;
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
+  EXPECT_STREQ("AES", fetched_key->get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   my_free(fetched_key->release_key_data());
@@ -1212,9 +1213,9 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  keyring::ILogger *logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(curl, logger);
-  std::string mount_point_path = "cicd/" + uuid;
+  std::unique_ptr<keyring::ILogger> logger(new keyring::Mock_logger());
+  keyring::Vault_mount vault_mount(curl, logger.get());
+  std::string mount_point_path = "cicd/" + uuid + "_vault_keys_container";
 
   if (generate_credential_file(
           keyring__vault_keys_container_unittest::credential_file_url, CORRECT,
@@ -1239,7 +1240,6 @@ int main(int argc, char **argv) {
   if (vault_mount.unmount_secret_backend()) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete logger;
 
   my_testing::teardown_server_for_unit_tests();
   return ret;

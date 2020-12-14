@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ Plugin_table table_users::m_table_def(
 PFS_engine_table_share table_users::m_share = {
     &pfs_truncatable_acl,
     table_users::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_users::delete_all_rows,
     cursor_by_user::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -116,7 +116,7 @@ int table_users::delete_all_rows(void) {
 table_users::table_users() : cursor_by_user(&m_share) {}
 
 int table_users::index_init(uint, bool) {
-  PFS_index_users *result = NULL;
+  PFS_index_users *result = nullptr;
   result = PFS_NEW(PFS_index_users_by_user);
   m_opened_index = result;
   m_index = result;
@@ -155,14 +155,14 @@ int table_users::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
           m_row.m_user.set_field(f);
           break;
         case 1: /* CURRENT_CONNECTIONS */
         case 2: /* TOTAL_CONNECTIONS */
-          m_row.m_connection_stat.set_field(f->field_index - 1, f);
+          m_row.m_connection_stat.set_field(f->field_index() - 1, f);
           break;
         default:
           DBUG_ASSERT(false);

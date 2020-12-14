@@ -543,7 +543,7 @@ static int tokudb_init_func(void *p) {
   tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
 #if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
-  init_tree(&tokudb_map, 0, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
+  init_tree(&tokudb_map, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
 #endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
 
   if (tokudb::sysvars::strip_frm_data) {

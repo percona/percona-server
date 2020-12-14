@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,7 @@
 #ifndef XCOM_TRANSPORT_H
 #define XCOM_TRANSPORT_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/xcom_common.h"
 
 #define XDR_INT_SIZE 4
 #define MSG_HDR_SIZE (3 * XDR_INT_SIZE)
@@ -63,6 +59,11 @@ extern "C" {
 #endif
 #define MSG_PTR(buf) &((buf)[MSG_HDR_SIZE])
 
+extern xcom_proto const my_min_xcom_version; /* The minimum protocol version I
+                                                am able to understand */
+extern xcom_proto const
+    my_xcom_version; /* The maximum protocol version I am able to understand */
+
 /* Transport level message types */
 enum x_msg_type {
   x_normal = 0,       /* Normal message */
@@ -92,9 +93,8 @@ int flush_srv_buf(server *s, int64_t *ret);
   @param[out]    s   Pointer to server. Server timestamp updated if not 0.
   @param[out]    ret Number of bytes read, or -1 if failure.
 
-  @return
-    @retval 0 if task should terminate.
-    @retval 1 if it should continue.
+  @retval 0 if task should terminate.
+  @retval 1 if it should continue.
 */
 
 int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
@@ -108,9 +108,8 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
   @param[in,out] s   Pointer to server. Server timestamp updated if not 0.
   @param[in,out] ret Number of bytes read, or -1 if failure.
 
-  @return
-    @retval 0 if task should terminate.
-    @retval 1 if it should continue.
+  @retval 0 if task should terminate.
+  @retval 1 if it should continue.
 */
 int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret);
 
@@ -120,7 +119,9 @@ int send_to_all_site(site_def const *s, pax_msg *p, const char *dbg);
 int send_to_others(site_def const *s, pax_msg *p, const char *dbg);
 int send_to_someone(site_def const *s, pax_msg *p, const char *dbg);
 int send_to_self_site(site_def const *s, pax_msg *p);
+int send_to_all_except_self(site_def const *s, pax_msg *p, const char *dbg);
 
+void wakeup_sender();
 int sender_task(task_arg arg);
 int local_sender_task(task_arg arg);
 int shutdown_servers();
@@ -129,8 +130,8 @@ int srv_unref(server *s);
 int tcp_reaper_task(task_arg arg);
 int tcp_server(task_arg arg);
 uint32_t crc32c_hash(char *buf, char *end);
-int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
-              xdrproc_t xdrfunc, void *xdrdata, enum xdr_op op);
+int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
+              enum xdr_op op);
 void init_crc32c();
 void init_xcom_transport(xcom_port listen_port);
 void reset_srv_buf(srv_buf *sb);
@@ -140,7 +141,6 @@ int send_server_msg(site_def const *s, node_no i, pax_msg *p);
 double server_active(site_def const *s, node_no i);
 void update_servers(site_def *s, cargo_type operation);
 void garbage_collect_servers();
-int client_task(task_arg arg);
 int send_msg(server *s, node_no from, node_no to, uint32_t group_id,
              pax_msg *p);
 /**
@@ -157,7 +157,7 @@ void shutdown_connection(connection_descriptor *con);
 void reset_connection(connection_descriptor *con);
 void close_connection(connection_descriptor *con);
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con);
 void ssl_shutdown_con(connection_descriptor *con);
 #endif
@@ -182,6 +182,7 @@ int deserialize_msg(pax_msg *p, xcom_proto x_proto, char *buf, uint32_t buflen);
 xcom_proto common_xcom_version(site_def const *site);
 xcom_proto get_latest_common_proto();
 xcom_proto set_latest_common_proto(xcom_proto x_proto);
+extern linkage connect_wait;
 
 /**
  * @brief Returns the version from which nodes are able to speak IPv6
@@ -218,7 +219,7 @@ int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port);
  * If all of the above hold true we are able to proceed and add the node. Else,
  * we must fail.
  *
- * @return 1 in case of success.
+ * @retval 1 in case of success.
  */
 int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
                                   const site_def *current_site_def);
@@ -226,9 +227,5 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
 #define INITIAL_CONNECT_WAIT 0.1
 #define MAX_CONNECT_WAIT 1.0
 #define CONNECT_WAIT_INCREASE 1.1
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -146,8 +146,8 @@ set global rocksdb_debug_ttl_rec_ts = 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `name` varchar(25) NOT NULL,
   `event` date DEFAULT NULL,
   PRIMARY KEY (`c2`,`c1`) COMMENT 'custom_p0_cfname=foo;custom_p1_cfname=bar;custom_p2_cfname=baz;'

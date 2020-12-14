@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "sql/dd/string_type.h"
 
 class THD;
+struct LEX_USER;
 
 namespace dd {
 class Schema;
@@ -188,7 +189,7 @@ class Dictionary_client {
     template <typename T>
     void auto_release(Cache_element<T> *element) {
       // Catch situations where we do not use a non-default releaser.
-      DBUG_ASSERT(m_prev != NULL);
+      DBUG_ASSERT(m_prev != nullptr);
       m_release_registry.put(element);
     }
 
@@ -494,6 +495,8 @@ class Dictionary_client {
   // Make sure all objects are released.
   ~Dictionary_client();
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
   /**
     Retrieve an object by its object id.
 
@@ -504,6 +507,7 @@ class Dictionary_client {
     @retval       false   No error.
     @retval       true    Error (from handling a cache miss).
   */
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename T>
   bool acquire(Object_id id, const T **object)
@@ -961,6 +965,21 @@ class Dictionary_client {
 
   template <typename T>
   bool fetch_global_components(Const_ptr_vec<T> *coll)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+     Check if a user is referenced as definer by some object of the given type.
+
+     @tparam        T              Type of dictionary objects to check.
+     @param         user           User name, including @ and host.
+     @param   [out] is_definer     True if the user is referenced as definer
+                                   by some object.
+
+     @return      true   Failure (error is reported, is_definer is undefined).
+     @return      false  Success.
+   */
+  template <typename T>
+  bool is_user_definer(const LEX_USER &user, bool *is_definer) const
       MY_ATTRIBUTE((warn_unused_result));
 
   /**

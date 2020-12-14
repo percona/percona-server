@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,19 +174,13 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
   DBUG_TRACE;
 
   bool err;
-  err = this->close_table(thd, table, &m_backup, 0 != error, need_commit);
 
   /*
-    If err is true this means that there was some problem during
-    FLUSH LOGS commit phase.
+    This fails on errors committing the info, or when
+    slave_preserve_commit_order is enabled and a previous transaction
+    has failed.  In both cases, the error is reported already.
   */
-  if (err) {
-    my_printf_error(ER_ERROR_DURING_FLUSH_LOGS,
-                    ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS), MYF(ME_FATALERROR),
-                    err);
-    LogErr(ERROR_LEVEL, ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE, err);
-    return err;
-  }
+  err = this->close_table(thd, table, &m_backup, 0 != error, need_commit);
 
   /*
     If Gtid is inserted through Attachable_trx_rw its has been done
@@ -300,7 +294,7 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if ((error = table->file->ha_index_init(0, 1))) {
+  if ((error = table->file->ha_index_init(0, true))) {
     table->file->print_error(error, MYF(0));
     DBUG_PRINT("info", ("ha_index_init error"));
     goto end;
@@ -364,17 +358,14 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid) {
   error = write_row(table, buf, gtid->gno, gtid->gno);
 
 end:
-  table_access_ctx.deinit(thd, table, 0 != error, false);
+  if (table_access_ctx.deinit(thd, table, 0 != error, false)) error = -1;
 
   /* Do not protect m_atomic_count for improving transactions' concurrency */
   if (error == 0 && gtid_executed_compression_period != 0) {
     uint32 count = (uint32)m_atomic_count++;
     if (count == gtid_executed_compression_period ||
         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0)) {
-      mysql_mutex_lock(&LOCK_compress_gtid_table);
-      should_compress = true;
-      mysql_cond_signal(&COND_compress_gtid_table);
-      mysql_mutex_unlock(&LOCK_compress_gtid_table);
+      set_compression_and_signal_compressor();
     }
   }
 
@@ -411,10 +402,7 @@ end:
   /* Notify compression thread to compress gtid_executed table. */
   if (error == 0 && compress &&
       DBUG_EVALUATE_IF("dont_compress_gtid_table", 0, 1)) {
-    mysql_mutex_lock(&LOCK_compress_gtid_table);
-    should_compress = true;
-    mysql_cond_signal(&COND_compress_gtid_table);
-    mysql_mutex_unlock(&LOCK_compress_gtid_table);
+    set_compression_and_signal_compressor();
   }
 
   return ret;
@@ -594,13 +582,20 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
 
   if (err != HA_ERR_END_OF_FILE && err != 0)
     ret = -1;
-  else if (find_first_consecutive_gtids)
+  else if (find_first_consecutive_gtids) {
+    DBUG_EXECUTE_IF("print_gtid_compression_info", {
+      sql_print_information(
+          "Compression done by %s thread, first gapless row = %d-%d",
+          current_thd->thread_id() ? "compressor" : "persister", gno_start,
+          gno_end);
+    };);
+
     /*
       Update the gno_end of the first consecutive gtid with the gno_end of
       the last consecutive gtid for the first consecutive range of gtids.
     */
     ret = update_row(table, sid.c_str(), gno_start, gno_end);
-
+  }
   return ret;
 }
 
@@ -760,6 +755,10 @@ static void *compress_gtid_table(void *p_thd) {
       replication repository tables.
     */
     thd->set_skip_readonly_check();
+
+    // Compress the table at server startup
+    should_compress = true;
+
     for (;;) {
       mysql_mutex_lock(&LOCK_compress_gtid_table);
       if (terminate_compress_thread) break;
@@ -792,8 +791,8 @@ static void *compress_gtid_table(void *p_thd) {
     deinit_thd(thd);
   }
   my_thread_end();
-  my_thread_exit(0);
-  return 0;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 }  // extern "C"
 
@@ -858,4 +857,11 @@ void terminate_compress_gtid_table_thread() {
   if (error != 0)
     LogErr(WARNING_LEVEL, ER_FAILED_TO_JOIN_GTID_TABLE_COMPRESSION_THREAD,
            error);
+}
+
+void Gtid_table_persistor::set_compression_and_signal_compressor() {
+  mysql_mutex_lock(&LOCK_compress_gtid_table);
+  should_compress = true;
+  mysql_cond_signal(&COND_compress_gtid_table);
+  mysql_mutex_unlock(&LOCK_compress_gtid_table);
 }

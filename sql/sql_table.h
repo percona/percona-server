@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,12 @@
 #include <utility>
 #include <vector>
 
-#include "dd/string_type.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
+#include "sql/dd/string_type.h"
+#include "sql/mdl.h"
 
 class Alter_info;
 class Alter_table_ctx;
@@ -83,6 +83,9 @@ static const uint NO_DD_COMMIT = 1 << 3;
 static const uint NO_FK_RENAME = 1 << 4;
 /** Don't change generated check constraint names while renaming table. */
 static const uint NO_CC_RENAME = 1 << 5;
+
+handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
+                                             const HA_CREATE_INFO &ci);
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                              bool stay_quiet = false);
@@ -492,13 +495,6 @@ bool mysql_prepare_create_table(
 
 size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
-
-void parse_filename(const char *filename, size_t filename_length,
-                    const char **schema_name, size_t *schema_name_length,
-                    const char **table_name, size_t *table_name_length,
-                    const char **partition_name, size_t *partition_name_length,
-                    const char **subpartition_name,
-                    size_t *subpartition_name_length);
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 

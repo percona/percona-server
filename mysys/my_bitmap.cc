@@ -162,7 +162,7 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
 
     if (!(buf = (my_bitmap_map *)my_malloc(key_memory_MY_BITMAP_bitmap,
                                            size_in_bytes + extra, MYF(MY_WME))))
-      return 1;
+      return true;
 
     if (thread_safe) {
       map->mutex = (mysql_mutex_t *)((char *)buf + size_in_bytes);
@@ -180,7 +180,7 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
   map->n_bits = n_bits;
   create_last_word_mask(map);
   bitmap_clear_all(map);
-  return 0;
+  return false;
 }
 
 void bitmap_free(MY_BITMAP *map) {
@@ -189,7 +189,7 @@ void bitmap_free(MY_BITMAP *map) {
     if (map->mutex) mysql_mutex_destroy(map->mutex);
 
     my_free(map->bitmap);
-    map->bitmap = 0;
+    map->bitmap = nullptr;
   }
 }
 
@@ -286,7 +286,7 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size) {
 
   DBUG_ASSERT(map->bitmap &&
               (prefix_size <= map->n_bits || prefix_size == (uint)~0));
-  set_if_smaller(prefix_size, map->n_bits);
+  prefix_size = std::min(prefix_size, map->n_bits);
   if ((prefix_bytes = prefix_size / 8)) memset(m, 0xff, prefix_bytes);
   m += prefix_bytes;
   if ((prefix_bits = prefix_size & 7)) {
@@ -404,7 +404,7 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
 
   DBUG_ASSERT(map->bitmap && map2->bitmap);
 
-  end = to + MY_MIN(len, len2);
+  end = to + std::min(len, len2);
   for (; to < end; to++, from++) *to &= *from;
 
   if (len >= len2) map->bitmap[len2 - 1] &= ~map2->last_word_mask;

@@ -39,7 +39,7 @@ let NEW_CMD = $MYSQLD $extra_args --innodb_dedicated_server=OFF --initialize-ins
 
 --echo # Start the DB server with datadir1
 --replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_DATADIR1 DATADIR1 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
---let $restart_parameters="restart: $KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters = restart: $KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode --datadir=$MYSQLD_DATADIR1 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -55,7 +55,7 @@ INSERT INTO tab2 VALUES(1, 'Test consistency undo*');
 SELECT * FROM tab2;
 DROP TABLE tab1,tab2;
 
---let $restart_parameters= restart:
+--let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1_$redo_log_mode
@@ -84,7 +84,7 @@ let NEW_CMD = $MYSQLD $extra_args --initialize-insecure $KEYRING_PARAMS --innodb
 
 --echo # Start the DB server with datadir2
 --replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_DATADIR2 DATADIR2 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
---let $restart_parameters="restart: $KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode --datadir=$MYSQLD_DATADIR2 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters = restart: $KEYRING_PARAMS --innodb_redo_log_encrypt=$redo_log_mode --datadir=$MYSQLD_DATADIR2 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -99,7 +99,7 @@ INSERT INTO tab2 VALUES(1, 'Test consistency undo*');
 SELECT * FROM tab2;
 DROP TABLE tab1,tab2;
 
---let $restart_parameters= restart:
+--let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir2_$redo_log_mode
@@ -116,7 +116,7 @@ let NEW_CMD = $MYSQLD $extra_args --initialize-insecure --innodb_log_file_size=$
 
 --echo # Start the DB server with datadir3 and keyring loaded.
 --replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_DATADIR3 DATADIR3 $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
---let $restart_parameters="restart: $KEYRING_PARAMS --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR3 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
+--let $restart_parameters = restart: $KEYRING_PARAMS --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR3 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -129,7 +129,7 @@ SELECT * FROM tab1;
 CREATE TABLE tab2(c1 INT, c2 VARCHAR(30)) ENCRYPTION="Y";
 DROP TABLE tab1;
 
---let $restart_parameters= restart:
+--let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir3_$redo_log_mode

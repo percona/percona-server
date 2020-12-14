@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -740,6 +740,7 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
     tLastBlob->theNext = tBlob;
   tBlob->theNext = NULL;
   theNdbCon->theBlobFlag = true;
+  theNdbCon->m_userDefinedBlobOps = true;
   return tBlob;
 }
 
@@ -817,6 +818,7 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
   lastPtr= bh;
   bh->theNext= NULL;
   theNdbCon->theBlobFlag= true;
+  theNdbCon->m_userDefinedBlobOps = true;
 
   return bh;
 }
@@ -1001,8 +1003,8 @@ insertATTRINFO_error1:
  *                ATTRINFO signal.
  *****************************************************************************/
 int
-NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr, 
-				 register Uint32 aLength)
+NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr, 
+				 Uint32 aLength)
 {
   NdbApiSignal* tSignal;
   Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
@@ -1401,13 +1403,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
 
   if (opts->optionsPresent & OperationOptions::OO_LOCKHANDLE)
   {
-    if (unlikely(op->theNdb->getMinDbNodeVersion() <
-                 NDBD_UNLOCK_OP_SUPPORTED))
-    {
-      /* Function not implemented yet */
-      return 4003;
-    }
-
     /* Check that this is a pk read with a lock 
      * No need to worry about Blob lock upgrade issues as
      * Blobs have not been handled at this stage

@@ -1,0 +1,77 @@
+set @old_debug = @@global.debug;
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
+drop table create_cf;
+set @@global.debug = '+d,rocksdb_create_primary_cf';
+set @@global.debug = '+d,rocksdb_drop_cf';
+create table t1 (
+id1 int unsigned not null default '0',
+primary key (id1) comment 'cfname=cf_primary_key'
+  ) engine=rocksdb;
+set debug_sync = "now wait_for ready_to_mark_cf_dropped_in_create_cfs";
+set @@global.rocksdb_delete_cf = 'cf_primary_key';
+set debug_sync = "now signal mark_cf_dropped_done_in_create_cfs";
+ERROR HY000: Column family ('cf_primary_key') is being dropped.
+show tables;
+Tables_in_test
+select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key' ;
+CF_NAME	STAT_TYPE	VALUE
+cf_primary_key	NUM_IMMUTABLE_MEM_TABLE	0
+cf_primary_key	MEM_TABLE_FLUSH_PENDING	0
+cf_primary_key	COMPACTION_PENDING	0
+cf_primary_key	CUR_SIZE_ACTIVE_MEM_TABLE	728
+cf_primary_key	CUR_SIZE_ALL_MEM_TABLES	728
+cf_primary_key	NUM_ENTRIES_ACTIVE_MEM_TABLE	0
+cf_primary_key	NUM_ENTRIES_IMM_MEM_TABLES	0
+cf_primary_key	NON_BLOCK_CACHE_SST_MEM_USAGE	0
+cf_primary_key	NUM_LIVE_VERSIONS	1
+cf_primary_key	NUM_IMMUTABLE_MEM_TABLE_FLUSHED	0
+cf_primary_key	NUM_RUNNING_FLUSHES	0
+cf_primary_key	NUM_RUNNING_COMPACTIONS	0
+cf_primary_key	SIZE_ALL_MEM_TABLES	728
+cf_primary_key	NUM_DELETES_ACTIVE_MEM_TABLE	0
+cf_primary_key	NUM_DELETES_IMM_MEM_TABLES	0
+cf_primary_key	ESTIMATE_NUM_KEYS	0
+cf_primary_key	ESTIMATE_LIVE_DATA_SIZE	0
+cf_primary_key	ESTIMATE_PENDING_COMPACTION_BYTES	0
+set debug_sync = "now signal ready_to_drop_cf";
+set debug_sync = "now wait_for drop_cf_done";
+select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key';
+CF_NAME	STAT_TYPE	VALUE
+set @@global.debug = @old_debug;
+set @@global.debug = '+d,rocksdb_create_table';
+set @@global.debug = '+d,rocksdb_drop_cf';
+create table t1 (
+id1 int unsigned not null default '0',
+primary key (id1) comment 'cfname=cf_primary_key'
+  ) engine=rocksdb;
+set debug_sync = "now wait_for ready_to_mark_cf_dropped_in_create_table";
+set @@global.rocksdb_delete_cf = 'cf_primary_key';
+set debug_sync = "now signal mark_cf_dropped_done_in_create_table";
+ERROR HY000: Column family ('cf_primary_key') is being dropped.
+show tables;
+Tables_in_test
+select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key' ;
+CF_NAME	STAT_TYPE	VALUE
+cf_primary_key	NUM_IMMUTABLE_MEM_TABLE	0
+cf_primary_key	MEM_TABLE_FLUSH_PENDING	0
+cf_primary_key	COMPACTION_PENDING	0
+cf_primary_key	CUR_SIZE_ACTIVE_MEM_TABLE	728
+cf_primary_key	CUR_SIZE_ALL_MEM_TABLES	728
+cf_primary_key	NUM_ENTRIES_ACTIVE_MEM_TABLE	0
+cf_primary_key	NUM_ENTRIES_IMM_MEM_TABLES	0
+cf_primary_key	NON_BLOCK_CACHE_SST_MEM_USAGE	0
+cf_primary_key	NUM_LIVE_VERSIONS	1
+cf_primary_key	NUM_IMMUTABLE_MEM_TABLE_FLUSHED	0
+cf_primary_key	NUM_RUNNING_FLUSHES	0
+cf_primary_key	NUM_RUNNING_COMPACTIONS	0
+cf_primary_key	SIZE_ALL_MEM_TABLES	728
+cf_primary_key	NUM_DELETES_ACTIVE_MEM_TABLE	0
+cf_primary_key	NUM_DELETES_IMM_MEM_TABLES	0
+cf_primary_key	ESTIMATE_NUM_KEYS	0
+cf_primary_key	ESTIMATE_LIVE_DATA_SIZE	0
+cf_primary_key	ESTIMATE_PENDING_COMPACTION_BYTES	0
+set debug_sync = "now signal ready_to_drop_cf";
+set debug_sync = "now wait_for drop_cf_done";
+select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key';
+CF_NAME	STAT_TYPE	VALUE
+set @@global.debug = @old_debug;

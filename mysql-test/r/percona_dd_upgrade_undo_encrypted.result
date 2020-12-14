@@ -7,7 +7,7 @@ SET GLOBAL innodb_fast_shutdown=0;
 SHOW CREATE TABLE test.tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM tab1;

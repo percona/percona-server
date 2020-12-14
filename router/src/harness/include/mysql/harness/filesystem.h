@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,11 @@
 #include "harness_export.h"
 
 #include <memory>
+#include <ostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
 #ifndef _WIN32
 #include <fcntl.h>
 #endif
@@ -159,6 +162,17 @@ class HARNESS_EXPORT Path {
    * Check if the file is a regular file.
    */
   bool is_regular() const;
+
+  /**
+   * Check if the path is absolute or not
+   *
+   * The path is considered absolute if it starts with one of:
+   *   Unix:    '/'
+   *   Windows: '/' or '\' or '.:' (where . is any character)
+   * else:
+   *   it's considered relative (empty path is also relative in such respect)
+   */
+  bool is_absolute() const;
 
   /**
    * Check if path exists
@@ -306,12 +320,16 @@ class HARNESS_EXPORT Directory : public Path {
    *
    * A directory iterator is an input iterator.
    */
-  using DirectoryIteratorBase = std::iterator<std::input_iterator_tag, Path>;
-
-  class HARNESS_EXPORT DirectoryIterator : public DirectoryIteratorBase {
+  class HARNESS_EXPORT DirectoryIterator {
     friend class Directory;
 
    public:
+    using value_type = Path;
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     DirectoryIterator(const Path &path,
                       const std::string &pattern = std::string());
 
@@ -402,11 +420,43 @@ class HARNESS_EXPORT Directory : public Path {
   DirectoryIterator begin();
 
   /**
+   * Constant iterator to first entry.
+   *
+   * @return Returns a constant iterator pointing to the first entry.
+   */
+  DirectoryIterator cbegin() const;
+
+  /**
    * Iterator past-the-end of entries.
    *
    * @return Returns an iterator pointing *past-the-end* of the entries.
    */
   DirectoryIterator end();
+
+  /**
+   * Constant iterator past-the-end of entries.
+   *
+   * @return Returns a constant iterator pointing *past-the-end* of the entries.
+   */
+  DirectoryIterator cend() const;
+
+  /**
+   * Check if the directory is empty.
+   *
+   * @retval true Directory is empty.
+   * @retval false Directory is no empty.
+   */
+  bool is_empty() const;
+
+  /**
+   * Recursively list all paths in a directory.
+   *
+   * Recursively create a list of relative paths from a directory. Path will
+   * be relative to the given directory. Empty directories are also listed.
+   *
+   * @return Recursive list of paths from a direcotry.
+   */
+  std::vector<Path> list_recursive() const;
 
   /**
    * Iterate over entries matching a glob.
@@ -508,9 +558,11 @@ get_security_descriptor(const std::string &file_name);
 
 #ifndef _WIN32
 using perm_mode = mode_t;
+HARNESS_EXPORT
 extern const perm_mode kStrictDirectoryPerm;
 #else
 using perm_mode = int;
+HARNESS_EXPORT
 extern const perm_mode kStrictDirectoryPerm;
 #endif
 
@@ -539,6 +591,19 @@ int mkdir(const std::string &dir, perm_mode mode, bool recursive = false);
  */
 void HARNESS_EXPORT make_file_public(const std::string &file_name);
 
+#ifdef _WIN32
+/**
+ * Changes file access permissions to be readable by all users.
+ *
+ * On Windows, Everyone group is granted read access to the file.
+ *
+ * @param[in] file_name File name.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+void make_file_readable_for_everyone(const std::string &file_name);
+#endif
+
 /**
  * Changes file access permissions to be accessible only by a limited set of
  * users.
@@ -557,6 +622,19 @@ void HARNESS_EXPORT make_file_public(const std::string &file_name);
 void HARNESS_EXPORT
 make_file_private(const std::string &file_name,
                   const bool read_only_for_local_service = true);
+
+/**
+ * Changes file access permissions to be read only.
+ *
+ * On Unix, the function sets file permission mask to 555.
+ * On Windows, all permissions to this file are read access only for Everyone
+ * group, LocalService account gets read access.
+ *
+ * @param[in] file_name File name.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+void HARNESS_EXPORT make_file_readonly(const std::string &file_name);
 
 /**
  * Verifies access permissions of a file.

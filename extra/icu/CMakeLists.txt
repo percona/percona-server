@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 
 PROJECT (ICU)
 
-IF(LINUX)
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   SET(ICU_LINUX_COMPILE_OPTIONS
     "-Wno-undef"
     "-Wno-deprecated-declarations"
@@ -71,6 +71,11 @@ IF(HAS_WARN_FLAG)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wimplicit-int-float-conversion" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
+ENDIF()
+
 IF(WIN32)
   ADD_DEFINITIONS(
     -DU_STATIC_IMPLEMENTATION=1
@@ -86,8 +91,10 @@ IF(MSVC AND NOT WIN32_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4229")
 ENDIF()
 
-STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+IF(WITH_ICU STREQUAL "bundled")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+ENDIF()
 
 ADD_SUBDIRECTORY(source/common)
 ADD_SUBDIRECTORY(source/i18n)

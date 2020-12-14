@@ -176,7 +176,7 @@ TEST_F(Vault_parser_test, ParseKeyData) {
   EXPECT_FALSE(vault_parser.parse_key_data(payload, &key));
   EXPECT_STREQ(key.get_key_signature()->c_str(), "4_key13_rob");
   ASSERT_TRUE(memcmp(key.get_key_data(), "Robi", key.get_key_data_size()) == 0);
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
 }
 
 TEST_F(Vault_parser_test, ParseKeyDataMissingTypeTag) {

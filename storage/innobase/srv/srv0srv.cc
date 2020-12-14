@@ -202,7 +202,7 @@ const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT =
-    dict_sys_t::undo_space_id_range / 8;
+    dict_sys_t::s_undo_space_id_range / 8;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -282,6 +282,9 @@ ulong srv_log_buffer_size;
 
 /** Size of block, used for writing ahead to avoid read-on-write. */
 ulong srv_log_write_ahead_size;
+
+/** Whether to activate/pause the log writer threads. */
+bool srv_log_writer_threads;
 
 /** Minimum absolute value of cpu time for which spin-delay is used. */
 uint srv_log_spin_cpu_abs_lwm;
@@ -371,13 +374,6 @@ ulong srv_log_flush_notifier_spin_delay =
 /** Initial timeout used to wait on flush_notifier_event. */
 ulong srv_log_flush_notifier_timeout =
     INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT;
-
-/** Number of spin iterations, for which log closerr thread is waiting
-for a reachable untraversed link in recent_closed. */
-ulong srv_log_closer_spin_delay = INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT;
-
-/** Initial sleep used in log closer after spin delay is finished. */
-ulong srv_log_closer_timeout = INNODB_LOG_CLOSER_TIMEOUT_DEFAULT;
 
 /* End of EXPERIMENTAL sys vars */
 
@@ -564,6 +560,8 @@ enum_default_table_encryption srv_default_table_encryption;
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
 ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+
+bool tbsp_extend_and_initialize = true;
 
 #ifndef UNIV_HOTBACKUP
 srv_stats_t srv_stats;
@@ -933,12 +931,10 @@ static void srv_print_master_thread_info(FILE *file) /* in: output stream */
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Sets the info describing an i/o thread current state. */
-void srv_set_io_thread_op_info(
-    ulint i,         /*!< in: the 'segment' of the i/o thread */
-    const char *str) /*!< in: constant char string describing the
-                     state */
-{
+/** Sets the info describing an i/o thread current state.
+@param[in] i The 'segment' of the i/o thread
+@param[in] str Constant char string describing the state */
+void srv_set_io_thread_op_info(ulint i, const char *str) {
   ut_a(i < SRV_MAX_N_IO_THREADS);
 
   srv_io_thread_op_info[i] = str;
@@ -1233,6 +1229,8 @@ static void srv_init(void) {
 
     buf_flush_event = os_event_create();
 
+    buf_flush_tick_event = os_event_create();
+
     UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 
     srv_checkpoint_completed_event = os_event_create();
@@ -1288,6 +1286,7 @@ void srv_free(void) {
     os_event_destroy(buf_flush_event);
     os_event_destroy(srv_checkpoint_completed_event);
     os_event_destroy(srv_redo_log_tracked_event);
+    os_event_destroy(buf_flush_tick_event);
   }
 
   os_event_destroy(srv_buf_resize_event);
@@ -1556,7 +1555,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
       "--------------\n",
       file);
   fprintf(file,
-          ULINTPF " queries inside InnoDB, " ULINTPF " queries in queue\n",
+          "%" PRId32 " queries inside InnoDB, %" PRId32 " queries in queue\n",
           srv_conc_get_active_threads(), srv_conc_get_waiting_threads());
 
   /* This is a dirty read, without holding trx_sys->mutex. */
@@ -1746,6 +1745,8 @@ void srv_export_innodb_status(void) {
   }
   export_vars.innodb_checkpoint_age =
       (log_get_lsn(*log_sys) - log_sys->last_checkpoint_lsn);
+
+  export_vars.innodb_checkpoint_max_age = log_get_free_check_capacity(*log_sys);
   ibuf_export_ibuf_status(&export_vars.innodb_ibuf_free_list,
                           &export_vars.innodb_ibuf_segment_size);
   export_vars.innodb_lsn_current = log_get_lsn(*log_sys);
@@ -2200,7 +2201,9 @@ void srv_wake_master_thread(void) {
 /** Get current server activity count. We don't hold srv_sys::mutex while
  reading this value as it is only used in heuristics.
  @return activity count. */
-ulint srv_get_activity_count(void) { return (srv_sys->activity_count); }
+ulint srv_get_activity_count(void) {
+  return (srv_sys == nullptr ? 0 : srv_sys->activity_count);
+}
 
 /** Get current server ibuf merge activity count.
 @return ibuf merge activity count */
@@ -2219,6 +2222,8 @@ treated as keeping server idle.
 @return false if no change in activity counter. */
 bool srv_check_activity(ulint old_activity_count,
                         ulint old_ibuf_merge_activity_count) noexcept {
+  if (srv_sys == nullptr) return false;
+
   const ulint new_activity_count = srv_sys->activity_count;
   if (old_ibuf_merge_activity_count == ULINT_UNDEFINED)
     return (new_activity_count != old_activity_count);
@@ -2590,6 +2595,9 @@ static void srv_master_do_active_tasks(void) {
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_IBUF_MERGE_MICROSECOND,
                                  counter_time);
 
+  /* Flush logs if needed */
+  log_buffer_sync_in_background();
+
   /* Now see if various tasks that are performed at defined
   intervals need to be performed. */
 
@@ -2670,6 +2678,9 @@ static void srv_master_do_idle_tasks(void) {
   }
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_DICT_LRU_MICROSECOND,
                                  counter_time);
+
+  /* Flush logs if needed */
+  log_buffer_sync_in_background();
 }
 
 /** Perform the tasks during pre_dd_shutdown phase. The tasks that we do
@@ -3388,6 +3399,13 @@ void srv_worker_thread() {
 #else
   THD *thd = create_thd(false, true, true, 0);
 #endif
+
+  rw_lock_x_lock(&purge_sys->latch);
+
+  purge_sys->thds.insert(thd);
+
+  rw_lock_x_unlock(&purge_sys->latch);
+
   slot = srv_reserve_slot(SRV_WORKER);
 
   ut_a(srv_n_purge_threads > 1);
@@ -3627,6 +3645,12 @@ void srv_purge_coordinator_thread() {
   THD *thd = create_thd(false, true, true, 0);
 #endif
 
+  rw_lock_x_lock(&purge_sys->latch);
+
+  purge_sys->thds.insert(thd);
+
+  rw_lock_x_unlock(&purge_sys->latch);
+
   ulint n_total_purged = ULINT_UNDEFINED;
 
   ut_ad(!srv_read_only_mode);
@@ -3818,6 +3842,10 @@ bool srv_purge_threads_active() {
 
 bool srv_thread_is_active(const IB_thread &thread) {
   return (thread_is_active(thread));
+}
+
+bool srv_thread_is_stopped(const IB_thread &thread) {
+  return (thread_is_stopped(thread));
 }
 
 #endif /* !UNIV_HOTBACKUP */

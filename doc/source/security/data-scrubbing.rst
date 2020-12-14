@@ -3,28 +3,43 @@
 Data Scrubbing
 ================================================================================
 
-:Availability: This feature is **Experimental** quality
+:Availability: This feature is tech preview quality
 
-While data encryption ensures that the existing data are not stored in plain
-form, the data scrubbing literally removes the data once the user decides they
-should be deleted. Compare this behavior with how the ``DELETE`` statement works
-which only marks the affected data as *deleted* - the space claimed by this data
-is overwritten with new data later.
+The ``DELETE`` statement does the following:
 
-Once enabled, data scrubbing works automatically on each tablespace
-separately. To enable data scrubbing, you need to set the following variables:
+* Marks the rows as deleted
+* Added to ``unused``
+* Records the deleted row position
+* Records the time when delete was committed
+
+The data is not immediately removed from disk storage. When a new row is inserted, the row is stored without fragmentation in a page with free space. The deleted data remains on the disk until new data overwrites it.
+
+Using Data Scrubbing, you have two options to remove the data and reclaim the space:
+
+.. tabularcolumns:: |p{5cm}|p{11cm}|
+
+.. list-table::
+   :header-rows: 1
+
+    * - Name
+      - When data is removed
+    * - Immediate
+      - The data is removed immediately, independent of key rotation or background threads.
+    * - Background
+      - The moment when the scrubbing occurs can be unpredictable.
+
+Once enabled, data scrubbing works automatically on each tablespace.
+
+To enable data scrubbing, you must enable either one or both of the following variables:
 
 - :variable:`innodb-background-scrub-data-uncompressed`
 - :variable:`innodb-background-scrub-data-compressed`
 
-Uncompressed tables can also be scrubbed immediately, independently of key
-rotation or background threads. This can be enabled by setting the variable
-:variable:`innodb-immediate-scrub-data-uncompressed`. This option is not supported for
-compressed tables.
+Uncompressed tables can also be scrubbed immediately, independent of key
+rotation or background threads. Setting the variable
+:variable:`innodb-immediate-scrub-data-uncompressed` enables this operation. This variable does not support operations on compressed tables.
 
-Note that data scrubbing is made effective by setting the
-:variable:`innodb_online_encryption_threads` variable to a value greater than
-**zero**.
+For background scrubbing, you must set the :variable:`innodb_encryption_threads` variable to a value greater than **zero** when you enable data scrubbing. Intermediate scrubbing does not use encryption threads. A separate thread performs log scrubbing.
 
 System Variables
 --------------------------------------------------------------------------------
@@ -36,6 +51,8 @@ System Variables
    :scope: Global
    :vartype: Boolean
    :default: ``OFF``
+   
+Enables compressed data scrubbing.
 
 .. variable:: innodb_background_scrub_data_uncompressed
 
@@ -44,6 +61,38 @@ System Variables
    :scope: Global
    :vartype: Boolean
    :default: ``OFF``
+   
+Enables uncompressed data scrubbing.
+
+.. variable:: innodb_scrub_log
+
+    :cli: ``--innodb-scrub-log``
+    :dyn: No
+    :scope: Global
+    :vartype: Boolean
+    :default: ``OFF``
+    
+Enables redo log scrubbing.
+
+.. variable:: innodb_scrub_log_speed
+
+    :cli: ``--innodb-scrub-log-speed``
+    :dyn: Yes
+    :scope: Global
+    :vartype: Numeric
+    :default: 256
+    
+Defines the scrubbing speed in bytes/sec of the redo log.
+
+.. variable:: innodb_immediate_scrub_data_uncompressed
+
+    :cli: ``--innodb-immediate-scrub-data-uncompressed``
+    :dyn: Yes
+    :scope: Global
+    :vartype: Boolean
+    :default: ``OFF``
+    
+Enables data scrubbing of uncompressed data.
 
 .. seealso::
 

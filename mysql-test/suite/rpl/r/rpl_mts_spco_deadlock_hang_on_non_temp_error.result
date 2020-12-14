@@ -126,7 +126,7 @@ include/assert_grep.inc [Found 'Duplicate entry' error only once time which prov
 # 4.2 Clean the data on Slave.
 #
 include/stop_slave_io.inc
-RESET SLAVE;
+RESET REPLICA;
 DROP TABLE t1, t2;
 #
 # 4.3 Clear system variables.

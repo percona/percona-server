@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,12 +59,13 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"        // is_supported_parser_charset
-#include "sql/sql_select.h"       // free_underlaid_joins
-#include "sql/sql_show.h"         // append_identifier
-#include "sql/sys_vars_shared.h"  // PolyLock_mutex
-#include "sql/system_variables.h"
-#include "sql/table.h"
+#include "sql/sql_parse.h"         // is_supported_parser_charset
+#include "sql/sql_select.h"        // free_underlaid_joins
+#include "sql/sql_show.h"          // append_identifier
+#include "sql/sys_vars_shared.h"   // PolyLock_mutex
+#include "sql/system_variables.h"  // system_variables
+#include "sql/table.h"             // table
+#include "sql/thd_raii.h"          // Prepared_stmt_arena_holder
 #include "sql_string.h"
 
 using std::min;
@@ -346,7 +347,7 @@ uchar *sys_var::global_var_ptr() {
 
 bool sys_var::check(THD *thd, set_var *var) {
   if ((var->value && do_check(thd, var)) ||
-      (on_check && on_check(this, thd, var))) {
+      (var->type != OPT_PERSIST_ONLY && on_check && on_check(this, thd, var))) {
     if (!thd->is_error()) {
       char buff[STRING_BUFFER_USUAL_SIZE];
       String str(buff, sizeof(buff), system_charset_info), *res;
@@ -779,15 +780,18 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
 
   LEX *lex = thd->lex;
   set_var_base *var;
-  while ((var = it++)) {
-    if ((error = var->resolve(thd))) goto err;
+  {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    while ((var = it++)) {
+      if ((error = var->resolve(thd))) goto err;
+    }
+    if ((error = thd->is_error())) goto err;
   }
-  if ((error = thd->is_error())) goto err;
-
   if (opened && lock_tables(thd, lex->query_tables, lex->table_count, 0)) {
     error = 1;
     goto err;
   }
+  thd->lex->set_exec_started();
   it.rewind();
   while ((var = it++)) {
     if ((error = var->check(thd))) goto err;
@@ -985,11 +989,23 @@ int set_var::resolve(THD *thd) {
   }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
-  if (!value) return 0;
+  if (value == nullptr || value->fixed) return 0;
 
-  if ((!value->fixed && value->fix_fields(thd, &value)) || value->check_cols(1))
+  if (value->fix_fields(thd, &value)) {
     return -1;
+  }
+  /*
+    If expression has no data type (e.g because it contains a parameter),
+    assign type character string.
+  */
+  if (value->data_type() == MYSQL_TYPE_INVALID &&
+      value->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+    return -1;
+  }
 
+  if (value->check_cols(1)) {
+    return -1;
+  }
   return 0;
 }
 
@@ -1013,7 +1029,7 @@ int set_var::check(THD *thd) {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
     return -1;
   }
-  int ret = (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
+  int ret = var->check(thd, this) ? -1 : 0;
 
   if (!ret && (is_global_persist())) {
     ret = mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
@@ -1056,9 +1072,23 @@ int set_var::light_check(THD *thd) {
             .first))
     return 1;
 
-  if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
-                value->check_cols(1)))
+  if (value == nullptr || value->fixed) return 0;
+
+  if (value->fix_fields(thd, &value)) {
     return -1;
+  }
+  /*
+    If expression has no data type (e.g because it contains a parameter),
+    assign type character string.
+  */
+  if (value->data_type() == MYSQL_TYPE_INVALID &&
+      value->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+    return -1;
+  }
+
+  if (value->check_cols(1)) {
+    return -1;
+  }
   return 0;
 }
 
@@ -1148,9 +1178,10 @@ void set_var::print(const THD *thd, String *str) {
 int set_var_user::resolve(THD *thd) {
   /*
     Item_func_set_user_var can't substitute something else on its place =>
-    0 can be passed as last argument (reference on item)
+    NULL can be passed as last argument (reference on item)
   */
-  return user_var_item->fix_fields(thd, nullptr) ? -1 : 0;
+  return !user_var_item->fixed && user_var_item->fix_fields(thd, nullptr) ? -1
+                                                                          : 0;
 }
 
 int set_var_user::check(THD *) {

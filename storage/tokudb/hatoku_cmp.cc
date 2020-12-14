@@ -65,6 +65,7 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_BOOL:
       ret_val = true;
       goto exit;
     //
@@ -78,6 +79,7 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:
@@ -173,6 +175,7 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_BOOL:
       ret_val = toku_type_int;
       goto exit;
     case MYSQL_TYPE_TIME:
@@ -225,6 +228,7 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:
@@ -2927,6 +2931,7 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_BOOL:
       // length, unsigned, auto increment
       if (a->pack_length() != b->pack_length() ||
           (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG)) ||
@@ -3061,6 +3066,7 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:

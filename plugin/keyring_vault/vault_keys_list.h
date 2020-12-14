@@ -10,12 +10,12 @@ namespace keyring {
 class Vault_keys_list final : public ISerialized_object,
                               private boost::noncopyable {
  public:
-  virtual bool get_next_key(IKey **key);
-  virtual bool has_next_key();
+  bool get_next_key(IKey **key) override;
+  bool has_next_key() override;
   void push_back(IKey *key);
   size_t size() const;
 
-  ~Vault_keys_list();
+  ~Vault_keys_list() override;
 
  private:
   typedef std::list<IKey *> Keys_list;

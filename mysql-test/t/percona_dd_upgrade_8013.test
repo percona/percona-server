@@ -10,6 +10,12 @@ call mtr.add_suppression("Column count of mysql.user is wrong. Expected 51, foun
 
 --source include/have_debug.inc
 
+# Default timeout for mysqld restart is 100s (wait_unitl_connected_again.inc).
+# However in busy environments like Jenkins parallel MTR run the test will fail
+# randomly because of longer startup.
+# Allow the server to start in 300 sec
+--let $explicit_default_wait_counter = 3000
+
 --echo # Set different paths for datadir
 --let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data8013_57
 

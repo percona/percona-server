@@ -50,7 +50,7 @@ associated with it.
 @param[in] type the minilog record type
 @return true if the record has (space; page) in it */
 static constexpr bool log_online_rec_has_page(mlog_id_t type) noexcept {
-  static_assert(MLOG_BIGGEST_TYPE == 65,
+  static_assert(MLOG_BIGGEST_TYPE == 66,
                 "New MTR types must be reviewed for page presence");
   return type != MLOG_MULTI_REC_END && type != MLOG_DUMMY_RECORD &&
          type != MLOG_COMP_PAGE_CREATE_SDI && type != MLOG_PAGE_CREATE_SDI &&
@@ -934,11 +934,8 @@ void log_online_read_init(void) {
         bitmap_dir->dir_entry[i].mystat->st_size > 0) {
       log_bmp_sys->out_seq_num = file_seq_num;
       last_file_start_lsn = file_start_lsn;
-      /* No dir component (log_bmp_sys->bmp_file_home) here, because
-that's the cwd */
-      strncpy(log_bmp_sys->out.name, bitmap_dir->dir_entry[i].name,
-              FN_REFLEN - 1);
-      log_bmp_sys->out.name[FN_REFLEN - 1] = '\0';
+      snprintf(log_bmp_sys->out.name, sizeof(log_bmp_sys->out.name), "%s%s",
+               log_bmp_sys->bmp_file_home, bitmap_dir->dir_entry[i].name);
     }
   }
   my_dirend(bitmap_dir);

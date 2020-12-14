@@ -1,0 +1,57 @@
+--echo #
+--echo # PS-7338 : Assertion failure: os0file.cc:1767:key_version_read_from_page != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED
+--echo #
+
+--source ../include/crypt_data_redo.inc
+
+--echo # record table checksums so that we can verify post crash recovery
+
+create table checksum(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a BIGINT);
+
+--disable_query_log
+--let $i = 1
+while ($i <= 10) {
+--let $original_checksum = query_get_value(CHECKSUM TABLE tt_$i, Checksum, 1)
+--eval insert into checksum values (NULL, $original_checksum)
+--inc $i
+}
+--enable_query_log
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo # verify checksums
+--let $i = 1
+while ($i <= 10) {
+--let $new_checksum = query_get_value(CHECKSUM TABLE tt_$i, Checksum, 1)
+--let $old_checksum = query_get_value(SELECT a FROM checksum WHERE id = $i, a, 1)
+--let $assert_text = Table checksum must match after crash recovery
+--let $assert_cond = $old_checksum = $new_checksum
+--source include/assert.inc
+--inc $i
+}
+
+--echo # test cleanup
+
+ALTER UNDO TABLESPACE undo_001 SET INACTIVE ENGINE InnoDB;
+ALTER UNDO TABLESPACE undo_002 SET INACTIVE ENGINE InnoDB;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE ENGINE InnoDB;
+
+let $inactive_undo_space = undo_001;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_001 ENGINE InnoDB;
+
+let $inactive_undo_space = undo_002;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_002 ENGINE InnoDB;
+
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_003 ENGINE InnoDB;
+
+DROP TABLE tt_1, tt_2, tt_3, tt_4, tt_5, tt_6, tt_7, tt_8, tt_9, tt_10;
+DROP TABLE checksum;
+
+DROP TABLESPACE tab02k_e;
+DROP TABLESPACE tab04k;
+DROP TABLESPACE tab08k;
+DROP TABLESPACE tab16k_e;

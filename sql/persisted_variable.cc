@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_plugin_var.h"
 #include "sql/sql_show.h"
 #include "sql/sys_vars_shared.h"
 #include "sql/thr_malloc.h"
@@ -332,17 +333,9 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     uint dummy_err;
     String bool_str;
     if (setvar->value) {
-      res = setvar->value->val_str(&str);
-      if (system_var->get_var_type() == GET_BOOL) {
-        if (res == nullptr ||
-            check_boolean_value(res->c_ptr_quick(), bool_str)) {
-          my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name,
-                   (res ? res->c_ptr_quick() : "null"));
-          return true;
-        } else {
-          res = &bool_str;
-        }
-      }
+      setvar->var->persist_only_to_string(thd, setvar, &str);
+      res = &str;
+
       if (res && res->length()) {
         /*
           value held by Item class can be of different charset,
@@ -353,7 +346,10 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
         var_value = utf8_str.c_ptr_quick();
       }
     } else {
-      /* persist default value */
+      // Persist default value. Need to use this approach to set default value
+      // for persist_only variable. The save_default() does nothing for
+      // plugin variable. As a result persist_only_to_string()
+      // cannot be used here.
       setvar->var->save_default(thd, setvar);
       setvar->var->saved_value_to_string(thd, setvar, str.ptr());
       res = &str;
@@ -817,7 +813,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
       result = true;
       goto err;
     }
-    tmp_var_list.empty();
+    tmp_var_list.clear();
     /*
       Once persisted variables are SET in the server,
       update variables source/user/timestamp/host from m_persist_variables.

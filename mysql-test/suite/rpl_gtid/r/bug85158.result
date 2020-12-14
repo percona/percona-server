@@ -9,10 +9,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ###
-# STOP SLAVE ON 2
+# STOP REPLICA ON 2
 ######
 [connection server_2]
-STOP SLAVE;
+STOP REPLICA;
 ###
 # CREATE TABLE AND INSERTS ON 1
 ######
@@ -25,16 +25,16 @@ include/sync_slave_sql_with_master.inc
 ###
 # MEASURE 3
 ######
-STOP SLAVE;
+STOP REPLICA;
 UPDATE performance_schema.setup_objects
 SET enabled='yes', timed='yes'
   WHERE object_schema='mysql';
-START SLAVE;
+START REPLICA;
 ###
-# START SLAVES 2
+# START REPLICA 2
 ######
 [connection server_2]
-START SLAVE;
+START REPLICA;
 ###
 # SYNC 1->2,2->3
 ######

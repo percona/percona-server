@@ -44,7 +44,7 @@ if (!$debug_sync_action)
 
 eval SET @@global.debug= "+d,$dbug_sync_point";
 
-START SLAVE;
+START REPLICA;
 --echo slave is going to hang in get_master_version_and_clock
 
 SET DEBUG_SYNC= "NOW WAIT_FOR in_get_master_version_and_clock";

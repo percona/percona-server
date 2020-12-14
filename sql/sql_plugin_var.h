@@ -257,8 +257,8 @@ class sys_var_pluginvar : public sys_var {
     plugin_var->name = name_arg;
     is_plugin = true;
   }
-  sys_var_pluginvar *cast_pluginvar() { return this; }
-  bool check_update_type(Item_result type);
+  sys_var_pluginvar *cast_pluginvar() override { return this; }
+  bool check_update_type(Item_result type) override;
   SHOW_TYPE show_type();
   uchar *real_value_ptr(THD *thd, enum_var_type type);
   TYPELIB *plugin_var_typelib(void);
@@ -268,32 +268,54 @@ class sys_var_pluginvar : public sys_var {
     return do_value_ptr(thd, thd, type, base);
   }
   const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                 LEX_STRING *base) {
+                                 LEX_STRING *base) override {
     return do_value_ptr(running_thd, target_thd, OPT_SESSION, base);
   }
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
+  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
     return do_value_ptr(thd, OPT_GLOBAL, base);
   }
-  bool do_check(THD *thd, set_var *var);
-  virtual void session_save_default(THD *, set_var *) {}
-  virtual void saved_value_to_string(THD *thd, set_var *var, char *def_val);
-  virtual void global_save_default(THD *, set_var *) {}
-  bool session_update(THD *thd, set_var *var);
-  bool global_update(THD *thd, set_var *var);
-  longlong get_min_value();
-  ulonglong get_max_value();
-  void set_arg_source(get_opt_arg_source *src) {
+  bool do_check(THD *thd, set_var *var) override;
+  void session_save_default(THD *, set_var *) override {}
+  void saved_value_to_string(THD *thd, set_var *var, char *def_val) override;
+
+  /**
+    Set a PERSIST_ONLY value for a variable. The resulting value should be
+    set to a string representation of the actual value.
+
+    @param[in]     thd   Thread context.
+    @param[in]     var   Plugin variable.
+    @param[in,out] dest  Destination string pointer.
+  */
+  void persist_only_to_string(THD *, set_var *var, String *dest) override;
+  void global_save_default(THD *, set_var *) override {}
+  bool session_update(THD *thd, set_var *var) override;
+  bool global_update(THD *thd, set_var *var) override;
+  longlong get_min_value() override;
+  ulonglong get_max_value() override;
+  void set_arg_source(get_opt_arg_source *src) override {
     strcpy(source.m_path_name, src->m_path_name);
     source.m_source = src->m_source;
   }
-  bool is_non_persistent() {
+  bool is_non_persistent() override {
     return (plugin_var->flags & PLUGIN_VAR_NOPERSIST);
   }
-  bool is_hint_updateable() const {
+  bool is_hint_updateable() const override {
     return (plugin_var->flags & PLUGIN_VAR_HINTUPDATEABLE);
   }
 
-  void set_is_plugin(bool val) { is_plugin = val; }
+  void set_is_plugin(bool val) override { is_plugin = val; }
+
+  /**
+    Check variable type.
+
+    @param[in]     type_mask   Type mask.
+    @return Completion status
+    @retval true Variable type matches with provided type mask
+    @retval false Variable type doesnt match with provided type mask
+  */
+  bool check_type(uint type_mask) const {
+    return ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == type_mask);
+  }
 
   /**
     Create item from plugin variable session value.
@@ -303,7 +325,7 @@ class sys_var_pluginvar : public sys_var {
     @return pointer to Item object or NULL if it's
             impossible to obtain the value.
   */
-  Item *copy_value(THD *thd);
+  Item *copy_value(THD *thd) override;
 };
 
 /*

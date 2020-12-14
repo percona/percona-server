@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,11 +155,11 @@ class Rotate_event : public Binary_log_event {
   Rotate_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &);
-  void print_long_info(std::ostream &);
+  void print_event_info(std::ostream &) override;
+  void print_long_info(std::ostream &) override;
 #endif
 
-  ~Rotate_event() {
+  ~Rotate_event() override {
     if (flags & DUP_NAME) bapi_free(const_cast<char *>(new_log_ident));
   }
 };
@@ -363,10 +363,10 @@ class Format_description_event : public Binary_log_event {
   */
   void calc_server_version_split();
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
-  ~Format_description_event();
+  ~Format_description_event() override;
 
   bool header_is_valid() const {
     return ((common_header_len >= LOG_EVENT_MINIMAL_HEADER_LEN) &&
@@ -413,8 +413,8 @@ class Stop_event : public Binary_log_event {
   Stop_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -501,8 +501,8 @@ class Incident_event : public Binary_log_event {
   */
   Incident_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
  protected:
   enum_incident incident;
@@ -557,8 +557,8 @@ class Xid_event : public Binary_log_event {
   Xid_event(const char *buf, const Format_description_event *fde);
   uint64_t xid;
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -648,8 +648,8 @@ class XA_prepare_event : public Binary_log_event {
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 
@@ -692,8 +692,8 @@ class Ignorable_event : public Binary_log_event {
   */
   Ignorable_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 };
 
@@ -847,7 +847,7 @@ class Transaction_payload_event : public Binary_log_event {
   /**
     This destroys the transaction payload event.
    */
-  virtual ~Transaction_payload_event() override;
+  ~Transaction_payload_event() override;
 
   /**
     Shall set the compression type used for the enclosed payload.
@@ -1073,8 +1073,8 @@ class Gtid_event : public Binary_log_event {
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
  protected:
   static const int ENCODED_FLAG_LENGTH = 1;
@@ -1226,8 +1226,8 @@ class Previous_gtids_event : public Binary_log_event {
 #ifndef HAVE_MYSYS
   // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
  protected:
   size_t buf_size;
@@ -1311,7 +1311,7 @@ class Transaction_context_event : public Binary_log_event {
         thread_id(thread_id_arg),
         gtid_specified(is_gtid_specified_arg) {}
 
-  virtual ~Transaction_context_event();
+  ~Transaction_context_event() override;
 
   static const char *read_data_set(const char *pos, uint32_t set_len,
                                    std::list<const char *> *set,
@@ -1320,8 +1320,8 @@ class Transaction_context_event : public Binary_log_event {
   static void clear_set(std::list<const char *> *set);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 
  protected:
@@ -1408,11 +1408,11 @@ class View_change_event : public Binary_log_event {
 
   explicit View_change_event(const char *raw_view_id);
 
-  virtual ~View_change_event();
+  ~View_change_event() override;
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &) {}
-  void print_long_info(std::ostream &) {}
+  void print_event_info(std::ostream &) override {}
+  void print_long_info(std::ostream &) override {}
 #endif
 
  protected:

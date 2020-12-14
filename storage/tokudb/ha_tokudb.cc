@@ -3918,6 +3918,8 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
   DBUG_PRINT("enter",
              ("table: '%s'  key: %d", table_share->table_name.str, keynr));
 
+  restore_cached_transaction_pointer(thd);
+
   /*
      Under some very rare conditions (like full joins) we may already have
      an active cursor at this point
@@ -4996,6 +4998,13 @@ cleanup:
   TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
+void ha_tokudb::restore_cached_transaction_pointer(THD *thd) {
+  // Cached transaction may be already commited (and destroyed) and new
+  // transaction cached pointer.
+  tokudb_trx_data *trx = (tokudb_trx_data *)thd_get_ha_data(thd, tokudb_hton);
+  transaction = trx ? trx->sub_sp_level : nullptr;
+}
+
 //
 // Initialize a scan of the table (which is why index_init is called on
 // primary_key) Parameters:
@@ -5008,6 +5017,9 @@ int ha_tokudb::rnd_init(bool scan) {
   TOKUDB_HANDLER_DBUG_ENTER("");
   int error = 0;
   range_lock_grabbed = false;
+
+  restore_cached_transaction_pointer(ha_thd());
+
   error = index_init(MAX_KEY, 0);
   if (error) {
     goto cleanup;

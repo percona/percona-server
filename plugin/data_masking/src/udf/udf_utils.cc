@@ -16,6 +16,7 @@
 #include "plugin/data_masking/include/udf/udf_utils.h"
 
 #include <algorithm>
+#include <cassert>
 
 namespace mysql {
 namespace plugins {
@@ -70,10 +71,10 @@ std::string random_number(const unsigned int length) {
   return str;
 }
 
-unsigned int random_number(const unsigned int min, const unsigned int max) {
+long random_number(const long min, const long max) {
   std::random_device r;
   std::default_random_engine el(r());
-  std::uniform_int_distribution<unsigned int> dist(min, max);
+  std::uniform_int_distribution<long> dist(min, max);
 
   return dist(el);
 }
@@ -85,7 +86,7 @@ std::string random_credit_card() {
     case 3:
       // American Express: 1st N 3, 2nd N [4,7], len 15
       str.assign("3")
-          .append(std::to_string(random_number(4, 7)))
+          .append(std::to_string((random_number(0, 9) % 2) == 0 ? 4 : 7))
           .append(random_number(12));
       break;
     case 4:
@@ -115,8 +116,14 @@ std::string random_credit_card() {
       check_sum += n;
     }
   }
-  str.append(std::to_string(10 - (check_sum % 10)));
 
+  if (check_sum % 10 == 0) {
+    str.append(std::to_string(0));
+  } else {
+    str.append(std::to_string(10 - (check_sum % 10)));
+  }
+
+  assert(str.size() == 16 || str.size() == 15);
   return str;
 }
 
@@ -142,5 +149,51 @@ std::string random_us_phone() {
       .append(random_number(4));
 }
 
+const char *Charset_service::arg_type("charset");
+const char *Charset_service::service_name("mysql_udf_metadata");
+SERVICE_TYPE(mysql_udf_metadata) *Charset_service::udf_metadata_service =
+    nullptr;
+
+bool Charset_service::init(SERVICE_TYPE(registry) * reg_srv) {
+  my_h_service h_udf_metadata_service;
+  if (!reg_srv || reg_srv->acquire(service_name, &h_udf_metadata_service))
+    return true;
+  udf_metadata_service = reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
+      h_udf_metadata_service);
+  return false;
+}
+
+bool Charset_service::deinit(SERVICE_TYPE(registry) * reg_srv) {
+  if (!reg_srv) return true;
+  using udf_metadata_t = SERVICE_TYPE_NO_CONST(mysql_udf_metadata);
+  if (udf_metadata_service)
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<udf_metadata_t *>(udf_metadata_service)));
+  return false;
+}
+
+/* Set the return value character set as latin1 */
+bool Charset_service::set_return_value_charset(
+    UDF_INIT *initid, const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  if (udf_metadata_service->result_set(initid, Charset_service::arg_type,
+                                       static_cast<void *>(charset))) {
+    return true;
+  }
+  return false;
+}
+
+bool Charset_service::set_args_charset(UDF_ARGS *args,
+                                       const std::string &charset_name) {
+  char *charset = const_cast<char *>(charset_name.c_str());
+  for (uint index = 0; index < args->arg_count; ++index) {
+    if (udf_metadata_service->argument_set(args, Charset_service::arg_type,
+                                           index,
+                                           static_cast<void *>(charset))) {
+      return true;
+    }
+  }
+  return false;
+}
 }  // namespace plugins
 }  // namespace mysql

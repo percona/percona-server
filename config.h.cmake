@@ -194,6 +194,7 @@
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
+#cmakedefine WITH_SYSTEMD_DEBUG
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
@@ -347,5 +348,10 @@
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 /* coredumper library */
 #cmakedefine01 HAVE_LIBCOREDUMPER
+
+
+/* From libmysql/CMakeLists.txt */
+#cmakedefine HAVE_UNIX_DNS_SRV @HAVE_UNIX_DNS_SRV@
+#cmakedefine HAVE_WIN32_DNS_SRV @HAVE_WIN32_DNS_SRV@
 
 #endif

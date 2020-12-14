@@ -122,6 +122,7 @@ extern mysql_pfs_key_t log_limits_mutex_key;
 extern mysql_pfs_key_t log_bmp_sys_mutex_key;
 extern mysql_pfs_key_t log_cmdq_mutex_key;
 extern mysql_pfs_key_t log_sn_lock_key;
+extern mysql_pfs_key_t log_sn_mutex_key;
 extern mysql_pfs_key_t log_sys_arch_mutex_key;
 extern mysql_pfs_key_t page_sys_arch_mutex_key;
 extern mysql_pfs_key_t page_sys_arch_oper_mutex_key;

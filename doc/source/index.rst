@@ -96,6 +96,8 @@ Management Improvements
    management/udf_percona_toolkit
    management/kill_idle_trx
    management/changed_page_tracking
+   management/enforce_engine
+   management/pam_plugin
    management/innodb_expanded_fast_index_creation
    management/backup_locks
    management/audit_log_plugin

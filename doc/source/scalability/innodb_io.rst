@@ -54,4 +54,7 @@ The following information has been added to ``SHOW ENGINE INNODB STATUS`` to con
    0 pending log writes, 0 pending chkp writes
    ...
 
+.. note:: 
 
+        Implemented in |Percona Server| 8.0.13-4, ``max checkpoint age`` has been
+        removed because the information is identical to ``log capacity``.  

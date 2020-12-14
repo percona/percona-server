@@ -224,9 +224,14 @@ between the current LSN and the LSN of the last completed checkpoint.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the maximum allowed checkppoint age above which the redo
+This variable shows the maximum allowed checkpoint age above which the redo
 log is close to full and a checkpoint must happen before any further redo log
 writes.
+
+.. note:: 
+
+        This variable was removed in |Percona Server| 8.0.13-4 due to a change
+        in MySQL. The variable is identical to log capacity.
 
 BUFFER POOL AND MEMORY
 ----------------------

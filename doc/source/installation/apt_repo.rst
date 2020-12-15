@@ -228,6 +228,11 @@ Server| in :file:`/etc/mysql/my.cnf`.
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and
    service manager. You can invoke all the above commands with ``systemctl``
    instead of ``service``. Currently both are supported.
+   
+Working with AppArmor
+======================
+
+For information on AppArmor, see :ref:`enable-apparmor`.
 
 Uninstalling |Percona Server|
 =============================

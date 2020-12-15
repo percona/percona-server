@@ -214,6 +214,11 @@ Server| in :file:`/etc/my.cnf`.
    with ``sytemctl`` instead of ``service``. Currently, both are
    supported.
 
+Working with SELinux
+======================
+
+For information on working with SELinux, see :ref:`selinux`.
+
 Uninstalling |Percona Server|
 =============================
 

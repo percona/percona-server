@@ -1078,7 +1078,6 @@ void Partition_base::close_new_partitions(bool delete_new_partitions) {
   DBUG_ENTER("Partition_base::close_new_partitions");
 
   if (m_new_file) {
-    THD *thd = ha_thd();
     for (uint i = 0; i < m_num_new_partitions; i++) {
       handler *file = m_new_file[i];
 
@@ -1086,7 +1085,6 @@ void Partition_base::close_new_partitions(bool delete_new_partitions) {
         /* Not a new partition, skip it. */
         continue;
       }
-      file->ha_external_lock(thd, F_UNLCK);
       file->ha_close();
       if (delete_new_partitions && m_new_partitions_name[i] != nullptr) {
         file->ha_delete_table(m_new_partitions_name[i], nullptr);
@@ -4115,6 +4113,7 @@ bool Partition_base::commit_inplace_alter_table(
       partition_element *part_elem;
       int num_subparts =
           part_info->is_sub_partitioned() ? part_info->num_subparts : 1;
+      uint count = 0;
       while ((part_elem = part_it++) != nullptr) {
         partition_state state = part_elem->part_state;
         switch (state) {
@@ -4133,6 +4132,9 @@ bool Partition_base::commit_inplace_alter_table(
                 if (error) goto end;
                 error = (*file)->ha_delete_table(name, old_table_def);
                 if (error) goto end;
+                (*file)->ha_close();
+                destroy_at(*file);
+                *file = nullptr;
                 file++;
               }
             } else {
@@ -4143,14 +4145,21 @@ bool Partition_base::commit_inplace_alter_table(
               if (error) goto end;
               error = (*file)->ha_delete_table(name, old_table_def);
               if (error) goto end;
+              (*file)->ha_close();
+              destroy_at(*file);
+              *file = nullptr;
               file += num_subparts;
             }
             break;
           default:
+            memmove(m_file + count, file, num_subparts * sizeof(handler *));
             file += num_subparts;
+            count += num_subparts;
             break;
         }
       }
+      m_file[count] = nullptr;
+      m_tot_parts = count;
     } else if (ha_alter_info->alter_info->flags &
                Alter_info::ALTER_ADD_PARTITION) {
       partition_info *part_info = ha_alter_info->modified_part_info;

@@ -123,13 +123,15 @@ case "$1" in
 		PROFILE_ACTION="Use NEW AppArmor profile"
 		# If the existing AppArmor module/local profile is the proper file, we back it up
 		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" -o -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
-			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/usr.sbin.mysqld.bak 2> /dev/null || true
-			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/usr.sbin.mysqld.bak 2> /dev/null || true
 			db_input high percona-server-server/existing_profile_file || true
 			db_go
 			db_get percona-server-server/existing_config_file && PROFILE_ACTION=${RET}
 		fi
 		if [ "${PROFILE_ACTION}" = "Use NEW AppArmor profile" ]; then
+			DATE=`date +%Y-%m-%d-%H:%m:%S`
+			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+
 			mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
 			mv -f /etc/apparmor.d/local/usr.sbin.mysqld.in /etc/apparmor.d/local/usr.sbin.mysqld
 

@@ -5111,6 +5111,12 @@ static int rocksdb_init_internal(void *const p) {
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
   }
+#else
+  if (rocksdb_wsenv_path != nullptr && *rocksdb_wsenv_path) {
+    // We've turned on WSEnv in the wrong build
+    LogPluginErrMsg(ERROR_LEVEL, 0, "WSEnvironment not supported. ");
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
 #endif
 
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.

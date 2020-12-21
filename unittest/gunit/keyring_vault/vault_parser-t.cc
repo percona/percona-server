@@ -171,10 +171,9 @@ TEST_F(Vault_parser_test, ParseVaultPayloadNoKeyList)
       "\":null,\"warnings\":null,\"auth\":null}");
   Vault_keys_list keys;
   Vault_parser    vault_parser(logger);
-  EXPECT_CALL(
-      *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_ERROR_LEVEL,
-          StrEq("Could not parse keys tag with keys list from Vault.")));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
+              log(MY_ERROR_LEVEL, StrEq("Vault Server response[\"data\"] "
+                                        "does not have \"keys\" member")));
   EXPECT_TRUE(vault_parser.parse_keys(payload, &keys));
   EXPECT_EQ(keys.size(), static_cast<uint>(0));
 }
@@ -191,7 +190,7 @@ TEST_F(Vault_parser_test, ParseKeyData)
 
   Vault_parser vault_parser(logger);
   Vault_key    key("key1", NULL, "rob", NULL, 0);
-  EXPECT_FALSE(vault_parser.parse_key_data(payload, &key));
+  EXPECT_FALSE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
   EXPECT_STREQ(key.get_key_signature()->c_str(), "4_key13_rob");
   ASSERT_TRUE(memcmp(key.get_key_data(), "Robi", key.get_key_data_size()) ==
               0);
@@ -210,8 +209,9 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingTypeTag)
   Vault_key    key("key1", NULL, "rob", NULL, 0);
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not parse type tag for a key.")));
-  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key));
+      log(MY_ERROR_LEVEL,
+          StrEq("Vault Server response data does not have \"type\" member")));
+  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
 }
 
 TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag)
@@ -224,94 +224,98 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag)
 
   Vault_parser vault_parser(logger);
   Vault_key    key("key1", NULL, "rob", NULL, 0);
-  EXPECT_CALL(
-      *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not parse value tag for a key.")));
-  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
+              log(MY_ERROR_LEVEL, StrEq("Vault Server response data does "
+                                        "not have \"value\" member")));
+  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
 }
 
 TEST_F(Vault_parser_test, GetVaultVersion2)
 {
   Secure_string payload(
-      "\"secret/\": { \"accessor\": \"kv_3f89594e\","
+      "{\"secret/\": { \"accessor\": \"kv_3f89594e\","
       "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
+      "storage\","
       "\"local\": false, \"options\": { \"version\": \"2\" },"
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
   Vault_credentials::Map credentials;
   credentials["secret_mount_point"]= "secret";
   Vault_credentials vault_credentials(credentials);
 
-  Vault_parser vault_parser(logger);
-  int          vault_version= -1;
+  Vault_parser       vault_parser(logger);
+  Vault_version_type vault_version= Vault_version_unknown;
   EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
                                               vault_version));
-  EXPECT_TRUE(vault_version == 2);
+  EXPECT_TRUE(vault_version == Vault_version_v2);
 }
 
 TEST_F(Vault_parser_test, GetVaultVersion1)
 {
   Secure_string payload(
-      "\"cicd/\": { \"accessor\": \"kv_3f89594e\","
+      "{\"cicd/\": { \"accessor\": \"kv_3f89594e\","
       "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
+      "storage\","
       "\"local\": false, \"options\": { \"version\": \"1\" },"
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
   Vault_credentials::Map credentials;
   credentials["secret_mount_point"]= "cicd";
   Vault_credentials vault_credentials(credentials);
 
-  Vault_parser vault_parser(logger);
-  int          vault_version= -1;
+  Vault_parser       vault_parser(logger);
+  Vault_version_type vault_version= Vault_version_unknown;
   EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
                                               vault_version));
-  EXPECT_TRUE(vault_version == 1);
+  EXPECT_TRUE(vault_version == Vault_version_v1);
 }
 
 TEST_F(Vault_parser_test, GetVaultOptionsNull)
 {
   Secure_string payload(
-      "\"cicd/\": { \"accessor\": \"kv_3f89594e\","
+      "{\"cicd/\": { \"accessor\": \"kv_3f89594e\","
       "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
+      "storage\","
       "\"local\": false, \"options\": null,"
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
   Vault_credentials::Map credentials;
   credentials["secret_mount_point"]= "cicd";
   Vault_credentials vault_credentials(credentials);
 
-  Vault_parser vault_parser(logger);
-  int          vault_version= -1;
+  Vault_parser       vault_parser(logger);
+  Vault_version_type vault_version= Vault_version_unknown;
   EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
                                               vault_version));
-  EXPECT_TRUE(vault_version == 1);
+  EXPECT_TRUE(vault_version == Vault_version_v1);
 }
 
 TEST_F(Vault_parser_test, GetVaultOptionsEmpty)
 {
   Secure_string payload(
-      "\"cicd/\": { \"accessor\": \"kv_3f89594e\","
+      "{\"cicd/\": { \"accessor\": \"kv_3f89594e\","
       "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret storage\","
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
+      "storage\","
       "\"local\": false, \"options\": {},"
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"},");
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
   Vault_credentials::Map credentials;
   credentials["secret_mount_point"]= "cicd";
   Vault_credentials vault_credentials(credentials);
 
-  Vault_parser vault_parser(logger);
-  int          vault_version= -1;
+  Vault_parser       vault_parser(logger);
+  Vault_version_type vault_version= Vault_version_unknown;
   EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
                                               vault_version));
-  EXPECT_TRUE(vault_version == 1);
+  EXPECT_TRUE(vault_version == Vault_version_v1);
 }
 
 TEST_F(Vault_parser_test, ParsePayloadThatsGarbage)
@@ -324,8 +328,8 @@ TEST_F(Vault_parser_test, ParsePayloadThatsGarbage)
   Vault_key    key("key1", NULL, "rob", NULL, 0);
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not parse type tag for a key.")));
-  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key));
+      log(MY_ERROR_LEVEL, StrEq("Could not parse Vault Server response.")));
+  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
 }
 
 }  // namespace keyring__vault_parser_unittest

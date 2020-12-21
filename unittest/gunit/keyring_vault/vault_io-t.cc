@@ -336,7 +336,8 @@ class Mock_vault_curl : public IVault_curl {
   MOCK_METHOD2(delete_key,
                bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD1(set_timeout, void(uint timeout));
-  MOCK_METHOD0(set_vault_version_2, void());
+  MOCK_CONST_METHOD0(get_vault_version, Vault_version_type());
+  MOCK_METHOD1(set_vault_version, void(Vault_version_type));
 };
 
 TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit)
@@ -557,7 +558,8 @@ class Mock_vault_parser : public IVault_parser {
  public:
   MOCK_METHOD2(parse_keys,
                bool(const Secure_string &payload, Vault_keys_list *keys));
-  MOCK_METHOD2(parse_key_data, bool(const Secure_string &payload, IKey *key));
+  MOCK_METHOD3(parse_key_data, bool(const Secure_string &payload, IKey *key,
+                                    Vault_version_type vault_version));
   MOCK_METHOD2(parse_key_signature, bool(const Secure_string &key_signature,
                                          KeyParameters *key_parameters));
   MOCK_METHOD2(parse_errors,
@@ -565,7 +567,7 @@ class Mock_vault_parser : public IVault_parser {
   MOCK_METHOD3(get_vault_version,
                bool(const Vault_credentials &vault_credentials,
                     const Secure_string &    mount_points_payload,
-                    int &                    vault_version));
+                    Vault_version_type &     vault_version));
 };
 
 TEST_F(Vault_io_test, ErrorFromParseKeysOnGetSerializedObject)
@@ -621,7 +623,7 @@ TEST_F(Vault_io_test, ErrorFromParseKeyDataOnRetrieveKeyTypeAndValue)
   EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
 
   Vault_key key(key_1_id, NULL, "rob", NULL, 0);
-  EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key))
+  EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key, Vault_version_v1))
       .WillOnce(Return(true));
   EXPECT_CALL(*mock_vault_parser, parse_errors(_, _)).WillOnce(Return(false));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
@@ -646,7 +648,7 @@ TEST_F(Vault_io_test,
   EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
 
   Vault_key key(key_1_id, NULL, "rob", NULL, 0);
-  EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key))
+  EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key, Vault_version_v1))
       .WillOnce(Return(true));
   EXPECT_CALL(*mock_vault_parser, parse_errors(_, _)).WillOnce(Return(true));
   EXPECT_CALL(

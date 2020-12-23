@@ -16,6 +16,12 @@ if ($vault_conf_token)
 {
   --let EXPORTED_VAULT_CONF_TOKEN = $vault_conf_token
 }
+--let EXPORTED_VAULT_CONF_CA =
+if ($vault_conf_ca)
+{
+  --let EXPORTED_VAULT_CONF_CA = $vault_conf_ca
+}
+
 --let EXPORTED_VAULT_SERVER_MOUNT_POINT_VERSION = $vault_server_mount_point_version
 
 --let EXPORTED_MOUNT_POINT_SERVICE_OP = $mount_point_service_op
@@ -34,6 +40,13 @@ if ($vault_conf_token)
   {
     $imported_vault_conf_token = $ENV{'MTR_VAULT_TOKEN'} or die("Please export MTR_VAULT_TOKEN variable");
   }
+
+  my $imported_vault_conf_ca = $ENV{'EXPORTED_VAULT_CONF_CA'};
+  if (!$imported_vault_conf_ca)
+  {
+    $imported_vault_conf_ca = $ENV{'MTR_VAULT_CA'};
+  }
+
   my $imported_vault_conf_mount_point_uuid = $ENV{'EXPORTED_VAULT_CONF_MOUNT_POINT_UUID'} or die("EXPORTED_VAULT_CONF_MOUNT_POINT_UUID not set\n");
   my $imported_vault_conf_mount_point_suffix = $ENV{'EXPORTED_VAULT_CONF_MOUNT_POINT_SUFFIX'};
   my $imported_vault_conf_mount_point_directory = $ENV{EXPORTED_VAULT_CONF_MOUNT_POINT_DIRECTORY};
@@ -49,11 +62,10 @@ if ($vault_conf_token)
     }
   }
 
-  my $vault_ca;
-  my $vault_ca_cert_opt= "";
-  if ($vault_ca)
+  my $vault_ca_cert_opt = "";
+  if ($imported_vault_conf_ca)
   {
-    $vault_ca_cert_opt= "--cacert $vault_ca";
+    $vault_ca_cert_opt = "--cacert $imported_vault_conf_ca";
   }
 
   my $postdata= "";

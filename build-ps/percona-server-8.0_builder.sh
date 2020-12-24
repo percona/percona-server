@@ -138,6 +138,41 @@ get_sources(){
         echo "VERSION file does not exist"
 	exit 1
     fi
+
+    IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
+    EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
+    if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
+        echo "Major version differs from defined in version file"
+        exit 1
+    fi
+    if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
+        echo "Minor version differs from defined in version file"
+        exit 1
+    fi
+    if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
+        echo "Patch version differs from defined in version file"
+        exit 1
+    fi
+    if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
+        echo "Extra version differs from defined in version file"
+        exit 1
+    fi
+    INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
+    if [ ${INNODB_VER} != ${EXTRA} ]; then
+        echo "InnoDB version differs from defined in version file"
+        exit 1
+    fi
+    FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+    if [ ${FT_TAG} = 0 ]; then
+        echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+        exit 1
+    fi
+    TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+    if [ ${TOKUBACKUP_TAG} = 0 ]; then
+        echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+        exit 1
+    fi
+    
     echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-8.0.properties
@@ -319,16 +354,21 @@ install_deps() {
 	      else
             yum -y install libevent-devel
         fi
+        if [ "x$RHEL" = "x7" ]; then
+            rm -f /usr/bin/cmake
+	    cp -p /usr/bin/cmake3 /usr/bin/cmake
+        fi
     else
         apt-get -y install dirmngr || true
         apt-get update
+	apt-get -y install lsb_release || true
         apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget
+        apt-get -y install lsb-release wget git curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
-            until sudo apt-get update; do
+            until apt-get update; do
             sleep 1
             echo "waiting"
         done
@@ -788,7 +828,7 @@ INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
 REVISION=0
-BRANCH="8.0"
+BRANCH="release-8.0.22-13"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -796,12 +836,12 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=12
-MYSQL_VERSION_EXTRA=-1
-PRODUCT_FULL=Percona-Server-8.0.12.1
+MYSQL_VERSION_PATCH=22
+MYSQL_VERSION_EXTRA=-13
+PRODUCT_FULL=Percona-Server-8.0.22
 BOOST_PACKAGE_NAME=boost_1_73_0
-PERCONAFT_BRANCH=Percona-Server-5.7.22-22
-TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
+PERCONAFT_BRANCH=Percona-Server-8.0.22-13
+TOKUBACKUP_BRANCH=Percona-Server-8.0.22-13
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

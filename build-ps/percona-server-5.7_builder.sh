@@ -137,6 +137,41 @@ get_sources(){
         echo "VERSION file does not exist"
         exit 1
     fi
+
+    IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
+    EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
+    if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
+        echo "Major version differs from defined in version file"
+        exit 1
+    fi
+    if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
+        echo "Minor version differs from defined in version file"
+        exit 1
+    fi
+    if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
+        echo "Patch version differs from defined in version file"
+        exit 1
+    fi
+    if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
+        echo "Extra version differs from defined in version file"
+        exit 1
+    fi
+    INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
+    if [ ${INNODB_VER} != ${EXTRA} ]; then
+        echo "InnoDB version differs from defined in version file"
+        exit 1
+    fi
+    FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+    if [ ${FT_TAG} = 0 ]; then
+        echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+        exit 1
+    fi
+    TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+    if [ ${TOKUBACKUP_TAG} = 0 ]; then
+        echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+        exit 1
+    fi
+
     echo "REVISION=${REVISION}" >> ../percona-server-5.7.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.7.properties
@@ -302,6 +337,7 @@ install_deps() {
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
             yum -y install epel-release
+            yum -y install selinux-policy-devel
             yum -y install git pkg-config numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
             yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
             yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
@@ -795,10 +831,10 @@ MYSQL_VERSION_MAJOR=5
 MYSQL_VERSION_MINOR=7
 MYSQL_VERSION_PATCH=22
 MYSQL_VERSION_EXTRA=-22
-PRODUCT_FULL=Percona-Server-5.7.22-22
+PRODUCT_FULL=Percona-Server-5.7.32-35
 BOOST_PACKAGE_NAME=boost_1_59_0
-PERCONAFT_BRANCH=Percona-Server-5.7.22-22
-TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
+PERCONAFT_BRANCH=Percona-Server-5.7.32-35
+TOKUBACKUP_BRANCH=Percona-Server-5.7.32-35
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if [ ${YASSL} = 1 ]; then
   TARBALL=1

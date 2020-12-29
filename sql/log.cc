@@ -776,7 +776,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             " Sort_rows: %lu Sort_scan_count: %lu"
             " Created_tmp_disk_tables: %lu"
             " Created_tmp_tables: %lu"
-            " Start: %s End: %s Schema: %s Rows_affected: %llu\n",
+            " Start: %s End: %s Schema: %s Rows_affected: %llu",
             query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
             (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
             (ulong)(thd->is_classic_protocol()

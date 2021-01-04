@@ -673,7 +673,7 @@ enum mysql_trx_stat_type
 */
 void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
                             enum mysql_trx_stat_type type,
-                            unsigned long long       value);
+                            uint64_t value);
 
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 

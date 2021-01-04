@@ -116,8 +116,7 @@ enum mysql_trx_stat_type {
   MYSQL_TRX_STAT_ACCESS_PAGE_ID
 };
 void thd_report_innodb_stat(void * thd, unsigned long long trx_id,
-                            enum mysql_trx_stat_type type,
-                            unsigned long long value);
+                            enum mysql_trx_stat_type type, uint64_t value);
 unsigned long thd_log_slow_verbosity(const void * thd);
 int thd_opt_slow_log();
 int thd_is_background_thread(const void * thd);

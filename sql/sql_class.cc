@@ -1525,7 +1525,7 @@ THD::~THD() {
 
 extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
                                        enum mysql_trx_stat_type type,
-                                       unsigned long long value) {
+                                       uint64_t value) {
   assert(thd);
   assert(!thd_is_background_thread(thd));
   (void)thd;

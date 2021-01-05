@@ -388,7 +388,7 @@ class ha_rocksdb : public my_core::handler {
   bool has_hidden_pk(const TABLE *const table) const
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  void update_row_stats(const operation_type &type);
+  void update_row_stats(const operation_type &type, ulonglong count = 1);
 
   void set_last_rowkey(const uchar *const old_data);
 
@@ -955,6 +955,8 @@ class ha_rocksdb : public my_core::handler {
                                                    Rdb_tbl_def *tbl_def);
   static int adjust_handler_stats_table_scan(ha_statistics *ha_stats,
                                              Rdb_tbl_def *tbl_def);
+
+  void update_row_read(ulonglong count);
 
   void build_decoder();
   void check_build_decoder();

@@ -621,9 +621,9 @@ typedef struct system_variables
 
   ulong      innodb_io_reads;
   ulonglong  innodb_io_read;
-  ulong      innodb_io_reads_wait_timer;
-  ulong      innodb_lock_que_wait_timer;
-  ulong      innodb_innodb_que_wait_timer;
+  uint64_t   innodb_io_reads_wait_timer;
+  uint64_t   innodb_lock_que_wait_timer;
+  uint64_t   innodb_innodb_que_wait_timer;
   ulong      innodb_page_access;
 
   double long_query_time_double;
@@ -1901,9 +1901,9 @@ public:
   bool       innodb_was_used;
   ulong      innodb_io_reads;
   ulonglong  innodb_io_read;
-  ulong      innodb_io_reads_wait_timer;
-  ulong      innodb_lock_que_wait_timer;
-  ulong      innodb_innodb_que_wait_timer;
+  uint64_t   innodb_io_reads_wait_timer;
+  uint64_t   innodb_lock_que_wait_timer;
+  uint64_t   innodb_innodb_que_wait_timer;
   ulong      innodb_page_access;
 
   ulong      query_plan_flags;
@@ -2494,9 +2494,9 @@ public:
   ulonglong  innodb_trx_id;
   ulong      innodb_io_reads;
   ulonglong  innodb_io_read;
-  ulong      innodb_io_reads_wait_timer;
-  ulong      innodb_lock_que_wait_timer;
-  ulong      innodb_innodb_que_wait_timer;
+  uint64_t   innodb_io_reads_wait_timer;
+  uint64_t   innodb_lock_que_wait_timer;
+  uint64_t   innodb_innodb_que_wait_timer;
   ulong      innodb_page_access;
 
   /*

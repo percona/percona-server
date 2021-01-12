@@ -234,8 +234,7 @@ que_thr_end_lock_wait(
 	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		now = (ib_uint64_t)sec * 1000000 + ms;
-		trx->lock_que_wait_timer
-			+= (ulint)(now - trx->lock_que_wait_ustarted);
+		trx->lock_que_wait_timer += now - trx->lock_que_wait_ustarted;
 	}
 
 	trx->lock.que_state = TRX_QUE_RUNNING;

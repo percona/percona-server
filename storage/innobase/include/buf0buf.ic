@@ -65,13 +65,13 @@ struct buf_chunk_t{
 	}
 
 	/** Advices the OS that this chunk should not be dumped to a core file.
-	  Emits a warning to the log if could not succeed.
-	  @return true iff succeeded, false if no OS support or failed */
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
 	bool madvise_dump();
 
 	/** Advices the OS that this chunk should be dumped to a core file.
-	  Emits a warning to the log if could not succeed.
-	  @return true iff succeeded, false if no OS support or failed */
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
 	bool madvise_dont_dump();
 };
 

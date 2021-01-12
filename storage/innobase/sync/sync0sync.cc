@@ -49,9 +49,9 @@ unsigned int mysql_pfs_key_t::s_count;
 /* Key to register autoinc_mutex with performance schema */
 mysql_pfs_key_t	autoinc_mutex_key;
 #ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-mysql_pfs_key_t buffer_block_mutex_key;
+mysql_pfs_key_t	buffer_block_mutex_key;
 #endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-mysql_pfs_key_t buf_pool_chunks_mutex_key;
+mysql_pfs_key_t	buf_pool_chunks_mutex_key;
 mysql_pfs_key_t	buf_pool_flush_state_mutex_key;
 mysql_pfs_key_t	buf_pool_LRU_list_mutex_key;
 mysql_pfs_key_t	buf_pool_free_list_mutex_key;

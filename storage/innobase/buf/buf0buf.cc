@@ -149,12 +149,12 @@ control data structures of the buf_pool. The content of a buffer frame is
 protected by a separate read-write lock in its control block, though.
 
 buf_pool->chunks_mutex protects the chunks, n_chunks during resize;
-  it also protects buf_pool_should_madvise:
-  - readers of buf_pool_should_madvise hold any buf_pool's chunks_mutex
-  - writers hold all buf_pools' chunk_mutex-es;
-  it is useful to think that it also protects the status of madvice() flags set
-  for chunks in this pool, even though these flags are handled by OS, as we only
-  modify them why holding this latch;
+it also protects buf_pool_should_madvise:
+- readers of buf_pool_should_madvise hold any buf_pool's chunks_mutex
+- writers hold all buf_pools' chunk_mutex-es;
+it is useful to think that it also protects the status of madvice() flags set
+for chunks in this pool, even though these flags are handled by OS, as we only
+modify them why holding this latch;
 
 		Control blocks
 		--------------
@@ -1476,7 +1476,7 @@ static bool buf_pool_should_madvise = false;
 
 /** Advices the OS that this chunk should not be dumped to a core file.
 Emits a warning to the log if could not succeed.
-@return true iff succeeded, false if no OS support or failed */
+@return true if succeeded, false if no OS support or failed */
 bool
 buf_chunk_t::madvise_dump()
 {
@@ -1488,20 +1488,20 @@ buf_chunk_t::madvise_dump()
 			   << mem << "," << mem_size() << ","
 			   << "MADV_DODUMP"
 			   << ") failed with " << strerror(errno);
-		return false;
+		return(false);
 	}
-	return true;
+	return(true);
 #else  /* HAVE_MADV_DONTDUMP */
 	ib::warn() << "Disabling @@core_file because "
 		      "@@innodb_buffer_pool_in_core_file is disabled, yet "
 		      "MADV_DONTDUMP is not supported on this platform";
-	return false;
+	return(false);
 #endif /* HAVE_MADV_DONTDUMP */
 }
 
 /** Advices the OS that this chunk should be dumped to a core file.
 Emits a warning to the log if could not succeed.
-@return true iff succeeded, false if no OS support or failed */
+@return true if succeeded, false if no OS support or failed */
 bool
 buf_chunk_t::madvise_dont_dump()
 {
@@ -1513,14 +1513,14 @@ buf_chunk_t::madvise_dont_dump()
 			   << mem << "," << mem_size() << ","
 			   << "MADV_DONTDUMP"
 			   << ") failed with " << strerror(errno);
-		return false;
+		return(false);
 	}
-	return true;
+	return(true);
 #else  /* HAVE_MADV_DONTDUMP */
 	ib::warn() << "Disabling @@core_file because "
 		      "@@innodb_buffer_pool_in_core_file is disabled, yet "
 		      "MADV_DONTDUMP is not supported on this platform";
-	return false;
+	return(false);
 #endif /* HAVE_MADV_DONTDUMP */
 }
 
@@ -1536,7 +1536,7 @@ itself succeeded.
 @param[in]	mem_size  number of bytes to allocate
 @param[in/out]  chunk     mem and mem_pfx fields of this chunk will be updated
                           to contain information about allocated memory region
-@return true iff allocated successfully */
+@return true if allocated successfully */
 bool
 buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk,
 			   bool populate)
@@ -1545,7 +1545,7 @@ buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk,
 	chunk->mem =
 	    allocator.allocate_large(mem_size, &chunk->mem_pfx, populate);
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
-		return false;
+		return(false);
 	}
 	/* Dump core without large memory buffers */
 	if (buf_pool_should_madvise) {
@@ -1553,7 +1553,7 @@ buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk,
 			innobase_disable_core_dump();
 		}
 	}
-	return true;
+	return(true);
 }
 
 /** A wrapper for buf_pool_t::allocator.deallocate_large which also advices the
@@ -1578,7 +1578,7 @@ buf_pool_t::deallocate_chunk(buf_chunk_t *chunk)
 /** Advices the OS that all chunks in this buffer pool instance can be dumped
 to a core file.
 Emits a warning to the log if could not succeed.
-@return true iff succeeded, false if no OS support or failed */
+@return true if succeeded, false if no OS support or failed */
 bool
 buf_pool_t::madvise_dump()
 {
@@ -1586,16 +1586,16 @@ buf_pool_t::madvise_dump()
 	for (buf_chunk_t *chunk = chunks; chunk < chunks + n_chunks;
 	     chunk++) {
 		if (!chunk->madvise_dump()) {
-			return false;
+			return(false);
 		}
 	}
-	return true;
+	return(true);
 }
 
 /** Advices the OS that all chunks in this buffer pool instance should not
 be dumped to a core file.
 Emits a warning to the log if could not succeed.
-@return true iff succeeded, false if no OS support or failed */
+@return true if succeeded, false if no OS support or failed */
 bool
 buf_pool_t::madvise_dont_dump()
 {
@@ -1603,10 +1603,10 @@ buf_pool_t::madvise_dont_dump()
 	for (buf_chunk_t *chunk = chunks; chunk < chunks + n_chunks;
 	     chunk++) {
 		if (!chunk->madvise_dont_dump()) {
-			return false;
+			return(false);
 		}
 	}
-	return true;
+	return(true);
 }
 
 /* End of implementation of buf_pool_t's methods */
@@ -1619,23 +1619,23 @@ void
 buf_pool_update_madvise()
 {
 	/* We need to make sure that buf_pool_should_madvise value change does not
-  occur in parallel with allocation or deallocation of chunks in some buf_pool
-  as this could lead to inconsistency - we would call madvise for some but not
-  all chunks, perhaps with a wrong MADV_DO(NT)_DUMP flag.
-  Moreover, we are about to iterate over chunks, which requires the bounds of
-  for loop to be fixed.
-  To solve both problems we first latch all buf_pool_t::chunks_mutex-es, and
-  only then update the buf_pool_should_madvise, and perform iteration over
-  buf_pool-s and their chunks.*/
+	occur in parallel with allocation or deallocation of chunks in some buf_pool
+	as this could lead to inconsistency - we would call madvise for some but not
+	all chunks, perhaps with a wrong MADV_DO(NT)_DUMP flag.
+	Moreover, we are about to iterate over chunks, which requires the bounds of
+	for loop to be fixed.
+	To solve both problems we first latch all buf_pool_t::chunks_mutex-es, and
+	only then update the buf_pool_should_madvise, and perform iteration over
+	buf_pool-s and their chunks.*/
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		mutex_enter(&buf_pool_from_array(i)->chunks_mutex);
 	}
 
 	bool should_madvise = innobase_should_madvise_buf_pool();
 	/* This `if` is here not for performance, but for correctness: on platforms
-  which do not support madvise MADV_DONT_DUMP we prefer to not call madvice to
-  avoid warnings and disabling @@global.core_file in cases where the user did
-  not really intend to change anything */
+	which do not support madvise MADV_DONT_DUMP we prefer to not call madvice to
+	avoid warnings and disabling @@global.core_file in cases where the user did
+	not really intend to change anything */
 	if (should_madvise != buf_pool_should_madvise) {
 		buf_pool_should_madvise = should_madvise;
 		for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -2141,9 +2141,9 @@ buf_pool_init(
 	NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
 
 	/* Usually buf_pool_should_madvise is protected by buf_pool_t::chunk_mutex-es,
-	   but at this point in time there is no buf_pool_t instances yet, and no risk of
-	   race condition with sys_var modifications or buffer pool resizing because we
-	   have just started initializing the buffer pool.*/
+	but at this point in time there is no buf_pool_t instances yet, and no risk of
+	race condition with sys_var modifications or buffer pool resizing because we
+	have just started initializing the buffer pool.*/
 	buf_pool_should_madvise = innobase_should_madvise_buf_pool();
 
 	buf_pool_resizing = false;

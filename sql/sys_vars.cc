@@ -7504,3 +7504,7 @@ static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
     "is allowed to generate.",
     GLOBAL_VAR(tf_sequence_table_max_upper_bound), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, ULLONG_MAX), DEFAULT(1048576), BLOCK_SIZE(1));
+
+#ifndef DBUG_OFF
+Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif

@@ -194,7 +194,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
 [log_stop.inc] percona_slow_query_log.query_plan_8
-[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0$ expected_matches: 2
+[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^# Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0$ expected_matches: 2
 [log_grep.inc] found expected match count: 2
 [log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_table: No  Tmp_table_on_disk: No$ expected_matches: 2
 [log_grep.inc] found expected match count: 2
@@ -216,7 +216,7 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_9
-[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [0-9]*$ expected_matches: 1
+[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^# Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [0-9]*$ expected_matches: 1
 [log_grep.inc] found expected match count: 1
 [log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$ expected_matches: 1
 [log_grep.inc] found expected match count: 1
@@ -233,7 +233,7 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_9a
-[log_grep.inc] file: percona_slow_query_log.query_plan_9a pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$
+[log_grep.inc] file: percona_slow_query_log.query_plan_9a pattern: ^# Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona_slow_query_log.query_plan_9a pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$
 [log_grep.inc] lines:   0
@@ -262,7 +262,7 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_10
-[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$ expected_matches: 1
+[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^# Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$ expected_matches: 1
 [log_grep.inc] found expected match count: 1
 [log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes$ expected_matches: 1
 [log_grep.inc] found expected match count: 1
@@ -279,7 +279,7 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_10a
-[log_grep.inc] file: percona_slow_query_log.query_plan_10a pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$
+[log_grep.inc] file: percona_slow_query_log.query_plan_10a pattern: ^# Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona_slow_query_log.query_plan_10a pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes$
 [log_grep.inc] lines:   0

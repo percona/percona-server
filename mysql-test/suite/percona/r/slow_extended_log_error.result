@@ -11,4 +11,29 @@ ERROR 42S01: Table 't1' already exists
 [log_stop.inc] percona.slow_extended.log_error_2
 [log_grep.inc] file: percona.slow_extended.log_error_2 pattern: ^.*Last_errno: 1050 .*$
 [log_grep.inc] lines:   1
-DROP TABLE t1;
+
+# PS-6730 - Field 'Last_errno:' should be used for errors only
+
+[log_start.inc] percona.slow_extended.log_error_3
+CREATE TABLE t2(f1 DECIMAL(5, 2) NOT NULL);
+INSERT INTO t2(f1) VALUES (31.400191);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+[log_stop.inc] percona.slow_extended.log_error_3
+[log_grep.inc] file: percona.slow_extended.log_error_3 pattern: ^.*Last_errno: 0 .*$
+[log_grep.inc] lines:   4
+
+# PS-6774 - Unexpected error in Last_errno in case internal DD tables are
+accessed. Statement des not fail in case DD table names
+are submitted as strings in WHERE clause.
+
+[log_start.inc] percona.slow_extended.log_error_4
+SELECT SCHEMA_NAME as Test FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema') ORDER BY SCHEMA_NAME;
+Test
+mtr
+sys
+test
+[log_stop.inc] percona.slow_extended.log_error_4
+[log_grep.inc] file: percona.slow_extended.log_error_4 pattern: ^.*Last_errno: 0 .*$
+[log_grep.inc] lines:   2
+DROP TABLE t1, t2;

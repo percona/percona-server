@@ -1,0 +1,33 @@
+CREATE TABLE t1 (x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+CREATE TABLE t2 (x INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
+SET GLOBAL INNODB_FAST_SHUTDOWN=2;
+# restart
+SELECT * FROM t1;
+x
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+SELECT * FROM t2;
+x
+1
+2
+3
+4
+5
+DROP TABLE t1, t2;

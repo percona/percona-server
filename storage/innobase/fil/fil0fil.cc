@@ -3960,6 +3960,12 @@ void Fil_shard::close_all_files() {
 
     for (auto &file : space->files) {
       if (file.is_open) {
+        while (file.n_pending_flushes > 0) {
+          mutex_release();
+          os_thread_sleep(10000);
+          mutex_acquire();
+        }
+
         close_file(&file, false);
       }
     }

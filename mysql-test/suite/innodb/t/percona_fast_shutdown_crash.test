@@ -1,0 +1,22 @@
+#
+# Make sure server doesn't crash while doing fast shutdown
+# (with innobase_fast_shutdown=2)
+#
+
+--source include/have_debug.inc
+
+CREATE TABLE t1 (x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+CREATE TABLE t2 (x INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
+
+SET GLOBAL INNODB_FAST_SHUTDOWN=2;
+
+--source include/restart_mysqld.inc
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;

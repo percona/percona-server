@@ -470,7 +470,7 @@ struct System_variables {
 
 /**
   Per thread status variables.
-  Must be long/ulong up to last_system_status_var so that
+  Must be ulonglong up to LAST_STATUS_VAR so that
   add_to_status/add_diff_to_status can work.
 */
 
@@ -528,7 +528,7 @@ struct System_status_var {
   ulonglong bytes_received;
   ulonglong bytes_sent;
 
-  ulong net_buffer_length;
+  ulonglong net_buffer_length;
 
   ulonglong max_execution_time_exceeded;
   ulonglong max_execution_time_set;
@@ -544,8 +544,8 @@ struct System_status_var {
   ulong com_stat[(uint)SQLCOM_END];
 
   /*
-    IMPORTANT! See last_system_status_var definition below. Variables after
-    'last_system_status_var' cannot be handled automatically by add_to_status()
+    IMPORTANT! See LAST_STATUS_VAR definition below. Variables after
+    'LAST_STATUS_VAR' cannot be handled automatically by add_to_status()
     and add_diff_to_status().
   */
   double last_query_cost;

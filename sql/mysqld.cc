@@ -9544,7 +9544,7 @@ SHOW_VAR status_vars[] = {
     {"Max_used_connections_time", (char *)&show_max_used_connections_time,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Net_buffer_length",
-     (char *)offsetof(System_status_var, net_buffer_length), SHOW_LONG_STATUS,
+     (char *)offsetof(System_status_var, net_buffer_length), SHOW_LONGLONG_STATUS,
      SHOW_SCOPE_ALL},
     {"Not_flushed_delayed_rows", (char *)&delayed_rows_in_use,
      SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},

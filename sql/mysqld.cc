@@ -11339,6 +11339,7 @@ void refresh_status() {
 
   /* For all threads, add status to global status and then reset. */
   Reset_thd_status reset_thd_status;
+  global_status_var.net_buffer_length = 0;
   Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /* Reset aggregated status counters. */

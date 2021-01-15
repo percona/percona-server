@@ -3779,10 +3779,10 @@ void calc_sum_of_all_status(System_status_var *to) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_status);
 
-  global_status_var.net_buffer_length = 0;
-
-  /* Get global values as base. */
+  /* Get global values as base but net_buffer_length. */
   *to = global_status_var;
+  to->net_buffer_length = 0;
+
   Add_status add_status(to);
   Global_THD_manager::get_instance()->do_for_all_thd_copy(&add_status);
 }

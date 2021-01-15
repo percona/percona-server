@@ -138,41 +138,42 @@ get_sources(){
         echo "VERSION file does not exist"
 	exit 1
     fi
-
-    IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
-    EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
-    if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
-        echo "Major version differs from defined in version file"
-        exit 1
+    IS_RELEASE_BRANCH=$(echo ${BRANCH} | grep -c release);
+    if [ ${IS_RELEASE_BRANCH} != 0 ]; then
+        IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
+        EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
+        if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
+            echo "Major version differs from defined in version file"
+            exit 1
+        fi
+        if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
+            echo "Minor version differs from defined in version file"
+            exit 1
+        fi
+        if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
+            echo "Patch version differs from defined in version file"
+            exit 1
+        fi
+        if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
+            echo "Extra version differs from defined in version file"
+            exit 1
+        fi
+        INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
+        if [ ${INNODB_VER} != ${EXTRA} ]; then
+            echo "InnoDB version differs from defined in version file"
+            exit 1
+        fi
+        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        if [ ${FT_TAG} = 0 ]; then
+            echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+            exit 1
+        fi
+        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        if [ ${TOKUBACKUP_TAG} = 0 ]; then
+            echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+            exit 1
+        fi
     fi
-    if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
-        echo "Minor version differs from defined in version file"
-        exit 1
-    fi
-    if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
-        echo "Patch version differs from defined in version file"
-        exit 1
-    fi
-    if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
-        echo "Extra version differs from defined in version file"
-        exit 1
-    fi
-    INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
-    if [ ${INNODB_VER} != ${EXTRA} ]; then
-        echo "InnoDB version differs from defined in version file"
-        exit 1
-    fi
-    FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
-    if [ ${FT_TAG} = 0 ]; then
-        echo "There is no TAG for PerconaFT. Please set it and re-run build!"
-        exit 1
-    fi
-    TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
-    if [ ${TOKUBACKUP_TAG} = 0 ]; then
-        echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
-        exit 1
-    fi
-    
     echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-8.0.properties

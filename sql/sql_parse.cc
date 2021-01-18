@@ -1334,12 +1334,19 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  if (net_buffer_shrink_interval &&
-          thd->start_utime / 1000000 > thd->net_buffer_shrink_time +
-          net_buffer_shrink_interval)
   {
-      my_net_shrink_buffer(net, thd->variables.net_buffer_length);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    auto shrink_interval = net_buffer_shrink_interval;
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+    if (shrink_interval && thd->start_utime / 1000000 >
+                               thd->net_buffer_shrink_time + shrink_interval) {
+      if (my_net_shrink_buffer(net, thd->variables.net_buffer_length)) {
+        DBUG_PRINT("info", ("Net buffer reallocation failed"));
+        // It is not a critical error. The execution continues
+      }
       thd->net_buffer_shrink_time = thd->start_utime / 1000000;
+    }
   }
 
   thd->status_var.net_buffer_length = net->max_packet;

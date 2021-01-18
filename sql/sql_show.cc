@@ -3778,11 +3778,8 @@ class Add_status : public Do_THD_Impl {
 void calc_sum_of_all_status(System_status_var *to) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_status);
-
-  /* Get global values as base but net_buffer_length. */
+  /* Get global values as base. */
   *to = global_status_var;
-  to->net_buffer_length = 0;
-
   Add_status add_status(to);
   Global_THD_manager::get_instance()->do_for_all_thd_copy(&add_status);
 }

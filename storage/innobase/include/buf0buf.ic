@@ -64,17 +64,17 @@ struct buf_chunk_t {
 
   /** Advices the OS that this chunk should not be dumped to a core file.
   Emits a warning to the log if could not succeed.
-  @return true iff succeeded, false if no OS support or failed */
+  @return true if succeeded, false if no OS support or failed */
   bool madvise_dump();
 
   /** Advices the OS that this chunk should be dumped to a core file.
   Emits a warning to the log if could not succeed.
-  @return true iff succeeded, false if no OS support or failed */
+  @return true if succeeded, false if no OS support or failed */
   bool madvise_dont_dump();
 
   /** Checks if this chunk contains a given block without dereferencing it
   @param[in]  ptr   A pointer which we want to check
-  @return true iff the ptr points inside the chunk */
+  @return true if the ptr points inside the chunk */
   bool contains(const buf_block_t *ptr) const {
     /* In theory comparing pointers which don't belong to the same array can
     give unspecified results when using < and <=.

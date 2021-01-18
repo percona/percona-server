@@ -900,6 +900,8 @@ typedef struct NET {
     to maintain the server internal instrumentation for the connection.
   */
   void *extension;
+  /** Max buffer length, without headers, received during the last
+  net_buffer_shrink_interval. */
   unsigned long max_interval_packet;
 } NET;
 

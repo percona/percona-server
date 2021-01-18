@@ -2847,6 +2847,12 @@ struct HA_CREATE_INFO {
   LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
   /**
+    Contains the actual user table which is being altered. If the system tables
+    are being altered, then this will be empty.
+  */
+  std::string actual_user_table_name{};
+
+  /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
     This function separates code from mysql_prepare_alter_table() to be
     used by upgrade code as well to reduce code duplication.
@@ -5190,9 +5196,8 @@ class handler {
                                 uint actual_key_parts) noexcept;
   bool is_using_full_unique_key(uint active_index, key_part_map keypart_map,
                                 enum ha_rkey_function find_flag) const noexcept;
-  bool is_using_prohibited_gap_locks(TABLE *table,
-                                     bool using_full_primary_key) const
-      noexcept;
+  bool is_using_prohibited_gap_locks(
+      TABLE *table, bool using_full_primary_key) const noexcept;
 
   /**
     Notify storage engine about imminent index read with key length.

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 12/10/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -481,7 +481,7 @@ with the
 \fB\-\-comments\fR
 option\&.
 .sp
-Comment stripping is deprecated as of MySQL 5\&.7\&.20\&. This feature and the options to control it will be removed in a future MySQL release\&.
+Comment stripping is deprecated as of MySQL 5\&.7\&.20\&. You should expect this feature and the options to control it to be removed in a future MySQL release\&.
 .sp .5v
 .RE
 .RE
@@ -1416,7 +1416,7 @@ Using Safe-Updates Mode (--safe-updates)\&.
 \fB\-\-secure\-auth\fR
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
+As of MySQL 5\&.7\&.5, this option is deprecated; expect it to be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
 .if n \{\
 .sp
@@ -2004,7 +2004,7 @@ command line\&. Quoting can be done with either single quote (\*(Aq), double quo
 .sp
 \fBmysql\fR
 interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
-X, you will be unable to use the word
+X, it is not possible to use the word
 INDEX
 in statements\&.
 \fBmysql\fR
@@ -2020,7 +2020,7 @@ is set to something other than the default of
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
 \m[blue]\fBC API Multiple Statement Execution Support\fR\m[]\&\s-2\u[3]\d\s+2), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&23.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&22.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -3712,9 +3712,9 @@ bind "^U" vi\-kill\-line\-prev
 To see the current set of key bindings, temporarily put a line that says only
 bind
 at the end of
-\&.editrc\&.
+\&.editrc\&. Then
 \fBmysql\fR
-will show the bindings when it starts\&.
+shows the bindings when it starts\&.
 Disabling Interactive History
 .PP
 The
@@ -3811,7 +3811,7 @@ the section called \(lqImpermissible Client Character Sets\(rq\&.
 .PP
 With those changes,
 \fBmysql\fR
-will use the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
+can use the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
 .PP
 To avoid those steps each time you run
 \fBmysql\fR, you can create a shortcut that invokes

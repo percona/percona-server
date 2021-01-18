@@ -2058,17 +2058,17 @@ bool my_net_shrink_buffer(NET *net, ulong min_buf_size)
     /*Reset buffer size for next interval */
     net->max_interval_packet = min_buf_size;
 
-    /* In the last interval packets were not smaller then 90% of the max_packet,
+    /* In the last interval, packets were not smaller than 90% of the max_packet,
      * so no shrink needed. We allow 10% variance in workload to reduce number
      * of reallocs */
     if(max_interval_packet * 110 / 100 >= net->max_packet)
         return false;
 
-    /* Buffer cannot be smaller then, default, net_buffer_length + header */
+    /* Buffer cannot be smaller than, default, net_buffer_length + header */
     if(max_interval_packet < min_buf_size)
         max_interval_packet = min_buf_size;
 
-    /* In the last interval packets were significantly smaller then max_packet,
+    /* In the last interval packets were significantly smaller than max_packet,
      * so do shrink the buffer */
     if(net_realloc(net, max_interval_packet))
         return true;

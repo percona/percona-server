@@ -161,7 +161,7 @@ bool my_net_init(NET *net, Vio *vio) {
   net->reading_or_writing = 0;
   net->where_b = net->remain_in_buf = 0;
   net->last_errno = 0;
-  net->max_interval_packet = net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE;
+  net->max_interval_packet = net->max_packet;
 #ifdef MYSQL_SERVER
   net->extension = nullptr;
 #else

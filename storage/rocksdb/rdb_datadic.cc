@@ -35,7 +35,6 @@
 
 /* MySQL header files */
 #include "m_ctype.h"
-#include "myisampack.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
 #include "my_stacktrace.h"
@@ -4838,8 +4837,9 @@ bool Rdb_ddl_manager::validate_auto_incr() {
     if (!m_dict->get_index_info(gl_index_id, nullptr)) {
       LogPluginErrMsg(WARNING_LEVEL, 0,
                       "AUTOINC mismatch - Index number (%u, %u) found in "
-                      "AUTOINC but does not exist as a DDL entry",
-                      gl_index_id.cf_id, gl_index_id.index_id);
+                      "AUTOINC but does not exist as a DDL entry for table %s",
+                      gl_index_id.cf_id, gl_index_id.index_id,
+                      safe_get_table_name(gl_index_id).c_str());
       return false;
     }
 
@@ -4848,8 +4848,9 @@ bool Rdb_ddl_manager::validate_auto_incr() {
     if (version > Rdb_key_def::AUTO_INCREMENT_VERSION) {
       LogPluginErrMsg(WARNING_LEVEL, 0,
                       "AUTOINC mismatch - Index number (%u, %u) found in "
-                      "AUTOINC is on unsupported version %d",
-                      gl_index_id.cf_id, gl_index_id.index_id, version);
+                      "AUTOINC is on unsupported version %d for table %s",
+                      gl_index_id.cf_id, gl_index_id.index_id, version,
+                      safe_get_table_name(gl_index_id).c_str());
       return false;
     }
   }
@@ -5020,7 +5021,10 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
           "data dictionary, exiting";
     }
     if (validate_tables == 1 && !msg.empty()) {
-      LogPluginErrMsg(ERROR_LEVEL, 0, "%s", msg.c_str());
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "%s. Use \"rocksdb_validate_tables=2\" to ignore this error.",
+          msg.c_str());
       return true;
     }
   }

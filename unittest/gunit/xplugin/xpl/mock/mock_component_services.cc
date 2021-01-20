@@ -24,6 +24,8 @@
 
 #include "mock_component_services.h"
 
+#include "mysql/plugin.h"
+
 namespace xpl {
 namespace test {
 
@@ -34,3 +36,8 @@ Mock_mysql_plugin_registry
 
 }  // namespace test
 }  // namespace xpl
+
+extern "C" {
+bool register_ssl_reload_callback(ssl_reload_callback_t) { return true; }
+bool deregister_ssl_reload_callback(ssl_reload_callback_t) { return true; }
+}

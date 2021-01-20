@@ -131,7 +131,9 @@ TEST_F(Timers_test_suite,
   config->m_timeouts.m_interactive_timeout = 11;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
 
-  StrictMock<Mock_ssl_context> mock_ssl_context;
+  std::shared_ptr<Mock_ssl_context> mock_ssl_context;
+  mock_ssl_context.reset(new StrictMock<Mock_ssl_context>());
+
   Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                          &mock_protocol_monitor);
 

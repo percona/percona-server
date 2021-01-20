@@ -151,6 +151,7 @@ class Client : public xpl::iface::Client {
   uint16_t m_client_port;
   std::atomic<Client::State> m_state;
   std::atomic<bool> m_removed;
+  std::shared_ptr<xpl::iface::Ssl_context> m_ssl;
 
   std::shared_ptr<xpl::iface::Session> m_session;
 

@@ -121,7 +121,8 @@ class Mock_server : public iface::Server {
   MOCK_METHOD0(is_running, bool());
   MOCK_CONST_METHOD0(get_worker_scheduler,
                      std::shared_ptr<ngs::Scheduler_dynamic>());
-  MOCK_CONST_METHOD0(ssl_context, iface::Ssl_context *());
+  MOCK_CONST_METHOD0(ssl_context, std::shared_ptr<iface::Ssl_context>());
+  MOCK_METHOD0(reload_ssl_context, void());
   MOCK_METHOD1(on_client_closed, void(const iface::Client &));
   MOCK_METHOD3(create_session,
                std::shared_ptr<iface::Session>(iface::Client *,

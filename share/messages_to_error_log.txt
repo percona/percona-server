@@ -11200,6 +11200,9 @@ ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
 ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB
   eng "Delaying truncate of undo tablespace %s due to lock tables for backup."
 
+ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED
+  eng "X plugin failed to register SSL reload callback. ALTER INSTANCE RELOAD TLS will have no effect on the plugin."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

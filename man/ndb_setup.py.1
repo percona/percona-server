@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 01/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "01/04/2021" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,11 +28,27 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_setup.py \- Start browser\-based Auti\-Installer for NDB Cluster
+ndb_setup.py \- Start browser\-based Auto\-Installer for NDB Cluster
 .SH "SYNOPSIS"
 .HP \w'\fBndb_setup\&.py\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBndb_setup\&.py [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+This feature is deprecated and should be avoided\&. It is subject to removal in a future version of NDB Cluster\&.
+.sp .5v
+.RE
 .PP
 \fBndb_setup\&.py\fR
 starts the NDB Cluster Auto\-Installer and opens the installer\*(Aqs Start page in the default Web browser\&.
@@ -58,7 +74,7 @@ root, or other administrative account\&.
 This section describes usage of and program options for the command\-line tool only\&. For information about using the Auto\-Installer GUI that is spawned when
 \fBndb_setup\&.py\fR
 is invoked, see
-Section\ \&18.2.1, \(lqThe NDB Cluster Auto-Installer\(rq\&.
+Section\ \&18.2.8, \(lqThe NDB Cluster Auto-Installer (No longer supported)\(rq\&.
 Usage
 .PP
 All platforms:
@@ -642,7 +658,7 @@ Make the browser use a secure (HTTPS) connection with the server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

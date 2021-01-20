@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 01/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "01/04/2021" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -281,7 +281,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-the section called \(lqImpermissible Client Character Sets\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+the section called \(lqImpermissible Client Character Sets\(rq), so the dump file cannot be loaded correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -620,7 +620,7 @@ to disable it\&. This option was added in MySQL 5\&.6\&.17\&.
 \fBNote\fR
 .ps -1
 .br
-Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them will be removed in a future MySQL release\&. For account upgrade instructions, see
+Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated; expect support for them to be removed in a future MySQL release\&. For account upgrade instructions, see
 Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
@@ -636,7 +636,7 @@ Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 \fBNote\fR
 .ps -1
 .br
-This option is deprecated and will be removed in a future release\&. As of MySQL 5\&.7\&.5, it is always enabled and attempting to disable it produces an error\&.
+This option is deprecated; expect it to be removed in a future release\&. As of MySQL 5\&.7\&.5, it is always enabled and attempting to disable it produces an error\&.
 .sp .5v
 .RE
 .RE
@@ -1285,7 +1285,9 @@ statement at the end of the output\&.
 \fB\-\-delete\-master\-logs\fR
 On a source replication server, delete the binary logs by sending a
 PURGE BINARY LOGS
-statement to the server after performing the dump operation\&. This option automatically enables
+statement to the server after performing the dump operation\&. This option requires the
+RELOAD
+privilege as well as privileges sufficient to execute that statement\&. This option automatically enables
 \fB\-\-master\-data\fR\&.
 .RE
 .sp
@@ -1307,7 +1309,7 @@ statement that indicates the binary log coordinates (file name and position) of 
 \fB\-\-dump\-slave\fR
 causes the coordinates from the source to be used rather than those of the dumped server, as is done by the
 \fB\-\-master\-data\fR
-option\&. In addition, specfiying this option causes the
+option\&. In addition, specifiying this option causes the
 \fB\-\-master\-data\fR
 option to be overridden, if used, and effectively ignored\&.
 .sp
@@ -1322,6 +1324,11 @@ in terms of enabling or disabling other options and in how locking is handled\&.
 This option causes
 \fBmysqldump\fR
 to stop the replica SQL thread before the dump and restart it again after\&.
+.sp
+\fB\-\-dump\-slave\fR
+sends a
+SHOW SLAVE STATUS
+statement to the server to obtain information, so it requires privileges sufficient to execute that statement\&.
 .sp
 In conjunction with
 \fB\-\-dump\-slave\fR, the
@@ -1368,7 +1375,10 @@ If the option value is 2, the
 CHANGE MASTER TO
 statement is written as an SQL comment, and thus is informative only; it has no effect when the dump file is reloaded\&. If the option value is 1, the statement is not written as a comment and takes effect when the dump file is reloaded\&. If no option value is specified, the default value is 1\&.
 .sp
-This option requires the
+\fB\-\-master\-data\fR
+sends a
+SHOW MASTER STATUS
+statement to the server to obtain information, so it requires privileges sufficient to execute that statement\&. This option also requires the
 RELOAD
 privilege and the binary log must be enabled\&.
 .sp
@@ -2104,7 +2114,7 @@ statements\&.
 .sp
 As of MySQL 5\&.6\&.6,
 DELAYED
-inserts are deprecated, so this option will be removed in a future release\&.
+inserts are deprecated; expect this option to be removed in a future release\&.
 .RE
 .sp
 .RS 4
@@ -2320,6 +2330,10 @@ mysql
 database and any other database that depends on the data in the
 mysql
 database for proper restoration\&.
+.sp
+Because the dump file contains a
+FLUSH PRIVILEGES
+statement, reloading the file requires privileges sufficient to execute that statement\&.
 .RE
 .sp
 .RS 4
@@ -2715,7 +2729,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 01/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "01/04/2021" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -768,7 +768,7 @@ and
 must be run twice\(emonce for each storage node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&18.2.8, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
+Section\ \&18.2.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -786,9 +786,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.30 to a cluster running NDB Cluster 7\&.3\&.31, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.31 to a cluster running NDB Cluster 7\&.3\&.32, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.4\&.30 distribution\&.
+that comes with the NDB Cluster 7\&.4\&.31 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -850,7 +850,7 @@ Section\ \&18.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 \fBImportant\fR
 .ps -1
 .br
-When restoring cluster backups, you must be sure to restore all data nodes from backups having the same backup ID\&. Using files from different backups will at best result in restoring the cluster to an inconsistent state, and may fail altogether\&.
+When restoring cluster backups, you must be sure to restore all data nodes from backups having the same backup ID\&. Using files from different backups at best results in restoring the cluster to an inconsistent state, and may fail altogether\&.
 .sp .5v
 .RE
 .RE
@@ -2885,6 +2885,196 @@ statement on that SQL node before running
 START SLAVE\&. This is a known issue in NDB Cluster\&.
 .sp .5v
 .RE
+.SS "Restoring an NDB Backup to a Different Version of NDB Cluster"
+.PP
+The following two sections provide information about restoring a native NDB backup to a different version of NDB Cluster from the version in which the backup was taken\&.
+.PP
+In addition, you should consult
+Section\ \&18.2.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for other issues you may encounter when attempting to restore an NDB backup to a cluster running a different version of the NDB software\&.
+.PP
+It is also advisable to review
+\m[blue]\fBWhat is New in NDB Cluster 8\&.0\fR\m[]\&\s-2\u[1]\d\s+2, as well as
+Section\ \&2.11.3, \(lqChanges in MySQL 5.6\(rq, for other changes between NDB 8\&.0 and previous versions of NDB Cluster that may be relevant to your particular circumstances\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBRestoring an NDB backup to a previous version of NDB Cluster\fR
+.RS 4
+.PP
+You may encounter issues when restoring a backup taken from a later version of NDB Cluster to a previous one, due to the use of features which do not exist in the earlier version\&. Some of these issues are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Tables created in NDB 8\&.0 by default use the
+utf8mb4_ai_ci
+character set, which is not available in NDB 7\&.6 and earlier, and so cannot be read by an
+\fBndb_restore\fR
+binary from one of these earlier versions\&. In such cases, it is necessary to alter any tables using
+utf8mb4_ai_ci
+so that they use a character set supported in the older version prior to performing the backup\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Due to changes in how the MySQL Server and NDB handle table metadata, tables created or altered using the included MySQL server binary from NDB 8\&.0\&.14 or later cannot be restored using
+\fBndb_restore\fR
+to an earlier version of NDB Cluster\&. Such tables use
+\&.sdi
+files which are not understood by older versions of
+\fBmysqld\fR\&.
+.sp
+A backup taken in NDB 8\&.0\&.14 or later of tables which were created in NDB 8\&.0\&.13 or earlier, and which have not been altered since upgrading to NDB 8\&.0\&.14 or later, should be restorable to older versions of NDB Cluster\&.
+.sp
+Since it is possible to restore metadata and table data separately, you can in such cases restore the table schemas from a dump made using
+\fBmysqldump\fR, or by executing the necessary
+CREATE TABLE
+statements manually, then import only the table data using
+\fBndb_restore\fR
+with the
+\fB\-\-restore\-data\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Encrypted backups created in NDB 8\&.0\&.22 and later cannot be restored using
+\fBndb_restore\fR
+from NDB 8\&.0\&.21 or earlier\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+NDB_STORED_USER
+privilege is not supported prior to NDB 8\&.0\&.18\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+NDB Cluster 8\&.0\&.18 and later supports up to 144 data nodes, while earlier versions support a maximum of only 48 data nodes\&. See
+the section called \(lqRestoring to Fewer Nodes Than the Original\(rq, for information with situations in which this incompatibility causes an issue\&.
+.RE
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBRestoring an NDB backup to a later version of NDB Cluster\fR
+.RS 4
+.PP
+In general, it should be possible to restore a backup created using the
+\fBndb_mgm\fR
+client
+START BACKUP
+command in an older version of NDB to a newer version, provided that you use the
+\fBndb_restore\fR
+binary that comes with the newer version\&. (It may be possible to use the older version of
+\fBndb_restore\fR, but this is not recommended\&.) Additional potential issues are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When restoring the metadata from a backup (\fB\-\-restore\-meta\fR
+option),
+\fBndb_restore\fR
+normally attempts to reproduce the captured table schema exactly as it was when the backup was taken\&.
+.sp
+Tables created in versions of NDB prior to 8\&.0\&.14 use
+\&.frm
+files for their metadata\&. These files can be read by the
+\fBmysqld\fR
+in NDB 8\&.0\&.14 and later, which can use the information contained therein to create the
+\&.sdi
+files used by the MySQL data dictionary in later versions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When restoring an older backup to a newer version of NDB, it may not be possible to take advantage of newer features such as hashmap partitioning, greater number of hashmap buckets, read backup, and different partitioning layouts\&. For this reason, it may be preferable to restore older schemas using
+\fBmysqldump\fR
+and the
+\fBmysql\fR
+client, which allows NDB to make use of the new schema features\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Tables using the old temporal types which did not support fractional seconds (used prior to MySQL 5\&.6\&.4 and NDB 7\&.3\&.31) cannot be restored to NDB 8\&.0 using
+\fBndb_restore\fR\&. You can check such tables using
+CHECK TABLE, and then upgrade them to the newer temporal column format, if necessary, using
+REPAIR TABLE
+in the
+\fBmysql\fR
+client; this must be done prior to taking the backup\&. See
+\m[blue]\fBPreparing Your Installation for Upgrade\fR\m[]\&\s-2\u[2]\d\s+2, for more information\&.
+.sp
+You also also restore such tables using a dump created with
+\fBmysqldump\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Distributed grant tables created in NDB 7\&.6 and earlier are not supported in NDB 8\&.0\&. Such tables can be restored to an NDB 8\&.0 cluster, but they have no effect on access control\&.
+.RE
+.RE
 .SS "Restoring to a different number of data nodes"
 .PP
 It is possible to restore from an NDB backup to a cluster having a different number of data nodes than the original from which the backup was taken\&. The following two sections discuss, respectively, the cases where the target cluster has a lesser or greater number of data nodes than the source of the backup\&.
@@ -3503,7 +3693,7 @@ The support for fewer partitions when restoring to a smaller cluster also means 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -3511,6 +3701,17 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+What is New in NDB Cluster 8.0
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-what-is-new.html#mysql-cluster-what-is-new-8-0
+.RE
+.IP " 2." 4
+Preparing Your Installation for Upgrade
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

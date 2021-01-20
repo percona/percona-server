@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 01/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "01/04/2021" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1361,7 +1361,7 @@ to disable it\&.
 \fBNote\fR
 .ps -1
 .br
-Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them will be removed in a future MySQL release\&. For account upgrade instructions, see
+Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated; expect support for them to be removed in a future MySQL release\&. For account upgrade instructions, see
 Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
@@ -1377,7 +1377,7 @@ Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 \fBNote\fR
 .ps -1
 .br
-This option is deprecated and will be removed in a future release\&. As of MySQL 5\&.7\&.5, it is always enabled and attempting to disable it produces an error\&.
+This option is deprecated; expect it to be removed in a future release\&. As of MySQL 5\&.7\&.5, it is always enabled and attempting to disable it produces an error\&.
 .sp .5v
 .RE
 .RE
@@ -1879,7 +1879,7 @@ command line\&. Quoting can be done with either single quote (\*(Aq), double quo
 .sp
 \fBmysql\fR
 interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
-X, you will be unable to use the word
+X, you cannot use the word
 INDEX
 in statements\&.
 \fBmysql\fR
@@ -3338,7 +3338,7 @@ bind
 at the end of
 \&.editrc\&.
 \fBmysql\fR
-will show the bindings when it starts\&.
+then shows the bindings when it starts\&.
 Unicode Support on Windows
 .PP
 Windows provides APIs based on UTF\-16LE for reading from and writing to the console; the
@@ -3395,7 +3395,7 @@ the section called \(lqImpermissible Client Character Sets\(rq\&.
 .PP
 With those changes,
 \fBmysql\fR
-will use the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
+uses the Windows APIs to communicate with the console using UTF\-16LE, and communicates with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
 .PP
 To avoid those steps each time you run
 \fBmysql\fR, you can create a shortcut that invokes
@@ -3703,7 +3703,7 @@ command)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -464,12 +464,12 @@ class ha_rocksdb : public my_core::handler {
         an engine that can only handle statement-based logging. This is
         used in testing.
     */
-    DBUG_RETURN(HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-                HA_CAN_INDEX_BLOBS |
-                (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
-                HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
-                HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE |
-                HA_GENERATED_COLUMNS | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN);
+    DBUG_RETURN(
+        HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_CAN_INDEX_BLOBS |
+        (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
+        HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
+        HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE | HA_GENERATED_COLUMNS |
+        HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN | HA_SUPPORTS_DEFAULT_EXPRESSION);
   }
 
   bool init_with_fields() override;

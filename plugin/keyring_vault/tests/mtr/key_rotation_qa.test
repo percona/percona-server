@@ -48,7 +48,7 @@ call mtr.add_suppression("\\[Error\\] InnoDB: Failed to find tablespace for tabl
 call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from file");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrypt encryption information, please confirm the master key was not changed.");
-call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
+call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
 --enable_query_log
 
 # Invalid syntax

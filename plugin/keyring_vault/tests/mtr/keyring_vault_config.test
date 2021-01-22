@@ -29,7 +29,7 @@ if (!$vault_conf_mount_point_directory)
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
-call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
+call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
 --enable_query_log
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT

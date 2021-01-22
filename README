@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 Percona Server 5.6
 ------------------
+||||||| 9bb243a3fa2
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+=======
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+>>>>>>> dab95781a1244104d6b87020ac2fc4d190ba2946^
 
 Percona Server is a branch of MySQL 5.6 bringing higher performance,
 reliability and more features.

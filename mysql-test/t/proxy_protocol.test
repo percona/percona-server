@@ -9,4 +9,5 @@ connect (err,"127.0.0.1",root,,,$MASTER_MYPORT,);
 
 --echo # PS-5327 proxy protocol-related memory leak at shutdown
 # Restart the server
+--let $restart_parameters=restart:--proxy-protocol-networks=
 --source include/restart_mysqld.inc

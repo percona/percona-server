@@ -131,7 +131,6 @@ id	title
 2	database
 3	good
 DROP TABLE t1;
-<<<<<<< HEAD
 #
 # PS-3851: Percona Ver 5.6.39-83.1 Failing assertion: sym_node->table != NULL
 #
@@ -156,8 +155,6 @@ SET GLOBAL DEBUG='+d,fts_instrument_sync_request';
 ALTER TABLE `questions_and_answers` ALGORITHM=COPY;
 SET GLOBAL DEBUG='-d,fts_instrument_sync_request';
 DROP TABLE `questions_and_answers`;
-||||||| 9bb243a3fa2
-=======
 #
 # Bug #31310404 I_S_FTS_INDEX_CACHE_FILL_ONE_INDEX() IS NOT PROTECT BY THE LOCK
 #
@@ -187,4 +184,3 @@ FTS_DOC_ID	title
 1	mysql
 2	database
 DROP TABLE t1;
->>>>>>> dab95781a1244104d6b87020ac2fc4d190ba2946^

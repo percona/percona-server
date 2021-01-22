@@ -1,15 +1,23 @@
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
 #include "i_keys_container.h"
 #include "mock_logger.h"
 #include "my_rnd.h"
+#include "vault_base64.h"
 #include "vault_credentials.h"
+#include "vault_key.h"
+#include "vault_parser_composer.h"
+
+#ifndef MERGE_UNITTESTS
+const char *error_message_for_error_log(int) { return nullptr; }
+#endif
 
 namespace keyring__vault_parser_unittest {
 using namespace keyring;
 
 using ::testing::StrEq;
-typedef keyring::IVault_parser::KeyParameters KeyParameters;
+typedef keyring::IVault_parser_composer::KeyParameters KeyParameters;
 
 class Vault_parser_test : public ::testing::Test {
  protected:
@@ -27,7 +35,7 @@ TEST_F(Vault_parser_test, ParseKeySignature) {
   EXPECT_FALSE(Vault_base64::encode(
       key_signature.c_str(), key_signature.length(), &encoded_key_signature,
       Vault_base64::Format::SINGLE_LINE));
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
       vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
@@ -41,7 +49,7 @@ TEST_F(Vault_parser_test, ParseKeySignature2) {
   EXPECT_FALSE(Vault_base64::encode(
       key_signature.c_str(), key_signature.length(), &encoded_key_signature,
       Vault_base64::Format::SINGLE_LINE));
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
       vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
@@ -55,7 +63,7 @@ TEST_F(Vault_parser_test, ParseKeySignature3) {
   EXPECT_FALSE(Vault_base64::encode(
       key_signature.c_str(), key_signature.length(), &encoded_key_signature,
       Vault_base64::Format::SINGLE_LINE));
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
       vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
@@ -69,7 +77,7 @@ TEST_F(Vault_parser_test, ParseKeySignature4) {
   EXPECT_FALSE(Vault_base64::encode(
       key_signature.c_str(), key_signature.length(), &encoded_key_signature,
       Vault_base64::Format::SINGLE_LINE));
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
       vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
@@ -85,7 +93,7 @@ TEST_F(Vault_parser_test, ParseKeySignature5) {
       key_signature.c_str(), key_signature.length(), &encoded_key_signature,
       Vault_base64::Format::SINGLE_LINE));
 
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
       vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
@@ -115,7 +123,7 @@ TEST_F(Vault_parser_test, ParseVaultPayload) {
   payload += encoded_key2_signature.c_str();
   payload += "\"]},\"wrap_info\":null,\"warnings\":null,\"auth\":null}";
   Vault_keys_list keys;
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   EXPECT_FALSE(vault_parser.parse_keys(payload, &keys));
   EXPECT_EQ(keys.size(), static_cast<uint>(2));
   EXPECT_TRUE(keys.has_next_key());
@@ -139,7 +147,7 @@ TEST_F(Vault_parser_test, ParseVaultPayloadEmptyKeyList) {
       "\"data\":{\"keys\":[]},\"wrap_info"
       "\":null,\"warnings\":null,\"auth\":null}");
   Vault_keys_list keys;
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   EXPECT_FALSE(vault_parser.parse_keys(payload, &keys));
   EXPECT_EQ(keys.size(), static_cast<uint>(0));
 }
@@ -151,7 +159,7 @@ TEST_F(Vault_parser_test, ParseVaultPayloadNoKeyList) {
       "\"data\":{},\"wrap_info"
       "\":null,\"warnings\":null,\"auth\":null}");
   Vault_keys_list keys;
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
               log(MY_ERROR_LEVEL, StrEq("Vault Server response[\"data\"] "
                                         "does not have \"keys\" member")));
@@ -168,7 +176,7 @@ TEST_F(Vault_parser_test, ParseKeyData) {
       ":2764800,\"data\":{\"type\":\"AES\",\"value\":\"Um9iaQ==\"},"
       "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
 
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_key key("key1", nullptr, "rob", nullptr, 0);
   EXPECT_FALSE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
   EXPECT_STREQ(key.get_key_signature()->c_str(), "4_key13_rob");
@@ -183,7 +191,7 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingTypeTag) {
       ":2764800,\"data\":{\"value\":\"Um9iaQ==\"},"
       "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
 
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_key key("key1", nullptr, "rob", nullptr, 0);
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
@@ -199,7 +207,7 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag) {
       ":2764800,\"data\":{\"type\":\"AES\"},"
       "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
 
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_key key("key1", nullptr, "rob", nullptr, 0);
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
               log(MY_ERROR_LEVEL, StrEq("Vault Server response data does "
@@ -217,15 +225,51 @@ TEST_F(Vault_parser_test, GetVaultVersion2) {
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
       "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
-  Vault_credentials::Map credentials;
-  credentials["secret_mount_point"] = "secret";
-  Vault_credentials vault_credentials(credentials);
-
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_version_type vault_version = Vault_version_unknown;
-  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
-                                              vault_version));
+  Secure_string mount_point_path;
+  Secure_string directory_path;
+  EXPECT_FALSE(vault_parser.parse_mount_point_version(
+      "secret", payload, vault_version, mount_point_path, directory_path));
   EXPECT_TRUE(vault_version == Vault_version_v2);
+  EXPECT_STREQ(mount_point_path.c_str(), "secret");
+  EXPECT_STREQ(directory_path.c_str(), "");
+
+  payload =
+      "{\"secret/\": { \"accessor\": \"kv_3f89594e\","
+      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
+      "storage\","
+      "\"local\": false, \"options\": { \"version\": \"2\" },"
+      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}";
+  vault_version = Vault_version_unknown;
+  mount_point_path.clear();
+  directory_path.clear();
+  EXPECT_FALSE(vault_parser.parse_mount_point_version(
+      "secret/foo/bar", payload, vault_version, mount_point_path,
+      directory_path));
+  EXPECT_TRUE(vault_version == Vault_version_v2);
+  EXPECT_STREQ(mount_point_path.c_str(), "secret");
+  EXPECT_STREQ(directory_path.c_str(), "foo/bar");
+
+  payload =
+      "{\"secret/foo/\": { \"accessor\": \"kv_3f89594e\","
+      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
+      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
+      "storage\","
+      "\"local\": false, \"options\": { \"version\": \"2\" },"
+      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
+      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}";
+  vault_version = Vault_version_unknown;
+  mount_point_path.clear();
+  directory_path.clear();
+  EXPECT_FALSE(vault_parser.parse_mount_point_version(
+      "secret/foo/bar", payload, vault_version, mount_point_path,
+      directory_path));
+  EXPECT_TRUE(vault_version == Vault_version_v2);
+  EXPECT_STREQ(mount_point_path.c_str(), "secret/foo");
+  EXPECT_STREQ(directory_path.c_str(), "bar");
 }
 
 TEST_F(Vault_parser_test, GetVaultVersion1) {
@@ -238,15 +282,15 @@ TEST_F(Vault_parser_test, GetVaultVersion1) {
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
       "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
-  Vault_credentials::Map credentials;
-  credentials["secret_mount_point"] = "cicd";
-  Vault_credentials vault_credentials(credentials);
-
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_version_type vault_version = Vault_version_unknown;
-  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
-                                              vault_version));
+  Secure_string mount_point_path;
+  Secure_string directory_path;
+  EXPECT_FALSE(vault_parser.parse_mount_point_version(
+      "cicd", payload, vault_version, mount_point_path, directory_path));
   EXPECT_TRUE(vault_version == Vault_version_v1);
+  EXPECT_STREQ(mount_point_path.c_str(), "cicd");
+  EXPECT_STREQ(directory_path.c_str(), "");
 }
 
 TEST_F(Vault_parser_test, GetVaultOptionsNull) {
@@ -259,15 +303,15 @@ TEST_F(Vault_parser_test, GetVaultOptionsNull) {
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
       "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
-  Vault_credentials::Map credentials;
-  credentials["secret_mount_point"] = "cicd";
-  Vault_credentials vault_credentials(credentials);
-
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_version_type vault_version = Vault_version_unknown;
-  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
-                                              vault_version));
+  Secure_string mount_point_path;
+  Secure_string directory_path;
+  EXPECT_FALSE(vault_parser.parse_mount_point_version(
+      "cicd", payload, vault_version, mount_point_path, directory_path));
   EXPECT_TRUE(vault_version == Vault_version_v1);
+  EXPECT_STREQ(mount_point_path.c_str(), "cicd");
+  EXPECT_STREQ(directory_path.c_str(), "");
 }
 
 TEST_F(Vault_parser_test, GetVaultOptionsEmpty) {
@@ -280,15 +324,15 @@ TEST_F(Vault_parser_test, GetVaultOptionsEmpty) {
       "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
       "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
 
-  Vault_credentials::Map credentials;
-  credentials["secret_mount_point"] = "cicd";
-  Vault_credentials vault_credentials(credentials);
-
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_version_type vault_version = Vault_version_unknown;
-  EXPECT_FALSE(vault_parser.get_vault_version(vault_credentials, payload,
-                                              vault_version));
+  Secure_string mount_point_path;
+  Secure_string directory_path;
+  EXPECT_FALSE(vault_parser.parse_mount_point_version(
+      "cicd", payload, vault_version, mount_point_path, directory_path));
   EXPECT_TRUE(vault_version == Vault_version_v1);
+  EXPECT_STREQ(mount_point_path.c_str(), "cicd");
+  EXPECT_STREQ(directory_path.c_str(), "");
 }
 
 TEST_F(Vault_parser_test, ParsePayloadThatsGarbage) {
@@ -296,7 +340,7 @@ TEST_F(Vault_parser_test, ParsePayloadThatsGarbage) {
   my_rand_buffer(garbage, sizeof(garbage));
   Secure_string payload(reinterpret_cast<char *>(garbage), sizeof(garbage));
 
-  Vault_parser vault_parser(logger);
+  Vault_parser_composer vault_parser(logger);
   Vault_key key("key1", nullptr, "rob", nullptr, 0);
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
@@ -305,11 +349,3 @@ TEST_F(Vault_parser_test, ParsePayloadThatsGarbage) {
 }
 
 }  // namespace keyring__vault_parser_unittest
-
-#ifndef MERGE_UNITTESTS
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  int ret = RUN_ALL_TESTS();
-  return ret;
-}
-#endif  // MERGE_UNITTESTS

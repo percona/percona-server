@@ -12,8 +12,6 @@
 --let $vault_conf_mount_point_suffix =
 --source generate_conf_file.inc
 
-#--source is_vault_server_up.inc
-
 # Create mount points
 --let $mount_point_service_op = CREATE
 --source mount_point_service.inc

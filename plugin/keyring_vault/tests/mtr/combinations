@@ -13,8 +13,8 @@ version-suffix=mount-auto_v2
 [mount-empty_v1]
 version-suffix=mount-empty_v1
 
-#[mount-empty_v2]
-#version-suffix=mount-empty_v2
+[mount-empty_v2]
+version-suffix=mount-empty_v2
 
 [directory-v1]
 version-suffix=directory-v1
@@ -31,5 +31,5 @@ version-suffix=directory-auto_v2
 [directory-empty_v1]
 version-suffix=directory-empty_v1
 
-#[directory-empty_v2]
-#version-suffix=directory-empty_v2
+[directory-empty_v2]
+version-suffix=directory-empty_v2

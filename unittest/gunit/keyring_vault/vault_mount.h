@@ -1,8 +1,10 @@
-#ifndef MYSQL_VAULT_MOUNT_H
-#define MYSQL_VAULT_MOUNT_H
+#ifndef MYSQL_GUNIT_VAULT_MOUNT_H
+#define MYSQL_GUNIT_VAULT_MOUNT_H
 
 #include <curl/curl.h>
-#include "vault_credentials_parser.h"
+
+#include "logger.h"
+#include "vault_credentials.h"
 
 namespace keyring {
 
@@ -10,7 +12,8 @@ class Vault_mount {
  public:
   Vault_mount(CURL *curl, ILogger *logger) : curl(curl), logger(logger) {}
 
-  bool init(std::string *keyring_storage_url, std::string *secret_mount_point);
+  bool init(const std::string &keyring_storage_url,
+            const std::string &secret_mount_point);
   bool mount_secret_backend();
   bool unmount_secret_backend();
 
@@ -31,4 +34,4 @@ class Vault_mount {
 
 }  // namespace keyring
 
-#endif  // MYSQL_VAULT_MOUNT_H
+#endif  // MYSQL_GUNIT_VAULT_MOUNT_H

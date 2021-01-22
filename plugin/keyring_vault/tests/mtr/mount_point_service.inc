@@ -68,21 +68,26 @@ if ($vault_conf_ca)
     $vault_ca_cert_opt = "--cacert $imported_vault_conf_ca";
   }
 
-  my $postdata= "";
-  if ($imported_vault_server_mount_point_version eq "2")
-  {
-    $postdata= qq#{"type":"kv","options":{"version":"2"}}#;
-  } else {
-    $postdata= qq#{"type":"kv"}#;
-  }
-
   if ($imported_mount_point_service_op eq 'CREATE')
   {
-    system(qq#curl --http1.1 -L -H "X-Vault-Token: $imported_vault_conf_token" $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#);
+    my $postdata= "";
+    if ($imported_vault_server_mount_point_version eq "2")
+    {
+      $postdata= qq#{"type":"kv","options":{"version":"2"}}#;
+    } else {
+      $postdata= qq#{"type":"kv"}#;
+    }
+    system(qq#curl --http1.1 -L -H "X-Vault-Token: $imported_vault_conf_token" $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
+      || die "Cannot create mount point";
+    # This sleep is needed to let Vault background process finish upgrading
+    # kv to kv-v2 and therefore reduce the chances of
+    # 'Upgrading from non-versioned to versioned' Vault Server error
+    sleep(2) if $imported_vault_server_mount_point_version eq "2";
   }
   elsif ($imported_mount_point_service_op eq 'DELETE')
   {
-    system(qq#curl --http1.1 -L -H "X-Vault-Token: $imported_vault_conf_token" $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#);
+    system(qq#curl --http1.1 -L -H "X-Vault-Token: $imported_vault_conf_token" $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
+      || die "Cannot delete mount point";
   }
   else
   {

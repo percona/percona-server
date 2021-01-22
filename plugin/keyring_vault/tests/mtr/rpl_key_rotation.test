@@ -37,7 +37,7 @@ call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace e
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 call mtr.add_suppression("keyring_vault initialization failure");
 call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
-call mtr.add_suppression("Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
+call mtr.add_suppression("Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
 --enable_query_log
 
 --connection slave

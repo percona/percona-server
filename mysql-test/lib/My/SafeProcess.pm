@@ -262,8 +262,6 @@ sub shutdown {
     else {
       $shutdown_status{failed}= 1 if $? >> 8 != 0 and $? >> 8 != 62;
     }
-    # Only wait for the first process with shutdown timeout
-    $shutdown_timeout= 0;
   }
 
   # Wait infinitely for those process

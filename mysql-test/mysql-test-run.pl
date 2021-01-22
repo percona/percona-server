@@ -308,7 +308,7 @@ my $opt_sleep;
 
 my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
 my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 300; # minutes
-my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
+my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  20; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub suite_timeout { return $opt_suite_timeout * 60; };

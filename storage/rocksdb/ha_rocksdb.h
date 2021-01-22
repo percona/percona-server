@@ -312,21 +312,15 @@ class ha_rocksdb : public my_core::handler {
   bool is_ascending(const Rdb_key_def &keydef,
                     enum ha_rkey_function find_flag) const
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-  void setup_iterator_bounds(const Rdb_key_def &kd,
-                             const rocksdb::Slice &eq_cond, size_t bound_len,
-                             uchar *const lower_bound, uchar *const upper_bound,
-                             rocksdb::Slice *lower_bound_slice,
-                             rocksdb::Slice *upper_bound_slice);
-  bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
-                            const rocksdb::Slice &eq_cond,
-                            const bool use_all_keys);
-  bool check_bloom_and_set_bounds(THD *thd, const Rdb_key_def &kd,
-                                  const rocksdb::Slice &eq_cond,
-                                  const bool use_all_keys, size_t bound_len,
-                                  uchar *const lower_bound,
-                                  uchar *const upper_bound,
-                                  rocksdb::Slice *lower_bound_slice,
-                                  rocksdb::Slice *upper_bound_slice);
+  static void setup_iterator_bounds(const Rdb_key_def &kd,
+                                    const rocksdb::Slice &eq_cond,
+                                    size_t bound_len, uchar *const lower_bound,
+                                    uchar *const upper_bound,
+                                    rocksdb::Slice *lower_bound_slice,
+                                    rocksdb::Slice *upper_bound_slice);
+  static bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
+                                   const rocksdb::Slice &eq_cond,
+                                   const bool use_all_keys);
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *slice,
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
@@ -661,6 +655,13 @@ class ha_rocksdb : public my_core::handler {
   /*
     Default implementation from cancel_pushed_idx_cond() suits us
   */
+
+  static bool check_bloom_and_set_bounds(
+      THD *thd, const Rdb_key_def &kd, const rocksdb::Slice &eq_cond,
+      const bool use_all_keys, size_t bound_len, uchar *const lower_bound,
+      uchar *const upper_bound, rocksdb::Slice *lower_bound_slice,
+      rocksdb::Slice *upper_bound_slice);
+
  private:
   struct key_def_cf_info {
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;

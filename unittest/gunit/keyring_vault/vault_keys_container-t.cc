@@ -14,20 +14,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
+#include <fstream>
+
+#include <boost/preprocessor/stringize.hpp>
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <mysql/plugin_keyring.h>
-#include <boost/scope_exit.hpp>
-#include "vault_keys_container.h"
-#include "mock_logger.h"
-#include "vault_io.h"
-#include <fstream>
-#include "i_serialized_object.h"
-#include "uuid.h"
+
+#include <my_global.h>
+
 #include "generate_credential_file.h"
-#include "test_utils.h"
+#include "i_serialized_object.h"
+#include "mock_logger.h"
+#include "mock_serialized_object.h"
+#include "mock_serializer.h"
+#include "vault_curl.h"
+#include "vault_environment.h"
+#include "vault_io.h"
+#include "vault_keys_container.h"
+#include "vault_keys_list.h"
 #include "vault_mount.h"
+#include "vault_parser_composer.h"
+#include "vault_test_base.h"
 
 boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
@@ -50,97 +58,112 @@ using ::testing::StrEq;
 using ::testing::WithArgs;
 using ::testing::_;
 
-static std::string uuid= generate_uuid();
-static std::string credential_file_url= "./keyring_vault.conf";
-ILogger *          logger;
-
-class Vault_keys_container_test : public ::testing::Test {
+class Vault_keys_container_test : public Vault_test_base {
  public:
   Vault_keys_container_test() {}
 
  protected:
   virtual void SetUp()
   {
+    Vault_test_base::SetUp();
+
     sample_key_data= "Robi";
+    std::string sample_key_id=
+        Vault_environment::get_instance()->get_uuid() + "Roberts_key";
     sample_key=
-        new Vault_key((uuid + "Roberts_key").c_str(), "AES", "Robert",
+        new Vault_key(sample_key_id.c_str(), "AES", "Robert",
                       sample_key_data.c_str(), sample_key_data.length());
 
-    vault_keys_container= new Vault_keys_container(logger);
-    vault_curl= new Vault_curl(logger, 0);
-    vault_parser= new Vault_parser(logger);
+    vault_keys_container= new Vault_keys_container(get_logger());
+    vault_parser= new Vault_parser_composer(get_logger());
+    vault_curl= new Vault_curl(get_logger(), vault_parser, 0);
   }
-  virtual void TearDown() { delete vault_keys_container; }
+  virtual void TearDown()
+  {
+    delete vault_keys_container;
+    Vault_test_base::TearDown();
+  }
 
  protected:
-  Vault_keys_container *vault_keys_container;
-  IVault_curl *         vault_curl;
-  IVault_parser *       vault_parser;
-  std::string           correct_token;
-  bool                  credential_file_was_created;
-  Vault_key *           sample_key;
-  std::string           sample_key_data;
+  Vault_keys_container *  vault_keys_container;
+  IVault_curl *           vault_curl;
+  IVault_parser_composer *vault_parser;
+  Vault_key *             sample_key;
+  std::string             sample_key_data;
 };
 
 TEST_F(Vault_keys_container_test, InitWithCorrectCredential)
 {
-  IKeyring_io *vault_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(vault_io, credential_file_url));
+  IKeyring_io *vault_io= new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      vault_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   delete sample_key;  // unused in this test
 }
 
 TEST_F(Vault_keys_container_test, InitWithFileWithInvalidToken)
 {
-  std::string conf_with_invalid_token("./invalid_token.conf");
-  ASSERT_FALSE(
-      generate_credential_file(conf_with_invalid_token, WITH_INVALID_TOKEN));
+  std::string conf_with_invalid_token=
+      Vault_environment::get_instance()->get_invalid_conf_file_name();
+  std::remove(conf_with_invalid_token.c_str());
+  ASSERT_FALSE(generate_credential_file(
+      conf_with_invalid_token, "ut_tests_non_existing",
+      mount_point_version_v1, credentials_validity_invalid_token));
 
-  IKeyring_io *vault_io= new Vault_io(logger, vault_curl, vault_parser);
+  IKeyring_io *vault_io= new Vault_io(get_logger(), vault_curl, vault_parser);
 
   EXPECT_CALL(
-      *(reinterpret_cast<Mock_logger *>(logger)),
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
       log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault. "
                                 "Vault has returned the following error(s): "
-                                "[\"permission denied\"]")));
+                                "permission denied")));
   EXPECT_CALL(
-      *(reinterpret_cast<Mock_logger *>(logger)),
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
       log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The "
                                 "keyring might be malformed")));
-  EXPECT_TRUE(vault_keys_container->init(vault_io, "invalid_token.conf"));
+  EXPECT_TRUE(vault_keys_container->init(vault_io, conf_with_invalid_token));
   delete sample_key;  // unused in this test
 
-  std::remove("invalid_token.conf");
+  std::remove(conf_with_invalid_token.c_str());
 }
 
 TEST_F(Vault_keys_container_test, InitWithEmptyCredentialFile)
 {
-  std::remove("empty_credential.conf");
+  std::string empty_conf=
+      Vault_environment::get_instance()->get_invalid_conf_file_name();
+
+  std::remove(empty_conf.c_str());
   std::ofstream myfile;
-  myfile.open("empty_credential.conf");
+  myfile.open(empty_conf.c_str());
   myfile.close();
 
-  IKeyring_io *vault_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
-              log(MY_ERROR_LEVEL, StrEq("Empty file with credentials.")));
-  EXPECT_TRUE(vault_keys_container->init(vault_io, "empty_credential.conf"));
+  IKeyring_io *vault_io= new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL, StrEq("Credentials file is empty.")));
+  EXPECT_TRUE(vault_keys_container->init(vault_io, empty_conf));
   delete sample_key;  // unused in this test
 
-  std::remove("empty_credential.conf");
+  std::remove(empty_conf.c_str());
 }
 
 TEST_F(Vault_keys_container_test, StoreFetchRemove)
 {
-  IKeyring_io *vault_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(vault_io, credential_file_url));
+  IKeyring_io *vault_io= new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      vault_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   EXPECT_FALSE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
 
-  Vault_key key_id((uuid + "Roberts_key").c_str(), NULL, "Robert", NULL, 0);
-  IKey *    fetched_key= vault_keys_container->fetch_key(&key_id);
+  Vault_key key_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key").c_str(),
+      NULL, "Robert", NULL, 0);
+  IKey *fetched_key= vault_keys_container->fetch_key(&key_id);
 
   ASSERT_TRUE(fetched_key != NULL);
   std::string expected_key_signature=
-      get_key_signature(uuid, "Roberts_key", "Robert");
+      Vault_environment::get_instance()->get_key_signature("Roberts_key",
+                                                           "Robert");
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(fetched_key->get_key_signature()->length(),
@@ -161,34 +184,47 @@ TEST_F(Vault_keys_container_test, StoreFetchRemove)
 
 TEST_F(Vault_keys_container_test, FetchNotExisting)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
-  keyring::Key key_id((uuid + "Roberts_key").c_str(), NULL, "Robert", NULL,
-                      0);
-  IKey *       fetched_key= vault_keys_container->fetch_key(&key_id);
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
+  keyring::Key key_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key").c_str(),
+      NULL, "Robert", NULL, 0);
+  IKey *fetched_key= vault_keys_container->fetch_key(&key_id);
   ASSERT_TRUE(fetched_key == NULL);
   delete sample_key;  // unused in this test
 }
 
 TEST_F(Vault_keys_container_test, RemoveNotExisting)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
-  keyring::Key key_id((uuid + "Roberts_key").c_str(), "AES", "Robert", NULL,
-                      0);
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
+  keyring::Key key_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key").c_str(),
+      "AES", "Robert", NULL, 0);
   EXPECT_TRUE(vault_keys_container->remove_key(&key_id));
   delete sample_key;  // unused in this test
 }
 
 TEST_F(Vault_keys_container_test, StoreFetchNotExistingDelete)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   EXPECT_FALSE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
-  keyring::Key key_id((uuid + "NotRoberts_key").c_str(), NULL, "NotRobert",
-                      NULL, 0);
-  IKey *       fetched_key= vault_keys_container->fetch_key(&key_id);
+  keyring::Key key_id(
+      (Vault_environment::get_instance()->get_uuid() + "NotRoberts_key")
+          .c_str(),
+      NULL, "NotRobert", NULL, 0);
+  IKey *fetched_key= vault_keys_container->fetch_key(&key_id);
   ASSERT_TRUE(fetched_key == NULL);
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
 
@@ -198,12 +234,17 @@ TEST_F(Vault_keys_container_test, StoreFetchNotExistingDelete)
 
 TEST_F(Vault_keys_container_test, StoreRemoveNotExisting)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   EXPECT_FALSE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
-  keyring::Key key_id((uuid + "NotRoberts_key").c_str(), "AES", "NotRobert",
-                      NULL, 0);
+  keyring::Key key_id(
+      (Vault_environment::get_instance()->get_uuid() + "NotRoberts_key")
+          .c_str(),
+      "AES", "NotRobert", NULL, 0);
   // Failed to remove key
   ASSERT_TRUE(vault_keys_container->remove_key(&key_id));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
@@ -216,40 +257,50 @@ TEST_F(Vault_keys_container_test, StoreRemoveNotExisting)
 TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemove)
 {
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 0);
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   EXPECT_FALSE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
 
   std::string key_data1("Robi1");
-  Vault_key * key1=
-      new Vault_key((uuid + "Roberts_key1").c_str(), "AES", "Robert",
-                    key_data1.c_str(), key_data1.length());
+  Vault_key * key1= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key1")
+          .c_str(),
+      "AES", "Robert", key_data1.c_str(), key_data1.length());
 
   EXPECT_FALSE(vault_keys_container->store_key(key1));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 2);
 
   std::string key_data2("Robi2");
-  Vault_key * key2=
-      new Vault_key((uuid + "Roberts_key2").c_str(), "AES", "Robert",
-                    key_data2.c_str(), key_data2.length());
+  Vault_key * key2= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key2")
+          .c_str(),
+      "AES", "Robert", key_data2.c_str(), key_data2.length());
   EXPECT_FALSE(vault_keys_container->store_key(key2));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 3);
 
   std::string key_data3("Robi3");
-  Vault_key * key3=
-      new Vault_key((uuid + "Roberts_key3").c_str(), "AES", "Robert",
-                    key_data3.c_str(), key_data3.length());
+  Vault_key * key3= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key3")
+          .c_str(),
+      "AES", "Robert", key_data3.c_str(), key_data3.length());
 
   EXPECT_FALSE(vault_keys_container->store_key(key3));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 4);
 
-  Vault_key key2_id((uuid + "Roberts_key2").c_str(), NULL, "Robert", NULL, 0);
-  IKey *    fetched_key= vault_keys_container->fetch_key(&key2_id);
+  Vault_key key2_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key2")
+          .c_str(),
+      NULL, "Robert", NULL, 0);
+  IKey *fetched_key= vault_keys_container->fetch_key(&key2_id);
 
   ASSERT_TRUE(fetched_key != NULL);
   std::string expected_key_signature=
-      get_key_signature(uuid, "Roberts_key2", "Robert");
+      Vault_environment::get_instance()->get_key_signature("Roberts_key2",
+                                                           "Robert");
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(fetched_key->get_key_signature()->length(),
@@ -260,7 +311,10 @@ TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemove)
       memcmp(key_data_fetched, key_data2.c_str(), key_data_fetched_size));
   ASSERT_TRUE(key_data2.length() == key_data_fetched_size);
 
-  Vault_key key3_id((uuid + "Roberts_key3").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key key3_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key3")
+          .c_str(),
+      NULL, "Robert", NULL, 0);
   vault_keys_container->remove_key(&key3_id);
   vault_keys_container->remove_key(key2);
   vault_keys_container->remove_key(key1);
@@ -272,8 +326,11 @@ TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemove)
 
 TEST_F(Vault_keys_container_test, StoreTwiceTheSame)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   EXPECT_FALSE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
   EXPECT_TRUE(vault_keys_container->store_key(sample_key));
@@ -285,17 +342,21 @@ TEST_F(Vault_keys_container_test, StoreTwiceTheSame)
 
 TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemoveWithSleeps)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
   EXPECT_FALSE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
 
   my_sleep(20000000);
 
   std::string key_data1("Robi1");
-  Vault_key * key1=
-      new Vault_key((uuid + "Roberts_key1").c_str(), "AES", "Robert",
-                    key_data1.c_str(), key_data1.length());
+  Vault_key * key1= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key1")
+          .c_str(),
+      "AES", "Robert", key_data1.c_str(), key_data1.length());
 
   EXPECT_FALSE(vault_keys_container->store_key(key1));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 2);
@@ -303,30 +364,36 @@ TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemoveWithSleeps)
   my_sleep(10000000);
 
   std::string key_data2("Robi2");
-  Vault_key * key2=
-      new Vault_key((uuid + "Roberts_key2").c_str(), "AES", "Robert",
-                    key_data2.c_str(), key_data2.length());
+  Vault_key * key2= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key2")
+          .c_str(),
+      "AES", "Robert", key_data2.c_str(), key_data2.length());
   EXPECT_FALSE(vault_keys_container->store_key(key2));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 3);
 
   my_sleep(5000000);
 
   std::string key_data3("Robi3");
-  Vault_key * key3=
-      new Vault_key((uuid + "Roberts_key3").c_str(), "AES", "Robert",
-                    key_data3.c_str(), key_data3.length());
+  Vault_key * key3= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key3")
+          .c_str(),
+      "AES", "Robert", key_data3.c_str(), key_data3.length());
 
   EXPECT_FALSE(vault_keys_container->store_key(key3));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 4);
 
-  Vault_key key2_id((uuid + "Roberts_key2").c_str(), NULL, "Robert", NULL, 0);
-  IKey *    fetched_key= vault_keys_container->fetch_key(&key2_id);
+  Vault_key key2_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key2")
+          .c_str(),
+      NULL, "Robert", NULL, 0);
+  IKey *fetched_key= vault_keys_container->fetch_key(&key2_id);
 
   my_sleep(5000000);
 
   ASSERT_TRUE(fetched_key != NULL);
   std::string expected_key_signature=
-      get_key_signature(uuid, "Roberts_key2", "Robert");
+      Vault_environment::get_instance()->get_key_signature("Roberts_key2",
+                                                           "Robert");
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(fetched_key->get_key_signature()->length(),
@@ -337,7 +404,10 @@ TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemoveWithSleeps)
       memcmp(key_data_fetched, key_data2.c_str(), key_data_fetched_size));
   ASSERT_TRUE(key_data2.length() == key_data_fetched_size);
 
-  Vault_key key3_id((uuid + "Roberts_key3").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key key3_id(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key3")
+          .c_str(),
+      NULL, "Robert", NULL, 0);
   vault_keys_container->remove_key(&key3_id);
   vault_keys_container->remove_key(key2);
   my_sleep(5000000);
@@ -351,8 +421,11 @@ TEST_F(Vault_keys_container_test, StoreStoreStoreFetchRemoveWithSleeps)
 TEST_F(Vault_keys_container_test,
        StorePBStorePBStorePBStoreIK1StoreIK2FetchPBFetchIK)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
 
   std::string key_data1("system_key_data_1");
   Vault_key * key1= new Vault_key("percona_binlog:0", "AES", NULL,
@@ -401,7 +474,7 @@ TEST_F(Vault_keys_container_test,
   key.xor_data();
 
   std::string expected_key_signature=
-      get_key_signature("", "percona_binlog", "");
+      Vault_environment::get_key_signature_ex("", "percona_binlog", "");
   EXPECT_STREQ(key.get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(key.get_key_signature()->length(),
@@ -426,7 +499,8 @@ TEST_F(Vault_keys_container_test,
                        fetched_innodb_key->get_key_data_size());
   innodb_key.xor_data();
 
-  expected_key_signature= get_key_signature("", "percona_innodb1_2_3:0", "");
+  expected_key_signature= Vault_environment::get_key_signature_ex(
+      "", "percona_innodb1_2_3:0", "");
   EXPECT_STREQ(innodb_key.get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(innodb_key.get_key_signature()->length(),
@@ -448,8 +522,11 @@ TEST_F(Vault_keys_container_test,
 TEST_F(Vault_keys_container_test,
        StorePBRotatePBFetchPBStoreSKRotatePBFetchPBRotateSKFetchSK)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
 
   std::string key_data1("percona_binlog_key_data_1");
   Vault_key * key1= new Vault_key("percona_binlog:3", "AES", NULL,
@@ -479,7 +556,7 @@ TEST_F(Vault_keys_container_test,
   key.xor_data();
 
   std::string expected_key_signature=
-      get_key_signature("", "percona_binlog", "");
+      Vault_environment::get_key_signature_ex("", "percona_binlog", "");
   EXPECT_STREQ(key.get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(key.get_key_signature()->length(),
@@ -585,7 +662,8 @@ TEST_F(Vault_keys_container_test,
                fetched_sk->get_key_data_size());
   sk.xor_data();
 
-  expected_key_signature= get_key_signature("", "percona_sk", "");
+  expected_key_signature=
+      Vault_environment::get_key_signature_ex("", "percona_sk", "");
   EXPECT_STREQ(sk.get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(sk.get_key_signature()->length(),
@@ -609,8 +687,11 @@ TEST_F(Vault_keys_container_test,
 TEST_F(Vault_keys_container_test,
        StoreStoreStoreSystemKeyAndTryRemovingSystemKey)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
 
   std::string key_data1("system_key_data_1");
   IKey *      key1= new Vault_key("percona_binlog:7", "AES", NULL,
@@ -642,8 +723,11 @@ TEST_F(Vault_keys_container_test,
 TEST_F(Vault_keys_container_test,
        StoreStoreStoreRemoveFetchSystemKeyFetchRegularKey)
 {
-  IKeyring_io *keyring_io= new Vault_io(logger, vault_curl, vault_parser);
-  EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
+  IKeyring_io *keyring_io=
+      new Vault_io(get_logger(), vault_curl, vault_parser);
+  EXPECT_FALSE(vault_keys_container->init(
+      keyring_io,
+      Vault_environment::get_instance()->get_default_conf_file_name()));
 
   std::string key_data1("system_key_data_1");
   IKey *      key1= new Vault_key("percona_binlog:10", "AES", NULL,
@@ -677,7 +761,7 @@ TEST_F(Vault_keys_container_test,
   ASSERT_TRUE(fetched_key != NULL);
 
   std::string expected_key_signature=
-      get_key_signature("", "percona_binlog", "");
+      Vault_environment::get_key_signature_ex("", "percona_binlog", "");
   EXPECT_STREQ(fetched_key->get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(fetched_key->get_key_signature()->length(),
@@ -697,7 +781,7 @@ TEST_F(Vault_keys_container_test,
 
   ASSERT_TRUE(fetched_regular_key != NULL);
   std::string expected_regular_key_signature=
-      get_key_signature("", "Roberts_key4", "Robert");
+      Vault_environment::get_key_signature_ex("", "Roberts_key4", "Robert");
   EXPECT_STREQ(fetched_regular_key->get_key_signature()->c_str(),
                expected_regular_key_signature.c_str());
   EXPECT_EQ(fetched_regular_key->get_key_signature()->length(),
@@ -716,7 +800,7 @@ TEST_F(Vault_keys_container_test,
 class Mock_vault_io : public IVault_io {
  public:
   MOCK_METHOD1(retrieve_key_type_and_data, my_bool(IKey *key));
-  MOCK_METHOD1(init, my_bool(std::string *keyring_filename));
+  MOCK_METHOD1(init, my_bool(const std::string *keyring_filename));
   MOCK_METHOD1(flush_to_backup,
                my_bool(ISerialized_object *serialized_object));
   MOCK_METHOD1(flush_to_storage,
@@ -728,29 +812,17 @@ class Mock_vault_io : public IVault_io {
   MOCK_METHOD1(set_curl_timeout, void(uint timeout));
 };
 
-class Mock_serialized_object : public ISerialized_object {
- public:
-  MOCK_METHOD1(get_next_key, my_bool(IKey **key));
-  MOCK_METHOD0(has_next_key, my_bool());
-  MOCK_METHOD0(get_key_operation, Key_operation());
-  MOCK_METHOD1(set_key_operation, void(Key_operation));
-};
-
-class Mock_serializer : public ISerializer {
- public:
-  MOCK_METHOD3(serialize,
-               ISerialized_object *(HASH *, IKey *, Key_operation));
-};
-
 class Vault_keys_container_with_mocked_io_test : public ::testing::Test {
  protected:
   virtual void SetUp()
   {
     std::string sample_key_data= "Robi";
-    sample_key=
-        new Vault_key((uuid + "Roberts_key").c_str(), "AES", "Robert",
-                      sample_key_data.c_str(), sample_key_data.length());
-    credential_file_url= "./credentials";
+    sample_key= new Vault_key(
+        (Vault_environment::get_instance()->get_uuid() + "Roberts_key")
+            .c_str(),
+        "AES", "Robert", sample_key_data.c_str(), sample_key_data.length());
+    credential_file_url=
+        Vault_environment::get_instance()->get_non_existing_conf_file_name();
   }
   virtual void TearDown() { delete vault_keys_container; }
 
@@ -1015,9 +1087,10 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
 
   std::string key_data2("Robi2");
-  Vault_key * key2=
-      new Vault_key((uuid + "Roberts_key2").c_str(), "AES", "Robert",
-                    key_data2.c_str(), key_data2.length());
+  Vault_key * key2= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key2")
+          .c_str(),
+      "AES", "Robert", key_data2.c_str(), key_data2.length());
 
   Vault_key *serialized_key2= new Vault_key(*key2);
 
@@ -1078,9 +1151,10 @@ TEST_F(Vault_keys_container_with_mocked_io_test, Store2KeysAndRemoveThem)
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
 
   std::string key_data2("Robi2");
-  Vault_key * key2=
-      new Vault_key((uuid + "Roberts_key2").c_str(), "AES", "Robert",
-                    key_data2.c_str(), key_data2.length());
+  Vault_key * key2= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "Roberts_key2")
+          .c_str(),
+      "AES", "Robert", key_data2.c_str(), key_data2.length());
   key2->set_key_operation(STORE_KEY);
 
   Vault_key *serialized_key2= new Vault_key(*key2);
@@ -1143,8 +1217,9 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
   Mock_logger *logger= new Mock_logger();
   vault_keys_container= new Vault_keys_container(logger);
 
-  Vault_key *key_from_list=
-      new Vault_key((uuid + "key1").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key *key_from_list= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "key1").c_str(), NULL,
+      "Robert", NULL, 0);
 
   EXPECT_CALL(*vault_io, init(Pointee(StrEq(credential_file_url))))
       .WillOnce(Return(FALSE));  // init successfull
@@ -1156,7 +1231,9 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
   EXPECT_FALSE(vault_keys_container->init(vault_io, credential_file_url));
   EXPECT_EQ(vault_keys_container->get_number_of_keys(), static_cast<uint>(1));
 
-  Vault_key key_fetched((uuid + "key1").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key key_fetched(
+      (Vault_environment::get_instance()->get_uuid() + "key1").c_str(), NULL,
+      "Robert", NULL, 0);
   ASSERT_TRUE(key_fetched.get_key_data() == NULL);
 
   EXPECT_CALL(*vault_io, retrieve_key_type_and_data(_))
@@ -1186,8 +1263,9 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
   Mock_logger *logger= new Mock_logger();
   vault_keys_container= new Vault_keys_container(logger);
 
-  Vault_key *key_from_list=
-      new Vault_key((uuid + "key1").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key *key_from_list= new Vault_key(
+      (Vault_environment::get_instance()->get_uuid() + "key1").c_str(), NULL,
+      "Robert", NULL, 0);
 
   EXPECT_CALL(*vault_io, init(Pointee(StrEq(credential_file_url))))
       .WillOnce(Return(FALSE));  // init successfull
@@ -1199,7 +1277,9 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
   EXPECT_FALSE(vault_keys_container->init(vault_io, credential_file_url));
   EXPECT_EQ(vault_keys_container->get_number_of_keys(), static_cast<uint>(1));
 
-  Vault_key key_to_fetch((uuid + "key1").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key key_to_fetch(
+      (Vault_environment::get_instance()->get_uuid() + "key1").c_str(), NULL,
+      "Robert", NULL, 0);
   ASSERT_TRUE(key_to_fetch.get_key_data() == NULL);
   IKey *key_fetched_from_keyring;
 
@@ -1211,13 +1291,15 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
 
   // When we call fetch_key for the 2nd time - key's data and type should be already cached
   // thus the second call should not call retrieve_key_type_and_data
-  Vault_key key_to_re_fetch((uuid + "key1").c_str(), NULL, "Robert", NULL, 0);
+  Vault_key key_to_re_fetch(
+      (Vault_environment::get_instance()->get_uuid() + "key1").c_str(), NULL,
+      "Robert", NULL, 0);
   EXPECT_CALL(*vault_io, retrieve_key_type_and_data(_)).Times(0);
   key_fetched_from_keyring= vault_keys_container->fetch_key(&key_to_re_fetch);
 
   ASSERT_TRUE(key_fetched_from_keyring != NULL);
   std::string expected_key_signature=
-      get_key_signature(uuid, "key1", "Robert");
+      Vault_environment::get_instance()->get_key_signature("key1", "Robert");
   EXPECT_STREQ(key_fetched_from_keyring->get_key_signature()->c_str(),
                expected_key_signature.c_str());
   EXPECT_EQ(memcmp("ab",
@@ -1233,64 +1315,32 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
 }
 }  // namespace keyring__vault_keys_container_unittest
 
+#define TRAP_TEST_CASE_NAME WARNINGVault_keys_container_test_trap
+#define TRAP_TEST_NAME OnlyThisTestIsRunWhenVaultEnvironmentVariablesAreNotSet
+#define TRAP_TEST_FULL_NAME               \
+  BOOST_PP_STRINGIZE(TRAP_TEST_CASE_NAME) \
+  "." BOOST_PP_STRINGIZE(TRAP_TEST_NAME)
+
+namespace keyring__vault_keys_container_unittest {
+GTEST_TEST(TRAP_TEST_CASE_NAME, TRAP_TEST_NAME) { GTEST_SUCCEED(); }
+}  // namespace keyring__vault_keys_container_unittest
+
 int main(int argc, char **argv)
 {
+  system_charset_info= &my_charset_utf8_general_ci;
+
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
-  MY_INIT(argv[0]);
-  my_testing::setup_server_for_unit_tests();
-
-  //create unique secret mount point for this test suite
-  curl_global_init(CURL_GLOBAL_DEFAULT);
-  CURL *curl= curl_easy_init();
-  if (curl == NULL)
+  if (is_vault_environment_configured())
   {
-    std::cout << "Could not initialize CURL session" << std::endl;
-    curl_global_cleanup();
-    return 1;
+    if (!::testing::GTEST_FLAG(filter).empty())
+      ::testing::GTEST_FLAG(filter)+= ':';
+    ::testing::GTEST_FLAG(filter)+= '-';
+    ::testing::GTEST_FLAG(filter)+= TRAP_TEST_FULL_NAME;
+    ::testing::AddGlobalTestEnvironment(Vault_environment::create_instance());
   }
-  BOOST_SCOPE_EXIT(&curl)
-  {
-    curl_easy_cleanup(curl);
-    curl_global_cleanup();
-  }
-  BOOST_SCOPE_EXIT_END
+  else
+    ::testing::GTEST_FLAG(filter)= TRAP_TEST_FULL_NAME;
 
-  keyring__vault_keys_container_unittest::logger= new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(
-      curl, keyring__vault_keys_container_unittest::logger);
-  std::string mount_point_path=
-      "cicd/" + keyring__vault_keys_container_unittest::uuid;
-
-  if (generate_credential_file(
-          keyring__vault_keys_container_unittest::credential_file_url,
-          CORRECT, mount_point_path))
-  {
-    std::cout << "Could not generate credential file" << std::endl;
-    return 2;
-  }
-  if (vault_mount.init(
-          &keyring__vault_keys_container_unittest::credential_file_url,
-          &mount_point_path))
-  {
-    std::cout << "Could not initialize Vault_mount" << std::endl;
-    return 3;
-  }
-  if (vault_mount.mount_secret_backend())
-  {
-    std::cout << "Could not mount secret backend" << std::endl;
-    return 4;
-  }
-
-  int ret= RUN_ALL_TESTS();
-
-  //remove unique secret mount point
-  if (vault_mount.unmount_secret_backend())
-  {
-    std::cout << "Could not unmount secret backend" << std::endl;
-  }
-  delete keyring__vault_keys_container_unittest::logger;
-
-  my_testing::teardown_server_for_unit_tests();
-  return ret;
+  return RUN_ALL_TESTS();
 }

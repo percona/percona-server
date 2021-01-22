@@ -27,10 +27,8 @@ if (!$vault_conf_mount_point_directory)
   --source mount_point_service.inc
 }
 
-#--source is_vault_server_up.inc
-
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
@@ -38,7 +36,6 @@ call mtr.add_suppression("Error 'Can't find master key from keyring, please chec
 call mtr.add_suppression("\\[Warning\\] Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully. Error_code: 3185");
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
 call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
 --enable_query_log
 

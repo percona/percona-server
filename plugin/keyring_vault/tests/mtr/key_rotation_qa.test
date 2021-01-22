@@ -30,8 +30,6 @@ if (!$vault_conf_mount_point_directory)
   --source mount_point_service.inc
 }
 
-#--source is_vault_server_up.inc
-
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");

@@ -1,48 +1,32 @@
-#include <string>
-#include <cstdio>
-#include <fstream>
+#ifndef MYSQL_GUNIT_GENERATE_CREDENTIAL_FILE_H
+#define MYSQL_GUNIT_GENERATE_CREDENTIAL_FILE_H
 
-enum GENERATE_CREDENTIALS {
-  CORRECT,
-  WITH_INVALID_TOKEN,
+#include <iosfwd>
+#include <string>
+
+enum credentials_validity_type {
+  credentials_validity_correct,
+  credentials_validity_invalid_token,
 };
 
-static bool generate_credential_file(
-    const std::string &        credential_file_path,
-    const GENERATE_CREDENTIALS generate_credetials= CORRECT,
-    const std::string &        secret_mount_point= "")
-{
-  std::remove(credential_file_path.c_str());
-  const char *mysql_test_dir(getenv("MYSQL_TEST_DIR"));
-  const char *vault_token(getenv("MTR_VAULT_TOKEN"));
-  if (mysql_test_dir == NULL || vault_token == NULL)
-    return true;
-  std::string credential_file_template_path= mysql_test_dir;
-  credential_file_template_path+=
-      "/std_data/keyring_vault_confs/keyring_vault_ut.conf";
-  std::ifstream credentials_file_template(
-      credential_file_template_path.c_str());
-  std::ofstream credentials_file(credential_file_path.c_str());
-  if (!credentials_file_template || !credentials_file)
-    return true;
-  std::string line;
-  while (!getline(credentials_file_template, line).fail())
-  {
-    if (line.find("token") != std::string::npos)
-    {
-      if (generate_credetials == WITH_INVALID_TOKEN)
-        line= "token = 123-123-123";
-      else
-        (line= "token = ").append(vault_token);
-    }
-    if (secret_mount_point.empty() == false &&
-        line.find("secret_mount_point") != std::string::npos)
-      line= "secret_mount_point = " + secret_mount_point;
-    size_t mysql_test_dir_var_pos= line.find("MYSQL_TEST_DIR");
-    if (mysql_test_dir_var_pos != std::string::npos)
-      line.replace(mysql_test_dir_var_pos, strlen("MYSQL_TEST_DIR"),
-                   mysql_test_dir);
-    credentials_file << line << std::endl;
-  }
-  return false;
-}
+enum mount_point_version_type {
+  mount_point_version_empty,
+  mount_point_version_v1,
+  mount_point_version_v2,
+  mount_point_version_auto
+};
+
+std::ostream &operator<<(std::ostream &           os,
+                         mount_point_version_type mount_point_version);
+
+std::string generate_uuid();
+
+bool generate_credential_file(const std::string &       credential_file_path,
+                              const std::string &       secret_mount_point,
+                              mount_point_version_type  mount_point_version,
+                              credentials_validity_type generate_credetials=
+                                  credentials_validity_correct);
+
+bool is_vault_environment_configured();
+
+#endif  // MYSQL_GUNIT_GENERATE_CREDENTIAL_FILE_H

@@ -16,27 +16,19 @@
 --let $vault_conf_mount_point_suffix = _2
 --source generate_conf_file.inc
 
-# Actual mount points are needed only when 'secret_mount_point_version' is set to 'AUTO'
-# and we try to find it in the list of Vault Server mounts
-if ($vault_conf_mount_point_version == AUTO)
+--let $mount_point_service_op = CREATE
+
+--let $vault_conf_mount_point_suffix = _1
+--source mount_point_service.inc
+
+if (!$vault_conf_mount_point_directory)
 {
-  --let $mount_point_service_op = CREATE
-
-  --let $vault_conf_mount_point_suffix = _1
-  --source mount_point_service.inc
-
-  if (!$vault_conf_mount_point_directory)
-  {
-    --let $vault_conf_mount_point_suffix = _2
-    --source mount_point_service.inc
-  }
+--let $vault_conf_mount_point_suffix = _2
+--source mount_point_service.inc
 }
 
-#--source is_vault_server_up.inc
-
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '../../../../../bad_dir/bad_keyring_vault.conf' not found");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
 --enable_query_log
 
@@ -62,16 +54,13 @@ SELECT @@global.keyring_vault_config;
 eval SET @@global.keyring_vault_config= '$conf_file1';
 
 # Delete mount points
-if ($vault_conf_mount_point_version == AUTO)
+--let $mount_point_service_op = DELETE
+
+--let $vault_conf_mount_point_suffix = _1
+--source mount_point_service.inc
+
+if (!$vault_conf_mount_point_directory)
 {
-  --let $mount_point_service_op = DELETE
-
-  --let $vault_conf_mount_point_suffix = _1
-  --source mount_point_service.inc
-
-  if (!$vault_conf_mount_point_directory)
-  {
-      --let $vault_conf_mount_point_suffix = _2
-      --source mount_point_service.inc
-  }
+    --let $vault_conf_mount_point_suffix = _2
+    --source mount_point_service.inc
 }

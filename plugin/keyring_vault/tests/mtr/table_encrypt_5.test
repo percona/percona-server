@@ -25,12 +25,9 @@ if (!$vault_conf_mount_point_directory)
   --source mount_point_service.inc
 }
 
-#--source is_vault_server_up.inc
-
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
 call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
 --enable_query_log
 

@@ -224,7 +224,7 @@ my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
   return remove_backup(MYF(MY_WME));
 }
 
-my_bool Buffered_file_io::init(std::string *keyring_filename)
+my_bool Buffered_file_io::init(const std::string *keyring_filename)
 {
   DBUG_ASSERT(keyring_filename->empty() == FALSE);
 #ifdef HAVE_PSI_INTERFACE

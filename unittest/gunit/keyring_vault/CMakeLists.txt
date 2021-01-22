@@ -49,23 +49,30 @@ FOREACH(test ${TESTS})
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_io.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_base64.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_curl.cc
-            ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_parser.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_parser_composer.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials_parser.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_container.cc
-            ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
+            ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/generate_credential_file.cc
+            ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_environment.cc
             ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
+            ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_test_base.cc
             )
     IF(WIN32)
         LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
     ENDIF()
     ADD_EXECUTABLE(${test}-t ${SRC_FILES})
 
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys sql)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql ${CURL_LIBRARY} ${SSL_LIBRARIES})
+    IF(${test} STREQUAL "vault_keyring-api")
+        TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+        TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave)
+    ELSE()
+        TARGET_LINK_LIBRARIES(${test}-t gunit_small)
+    ENDIF()
+
+    TARGET_LINK_LIBRARIES(${test}-t ${CURL_LIBRARY} ${SSL_LIBRARIES})
 
     IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-        TARGET_LINK_LIBRARIES(${test}-t perfschema)
         TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
     ENDIF()
 

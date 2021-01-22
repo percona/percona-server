@@ -26,15 +26,13 @@ if (!$vault_conf_mount_point_directory)
   --source mount_point_service.inc
 }
 
-#--source is_vault_server_up.inc
-
 --let $vault_conf_file = $conf_invalid
 --let $vault_conf_mount_point_suffix = _3
 --let $vault_conf_token = aabbccddeeffeegghhiijjkk
 --source generate_conf_file.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
 call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
 call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
@@ -43,16 +41,11 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported:.* Connection timed out");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault.");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' not found");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not identify credentials file size.'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Can't seek in file '/'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error reading file '/' \\(Errcode: 21 - Is a directory\\)");
 call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'There is no vault_ca specified in keyring_vault's configuration file");
-if ($vault_conf_mount_point_version == AUTO)
-{
-  call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not determine version of Vault Server");
-}
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not determine the version of the Vault Server mount point.");
 --enable_query_log
 
 # Installing keyring plugin.

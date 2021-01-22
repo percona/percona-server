@@ -20,31 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef IKEYRINGIO_INCLUDED
-#define IKEYRINGIO_INCLUDED
+#ifndef MOCK_SERIALIZED_OBJECT_H
+#define MOCK_SERIALIZED_OBJECT_H
 
-#include <my_global.h>
-#include "keyring_key.h"
-#include "i_serializer.h"
+#include <gmock/gmock.h>
+
+#include "i_serialized_object.h"
 
 namespace keyring {
-
-
-class IKeyring_io : public Keyring_alloc
-{
-public:
- virtual my_bool init(const std::string *keyring_storage_url)= 0;
- virtual my_bool flush_to_backup(ISerialized_object *serialized_object)= 0;
- virtual my_bool flush_to_storage(ISerialized_object *serialized_object)= 0;
-
- virtual ISerializer *get_serializer()= 0;
- virtual my_bool      get_serialized_object(
-          ISerialized_object **serialized_object)= 0;
- virtual my_bool has_next_serialized_object()= 0;
-
- virtual ~IKeyring_io() {}
+class Mock_serialized_object : public ISerialized_object {
+ public:
+  MOCK_METHOD1(get_next_key, my_bool(IKey **key));
+  MOCK_METHOD0(has_next_key, my_bool());
+  MOCK_METHOD0(get_key_operation, Key_operation());
+  MOCK_METHOD1(set_key_operation, void(Key_operation));
 };
+}  // namespace keyring
 
-} //namespace keyring
-
-#endif //IKEYRINGIO_INCLUDED
+#endif  // MOCK_SERIALIZED_OBJECT_H

@@ -1,5 +1,7 @@
-#ifndef MYSQL_INCORRECT_VAULT_KEY_H
-#define MYSQL_INCORRECT_VAULT_KEY_H
+#ifndef MYSQL_GUNIT_INCORRECT_VAULT_KEY_H
+#define MYSQL_GUNIT_INCORRECT_VAULT_KEY_H
+
+#include "vault_key.h"
 
 namespace keyring {
 
@@ -50,4 +52,4 @@ struct Incorrect_vault_key : public Vault_key {
 
 }  // namespace keyring
 
-#endif  //MYSQL_INCORRECT_VAULT_KEY_H
+#endif  // MYSQL_GUNIT_INCORRECT_VAULT_KEY_H

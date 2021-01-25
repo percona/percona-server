@@ -44,7 +44,8 @@
 
   ASSERT_FALSE(
       tc_vault_mount_->init(get_vault_env()->get_default_conf_file_name(),
-                            get_vault_env()->get_mount_point_path()))
+                            get_vault_env()->get_mount_point_path(),
+                            get_vault_env()->get_admin_token()))
       << "Could not initialized Vault_mount";
 
   ASSERT_FALSE(tc_vault_mount_->mount_secret_backend())

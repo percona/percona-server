@@ -1,6 +1,6 @@
 # The following environment variables must be defined when mysql-test-run.pl is run:
 #   MTR_VAULT_ADDRESS - Hashicorp Vault server URL including protocol and optional port (e.g. http://128.0.0.1:8200)
-#   MTR_VAULT_TOKEN - Hashicorp Vault server token
+#   MTR_VAULT_PLUGIN_TOKEN - Hashicorp Vault server token
 #   MTR_VAULT_CA - path to Hashicorp Vault server CA certificate (optional)
 # The following MTR variables must be defined when this file is included
 #   $vault_conf_file - the name of the configuration file to be generated
@@ -9,7 +9,7 @@
 #   $vault_conf_mount_point_directory - optional directory within mount point
 #   $vault_conf_mount_point_version - optional Hashicorp Vault server version that will be written to the configuration file
 #   $vault_conf_address - optional Hashicorp Vault server URL, if not defined, taken from MTR_VAULT_ADDRESS environment variable
-#   $vault_conf_token - optional Hashicorp Vault server token, if not defined, taken from MTR_VAULT_TOKEN environment variable
+#   $vault_conf_token - optional Hashicorp Vault server token, if not defined, taken from MTR_VAULT_PLUGIN_TOKEN environment variable
 #   $vault_conf_ca - optional path to Hashicorp Vault server CA certificate, if not defined, taken from MTR_VAULT_CA environment variable
 
 --let EXPORTED_VAULT_CONF_FILE = $vault_conf_file
@@ -45,7 +45,7 @@ if ($vault_conf_ca)
   my $imported_vault_conf_token = $ENV{'EXPORTED_VAULT_CONF_TOKEN'};
   if (!$imported_vault_conf_token)
   {
-    $imported_vault_conf_token = $ENV{'MTR_VAULT_TOKEN'} or die("Please export MTR_VAULT_TOKEN variable");
+    $imported_vault_conf_token = $ENV{'MTR_VAULT_PLUGIN_TOKEN'} or die("Please export MTR_VAULT_PLUGIN_TOKEN variable");
   }
 
   my $imported_vault_conf_ca = $ENV{'EXPORTED_VAULT_CONF_CA'};

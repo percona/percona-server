@@ -10,7 +10,8 @@
 
 namespace {
 const char vault_address_env_var_name[] = "MTR_VAULT_ADDRESS";
-const char vault_token_env_var_name[] = "MTR_VAULT_TOKEN";
+const char vault_admin_token_env_var_name[] = "MTR_VAULT_ADMIN_TOKEN";
+const char vault_plugin_token_env_var_name[] = "MTR_VAULT_PLUGIN_TOKEN";
 const char vault_ca_env_var_name[] = "MTR_VAULT_CA";
 }  // anonymous namespace
 
@@ -48,7 +49,8 @@ bool generate_credential_file(const std::string &credential_file_path,
       std::getenv(vault_address_env_var_name);
   if (imported_vault_conf_address == nullptr) return true;
 
-  const char *imported_vault_conf_token = std::getenv(vault_token_env_var_name);
+  const char *imported_vault_conf_token =
+      std::getenv(vault_plugin_token_env_var_name);
   if (imported_vault_conf_token == nullptr) return true;
   const char *imported_vault_conf_ca = std::getenv(vault_ca_env_var_name);
 
@@ -78,5 +80,14 @@ bool generate_credential_file(const std::string &credential_file_path,
 
 bool is_vault_environment_configured() {
   return std::getenv(vault_address_env_var_name) != nullptr &&
-         std::getenv(vault_token_env_var_name) != nullptr;
+         std::getenv(vault_admin_token_env_var_name) != nullptr &&
+         std::getenv(vault_plugin_token_env_var_name) != nullptr;
+}
+
+std::string extract_admin_token() {
+  const char *imported_vault_admin_token =
+      std::getenv(vault_admin_token_env_var_name);
+  return imported_vault_admin_token == nullptr
+             ? std::string()
+             : std::string(imported_vault_admin_token);
 }

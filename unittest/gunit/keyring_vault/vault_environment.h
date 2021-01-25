@@ -59,6 +59,7 @@ class Vault_environment : public ::testing::Environment {
   std::string non_existing_conf_file_name_;
 
   std::string mount_point_path_;
+  std::string admin_token_;
 
   std::string get_conf_file_name(const std::string &base) const {
     return "./" + base + "_" + uuid_ + ".conf";

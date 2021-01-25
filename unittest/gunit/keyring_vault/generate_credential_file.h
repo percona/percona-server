@@ -30,4 +30,6 @@ bool generate_credential_file(
 
 bool is_vault_environment_configured();
 
+std::string extract_admin_token();
+
 #endif  // MYSQL_GUNIT_GENERATE_CREDENTIAL_FILE_H

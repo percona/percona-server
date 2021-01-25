@@ -11,7 +11,8 @@ Vault_environment::Vault_environment()
       default_conf_file_name_(get_conf_file_name("keyring_vault")),
       invalid_conf_file_name_(get_conf_file_name("invalid_token")),
       non_existing_conf_file_name_(get_conf_file_name("non_existing")),
-      mount_point_path_("mtr/" + uuid_) {}
+      mount_point_path_("mtr/" + uuid_),
+      admin_token_(extract_admin_token()) {}
 
 /*static*/ std::string Vault_environment::get_key_signature_ex(
     const std::string &uuid, const std::string &key_id,

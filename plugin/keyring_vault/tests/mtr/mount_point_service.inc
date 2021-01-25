@@ -11,10 +11,10 @@ if ($vault_conf_address)
 {
   --let EXPORTED_VAULT_CONF_ADDRESS = $vault_conf_address
 }
---let EXPORTED_VAULT_CONF_TOKEN =
-if ($vault_conf_token)
+--let EXPORTED_VAULT_ADMIN_TOKEN =
+if ($vault_admin_token)
 {
-  --let EXPORTED_VAULT_CONF_TOKEN = $vault_conf_token
+  --let EXPORTED_VAULT_ADMIN_TOKEN = $vault_admin_token
 }
 --let EXPORTED_VAULT_CONF_CA =
 if ($vault_conf_ca)
@@ -35,10 +35,10 @@ if ($vault_conf_ca)
     $imported_vault_conf_address = $ENV{'MTR_VAULT_ADDRESS'} or die "Please export MTR_VAULT_ADDRESS variable";
   }
 
-  my $imported_vault_conf_token = $ENV{'EXPORTED_VAULT_CONF_TOKEN'};
-  if (!$imported_vault_conf_token)
+  my $imported_vault_admin_token = $ENV{'EXPORTED_VAULT_ADMIN_TOKEN'};
+  if (!$imported_vault_admin_token)
   {
-    $imported_vault_conf_token = $ENV{'MTR_VAULT_TOKEN'} or die("Please export MTR_VAULT_TOKEN variable");
+    $imported_vault_admin_token = $ENV{'MTR_VAULT_ADMIN_TOKEN'} or die("Please export MTR_VAULT_ADMIN_TOKEN variable");
   }
 
   my $imported_vault_conf_ca = $ENV{'EXPORTED_VAULT_CONF_CA'};
@@ -77,7 +77,7 @@ if ($vault_conf_ca)
     } else {
       $postdata= qq#{"type":"kv"}#;
     }
-    system(qq#curl --http1.1 -L -H "X-Vault-Token: $imported_vault_conf_token" $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
+    system(qq#curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
       || die "Cannot create mount point";
     # This sleep is needed to let Vault background process finish upgrading
     # kv to kv-v2 and therefore reduce the chances of
@@ -86,7 +86,7 @@ if ($vault_conf_ca)
   }
   elsif ($imported_mount_point_service_op eq 'DELETE')
   {
-    system(qq#curl --http1.1 -L -H "X-Vault-Token: $imported_vault_conf_token" $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
+    system(qq#curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
       || die "Cannot delete mount point";
   }
   else

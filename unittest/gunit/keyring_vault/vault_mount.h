@@ -14,7 +14,8 @@ class Vault_mount {
   Vault_mount(CURL *curl, ILogger *logger) : curl(curl), logger(logger) {}
 
   bool init(const std::string &keyring_storage_url,
-            const std::string &secret_mount_point);
+            const std::string &secret_mount_point,
+            const std::string &admin_token);
   bool mount_secret_backend();
   bool unmount_secret_backend();
 

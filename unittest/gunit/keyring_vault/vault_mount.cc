@@ -9,13 +9,15 @@
 namespace keyring {
 
 bool Vault_mount::init(const std::string &keyring_storage_url,
-                       const std::string &secret_mount_point)
+                       const std::string &secret_mount_point,
+                       const std::string &admin_token)
 {
   Vault_credentials_parser vault_credentials_parser(logger);
   if (vault_credentials_parser.parse(keyring_storage_url, vault_credentials))
     return true;
 
-  this->token_header= "X-Vault-Token:" + vault_credentials.get_token();
+  this->token_header= "X-Vault-Token:";
+  this->token_header.append(admin_token.c_str(), admin_token.size());
   this->vault_mount_point_url=
       vault_credentials.get_vault_url() + "/v1/sys/mounts/";
   this->vault_mount_point_url+= secret_mount_point.c_str();

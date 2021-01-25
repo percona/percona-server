@@ -37,7 +37,7 @@ matrix:
       env:              BUILD=Debug
       compiler: clang
       os: osx
-      osx_image: xcode11
+      osx_image: xcode12
     # 2
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=11   BUILD=Debug  INVERTED=ON
@@ -102,7 +102,7 @@ matrix:
       env:              BUILD=RelWithDebInfo
       compiler: clang
       os: osx
-      osx_image: xcode11
+      osx_image: xcode12
     # 2
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
       env: VERSION=11   BUILD=RelWithDebInfo  INVERTED=ON
@@ -293,9 +293,9 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
        TIMEOUT_CMD=gtimeout;
-       brew update;
-       brew install ccache protobuf lz4 re2 rapidjson;
-       export PATH="/usr/local/opt/ccache/libexec:$PATH";
+       curl -LO https://raw.githubusercontent.com/GiovanniBussi/macports-ci/master/macports-ci;
+       source ./macports-ci install;
+       yes | sudo port install ccache;
     fi;
     UPDATE_TIME=$(($SECONDS - $INIT_TIME));
     echo --- Packages updated in $UPDATE_TIME seconds. Initialization time $INIT_TIME seconds.
@@ -303,6 +303,8 @@ script:
   - mkdir bin; cd bin;
   - $CC -v
   - $CXX -v
+  - CCACHE_BIN=$(which ccache)
+  - echo ccache=$CCACHE_BIN
   - ccache --version
   - ccache -p
     ccache --zero-stats;
@@ -322,6 +324,8 @@ script:
       -DENABLE_DOWNLOADS=1
       -DDOWNLOAD_BOOST=1
       -DWITH_BOOST=../deps
+      -DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN
+      -DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN
       -DWITH_KEYRING_VAULT=ON
       -DWITHOUT_TOKUDB=ON
       -DWITH_ROCKSDB=OFF
@@ -330,9 +334,10 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
       CMAKE_OPT+="
         -DMYSQL_MAINTAINER_MODE=OFF
-        -DWITH_PROTOBUF=system
         -DWITH_SYSTEM_LIBS=ON
         -DWITH_ICU=/usr/local/opt/icu4c
+        -DWITH_RAPIDJSON=bundled
+        -DWITH_LZ4=bundled
       ";
     else
       CMAKE_OPT+="

@@ -1334,7 +1334,13 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  {
+  thd->status_var.net_buffer_length = net->max_packet;
+
+  DEBUG_SYNC(thd, "before_command_dispatch");
+
+  return_value = dispatch_command(thd, &com_data, command);
+
+  {  // net_buffer_shrink_interval logic
     mysql_mutex_lock(&LOCK_global_system_variables);
     auto shrink_interval = net_buffer_shrink_interval;
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -1349,11 +1355,6 @@ bool do_command(THD *thd) {
     }
   }
 
-  thd->status_var.net_buffer_length = net->max_packet;
-
-  DEBUG_SYNC(thd, "before_command_dispatch");
-
-  return_value = dispatch_command(thd, &com_data, command);
   thd->get_protocol_classic()->get_output_packet()->shrink(
       thd->variables.net_buffer_length);
 

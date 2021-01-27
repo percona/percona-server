@@ -978,6 +978,8 @@ class ha_rocksdb : public my_core::handler {
   void build_decoder();
   void check_build_decoder();
 
+  static void inc_covered_sk_lookup();
+
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
  public:
   virtual void rpl_before_delete_rows() override;

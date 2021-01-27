@@ -202,7 +202,7 @@ bool net_write_command(struct NET *net, unsigned char command,
 bool net_write_packet(struct NET *net, const unsigned char *packet,
                       size_t length);
 unsigned long my_net_read(struct NET *net);
-bool my_net_shrink_buffer(NET *net, ulong min_buf_size);
+bool my_net_shrink_buffer(NET *net, unsigned long min_buf_size);
 void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_retry_count(struct NET *net, unsigned int retry_count);

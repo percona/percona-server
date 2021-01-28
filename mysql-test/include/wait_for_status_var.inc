@@ -20,12 +20,12 @@
 #   To specify the type (attribute) of status variable and
 #   run either SHOW GLOBAL STATUS or SHOW SESSION STATUS.
 # 
-# $status_var_comparsion
+# $status_var_comparison
 #   By default, this file waits until $status_var becomes equal to
 #   $status_var_value.  If you want to wait until $status_var
 #   becomes *unequal* to $status_var_value, set this parameter to the
 #   string '!=', like this:
-#     let $status_var_comparsion= !=;
+#     let $status_var_comparison= !=;
 #
 # $status_timeout
 #   The default timeout is 1 minute. You can change the timeout by

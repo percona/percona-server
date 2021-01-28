@@ -213,6 +213,11 @@ The following commands start, provide the server status, stop the server, and re
    with ``sytemctl`` instead of ``service``. Currently, both are
    supported.
 
+Working with SELinux
+======================
+
+For information on working with SELinux, see :ref:`selinux`.
+
 Uninstalling |Percona Server|
 =============================
 

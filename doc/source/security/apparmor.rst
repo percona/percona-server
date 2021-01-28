@@ -1,7 +1,7 @@
 .. _enable-apparmor:
 
 =================================================
-Working with Percona Server with AppArmor 
+Working with AppArmor 
 =================================================
 
 The operating system has a Discretionary Access Controls (DAC) system. AppArmor supplements the DAC with a Mandatory Access Control (MAC) system. AppArmor is the default security module for Ubuntu or Debian systems and uses profiles to define how programs access resources. 

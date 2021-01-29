@@ -111,6 +111,10 @@ ulong ha_rockspart::index_flags(uint idx, uint part, bool all_parts) const {
                                           part, all_parts);
 }
 
+ha_rockspart::Table_flags ha_rockspart::default_table_flags() const {
+  return myrocks::ha_rocksdb::table_flags(m_pk_can_be_decoded);
+}
+
 const char **ha_rockspart::bas_ext() const {
   static const char *null_ext = nullptr;
   return &null_ext;

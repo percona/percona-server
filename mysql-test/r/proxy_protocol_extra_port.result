@@ -3,3 +3,4 @@ include/assert.inc ['Assert we are binding on all networks']
 SHOW GLOBAL STATUS LIKE 'Threads_connected';
 Variable_name	Value
 Threads_connected	1
+# restart:--proxy-protocol-networks=

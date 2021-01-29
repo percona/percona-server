@@ -5821,7 +5821,7 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_tbl_def(nullptr),
       m_pk_descr(nullptr),
       m_key_descr_arr(nullptr),
-      m_pk_can_be_decoded(false),
+      m_pk_can_be_decoded(true),
       m_pk_tuple(nullptr),
       m_pk_packed_tuple(nullptr),
       m_sk_packed_tuple(nullptr),
@@ -7807,6 +7807,10 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
 
 ulong ha_rocksdb::index_flags(uint inx, uint part, bool all_parts) const {
   return index_flags(m_pk_can_be_decoded, table_share, inx, part, all_parts);
+}
+
+ha_rocksdb::Table_flags ha_rocksdb::table_flags() const {
+  return table_flags(m_pk_can_be_decoded);
 }
 
 /**

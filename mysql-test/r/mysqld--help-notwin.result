@@ -743,17 +743,9 @@ The following options may be given as the first argument:
  firstmatch, duplicateweedout,
  subquery_materialization_cost_based, block_nested_loop,
  batched_key_access, use_index_extensions,
-<<<<<<< HEAD
- condition_fanout_filter, derived_merge, favor_range_scan}
- and val is one of {on, off, default}
-||||||| 2032b65c44e
- condition_fanout_filter, derived_merge} and val is one of
- {on, off, default}
-=======
  condition_fanout_filter, derived_merge,
- prefer_ordering_index} and val is one of {on, off,
- default}
->>>>>>> 9f5e0088f4f7d6677dfacda0164d80a59eaffd2a^
+ prefer_ordering_index, favor_range_scan} and val is one
+ of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option

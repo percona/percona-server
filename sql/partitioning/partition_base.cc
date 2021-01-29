@@ -4495,7 +4495,9 @@ handler::Table_flags Partition_base::table_flags() const
   DBUG_ENTER("Partition_base::table_flags");
   if (m_handler_status < handler_initialized ||
       m_handler_status >= handler_closed)
-    DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
+    DBUG_RETURN((default_table_flags() &
+                ~(PARTITION_DISABLED_TABLE_FLAGS)) |
+               (PARTITION_ENABLED_TABLE_FLAGS));
 
   if (get_lock_type() != F_UNLCK)
   {

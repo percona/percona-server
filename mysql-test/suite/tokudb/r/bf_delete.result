@@ -24,10 +24,9 @@ INSERT INTO t SELECT null,val FROM t;
 INSERT INTO t SELECT null,val FROM t;
 INSERT INTO t SELECT null,val FROM t;
 INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
 SELECT count(*) FROM t;
 count(*)
-8388608
+4194304
 set tokudb_bulk_fetch = ON;
 delete from t where val > 0;
 delete from t where val > 0;

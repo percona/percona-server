@@ -503,9 +503,5 @@ ENDIF(MERGE_UNITTESTS)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
-<<<<<<< HEAD
-ADD_SUBDIRECTORY(keyring_vault)
-||||||| 2032b65c44e
-=======
 ADD_SUBDIRECTORY(locks)
->>>>>>> 9f5e0088f4f7d6677dfacda0164d80a59eaffd2a^
+ADD_SUBDIRECTORY(keyring_vault)

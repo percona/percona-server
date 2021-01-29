@@ -23,6 +23,7 @@
 #ifndef LOCK_SHARED_SPIN_LOCK_INCLUDED
 #define LOCK_SHARED_SPIN_LOCK_INCLUDED
 
+#include "my_config.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "my_atomic.h"

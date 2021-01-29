@@ -308,15 +308,9 @@
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 16)
 #define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 17)
 #define OPTIMIZER_SWITCH_DERIVED_MERGE             (1ULL << 18)
-<<<<<<< HEAD
-#define OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN          (1ULL << 19)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 20)
-||||||| 2032b65c44e
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 19)
-=======
 #define OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX     (1ULL << 19)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 20)
->>>>>>> 9f5e0088f4f7d6677dfacda0164d80a59eaffd2a^
+#define OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN          (1ULL << 20)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 21)
 
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \

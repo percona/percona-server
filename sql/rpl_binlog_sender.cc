@@ -185,15 +185,8 @@ Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
     m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
-<<<<<<< HEAD
     m_fdle(NULL), m_flag(flag), m_observe_transmission(false),
-    m_transmit_started(false)
-||||||| 2032b65c44e
-    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
-=======
-    m_flag(flag), m_observe_transmission(false), m_transmit_started(false),
-    m_prev_event_type(binary_log::UNKNOWN_EVENT)
->>>>>>> 9f5e0088f4f7d6677dfacda0164d80a59eaffd2a^
+    m_transmit_started(false), m_prev_event_type(binary_log::UNKNOWN_EVENT)
   {}
 
 void Binlog_sender::init()

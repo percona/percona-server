@@ -60,7 +60,7 @@ if ($vault_conf_ca)
   my $imported_vault_conf_mount_point_directory = $ENV{EXPORTED_VAULT_CONF_MOUNT_POINT_DIRECTORY};
   my $imported_vault_conf_mount_point_version = $ENV{EXPORTED_VAULT_CONF_MOUNT_POINT_VERSION};
 
-  my $secret_mount_point = $imported_vault_conf_mount_point_uuid;
+  my $secret_mount_point = "mtr/" . $imported_vault_conf_mount_point_uuid;
   if ($imported_vault_conf_mount_point_directory)
   {
     $secret_mount_point .= "/";

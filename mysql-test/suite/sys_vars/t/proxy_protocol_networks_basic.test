@@ -6,3 +6,7 @@ SET @@GLOBAL.proxy_protocol_networks='*';
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@SESSION.proxy_protocol_networks='foo';
+
+# Restart with no proxy_protocol_networks provided for clean shutdown
+--let $restart_parameters=restart:--proxy-protocol-networks=
+-- source include/restart_mysqld.inc

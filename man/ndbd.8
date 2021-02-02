@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 01/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "09/22/2020" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "01/04/2021" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -946,7 +946,7 @@ T}:T{
 T}
 .TE
 .sp 1
-This option takes a list of data nodes which for which the cluster will not wait for before starting\&.
+This option takes a list of data nodes which for which the cluster does not wait for before starting\&.
 .sp
 This can be used to start the cluster in a partitioned state\&. For example, to start the cluster with only half of the data nodes (nodes 2, 3, 4, and 5) running in a 4\-node cluster, you can start each
 \fBndbd\fR
@@ -960,7 +960,7 @@ milliseconds for nodes 3 and 5 to connect as it would otherwise\&.
 If you wanted to start up the same cluster as in the previous example without one
 \fBndbd\fR
 (say, for example, that the host machine for node 3 has suffered a hardware failure) then start nodes 2, 4, and 5 with
-\fB\-\-nowait\-nodes=3\fR\&. Then the cluster will start as soon as nodes 2, 4, and 5 connect and will not wait for node 3 to start\&.
+\fB\-\-nowait\-nodes=3\fR\&. Then the cluster starts as soon as nodes 2, 4, and 5 connect and does not wait for node 3 to start\&.
 .RE
 .sp
 .RS 4
@@ -1106,7 +1106,7 @@ file (see below)\&. Error log entries are thus overwritten in a cyclical and not
 ndb_\fInode_id\fR_trace\&.log\&.\fItrace_id\fR
 is a trace file describing exactly what happened just before the error occurred\&. This information is useful for analysis by the NDB Cluster development team\&.
 .sp
-It is possible to configure the number of these trace files that will be created before old files are overwritten\&.
+It is possible to configure the number of these trace files that are created before old files are overwritten\&.
 \fItrace_id\fR
 is a number which is incremented for each successive trace file\&.
 .RE
@@ -1217,7 +1217,7 @@ Section\ \&18.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

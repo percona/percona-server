@@ -53,7 +53,7 @@ if ($vault_conf_ca)
   my $imported_vault_server_mount_point_version = $ENV{EXPORTED_VAULT_SERVER_MOUNT_POINT_VERSION};
   my $imported_mount_point_service_op = $ENV{'EXPORTED_MOUNT_POINT_SERVICE_OP'};
 
-  my $vault_mount = $imported_vault_conf_mount_point_uuid;
+  my $vault_mount = "mtr/" . $imported_vault_conf_mount_point_uuid;
   if (!$imported_vault_conf_mount_point_directory)
   {
     if ($imported_vault_conf_mount_point_suffix)

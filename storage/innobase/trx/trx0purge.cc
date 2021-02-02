@@ -326,7 +326,7 @@ trx_purge_sys_close(void)
 
 	mem_heap_free(purge_sys->heap);
 
-	purge_sys->heap = nullptr;
+	purge_sys->heap = NULL;
 
 	UT_DELETE(purge_sys->rseg_iter);
 
@@ -1680,7 +1680,7 @@ trx_purge_attach_undo_recs(
 		node = static_cast<purge_node_t*>(thr->child);
 
 		ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
-		ut_a(node->recs == nullptr);
+		ut_a(node->recs == NULL);
 		ut_a(node->done);
 
 		node->done = false;
@@ -1699,14 +1699,12 @@ trx_purge_attach_undo_recs(
 
 	mem_heap_empty(heap);
 
-	using GroupBy = std::map<
-		table_id_t, purge_node_t::Recs*,
-		std::less<table_id_t>,
-		mem_heap_allocator<std::pair<table_id_t, purge_node_t::Recs*>>>;
+	typedef std::map<
+	    table_id_t, purge_node_t::Recs *, std::less<table_id_t>,
+	    mem_heap_allocator<std::pair<table_id_t, purge_node_t::Recs *> > >
+	    GroupBy;
 
-	GroupBy		group_by{
-		GroupBy::key_compare{},
-		mem_heap_allocator<GroupBy::value_type>{heap}};
+	GroupBy group_by((GroupBy::key_compare()), mem_heap_allocator<GroupBy::value_type>(heap));
 
 	for (ulint i = 0; n_pages_handled < batch_size; ++i) {
 
@@ -1727,7 +1725,7 @@ trx_purge_attach_undo_recs(
 
 			continue;
 
-		} else if (rec.undo_rec == nullptr) {
+		} else if (rec.undo_rec == NULL) {
 
 			break;
 		}
@@ -1736,7 +1734,7 @@ trx_purge_attach_undo_recs(
 
 		table_id = trx_undo_rec_get_table_id(rec.undo_rec);
 
-		GroupBy::iterator	lb = group_by.lower_bound(table_id);
+		GroupBy::iterator lb = group_by.lower_bound(table_id);
 
 		if (lb != group_by.end()
 		    && !(group_by.key_comp()(table_id, lb->first))) {
@@ -1744,7 +1742,7 @@ trx_purge_attach_undo_recs(
 			lb->second->push_back(rec);
 
 		} else {
-			using value_type = GroupBy::value_type;
+			typedef GroupBy::value_type value_type;
 
 			void*			ptr;
 			purge_node_t::Recs*	recs;
@@ -1752,8 +1750,7 @@ trx_purge_attach_undo_recs(
 			ptr = mem_heap_alloc(heap, sizeof(purge_node_t::Recs));
 
 			/* Call the destructor explicitly in row_purge_end() */
-			recs = new (ptr) purge_node_t::Recs{
-				mem_heap_allocator<purge_node_t::rec_t>{heap}};
+			recs = new (ptr) purge_node_t::Recs(mem_heap_allocator<purge_node_t::rec_t>(heap));
 
 			recs->push_back(rec);
 
@@ -1765,9 +1762,10 @@ trx_purge_attach_undo_recs(
 	batch are handled by the same thread. Ths is to avoid contention
 	on the dict_index_t::lock */
 
-	GroupBy::const_iterator	end = group_by.cend();
+	const GroupBy& group_by_const = group_by;
+	GroupBy::const_iterator	end = group_by_const.end();
 
-	for (GroupBy::const_iterator it = group_by.cbegin(); it != end; ) {
+	for (GroupBy::const_iterator it = group_by_const.begin(); it != end; ) {
 
 		for (ulint i = 0; i < n_purge_threads && it != end; ++i, ++it) {
 
@@ -1777,13 +1775,13 @@ trx_purge_attach_undo_recs(
 
 			ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
 
-			if (node->recs == nullptr) {
+			if (node->recs == NULL) {
 				node->recs = it->second;
 			} else {
 				node->recs->insert(
-					std::end(*node->recs),
-					std::begin(*it->second),
-					std::end(*it->second));
+					node->recs->end(),
+					it->second->begin(),
+					it->second->end());
 			}
 		}
 	}

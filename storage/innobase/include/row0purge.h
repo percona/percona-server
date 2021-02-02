@@ -100,7 +100,7 @@ struct purge_node_t {
 		roll_ptr_t	roll_ptr;
 	};
 
-	using Recs = std::vector<rec_t, mem_heap_allocator<rec_t>>;
+	typedef std::vector<rec_t, mem_heap_allocator<rec_t> > Recs;
 
 	/** node type: QUE_NODE_PURGE */
 	que_common_t		common;

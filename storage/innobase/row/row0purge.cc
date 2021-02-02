@@ -93,7 +93,7 @@ row_purge_node_create(
 
 	node->heap = mem_heap_create(256);
 
-	node->recs = nullptr;
+	node->recs = NULL;
 
 	return(node);
 }
@@ -1107,7 +1107,7 @@ row_purge_end(que_thr_t* thr)
 
 	thr->run_node = que_node_get_parent(node);
 
-	if (node->recs != nullptr) {
+	if (node->recs != NULL) {
 
 		ut_ad(node->recs->empty());
 
@@ -1117,7 +1117,7 @@ row_purge_end(que_thr_t* thr)
 
 		call_destructor(node->recs);
 
-		node->recs = nullptr;
+		node->recs = NULL;
 	}
 
 	node->done = true;
@@ -1130,7 +1130,7 @@ row_purge_end(que_thr_t* thr)
 /** Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @param[in,out]	thr		The query thread to execute
-@return query thread to run next or nullptr */
+@return query thread to run next or NULL */
 que_thr_t*
 row_purge_step(que_thr_t* thr)
 {
@@ -1138,11 +1138,11 @@ row_purge_step(que_thr_t* thr)
 
 	node = static_cast<purge_node_t*>(thr->run_node);
 
-	node->table = nullptr;
-	node->row = nullptr;
-	node->ref = nullptr;
-	node->index = nullptr;
-	node->update = nullptr;
+	node->table = NULL;
+	node->row = NULL;
+	node->ref = NULL;
+	node->index = NULL;
+	node->update = NULL;
 	node->found_clust = FALSE;
 	node->rec_type = ULINT_UNDEFINED;
 	node->cmpl_info = ULINT_UNDEFINED;
@@ -1151,7 +1151,7 @@ row_purge_step(que_thr_t* thr)
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-	if (node->recs != nullptr && !node->recs->empty()) {
+	if (node->recs != NULL && !node->recs->empty()) {
 		purge_node_t::rec_t	rec;
 
 		rec = node->recs->back();

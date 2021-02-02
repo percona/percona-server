@@ -1661,11 +1661,11 @@ trx_purge_attach_undo_recs(
 	ulint		n_pages_handled = 0;
 
 	ut_a(n_purge_threads > 0);
-	ut_a(n_purge_threads <= MAX_PURGE_THREADS);
+	ut_a(n_purge_threads <= SRV_MAX_N_PURGE_THREADS);
 
 	purge_sys->limit = purge_sys->iter;
 
-	que_thr_t*	run_thrs[MAX_PURGE_THREADS];
+	que_thr_t*	run_thrs[SRV_MAX_N_PURGE_THREADS];
 
 	/* Validate some pre-requisites and reset done flag. */
 	ulint		i = 0;

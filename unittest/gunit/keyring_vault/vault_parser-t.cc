@@ -10,6 +10,12 @@
 
 boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
+extern "C" int my_plugin_log_message(MYSQL_PLUGIN *, enum plugin_log_level,
+                                     const char *, ...)
+{
+  return 0;
+}
+
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring {
 PSI_memory_key key_memory_KEYRING= PSI_NOT_INSTRUMENTED;

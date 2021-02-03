@@ -158,6 +158,9 @@ static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
+/* Boolean @@innodb_buffer_pool_in_core_file. */
+char srv_buffer_pool_in_core_file = TRUE;
+
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
@@ -447,6 +450,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	PSI_KEY(buffer_block_mutex),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+	PSI_KEY(buf_pool_chunks_mutex),
 	PSI_KEY(buf_pool_flush_state_mutex),
 	PSI_KEY(buf_pool_LRU_list_mutex),
 	PSI_KEY(buf_pool_free_list_mutex),
@@ -2060,6 +2064,33 @@ thd_is_select(
 	const THD*	thd)	/*!< in: thread handle */
 {
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
+}
+
+/** Checks sys_vars and determines if allocator should mark
+large memory segments with MADV_DONTDUMP
+@return true if @@global.core_file AND
+NOT @@global.innodb_buffer_pool_in_core_file */
+bool innobase_should_madvise_buf_pool() {
+	return (test_flags & TEST_CORE_ON_SIGNAL) && !srv_buffer_pool_in_core_file;
+}
+
+/** Make sure that core file will not be generated, as generating a core file
+ might violate our promise to not dump buffer pool data, and/or might dump not
+ the expected memory pages due to failure in using madvise */
+void innobase_disable_core_dump() {
+	/* TODO: There is a race condition here, as test_flags is not an atomic<>
+	and there might be multiple threads calling this function
+	in parallel (once for each buffer pool thread).
+	One approach would be to use a loop with os_compare_and_swap_ulint
+	unfortunately test_flags is defined as uint, not ulint, and we don't
+	have nice portable function for dealing with uint in InnoDB.
+	Moreover that would only prevent problems with mangled bits, but not
+	help at all with that some other thread might be reading test_flags
+	and making decisions based on observed value while we are changing it.
+	The good news is that all these threads try to do the same thing: clear the
+	same bit. So this happens to work. */
+
+	test_flags &= ~TEST_CORE_ON_SIGNAL;
 }
 
 /******************************************************************//**
@@ -19546,6 +19577,16 @@ innodb_stopword_table_validate(
 	return(ret);
 }
 
+static void innodb_srv_buffer_pool_in_core_file_update(
+    THD *thd,
+    struct st_mysql_sys_var*	var,
+    void *var_ptr,
+    const void *save)
+{
+	srv_buffer_pool_in_core_file = !!(*(bool *)save);
+	buf_pool_update_madvise();
+}
+
 /** Update the system variable innodb_buffer_pool_size using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]	thd	thread handle
@@ -22123,6 +22164,18 @@ static MYSQL_SYSVAR_ULONG(buffer_pool_dump_pct, srv_buf_pool_dump_pct,
   "Dump only the hottest N% of each buffer pool, defaults to 25",
   NULL, NULL, 25, 1, 100, 0);
 
+static MYSQL_SYSVAR_BOOL(
+	buffer_pool_in_core_file, srv_buffer_pool_in_core_file, PLUGIN_VAR_NOCMDARG,
+	"This option has no effect if @@core_file is OFF. "
+	"If @@core_file is ON, and this option is OFF, then the core dump file will"
+	" be generated only if it is possible to exclude buffer pool from it. "
+	"As soon as it will be determined that such exclusion is impossible a "
+	"warning will be emitted and @@core_file will be set to OFF to prevent "
+	"generating a core dump. "
+	"If this option is enabled (which is the default), then core dumping "
+	"logic will not be affected. ",
+	NULL, innodb_srv_buffer_pool_in_core_file_update, TRUE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
   PLUGIN_VAR_RQCMDARG,
@@ -22846,6 +22899,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
   MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+  MYSQL_SYSVAR(buffer_pool_in_core_file),
   MYSQL_SYSVAR(buffer_pool_dump_pct),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(buffer_pool_evict),

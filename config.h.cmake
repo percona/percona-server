@@ -166,6 +166,7 @@
 #cmakedefine HAVE_SIGEV_THREAD_ID 1
 #cmakedefine HAVE_SIGEV_PORT 1
 #cmakedefine HAVE_LOG2 1
+#cmakedefine HAVE_MADV_DONTDUMP 1
 
 #cmakedefine HAVE_ISINF 1
 

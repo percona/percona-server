@@ -113,8 +113,8 @@ row_purge_reposition_pcur(
 	if (node->found_clust) {
 		ut_ad(node->validate_pcur());
 
-		node->found_clust = btr_pcur_restore_position(
-			mode, &node->pcur, mtr);
+		node->found_clust =
+		    btr_pcur_restore_position(mode, &node->pcur, mtr);
 
 	} else {
 		node->found_clust = row_search_on_row_ref(
@@ -978,7 +978,6 @@ err_exit:
 	/* Read to the partial row the fields that occur in indexes */
 
 	if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-
 		ptr = trx_undo_rec_get_partial_row(
 			ptr, clust_index, &node->row,
 			type == TRX_UNDO_UPD_DEL_REC,
@@ -1166,7 +1165,6 @@ row_purge_step(que_thr_t* thr)
 		} else {
 			thr->run_node = node;
 		}
-
 	} else {
 		row_purge_end(thr);
 	}

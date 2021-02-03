@@ -154,8 +154,8 @@ struct purge_iter_t {
 of undo tablespace. */
 namespace undo {
 
-	typedef std::vector<ulint, ut_allocator<ulint> > undo_spaces_t;
-	typedef std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*> > rseg_for_trunc_t;
+	typedef std::vector<ulint, ut_allocator<ulint> >	undo_spaces_t;
+	typedef std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*> >	rseg_for_trunc_t;
 
 	/** Magic Number to indicate truncate action is complete. */
 	const ib_uint32_t			s_magic = 76845412;

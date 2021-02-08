@@ -2655,7 +2655,7 @@ os_file_pread(
 	{
 		ut_usectime(&sec, &ms);
 		finish_time = (ib_uint64_t)sec * 1000000 + ms;
-		trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+		trx->io_reads_wait_timer += finish_time - start_time;
 	}
 
 	return(n_bytes);
@@ -2720,7 +2720,7 @@ os_file_pread(
 		{
 			ut_usectime(&sec, &ms);
 			finish_time = (ib_uint64_t)sec * 1000000 + ms;
-			trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+			trx->io_reads_wait_timer += finish_time - start_time;
 		}
 
 		return(ret);

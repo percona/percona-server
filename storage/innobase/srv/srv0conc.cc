@@ -506,7 +506,7 @@ retry:
 	if (UNIV_UNLIKELY(start_time != 0)) {
 		ut_usectime(&sec, &ms);
 		finish_time = (ib_uint64_t)sec * 1000000 + ms;
-		trx->innodb_que_wait_timer += (ulint)(finish_time - start_time);
+		trx->innodb_que_wait_timer += finish_time - start_time;
 	}
 
 	os_fast_mutex_lock(&srv_conc_mutex);

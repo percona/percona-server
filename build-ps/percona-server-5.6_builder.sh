@@ -152,7 +152,9 @@ get_sources(){
     echo "REVISION=${REVISION}" >> ../percona-server-5.6.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.6.properties
+    export PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}
     echo "PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}" >> ../percona-server-5.6.properties
+    export PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
     echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-5.6.properties
     echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-5.6.properties
     echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-5.6.properties
@@ -642,11 +644,22 @@ build_tarball(){
     export CXXFLAGS="${CFLAGS}"
     if [ "${YASSL}" = 0 ]; then
         if [ -f /etc/redhat-release ]; then
-            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
-            export SSL_VER=".ssl${SSL_VER_TMP}"
+            SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//' | awk -F':' '{print $2}')
+            if [ -z "${SSL_VER_TMP}" ]; then
+                SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
+            fi
+            if [[ ${SSL_VER_TMP} == 102 ]]; then
+                export SSL_VER=".ssl${SSL_VER_TMP}.rpm"
+            else
+                export SSL_VER=".ssl${SSL_VER_TMP}"
+            fi
         else
             SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
-            export SSL_VER=".${SSL_VER_TMP}"
+            if [[ ${SSL_VER_TMP} == 'ssl102' ]]; then
+                export SSL_VER=".${SSL_VER_TMP}.deb"
+            else
+                export SSL_VER=".${SSL_VER_TMP}"
+            fi
         fi
     fi
     #
@@ -704,7 +717,7 @@ MYSQL_VERSION_MAJOR=5
 MYSQL_VERSION_MINOR=6
 MYSQL_VERSION_PATCH=40
 MYSQL_VERSION_EXTRA=-84.0
-RODUCT_FULL=Percona-Server-5.6.40-84.0
+PRODUCT_FULL=Percona-Server-5.6.40-84.0
 PERCONAFT_BRANCH=Percona-Server-5.6.40-84.0
 TOKUBACKUP_BRANCH=Percona-Server-5.6.40-84.0
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

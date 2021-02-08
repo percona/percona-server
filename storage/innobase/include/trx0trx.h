@@ -1053,11 +1053,11 @@ struct trx_t{
 	/*------------------------------*/
 	ulint		io_reads;
 	ib_uint64_t	io_read;
-	ulint		io_reads_wait_timer;
+	uint64_t    io_reads_wait_timer;
 	ib_uint64_t	lock_que_wait_ustarted;
-	ulint           lock_que_wait_timer;
-	ulint           innodb_que_wait_timer;
-	ulint           distinct_page_access;
+	uint64_t    lock_que_wait_timer;
+	uint64_t    innodb_que_wait_timer;
+	ulint       distinct_page_access;
 #define	DPAH_SIZE	8192
 	byte*		distinct_page_access_hash;
 	ibool		take_stats;

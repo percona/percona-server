@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3005,7 +3005,8 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
         The subquery on this level is outer-correlated with respect to the field
       */
       Item_subselect *subq_predicate= child_select->master_unit()->item;
-
+      if (subq_predicate == NULL)
+	return;
       subq_predicate->used_tables_cache|= OUTER_REF_TABLE_BIT;
       child_select= child_select->outer_select();
     }
@@ -5796,7 +5797,8 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
       first converted to a string (in date/time format) and compared as such if
       compared with another string.
     */
-    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT
+        && item->real_item()->type() != Item::REAL_ITEM)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;

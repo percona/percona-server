@@ -46,7 +46,6 @@ master_doc = 'index'
 # General information about the project.
 project = u'Percona Server'
 copyright = u'Percona LLC and/or its affiliates 2009-2021'
-
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
@@ -172,10 +171,10 @@ html_theme_path = ['.', './percona-theme']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = 'Percona Server 5.6 Documentation'
+html_title = 'Percona Server for MySQL 5.6 Documentation'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = 'Percona Server 5.6'
+html_short_title = 'Percona Server for MySQL 5.6'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -250,8 +249,8 @@ htmlhelp_basename = 'PerconaServer56doc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'PerconaServer-5.6.tex', u'Percona Server Documentation',
-   u'Percona LLC and/or its affiliates 2009-2019', 'manual'),
+  ('index', 'PerconaServer-5.6.tex', u'Percona Server for MySQL Documentation',
+   u'Percona LLC and/or its affiliates 2009-2020', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -287,8 +286,8 @@ latex_elements = {
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'perconaserver56', u'Percona Server 5.6 Documentation',
-     [u'Percona LLC and/or its affiliates 2009-2018'], 1)
+    ('index', 'perconaserver56', u'Percona Server for MySQL 5.6 Documentation',
+     [u'Percona LLC and/or its affiliates 2009-2020'], 1)
 ]
 
 

@@ -745,11 +745,11 @@ extern "C"
 void increment_thd_innodb_stats(THD* thd,
                                 unsigned long long trx_id,
                                 long io_reads,
-                                long long  io_read,
-                                long      io_reads_wait_timer,
-                                long      lock_que_wait_timer,
-                                long      que_wait_timer,
-                                long      page_access)
+                                long long io_read,
+                                uint64_t io_reads_wait_timer,
+                                uint64_t lock_que_wait_timer,
+                                uint64_t que_wait_timer,
+                                long page_access)
 {
   thd->innodb_was_used=               TRUE;
   thd->innodb_trx_id=                 trx_id;

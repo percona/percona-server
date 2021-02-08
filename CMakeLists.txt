@@ -147,6 +147,13 @@ ENDMACRO()
 
 PROJECT(${MYSQL_PROJECT_NAME})
 
+INCLUDE(CTest)
+# Explicitly disabling BUILD_TESTING set by just included CTest, since other
+# code is not ready to handle BUILD_TESTING set. If you try to remove the
+# directive and CMake configuration and reconfiguration finishes successfully,
+# remove the hack.
+SET(BUILD_TESTING OFF)
+
 # Maintainer mode is default on only for Linux debug builds using GCC/G++
 IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
   IF(CMAKE_SYSTEM_NAME MATCHES "Linux" AND

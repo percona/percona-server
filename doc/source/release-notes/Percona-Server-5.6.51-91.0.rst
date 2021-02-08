@@ -14,7 +14,7 @@ in addition to enterprise-grade features developed by Percona.
 
 Note
 
-Percona Server for MySQL 5.6.51-91.0 is the last release of the Percona Server for MySQL 5.6 series. Further updates are only provided to Post EOL support subscribers. 
+Percona Server for MySQL 5.6.51-91.0 is the last release of the Percona Server for MySQL 5.6 series. Further updates will only be available to `MySQL 5.6 Post EOL Support <https://www.percona.com/services/support/mysql-support/5-6-eol-support>`_ subscribers. `Become a subscriber <https://www.percona.com/services/support/mysql-support/5-6-eol-support#contact>`_
 
 Bugs Fixed
 ================================================================================

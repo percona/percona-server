@@ -12,6 +12,10 @@ includes all the features and bug fixes available in
 `MySQL 5.6.51 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-51.html>`_
 in addition to enterprise-grade features developed by Percona.
 
+Note
+
+Percona Server for MySQL 5.6.51-91.0 is the last release of the Percona Server for MySQL 5.6 series. Further updates are only provided to Post EOL support subscribers. 
+
 Bugs Fixed
 ================================================================================
 

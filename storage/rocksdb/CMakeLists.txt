@@ -50,9 +50,30 @@ ELSE()
   # split the list into lines
   STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 
+  LIST(APPEND PLUGINS ${ROCKSDB_PLUGINS})
+  FOREACH(PLUGIN IN LISTS PLUGINS)
+    SET(PLUGIN_ROOT "${ROCKSDB_ROOT}/plugin/${PLUGIN}/")
+    MESSAGE(STATUS "MyRocks: Building RocksDB plugin: ${PLUGIN}")
+    FILE(GLOB PLUGINMKFILE "${PLUGIN_ROOT}${PLUGIN}*.mk")
+    IF (NOT EXISTS ${PLUGINMKFILE})
+      MESSAGE(SEND_ERROR "Missing RocksDB plugin makefile in ${PLUGIN_ROOT}")
+    ELSE()
+      FILE(READ ${PLUGINMKFILE} PLUGINMK)
+      STRING(REGEX MATCH "SOURCES[ ]*=[ ]*([^\n]*)" FOO ${PLUGINMK})
+      SET(MK_SOURCES ${CMAKE_MATCH_1})
+      SEPARATE_ARGUMENTS(MK_SOURCES)
+      FOREACH(MK_FILE IN LISTS MK_SOURCES)
+        LIST(APPEND PLUGIN_SOURCES "${PLUGIN_ROOT}${MK_FILE}")
+      ENDFOREACH()
+      STRING(REGEX MATCH "LDFLAGS[ ]*=[ ]*([^\n]*)" FOO ${PLUGINMK})
+      LIST(APPEND PLUGIN_LD ${CMAKE_MATCH_1} )
+    ENDIF()
+  ENDFOREACH()
+
   # Statically include all RocksDB source
   SET(ROCKSDB_SOURCES
     ${ROCKSDB_LIB_SOURCES}
+    ${PLUGIN_SOURCES}
   )
 ENDIF()
 
@@ -217,7 +238,7 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl" ${PLUGIN_LD})
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

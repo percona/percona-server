@@ -78,7 +78,7 @@ if ($vault_conf_ca)
       $postdata= qq#{"type":"kv"}#;
     }
     system(qq#curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
-      || die "Cannot create mount point";
+      or die "Cannot create mount point";
     # This sleep is needed to let Vault background process finish upgrading
     # kv to kv-v2 and therefore reduce the chances of
     # 'Upgrading from non-versioned to versioned' Vault Server error
@@ -87,7 +87,7 @@ if ($vault_conf_ca)
   elsif ($imported_mount_point_service_op eq 'DELETE')
   {
     system(qq#curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
-      || die "Cannot delete mount point";
+      or die "Cannot delete mount point";
   }
   else
   {

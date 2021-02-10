@@ -48,3 +48,7 @@ if (!$vault_conf_mount_point_directory)
   --let $vault_conf_mount_point_suffix = _2
   --source mount_point_service.inc
 }
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2

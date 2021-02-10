@@ -181,6 +181,11 @@ UNINSTALL PLUGIN keyring_vault;
 START REPLICA;
 SELECT @@global.keyring_vault_config;
 
-# End:
 --connection master
 --source include/rpl_end.inc
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2
+
+# End:

@@ -73,3 +73,6 @@ eval SET @@global.keyring_vault_config = '$vault_conf_file';
 --source include/assert.inc
 
 UNINSTALL PLUGIN keyring_vault;
+
+# Removing .conf files
+--remove_file $vault_conf_file

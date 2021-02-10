@@ -51,7 +51,6 @@ class Mock_vault_curl : public IVault_curl {
  public:
   MOCK_METHOD1(init, bool(const Vault_credentials &vault_credentials));
   MOCK_METHOD1(list_keys, bool(Secure_string *response));
-  MOCK_METHOD1(list_mount_points, bool(Secure_string *response));
   MOCK_METHOD2(write_key,
                bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
@@ -78,6 +77,11 @@ class Mock_vault_parser_composer : public IVault_parser_composer {
                     Vault_version_type & vault_version,
                     Secure_string &      mount_point_path,
                     Secure_string &      directory_path));
+  MOCK_METHOD4(parse_mount_point_config,
+               bool(const Secure_string &config_payload,
+                    std::size_t &max_versions, bool &cas_required,
+                    Secure_string &delete_version_after));
+
   MOCK_METHOD4(compose_write_key_postdata,
                bool(const Vault_key &    key,
                     const Secure_string &encoded_key_data,

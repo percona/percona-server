@@ -28,7 +28,8 @@ call mtr.add_suppression("Plugin keyring_vault reported: 'CURL returned this err
 call mtr.add_suppression("Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : Operation timed out after");
 call mtr.add_suppression("Plugin keyring_vault reported: 'CURL returned this error code: 7 with error message : couldn't connect to host'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
-call mtr.add_suppression("Plugin keyring_vault reported: 'Could not determine the version of the Vault Server mount point.");--enable_query_log
+call mtr.add_suppression("Plugin keyring_vault reported: 'Auto-detected mount point version is not the same as specified in 'secret_mount_point_version'\\.");
+--enable_query_log
 
 
 SET @@GLOBAL.keyring_vault_timeout = 15;

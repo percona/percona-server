@@ -71,12 +71,6 @@ class Mock_vault_parser_composer : public IVault_parser_composer {
                                          KeyParameters *key_parameters));
   MOCK_METHOD2(parse_errors,
                bool(const Secure_string &payload, Secure_string *errors));
-  MOCK_METHOD5(parse_mount_point_version,
-               bool(const Secure_string &secret_mount_point,
-                    const Secure_string &mount_points_payload,
-                    Vault_version_type & vault_version,
-                    Secure_string &      mount_point_path,
-                    Secure_string &      directory_path));
   MOCK_METHOD4(parse_mount_point_config,
                bool(const Secure_string &config_payload,
                     std::size_t &max_versions, bool &cas_required,

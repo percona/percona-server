@@ -236,128 +236,87 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag)
   EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
 }
 
-TEST_F(Vault_parser_test, GetVaultVersion2)
+TEST_F(Vault_parser_test, GetMountConfig)
 {
   Secure_string payload(
-      "{\"secret/\": { \"accessor\": \"kv_3f89594e\","
-      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
-      "storage\","
-      "\"local\": false, \"options\": { \"version\": \"2\" },"
-      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
+      "{"
+      "  \"request_id\": \"a2c9306a-7f82-6a59-ebfa-bc6142d66c39\","
+      "  \"lease_id\": \"\","
+      "  \"renewable\": false,"
+      "  \"lease_duration\": 0,"
+      "  \"data\": {"
+      "    \"max_versions\": 42,"
+      "    \"cas_required\": true,"
+      "    \"delete_version_after\": \"0s\""
+      "  },"
+      "  \"wrap_info\": null,"
+      "  \"warnings\": null,"
+      "  \"auth\": null"
+      "}");
 
   Vault_parser_composer vault_parser(logger);
-  Vault_version_type    vault_version= Vault_version_unknown;
-  Secure_string         mount_point_path;
-  Secure_string         directory_path;
-  EXPECT_FALSE(vault_parser.parse_mount_point_version(
-      "secret", payload, vault_version, mount_point_path, directory_path));
-  EXPECT_TRUE(vault_version == Vault_version_v2);
-  EXPECT_STREQ(mount_point_path.c_str(), "secret");
-  EXPECT_STREQ(directory_path.c_str(), "");
-
-  payload=
-      "{\"secret/\": { \"accessor\": \"kv_3f89594e\","
-      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
-      "storage\","
-      "\"local\": false, \"options\": { \"version\": \"2\" },"
-      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}";
-  vault_version= Vault_version_unknown;
-  mount_point_path.clear();
-  directory_path.clear();
-  EXPECT_FALSE(vault_parser.parse_mount_point_version(
-      "secret/foo/bar", payload, vault_version, mount_point_path,
-      directory_path));
-  EXPECT_TRUE(vault_version == Vault_version_v2);
-  EXPECT_STREQ(mount_point_path.c_str(), "secret");
-  EXPECT_STREQ(directory_path.c_str(), "foo/bar");
-
-  payload=
-      "{\"secret/foo/\": { \"accessor\": \"kv_3f89594e\","
-      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
-      "storage\","
-      "\"local\": false, \"options\": { \"version\": \"2\" },"
-      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}";
-  vault_version= Vault_version_unknown;
-  mount_point_path.clear();
-  directory_path.clear();
-  EXPECT_FALSE(vault_parser.parse_mount_point_version(
-      "secret/foo/bar", payload, vault_version, mount_point_path,
-      directory_path));
-  EXPECT_TRUE(vault_version == Vault_version_v2);
-  EXPECT_STREQ(mount_point_path.c_str(), "secret/foo");
-  EXPECT_STREQ(directory_path.c_str(), "bar");
+  std::size_t           max_versions= 0;
+  bool                  cas_required= false;
+  Secure_string         delete_version_after;
+  EXPECT_FALSE(vault_parser.parse_mount_point_config(
+      payload, max_versions, cas_required, delete_version_after));
+  EXPECT_EQ(max_versions, 42U);
+  EXPECT_TRUE(cas_required);
+  EXPECT_STREQ(delete_version_after.c_str(), "0s");
 }
 
-TEST_F(Vault_parser_test, GetVaultVersion1)
+TEST_F(Vault_parser_test, GetMountConfigNull)
 {
   Secure_string payload(
-      "{\"cicd/\": { \"accessor\": \"kv_3f89594e\","
-      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
-      "storage\","
-      "\"local\": false, \"options\": { \"version\": \"1\" },"
-      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
+      "{"
+      "  \"request_id\": \"a2c9306a-7f82-6a59-ebfa-bc6142d66c39\","
+      "  \"lease_id\": \"\","
+      "  \"renewable\": false,"
+      "  \"lease_duration\": 0,"
+      "  \"data\": null,"
+      "  \"wrap_info\": null,"
+      "  \"warnings\": null,"
+      "  \"auth\": null"
+      "}");
 
   Vault_parser_composer vault_parser(logger);
-  Vault_version_type    vault_version= Vault_version_unknown;
-  Secure_string         mount_point_path;
-  Secure_string         directory_path;
-  EXPECT_FALSE(vault_parser.parse_mount_point_version(
-      "cicd", payload, vault_version, mount_point_path, directory_path));
-  EXPECT_TRUE(vault_version == Vault_version_v1);
-  EXPECT_STREQ(mount_point_path.c_str(), "cicd");
-  EXPECT_STREQ(directory_path.c_str(), "");
+  std::size_t           max_versions= 0;
+  bool                  cas_required= false;
+  Secure_string         delete_version_after;
+  EXPECT_CALL(
+      static_cast<Mock_logger &>(*logger),
+      log(MY_ERROR_LEVEL, StrEq("Vault Server mount config "
+                                "response[\"data\"] is not an Object")));
+  EXPECT_TRUE(vault_parser.parse_mount_point_config(
+      payload, max_versions, cas_required, delete_version_after));
 }
 
-TEST_F(Vault_parser_test, GetVaultOptionsNull)
+TEST_F(Vault_parser_test, GetMountConfigIncomplete)
 {
   Secure_string payload(
-      "{\"cicd/\": { \"accessor\": \"kv_3f89594e\","
-      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
-      "storage\","
-      "\"local\": false, \"options\": null,"
-      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
+      "{"
+      "  \"request_id\": \"a2c9306a-7f82-6a59-ebfa-bc6142d66c39\","
+      "  \"lease_id\": \"\","
+      "  \"renewable\": false,"
+      "  \"lease_duration\": 0,"
+      "  \"data\": {"
+      "    \"cas_required\": true"
+      "  },"
+      "  \"wrap_info\": null,"
+      "  \"warnings\": null,"
+      "  \"auth\": null"
+      "}");
 
   Vault_parser_composer vault_parser(logger);
-  Vault_version_type    vault_version= Vault_version_unknown;
-  Secure_string         mount_point_path;
-  Secure_string         directory_path;
-  EXPECT_FALSE(vault_parser.parse_mount_point_version(
-      "cicd", payload, vault_version, mount_point_path, directory_path));
-  EXPECT_TRUE(vault_version == Vault_version_v1);
-  EXPECT_STREQ(mount_point_path.c_str(), "cicd");
-  EXPECT_STREQ(directory_path.c_str(), "");
-}
-
-TEST_F(Vault_parser_test, GetVaultOptionsEmpty)
-{
-  Secure_string payload(
-      "{\"cicd/\": { \"accessor\": \"kv_3f89594e\","
-      "\"config\": { \"default_lease_ttl\": 0, \"force_no_cache\": false,"
-      "\"max_lease_ttl\": 0}, \"description\": \"key/value secret "
-      "storage\","
-      "\"local\": false, \"options\": {},"
-      "\"seal_wrap\": false, \"type\": \"kv\", \"uuid\": "
-      "\"2a825032-a2e7-8af8-e2cd-b93bd5deeb00\"}}");
-
-  Vault_parser_composer vault_parser(logger);
-  Vault_version_type    vault_version= Vault_version_unknown;
-  Secure_string         mount_point_path;
-  Secure_string         directory_path;
-  EXPECT_FALSE(vault_parser.parse_mount_point_version(
-      "cicd", payload, vault_version, mount_point_path, directory_path));
-  EXPECT_TRUE(vault_version == Vault_version_v1);
-  EXPECT_STREQ(mount_point_path.c_str(), "cicd");
-  EXPECT_STREQ(directory_path.c_str(), "");
+  std::size_t           max_versions= 0;
+  bool                  cas_required= false;
+  Secure_string         delete_version_after;
+  EXPECT_CALL(static_cast<Mock_logger &>(*logger),
+              log(MY_ERROR_LEVEL,
+                  StrEq("Vault Server mount config response[\"data\"] does "
+                        "not have \"max_versions\" member")));
+  EXPECT_TRUE(vault_parser.parse_mount_point_config(
+      payload, max_versions, cas_required, delete_version_after));
 }
 
 TEST_F(Vault_parser_test, ParsePayloadThatsGarbage)

@@ -28,3 +28,6 @@ eval SET @@global.keyring_vault_config="$vault_conf_file";
 # Delete mount points
 --let $mount_point_service_op = DELETE
 --source mount_point_service.inc
+
+# Removing .conf files
+--remove_file $vault_conf_file

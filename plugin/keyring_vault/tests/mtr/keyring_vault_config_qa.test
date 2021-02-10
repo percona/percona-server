@@ -129,3 +129,8 @@ if (!$vault_conf_mount_point_directory)
 
 --echo
 --echo #End:
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2
+--remove_file $conf_invalid

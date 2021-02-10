@@ -55,10 +55,11 @@ TEST_F(Vault_credentials_parser_test, ParseNotExistingFile)
   Vault_credentials_parser vault_credentials_parser(logger);
   std::string              token;
 
+  std::string file_url= "/.there_no_such_file";
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
-              log(MY_ERROR_LEVEL, StrEq("Could not open credentials file.")));
+              log(MY_ERROR_LEVEL, StrEq("Could not open credentials file '" +
+                                        file_url + "'.")));
 
-  std::string       file_url= "/.there_no_such_file";
   Vault_credentials vault_credentials;
   EXPECT_TRUE(vault_credentials_parser.parse(file_url, vault_credentials));
   EXPECT_TRUE(vault_credentials.get_vault_url().empty());

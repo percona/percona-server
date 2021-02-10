@@ -114,7 +114,8 @@ TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile)
   Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
   remove(credential_file_name.c_str());
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
-              log(MY_ERROR_LEVEL, StrEq("Could not open credentials file.")));
+              log(MY_ERROR_LEVEL, StrEq("Could not open credentials file '" +
+                                        credential_file_name + "'.")));
   EXPECT_TRUE(vault_io.init(&credential_file_name));
 
   remove(credential_file_name.c_str());

@@ -11179,9 +11179,6 @@ ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
 ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION
   eng "Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading."
 
-ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DOUBLEWRITE_PATH
-  eng "Setting Percona-specific INNODB_PARALLEL_DOUBLEWRITE_PATH is deprecated and has no effect. Use INNODB_DOUBLEWRITE_DIR instead."
-
 ER_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
   eng "Tablespace id %u in file %s is encrypted. Although server managed to find key_id=%u in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue reading table. Please provide the correct keyring."
 

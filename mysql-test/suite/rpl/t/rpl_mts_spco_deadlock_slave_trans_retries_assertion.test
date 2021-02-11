@@ -119,8 +119,8 @@ INSERT INTO t1 VALUES(11, 11);
 ROLLBACK;
 
 --echo #
---echo # 5. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
---let $slave_sql_errno = convert_error(ER_LOCK_DEADLOCK)
+--echo # 5. Wait till the co-ordinator thread to error out with ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
+--let $slave_sql_errno = convert_error(ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
 # Remove the debug point

@@ -2439,8 +2439,6 @@ bool acl_reload(THD *thd, bool mdl_locked) {
 
   if (!acl_cache_lock.lock()) goto end;
 
-  DEBUG_SYNC(thd, "acl_x_lock");
-
   old_acl_users = acl_users;
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;
@@ -3658,11 +3656,8 @@ void shutdown_acl_cache() {
   delete g_mandatory_roles;
 }
 
-/* Constants used by Acl_cache_lock_guard. Upstream value of 3600UL
-(60mins) is too high. InnoDB max latch wait timeout
-(srv_fatal_semaphore_wait_threshold is 600 sec). 15mins (900 seconds)
-is good enough value for timeout */
-static const ulong ACL_CACHE_LOCK_TIMEOUT = 900UL;
+/* Constants used by Acl_cache_lock_guard */
+static const ulong ACL_CACHE_LOCK_TIMEOUT = 3600UL;
 static const MDL_key ACL_CACHE_KEY(MDL_key::ACL_CACHE, "", "");
 
 /**

@@ -1347,10 +1347,7 @@ bool do_command(THD *thd) {
 
     if (shrink_interval && thd->start_utime / 1000000 >
                                thd->net_buffer_shrink_time + shrink_interval) {
-      if (my_net_shrink_buffer(net, thd->variables.net_buffer_length)) {
-        DBUG_PRINT("info", ("Net buffer reallocation failed"));
-        // It is not a critical error. The execution continues
-      }
+      my_net_shrink_buffer(net, thd->variables.net_buffer_length);
       thd->net_buffer_shrink_time = thd->start_utime / 1000000;
     }
   }

@@ -2068,9 +2068,7 @@ bool my_net_shrink_buffer(NET *net, ulong min_buf_size) {
    * so do shrink the buffer */
   if (net_realloc(net, max_interval_packet)) return true;
 
-  /* Realloc succeeded, set new buffer size */
-  net->max_packet = max_interval_packet;
-
+  /* net->max_packet is updated in net_realloc */
   return false;
 }
 

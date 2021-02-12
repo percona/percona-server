@@ -117,8 +117,8 @@ connection con3;
 --let $assert_cond = "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = \"ACTIVE\"]" = 2
 --source include/assert.inc
 
---let $assert_text = Inactive session temp tablespaces count should be 2
---let $assert_cond = "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = \"INACTIVE\"]" = 2
+--let $assert_text = Inactive session temp tablespaces count should be 8
+--let $assert_cond = "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = \"INACTIVE\"]" = 8
 --source include/assert.inc
 
 connection default;

@@ -552,10 +552,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   buf_page_t *prev;
   buf_page_t *bpage;
   ulint processed = 0;
-  /* We use the reserved the min IBT space_id (not used for tablespaces)
-  to indicate that we want to remove all dirty pages of all dropped
-  IBT tablespaces */
-  bool remove_ibt = id == dict_sys_t::s_min_temp_space_id;
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -574,15 +570,10 @@ rescan:
 
     prev = UT_LIST_GET_PREV(list, bpage);
 
-    const space_id_t space_id = bpage->id.space();
-
     /* If flush observer is NULL, flush page for space id,
     or flush page for flush observer. */
     if ((observer != nullptr && observer != bpage->flush_observer) ||
-        (observer == nullptr &&
-         (remove_ibt ? !(fsp_is_session_temporary(space_id) &&
-                         fil_ibt_is_deleted(space_id))
-                     : id != space_id))) {
+        (observer == nullptr && id != bpage->id.space())) {
       /* Skip this block, as it does not belong to
       the target space. */
 

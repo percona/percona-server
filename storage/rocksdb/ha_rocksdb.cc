@@ -637,6 +637,7 @@ static uint32_t rocksdb_validate_tables = 1;
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
 static char *rocksdb_datadir = nullptr;
+static char *rocksdb_fs_uri;
 static uint32_t rocksdb_max_bottom_pri_background_compactions = 0;
 static uint32_t rocksdb_table_stats_sampling_pct =
     RDB_DEFAULT_TBL_STATS_SAMPLE_PCT;
@@ -817,6 +818,12 @@ rdb_init_rocksdb_tbl_options(void) {
       new rocksdb::BlockBasedTableOptions());
   o->block_size = RDB_DEFAULT_BLOCK_SIZE;
   return o;
+}
+
+static rocksdb::Env *GetCompositeEnv(std::shared_ptr<rocksdb::FileSystem> fs)
+{
+  static std::shared_ptr<rocksdb::Env> composite_env = rocksdb::NewCompositeEnv(fs);
+  return composite_env.get();
 }
 
 /* DBOptions contains Statistics and needs to be destructed last */
@@ -2033,6 +2040,11 @@ static MYSQL_SYSVAR_STR(datadir, rocksdb_datadir,
                         "RocksDB data directory", nullptr, nullptr,
                         "./.rocksdb");
 
+static MYSQL_SYSVAR_STR(fs_uri, rocksdb_fs_uri,
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+                        "Custom filesystem URI", nullptr,
+                        nullptr, nullptr);
+
 static MYSQL_SYSVAR_UINT(
     table_stats_sampling_pct, rocksdb_table_stats_sampling_pct,
     PLUGIN_VAR_RQCMDARG,
@@ -2306,6 +2318,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(print_snapshot_conflict_queries),
 
     MYSQL_SYSVAR(datadir),
+    MYSQL_SYSVAR(fs_uri),
     MYSQL_SYSVAR(create_checkpoint),
     MYSQL_SYSVAR(create_temporary_checkpoint),
     MYSQL_SYSVAR(disable_file_deletions),
@@ -5198,6 +5211,19 @@ static int rocksdb_init_internal(void *const p) {
         "Can't enable both use_direct_reads and allow_mmap_reads\n");
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
+  if (rocksdb_fs_uri) {
+    std::shared_ptr<rocksdb::FileSystem> fs;
+    s = rocksdb::FileSystem::Load(rocksdb_fs_uri, &fs);
+    if (fs == nullptr) {
+        LogPluginErrMsg(ERROR_LEVEL, 0,
+                        "Loading custom file system failed: %s\n",
+                        s.ToString().c_str());
+        deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+        DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    rocksdb_db_options->env = GetCompositeEnv(fs);
   }
 
   // Check whether the filesystem backing rocksdb_datadir allows O_DIRECT

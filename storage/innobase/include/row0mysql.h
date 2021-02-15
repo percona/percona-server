@@ -395,11 +395,20 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	mode		keyring encryption mode
 @param[in]	keyring_encryption_key_id	keyring encryption info
 @return error code or DB_SUCCESS */
+<<<<<<< HEAD
 dberr_t row_create_table_for_mysql(
     dict_table_t *table, const char *compression, trx_t *trx,
     const fil_encryption_t mode, /*!< in: encryption mode */
     const KeyringEncryptionKeyIdInfo
         &keyring_encryption_key_id) /*!< in: encryption key_id */
+||||||| ee4455a33b1
+dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
+                                   trx_t *trx)
+=======
+dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
+                                   const HA_CREATE_INFO *create_info,
+                                   trx_t *trx)
+>>>>>>> mysql-8.0.23
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Does an index creation operation for MySQL. TODO: currently failure

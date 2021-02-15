@@ -18,9 +18,17 @@
 # Sort SHOW PROCESSLIST by User instead of Id because Id is not zero-padded
 # Unique usernames give best results
 --echo
+<<<<<<< HEAD
 --partially_sorted_result 2
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State> 9 <Time_ms>
+||||||| ee4455a33b1
+--partially_sorted_result 2
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+=======
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+>>>>>>> mysql-8.0.23
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
+--sorted_result
 SHOW FULL PROCESSLIST;
 
 --echo

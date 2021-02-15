@@ -1760,10 +1760,12 @@ bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
                                          bool &encrypt_mysql);
 
 /** Set the compression type for the tablespace of a table
-@param[in]     table           The table that should be compressed
-@param[in]     algorithm       Text representation of the algorithm
+@param[in]  table         The table that should be compressed
+@param[in]  algorithm     Text representation of the algorithm
+@param[in]  is_import_op  True if it's being set during import operation
 @return DB_SUCCESS or error code */
-dberr_t dict_set_compression(dict_table_t *table, const char *algorithm)
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm,
+                             bool is_import_op)
     MY_ATTRIBUTE((warn_unused_result));
 
 #include "dict0dict.ic"

@@ -1540,4 +1540,3 @@ void status_variable_warning(void) {
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
   push_warning(thd, ER_GLOBSTAT_CHANGE_DURING_QUERY);
 }
-/** @} */

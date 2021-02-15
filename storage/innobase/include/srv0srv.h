@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -477,6 +477,7 @@ extern bool srv_undo_log_truncate;
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
 
+<<<<<<< HEAD
 /** Enable or disable encryption of temporary tablespace.*/
 extern bool srv_tmp_tablespace_encrypt;
 
@@ -499,6 +500,23 @@ extern ulonglong srv_max_changed_pages;
 
 /** Default size of UNDO tablespace while it is created new. */
 extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
+||||||| ee4455a33b1
+/** Default size of UNDO tablespace while it is created new. */
+extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
+=======
+/** Initial size of an UNDO tablespace when it is created new
+or truncated under low load.
+page size | FSP_EXTENT_SIZE  | Initial Size | Pages
+----------+------------------+--------------+-------
+    4 KB  | 256 pages = 1 MB |   16 MB      | 4096
+    8 KB  | 128 pages = 1 MB |   16 MB      | 2048
+   16 KB  |  64 pages = 1 MB |   16 MB      | 1024
+   32 KB  |  64 pages = 2 MB |   16 MB      |  512
+   64 KB  |  64 pages = 4 MB |   16 MB      |  256  */
+#define INITIAL_UNDO_SPACE_SIZE (16 * 1024 * 1024)
+#define INITIAL_UNDO_SPACE_SIZE_IN_PAGES \
+  static_cast<os_offset_t>(INITIAL_UNDO_SPACE_SIZE / UNIV_PAGE_SIZE)
+>>>>>>> mysql-8.0.23
 
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
@@ -835,7 +853,8 @@ extern bool srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulong srv_fatal_semaphore_wait_threshold;
-#define SRV_SEMAPHORE_WAIT_EXTENSION 7200
+extern std::atomic<int> srv_fatal_semaphore_wait_extend;
+
 extern ulint srv_dml_needed_delay;
 
 extern bool srv_encrypt_online_alter_logs;
@@ -1208,9 +1227,29 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
 /** Enable UNDO tablespaces encryption.
 @param[in] is_boot	true if it is called during server start up. In this
                         case, default master key will be used which will be
+                        rotated later with actual master key from keyring.
+@return false for success, true otherwise. */
+<<<<<<< HEAD
+bool srv_enable_undo_encryption(THD *thd, bool is_boot);
+||||||| ee4455a33b1
+bool srv_enable_undo_encryption(bool is_boot);
+
+/** Enable REDO log encryption.
+@param[in] is_boot	true if it is called during server start up. In this
+                        case, default master key will be used which will be
                         rotated later with actual master key from kyering.
 @return false for success, true otherwise. */
-bool srv_enable_undo_encryption(THD *thd, bool is_boot);
+bool srv_enable_redo_encryption(bool is_boot);
+=======
+bool srv_enable_undo_encryption(bool is_boot);
+
+/** Enable REDO log encryption.
+@param[in] is_boot	true if it is called during server start up. In this
+                        case, default master key will be used which will be
+                        rotated later with actual master key from keyring.
+@return false for success, true otherwise. */
+bool srv_enable_redo_encryption(bool is_boot);
+>>>>>>> mysql-8.0.23
 
 /** Get count of tasks in the queue.
  @return number of tasks in queue */

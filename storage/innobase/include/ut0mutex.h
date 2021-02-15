@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -79,9 +79,16 @@ UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
 UT_MUTEX_TYPE(TTASFutexMutex, AggregateMutexStatsPolicy, BlockFutexMutex)
 #endif /* HAVE_IB_LINUX_FUTEX */
 
+<<<<<<< HEAD
 UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
 UT_MUTEX_TYPE(TTASMutex, AggregateMutexStatsPolicy, BlockSpinMutex)
 
+||||||| ee4455a33b1
+UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
+UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
+
+=======
+>>>>>>> mysql-8.0.23
 UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
 UT_MUTEX_TYPE(OSTrackMutex, AggregateMutexStatsPolicy, BlockSysMutex)
 

@@ -181,6 +181,7 @@ def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NU
 def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	EXTRA	38	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
+<<<<<<< HEAD
 def	information_schema	GLOBAL_TEMPORARY_TABLES	SESSION_ID	1		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA	2		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_NAME	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -197,6 +198,11 @@ def	information_schema	INDEX_STATISTICS	TABLE_NAME	2		NO	varchar	64	192	NULL	NUL
 def	information_schema	INDEX_STATISTICS	INDEX_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select			NULL
 def	information_schema	INDEX_STATISTICS	ROWS_READ	4		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	31	124	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)			select			NULL
+||||||| ee4455a33b1
+def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	31	124	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)			select			NULL
+=======
+def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select			NULL
+>>>>>>> mysql-8.0.23
 def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -832,6 +838,7 @@ NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	FILES	EXTRA	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+<<<<<<< HEAD
 NULL	information_schema	GLOBAL_TEMPORARY_TABLES	SESSION_ID	bigint	NULL	NULL	NULL	NULL	bigint
 3.0476	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	GLOBAL_TEMPORARY_TABLES	TABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
@@ -848,6 +855,11 @@ NULL	information_schema	GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime	NULL	NULL	N
 3.0000	information_schema	INDEX_STATISTICS	INDEX_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(192)
 NULL	information_schema	INDEX_STATISTICS	ROWS_READ	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 4.0000	information_schema	KEYWORDS	WORD	varchar	31	124	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)
+||||||| ee4455a33b1
+4.0000	information_schema	KEYWORDS	WORD	varchar	31	124	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)
+=======
+4.0000	information_schema	KEYWORDS	WORD	varchar	128	512	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)
+>>>>>>> mysql-8.0.23
 NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)

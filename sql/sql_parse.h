@@ -98,9 +98,14 @@ bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
+<<<<<<< HEAD
 void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat);
+||||||| ee4455a33b1
+void mysql_parse(THD *thd, Parser_state *parser_state);
+=======
+void dispatch_sql_command(THD *thd, Parser_state *parser_state);
+>>>>>>> mysql-8.0.23
 void mysql_reset_thd_for_next_command(THD *thd);
-bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level = false);
 bool do_command(THD *thd);

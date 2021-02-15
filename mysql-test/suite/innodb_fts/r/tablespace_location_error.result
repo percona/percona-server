@@ -225,11 +225,23 @@ t1.ibd
 DROP TABLE t1;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 === information_schema.innodb_tablespaces and innodb_datafiles ===
+<<<<<<< HEAD
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 innodb_system	System	DEFAULT	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_def	General	DEFAULT	0	Any	s_def.ibd
+||||||| ee4455a33b1
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_def	General	DEFAULT	0	Any	s_def.ibd
+=======
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+s_def	General	DEFAULT	0	1	1	Any	s_def.ibd
+>>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1

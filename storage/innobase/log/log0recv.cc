@@ -1565,10 +1565,12 @@ specified.
 @param[in,out]	mtr		Mini-transaction, or nullptr if
                                 a page log record should not be applied
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	start_lsn	lsn for REDO record
 @return log record end, nullptr if not a complete record */
 static byte *recv_parse_or_apply_log_rec_body(
     mlog_id_t type, byte *ptr, byte *end_ptr, space_id_t space_id,
-    page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes) {
+    page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes,
+    lsn_t start_lsn) {
   bool applying_redo = (block != nullptr);
 
   switch (type) {
@@ -1657,6 +1659,7 @@ static byte *recv_parse_or_apply_log_rec_body(
         if (page_no == 0 && !applying_redo &&
             /* For cloned db header page has the encryption information. */
             !recv_sys->is_cloned_db) {
+<<<<<<< HEAD
           byte *ptr_copy = ptr;
           ptr_copy += 2;  // skip offset
           ulint len = mach_read_from_2(ptr_copy);
@@ -1687,6 +1690,13 @@ static byte *recv_parse_or_apply_log_rec_body(
             return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len,
                                                   recv_needed_recovery));
           }
+||||||| ee4455a33b1
+          return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id));
+=======
+          ut_ad(LSN_MAX != start_lsn);
+          return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
+                                                 start_lsn));
+>>>>>>> mysql-8.0.23
         }
         break;
 #ifdef UNIV_HOTBACKUP
@@ -1784,8 +1794,9 @@ static byte *recv_parse_or_apply_log_rec_body(
 
     case MLOG_1BYTE:
       /* If 'ALTER TABLESPACE ... ENCRYPTION' was in progress and page 0 has
-      REDO entry for this, set encryption_op_in_progress flag now so that any
-      other page of this tablespace in redo log is written accordingly. */
+      REDO entry for this, now while applying this entry, set
+      encryption_op_in_progress flag now so that any other page of this
+      tablespace in redo log is written accordingly. */
       if (page_no == 0 && page != nullptr && end_ptr >= ptr + 2) {
         ulint offs = mach_read_from_2(ptr);
 
@@ -1805,8 +1816,7 @@ static byte *recv_parse_or_apply_log_rec_body(
               space->encryption_op_in_progress = DECRYPTION;
               break;
             default:
-              /* Don't reset operation in progress yet. It'll be done in
-              fsp_resume_encryption_unencryption(). */
+              space->encryption_op_in_progress = NONE;
               break;
           }
         }
@@ -2180,6 +2190,18 @@ static byte *recv_parse_or_apply_log_rec_body(
 
       ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED || page_no == 0);
 
+#ifndef UNIV_HOTBACKUP
+      /* Reset in-mem encryption information for the tablespace here if this
+      is "resetting encryprion info" log. */
+      if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id)) {
+        byte buf[Encryption::INFO_SIZE] = {0};
+
+        if (memcmp(ptr + 4, buf, Encryption::INFO_SIZE - 4) == 0) {
+          ut_a(DB_SUCCESS == fil_reset_encryption(space_id));
+        }
+      }
+
+#endif
       ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 
       break;
@@ -2414,21 +2436,25 @@ void recv_recover_page_func(
   }
 
 #ifndef UNIV_HOTBACKUP
-  buf_page_t bpage = block->page;
+  /* The following block is the scope of usage of the following bpage object
+  reference.*/
+  {
+    buf_page_t &bpage = block->page;
 
-  if (!fsp_is_system_temporary(bpage.id.space()) &&
-      (arch_page_sys != nullptr && arch_page_sys->is_active())) {
-    page_t *frame;
-    lsn_t frame_lsn;
+    if (!fsp_is_system_temporary(bpage.id.space()) &&
+        (arch_page_sys != nullptr && arch_page_sys->is_active())) {
+      page_t *frame;
+      lsn_t frame_lsn;
 
-    frame = bpage.zip.data;
+      frame = bpage.zip.data;
 
-    if (!frame) {
-      frame = block->frame;
+      if (!frame) {
+        frame = block->frame;
+      }
+      frame_lsn = mach_read_from_8(frame + FIL_PAGE_LSN);
+
+      arch_page_sys->track_page(&bpage, LSN_MAX, frame_lsn, true);
     }
-    frame_lsn = mach_read_from_8(frame + FIL_PAGE_LSN);
-
-    arch_page_sys->track_page(&bpage, LSN_MAX, frame_lsn, true);
   }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2574,7 +2600,7 @@ void recv_recover_page_func(
 
       recv_parse_or_apply_log_rec_body(recv->type, buf, buf + recv->len,
                                        recv_addr->space, recv_addr->page_no,
-                                       block, &mtr, ULINT_UNDEFINED);
+                                       block, &mtr, ULINT_UNDEFINED, LSN_MAX);
 
       end_lsn = recv->start_lsn + recv->len;
 
@@ -2724,9 +2750,9 @@ ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
     return (0);
   }
 
-  new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr, *space_id,
-                                             *page_no, nullptr, nullptr,
-                                             new_ptr - ptr);
+  new_ptr = recv_parse_or_apply_log_rec_body(
+      *type, new_ptr, end_ptr, *space_id, *page_no, nullptr, nullptr,
+      new_ptr - ptr, recv_sys->recovered_lsn);
 
   if (new_ptr == nullptr) {
     return (0);
@@ -3282,7 +3308,8 @@ bool meb_scan_log_recs(
 
       ib::info(ER_IB_MSG_1261)
           << "Starting to parse redo log at lsn = " << recv_sys->parse_start_lsn
-          << ", whereas checkpoint_lsn = " << recv_sys->checkpoint_lsn;
+          << ", whereas checkpoint_lsn = " << recv_sys->checkpoint_lsn
+          << " and start_lsn = " << start_lsn;
 
       if (recv_sys->parse_start_lsn < recv_sys->checkpoint_lsn) {
         /* We start to parse log records even before

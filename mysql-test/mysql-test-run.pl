@@ -422,10 +422,11 @@ sub is_core_dump {
   my $core_path= shift;
   my $core_name= basename($core_path);
   # Name beginning with core, not ending in .gz, .c, nor .log, not belonging to
-  # Boost, or ending with .dmp on Windows
-  return (($core_name =~ /^core/ and $core_name !~ /\.gz$|\.c$|\.log$/
-           and $core_path !~ /\/boost_/)
-          or (IS_WINDOWS and $core_name =~ /\.dmp$/));
+  # Boost, not belonging to a coredumper related files or ending with .dmp on
+  # Windows
+  return (($core_name =~ /^core/ && $core_name !~ /\.gz$|\.c$|\.log$/
+           && $core_path !~ /\/boost_/ && $core_path !~ /\/coredumper/)
+          || (IS_WINDOWS && $core_name =~ /\.dmp$/));
 }
 
 sub main {

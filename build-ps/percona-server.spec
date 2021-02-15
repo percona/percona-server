@@ -868,6 +868,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
+%if 0%{?rhel} < 7
+%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
+%endif
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d

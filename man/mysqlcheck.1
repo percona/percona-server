@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 12/10/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -89,7 +89,7 @@ If
 \fBmysqlcheck\fR
 is unable to repair a table, see
 Section\ \&2.11.12, \(lqRebuilding or Repairing Tables or Indexes\(rq
-for manual table repair strategies\&. This will be the case, for example, for
+for manual table repair strategies\&. This is the case, for example, for
 InnoDB
 tables, which can be checked with
 CHECK TABLE, but not repaired with
@@ -565,7 +565,7 @@ Check only tables that have not been closed properly\&.
 \fB\-\-fix\-db\-names\fR
 Convert database names to 5\&.1 format\&. Only database names that contain special characters are affected\&.
 .sp
-This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
+This option is deprecated in MySQL 5\&.7\&.6; expect it to be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
 .RE
 .sp
 .RS 4
@@ -579,7 +579,7 @@ This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future ver
 \fB\-\-fix\-table\-names\fR
 Convert table names to 5\&.1 format\&. Only table names that contain special characters are affected\&. This option also applies to views\&.
 .sp
-This option is deprecated in MySQL 5\&.7\&.6 and will be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
+This option is deprecated in MySQL 5\&.7\&.6; expect it to be removed in a future version of MySQL\&. If it is necessary to convert MySQL 5\&.0 database or table names, a workaround is to upgrade a MySQL 5\&.0 installation to MySQL 5\&.1 before upgrading to a more recent release\&.
 .RE
 .sp
 .RS 4
@@ -857,7 +857,7 @@ Perform a repair that can fix almost anything except unique keys that are not un
 \fB\-\-secure\-auth\fR
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
+As of MySQL 5\&.7\&.5, this option is deprecated; expect it to be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
 .if n \{\
 .sp

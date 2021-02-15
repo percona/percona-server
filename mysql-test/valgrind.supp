@@ -988,6 +988,15 @@
 }
 
 {
+   tls_variables_2
+   Memcheck:Leak
+   fun:memalign
+   fun:allocate_dtv_entry
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+}
+
+{
    lzma encoder prepare bug
    Memcheck:Cond
    fun:lz_encoder_prepare

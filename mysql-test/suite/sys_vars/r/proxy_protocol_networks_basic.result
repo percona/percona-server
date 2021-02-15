@@ -5,3 +5,4 @@ SET @@GLOBAL.proxy_protocol_networks='*';
 ERROR HY000: Variable 'proxy_protocol_networks' is a read only variable
 SET @@SESSION.proxy_protocol_networks='foo';
 ERROR HY000: Variable 'proxy_protocol_networks' is a read only variable
+# restart:--proxy-protocol-networks=

@@ -95,6 +95,10 @@ const char **ha_tokupart::bas_ext() const {
     DBUG_RETURN(&null_ext);
 }
 
+ha_tokupart::Table_flags ha_tokupart::default_table_flags() const {
+    return (HA_FILE_BASED | HA_REC_NOT_IN_SEQ | HA_CAN_REPAIR);
+}
+
 /** Get partition row type
 @param[in] Id of partition for which row type to be retrieved
 @return Partition row type */

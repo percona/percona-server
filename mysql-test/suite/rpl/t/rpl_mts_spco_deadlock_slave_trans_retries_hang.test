@@ -42,7 +42,7 @@
 #         thread (DELETE) is waiting for its turn to commit and is handled
 #         properly.
 #    3.2. Wait till server to handle the deadlock and till the co-ordinator
-#         thread to error out with ER_MTS_INCONSISTENT_DATA.
+#         thread to error out with ER_LOCK_DEADLOCK.
 #    3.3. Restart the replication threads, sync the replica and verify that
 #         table data is consistent.
 #
@@ -59,7 +59,10 @@
 #
 # ==== References ====
 #
-# PS-7232 Multithreaded Slave hangs when slave_transaction_retries=0
+# Bug #87796 Commit_order_manager can't terminate MTS worker properly when deadlock happens
+# Bug #89247 Deadlock with MTS when slave_preserve_commit_order = ON.
+# Bug #95249 stop slave permanently blocked
+# Bug #99440 Threads of MTS Slave randomly stuck
 
 # The test needs debug binaries
 
@@ -67,7 +70,7 @@
 --source include/have_binlog_format_statement.inc
 
 --echo #
---echo # 1. Create source-replica topolgy.
+--echo # 1. Create source-replica topology.
 --source include/master-slave.inc
 
 --echo #
@@ -115,7 +118,7 @@ INSERT INTO t1 VALUES(22, 22);   # Transaction 4
 INSERT INTO t1 VALUES(23, 23);   # Transaction 5
 --source include/remove_debug_point.inc
 
-# Start a local transaction on replica to block the INSERT statement coming
+# Start a local Transaction 6 on replica to block the INSERT statement coming
 # through the replication channel. This blocks the worker thread executing
 # "INSERT INTO t1 VALUES(11, NULL)"
 --source include/rpl_connection_slave.inc
@@ -138,15 +141,19 @@ ROLLBACK;
 # have set it to 0 throughout the test, the w2 shall not retry the transaction
 # and would call report_rollback.
 #
-# Without the fix for PS-7232, calling report_rollback() would make the w2 to
-# return without removing its entry from the SPCO queue thus resulting in other
-# worker threads to wait forever on the signal. Meanwhile if co-ordinator was
-# asked to go down by any of the previous workers, this would make co-ordinator
-# thread to wait for the workers to finish thus leading to server hang.
+# Without the fix, calling report_rollback() would make the w2 to return
+# without removing its entry from the SPCO queue thus resulting in other worker
+# threads to wait forever on the signal. Meanwhile if co-ordinator was asked to
+# go down by any of the previous workers, this would make co-ordinator thread
+# to wait for the workers to finish thus leading to server hang.
 
 --echo #
---echo # 3.2. Wait till the co-ordinator thread to error out with ER_MTS_INCONSISTENT_DATA.
---let $slave_sql_errno = convert_error(ER_MTS_INCONSISTENT_DATA)
+--echo # Add error supressions.
+CALL mtr.add_suppression("Worker 2 failed executing transaction 'ANONYMOUS'");
+
+--echo #
+--echo # 3.2. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
+--let $slave_sql_errno = convert_error(ER_LOCK_DEADLOCK)
 --source include/wait_for_slave_sql_error.inc
 
 --echo #

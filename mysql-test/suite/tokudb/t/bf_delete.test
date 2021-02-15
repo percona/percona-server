@@ -35,7 +35,6 @@ INSERT INTO t SELECT null,val FROM t;
 INSERT INTO t SELECT null,val FROM t;
 INSERT INTO t SELECT null,val FROM t;
 INSERT INTO t SELECT null,val FROM t;
-INSERT INTO t SELECT null,val FROM t;
 SELECT count(*) FROM t;
 
 # run $maxq measurements

@@ -7,21 +7,18 @@
 
 namespace keyring {
 
-class Vault_mount
-{
-public:
-  Vault_mount(CURL *curl, ILogger *logger)
-  : curl(curl)
-  , logger(logger)
-  {}
+class Vault_mount {
+ public:
+  Vault_mount(CURL *curl, ILogger *logger) : curl(curl), logger(logger) {}
 
-  bool init(std::string *keyring_storage_url, std::string *secret_mount_point);
+  bool init(std::string *keyring_storage_url,
+            std::string *secret_mount_point);
   bool mount_secret_backend();
   bool unmount_secret_backend();
 
-private:
-  CURL *curl;
-  ILogger *logger;
+ private:
+  CURL *        curl;
+  ILogger *     logger;
   Secure_string secret_mount_point;
 
   Secure_string token_header;
@@ -29,11 +26,11 @@ private:
   Secure_string vault_ca;
 
   Vault_credentials vault_credentials;
-  char curl_errbuf[CURL_ERROR_SIZE]; //error from CURL
+  char              curl_errbuf[CURL_ERROR_SIZE];  //error from CURL
 
   std::string get_error_from_curl(CURLcode curl_code);
 };
 
-} //namespace keyring
+}  //namespace keyring
 
-#endif //MYSQL_VAULT_MOUNT_H
+#endif  //MYSQL_VAULT_MOUNT_H

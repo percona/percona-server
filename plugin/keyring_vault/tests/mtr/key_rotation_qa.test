@@ -7,8 +7,30 @@
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
---source include/not_repeat.inc
 
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+--source parse_combination.inc
+
+--let $conf_file1 = $MYSQLTEST_VARDIR/keyring_vault1.conf
+--let $conf_file2 = $MYSQLTEST_VARDIR/keyring_vault2.conf
+
+--let $mount_point_service_op = CREATE
+
+--let $vault_conf_file = $conf_file1
+--let $vault_conf_mount_point_suffix = _1
+--source generate_conf_file.inc
+--source mount_point_service.inc
+
+--let $vault_conf_file = $conf_file2
+--let $vault_conf_mount_point_suffix = _2
+--source generate_conf_file.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --source mount_point_service.inc
+}
+
+--disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
 call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
@@ -26,16 +48,8 @@ call mtr.add_suppression("\\[Error\\] InnoDB: Failed to find tablespace for tabl
 call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from file");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrypt encryption information, please confirm the master key was not changed.");
-
---source generate_default_mount_conf_files.inc
---source is_vault_server_up.inc
-
-# Create mount points
---let MOUNT_POINT_SERVICE_OP=CREATE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source mount_point_service.inc
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---source mount_point_service.inc
+call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+--enable_query_log
 
 # Invalid syntax
 --error ER_PARSE_ERROR
@@ -53,8 +67,8 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo
 # Restarting mysql server with keyring_vault plugin.
---let $restart_parameters="restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$KEYRING_CONF_FILE_1 $KEYRING_VAULT_PLUGIN_OPT"
---let $restart_hide_args= 1
+--let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 --error ER_UDF_EXISTS
@@ -108,7 +122,7 @@ CREATE TABLE t10(c1 INT, c2 char(20)) ENGINE = InnoDB;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
+eval SET @@global.keyring_vault_config='$conf_file2';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 
@@ -126,16 +140,16 @@ UNINSTALL PLUGIN keyring_vault;
 
 # After restart encrypted table/s should be accessible
 # when using same Vault server.
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --keyring_vault_config=$KEYRING_CONF_FILE_1;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so
+let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file1;
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 SELECT * FROM t1;
 SELECT * FROM t2;
 
 # After restart old encrypted tables will not be not accessible,
 # since we changed Vault we are connecting to
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --keyring_vault_config=$KEYRING_CONF_FILE_2;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so
+let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file2;
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1;
@@ -148,8 +162,8 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT * FROM t12;
 
 # Test keyring_file with early-plugin-load and plugin-load.
---let $restart_parameters="restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --keyring_vault_config=$KEYRING_CONF_FILE_2"
---let $restart_hide_args= 1
+--let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD $KEYRING_VAULT_PLUGIN_LOAD --keyring_vault_config=$conf_file2
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
@@ -194,9 +208,17 @@ SELECT * FROM t5;
 DROP TABLE t1,t2,t5,t12,t10;
 
 # Delete mount points
---let MOUNT_POINT_SERVICE_OP=DELETE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--let $mount_point_service_op = DELETE
+--let $vault_conf_mount_point_suffix = _1
 --source mount_point_service.inc
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---source mount_point_service.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --let $vault_conf_mount_point_suffix = _2
+  --source mount_point_service.inc
+}
+
 --echo #End:
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2

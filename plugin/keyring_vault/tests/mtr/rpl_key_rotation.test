@@ -4,9 +4,31 @@
 --source include/have_keyring_vault_plugin.inc
 --source include/not_embedded.inc
 --source include/master-slave.inc
---source include/not_repeat.inc
 
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+--source parse_combination.inc
+
+--let $conf_file1 = $MYSQLTEST_VARDIR/keyring_vault1.conf
+--let $conf_file2 = $MYSQLTEST_VARDIR/keyring_vault2.conf
+
+--let $mount_point_service_op = CREATE
+
+--let $vault_conf_file = $conf_file1
+--let $vault_conf_mount_point_suffix = _1
+--source generate_conf_file.inc
+--source mount_point_service.inc
+
+--let $vault_conf_file = $conf_file2
+--let $vault_conf_mount_point_suffix = _2
+--source generate_conf_file.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --source mount_point_service.inc
+}
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
@@ -14,26 +36,17 @@ call mtr.add_suppression("Error 'Can't find master key from keyring, please chec
 call mtr.add_suppression("\\[Warning\\] Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully. Error_code: 3185");
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
-
---source generate_default_mount_conf_files.inc
---source is_vault_server_up.inc
-
-# Create mount points
---let MOUNT_POINT_SERVICE_OP=CREATE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source mount_point_service.inc
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---source mount_point_service.inc
+call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+--enable_query_log
 
 --connection slave
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
+eval SET @@global.keyring_vault_config='$conf_file2';
 
 --connection master
 --echo [On Master]
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
+eval SET @@global.keyring_vault_config='$conf_file1';
 
 --echo
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -97,7 +110,7 @@ START SLAVE SQL_THREAD;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
+eval SET @@global.keyring_vault_config='$conf_file2';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 --source include/start_slave_sql.inc
@@ -126,22 +139,29 @@ DROP TABLE t1,t2,t3,t4;
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
 
-# Delete mount points
---let MOUNT_POINT_SERVICE_OP=DELETE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---connection master
---source mount_point_service.inc
---connection slave
---source mount_point_service.inc
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---connection master
---source mount_point_service.inc
---connection slave
---source mount_point_service.inc
-
 #reset keyring_vault_config variable to null
+--connection slave
 UNINSTALL PLUGIN keyring_vault;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
---let $restart_parameters="restart:$KEYRING_VAULT_PLUGIN_LOAD $KEYRING_VAULT_PLUGIN_OPT"
+--let $restart_parameters =
 --source include/restart_mysqld.inc
+
+--connection master
+UNINSTALL PLUGIN keyring_vault;
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+# Delete mount points
+--let $mount_point_service_op = DELETE
+--let $vault_conf_mount_point_suffix = _1
+--source mount_point_service.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --let $vault_conf_mount_point_suffix = _2
+  --source mount_point_service.inc
+}
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2
+
 # End:

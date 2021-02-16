@@ -26,7 +26,6 @@ Usage: $0 [OPTIONS]
         --rpm_release       RPM version( default = 1)
         --deb_release       DEB version( default = 1)
         --debug             Build debug tarball
-        --gen_changelog     Generates RPM changelog for release
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -67,7 +66,6 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
-            --gen_changelog=*) GEN_CHANGELOG="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -485,10 +483,8 @@ build_srpm(){
     cd ${WORKDIR}/rpmbuild/SPECS
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
-    if [[ ${GEN_CHANGELOG} -eq 1 ]] && [[ ${GEN_CHANGELOG} == "YES" ]]; then
-        sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
-        sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Build-Team <eng-build@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
-    fi
+    sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
+    sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     wget https://dl.bintray.com/boostorg/release/1.73.0/source/${BOOST_PACKAGE_NAME}.tar.gz
@@ -844,7 +840,6 @@ REVISION=0
 BRANCH="release-8.0.22-13"
 RPM_RELEASE=1
 DEB_RELEASE=1
-GEN_CHANGELOG=0
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
 REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0

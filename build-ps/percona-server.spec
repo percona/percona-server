@@ -1344,7 +1344,7 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
-* Fri Feb 12 2021 Illia Pshonkin <illia.pshonkin@percona.com> - 8.0.22-13
+* Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13
 - Release 8.0.22-13
 
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>

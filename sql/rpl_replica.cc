@@ -4329,10 +4329,12 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
     auto type = ev->get_type_code();
     time_t sql_delay_end = 0;
 
+    if (DBUG_EVALUATE_IF("sql_delay_without_timestamps", 1, 0)) {
+      rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_NOT_FOUND;
+    }
     if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_UNKNOWN &&
         Log_event_type_helper::is_any_gtid_event(type)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps &&
-          DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1)) {
+      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps) {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_FOUND;
       } else {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_NOT_FOUND;
@@ -4827,6 +4829,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
     begin_event->common_header->data_written = 0;
     begin_event->server_id = ev->server_id;
     /*
+      This event is not generated on master and is only specific to replicas.
+      So, we don't want this BEGIN query to respect MASTER_DELAY.
+      Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+      event which triggered this.
+    */
+    begin_event->common_header->when = ev->common_header->when;
+    /*
       We must be careful to avoid SQL thread increasing its position
       farther than the event that triggered this QUERY(BEGIN).
     */
@@ -4851,6 +4860,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
   ((Query_log_event *)rollback_event)->db = "";
   rollback_event->common_header->data_written = 0;
   rollback_event->server_id = ev->server_id;
+  /*
+    This event is not generated on master and is only specific to replicas.
+    So, we don't want this ROLLBACK query to respect MASTER_DELAY.
+    Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+    event which triggered this.
+  */
+  rollback_event->common_header->when = ev->common_header->when;
   /*
     We must be careful to avoid SQL thread increasing its position
     farther than the event that triggered this QUERY(ROLLBACK).

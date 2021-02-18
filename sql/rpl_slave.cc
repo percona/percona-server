@@ -5169,6 +5169,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
     begin_event->common_header->data_written= 0;
     begin_event->server_id= ev->server_id;
     /*
+      This event is not generated on master and is only specific to replicas.
+      So, we don't want this BEGIN query to respect MASTER_DELAY.
+      Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+      event which triggered this.
+    */
+    begin_event->common_header->when= ev->common_header->when;
+    /*
       We must be careful to avoid SQL thread increasing its position
       farther than the event that triggered this QUERY(BEGIN).
     */
@@ -5195,6 +5202,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
   ((Query_log_event*) rollback_event)->db= "";
   rollback_event->common_header->data_written= 0;
   rollback_event->server_id= ev->server_id;
+  /*
+    This event is not generated on master and is only specific to replicas.
+    So, we don't want this ROLLBACK query to respect MASTER_DELAY.
+    Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+    event which triggered this.
+  */
+  rollback_event->common_header->when= ev->common_header->when;
   /*
     We must be careful to avoid SQL thread increasing its position
     farther than the event that triggered this QUERY(ROLLBACK).

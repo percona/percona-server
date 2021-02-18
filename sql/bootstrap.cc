@@ -250,13 +250,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-<<<<<<< HEAD
-    mysql_parse(thd, &parser_state, true);
-||||||| ee4455a33b1
-    mysql_parse(thd, &parser_state);
-=======
-    dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.0.23
+    dispatch_sql_command(thd, &parser_state, true);
     thd->pop_internal_handler();
 
     error = thd->is_error();

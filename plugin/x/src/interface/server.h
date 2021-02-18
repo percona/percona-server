@@ -58,12 +58,8 @@ class Server {
   virtual void delayed_start_tasks() = 0;
   virtual void start_tasks() = 0;
   virtual void stop() = 0;
-<<<<<<< HEAD
-  virtual void reload_ssl_context() = 0;
-||||||| ee4455a33b1
-=======
   virtual void gracefull_shutdown() = 0;
->>>>>>> mysql-8.0.23
+  virtual void reload_ssl_context() = 0;
 
   virtual iface::Authentication_container &get_authentications() = 0;
 

@@ -4853,13 +4853,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
         */
         thd->reset_rewritten_query();
-<<<<<<< HEAD
-        mysql_parse(thd, &parser_state, true);
-||||||| ee4455a33b1
-        mysql_parse(thd, &parser_state);
-=======
-        dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.0.23
+        dispatch_sql_command(thd, &parser_state, true);
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -4937,33 +4931,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
       thd->variables.option_bits &= ~OPTION_MASTER_SQL_ERROR;
 
-<<<<<<< HEAD
       thd->enable_slow_log = true;
-||||||| ee4455a33b1
-      /*
-        Resetting the enable_slow_log thd variable.
-
-        We need to reset it back to the opt_log_slow_slave_statements
-        value after the statement execution (and slow logging
-        is done). It might have changed if the statement was an
-        admin statement (in which case, down in mysql_parse execution
-        thd->enable_slow_log is set to the value of
-        opt_log_slow_admin_statements).
-      */
-      thd->enable_slow_log = opt_log_slow_slave_statements;
-=======
-      /*
-        Resetting the enable_slow_log thd variable.
-
-        We need to reset it back to the opt_log_slow_slave_statements
-        value after the statement execution (and slow logging
-        is done). It might have changed if the statement was an
-        admin statement (in which case, down in dispatch_sql_command execution
-        thd->enable_slow_log is set to the value of
-        opt_log_slow_admin_statements).
-      */
-      thd->enable_slow_log = opt_log_slow_slave_statements;
->>>>>>> mysql-8.0.23
     } else {
       /*
         The query got a really bad error on the master (thread killed etc),

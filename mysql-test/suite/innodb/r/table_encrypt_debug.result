@@ -22,16 +22,8 @@ CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-<<<<<<< HEAD
 mysql	encryption=Y;explicit_encryption=1;
-tde_db/t1	encryption=Y;
-||||||| ee4455a33b1
-mysql	encryption=Y;
-tde_db/t1	encryption=Y;
-=======
-mysql	encryption=Y;
 tde_db/t1	autoextend_size=0;encryption=Y;
->>>>>>> mysql-8.0.23
 SET debug='-d,skip_dd_table_access_check';
 SHOW CREATE TABLE tde_db.t1;
 Table	Create Table
@@ -52,16 +44,8 @@ Pattern "ib_encryption_rotate_crash" found
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-<<<<<<< HEAD
 mysql	encryption=Y;explicit_encryption=1;
-tde_db/t1	encryption=Y;
-||||||| ee4455a33b1
-mysql	encryption=Y;
-tde_db/t1	encryption=Y;
-=======
-mysql	encryption=Y;
 tde_db/t1	autoextend_size=0;encryption=Y;
->>>>>>> mysql-8.0.23
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t1 VALUES(4, "eeeee");
 SELECT * FROM tde_db.t1 ORDER BY c1;
@@ -82,19 +66,9 @@ t2	CREATE TABLE `t2` (
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-<<<<<<< HEAD
 mysql	encryption=Y;explicit_encryption=1;
-tde_db/t1	encryption=Y;
-tde_db/t2	encryption=Y;
-||||||| ee4455a33b1
-mysql	encryption=Y;
-tde_db/t1	encryption=Y;
-tde_db/t2	encryption=Y;
-=======
-mysql	encryption=Y;
 tde_db/t1	autoextend_size=0;encryption=Y;
 tde_db/t2	autoextend_size=0;encryption=Y;
->>>>>>> mysql-8.0.23
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t2 VALUES(0, "aaaaa");
 INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
@@ -110,19 +84,9 @@ Pattern "ib_encryption_rotate_crash" found
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-<<<<<<< HEAD
 mysql	encryption=Y;explicit_encryption=1;
-tde_db/t1	encryption=Y;
-tde_db/t2	encryption=Y;
-||||||| ee4455a33b1
-mysql	encryption=Y;
-tde_db/t1	encryption=Y;
-tde_db/t2	encryption=Y;
-=======
-mysql	encryption=Y;
 tde_db/t1	autoextend_size=0;encryption=Y;
 tde_db/t2	autoextend_size=0;encryption=Y;
->>>>>>> mysql-8.0.23
 SET debug='-d,skip_dd_table_access_check';
 INSERT INTO tde_db.t1 VALUES(5, "fffff");
 SELECT * FROM tde_db.t1 ORDER BY c1;
@@ -151,19 +115,9 @@ c1	c2
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE OPTIONS LIKE '%encryption=Y%';
 NAME	OPTIONS
-<<<<<<< HEAD
 mysql	encryption=Y;explicit_encryption=1;
-tde_db/t1	encryption=Y;
-tde_db/t2	encryption=Y;
-||||||| ee4455a33b1
-mysql	encryption=Y;
-tde_db/t1	encryption=Y;
-tde_db/t2	encryption=Y;
-=======
-mysql	encryption=Y;
 tde_db/t1	autoextend_size=0;encryption=Y;
 tde_db/t2	autoextend_size=0;encryption=Y;
->>>>>>> mysql-8.0.23
 SET debug='-d,skip_dd_table_access_check';
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 c1	c2

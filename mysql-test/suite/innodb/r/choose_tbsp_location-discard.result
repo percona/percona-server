@@ -209,23 +209,11 @@ mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980	test/t5980	97	6	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -241,20 +229,10 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -458,23 +436,11 @@ mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t5980	test/t5980	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -541,32 +507,14 @@ test/t5980b	test/t5980b	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980a	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
 test/t5980b	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -625,32 +573,14 @@ test/t5980b	test/t5980b	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980a	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
 test/t5980b	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -724,32 +654,14 @@ test/t5980bb	test/t5980bb	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980aa	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
 test/t5980bb	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 test/t5980c	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -821,32 +733,14 @@ test/t5980bb	test/t5980bb	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980aa	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
 test/t5980bb	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 test/t5980c	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -901,32 +795,14 @@ test/t5980b	test/t5980b	97	5	Dynamic	0	Single
 test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t5980a	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
 test/t5980b	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -1034,20 +910,10 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1

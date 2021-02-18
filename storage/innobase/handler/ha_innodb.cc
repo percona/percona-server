@@ -183,12 +183,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "trx0xa.h"
 #include "ut0mem.h"
-<<<<<<< HEAD
-#include "xtradb_i_s.h"
-||||||| ee4455a33b1
-=======
 #include "ut0test.h"
->>>>>>> mysql-8.0.23
+#include "xtradb_i_s.h"
 #else
 #include <typelib.h>
 #include "buf0types.h"
@@ -12190,16 +12186,11 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       dict_table_assign_new_id(table, m_trx);
 
       /* Create temp tablespace if configured. */
-<<<<<<< HEAD
       KeyringEncryptionKeyIdInfo keyring_encryption_key_id;
       keyring_encryption_key_id.was_encryption_key_id_set = false;
-      err = dict_build_tablespace_for_table(
-          table, m_trx, FIL_ENCRYPTION_DEFAULT, keyring_encryption_key_id);
-||||||| ee4455a33b1
-      err = dict_build_tablespace_for_table(table, m_trx);
-=======
-      err = dict_build_tablespace_for_table(table, m_create_info, m_trx);
->>>>>>> mysql-8.0.23
+      err = dict_build_tablespace_for_table(table, m_create_info, m_trx,
+                                            FIL_ENCRYPTION_DEFAULT,
+                                            keyring_encryption_key_id);
 
       if (err == DB_SUCCESS) {
         /* Temp-table are maintained in memory and so
@@ -12259,23 +12250,9 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
         m_create_info->encryption_key_id);
 
     if (err == DB_SUCCESS) {
-<<<<<<< HEAD
-      err = row_create_table_for_mysql(table, algorithm, m_trx,
+      err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx,
                                        keyring_encryption_option,
                                        keyring_encryption_key_id);
-    }
-
-    if (err == DB_IO_NO_PUNCH_HOLE_FS) {
-      ut_ad(!dict_table_in_shared_tablespace(table));
-||||||| ee4455a33b1
-      err = row_create_table_for_mysql(table, algorithm, m_trx);
-    }
-
-    if (err == DB_IO_NO_PUNCH_HOLE_FS) {
-      ut_ad(!dict_table_in_shared_tablespace(table));
-=======
-      err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx);
->>>>>>> mysql-8.0.23
 
       if (err == DB_IO_NO_PUNCH_HOLE_FS) {
         ut_ad(!dict_table_in_shared_tablespace(table));
@@ -12801,6 +12778,7 @@ bool innobase_is_valid_tablespace_name(ts_command_type ts_cmd,
 bool create_table_info_t::create_option_tablespace_is_valid() {
   bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
   bool is_file_per_table = tablespace_is_file_per_table(m_create_info);
+  bool is_general_space = tablespace_is_general_space(m_create_info);
   bool is_temp_space =
       (m_create_info->tablespace &&
        strcmp(m_create_info->tablespace, dict_sys_t::s_temp_space_name) == 0);
@@ -12869,34 +12847,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
     return true;
   }
 
-<<<<<<< HEAD
-||||||| ee4455a33b1
   if (m_use_shared_space && !is_general_space) {
-    /* System tablespace is being used for table */
-    if (m_create_info->encrypt_type.str != nullptr &&
-        !Encryption::is_none(m_create_info->encrypt_type.str)) {
-      /* Encryption is not allowed for system tablespace. */
-      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                      "InnoDB : ENCRYPTION=Y is not accepted"
-                      " for system tablespace.",
-                      MYF(0));
-      return false;
-    }
-  }
-
-=======
-  if (m_use_shared_space && !is_general_space) {
-    /* System tablespace is being used for table */
-    if (m_create_info->encrypt_type.str != nullptr &&
-        !Encryption::is_none(m_create_info->encrypt_type.str)) {
-      /* Encryption is not allowed for system tablespace. */
-      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                      "InnoDB : ENCRYPTION=Y is not accepted"
-                      " for system tablespace.",
-                      MYF(0));
-      return false;
-    }
-
     if (m_create_info->m_implicit_tablespace_autoextend_size_change &&
         m_create_info->m_implicit_tablespace_autoextend_size > 0) {
       /* AUTOEXTEND_SIZE is not allowed for system tablespace. */
@@ -12926,7 +12877,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
     return false;
   }
 
->>>>>>> mysql-8.0.23
   /* Name validation should be ensured from the SQL layer. */
   ut_ad(0 == validate_tablespace_name(TS_CMD_NOT_DEFINED,
                                       m_create_info->tablespace));
@@ -16468,7 +16418,7 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   bool is_new_encrypted = !Encryption::is_none(newenc.data());
   fil_space_crypt_t *crypt_data = space->crypt_data;
 
-<<<<<<< HEAD
+  bool to_encrypt = false;
   // It is only possible to mark tablespace to be skipped by encryption threads
   // if it is not already encrypted.
   if (!is_old_encrypted && !is_new_encrypted &&
@@ -16494,12 +16444,6 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
       crypt_data->encryption = FIL_ENCRYPTION_DEFAULT;
       mutex_exit(&space->crypt_data->mutex);
     }
-||||||| ee4455a33b1
-  if (!is_old_encrypted && is_new_encrypted) {
-=======
-  bool to_encrypt = false;
-  if (!is_old_encrypted && is_new_encrypted) {
->>>>>>> mysql-8.0.23
     /* Encrypt tablespace */
     to_encrypt = true;
   } else if (is_old_encrypted && !is_new_encrypted) {
@@ -23369,16 +23313,6 @@ static MYSQL_SYSVAR_UINT(
     " cache by the specified value dynamically, at the time.",
     nullptr, innodb_merge_threshold_set_all_debug_update,
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
-<<<<<<< HEAD
-||||||| ee4455a33b1
-
-static MYSQL_SYSVAR_ULONG(
-    semaphore_wait_timeout_debug, srv_fatal_semaphore_wait_threshold,
-    PLUGIN_VAR_RQCMDARG,
-    "Number of seconds that a semaphore can be held. If semaphore wait crosses"
-    "this value, server will crash",
-    nullptr, nullptr, 600, 100, 600, 0);
-=======
 
 static MYSQL_SYSVAR_ULONG(
     semaphore_wait_timeout_debug, srv_fatal_semaphore_wait_threshold,
@@ -23386,7 +23320,6 @@ static MYSQL_SYSVAR_ULONG(
     "Number of seconds that a semaphore can be held. If semaphore wait crosses"
     "this value, server will crash",
     nullptr, nullptr, 600, 25, 600, 0);
->>>>>>> mysql-8.0.23
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(
@@ -24610,7 +24543,33 @@ static MYSQL_SYSVAR_STR(directories, srv_innodb_directories,
                         "'innodb-data-home-dir;innodb-undo-directory;datadir'",
                         nullptr, nullptr, nullptr);
 
-<<<<<<< HEAD
+#ifdef UNIV_DEBUG
+/** Use this variable innodb_interpreter to execute debug code within InnoDB.
+The output is stored in the innodb_interpreter_output variable. */
+static MYSQL_THDVAR_STR(interpreter, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
+                        "Invoke InnoDB test interpreter with commands"
+                        " to be executed.",
+                        ib_interpreter_check, ib_interpreter_update, "init");
+
+/** When testing commands are executed in the innodb_interpreter variable, the
+output is stored in this innodb_interpreter_output variable. */
+static MYSQL_THDVAR_STR(interpreter_output,
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_NOPERSIST,
+                        "Output from InnoDB testing module (ut0test).", nullptr,
+                        nullptr, "The Default Value");
+
+char **thd_innodb_interpreter_output(THD *thd) {
+  return (MYSQL_SYSVAR_NAME(interpreter_output)
+              .resolve(thd, MYSQL_SYSVAR_NAME(interpreter_output).offset));
+}
+
+char **thd_innodb_interpreter(THD *thd) {
+  return MYSQL_SYSVAR_NAME(interpreter)
+      .resolve(thd, MYSQL_SYSVAR_NAME(interpreter).offset);
+}
+#endif /* UNIV_DEBUG */
+
 static const char *corrupt_table_action_names[] = {"assert",  /* 0 */
                                                    "warn",    /* 1 */
                                                    "salvage", /* 2 */
@@ -24696,36 +24655,6 @@ static MYSQL_SYSVAR_UINT(background_scrub_data_interval,
                          NULL, NULL, srv_background_scrub_data_interval, 1,
                          UINT_MAX32, 0);
 
-||||||| ee4455a33b1
-=======
-#ifdef UNIV_DEBUG
-/** Use this variable innodb_interpreter to execute debug code within InnoDB.
-The output is stored in the innodb_interpreter_output variable. */
-static MYSQL_THDVAR_STR(interpreter, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
-                        "Invoke InnoDB test interpreter with commands"
-                        " to be executed.",
-                        ib_interpreter_check, ib_interpreter_update, "init");
-
-/** When testing commands are executed in the innodb_interpreter variable, the
-output is stored in this innodb_interpreter_output variable. */
-static MYSQL_THDVAR_STR(interpreter_output,
-                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
-                            PLUGIN_VAR_NOPERSIST,
-                        "Output from InnoDB testing module (ut0test).", nullptr,
-                        nullptr, "The Default Value");
-
-char **thd_innodb_interpreter_output(THD *thd) {
-  return (MYSQL_SYSVAR_NAME(interpreter_output)
-              .resolve(thd, MYSQL_SYSVAR_NAME(interpreter_output).offset));
-}
-
-char **thd_innodb_interpreter(THD *thd) {
-  return MYSQL_SYSVAR_NAME(interpreter)
-      .resolve(thd, MYSQL_SYSVAR_NAME(interpreter).offset);
-}
-#endif /* UNIV_DEBUG */
-
->>>>>>> mysql-8.0.23
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),
@@ -24906,6 +24835,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(buf_flush_list_now),
     MYSQL_SYSVAR(track_redo_log_now),
     MYSQL_SYSVAR(merge_threshold_set_all_debug),
+    MYSQL_SYSVAR(semaphore_wait_timeout_debug),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),

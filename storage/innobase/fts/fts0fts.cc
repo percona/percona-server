@@ -1828,15 +1828,9 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                            DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
   }
 
-<<<<<<< HEAD
-  error = row_create_table_for_mysql(new_table, nullptr, trx,
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx,
                                      FIL_ENCRYPTION_DEFAULT,
                                      KeyringEncryptionKeyIdInfo());
-||||||| ee4455a33b1
-  error = row_create_table_for_mysql(new_table, nullptr, trx);
-=======
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
->>>>>>> mysql-8.0.23
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2031,15 +2025,9 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
                          FTS_INDEX_ILIST_LEN, true);
 
-<<<<<<< HEAD
-  error = row_create_table_for_mysql(new_table, nullptr, trx,
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx,
                                      FIL_ENCRYPTION_DEFAULT,
                                      KeyringEncryptionKeyIdInfo());
-||||||| ee4455a33b1
-  error = row_create_table_for_mysql(new_table, nullptr, trx);
-=======
-  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
->>>>>>> mysql-8.0.23
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(

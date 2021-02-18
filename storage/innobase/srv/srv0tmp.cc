@@ -144,46 +144,25 @@ bool Tablespace::truncate() {
     return false;
   }
 
-<<<<<<< HEAD
   acquire();
 
-  bool success = fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE);
-  if (!success) {
-    release();
-    return (success);
-||||||| ee4455a33b1
-  bool success = fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE);
-  if (!success) {
-    return (success);
-=======
   if (!fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE)) {
+    release();
     return false;
->>>>>>> mysql-8.0.23
   }
-<<<<<<< HEAD
 
   decrypt();
 
-||||||| ee4455a33b1
-=======
-
->>>>>>> mysql-8.0.23
   mtr_t mtr;
 
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
   fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
   mtr_commit(&mtr);
-<<<<<<< HEAD
 
   release();
-  return (true);
-||||||| ee4455a33b1
-  return (true);
-=======
 
   return true;
->>>>>>> mysql-8.0.23
 }
 
 bool Tablespace::encrypt() {

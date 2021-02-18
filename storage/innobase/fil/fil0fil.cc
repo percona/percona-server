@@ -1758,38 +1758,20 @@ class Fil_system {
       MY_ATTRIBUTE((warn_unused_result)) {
 #ifndef UNIV_HOTBACKUP
     if (space_id == dict_sys_t::s_log_space_first_id) {
-<<<<<<< HEAD
       if (index) *index = REDO_SHARD;
-      return (m_shards[REDO_SHARD]);
-||||||| ee4455a33b1
-      return (m_shards[REDO_SHARD]);
-=======
       return m_shards[REDO_SHARD];
->>>>>>> mysql-8.0.23
 
     } else if (fsp_is_undo_tablespace(space_id)) {
       const size_t limit = space_id % UNDO_SHARDS;
 
-<<<<<<< HEAD
       if (index) *index = UNDO_SHARDS_START + limit;
-      return (m_shards[UNDO_SHARDS_START + limit]);
-||||||| ee4455a33b1
-      return (m_shards[UNDO_SHARDS_START + limit]);
-=======
       return m_shards[UNDO_SHARDS_START + limit];
->>>>>>> mysql-8.0.23
     }
 
     ut_ad(m_shards.size() == MAX_SHARDS);
 
-<<<<<<< HEAD
     if (index) *index = space_id % UNDO_SHARDS_START;
-    return (m_shards[space_id % UNDO_SHARDS_START]);
-||||||| ee4455a33b1
-    return (m_shards[space_id % UNDO_SHARDS_START]);
-=======
     return m_shards[space_id % UNDO_SHARDS_START];
->>>>>>> mysql-8.0.23
 #else  /* !UNIV_HOTBACKUP */
     ut_ad(m_shards.size() == 1);
 
@@ -2778,40 +2760,21 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   /* If the SDI flag is set in the file header page, set it in space->flags. */
   space->flags |= flags & FSP_FLAGS_MASK_SDI;
 
-<<<<<<< HEAD
-#ifndef UNIV_HOTBACKUP
-  /* It is possible that
-  - For general tablespace, encryption flag is updated on disk but server
-  crashed before DD could be updated OR
-  - For DD tablespace, encryption flag is updated on disk OR
-  - For tables, general tablespaces encryption flag is updated in DD
-  but server crashed before encryption flag is updated on disk.
-  Below we print warning in such case.
-  */
-  if (space->crypt_data == nullptr && FSP_FLAGS_GET_ENCRYPTION(flags)) {
-||||||| ee4455a33b1
-#ifndef UNIV_HOTBACKUP
-  /* It is possible that
-  - For general tablespace, encryption flag is updated on disk but server
-  crashed before DD could be updated OR
-  - For DD tablespace, encryption flag is updated on disk.
-  */
-  if (FSP_FLAGS_GET_ENCRYPTION(flags)) {
-=======
   /* Data dictionary and tablespace are flushed at different points in
   time. If a crash happens in between, they can have different
   encryption flags as long as the redo log is not replayed. To avoid a
   recovery error due to differing encryption flags, ensure that the
   fil_space_t instance has the same setting as the header page. First
   clear the encryption flag, then set it from the flags found in the
-  file. */
-  if (recv_recovery_is_on()) {
+  file.
+  It is also possible that for tables, general tablespaces encryption flag
+  is updated in DD but server crashed before encryption flag is updated on
+  disk.
+  Below we print warning in such case. */
+  if (space->crypt_data == nullptr && recv_recovery_is_on()) {
     fsp_flags_unset_encryption(space->flags);
->>>>>>> mysql-8.0.23
     space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
   }
-<<<<<<< HEAD
-#endif /* UNIV_HOTBACKUP */
 
   /* Make a copy of space->flags and flags from the page header
   so that they can be compared. */
@@ -2848,51 +2811,8 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
     fsp_flags_unset_encryption(header_fsp_flags);
   }
 
-  /* If a crash occurs while an UNDO space is being truncated,
-     it will be created new at startup. In that case, the fil_space_t
-     object will have the ENCRYPTION flag set, but the header page will
-     not be marked until the srv_master_thread gets around to it.
-     The opposite can occur where the header page contains the encryption
-     flag but the fil_space_t does not.  It could happen that undo
-     encryption was turned off just before the crash or shutdown so that
-     the srv_master_thread did not yet have time to apply it.
-     So don't compare the encryption flag for undo tablespaces. */
-  if (fsp_is_undo_tablespace(space->id)) {
-    fsp_flags_unset_encryption(fil_space_flags);
-    fsp_flags_unset_encryption(header_fsp_flags);
-  }
-||||||| ee4455a33b1
-#endif /* UNIV_HOTBACKUP */
-
-  /* Make a copy of space->flags and flags from the page header
-  so that they can be compared. */
-  uint32_t fil_space_flags = space->flags;
-  uint32_t header_fsp_flags = flags;
-
-  /* If a crash occurs while an UNDO space is being truncated,
-  it will be created new at startup. In that case, the fil_space_t
-  object will have the ENCRYPTION flag set, but the header page will
-  not be marked until the srv_master_thread gets around to it.
-  The opposite can occur where the header page contains the encryption
-  flag but the fil_space_t does not.  It could happen that undo
-  encryption was turned off just before the crash or shutdown so that
-  the srv_master_thread did not yet have time to apply it.
-  So don't compare the encryption flag for undo tablespaces. */
-  if (fsp_is_undo_tablespace(space->id)) {
-    fsp_flags_unset_encryption(fil_space_flags);
-    fsp_flags_unset_encryption(header_fsp_flags);
-  }
-=======
->>>>>>> mysql-8.0.23
-
   /* Make sure the space_flags are the same as the header page flags. */
-<<<<<<< HEAD
   if (UNIV_UNLIKELY(fil_space_flags != header_fsp_flags)) {
-||||||| ee4455a33b1
-  if (fil_space_flags != header_fsp_flags) {
-=======
-  if (space->flags != flags) {
->>>>>>> mysql-8.0.23
     ib::error(ER_IB_MSG_272, ulong{space->flags}, file->name, ulonglong{flags});
     ut_error;
   }
@@ -3381,14 +3301,11 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
-<<<<<<< HEAD
   /* Wait for fil_space_t::release_for_io(); */
   while (space->n_pending_ios) {
     os_thread_sleep(100);
   }
 
-||||||| ee4455a33b1
-=======
 #ifndef UNIV_HOTBACKUP
   {
     /* Temporary and undo tablespaces IDs are assigned from a large but
@@ -3401,7 +3318,6 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
   }
 #endif /* !UNIV_HOTBACKUP */
 
->>>>>>> mysql-8.0.23
   for (auto &file : space->files) {
     ut_d(space->size -= file.size);
 
@@ -3415,15 +3331,10 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
   ut_ad(space->size == 0);
 
   rw_lock_free(&space->latch);
-<<<<<<< HEAD
 
   fil_space_destroy_crypt_data(&space->crypt_data);
   space->encryption_redo_key_uuid.reset(nullptr);
 
-||||||| ee4455a33b1
-
-=======
->>>>>>> mysql-8.0.23
   ut_free(space->name);
   ut_free(space);
 
@@ -3573,7 +3484,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
 
   space->is_corrupt = false;
 
-  space->is_encrypted = false;
+  space->is_space_encrypted = false;
 
   space->exclude_from_rotation = false;
 
@@ -3978,19 +3889,6 @@ void fil_open_log_and_system_tablespace_files() {
   fil_system->open_all_system_tablespaces();
 }
 
-<<<<<<< HEAD
-/** Wait for redo log tracker to catch up, if enabled */
-void Fil_system::wait_for_changed_page_tracker() noexcept {
-  // Must check both flags as it's possible for this to be called during
-  // server startup with srv_track_changed_pages == true but
-  // srv_thread_is_active(srv_threads.m_changed_page_tracker) == false
-  if (srv_track_changed_pages &&
-      srv_thread_is_active(srv_threads.m_changed_page_tracker))
-    os_event_wait(srv_redo_log_tracked_event);
-}
-
-||||||| ee4455a33b1
-=======
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 static void fil_validate_space_reference_count(
@@ -4025,7 +3923,16 @@ void Fil_shard::validate_space_reference_count(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
->>>>>>> mysql-8.0.23
+/** Wait for redo log tracker to catch up, if enabled */
+void Fil_system::wait_for_changed_page_tracker() noexcept {
+  // Must check both flags as it's possible for this to be called during
+  // server startup with srv_track_changed_pages == true but
+  // srv_thread_is_active(srv_threads.m_changed_page_tracker) == false
+  if (srv_track_changed_pages &&
+      srv_thread_is_active(srv_threads.m_changed_page_tracker))
+    os_event_wait(srv_redo_log_tracked_event);
+}
+
 /** Close all open files. */
 void Fil_shard::close_all_files() {
   ut_ad(mutex_owned());
@@ -4084,11 +3991,8 @@ void Fil_shard::close_all_files() {
 
 /** Close all open files. */
 void Fil_system::close_all_files() {
-<<<<<<< HEAD
   Fil_system::wait_for_changed_page_tracker();
 
-||||||| ee4455a33b1
-=======
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   bool should_validate_space_reference_count = srv_fast_shutdown == 0;
   DBUG_EXECUTE_IF("buf_disable_space_reference_count_check",
@@ -4102,7 +4006,6 @@ void Fil_system::close_all_files() {
   }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
->>>>>>> mysql-8.0.23
   for (auto shard : m_shards) {
     shard->mutex_acquire();
 
@@ -6189,15 +6092,9 @@ static dberr_t fil_create_tablespace(
   if (space == nullptr) {
     os_file_close(file);
     os_file_delete(innodb_data_file_key, path);
-<<<<<<< HEAD
     fil_space_destroy_crypt_data(&crypt_data);
 
-    return (DB_ERROR);
-||||||| ee4455a33b1
-    return (DB_ERROR);
-=======
     return DB_ERROR;
->>>>>>> mysql-8.0.23
   }
 
   DEBUG_SYNC_C("fil_ibd_created_space");
@@ -6264,17 +6161,9 @@ dberr_t fil_ibd_create(
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
   ut_ad(!srv_read_only_mode);
-<<<<<<< HEAD
-  return (fil_create_tablespace(space_id, name, path, flags, size,
-                                FIL_TYPE_TABLESPACE, mode,
-                                keyring_encryption_key_id));
-||||||| ee4455a33b1
-  return (fil_create_tablespace(space_id, name, path, flags, size,
-                                FIL_TYPE_TABLESPACE));
-=======
   return fil_create_tablespace(space_id, name, path, flags, size,
-                               FIL_TYPE_TABLESPACE);
->>>>>>> mysql-8.0.23
+                               FIL_TYPE_TABLESPACE, mode,
+                               keyring_encryption_key_id);
 }
 
 /** Create a session temporary tablespace (IBT) file.
@@ -6288,17 +6177,9 @@ dberr_t fil_ibd_create(
 dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
                        uint32_t flags, page_no_t size) {
   ut_a(size >= FIL_IBT_FILE_INITIAL_SIZE);
-<<<<<<< HEAD
-  return (fil_create_tablespace(space_id, name, path, flags, size,
-                                FIL_TYPE_TEMPORARY, FIL_ENCRYPTION_DEFAULT,
-                                KeyringEncryptionKeyIdInfo()));
-||||||| ee4455a33b1
-  return (fil_create_tablespace(space_id, name, path, flags, size,
-                                FIL_TYPE_TEMPORARY));
-=======
   return fil_create_tablespace(space_id, name, path, flags, size,
-                               FIL_TYPE_TEMPORARY);
->>>>>>> mysql-8.0.23
+                               FIL_TYPE_TEMPORARY, FIL_ENCRYPTION_DEFAULT,
+                               KeyringEncryptionKeyIdInfo());
 }
 
 bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
@@ -6435,13 +6316,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
       ib::error(ER_IB_MSG_306, space_name, TROUBLESHOOT_DATADICT_MSG);
     }
 
-<<<<<<< HEAD
-    return (validate_output.error);
-||||||| ee4455a33b1
-    return (err);
-=======
-    return err;
->>>>>>> mysql-8.0.23
+    return validate_output.error;
   }
 
   if (validate_output.keyring_encryption_info.page0_has_crypt_data)
@@ -6476,14 +6351,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   space = fil_space_create(space_name, space_id, flags, purpose, crypt_data);
 
   if (space == nullptr) {
-<<<<<<< HEAD
     if (crypt_data != nullptr) fil_space_destroy_crypt_data(&crypt_data);
-    return (DB_ERROR);
-||||||| ee4455a33b1
-    return (DB_ERROR);
-=======
     return DB_ERROR;
->>>>>>> mysql-8.0.23
   }
 
   /* We do not measure the size of the file, that is why
@@ -6521,15 +6390,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   }
 
   /* For encryption tablespace, initialize encryption information.*/
-<<<<<<< HEAD
-  if ((is_encrypted || space->encryption_op_in_progress == ENCRYPTION) &&
-      !for_import && crypt_data == nullptr) {
-||||||| ee4455a33b1
-  if ((is_encrypted || space->encryption_op_in_progress == ENCRYPTION) &&
-      !for_import) {
-=======
-  if ((is_encrypted || FSP_FLAGS_GET_ENCRYPTION(space->flags)) && !for_import) {
->>>>>>> mysql-8.0.23
+  if ((is_encrypted || FSP_FLAGS_GET_ENCRYPTION(space->flags)) && !for_import &&
+      crypt_data == nullptr) {
     dberr_t err;
     byte *iv = df.m_encryption_iv;
     byte *key = df.m_encryption_key;
@@ -8421,7 +8283,12 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-<<<<<<< HEAD
+  if (req_type.get_encrypted_block() != nullptr) {
+    /* Already encrypted. */
+    req_type.clear_encrypted();
+    return;
+  }
+
   if (req_type.is_log()) {
 #ifdef UNIV_DEBUG
     const space_id_t redo_space_id = dict_sys_t::s_log_space_first_id;
@@ -8448,19 +8315,6 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
       req_type.clear_encrypted();
       return;
     }
-||||||| ee4455a33b1
-  req_type.encryption_key(space->encryption_key, space->encryption_klen,
-                          space->encryption_iv);
-=======
-  if (req_type.get_encrypted_block() != nullptr) {
-    /* Already encrypted. */
-    req_type.clear_encrypted();
-    return;
-  }
-
-  req_type.encryption_key(space->encryption_key, space->encryption_klen,
-                          space->encryption_iv);
->>>>>>> mysql-8.0.23
 
     switch (space->encryption_type) {
       case Encryption::KEYRING:
@@ -9076,16 +8930,8 @@ dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
                 void *buf, void *message, trx_t *trx, bool should_buffer) {
   auto shard = fil_system->shard_by_id(page_id.space());
 
-<<<<<<< HEAD
-  return (shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
-                       message, trx, should_buffer));
-||||||| ee4455a33b1
-  return (shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
-                       message));
-=======
   return shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
-                      message);
->>>>>>> mysql-8.0.23
+                      message, trx, should_buffer);
 }
 
 /** If the tablespace is on the unflushed list and there are no pending
@@ -10234,25 +10080,13 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
 @param[in] acquire_mutex  if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
 dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
-<<<<<<< HEAD
                            byte *key, byte *iv, bool acquire_mutex) {
-||||||| ee4455a33b1
-                           byte *key, byte *iv) {
-  ut_ad(space_id != TRX_SYS_SPACE);
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return (DB_IO_NO_ENCRYPT_TABLESPACE);
-  }
-
-=======
-                           byte *key, byte *iv) {
   ut_ad(space_id != TRX_SYS_SPACE);
 
   if (fsp_is_system_or_temp_tablespace(space_id)) {
     return DB_IO_NO_ENCRYPT_TABLESPACE;
   }
 
->>>>>>> mysql-8.0.23
   auto shard = fil_system->shard_by_id(space_id);
 
   if (acquire_mutex) shard->mutex_acquire();
@@ -10260,18 +10094,10 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   fil_space_t *space = shard->get_space_by_id(space_id);
 
   if (space == nullptr) {
-<<<<<<< HEAD
     if (acquire_mutex) {
       shard->mutex_release();
     }
-    return (DB_NOT_FOUND);
-||||||| ee4455a33b1
-    shard->mutex_release();
-    return (DB_NOT_FOUND);
-=======
-    shard->mutex_release();
     return DB_NOT_FOUND;
->>>>>>> mysql-8.0.23
   }
 
   if (key == nullptr) {
@@ -10364,18 +10190,6 @@ bool encryption_rotate_low(fil_space_t *space) {
 dberr_t fil_reset_encryption(space_id_t space_id) {
   ut_ad(space_id != TRX_SYS_SPACE);
 
-<<<<<<< HEAD
-||||||| ee4455a33b1
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return (DB_IO_NO_ENCRYPT_TABLESPACE);
-  }
-
-=======
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return DB_IO_NO_ENCRYPT_TABLESPACE;
-  }
-
->>>>>>> mysql-8.0.23
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
@@ -12035,21 +11849,6 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
   return ptr;
 }
 
-<<<<<<< HEAD
-/** Parse and process an encryption redo record.
-@param[in]	ptr		redo log record
-@param[in]	end		end of the redo log buffer
-@param[in]	space_id	the tablespace ID
-@param[in]	apply		whether to apply the record
-@return log record end, nullptr if not a complete record */
-||||||| ee4455a33b1
-/** Parse and process an encryption redo record.
-@param[in]	ptr		redo log record
-@param[in]	end		end of the redo log buffer
-@param[in]	space_id	the tablespace ID
-@return log record end, nullptr if not a complete record */
-=======
->>>>>>> mysql-8.0.23
 byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
                                      space_id_t space_id, lsn_t lsn) {
   fil_space_t *space = fil_space_get(space_id);
@@ -13083,47 +12882,6 @@ void Fil_path::convert_to_lower_case(std::string &path) {
   path.assign(lc_path);
 }
 
-<<<<<<< HEAD
-/** Mark space as corrupt
-    @param space_id	space id */
-void fil_space_set_corrupt(space_id_t space_id) {
-  auto *const shard = fil_system->shard_by_id(space_id);
-
-  shard->mutex_acquire();
-
-  auto *const space = shard->get_space_by_id(space_id);
-
-  if (space) space->is_corrupt = true;
-
-  shard->mutex_release();
-}
-
-void fil_system_acquire() {
-  ut_ad(fil_system);
-  fil_system->mutex_acquire_all();
-}
-
-void fil_system_release() {
-  ut_ad(fil_system);
-  fil_system->mutex_release_all();
-}
-
-void fil_lock_shard_by_id(space_id_t space_id) {
-  auto *const shard = fil_system->shard_by_id(space_id);
-  ut_ad(shard);
-  shard->mutex_acquire();
-}
-
-void fil_unlock_shard_by_id(space_id_t space_id) {
-  auto *const shard = fil_system->shard_by_id(space_id);
-  ut_ad(shard);
-  shard->mutex_release();
-}
-
-void fil_checkpoint(lsn_t lwm) { fil_system->checkpoint(lwm); }
-||||||| ee4455a33b1
-void fil_checkpoint(lsn_t lwm) { fil_system->checkpoint(lwm); }
-=======
 void fil_purge() { fil_system->purge(); }
 
 size_t fil_count_undo_deleted(space_id_t undo_num) {
@@ -13267,7 +13025,6 @@ bool fil_space_t::is_deleted() const {
   ut_ad(fil_system->shard_by_id(id)->mutex_owned());
   return m_deleted;
 }
->>>>>>> mysql-8.0.23
 
 bool fil_space_t::was_not_deleted() const {
   /* This is not a critical assertion - if you have this mutex, then possibly
@@ -13325,4 +13082,41 @@ void fil_space_t::bump_version() {
 
   ++m_version;
 }
+
+/** Mark space as corrupt
+    @param space_id	space id */
+void fil_space_set_corrupt(space_id_t space_id) {
+  auto *const shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  auto *const space = shard->get_space_by_id(space_id);
+
+  if (space) space->is_corrupt = true;
+
+  shard->mutex_release();
+}
+
+void fil_system_acquire() {
+  ut_ad(fil_system);
+  fil_system->mutex_acquire_all();
+}
+
+void fil_system_release() {
+  ut_ad(fil_system);
+  fil_system->mutex_release_all();
+}
+
+void fil_lock_shard_by_id(space_id_t space_id) {
+  auto *const shard = fil_system->shard_by_id(space_id);
+  ut_ad(shard);
+  shard->mutex_acquire();
+}
+
+void fil_unlock_shard_by_id(space_id_t space_id) {
+  auto *const shard = fil_system->shard_by_id(space_id);
+  ut_ad(shard);
+  shard->mutex_release();
+}
+
 #endif /* !UNIV_HOTBACKUP */

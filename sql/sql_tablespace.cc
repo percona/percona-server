@@ -107,21 +107,15 @@ st_alter_tablespace::st_alter_tablespace(
       file_block_size{opts.file_block_size},
       nodegroup_id{opts.nodegroup_id},
       wait_until_completed{opts.wait_until_completed},
-<<<<<<< HEAD
       ts_comment{opts.ts_comment.str},
+      encryption{opts.encryption.str},
       explicit_encryption{opts.encryption.str != nullptr},
       encryption_key_id{opts.encryption_key_id.was_encryption_key_id_set,
-                        opts.encryption_key_id.id} {}
-||||||| ee4455a33b1
-      ts_comment{opts.ts_comment.str} {}
-=======
-      ts_comment{opts.ts_comment.str},
-      encryption{opts.encryption.str} {
+                        opts.encryption_key_id.id} {
   if (opts.autoextend_size.has_value()) {
     autoextend_size = opts.autoextend_size.value();
   }
 }
->>>>>>> mysql-8.0.23
 
 bool validate_tablespace_name_length(const char *tablespace_name) {
   DBUG_ASSERT(tablespace_name != nullptr);

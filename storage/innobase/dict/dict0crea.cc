@@ -67,16 +67,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	create_info	HA_CREATE_INFO object
 @param[in,out]	trx		transaction instance
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
 dberr_t dict_build_table_def(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-||||||| ee4455a33b1
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx) {
-=======
-dberr_t dict_build_table_def(dict_table_t *table,
-                             const HA_CREATE_INFO *create_info, trx_t *trx) {
->>>>>>> mysql-8.0.23
   std::string db_name;
   std::string tbl_name;
   dict_name::get_table(table->name.m_name, db_name, tbl_name);
@@ -106,14 +100,8 @@ dberr_t dict_build_table_def(dict_table_t *table,
     dict_table_assign_new_id(table, trx);
   }
 
-<<<<<<< HEAD
-  dberr_t err = dict_build_tablespace_for_table(table, trx, mode,
+  dberr_t err = dict_build_tablespace_for_table(table, create_info, trx, mode,
                                                 keyring_encryption_key_id);
-||||||| ee4455a33b1
-  dberr_t err = dict_build_tablespace_for_table(table, trx);
-=======
-  dberr_t err = dict_build_tablespace_for_table(table, create_info, trx);
->>>>>>> mysql-8.0.23
 
   return (err);
 }
@@ -177,14 +165,8 @@ dberr_t dict_build_tablespace(
              : FIL_IBD_FILE_INITIAL_SIZE;
 
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
-<<<<<<< HEAD
-                       tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE, mode,
+                       tablespace->flags(), size, mode,
                        keyring_encryption_key_id);
-||||||| ee4455a33b1
-                       tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE);
-=======
-                       tablespace->flags(), size);
->>>>>>> mysql-8.0.23
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                     crash_injection_after_create_counter++);
@@ -263,30 +245,15 @@ static ibt::Tablespace *determine_session_temp_tblsp(
 }
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
-<<<<<<< HEAD
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-||||||| ee4455a33b1
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
-=======
 @param[in,out]	table		Table to build in its own tablespace.
 @param[in]	create_info	HA_CREATE_INFO object
 @param[in,out]	trx		Transaction
->>>>>>> mysql-8.0.23
+@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
 dberr_t dict_build_tablespace_for_table(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-||||||| ee4455a33b1
-dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
-=======
-dberr_t dict_build_tablespace_for_table(dict_table_t *table,
-                                        const HA_CREATE_INFO *create_info,
-                                        trx_t *trx) {
->>>>>>> mysql-8.0.23
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -380,14 +347,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
                   srv_page_size)
                : FIL_IBD_FILE_INITIAL_SIZE;
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
-<<<<<<< HEAD
-                         FIL_IBD_FILE_INITIAL_SIZE, mode,
-                         keyring_encryption_key_id);
-||||||| ee4455a33b1
-                         FIL_IBD_FILE_INITIAL_SIZE);
-=======
-                         size);
->>>>>>> mysql-8.0.23
+                         size, mode, keyring_encryption_key_id);
 
     ut_free(filepath);
 

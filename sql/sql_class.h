@@ -76,13 +76,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-<<<<<<< HEAD
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_thread_scheduler.h"
-||||||| ee4455a33b1
-#include "mysql/psi/psi_base.h"
-=======
->>>>>>> mysql-8.0.23
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER

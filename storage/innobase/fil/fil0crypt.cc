@@ -2198,7 +2198,8 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
     // if space is marked as encrytped this means some of the pages are
     // encrypted and space should be skipped size must be set - i.e. tablespace
     // has been read
-    if (!state->space->is_encrypted && !state->space->exclude_from_rotation &&
+    if (!state->space->is_space_encrypted &&
+        !state->space->exclude_from_rotation &&
         fil_crypt_space_needs_rotation(state, key_state, recheck)) {
       ut_ad(key_state->key_id != ENCRYPTION_KEY_VERSION_INVALID);
       /* init state->min_key_version_found before
@@ -2756,7 +2757,8 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 
   ut_ad(state->space->n_pending_ops > 0);
 
-  for (; state->offset < end && !state->space->is_encrypted; state->offset++) {
+  for (; state->offset < end && !state->space->is_space_encrypted;
+       state->offset++) {
     /* we can't rotate pages in dblwr buffer as
      * it's not possible to read those due to lots of asserts
      * in buffer pool.
@@ -3597,7 +3599,7 @@ void fil_crypt_thread() {
             fil_crypt_rotate_pages(&new_state, &thr);
           }
 
-          if (thr.space->is_encrypted) {
+          if (thr.space->is_space_encrypted) {
             /* There were some pages that were corrupted or could not have been
              * decrypted - abort rotating space */
             mutex_enter(&thr.space->crypt_data->mutex);

@@ -153,27 +153,7 @@ TEST_F(Timers_test_suite,
   config->m_timeouts.m_interactive_timeout = 11;
   sut->set_wait_timeout(config->m_timeouts.m_interactive_timeout);
 
-<<<<<<< HEAD
-  std::shared_ptr<Mock_ssl_context> mock_ssl_context;
-  mock_ssl_context.reset(new StrictMock<Mock_ssl_context>());
-
-  Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
-                         &mock_protocol_monitor);
-
-  client.set_wait_timeout(config->m_timeouts.m_interactive_timeout);
-
-  EXPECT_CALL(*temp_vio,
-||||||| ee4455a33b1
-  StrictMock<Mock_ssl_context> mock_ssl_context;
-  Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
-                         &mock_protocol_monitor);
-
-  client.set_wait_timeout(config->m_timeouts.m_interactive_timeout);
-
-  EXPECT_CALL(*temp_vio,
-=======
   EXPECT_CALL(*mock_vio,
->>>>>>> mysql-8.0.23
               set_timeout_in_ms(iface::Vio::Direction::k_read, 11 * 1000));
   EXPECT_CALL(*mock_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
   EXPECT_CALL(*mock_vio, read(_, _))

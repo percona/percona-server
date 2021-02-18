@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ee4455a33b1
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2020, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.23
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2921,13 +2915,7 @@ static void buf_flush_page_cleaner_close(void) {
 
 /**
 Requests for all slots to flush all buffer pool instances.
-<<<<<<< HEAD
-@param min_n	wished minimum mumber of flush list blocks flushed
-||||||| ee4455a33b1
-@param min_n	wished minimum mumber of blocks flushed
-=======
-@param min_n	wished minimum number of blocks flushed
->>>>>>> mysql-8.0.23
+@param min_n	wished minimum number of flush list blocks flushed
                 (it is not guaranteed that the actual number is that big)
 @param lsn_limit in the case BUF_FLUSH_LIST all blocks whose
                 oldest_modification is smaller than this should be flushed
@@ -3627,7 +3615,6 @@ void buf_flush_sync_all_buf_pools(void) {
   ut_a(success);
 }
 
-<<<<<<< HEAD
 /** Make a LRU manager thread sleep until the passed target time, if it's not
 already in the past.
 @param[in]	next_loop_timm	desired wake up time */
@@ -3722,91 +3709,6 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
   }
 }
 
-void reset_buf_flush_sync_lsn() {
-  const auto curr_lsn = log_get_lsn(*log_sys);
-
-  /* Currently sync LSN might be set beyond current system LSN. Need to
-  adjust it when redo logging is disabled as LSN is no longer moving. */
-  mutex_enter(&page_cleaner->mutex);
-  if (buf_flush_sync_lsn > curr_lsn) {
-    buf_flush_sync_lsn = curr_lsn;
-  }
-  mutex_exit(&page_cleaner->mutex);
-}
-
-/** Request IO burst and wake page_cleaner up.
-@param[in]	lsn_limit	upper limit of LSN to be flushed
-@return true if we requested higher lsn than ever requested so far */
-bool buf_flush_request_force(lsn_t lsn_limit) {
-  ut_a(buf_flush_page_cleaner_is_active());
-
-  lsn_t lsn_target = lsn_limit;
-
-  /* Avoid aggressive sync flush beyond limit when redo is disabled. */
-  if (mtr_t::s_logging.is_enabled() && lsn_limit != LSN_MAX) {
-    /* adjust based on lsn_avg_rate not to get old */
-    lsn_target += Adaptive_flush::lsn_avg_rate * 3;
-  }
-
-  bool result;
-
-  mutex_enter(&page_cleaner->mutex);
-  if (lsn_target > buf_flush_sync_lsn) {
-    buf_flush_sync_lsn = lsn_target;
-    result = true;
-  } else {
-    result = false;
-  }
-  mutex_exit(&page_cleaner->mutex);
-
-  os_event_set(buf_flush_event);
-
-  return (result);
-}
-||||||| ee4455a33b1
-void reset_buf_flush_sync_lsn() {
-  const auto curr_lsn = log_get_lsn(*log_sys);
-
-  /* Currently sync LSN might be set beyond current system LSN. Need to
-  adjust it when redo logging is disabled as LSN is no longer moving. */
-  mutex_enter(&page_cleaner->mutex);
-  if (buf_flush_sync_lsn > curr_lsn) {
-    buf_flush_sync_lsn = curr_lsn;
-  }
-  mutex_exit(&page_cleaner->mutex);
-}
-
-/** Request IO burst and wake page_cleaner up.
-@param[in]	lsn_limit	upper limit of LSN to be flushed
-@return true if we requested higher lsn than ever requested so far */
-bool buf_flush_request_force(lsn_t lsn_limit) {
-  ut_a(buf_flush_page_cleaner_is_active());
-
-  lsn_t lsn_target = lsn_limit;
-
-  /* Avoid aggressive sync flush beyond limit when redo is disabled. */
-  if (mtr_t::s_logging.is_enabled()) {
-    /* adjust based on lsn_avg_rate not to get old */
-    lsn_target += Adaptive_flush::lsn_avg_rate * 3;
-  }
-
-  bool result;
-
-  mutex_enter(&page_cleaner->mutex);
-  if (lsn_target > buf_flush_sync_lsn) {
-    buf_flush_sync_lsn = lsn_target;
-    result = true;
-  } else {
-    result = false;
-  }
-  mutex_exit(&page_cleaner->mutex);
-
-  os_event_set(buf_flush_event);
-
-  return (result);
-}
-=======
->>>>>>> mysql-8.0.23
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 
 /** Functor to validate the flush list. */
@@ -3935,42 +3837,15 @@ static ulint buf_flush_get_dirty_pages_count(
 }
 
 FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
-<<<<<<< HEAD
-                             ut_stage_alter_t *stage)
-    : m_space_id(space_id),
-      m_trx(trx),
-      m_stage(stage),
-      m_interrupted(false),
-      m_estimate(),
-      m_lsn(log_get_lsn(*log_sys)),
-      m_number_of_pages_flushed(0) {
-  m_flushed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
-  m_removed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
-
-  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-    m_flushed->at(i) = 0;
-    m_removed->at(i) = 0;
-  }
-
-||||||| ee4455a33b1
-                             ut_stage_alter_t *stage)
-    : m_space_id(space_id), m_trx(trx), m_stage(stage), m_interrupted(false) {
-  m_flushed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
-  m_removed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
-
-  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-    m_flushed->at(i) = 0;
-    m_removed->at(i) = 0;
-  }
-
-=======
                              ut_stage_alter_t *stage) noexcept
     : m_space_id(space_id),
       m_trx(trx),
       m_stage(stage),
       m_flushed(srv_buf_pool_instances),
-      m_removed(srv_buf_pool_instances) {
->>>>>>> mysql-8.0.23
+      m_removed(srv_buf_pool_instances),
+      m_estimate(),
+      m_lsn(log_get_lsn(*log_sys)),
+      m_number_of_pages_flushed(0) {
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
   ib::info(ER_IB_MSG_130) << "FlushObserver : ID= " << m_id
                           << ", space_id=" << space_id << ", trx_id="
@@ -4008,14 +3883,8 @@ void FlushObserver::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
 }
 
 void FlushObserver::notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage) {
-<<<<<<< HEAD
-  os_atomic_increment_ulint(&m_removed->at(buf_pool->instance_no), 1);
-  os_atomic_increment_ulint(&m_number_of_pages_flushed, 1);
-||||||| ee4455a33b1
-  os_atomic_increment_ulint(&m_removed->at(buf_pool->instance_no), 1);
-=======
   m_removed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
->>>>>>> mysql-8.0.23
+  m_number_of_pages_flushed.fetch_add(1, std::memory_order_seq_cst);
 }
 
 void FlushObserver::flush() {
@@ -4047,8 +3916,7 @@ void FlushObserver::flush() {
 /** Increase the estimate of dirty pages by this observer
 @param[in]	block		buffer pool block */
 void FlushObserver::inc_estimate(const buf_block_t &block) noexcept {
-  if (block.page.oldest_modification == 0 ||
-      block.page.newest_modification < m_lsn)
+  if (block.page.get_oldest_lsn() == 0 || block.page.get_newest_lsn() < m_lsn)
     m_estimate.fetch_add(1, std::memory_order_relaxed);
 }
 

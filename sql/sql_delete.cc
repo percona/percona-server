@@ -966,17 +966,9 @@ bool Query_result_delete::optimize() {
   bool delete_while_scanning = true;
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (!tr->is_deleted()) continue;
-<<<<<<< HEAD
-    delete_table_map |= tr->map();
     if (delete_while_scanning &&
         (unique_table(tr, join->tables_list, false) ||
          has_cascade_dependency(thd, *tr, join->tables_list))) {
-||||||| ee4455a33b1
-    delete_table_map |= tr->map();
-    if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
-=======
-    if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
->>>>>>> mysql-8.0.23
       /*
         If the table being deleted from is also referenced in the query,
         defer delete so that the delete doesn't interfer with reading of this

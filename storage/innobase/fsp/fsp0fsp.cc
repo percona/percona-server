@@ -1132,16 +1132,8 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
   /* For encryption tablespace, we need to save the encryption
   info to the page 0. */
-<<<<<<< HEAD
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags) && !space->crypt_data) {
-    ulint offset = fsp_header_get_encryption_offset(page_size);
-||||||| ee4455a33b1
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    ulint offset = fsp_header_get_encryption_offset(page_size);
-=======
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     auto offset = fsp_header_get_encryption_offset(page_size);
->>>>>>> mysql-8.0.23
     byte encryption_info[Encryption::INFO_SIZE];
 
     if (offset == 0) {
@@ -4746,14 +4738,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
   }
 
   /* Let the startup thread proceed now */
-<<<<<<< HEAD
   mysql_mutex_lock(&resume_encryption_cond_m);
-  shared_mdl_is_taken = true;
-  mysql_mutex_unlock(&resume_encryption_cond_m);
-||||||| ee4455a33b1
-=======
-  mysql_mutex_lock(&resume_encryption_cond_m);
->>>>>>> mysql-8.0.23
   mysql_cond_signal(&resume_encryption_cond);
   mysql_mutex_unlock(&resume_encryption_cond_m);
 

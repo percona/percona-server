@@ -1413,6 +1413,9 @@ class buf_page_t {
   /** Set page to clean state. */
   void set_clean() noexcept { set_oldest_lsn(0); }
 
+  /** Set page to clean state (used in buf_page_init_low()). */
+  void set_clean_low() noexcept { oldest_modification = 0; }
+
   /** @name General fields
   None of these bit-fields must be modified without holding
   buf_page_get_mutex() [buf_block_t::mutex or

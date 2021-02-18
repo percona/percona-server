@@ -60,12 +60,8 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
-<<<<<<< HEAD
 #include "mysql_com.h"
-||||||| ee4455a33b1
-=======
 #include "nullable.h"          // Nullable
->>>>>>> mysql-8.0.23
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/init_mode.h"
@@ -885,13 +881,9 @@ class st_alter_tablespace {
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
-<<<<<<< HEAD
+  const char *encryption = nullptr;
   bool explicit_encryption{false};
   KeyringEncryptionKeyIdInfo encryption_key_id;
-||||||| ee4455a33b1
-=======
-  const char *encryption = nullptr;
->>>>>>> mysql-8.0.23
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||
@@ -2886,14 +2878,8 @@ struct HA_CREATE_INFO {
   */
 
   void init_create_options_from_share(const TABLE_SHARE *share,
-<<<<<<< HEAD
-                                      uint used_fields);
-  Item *zip_dict_name{nullptr};
-||||||| ee4455a33b1
-                                      uint used_fields);
-=======
                                       uint64_t used_fields);
->>>>>>> mysql-8.0.23
+  Item *zip_dict_name{nullptr};
 };
 
 /**

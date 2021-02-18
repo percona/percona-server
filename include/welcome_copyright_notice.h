@@ -44,21 +44,11 @@
          "Oracle and/or its affiliates.\n\nOracle is a "                       \
          "registered trademark of Oracle Corporation and/or its\naffiliates. " \
          "Other names may be trademarks of their respective\nowners.\n"        \
-<<<<<<< HEAD
        : "Copyright (c) 2009-" COPYRIGHT_NOTICE_CURRENT_YEAR                   \
          " Percona LLC and/or its affiliates\n"                                \
          "Copyright (c) " first_year                                           \
-         ", Oracle and/or its affiliates. "                                    \
-         "All rights reserved.\n\nOracle is a registered trademark of "        \
-||||||| ee4455a33b1
-       : "Copyright (c) " first_year                                           \
-         ", Oracle and/or its affiliates. "                                    \
-         "All rights reserved.\n\nOracle is a registered trademark of "        \
-=======
-       : "Copyright (c) " first_year                                           \
          ", Oracle and/or its affiliates."                                     \
          "\n\nOracle is a registered trademark of "                            \
->>>>>>> mysql-8.0.23
          "Oracle Corporation and/or its\naffiliates. Other names may be "      \
          "trademarks of their respective\nowners.\n")
 

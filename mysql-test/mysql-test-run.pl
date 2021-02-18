@@ -287,7 +287,6 @@ our @DEFAULT_SUITES = qw(
   test_service_sql_api
   test_services
   x
-<<<<<<< HEAD
 
   audit_log
   binlog_57_decryption
@@ -315,12 +314,7 @@ our @DEFAULT_SUITES = qw(
   interactive_utilities
   jp
   stress
-  );
-||||||| ee4455a33b1
-  );
-=======
 );
->>>>>>> mysql-8.0.23
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
 
@@ -760,41 +754,12 @@ sub main {
   # Read definitions from include/plugin.defs
   read_plugin_defs("include/plugin.defs");
 
-<<<<<<< HEAD
-  # Also read from plugin.defs files in internal and internal/cloud if they exist
-
-  my $plugin_def = "";
-  $plugin_def = "$basedir/internal/mysql-test/include/plugin.defs"
-    if (-e "$basedir/internal/mysql-test/include/plugin.defs");
-||||||| ee4455a33b1
-  # Also read from plugin.defs files in internal and internal/cloud if they exist
-
-  my $plugin_def = "$basedir/internal/mysql-test/include/plugin.defs"
-    if (-e "$basedir/internal/mysql-test/include/plugin.defs");
-=======
  # Also read from plugin.defs files in internal and internal/cloud if they exist
   my @plugin_defs = ("$basedir/internal/mysql-test/include/plugin.defs",
                      "$basedir/internal/cloud/mysql-test/include/plugin.defs");
->>>>>>> mysql-8.0.23
 
-<<<<<<< HEAD
-  $plugin_def = $plugin_def." "."$basedir/internal/cloud/mysql-test/include/plugin.defs"
-    if (-e "$basedir/internal/cloud/mysql-test/include/plugin.defs");
-
-  if ($plugin_def ne "") {
-    for (glob $plugin_def) {
-      read_plugin_defs($_);
-    }
-||||||| ee4455a33b1
-  $plugin_def = $plugin_def." "."$basedir/internal/cloud/mysql-test/include/plugin.defs"
-    if (-e "$basedir/internal/cloud/mysql-test/include/plugin.defs");
-
-  for (glob $plugin_def) {
-    read_plugin_defs($_);
-=======
   for my $plugin_def (@plugin_defs) {
     read_plugin_defs($plugin_def) if -e $plugin_def;
->>>>>>> mysql-8.0.23
   }
 
   # Simplify reference to semisync plugins
@@ -910,19 +875,9 @@ sub main {
 
   # Set dummy worker id to align report with normal tests
   $tinfo->{worker} = 0 if $opt_parallel > 1;
-<<<<<<< HEAD
   if ($shutdown_report && $aggregated_shutdown_report ne '') {
-    $tinfo->{result} = 'MTR_RES_FAILED';
-    $tinfo->{comment} = "Mysqld reported failures at shutdown: \n$aggregated_shutdown_report";
-||||||| ee4455a33b1
-  if ($shutdown_report) {
-    $tinfo->{result} = 'MTR_RES_FAILED';
-    $tinfo->{comment} = "Mysqld reported failures at shutdown, see above";
-=======
-  if ($shutdown_report) {
     $tinfo->{result}   = 'MTR_RES_FAILED';
-    $tinfo->{comment}  = "Mysqld reported failures at shutdown, see above";
->>>>>>> mysql-8.0.23
+    $tinfo->{comment}  = "Mysqld reported failures at shutdown: \n$aggregated_shutdown_report";
     $tinfo->{failures} = 1;
   } else {
     $tinfo->{result} = 'MTR_RES_PASSED';
@@ -1511,17 +1466,7 @@ sub shutdown_exit_reports() {
     my $report_text = '';
 
     if ($found_report) {
-<<<<<<< HEAD
       $report_text = $crash_rep;
-||||||| ee4455a33b1
-        mtr_print("Shutdown report from $log_file after tests:\n", @culprits);
-        mtr_print_line();
-        print("$crash_rep\n");
-=======
-      mtr_print("Shutdown report from $log_file after tests:\n", @culprits);
-      mtr_print_line();
-      print("$crash_rep\n");
->>>>>>> mysql-8.0.23
     } else {
       # Print last 100 lines of log file since shutdown failed
       # for some reason.
@@ -6461,14 +6406,7 @@ sub stop_all_servers () {
   mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
-<<<<<<< HEAD
   shutdown_processes($shutdown_timeout, started(all_servers()));
-||||||| ee4455a33b1
-  my $ret = My::SafeProcess::shutdown($shutdown_timeout, started(all_servers()));
-=======
-  my $ret =
-    My::SafeProcess::shutdown($shutdown_timeout, started(all_servers()));
->>>>>>> mysql-8.0.23
 
   # Remove pidfiles
   foreach my $server (all_servers()) {
@@ -6756,16 +6694,8 @@ sub stop_servers($$) {
     shutdown_processes($opt_shutdown_timeout, started(mysqlds()));
 
     # cluster processes
-<<<<<<< HEAD
     shutdown_processes($opt_shutdown_timeout,
-                       started(ndbds(), ndb_mgmds(), memcacheds()));
-||||||| ee4455a33b1
-    My::SafeProcess::shutdown($opt_shutdown_timeout,
-                              started(ndbds(), ndb_mgmds(), memcacheds()));
-=======
-    My::SafeProcess::shutdown($opt_shutdown_timeout,
-                              started(ndbds(), ndb_mgmds()));
->>>>>>> mysql-8.0.23
+                       started(ndbds(), ndb_mgmds()));
   } else {
     mtr_report("Restarting ", started(@servers));
 

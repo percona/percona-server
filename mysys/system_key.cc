@@ -21,7 +21,7 @@
 
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 
 struct Valid_percona_system_key {

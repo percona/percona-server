@@ -4,6 +4,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
+--source include/have_punch_hole.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");

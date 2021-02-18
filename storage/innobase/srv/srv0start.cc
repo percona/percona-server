@@ -168,10 +168,6 @@ static uint64_t srv_start_state = SRV_START_STATE_NONE;
 
 std::atomic<enum srv_shutdown_t> srv_shutdown_state{SRV_SHUTDOWN_NONE};
 
-/** true if shared MDL is taken by background thread for all tablespaces, for
- *  which (un)encryption is to be rolled forward*/
-bool shared_mdl_is_taken = false;
-
 /** Files comprising the system tablespace */
 static pfs_os_file_t files[1000];
 
@@ -3404,16 +3400,7 @@ void srv_start_threads_after_ddl_recovery() {
     srv_threads.m_ts_alter_encrypt.start();
     /* Wait till shared MDL is taken by background thread for all tablespaces,
     for which (un)encryption is to be rolled forward. */
-<<<<<<< HEAD
-    mysql_mutex_lock(&resume_encryption_cond_m);
-    while (!shared_mdl_is_taken)
-      mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
-||||||| ee4455a33b1
-    mysql_mutex_lock(&resume_encryption_cond_m);
     mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
-=======
-    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
->>>>>>> mysql-8.0.23
     mysql_mutex_unlock(&resume_encryption_cond_m);
   }
 

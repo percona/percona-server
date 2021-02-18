@@ -268,15 +268,11 @@ struct row_import {
 
   bool m_cfp_missing; /*!< true if a .cfp file was
                       found and was readable */
-<<<<<<< HEAD
-
-  bool m_is_keyring_encrypted;
-||||||| ee4455a33b1
-=======
 
   /** Compression type in the meta-data file */
   Compression::Type m_compression_type{};
->>>>>>> mysql-8.0.23
+
+  bool m_is_keyring_encrypted;
 };
 
 /** Use the page cursor to iterate over records in a block. */

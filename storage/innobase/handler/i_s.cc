@@ -6645,42 +6645,6 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
 
 };
 
-/** Get the filepath of tablespace. For multi-file tablespaces (like
-system and temporary), return nullptr. Callers owns the responsibility
-for freeing the memory of the path returned and should use ut_free()
-to free the memory
-@param[in]	space_id	tablespace id
-@param[in]	flags		tablespace flags
-@param[in]	name		tablespace name
-@return filepath or nullptr */
-MY_NODISCARD
-static char *i_s_get_filepath(space_id_t space_id, ulint flags,
-                              const char *name) {
-  char *filepath = nullptr;
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return (filepath);
-  }
-
-  if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags) ||
-      fsp_is_undo_tablespace(space_id)) {
-    mutex_enter(&dict_sys->mutex);
-    filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
-  }
-
-  if (filepath == nullptr) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != 0) {
-      mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space_id);
-      mutex_exit(&dict_sys->mutex);
-    } else {
-      filepath = Fil_path::make_ibd_from_table_name(name);
-    }
-  }
-  return (filepath);
-}
-
 /** Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES with information
 collected by scanning INNODB_TABLESPACESS table.
 @param[in]      thd             thread
@@ -6777,34 +6741,16 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(fields[INNODB_TABLESPACES_SPACE_VERSION]->store(space_version, true));
 
-<<<<<<< HEAD
-  char *filepath = i_s_get_filepath(space_id, flags, name);
-||||||| ee4455a33b1
   char *filepath = nullptr;
-  if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
+  if (!fsp_is_system_or_temp_tablespace(space_id)) {
     mutex_enter(&dict_sys->mutex);
     filepath = fil_space_get_first_path(space_id);
     mutex_exit(&dict_sys->mutex);
-  }
 
-  if (filepath == nullptr) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != nullptr) {
-      mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space_id);
-      mutex_exit(&dict_sys->mutex);
-    } else {
+    if (filepath == nullptr) {
       filepath = Fil_path::make_ibd_from_table_name(name);
     }
   }
-=======
-  mutex_enter(&dict_sys->mutex);
-  char *filepath = fil_space_get_first_path(space_id);
-  mutex_exit(&dict_sys->mutex);
-
-  if (filepath == nullptr) {
-    filepath = Fil_path::make_ibd_from_table_name(name);
-  }
->>>>>>> mysql-8.0.23
 
   os_file_stat_t stat;
   os_file_size_t file;
@@ -6905,22 +6851,10 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);
 
-<<<<<<< HEAD
     if (ret) {
-      i_s_dict_fill_innodb_tablespaces(thd, space, name, flags, server_version,
-                                       space_version, is_encrypted,
-                                       state.c_str(), tables->table);
-||||||| ee4455a33b1
-    if (ret && space != 0) {
-      i_s_dict_fill_innodb_tablespaces(thd, space, name, flags, server_version,
-                                       space_version, is_encrypted,
-                                       state.c_str(), tables->table);
-=======
-    if (ret && space != 0) {
       i_s_dict_fill_innodb_tablespaces(
           thd, space, name, flags, server_version, space_version, is_encrypted,
           autoextend_size, state.c_str(), tables->table);
->>>>>>> mysql-8.0.23
     }
 
     mem_heap_empty(heap);
@@ -7896,12 +7830,13 @@ static int i_s_tablespaces_encryption_fill_table(
     uint32 space_version;
     bool is_encrypted;
     dd::String_type state;
+    uint64_t autoextend_size;
 
     /* Extract necessary information from a INNODB_TABLESPACES
     row */
-    ret = dd_process_dd_tablespaces_rec(heap, rec, &space_id, &name, &flags,
-                                        &server_version, &space_version,
-                                        &is_encrypted, &state, dd_spaces);
+    ret = dd_process_dd_tablespaces_rec(
+        heap, rec, &space_id, &name, &flags, &server_version, &space_version,
+        &is_encrypted, &autoextend_size, &state, dd_spaces);
 
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);

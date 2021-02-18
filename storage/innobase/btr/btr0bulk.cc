@@ -969,6 +969,7 @@ dberr_t BtrBulk::insert(dtuple_t *tuple, ulint level) {
       return (err);
     }
 
+    DEBUG_SYNC_C("bulk_load_insert");
     m_page_bulks->push_back(new_page_bulk);
     ut_ad(level + 1 == m_page_bulks->size());
     m_root_level = level;

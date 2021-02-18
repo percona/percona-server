@@ -74,12 +74,3 @@ GET_OTHER_FUNCTION_NAMES(${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy OTHER_MYSQL_FUNCT
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_function_names_t.cc.in
                 ${MYSQLX_GENERATE_DIR}/mysql_function_names_t.cc)
-<<<<<<< HEAD:unittest/gunit/xplugin/mysql_function_names.cmake
-||||||| ee4455a33b1:unittest/gunit/xplugin/mysql_function_names.cmake
-
-
-
-
-=======
-
->>>>>>> mysql-8.0.23:unittest/gunit/xplugin/xpl/mysql_function_names.cmake

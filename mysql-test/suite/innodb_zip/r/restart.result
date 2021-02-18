@@ -278,43 +278,8 @@ move_test/t9_restart	s1_restart	161	8	Dynamic	0	General
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t1_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t1_restart.ibd
-move_test/t2_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t2_restart.ibd
-move_test/t3_restart	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/move_test/t3_restart.ibd
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s1_restart	General	DEFAULT	0	Any	s1_restart.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t1_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t1_restart.ibd
-move_test/t2_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t2_restart.ibd
-move_test/t3_restart	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/move_test/t3_restart.ibd
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s1_restart	General	DEFAULT	0	Any	s1_restart.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t1_restart	Single	DEFAULT	0	1	1	Compact or Redundant	MYSQLD_DATADIR/move_test/t1_restart.ibd
 move_test/t2_restart	Single	DEFAULT	0	1	1	Compact or Redundant	MYSQLD_DATADIR/move_test/t2_restart.ibd
 move_test/t3_restart	Single	DEFAULT	2048	1	1	Compressed	MYSQLD_DATADIR/move_test/t3_restart.ibd
@@ -330,7 +295,6 @@ move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_d
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s1_restart	General	DEFAULT	0	1	1	Any	s1_restart.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -534,43 +498,8 @@ move_test/t9_restart	s1_restart	161	8	Dynamic	0	General
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t1_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t1_restart.ibd
-move_test/t2_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t2_restart.ibd
-move_test/t3_restart	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/move_test/t3_restart.ibd
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s1_restart	General	DEFAULT	0	Any	s1_restart.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t1_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t1_restart.ibd
-move_test/t2_restart	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/move_test/t2_restart.ibd
-move_test/t3_restart	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/move_test/t3_restart.ibd
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-s1_restart	General	DEFAULT	0	Any	s1_restart.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t1_restart	Single	DEFAULT	0	1	1	Compact or Redundant	MYSQLD_DATADIR/move_test/t1_restart.ibd
 move_test/t2_restart	Single	DEFAULT	0	1	1	Compact or Redundant	MYSQLD_DATADIR/move_test/t2_restart.ibd
 move_test/t3_restart	Single	DEFAULT	2048	1	1	Compressed	MYSQLD_DATADIR/move_test/t3_restart.ibd
@@ -586,7 +515,6 @@ move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_d
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s1_restart	General	DEFAULT	0	1	1	Any	s1_restart.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -618,35 +546,8 @@ TRUNCATE TABLE t5_restart;
 ALTER TABLE t6_restart TRUNCATE PARTITION p2;
 ALTER TABLE t7_restart TRUNCATE PARTITION p1;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t5_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
 move_test/t6_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
@@ -658,7 +559,6 @@ move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_d
 move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -751,35 +651,8 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
-move_test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
-move_test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p1.ibd
-move_test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p2.ibd
-move_test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s0.ibd
-move_test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p0#sp#s1.ibd
-move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s2.ibd
-move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t5_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t5_restart.ibd
 move_test/t6_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t6_restart#p#p0.ibd
@@ -791,7 +664,6 @@ move_test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_d
 move_test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t7_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -878,35 +750,8 @@ RENAME TABLE t5_restart TO t55_restart;
 RENAME TABLE t6_restart TO t66_restart;
 RENAME TABLE t7_restart TO t77_restart;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t55_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
 move_test/t66_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
@@ -918,7 +763,6 @@ move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_
 move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -1006,35 +850,8 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t55_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
 move_test/t66_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
@@ -1046,7 +863,6 @@ move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_
 move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -1134,35 +950,8 @@ t77_restart#p#p1#sp#s3.ibd
 #
 # restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t55_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
 move_test/t66_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
@@ -1174,7 +963,6 @@ move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_
 move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -1265,35 +1053,8 @@ SUBPARTITION BY HASH (`c1`)
 #
 # restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t55_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t55_restart.ibd
 move_test/t66_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir/move_test/t66_restart#p#p0.ibd
@@ -1305,7 +1066,6 @@ move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_
 move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir/move_test/t77_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
@@ -1490,35 +1250,8 @@ move_test/t77_restart#p#p1#sp#s3	move_test/t77_restart#p#p1#sp#s3	97	8	Dynamic	0
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-<<<<<<< HEAD
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-||||||| ee4455a33b1
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
-move_test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t55_restart.ibd
-move_test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p0.ibd
-move_test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p1.ibd
-move_test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p2.ibd
-move_test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p0#sp#s0.ibd
-move_test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p0#sp#s1.ibd
-move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p1#sp#s2.ibd
-move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p1#sp#s3.ibd
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-=======
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
 move_test/t4_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
 move_test/t55_restart	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t55_restart.ibd
 move_test/t66_restart#p#p0	Single	DEFAULT	2048	1	1	Compressed	MYSQL_TMP_DIR/alt_dir_moved/move_test/t66_restart#p#p0.ibd
@@ -1530,7 +1263,6 @@ move_test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_
 move_test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_moved/move_test/t77_restart#p#p1#sp#s3.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
->>>>>>> mysql-8.0.23
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1

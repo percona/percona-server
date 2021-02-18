@@ -3,7 +3,7 @@
 call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'Could not create keyring directory");
 
 # Waiting time when (re)starting the server
---let $explicit_default_counter=15000
+--let $explicit_default_wait_counter=15000
 
 --let $keyring_restart_param=restart:$KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --source include/table_encrypt_kill.inc

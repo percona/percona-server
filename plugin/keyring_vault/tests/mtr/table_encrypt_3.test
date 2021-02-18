@@ -6,7 +6,7 @@
 --source is_vault_server_up.inc
 
 # Waiting time when (re)starting the server
---let $explicit_default_counter=15000
+--let $explicit_default_wait_counter=15000
 
 # Create mount points
 --let MOUNT_POINT_SERVICE_OP=CREATE

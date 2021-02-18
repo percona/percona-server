@@ -186,24 +186,12 @@ bool srv_undo_log_encrypt = FALSE;
 /** Maximum size of undo tablespace. */
 unsigned long long srv_max_undo_tablespace_size;
 
-<<<<<<< HEAD
 /** Enable or disable encryption of temporary tablespace.*/
 bool srv_tmp_tablespace_encrypt;
 
 /** Option to enable encryption of system tablespace. */
 ulong srv_sys_tablespace_encrypt;
 
-/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-    ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
-
-||||||| ee4455a33b1
-/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-    ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
-
-=======
->>>>>>> mysql-8.0.23
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT =
@@ -1550,13 +1538,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
           "Total large memory allocated " ULINTPF
           "\n"
           "Dictionary memory allocated " ULINTPF "\n",
-<<<<<<< HEAD
-          os_total_large_mem_allocated, dict_sys ? dict_sys->size : 0UL);
-||||||| ee4455a33b1
-          os_total_large_mem_allocated, dict_sys->size);
-=======
-          os_total_large_mem_allocated.load(), dict_sys->size);
->>>>>>> mysql-8.0.23
+          os_total_large_mem_allocated.load(), dict_sys ? dict_sys->size : 0UL);
 
   buf_print_io(file);
 
@@ -3260,15 +3242,11 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
     /* Allow any blocking clone to progress. */
     clone_mark_free();
-<<<<<<< HEAD
-
-    log_check_new_key_version();
-||||||| ee4455a33b1
-=======
 
     /* Purge any deleted tablespace pages. */
     fil_purge();
->>>>>>> mysql-8.0.23
+
+    log_check_new_key_version();
   }
 }
 
@@ -3497,15 +3475,9 @@ static ulint srv_do_purge(ulint *n_total_purged) {
   }
 
   do {
-<<<<<<< HEAD
     srv_current_thread_priority = srv_purge_thread_priority;
 
-    if (trx_sys->rseg_history_len > rseg_history_len ||
-||||||| ee4455a33b1
-    if (trx_sys->rseg_history_len > rseg_history_len ||
-=======
     if (trx_sys->rseg_history_len.load() > rseg_history_len ||
->>>>>>> mysql-8.0.23
         (srv_max_purge_lag > 0 && rseg_history_len > srv_max_purge_lag)) {
       /* History length is now longer than what it was
       when we took the last snapshot. Use more threads. */

@@ -11842,14 +11842,10 @@ PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no chan
 PSI_stage_info stage_hook_begin_trans= { 0, "Executing hook on transaction begin.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_compress= { 0, "Compressing transaction changes.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_decompress= { 0, "Decompressing transaction changes.", 0, PSI_DOCUMENT_ME};
-<<<<<<< HEAD
-PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
-||||||| ee4455a33b1
-=======
 PSI_stage_info stage_rpl_failover_fetching_source_member_details= { 0, "Fetching source member details from connected source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_failover_updating_source_member_details= { 0, "Updating fetched source member details on receiver", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_failover_wait_before_next_fetch= { 0, "Wait before trying to fetch next membership changes from source", 0, PSI_DOCUMENT_ME};
->>>>>>> mysql-8.0.23
+PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
 /* clang-format on */
 
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -11943,17 +11939,11 @@ PSI_stage_info *all_server_stages[] = {
     &stage_hook_begin_trans,
     &stage_waiting_for_disk_space,
     &stage_binlog_transaction_compress,
-<<<<<<< HEAD
-    &stage_binlog_transaction_decompress,
-    &stage_restoring_secondary_keys};
-||||||| ee4455a33b1
-    &stage_binlog_transaction_decompress};
-=======
     &stage_binlog_transaction_decompress,
     &stage_rpl_failover_fetching_source_member_details,
     &stage_rpl_failover_updating_source_member_details,
-    &stage_rpl_failover_wait_before_next_fetch};
->>>>>>> mysql-8.0.23
+    &stage_rpl_failover_wait_before_next_fetch,
+    &stage_restoring_secondary_keys};
 
 PSI_socket_key key_socket_tcpip;
 PSI_socket_key key_socket_unix;

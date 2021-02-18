@@ -9070,32 +9070,20 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
     return true;
   }
 
-<<<<<<< HEAD
   // Fix create_info->explicit_encryption. For alter it is retrieved
   // from share.
   if (!(create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE) &&
       (create_info->used_fields & HA_CREATE_USED_ENCRYPT)) {
     create_info->explicit_encryption = true;
-||||||| ee4455a33b1
-  // Do not accept ENCRYPTION clause for temporary table.
-  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      create_info->encrypt_type.length) {
-    my_error(ER_CANNOT_USE_ENCRYPTION_CLAUSE, MYF(0), "temporary");
-    return true;
-=======
-  // Do not accept ENCRYPTION and AUTOEXTEND_SIZE clauses for
+  }
+
+  // Do not accept AUTOEXTEND_SIZE clauses for
   // temporary table.
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-    if (create_info->encrypt_type.length) {
-      my_error(ER_CANNOT_USE_ENCRYPTION_CLAUSE, MYF(0), "temporary");
-      return true;
-    }
-
     if (create_info->m_implicit_tablespace_autoextend_size > 0) {
       my_error(ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE, MYF(0), "temporary");
       return true;
     }
->>>>>>> mysql-8.0.23
   }
 
   // Determine table encryption type, and check if user is allowed to create.
@@ -18350,16 +18338,10 @@ bool mysql_trans_commit_alter_copy_data(THD *thd) {
 static int copy_data_between_tables(
     THD *thd, PSI_stage_progress *psi MY_ATTRIBUTE((unused)), TABLE *from,
     TABLE *to, List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
-<<<<<<< HEAD
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx,
     bool expand_fast_index_creation) {
-||||||| ee4455a33b1
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
-=======
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
   DBUG_TRACE;
 
->>>>>>> mysql-8.0.23
   int error;
   Copy_field *copy, *copy_end;
   Field **ptr;

@@ -7545,20 +7545,6 @@ static Sys_var_bool Sys_var_require_row_format(
     "and DDLs with the exception of temporary table creation/deletion.",
     SESSION_ONLY(require_row_format), NO_CMD_LINE, DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_set_require_row_format));
-<<<<<<< HEAD
-
-static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
-    "tf_sequence_table_max_upper_bound",
-    "Maximum number of records SEQUENCE_TABLE() table function "
-    "is allowed to generate.",
-    GLOBAL_VAR(tf_sequence_table_max_upper_bound), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, ULLONG_MAX), DEFAULT(1048576), BLOCK_SIZE(1));
-
-#ifndef DBUG_OFF
-Debug_shutdown_actions Debug_shutdown_actions::instance;
-#endif
-||||||| ee4455a33b1
-=======
 
 /**
   Changes the `Delegate` internal state in regards to which type of lock to
@@ -7590,4 +7576,14 @@ static Sys_var_bool Sys_replication_sender_observe_commit_only(
     GLOBAL_VAR(opt_replication_sender_observe_commit_only), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
->>>>>>> mysql-8.0.23
+
+static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
+    "tf_sequence_table_max_upper_bound",
+    "Maximum number of records SEQUENCE_TABLE() table function "
+    "is allowed to generate.",
+    GLOBAL_VAR(tf_sequence_table_max_upper_bound), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1024, ULLONG_MAX), DEFAULT(1048576), BLOCK_SIZE(1));
+
+#ifndef DBUG_OFF
+Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif

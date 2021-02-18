@@ -571,15 +571,9 @@ SET(SQL_SHARED_SOURCES
   table_function.cc
   table_trigger_dispatcher.cc
   tc_log.cc
-<<<<<<< HEAD
-  thr_malloc.cc 
-  threadpool_common.cc
-||||||| ee4455a33b1
-  thr_malloc.cc 
-=======
   thr_malloc.cc
+  threadpool_common.cc
   time_zone_common.cc
->>>>>>> mysql-8.0.23
   transaction.cc
   transaction_info.cc
   trigger.cc

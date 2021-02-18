@@ -33,12 +33,8 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-<<<<<<< HEAD
 #include "my_user.h"  // parse_user
-||||||| ee4455a33b1
-=======
 #include "mysql/components/services/bits/psi_bits.h"
->>>>>>> mysql-8.0.23
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"

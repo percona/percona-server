@@ -756,14 +756,9 @@ buf_page_t *buf_page_alloc_descriptor(void) {
 
   bpage = (buf_page_t *)ut_zalloc_nokey(sizeof *bpage);
   ut_ad(bpage);
-<<<<<<< HEAD
-||||||| ee4455a33b1
-  UNIV_MEM_ALLOC(bpage, sizeof *bpage);
-=======
   UNIV_MEM_ALLOC(bpage, sizeof *bpage);
   /* This is required for valgrind to work correctly. */
   bpage->m_space = nullptr;
->>>>>>> mysql-8.0.23
 
   return (bpage);
 }
@@ -820,7 +815,7 @@ void buf_block_modify_clock_inc(buf_block_t *block) {
 
   /* No block latch is acquired for internal temporary tables. */
   ut_ad(fsp_is_system_temporary(block->page.id.space()) ||
-        (bpage->buf_fix_count == 0 && buf_page_mutex_own(block)) ||
+        (bpage->buf_fix_count == 0 && block->mutex.is_owned()) ||
         rw_lock_own_flagged(&block->lock, RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 
   block->modify_clock++;

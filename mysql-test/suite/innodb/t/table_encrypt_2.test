@@ -5,7 +5,7 @@
 --source include/no_valgrind_without_big.inc
 
 # Waiting time when (re)starting the server
---let $explicit_default_counter=15000
+--let $explicit_default_wait_counter=15000
 
 --let $keyring1_restart_param=restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --let $keyring2_restart_param=restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT

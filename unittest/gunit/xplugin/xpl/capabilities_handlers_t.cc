@@ -62,22 +62,10 @@ class CapabilityHanderTlsTestSuite : public Test {
         .WillRepeatedly(Return(mock_ssl_context));
   }
 
-<<<<<<< HEAD
-  StrictMock<Mock_vio> mock_connection;
-  StrictMock<Mock_client> mock_client;
-  std::shared_ptr<Mock_ssl_context> mock_ssl_context;
-  StrictMock<Mock_server> mock_server;
-||||||| ee4455a33b1
-  StrictMock<Mock_vio> mock_connection;
-  StrictMock<Mock_client> mock_client;
-  StrictMock<Mock_ssl_context> mock_ssl_context;
-  StrictMock<Mock_server> mock_server;
-=======
   StrictMock<mock::Vio> mock_connection;
   StrictMock<mock::Client> mock_client;
-  StrictMock<mock::Ssl_context> mock_ssl_context;
+  std::shared_ptr<mock::Ssl_context> mock_ssl_context;
   StrictMock<mock::Server> mock_server;
->>>>>>> mysql-8.0.23
 
   Capability_tls sut;
 };

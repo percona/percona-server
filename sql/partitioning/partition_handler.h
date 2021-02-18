@@ -450,17 +450,8 @@ class Partition_helper {
     new_data is always record[0]
     old_data is always record[1]
 
-<<<<<<< HEAD
-    @param old_data  The old record in MySQL Row Format.
-    @param new_data  The new record in MySQL Row Format.
     @param lookup_rows Indicator for TokuDB read free replication.
 
-||||||| ee4455a33b1
-    @param old_data  The old record in MySQL Row Format.
-    @param new_data  The new record in MySQL Row Format.
-
-=======
->>>>>>> mysql-8.0.23
     @return Operation status.
       @returns    0 Success
       @returns != 0 Error code

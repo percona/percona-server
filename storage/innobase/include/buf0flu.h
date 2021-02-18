@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| ee4455a33b1
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2020, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.23
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -355,9 +349,11 @@ class FlushObserver {
   /** Flush request finished, per buffer pool. */
   Counters m_removed{};
 
-<<<<<<< HEAD
-  /* True if the operation was interrupted. */
-  bool m_interrupted;
+  /** Number of pages using this instance. */
+  Counter m_n_ref_count{};
+
+  /** True if the operation was interrupted. */
+  bool m_interrupted{};
 
   /* Estimate of pages to be flushed */
   std::atomic<ulint> m_estimate;
@@ -366,19 +362,7 @@ class FlushObserver {
   used to find the dirty blocks that are dirtied before Observer */
   const lsn_t m_lsn;
 
-  ulint m_number_of_pages_flushed;
-};
-||||||| ee4455a33b1
-  /* True if the operation was interrupted. */
-  bool m_interrupted;
-};
-=======
-  /** Number of pages using this instance. */
-  Counter m_n_ref_count{};
->>>>>>> mysql-8.0.23
-
-  /** True if the operation was interrupted. */
-  bool m_interrupted{};
+  std::atomic<ulint> m_number_of_pages_flushed;
 };
 lsn_t get_flush_sync_lsn() noexcept;
 #endif /* !UNIV_HOTBACKUP */

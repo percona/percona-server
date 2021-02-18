@@ -4769,19 +4769,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     mutex_exit(&dict_sys->mutex);
 
-<<<<<<< HEAD
     keyring_encryption_key_id.was_encryption_key_id_set =
         ha_alter_info->create_info->was_encryption_key_id_set;
     keyring_encryption_key_id.id = key_id;
 
-    error = row_create_table_for_mysql(ctx->new_table, compression, ctx->trx,
-                                       mode, keyring_encryption_key_id);
-||||||| ee4455a33b1
-    error = row_create_table_for_mysql(ctx->new_table, compression, ctx->trx);
-=======
     error = row_create_table_for_mysql(ctx->new_table, compression,
-                                       ha_alter_info->create_info, ctx->trx);
->>>>>>> mysql-8.0.23
+                                       ha_alter_info->create_info, ctx->trx,
+                                       mode, keyring_encryption_key_id);
 
     mutex_enter(&dict_sys->mutex);
 

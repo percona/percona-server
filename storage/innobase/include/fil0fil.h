@@ -490,7 +490,7 @@ struct fil_space_t {
 
   bool is_corrupt;
 
-  bool is_encrypted;
+  bool is_space_encrypted;
 
   // Used by encryption threads to check whether a space was
   // excluded from encryption/decryption. We use atomic because
@@ -538,28 +538,10 @@ struct fil_space_t {
   /** FIL_SPACE_MAGIC_N */
   ulint magic_n;
 
-<<<<<<< HEAD
   /** @return whether the tablespace is about to be dropped or
   truncated */
   bool is_stopping() const { return stop_new_ops; }
 
-  /** LSN when the instance was deleted. */
-  lsn_t m_deleted_lsn;
-
-  /** Determine if this space was deleted with BUF_REMOVE_NONE.
-  @return true if the space was deleted */
-  bool is_deleted() { return m_deleted_lsn > 0; }
-
-||||||| ee4455a33b1
-  /** LSN when the instance was deleted. */
-  lsn_t m_deleted_lsn;
-
-  /** Determine if this space was deleted with BUF_REMOVE_NONE.
-  @return true if the space was deleted */
-  bool is_deleted() { return m_deleted_lsn > 0; }
-
-=======
->>>>>>> mysql-8.0.23
   /** System tablespace */
   static fil_space_t *s_sys_space;
 

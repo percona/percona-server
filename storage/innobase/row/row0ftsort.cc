@@ -292,7 +292,7 @@ dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
             ut_malloc_nokey(block_size + 1024));
 
         if (psort_info[j].crypt_alloc[i] == NULL) {
-          ret = FALSE;
+          error = DB_OUT_OF_MEMORY;
           goto func_exit;
         }
 

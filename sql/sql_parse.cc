@@ -1490,13 +1490,7 @@ static void check_secondary_engine_statement(THD *thd,
   thd->variables.option_bits |= OPTION_LOG_OFF;
 
   // Restart the statement.
-<<<<<<< HEAD
-  mysql_parse(thd, parser_state, true);
-||||||| ee4455a33b1
-  mysql_parse(thd, parser_state);
-=======
-  dispatch_sql_command(thd, parser_state);
->>>>>>> mysql-8.0.23
+  dispatch_sql_command(thd, parser_state, true);
 
   // Restore the original option bits.
   thd->variables.option_bits = saved_option_bits;
@@ -1887,16 +1881,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
-<<<<<<< HEAD
-      mysql_parse(thd, &parser_state, false);
-||||||| ee4455a33b1
-      mysql_parse(thd, &parser_state);
-=======
       copy_bind_parameter_values(thd, com_data->com_query.parameters,
                                  com_data->com_query.parameter_count);
 
-      dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.0.23
+      dispatch_sql_command(thd, &parser_state, false);
 
       // Check if the statement failed and needs to be restarted in
       // another storage engine.
@@ -1981,13 +1969,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-<<<<<<< HEAD
-        mysql_parse(thd, &parser_state, false);
-||||||| ee4455a33b1
-        mysql_parse(thd, &parser_state);
-=======
-        dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.0.23
+        dispatch_sql_command(thd, &parser_state, false);
 
         check_secondary_engine_statement(thd, &parser_state,
                                          beginning_of_next_stmt, length);
@@ -4097,18 +4079,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
       // Fall through.
     case SQLCOM_FLUSH: {
       int write_to_binlog;
-<<<<<<< HEAD
 
       if (lex->type & REFRESH_FLUSH_PAGE_BITMAPS ||
           lex->type & REFRESH_RESET_PAGE_BITMAPS) {
         if (check_global_access(thd, SUPER_ACL)) goto error;
-      } else if (check_global_access(thd, RELOAD_ACL))
+      } else if (is_reload_request_denied(thd, lex->type))
         goto error;
-||||||| ee4455a33b1
-      if (check_global_access(thd, RELOAD_ACL)) goto error;
-=======
-      if (is_reload_request_denied(thd, lex->type)) goto error;
->>>>>>> mysql-8.0.23
 
       if (first_table && lex->type & REFRESH_READ_LOCK) {
         /*
@@ -5111,13 +5087,8 @@ void THD::reset_for_next_command() {
   @param parser_state Parser state.
 */
 
-<<<<<<< HEAD
-void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat) {
-||||||| ee4455a33b1
-void mysql_parse(THD *thd, Parser_state *parser_state) {
-=======
-void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
->>>>>>> mysql-8.0.23
+void dispatch_sql_command(THD *thd, Parser_state *parser_state,
+                          bool update_userstat) {
   DBUG_TRACE;
   DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
 

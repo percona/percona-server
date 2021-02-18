@@ -456,14 +456,8 @@ class AIO {
   @return pointer to slot */
   Slot *reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                      pfs_os_file_t file, const char *name, void *buf,
-<<<<<<< HEAD
-                     os_offset_t offset, ulint len, space_id_t space_id)
-||||||| ee4455a33b1
-                     os_offset_t offset, ulint len)
-=======
-                     os_offset_t offset, ulint len, const file::Block *e_block)
->>>>>>> mysql-8.0.23
-      MY_ATTRIBUTE((warn_unused_result));
+                     os_offset_t offset, ulint len, const file::Block *e_block,
+                     space_id_t space_id) MY_ATTRIBUTE((warn_unused_result));
 
   /** @return number of reserved slots */
   ulint pending_io_count() const;
@@ -1330,8 +1324,8 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       }
 
       ut_ad(err == DB_SUCCESS || err == DB_UNSUPPORTED ||
-<<<<<<< HEAD
-            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL);
+            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL ||
+            err == DB_IO_DECRYPT_FAIL);
     } else if (!slot->type.is_log() && slot->type.is_read() &&
                Encryption::can_page_be_keyring_encrypted(slot->buf) &&
                !slot->type.is_encryption_disabled()) {
@@ -1340,12 +1334,6 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       mach_write_to_4(slot->buf + FIL_PAGE_ENCRYPTION_KEY_VERSION,
                       ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
       err = DB_SUCCESS;
-||||||| ee4455a33b1
-            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL);
-=======
-            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL ||
-            err == DB_IO_DECRYPT_FAIL);
->>>>>>> mysql-8.0.23
     } else {
       err = DB_SUCCESS;
     }
@@ -5402,38 +5390,26 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   /* We do encryption after compression, since if we do encryption
   before compression, the encrypted data will cause compression fail
   or low compression rate. */
-<<<<<<< HEAD
-  if (type.is_encrypted() && type.is_write() &&
+  if ((type.is_encrypted() || e_block != nullptr) && type.is_write() &&
       (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
        (type.encryption_algorithm().get_key() != NULL &&
         Encryption::can_page_be_keyring_encrypted(
             reinterpret_cast<byte *>(buf))))) {
-||||||| ee4455a33b1
-  if (type.is_encrypted() && type.is_write()) {
-=======
-  if ((type.is_encrypted() || e_block != nullptr) && type.is_write()) {
->>>>>>> mysql-8.0.23
     if (!type.is_log()) {
       /* We don't encrypt the first page of any file. */
       auto compressed_block = block;
       ut_ad(offset > 0);
 
-<<<<<<< HEAD
-      ut_ad(type.encryption_algorithm().get_key() != NULL);
-      block = os_file_encrypt_page(type, buf, &n);
-||||||| ee4455a33b1
-      block = os_file_encrypt_page(type, buf, &n);
-=======
       /* If dblwr is involved, we should not be reaching here, because we
       encrypt the page at higher layer so that the same encrypted page can be
       written to the dblwr file and the data file. During importing an
       encrypted tablespace, we reach here. */
       if (e_block == nullptr) {
+        ut_ad(type.encryption_algorithm().get_key() != NULL);
         block = os_file_encrypt_page(type, buf, &n);
       } else {
         block = const_cast<file::Block *>(e_block);
       }
->>>>>>> mysql-8.0.23
 
       if (compressed_block != nullptr) {
         os_free_block(compressed_block);
@@ -5625,28 +5601,16 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
   const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, n);
 
-  (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
-||||||| ee4455a33b1
-  (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
-=======
   os_n_pending_reads.fetch_add(1);
->>>>>>> mysql-8.0.23
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
   ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err, nullptr);
 
-<<<<<<< HEAD
   trx_stats::end_io_read(trx, start_time);
 
-  (void)os_atomic_decrement_ulint(&os_n_pending_reads, 1);
-||||||| ee4455a33b1
-  (void)os_atomic_decrement_ulint(&os_n_pending_reads, 1);
-=======
   os_n_pending_reads.fetch_sub(1);
->>>>>>> mysql-8.0.23
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 
   return (n_bytes);
@@ -5666,17 +5630,9 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     os_file_read_page(IORequest &type, const char *file_name, os_file_t file,
                       void *buf, os_offset_t offset, ulint n, ulint *o,
-<<<<<<< HEAD
                       bool exit_on_err, trx_t *trx) {
-||||||| ee4455a33b1
-                      bool exit_on_err) {
-  dberr_t err;
-
-=======
-                      bool exit_on_err) {
   dberr_t err(DB_ERROR_UNSET);
 
->>>>>>> mysql-8.0.23
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
 
@@ -5690,7 +5646,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ut_ad(type.validate());
   ut_ad(n > 0);
 
-  dberr_t err;
   for (;;) {
     ssize_t n_bytes;
 
@@ -7159,14 +7114,8 @@ ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
 
 Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                         pfs_os_file_t file, const char *name, void *buf,
-<<<<<<< HEAD
-                        os_offset_t offset, ulint len, space_id_t space_id) {
-||||||| ee4455a33b1
-                        os_offset_t offset, ulint len) {
-=======
                         os_offset_t offset, ulint len,
-                        const file::Block *e_block) {
->>>>>>> mysql-8.0.23
+                        const file::Block *e_block, space_id_t space_id) {
 #ifdef WIN_ASYNC_IO
   ut_a((len & 0xFFFFFFFFUL) == len);
 #endif /* WIN_ASYNC_IO */
@@ -7310,16 +7259,10 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   before compression, the encrypted data will cause compression fail
   or low compression rate. */
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
-<<<<<<< HEAD
-      type.is_encrypted() &&
+      (type.is_encrypted() || e_block != nullptr) &&
       (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
        (type.encryption_algorithm().get_key() != NULL &&
         Encryption::can_page_be_keyring_encrypted(slot->buf)))) {
-||||||| ee4455a33b1
-      type.is_encrypted()) {
-=======
-      (type.is_encrypted() || e_block != nullptr)) {
->>>>>>> mysql-8.0.23
     ulint encrypted_len = slot->len;
     file::Block *encrypted_block;
     byte *encrypt_log_buf;
@@ -7739,15 +7682,8 @@ try_again:
 
   auto array = AIO::select_slot_array(type, read_only, aio_mode);
 
-<<<<<<< HEAD
-  auto slot =
-      array->reserve_slot(type, m1, m2, file, name, buf, offset, n, space_id);
-||||||| ee4455a33b1
-  auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
-=======
-  auto slot =
-      array->reserve_slot(type, m1, m2, file, name, buf, offset, n, e_block);
->>>>>>> mysql-8.0.23
+  auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n,
+                                  e_block, space_id);
 
   if (type.is_read()) {
     trx_stats::bump_io_read(trx, n);

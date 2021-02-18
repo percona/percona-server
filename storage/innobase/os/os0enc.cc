@@ -1121,62 +1121,15 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
   return (dst);
 }
 
-<<<<<<< HEAD
-byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
-                          byte *dst, ulint *dst_len) noexcept {
-  ut_ad(m_type != NONE);
-  ut_ad(!type.is_log());
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  const page_id_t page_id(
-      mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
-      mach_read_from_4(src + FIL_PAGE_OFFSET));
-
-  {
-    std::ostringstream msg{};
-    msg << "Encrypting page: " << page_id << " src_len: " << src_len
-        << std::endl;
-
-    ut_print_buf(msg, m_key, 32);
-    msg << std::endl;
-    ut_print_buf(msg, m_iv, 32);
-    ib::info() << msg.str();
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-  // Destination header might need to acommodate key_version and checksum after
+bool Encryption::encrypt_low(const IORequest &type, byte *src, ulint src_len,
+                             byte *dst, ulint *dst_len) noexcept {
+  // Destination header might need to accommodate key_version and checksum after
   // encryption
   const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
   const uint DST_HEADER_SIZE =
       (m_type == KEYRING && page_type == FIL_PAGE_COMPRESSED)
           ? FIL_PAGE_DATA + 8
           : FIL_PAGE_DATA;
-||||||| ee4455a33b1
-byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
-                          byte *dst, ulint *dst_len) noexcept {
-  ut_ad(m_type != NONE);
-  ut_ad(!type.is_log());
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  const page_id_t page_id(
-      mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
-      mach_read_from_4(src + FIL_PAGE_OFFSET));
-
-  {
-    std::ostringstream msg{};
-    msg << "Encrypting page: " << page_id << " src_len: " << src_len
-        << std::endl;
-
-    ut_print_buf(msg, m_key, 32);
-    msg << std::endl;
-    ut_print_buf(msg, m_iv, 32);
-    ib::info() << msg.str();
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-=======
-bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
-                             ulint *dst_len) noexcept {
-  const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
->>>>>>> mysql-8.0.23
 
   /* Shouldn't encrypt an already encrypted page. */
   ut_ad(!is_encrypted_page(src));
@@ -1367,32 +1320,44 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
 #endif
   }
 
-<<<<<<< HEAD
+  *dst_len = src_len;
+
+  return (true);
+}
+
+byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
+                          byte *dst, ulint *dst_len) noexcept {
+  /* For encrypting redo log, take another way. */
+  ut_ad(!type.is_log());
+
+#ifdef UNIV_ENCRYPT_DEBUG
+  {
+    ulint space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+    ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+
+    fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n", space_id, page_no,
+            src_len);
+    ut_print_buf(stderr, m_key, 32);
+    ut_print_buf(stderr, m_iv, 32);
+  }
+#endif /* UNIV_ENCRYPT_DEBUG */
+
+  ut_ad(m_type != NONE);
+
+  if (!encrypt_low(type, src, src_len, dst, dst_len)) {
+    return (src);
+  }
+
 #ifdef UNIV_ENCRYPT_DEBUG
 #ifndef UNIV_INNOCHECKSUM
-  if (m_type == KEYRING) {
+  {
     byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
     byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
 
     memcpy(check_buf, dst, src_len);
-||||||| ee4455a33b1
-#ifdef UNIV_ENCRYPT_DEBUG
-  auto *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-  auto *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-=======
-  *dst_len = src_len;
->>>>>>> mysql-8.0.23
 
-<<<<<<< HEAD
     fprintf(stderr, "Robert: Comparing before and after encryption");
-||||||| ee4455a33b1
-  memcpy(check_buf, dst, src_len);
-=======
-  return (true);
-}
->>>>>>> mysql-8.0.23
 
-<<<<<<< HEAD
     byte *m_key_used = m_key;
 
     if (m_type == KEYRING)  // TODO:Robert:For decryption KEYRING
@@ -1404,22 +1369,7 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
       fprintf(stderr, "Robert: After encrypting page 23:1:");
       ut_print_buf(stderr, dst, src_len);
     }
-||||||| ee4455a33b1
-  auto err = decrypt(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS ||
-      memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-             src_len - FIL_PAGE_DATA) != 0) {
-    std::ostringstream msg{};
-    ut_print_buf(msg, src, src_len);
-    ib::error() << msg.str();
-=======
-byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
-                          byte *dst, ulint *dst_len) noexcept {
-  /* For encrypting redo log, take another way. */
-  ut_ad(!type.is_log());
->>>>>>> mysql-8.0.23
 
-<<<<<<< HEAD
     if (err != DB_SUCCESS ||
         memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
                src_len - FIL_PAGE_DATA - 4) != 0) {
@@ -1443,82 +1393,21 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     }
     ut_free(buf2);
     ut_free(check_buf);
-||||||| ee4455a33b1
-    msg.seekp(0);
-=======
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    ulint space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-    ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
->>>>>>> mysql-8.0.23
-
-<<<<<<< HEAD
-    ut_ad(type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(dst, *dst_len,
-                                          type.is_page_zip_compressed(),
-                                          type.is_compressed()));
 
     ut_ad(type.is_page_zip_compressed() ||
           fil_space_verify_crypt_checksum(dst, *dst_len,
                                           type.is_page_zip_compressed(),
                                           type.is_compressed()));
-||||||| ee4455a33b1
-    ut_print_buf(msg, check_buf, src_len);
-    ib::fatal() << msg.str();
-=======
-    fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n", space_id, page_no,
-            src_len);
-    ut_print_buf(stderr, m_key, 32);
-    ut_print_buf(stderr, m_iv, 32);
->>>>>>> mysql-8.0.23
-  }
-<<<<<<< HEAD
-  fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
-
-#endif
-||||||| ee4455a33b1
-  ut_free(buf2);
-  ut_free(check_buf);
-
-  ib::info() << "Encrypted page: " << page_id;
-=======
->>>>>>> mysql-8.0.23
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  ut_ad(m_type != NONE);
-
-  if (!encrypt_low(src, src_len, dst, dst_len)) {
-    return (src);
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-
-    memcpy(check_buf, dst, src_len);
-
-<<<<<<< HEAD
-#if !defined(UNIV_INNOCHECKSUM)
-  srv_stats.pages_encrypted.inc();
-#endif
-||||||| ee4455a33b1
-=======
-    dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
-    if (err != DB_SUCCESS ||
-        memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-               src_len - FIL_PAGE_DATA) != 0) {
-      ut_print_buf(stderr, src, src_len);
-      ut_print_buf(stderr, check_buf, src_len);
-      ut_ad(0);
-    }
-    ut_free(buf2);
-    ut_free(check_buf);
 
     fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
   }
+
+#endif /* UNIV_INNOCHECKSUM */
 #endif /* UNIV_ENCRYPT_DEBUG */
->>>>>>> mysql-8.0.23
+
+#if !defined(UNIV_INNOCHECKSUM)
+  srv_stats.pages_encrypted.inc();
+#endif
   return dst;
 }
 

@@ -92,12 +92,8 @@ class Server : public xpl::iface::Server {
   void start_tasks() override;
   void start_failed() override;
   void stop() override;
-<<<<<<< HEAD
-  void reload_ssl_context() override;
-||||||| ee4455a33b1
-=======
   void gracefull_shutdown() override;
->>>>>>> mysql-8.0.23
+  void reload_ssl_context() override;
 
   void graceful_close_all_clients();
 

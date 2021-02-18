@@ -1893,6 +1893,7 @@ void warn_about_deprecated_binary(THD *thd)
         show_relaylog_events_stmt
         show_replica_status_stmt
         show_replicas_stmt
+        show_stats_stmt
         show_status_stmt
         show_table_status_stmt
         show_tables_stmt
@@ -2390,6 +2391,7 @@ simple_statement:
         | show_relaylog_events_stmt
         | show_replica_status_stmt
         | show_replicas_stmt
+        | show_stats_stmt
         | show_status_stmt
         | show_table_status_stmt
         | show_tables_stmt
@@ -13834,54 +13836,27 @@ show_privileges_stmt:
 show_grants_stmt:
           SHOW GRANTS
           {
-<<<<<<< HEAD
-            auto *tmp= NEW_PTN PT_show_grants(@$, nullptr, nullptr, false);
-            MAKE_CMD(tmp);
-||||||| ee4455a33b1
-            auto *tmp= NEW_PTN PT_show_grants(@$, nullptr, nullptr);
-            MAKE_CMD(tmp);
-=======
-            $$ = NEW_PTN PT_show_grants(@$, nullptr, nullptr);
->>>>>>> mysql-8.0.23
+            $$ = NEW_PTN PT_show_grants(@$, nullptr, nullptr, false);
           }
         | SHOW GRANTS FOR_SYM user
           {
-<<<<<<< HEAD
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, nullptr, false);
-            MAKE_CMD(tmp);
-||||||| ee4455a33b1
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, nullptr);
-            MAKE_CMD(tmp);
-=======
-            $$ = NEW_PTN PT_show_grants(@$, $4, nullptr);
->>>>>>> mysql-8.0.23
+            $$ = NEW_PTN PT_show_grants(@$, $4, nullptr, false);
           }
         | SHOW GRANTS FOR_SYM user USING user_list
           {
-<<<<<<< HEAD
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, $5, false);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_grants(@$, $4, $6, false);
           }
-        | EFFECTIVE_SYM GRANTS
+        | SHOW EFFECTIVE_SYM GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_grants(@$, 0, 0, true);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_grants(@$, nullptr, nullptr, true);
           }
-        | EFFECTIVE_SYM GRANTS FOR_SYM user
+        | SHOW EFFECTIVE_SYM GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_grants(@$, $4, 0, true);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_grants(@$, $5, nullptr, true);
           }
-        | EFFECTIVE_SYM GRANTS FOR_SYM user USING user_list
+        | SHOW EFFECTIVE_SYM GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_grants(@$, $4, $6, true);
-            MAKE_CMD(tmp);
-||||||| ee4455a33b1
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, $5);
-            MAKE_CMD(tmp);
-=======
-            $$ = NEW_PTN PT_show_grants(@$, $4, $6);
->>>>>>> mysql-8.0.23
+            $$ = NEW_PTN PT_show_grants(@$, $5, $7, true);
           }
         ;
 
@@ -13920,41 +13895,32 @@ show_replica_status_stmt:
               push_deprecated_warn(YYTHD, "SHOW SLAVE STATUS", "SHOW REPLICA STATUS");
             $$ = NEW_PTN PT_show_replica_status(@$, $4);
           }
-<<<<<<< HEAD
-        | CLIENT_STATS_SYM opt_wild_or_where
+        ;
+show_stats_stmt:
+          SHOW CLIENT_STATS_SYM opt_wild_or_where
           {
-           auto *p= NEW_PTN PT_show_client_stats(@$, $2.wild, $2.where);
-           MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_client_stats(@$, $3.wild, $3.where);
           }
-        | USER_STATS_SYM opt_wild_or_where
+        | SHOW USER_STATS_SYM opt_wild_or_where
           {
-           auto *p= NEW_PTN PT_show_user_stats(@$, $2.wild, $2.where);
-           MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_user_stats(@$, $3.wild, $3.where);
           }
-        | THREAD_STATS_SYM opt_wild_or_where
+        | SHOW THREAD_STATS_SYM opt_wild_or_where
           {
-           auto *p= NEW_PTN PT_show_thread_stats(@$, $2.wild, $2.where);
-           MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_thread_stats(@$, $3.wild, $3.where);
           }
-        | TABLE_STATS_SYM opt_wild_or_where
+        | SHOW TABLE_STATS_SYM opt_wild_or_where
           {
-           auto *p= NEW_PTN PT_show_table_stats(@$, $2.wild, $2.where);
-           MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_table_stats(@$, $3.wild, $3.where);
           }
-        | INDEX_STATS_SYM opt_wild_or_where
+        | SHOW INDEX_STATS_SYM opt_wild_or_where
           {
-           auto *p= NEW_PTN PT_show_index_stats(@$, $2.wild, $2.where);
-           MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_index_stats(@$, $3.wild, $3.where);
           }
-        | CREATE PROCEDURE_SYM sp_name
-||||||| ee4455a33b1
-        | CREATE PROCEDURE_SYM sp_name
-=======
         ;
 
 show_create_procedure_stmt:
           SHOW CREATE PROCEDURE_SYM sp_name
->>>>>>> mysql-8.0.23
           {
             $$ = NEW_PTN PT_show_create_procedure(@$, $4);
           }
@@ -14359,15 +14325,9 @@ reset_option:
             if (!(YYTHD)->global_read_lock.is_acquired())
               Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK;
           }
-<<<<<<< HEAD
-          master_reset_options
+          source_reset_options
         | CHANGED_PAGE_BITMAPS_SYM
           { Lex->type |= REFRESH_RESET_PAGE_BITMAPS; }
-||||||| ee4455a33b1
-          master_reset_options
-=======
-          source_reset_options
->>>>>>> mysql-8.0.23
         ;
 
 opt_replica_reset_options:

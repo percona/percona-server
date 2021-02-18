@@ -1093,7 +1093,7 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
   fil_space_t *space = fil_space_acquire_for_io_with_load(recv_addr->space);
   const page_size_t page_size(space->flags);
 
-  if (space && space->is_encrypted) {
+  if (space && space->is_space_encrypted) {
     /* found space that cannot be decrypted, abort processing REDO */
     recv_sys->found_corrupt_log = true;
     fil_space_release_for_io(space);
@@ -1659,7 +1659,6 @@ static byte *recv_parse_or_apply_log_rec_body(
         if (page_no == 0 && !applying_redo &&
             /* For cloned db header page has the encryption information. */
             !recv_sys->is_cloned_db) {
-<<<<<<< HEAD
           byte *ptr_copy = ptr;
           ptr_copy += 2;  // skip offset
           ulint len = mach_read_from_2(ptr_copy);
@@ -1675,7 +1674,9 @@ static byte *recv_parse_or_apply_log_rec_body(
             if (fsp_is_system_or_temp_tablespace(space_id)) {
               break;
             }
-            return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id));
+            ut_ad(LSN_MAX != start_lsn);
+            return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
+                                                   start_lsn));
           } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
                             Encryption::MAGIC_SIZE) == 0 &&
                      !recv_sys->apply_log_recs) {
@@ -1690,13 +1691,6 @@ static byte *recv_parse_or_apply_log_rec_body(
             return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len,
                                                   recv_needed_recovery));
           }
-||||||| ee4455a33b1
-          return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id));
-=======
-          ut_ad(LSN_MAX != start_lsn);
-          return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
-                                                 start_lsn));
->>>>>>> mysql-8.0.23
         }
         break;
 #ifdef UNIV_HOTBACKUP

@@ -161,17 +161,9 @@ void Client::activate_tls() {
   const auto real_connect_timeout =
       std::min<uint32_t>(connect_timeout, m_read_timeout);
 
-<<<<<<< HEAD:plugin/x/ngs/src/client.cc
-  m_ssl = m_server.ssl_context();
+  m_ssl = m_server->ssl_context();
 
   if (m_ssl->activate_tls(&connection(), real_connect_timeout)) {
-||||||| ee4455a33b1:plugin/x/ngs/src/client.cc
-  if (m_server.ssl_context()->activate_tls(&connection(),
-                                           real_connect_timeout)) {
-=======
-  if (m_server->ssl_context()->activate_tls(&connection(),
-                                            real_connect_timeout)) {
->>>>>>> mysql-8.0.23:plugin/x/src/ngs/client.cc
     session()->mark_as_tls_session();
   } else {
     log_debug("%s: Error during SSL handshake", client_id());

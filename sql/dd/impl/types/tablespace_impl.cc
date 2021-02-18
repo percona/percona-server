@@ -87,15 +87,8 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
-<<<<<<< HEAD
 static const std::set<String_type> default_valid_option_keys = {
-    "encryption", "explicit_encryption"};
-||||||| ee4455a33b1
-static const std::set<String_type> default_valid_option_keys = {"encryption"};
-=======
-static const std::set<String_type> default_valid_option_keys = {
-    "encryption", "autoextend_size"};
->>>>>>> mysql-8.0.23
+    "encryption", "autoextend_size", "explicit_encryption"};
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.

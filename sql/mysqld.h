@@ -649,14 +649,10 @@ extern PSI_stage_info stage_waiting_for_no_channel_reference;
 extern PSI_stage_info stage_hook_begin_trans;
 extern PSI_stage_info stage_binlog_transaction_compress;
 extern PSI_stage_info stage_binlog_transaction_decompress;
-<<<<<<< HEAD
-extern PSI_stage_info stage_restoring_secondary_keys;
-||||||| ee4455a33b1
-=======
 extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
 extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
 extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
->>>>>>> mysql-8.0.23
+extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

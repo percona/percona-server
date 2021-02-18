@@ -459,32 +459,6 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
     return (output);
   }
 
-<<<<<<< HEAD
-  /* It is possible for a space flag to be updated for encryption in the
-  ibd file, but the server crashed before DD flags are updated. Exclude
-  encryption flags for that scenario.
-
-  This is safe because m_encryption_op_in_progress will always be set to
-  NONE unless there is a crash before Encryption is finished. */
-  if (m_encryption_op_in_progress == ENCRYPTION &&
-      !((m_flags ^ flags) &
-        ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
-          FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-    output.error = DB_SUCCESS;
-    return (output);
-||||||| ee4455a33b1
-  /* It is possible for a space flag to be updated for encryption in the
-  ibd file, but the server crashed before DD flags are updated. Exclude
-  encryption flags for that scenario.
-
-  This is safe because m_encryption_op_in_progress will always be set to
-  NONE unless there is a crash before Encryption is finished. */
-  if (m_encryption_op_in_progress == ENCRYPTION &&
-      !((m_flags ^ flags) &
-        ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
-          FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-    return (DB_SUCCESS);
-=======
   /* For a shared tablesapce, it is possible that encryption flag updated in
   the ibd file, but the server crashed before DD flags are updated. Exclude
   encryption flags for that scenario. */
@@ -499,9 +473,9 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
     if (!((m_flags ^ flags) &
           ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
             FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-      return (DB_SUCCESS);
+      output.error = DB_SUCCESS;
+      return output;
     }
->>>>>>> mysql-8.0.23
   }
 
   /* else do not use this tablespace. */
@@ -550,16 +524,9 @@ Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
     default:
       /* For encryption tablespace, we skip the retry step,
       since it is only because the keyring is not ready. */
-<<<<<<< HEAD
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
-        return (output);
-||||||| ee4455a33b1
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
-        return (err);
-=======
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && (err != DB_CORRUPTION)) {
-        return (err);
->>>>>>> mysql-8.0.23
+      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) &&
+          (output.error != DB_CORRUPTION)) {
+        return output;
       }
 
       /* Re-open the file in read-write mode  Attempt to restore

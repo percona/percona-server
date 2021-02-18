@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, 2017, Percona Inc.
-||||||| ee4455a33b1
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.23
+Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -113,7 +105,7 @@ struct Block {
   byte *m_ptr;
   /** This padding is needed to avoid false sharing. TBD: of what exactly? We
   can't use alignas because std::vector<Block> uses std::allocator which in
-  C++14 doesn't have to handle overaligned types. (see § 20.7.9.1.5 of N4140
+  C++14 doesn't have to handle overaligned types. (see 20.7.9.1.5 of N4140
   draft) */
   byte pad[ut::INNODB_CACHE_LINE_SIZE];
   std::atomic<bool> m_in_use;
@@ -358,17 +350,11 @@ class IORequest {
       : m_block_size(UNIV_SECTOR_SIZE),
         m_type(READ),
         m_compression(),
-<<<<<<< HEAD
-        m_encryption(),
-        m_is_page_zip_compressed(false),
-        m_zip_page_physical_size(0) {
-||||||| ee4455a33b1
-        m_encryption() {
-=======
         m_encryption(),
         m_eblock(nullptr),
-        m_elen(0) {
->>>>>>> mysql-8.0.23
+        m_elen(0),
+        m_is_page_zip_compressed(false),
+        m_zip_page_physical_size(0) {
     /* No op */
   }
 
@@ -379,17 +365,11 @@ class IORequest {
       : m_block_size(UNIV_SECTOR_SIZE),
         m_type(static_cast<uint16_t>(type)),
         m_compression(),
-<<<<<<< HEAD
-        m_encryption(),
-        m_is_page_zip_compressed(false),
-        m_zip_page_physical_size(0) {
-||||||| ee4455a33b1
-        m_encryption() {
-=======
         m_encryption(),
         m_eblock(nullptr),
-        m_elen(0) {
->>>>>>> mysql-8.0.23
+        m_elen(0),
+        m_is_page_zip_compressed(false),
+        m_zip_page_physical_size(0) {
     if (is_log()) {
       disable_compression();
     }
@@ -716,15 +696,6 @@ class IORequest {
   Compression m_compression{};
 
   /** Encryption algorithm */
-<<<<<<< HEAD
-  Encryption m_encryption;
-
-  bool m_is_page_zip_compressed;
-
-  ulint m_zip_page_physical_size;
-||||||| ee4455a33b1
-  Encryption m_encryption;
-=======
   Encryption m_encryption{};
 
   /** The encrypted block. */
@@ -732,7 +703,10 @@ class IORequest {
 
   /** The length of data in encrypted block. */
   uint32_t m_elen{};
->>>>>>> mysql-8.0.23
+
+  bool m_is_page_zip_compressed;
+
+  ulint m_zip_page_physical_size;
 };
 
 /** @} */
@@ -2148,12 +2122,6 @@ byte *os_block_get_frame(const file::Block *block) noexcept
 @param[in,out]	block		The block to free/release */
 void os_free_block(file::Block *block) noexcept;
 
-<<<<<<< HEAD
-/** Submit buffered AIO requests on the given segment to the kernel. */
-void os_aio_dispatch_read_array_submit();
-
-||||||| ee4455a33b1
-=======
 inline void file::Block::free(file::Block *obj) noexcept { os_free_block(obj); }
 
 /** Encrypt a page content when write it to disk.
@@ -2188,7 +2156,9 @@ dberr_t os_file_write_retry(IORequest &type, const char *name,
                             pfs_os_file_t file, const void *buf,
                             os_offset_t offset, ulint n);
 
->>>>>>> mysql-8.0.23
+/** Submit buffered AIO requests on the given segment to the kernel. */
+void os_aio_dispatch_read_array_submit();
+
 #include "os0file.ic"
 #endif /* UNIV_NONINL */
 

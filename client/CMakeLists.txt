@@ -39,14 +39,8 @@ MYSQL_ADD_EXECUTABLE(mysql
   mysql.cc
   pattern_matcher.cc
   readline.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
-||||||| ee4455a33b1
-  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
-=======
   client_query_attributes.cc
-  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
->>>>>>> mysql-8.0.23
+  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
   )
 
 IF(NOT WITHOUT_SERVER)
@@ -73,13 +67,8 @@ MYSQL_ADD_EXECUTABLE(mysqltest
   mysqltest/regular_expressions.cc
   mysqltest/secondary_engine.cc
   mysqltest/utils.cc
-<<<<<<< HEAD
-||||||| ee4455a33b1
-
-=======
   client_query_attributes.cc
 
->>>>>>> mysql-8.0.23
   COMPONENT Test
   DEPENDENCIES GenError GenClientError
   ENABLE_EXPORTS
@@ -232,7 +221,7 @@ SET(MYSQLBINLOG_SOURCES
 SET(MYSQLBINLOG_LIBRARIES
   binlogevents_static
   client_base
-  mysqlclient
+  perconaserverclient
   )
 
 IF(WITH_JSON_BINLOG_LIBRARY)
@@ -244,13 +233,7 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(mysqlbinlog
   ${MYSQLBINLOG_SOURCES}
   DEPENDENCIES GenError
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient client_base binlogevents_static
-||||||| ee4455a33b1
-  LINK_LIBRARIES mysqlclient client_base binlogevents_static
-=======
   LINK_LIBRARIES ${MYSQLBINLOG_LIBRARIES}
->>>>>>> mysql-8.0.23
   )
 
 IF(WITH_JSON_BINLOG_LIBRARY)

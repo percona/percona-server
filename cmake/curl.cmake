@@ -130,61 +130,12 @@ ENDMACRO()
 
 
 MACRO(MYSQL_CHECK_CURL)
-<<<<<<< HEAD
-  IF(NOT WITH_CURL)
-    SET(WITH_CURL "system"
-      CACHE STRING "By default use system curl on this platform")
-  ENDIF()
-
-  IF(WITH_CURL STREQUAL "system")
-    #  FindCURL.cmake will set
-    #  CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.
-    #  CURL_LIBRARIES      - List of libraries when using curl.
-    #  CURL_FOUND          - True if curl found.
-    #  CURL_VERSION_STRING - the version of curl found (since CMake 2.8.8)
-    FIND_PACKAGE(CURL)
-    IF(CURL_FOUND AND
-        CURL_LIBRARIES AND
-        NOT CURL_LIBRARIES MATCHES "CURL_LIBRARY-NOTFOUND" AND
-        NOT CURL_INCLUDE_DIRS MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
-      SET(CURL_LIBRARY ${CURL_LIBRARIES} CACHE FILEPATH "Curl library")
-      SET(CURL_INCLUDE_DIR ${CURL_INCLUDE_DIRS} CACHE PATH "Curl include")
-      GET_CURL_VERSION()
-    ELSE()
-      SET(CURL_LIBRARY "")
-      SET(CURL_INCLUDE_DIR "")
-    ENDIF()
-    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
-    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
-||||||| ee4455a33b1
-  IF(WITH_CURL STREQUAL "system")
-    #  FindCURL.cmake will set
-    #  CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.
-    #  CURL_LIBRARIES      - List of libraries when using curl.
-    #  CURL_FOUND          - True if curl found.
-    #  CURL_VERSION_STRING - the version of curl found (since CMake 2.8.8)
-    FIND_PACKAGE(CURL)
-    IF(CURL_FOUND AND
-        CURL_LIBRARIES AND
-        NOT CURL_LIBRARIES MATCHES "CURL_LIBRARY-NOTFOUND" AND
-        NOT CURL_INCLUDE_DIRS MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
-      SET(CURL_LIBRARY ${CURL_LIBRARIES} CACHE FILEPATH "Curl library")
-      SET(CURL_INCLUDE_DIR ${CURL_INCLUDE_DIRS} CACHE PATH "Curl include")
-      GET_CURL_VERSION()
-    ELSE()
-      SET(CURL_LIBRARY "")
-      SET(CURL_INCLUDE_DIR "")
-    ENDIF()
-    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
-    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
-=======
   # Map 0 | no | off to "none".
   IF(DEFINED WITH_CURL AND NOT WITH_CURL)
     SET(WITH_CURL "none")
     SET(WITH_CURL "none" CACHE STRING "${WITH_CURL_DOC_STRING}" FORCE)
     RESET_CURL_VARIABLES()
   ENDIF()
->>>>>>> mysql-8.0.23
 
   # Use "none" by default on win, "system" on other platforms.
   IF(NOT DEFINED WITH_CURL)
@@ -199,82 +150,7 @@ MACRO(MYSQL_CHECK_CURL)
     MESSAGE(STATUS "WITH_CURL=none, not using any curl library.")
     RESET_CURL_VARIABLES()
   ELSEIF(WITH_CURL)
-<<<<<<< HEAD
-    # Explicit path given. Normalize path for the following regex replace.
-    FILE(TO_CMAKE_PATH "${WITH_CURL}" WITH_CURL)
-    # Pushbuild adds /lib to the CURL path
-    STRING(REGEX REPLACE "/lib$" "" WITH_CURL "${WITH_CURL}")
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    FIND_LIBRARY(CURL_LIBRARY
-      NAMES curl libcurl
-      PATHS ${WITH_CURL} ${WITH_CURL}/lib
-      NO_DEFAULT_PATH
-      NO_CMAKE_ENVIRONMENT_PATH
-      NO_SYSTEM_ENVIRONMENT_PATH
-      )
-    CHECK_INCLUDE_FILE_CXX(${WITH_CURL}/include/curl/curl.h HAVE_CURL_HEADERS)
-    IF (CURL_LIBRARY AND HAVE_CURL_HEADERS)
-      SET(CURL_FOUND TRUE)
-      SET(CURL_INCLUDE_DIRS ${WITH_CURL}/include)
-    ELSE()  
-      SET(CURL_FOUND FALSE)
-    ENDIF()
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    IF(CURL_LIBRARY MATCHES "CURL_LIBRARY-NOTFOUND")
-      MESSAGE(FATAL_ERROR "CURL library not found under '${WITH_CURL}'")
-    ENDIF()
-    FIND_PATH(CURL_INCLUDE_DIR
-      NAMES curl/curl.h
-      PATHS ${WITH_CURL} ${WITH_CURL}/include
-      NO_DEFAULT_PATH
-      NO_CMAKE_ENVIRONMENT_PATH
-      NO_SYSTEM_ENVIRONMENT_PATH
-      )
-    IF(CURL_INCLUDE_DIR MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
-      MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
-    ENDIF()
-    SET(WITH_CURL_PATH ${WITH_CURL} CACHE PATH "path to CURL installation")
-    SET(WITH_CURL_PATH ${WITH_CURL})
-    GET_CURL_VERSION()
-    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
-    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
-
-||||||| ee4455a33b1
-    # Explicit path given. Normalize path for the following regex replace.
-    FILE(TO_CMAKE_PATH "${WITH_CURL}" WITH_CURL)
-    # Pushbuild adds /lib to the CURL path
-    STRING(REGEX REPLACE "/lib$" "" WITH_CURL "${WITH_CURL}")
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    FIND_LIBRARY(CURL_LIBRARY
-      NAMES curl libcurl
-      PATHS ${WITH_CURL} ${WITH_CURL}/lib
-      NO_DEFAULT_PATH
-      NO_CMAKE_ENVIRONMENT_PATH
-      NO_SYSTEM_ENVIRONMENT_PATH
-      )
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    IF(CURL_LIBRARY MATCHES "CURL_LIBRARY-NOTFOUND")
-      MESSAGE(FATAL_ERROR "CURL library not found under '${WITH_CURL}'")
-    ENDIF()
-    FIND_PATH(CURL_INCLUDE_DIR
-      NAMES curl/curl.h
-      PATHS ${WITH_CURL} ${WITH_CURL}/include
-      NO_DEFAULT_PATH
-      NO_CMAKE_ENVIRONMENT_PATH
-      NO_SYSTEM_ENVIRONMENT_PATH
-      )
-    IF(CURL_INCLUDE_DIR MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
-      MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
-    ENDIF()
-    SET(WITH_CURL_PATH ${WITH_CURL} CACHE PATH "path to CURL installation")
-    SET(WITH_CURL_PATH ${WITH_CURL})
-    GET_CURL_VERSION()
-    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
-    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
-
-=======
     FIND_CUSTOM_CURL()
->>>>>>> mysql-8.0.23
   ELSE()
     MESSAGE(WARNING "No WITH_CURL has been set.")
     SET(CURL_LIBRARY "")
@@ -286,6 +162,7 @@ MACRO(MYSQL_CHECK_CURL)
   MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
   MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
 ENDMACRO()
+
 
 MACRO(MYSQL_CHECK_CURL_DLLS)
 

@@ -28,14 +28,10 @@
   Instrumentation helpers for idle waits.
 */
 
-<<<<<<< HEAD
 #include "my_compiler.h"
-||||||| ee4455a33b1
-=======
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
 
->>>>>>> mysql-8.0.23
 #include "mysql/psi/psi_idle.h"
 
 #if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)

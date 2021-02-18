@@ -576,27 +576,21 @@
     "dd_version": X,
     "sdi_version": X,
     "dd_object_type": "Tablespace",
-    "dd_object": {
+      "dd_object": {
         "name": "ts1",
         "comment": "",
-<<<<<<< HEAD
-        "options": "encryption=N;explicit_encryption=0;",
-||||||| ee4455a33b1
-        "options": "encryption=N;",
-=======
-        "options": "autoextend_size=0;encryption=N;",
->>>>>>> mysql-8.0.23
+        "options": "autoextend_size=0;encryption=N;explicit_encryption=0;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
         "engine_attribute": "",
         "files": [
-            {
-                "ordinal_position": 1,
-                "filename": "ts1.ibd",
-                "se_private_data": ""
-            }
+          {
+            "ordinal_position": 1,
+            "filename": "ts1.ibd",
+            "se_private_data": ""
+          }
         ]
-    }
+      }
 }
 }
 ]

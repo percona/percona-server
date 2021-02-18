@@ -79,16 +79,6 @@ UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
 UT_MUTEX_TYPE(TTASFutexMutex, AggregateMutexStatsPolicy, BlockFutexMutex)
 #endif /* HAVE_IB_LINUX_FUTEX */
 
-<<<<<<< HEAD
-UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
-UT_MUTEX_TYPE(TTASMutex, AggregateMutexStatsPolicy, BlockSpinMutex)
-
-||||||| ee4455a33b1
-UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
-
-=======
->>>>>>> mysql-8.0.23
 UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
 UT_MUTEX_TYPE(OSTrackMutex, AggregateMutexStatsPolicy, BlockSysMutex)
 

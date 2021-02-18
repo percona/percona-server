@@ -3,14 +3,8 @@
 ## Test mysqlxtest executable help printout
 ##
 
-<<<<<<< HEAD
 Copyright DATE Percona LLC and/or its affiliates
-Copyright DATE Oracle and/or its affiliates. All rights reserved.
-||||||| ee4455a33b1
-Copyright DATE Oracle and/or its affiliates. All rights reserved.
-=======
 Copyright DATE Oracle and/or its affiliates.
->>>>>>> mysql-8.0.23
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective

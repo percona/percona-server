@@ -3408,60 +3408,6 @@ static bool buf_debug_execute_is_force_flush() {
 @param trx	Transaction to account the I/Os to */
 static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
   /* Note:
-<<<<<<< HEAD
-
-  We are using the block->lock to check for IO state (and a dirty read).
-  We set the IO_READ state under the protection of the hash_lock
-  (and block->mutex). This is safe because another thread can only
-  access the block (and check for IO state) after the block has been
-  added to the page hashtable. */
-
-  if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-    /* Wait until the read operation completes */
-
-    const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, 0);
-
-    for (;;) {
-      if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-        /* Wait by temporaly s-latch */
-        if (rw_lock_s_lock_low(&block->lock, 0, __FILE__, __LINE__)) {
-          rw_lock_s_unlock(&block->lock);
-        } else {
-          /* If we can't acquire the latch in S mode then the IO thread
-          must have read the page in. */
-          os_thread_sleep(20);
-        }
-      } else {
-        break;
-      }
-    }
-
-    trx_stats::end_io_read(trx, start_time);
-||||||| ee4455a33b1
-
-  We are using the block->lock to check for IO state (and a dirty read).
-  We set the IO_READ state under the protection of the hash_lock
-  (and block->mutex). This is safe because another thread can only
-  access the block (and check for IO state) after the block has been
-  added to the page hashtable. */
-
-  if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-    /* Wait until the read operation completes */
-    for (;;) {
-      if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-        /* Wait by temporaly s-latch */
-        if (rw_lock_s_lock_low(&block->lock, 0, __FILE__, __LINE__)) {
-          rw_lock_s_unlock(&block->lock);
-        } else {
-          /* If we can't acquire the latch in S mode then the IO thread
-          must have read the page in. */
-          os_thread_sleep(20);
-        }
-      } else {
-        break;
-      }
-    }
-=======
   This unlocked read of IO fix is safe as we have the block buf-fixed. The page
   can only transition away from the IO_READ state, and once this is done, it
   will not be IO_READ again as long as we have it buf-fixed.
@@ -3469,14 +3415,16 @@ static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
   The read of the io fix will not be optimized out in this loop, as rw_lock
   result in a memory barrier, which causes compiler to be
   unable to do so.*/
+  ib_time_monotonic_us_t start_time = 0;
   while (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
+    if (start_time == 0) start_time = trx_stats::start_io_read(trx, 0);
     /* Page is X-latched on block->lock until the read is completed.
     Let's just wait for S-lock on block->lock, it will be granted as soon as the
     read completes. */
     rw_lock_s_lock(&block->lock);
     rw_lock_s_unlock(&block->lock);
->>>>>>> mysql-8.0.23
   }
+  if (start_time != 0) trx_stats::end_io_read(trx, start_time);
 }
 
 /** This class implements the rules for fetching the pages from the buffer
@@ -4186,7 +4134,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
     if (is_optimistic()) {
       const auto bpage = &block->page;
 
-      const auto state = buf_page_get_io_fix(bpage);
+      const auto state = buf_page_get_io_fix_unlocked(bpage);
 
       if (state == BUF_IO_READ) {
         /* The page is being read to buffer pool, but we cannot wait around for
@@ -4320,14 +4268,10 @@ buf_block_t *Buf_fetch<T>::single_page() {
   ut_ad(!rw_lock_own(m_hash_lock, RW_LOCK_X));
   ut_ad(!rw_lock_own(m_hash_lock, RW_LOCK_S));
 
-<<<<<<< HEAD
-  trx_stats::inc_page_get(m_trx, block->page.id.fold());
-
-||||||| ee4455a33b1
-=======
   ut_a(!block->page.was_stale());
 
->>>>>>> mysql-8.0.23
+  trx_stats::inc_page_get(m_trx, block->page.id.fold());
+
   return (block);
 }
 
@@ -4682,17 +4626,12 @@ static void buf_page_init_low(buf_page_t *bpage) noexcept {
 
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->io_fix = BUF_IO_NONE;
-<<<<<<< HEAD
   ut_a(bpage->buf_fix_count == 0);
-||||||| ee4455a33b1
-  bpage->buf_fix_count = 0;
-=======
   bpage->buf_fix_count.store(0);
->>>>>>> mysql-8.0.23
   bpage->freed_page_clock = 0;
   bpage->access_time = 0;
   bpage->set_newest_lsn(0);
-  bpage->set_clean();
+  bpage->set_clean_low();
 
   HASH_INVALIDATE(bpage, hash);
   bpage->is_corrupt = false;
@@ -5623,8 +5562,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
         !recv_no_ibuf_operations &&
         fil_page_get_type(frame) == FIL_PAGE_INDEX && page_is_leaf(frame) &&
         !fsp_is_system_temporary(bpage->id.space()) &&
-<<<<<<< HEAD
-        !fsp_is_undo_tablespace(bpage->id.space())) {
+        !fsp_is_undo_tablespace(bpage->id.space()) && !bpage->was_stale()) {
       buf_block_t *block;
       bool update_ibuf_bitmap;
 
@@ -5637,15 +5575,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       }
       ibuf_merge_or_delete_for_page(block, bpage->id, &bpage->size,
                                     update_ibuf_bitmap);
-||||||| ee4455a33b1
-        !fsp_is_undo_tablespace(bpage->id.space())) {
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, TRUE);
-=======
-        !fsp_is_undo_tablespace(bpage->id.space()) && !bpage->was_stale()) {
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, TRUE);
->>>>>>> mysql-8.0.23
     }
     fil_space_release_for_io(space);
   }

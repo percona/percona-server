@@ -309,15 +309,8 @@ class Binlog_sender {
      @retval 0 Succeed
      @retval 1 Fail
   */
-<<<<<<< HEAD
-  inline int read_event(File_reader *reader, uchar **event_ptr,
-                        uint32 *event_len, bool readahead = false);
-||||||| ee4455a33b1
-  inline int read_event(File_reader *reader, uchar **event_ptr,
-                        uint32 *event_len);
-=======
-  int read_event(File_reader *reader, uchar **event_ptr, uint32 *event_len);
->>>>>>> mysql-8.0.23
+  int read_event(File_reader *reader, uchar **event_ptr, uint32 *event_len,
+                 bool readahead = false);
   /**
     Check if it is allowed to send this event type.
 

@@ -560,13 +560,14 @@ class Encryption {
   /** Encrypt the page data contents. Page type can't be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
   FIL_PAGE_ENCRYPTED_RTREE.
+  @param[in]  type      IORequest
   @param[in]  src       page data which need to encrypt
   @param[in]  src_len   size of the source in bytes
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return true if operation successful, false otherwise. */
-  bool encrypt_low(byte *src, ulint src_len, byte *dst, ulint *dst_len) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  bool encrypt_low(const IORequest &type, byte *src, ulint src_len, byte *dst,
+                   ulint *dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
 
   /** Encrypt type */
   Type m_type;

@@ -49,16 +49,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in,out]	trx	transaction instance
 @param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
 dberr_t dict_build_table_def(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
-||||||| ee4455a33b1
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx);
-=======
-dberr_t dict_build_table_def(dict_table_t *table,
-                             const HA_CREATE_INFO *create_info, trx_t *trx);
->>>>>>> mysql-8.0.23
 
 /** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
@@ -74,17 +68,10 @@ dberr_t dict_build_tablespace(
 @param[in,out]	trx	Transaction
 @param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
 dberr_t dict_build_tablespace_for_table(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
-||||||| ee4455a33b1
-dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx);
-=======
-dberr_t dict_build_tablespace_for_table(dict_table_t *table,
-                                        const HA_CREATE_INFO *create_info,
-                                        trx_t *trx);
->>>>>>> mysql-8.0.23
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID

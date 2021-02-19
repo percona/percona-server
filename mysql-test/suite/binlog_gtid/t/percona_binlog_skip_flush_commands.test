@@ -14,6 +14,9 @@ CREATE USER 'wo_reload'@'localhost';
 GRANT ALL PRIVILEGES ON *.* TO 'wo_reload'@'localhost';
 REVOKE SUPER ON *.* FROM 'wo_reload'@'localhost';
 REVOKE RELOAD ON *.* FROM 'wo_reload'@'localhost';
+REVOKE FLUSH_OPTIMIZER_COSTS ON *.* FROM 'wo_reload'@'localhost';
+REVOKE FLUSH_STATUS ON *.* FROM 'wo_reload'@'localhost';
+REVOKE FLUSH_USER_RESOURCES ON *.* FROM 'wo_reload'@'localhost';
 
 # creating a user without SUPER privilege
 CREATE USER 'wo_super'@'localhost';

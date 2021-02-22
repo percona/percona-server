@@ -1338,21 +1338,21 @@ GET_LOCK('t', 1000)
 SET NAMES latin1;
 SELECT GET_LOCK('t',1000) AS 'óóóó';;
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info    Rows_sent       Rows_examined
-###	1287	###    ###     ###
-###	event_scheduler	###	NULL	Daemon	###	###	NULL    ###     ###
-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'    ###     ###
-###	root	###	test	Query	###	###	SHOW PROCESSLIST    ###     ###
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	1287	###
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	###	###
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'	###	###	###
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
 Warnings:
 SET NAMES utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info    Rows_sent       Rows_examined
-###	1287	###    ###     ###
-###	event_scheduler	###	NULL	Daemon	###	###	NULL    ###     ###
-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'    ###     ###
-###	root	###	test	Query	###	###	SHOW PROCESSLIST    ###     ###
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	1287	###
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	###	###
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'	###	###	###
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
 Warnings:
 SELECT RELEASE_LOCK('t');
 RELEASE_LOCK('t')

@@ -480,6 +480,9 @@ build_srpm(){
     cd ${WORKDIR}/rpmbuild/SPECS
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
+    sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
+    sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
+    #
     cd ${WORKDIR}/rpmbuild/SOURCES
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3

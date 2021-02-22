@@ -95,6 +95,12 @@ void pfs_set_thread_command_vc(int command);
 
 void pfs_set_thread_start_time_vc(time_t start_time);
 
+void pfs_set_thread_start_time_usec_vc(ulonglong start_time_usec);
+
+void pfs_set_thread_rows_sent_vc(ulonglong rows_sent);
+
+void pfs_set_thread_rows_examined_vc(ulonglong rows_examined);
+
 void pfs_set_thread_state_vc(const char *state);
 
 void pfs_set_connection_type_vc(opaque_vio_type conn_type);

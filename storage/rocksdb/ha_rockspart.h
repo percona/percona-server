@@ -49,5 +49,5 @@ class ha_rockspart : public native_part::Partition_base {
   bool rpl_lookup_rows() override;
 
   void set_pk_can_be_decoded_for_each_partition();
-  mutable bool m_pk_can_be_decoded = false;
+  mutable bool m_pk_can_be_decoded = true;
 };

@@ -158,6 +158,11 @@
   performance_schema tables changed in MySQL 8.0.22
   - WL#9090 created processlist
   - WL#13681 created error_log
+
+  80023:
+
+  performance_schema tables changed in Percona Server 8.0.23-14
+  - add time_ms, rows_sent and rows_examined columns to processlist
 */
 
 static const uint PFS_DD_VERSION = 80022;

@@ -9,13 +9,12 @@ Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be r
 SHOW GRANTS;
 Grants for @localhost
 GRANT USAGE ON *.* TO ``@`localhost`
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, EVENT, TRIGGER ON `test`.* TO ``@`localhost`
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT * FROM performance_schema.processlist;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 SHOW PROCESSLIST;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
 SET @@global.performance_schema_show_processlist = ON;
@@ -24,13 +23,12 @@ Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be r
 SHOW GRANTS;
 Grants for @localhost
 GRANT USAGE ON *.* TO ``@`localhost`
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, EVENT, TRIGGER ON `test`.* TO ``@`localhost`
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT * FROM performance_schema.processlist;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 SHOW PROCESSLIST;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
 GRANT PROCESS ON *.* TO ''@'localhost';
@@ -40,7 +38,6 @@ Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be r
 SHOW GRANTS;
 Grants for @localhost
 GRANT PROCESS ON *.* TO ``@`localhost`
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, EVENT, TRIGGER ON `test`.* TO ``@`localhost`
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
@@ -65,7 +62,6 @@ Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be r
 SHOW GRANTS;
 Grants for @localhost
 GRANT PROCESS ON *.* TO ``@`localhost`
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, EVENT, TRIGGER ON `test`.* TO ``@`localhost`
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1

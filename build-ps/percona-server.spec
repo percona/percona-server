@@ -413,6 +413,8 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -449,6 +451,8 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}

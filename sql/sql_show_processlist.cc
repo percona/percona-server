@@ -62,6 +62,14 @@ static const LEX_CSTRING field_state = {STRING_WITH_LEN("STATE")};
 static const LEX_CSTRING alias_state = {STRING_WITH_LEN("State")};
 static const LEX_CSTRING field_info = {STRING_WITH_LEN("INFO")};
 static const LEX_CSTRING alias_info = {STRING_WITH_LEN("Info")};
+static const LEX_CSTRING field_time_ms = {STRING_WITH_LEN("TIME_MS")};
+static const LEX_CSTRING alias_time_ms = {STRING_WITH_LEN("Time_ms")};
+static const LEX_CSTRING field_rows_sent = {STRING_WITH_LEN("ROWS_SENT")};
+static const LEX_CSTRING alias_rows_sent = {STRING_WITH_LEN("Rows_sent")};
+static const LEX_CSTRING field_rows_examined = {
+    STRING_WITH_LEN("ROWS_EXAMINED")};
+static const LEX_CSTRING alias_rows_examined = {
+    STRING_WITH_LEN("Rows_examined")};
 
 static const LEX_CSTRING pfs = {STRING_WITH_LEN("performance_schema")};
 static const LEX_CSTRING table_processlist = {STRING_WITH_LEN("processlist")};
@@ -128,7 +136,8 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
     if (lex_string_strmake(thd->mem_root, &info_len, "100", 3)) return true;
   }
 
-  /* Id, User, Host, db, Command, Time, State */
+  /* Id, User, Host, db, Command, Time, State, Time_ms,
+   * Rows_sent, Rows_examined */
   PT_select_item_list *item_list = new (thd->mem_root) PT_select_item_list(pos);
   if (item_list == nullptr) return true;
 
@@ -161,6 +170,14 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
   if (expr_left == nullptr) return true;
 
   item_list->push_back(expr_left);
+
+  if (add_expression(pos, thd, item_list, field_time_ms, alias_time_ms))
+    return true;
+  if (add_expression(pos, thd, item_list, field_rows_sent, alias_rows_sent))
+    return true;
+  if (add_expression(pos, thd, item_list, field_rows_examined,
+                     alias_rows_examined))
+    return true;
 
   /*
     make_table_list() might alter the database and table name strings. Create

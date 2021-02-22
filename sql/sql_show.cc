@@ -2761,7 +2761,7 @@ static void view_store_create_info(const THD *thd, Table_ref *table,
 
 /****************************************************************************
   Return info about all processes
-  returns for each thread: thread id, user, host, db, command, info,
+  returns for each thread: thread id, start_time, user, host, db, command, info,
   rows_sent, rows_examined
 ****************************************************************************/
 class thread_info {
@@ -2769,6 +2769,7 @@ class thread_info {
   thread_info()
       : thread_id(0),
         start_time_in_secs(0),
+        start_time_in_usecs(0),
         command(0),
         user(nullptr),
         host(nullptr),
@@ -2778,6 +2779,7 @@ class thread_info {
 
   my_thread_id thread_id;
   time_t start_time_in_secs;
+  ulonglong start_time_in_usecs;
   uint command;
   const char *user, *host, *db, *proc_info, *state_info;
   CSET_STRING query_string;
@@ -2963,6 +2965,7 @@ class List_process_list : public Do_THD_Impl {
 
     /* MYSQL_TIME */
     thd_info->start_time_in_secs = inspect_thd->query_start_in_secs();
+    thd_info->start_time_in_usecs = inspect_thd->query_start_in_usecs();
 
     m_thread_infos->push_back(thd_info);
   }
@@ -3002,6 +3005,10 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
   field->set_nullable(true);
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
   field->set_nullable(true);
+  field_list.push_back(field = new Item_return_int("Time_ms",
+                                                   MY_INT64_NUM_DECIMAL_DIGITS,
+                                                   MYSQL_TYPE_LONGLONG));
+  field->set_nullable(true);
   field_list.push_back(field = new Item_return_int("Rows_sent",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
@@ -3023,6 +3030,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
   std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
 
   time_t now = time(nullptr);
+  auto now_us = my_micro_time();
   for (size_t ix = 0; ix < thread_infos.size(); ++ix) {
     thread_info *thd_info = thread_infos.at(ix);
     protocol->start_row();
@@ -3045,6 +3053,15 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
     protocol->store(thd_info->state_info, system_charset_info);
     protocol->store(thd_info->query_string.str(),
                     thd_info->query_string.charset());
+
+    if (thd_info->start_time_in_usecs)
+      protocol->store(((thd_info->start_time_in_usecs > now_us)
+                           ? 0
+                           : now_us - thd_info->start_time_in_usecs) /
+                      1000);
+    else
+      protocol->store_null();
+
     protocol->store(thd_info->rows_sent);
     protocol->store(thd_info->rows_examined);
     if (protocol->end_row()) break; /* purecov: inspected */

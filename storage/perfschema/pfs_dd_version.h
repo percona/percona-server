@@ -170,6 +170,9 @@
   - added table
   performance_schema.replication_asynchronous_connection_failover_managed
 
+  performance_schema tables changed in Percona Server 8.0.23-14
+  - add time_ms, rows_sent and rows_examined columns to
+  performance_schema.processlist
 */
 
 static const uint PFS_DD_VERSION = 80023;

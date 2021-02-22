@@ -13,7 +13,8 @@
 #   --source ../include/processlist_load.inc
 #
 #   Columns
-#   1 <Id> 2 <User> 3 <Host> 4 <db> 5 <Command> 6 <Time> 7 <State> 8 <Info> 9 <Time_ms> 10 <Rows_sent> 11 <Rows_examined>
+#   1 <Id> 2 <User> 3 <Host> 4 <db> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+#   9 <Time_ms> 10 <Rows_sent> 11 <Rows_examined>
 
 # Sort SHOW PROCESSLIST by User instead of Id because Id is not zero-padded
 # Unique usernames give best results

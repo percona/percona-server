@@ -1,7 +1,7 @@
 "Test SHOW PROCESSLIST, column INFO"
 show processlist;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-ID	event_scheduler	HOST	NULL	Daemon	TIME	WAITING	NULL	ROWS_SENT	ROWS_EXAMINED
-ID	root	HOST	test	Query	TIME	init	show processlist	ROWS_SENT	ROWS_EXAMINED
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+ID	event_scheduler	HOST	NULL	Daemon	TIME	WAITING	NULL	TIME_MS	ROWS_SENT	ROWS_EXAMINED
+ID	root	HOST	test	Query	TIME	init	show processlist	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 Warnings:
 ID	1287	HOST

@@ -70,6 +70,12 @@ struct row_processlist {
   uint m_processlist_state_length;
   /** Column INFO. */
   const char *m_processlist_info_ptr;
+  /** Column TIME_MS. */
+  ulonglong m_start_time_usec;
+  /** Column ROWS_SENT. */
+  ulonglong m_rows_sent;
+  /** Column ROWS_EXAMINED. */
+  ulonglong m_rows_examined;
   /** Length in bytes of @c m_processlist_info_ptr. */
   uint m_processlist_info_length;
   /** Column EXECUTION_ENGINE. */

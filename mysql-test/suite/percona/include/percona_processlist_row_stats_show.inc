@@ -1,4 +1,4 @@
---replace_column 1 ### 3 ### 6 ### 7 ###
+--replace_column 1 ### 3 ### 6 ### 7 ### 9 ###
 SHOW PROCESSLIST;
 
 --replace_column 1 ###

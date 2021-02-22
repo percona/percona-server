@@ -2618,16 +2618,25 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
 void THD::set_sent_row_count(ha_rows count) {
   m_sent_row_count = count;
   MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_rows_sent)(m_sent_row_count);
+#endif
 }
 
 void THD::inc_sent_row_count(ha_rows count) {
   m_sent_row_count += count;
   MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_rows_sent)(m_sent_row_count);
+#endif
 }
 
 void THD::inc_examined_row_count(ha_rows count) {
   m_examined_row_count += count;
   MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_rows_examined)(m_examined_row_count);
+#endif
 }
 
 void THD::inc_status_created_tmp_disk_tables() {
@@ -3469,6 +3478,7 @@ void THD::set_time() {
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
+  PSI_THREAD_CALL(set_thread_start_time_usec)(query_start_in_usecs());
 #endif
 }
 

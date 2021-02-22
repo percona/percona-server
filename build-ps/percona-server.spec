@@ -868,6 +868,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
+%if 0%{?rhel} < 7
+%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
+%endif
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -1341,6 +1344,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13
+- Release 8.0.22-13
+
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - Added RocksDB
 

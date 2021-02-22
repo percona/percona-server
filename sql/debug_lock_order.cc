@@ -6647,6 +6647,24 @@ static void lo_set_thread_start_time(time_t start_time) {
   }
 }
 
+static void lo_set_thread_start_time_usec(ulonglong start_time_usec) {
+  if (g_thread_chain != nullptr) {
+    g_thread_chain->set_thread_start_time_usec(start_time_usec);
+  }
+}
+
+static void lo_set_thread_rows_sent(ulonglong rows_sent) {
+  if (g_thread_chain != nullptr) {
+    g_thread_chain->set_thread_rows_sent(rows_sent);
+  }
+}
+
+static void lo_set_thread_rows_examined(ulonglong rows_examined) {
+  if (g_thread_chain != nullptr) {
+    g_thread_chain->set_thread_rows_examined(rows_examined);
+  }
+}
+
 static void lo_set_thread_info(const char *info, uint info_len) {
   if (g_thread_chain != nullptr) {
     g_thread_chain->set_thread_info(info, info_len);
@@ -7786,6 +7804,9 @@ PSI_thread_service_v7 LO_thread_v7 = {lo_register_thread,
                                       lo_set_thread_command,
                                       lo_set_connection_type,
                                       lo_set_thread_start_time,
+                                      lo_set_thread_start_time_usec,
+                                      lo_set_thread_rows_sent,
+                                      lo_set_thread_rows_examined,
                                       lo_set_thread_info,
                                       lo_set_thread_secondary_engine,
                                       lo_set_thread_resource_group,

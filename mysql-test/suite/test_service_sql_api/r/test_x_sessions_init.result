@@ -2,9 +2,9 @@
 # Run plugin
 ##########################################
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL	0	0
-ID	root	HOST_NAME	test	Query	TIME	init	SHOW PROCESSLIST	0	0
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL	TIME_MS	0	0
+ID	root	HOST_NAME	test	Query	TIME	init	SHOW PROCESSLIST	TIME_MS	0	0
 Warnings:
 ID	1287	HOST_NAME
 INSTALL PLUGIN test_x_sessions_init SONAME 'libtest_x_sessions_init.so';
@@ -12,9 +12,9 @@ SHOW VARIABLES LIKE '%test_x_session%';
 Variable_name	Value
 test_x_sessions_init_nb_sessions	5
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL	0	0
-ID	root	HOST_NAME	test	Query	TIME	init	SHOW PROCESSLIST	0	0
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL	TIME_MS	0	0
+ID	root	HOST_NAME	test	Query	TIME	init	SHOW PROCESSLIST	TIME_MS	0	0
 Warnings:
 ID	1287	HOST_NAME
 ##########################################

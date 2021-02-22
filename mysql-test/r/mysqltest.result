@@ -1101,6 +1101,7 @@ Command	Daemon
 Time MASKED
 State	Waiting on empty queue
 Info	
+Time_ms MASKED
 Rows_sent	0
 Rows_examined	0
 ---- 2. ----
@@ -1112,6 +1113,7 @@ Command	Sleep
 Time MASKED
 State	
 Info	
+Time_ms MASKED
 Rows_sent	1
 Rows_examined	1
 ---- 3. ----
@@ -1123,6 +1125,7 @@ Command	Query
 Time MASKED
 State	init
 Info	SHOW PROCESSLIST
+Time_ms MASKED
 Rows_sent	0
 Rows_examined	0
 ========================
@@ -1145,6 +1148,7 @@ Command	Daemon
 Time MASKED
 State	Waiting on empty queue
 Info	
+Time_ms MASKED
 Rows_sent	0
 Rows_examined	0
 ---- 2. ----
@@ -1156,6 +1160,7 @@ Command	Sleep
 Time MASKED
 State	
 Info	
+Time_ms MASKED
 Rows_sent	1
 Rows_examined	1
 ---- 3. ----
@@ -1167,6 +1172,7 @@ Command	Query
 Time MASKED
 State	init
 Info	SHOW PROCESSLIST
+Time_ms MASKED
 Rows_sent	0
 Rows_examined	0
 ========================

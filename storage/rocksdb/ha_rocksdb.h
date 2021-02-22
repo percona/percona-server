@@ -181,7 +181,10 @@ class ha_rocksdb : public my_core::handler {
   uint m_pk_key_parts;
 
   /*
-    true <=> Primary Key columns can be decoded from the index
+    true <=> Primary Key columns can be decoded from the index. It should be
+    enabled by default and may be disabled in init_with_fields() after initial
+    keys info is loaded and it turns out the feature isn't supported for
+    particular table.
   */
   mutable bool m_pk_can_be_decoded;
 

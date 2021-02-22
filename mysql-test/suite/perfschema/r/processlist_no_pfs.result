@@ -133,7 +133,7 @@ select @@global.performance_schema_show_processlist;
 
 set @@global.performance_schema_show_processlist = ON;
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 
 show global variables like "performance_schema";
 Variable_name	Value

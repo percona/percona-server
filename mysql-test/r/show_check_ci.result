@@ -1045,7 +1045,7 @@ set names koi8r;
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
 use mysqltest1;
-CREATE TABLE t1(О©╫О©╫О©╫О©╫О©╫О©╫О©╫1 INT);
+CREATE TABLE t1(колонка1 INT);
 
 ---> Dumping mysqltest1 to outfile1
 
@@ -1057,7 +1057,7 @@ DROP DATABASE mysqltest1;
 SHOW CREATE TABLE mysqltest1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `О©╫О©╫О©╫О©╫О©╫О©╫О©╫1` int DEFAULT NULL
+  `колонка1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP DATABASE mysqltest1;
 use test;
@@ -1122,15 +1122,15 @@ set names latin1;
 # Character set: Latin-1 (ISO-8859-1)
 #
 SET NAMES latin1;
-CREATE DATABASE `О©╫`;
-CREATE TABLE `О©╫`.`О©╫` (a int) ENGINE=Memory;
-ANALYZE TABLE `О©╫`.`О©╫`;
+CREATE DATABASE `Д`;
+CREATE TABLE `Д`.`Д` (a int) ENGINE=Memory;
+ANALYZE TABLE `Д`.`Д`;
 Table	Op	Msg_type	Msg_text
-О©╫.О©╫	analyze	note	The storage engine for the table doesn't support analyze
-SHOW TABLE STATUS FROM `О©╫` LIKE 'О©╫';
+Д.Д	analyze	note	The storage engine for the table doesn't support analyze
+SHOW TABLE STATUS FROM `Д` LIKE 'Д';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-О©╫	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
-DROP DATABASE `О©╫`;
+Д	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+DROP DATABASE `Д`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors
 call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
@@ -1212,14 +1212,14 @@ DROP PROCEDURE IF EXISTS p1;
 DROP FUNCTION IF EXISTS f1;
 DROP TABLE IF EXISTS t1;
 DROP EVENT IF EXISTS ev1;
-CREATE VIEW v1 AS SELECT 'О©╫О©╫О©╫О©╫' AS test;
-CREATE PROCEDURE p1() SELECT 'О©╫О©╫О©╫О©╫' AS test;
-CREATE FUNCTION f1() RETURNS CHAR(10) RETURN 'О©╫О©╫О©╫О©╫';
+CREATE VIEW v1 AS SELECT 'тест' AS test;
+CREATE PROCEDURE p1() SELECT 'тест' AS test;
+CREATE FUNCTION f1() RETURNS CHAR(10) RETURN 'тест';
 CREATE TABLE t1(c1 CHAR(10));
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
-SET NEW.c1 = 'О©╫О©╫О©╫О©╫';
-CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 'О©╫О©╫О©╫О©╫' AS test;
+SET NEW.c1 = 'тест';
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 'тест' AS test;
 set names utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1337,21 +1337,21 @@ GET_LOCK('t', 1000)
 SET NAMES latin1;
 SELECT GET_LOCK('t',1000) AS 'цЁцЁцЁцЁ';;
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 ###	1287	###
-###	event_scheduler	###	NULL	Daemon	###	###	NULL
-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'цЁцЁцЁцЁ'
-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	###	###
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'цЁцЁцЁцЁ'	###	###	###
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
 Warnings:
 SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 ###	1287	###
-###	event_scheduler	###	NULL	Daemon	###	###	NULL
-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'ц┐бЁц┐бЁц┐бЁц┐бЁ'
-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	###	###
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'ц┐бЁц┐бЁц┐бЁц┐бЁ'	###	###	###
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
 Warnings:
 SELECT RELEASE_LOCK('t');
 RELEASE_LOCK('t')

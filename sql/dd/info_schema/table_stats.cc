@@ -495,7 +495,9 @@ ulonglong Table_statistics::read_stat(
   handlerton *hton = nullptr;
   const bool hton_implements_get_statistics =
       (tmp_plugin && (hton = plugin_data<handlerton *>(tmp_plugin)) &&
-       hton->get_index_column_cardinality && hton->get_table_statistics);
+       (hton->get_index_column_cardinality ||
+        stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY) &&
+       hton->get_table_statistics);
 
   // Try to get statistics without opening the table.
   if (!partition_name && hton_implements_get_statistics)

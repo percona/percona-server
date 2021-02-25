@@ -1663,23 +1663,11 @@ static byte *recv_parse_or_apply_log_rec_body(
           ptr_copy += 2;  // skip offset
           ulint len = mach_read_from_2(ptr_copy);
           ptr_copy += 2;
-          if (end_ptr < ptr_copy + len) return NULL;
+          if (end_ptr < ptr_copy + len) return nullptr;
 
-          if (memcmp(ptr_copy, Encryption::KEY_MAGIC_V1,
-                     Encryption::MAGIC_SIZE) == 0 ||
-              memcmp(ptr_copy, Encryption::KEY_MAGIC_V2,
-                     Encryption::MAGIC_SIZE) == 0 ||
-              memcmp(ptr_copy, Encryption::KEY_MAGIC_V3,
-                     Encryption::MAGIC_SIZE) == 0) {
-            if (fsp_is_system_or_temp_tablespace(space_id)) {
-              break;
-            }
-            ut_ad(LSN_MAX != start_lsn);
-            return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
-                                                   start_lsn));
-          } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
-                            Encryption::MAGIC_SIZE) == 0 &&
-                     !recv_sys->apply_log_recs) {
+          if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
+                     Encryption::MAGIC_SIZE) == 0 &&
+              !recv_sys->apply_log_recs) {
             return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len));
           } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V2,
                             Encryption::MAGIC_SIZE) == 0 &&
@@ -1691,8 +1679,15 @@ static byte *recv_parse_or_apply_log_rec_body(
             return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len,
                                                   recv_needed_recovery));
           }
+
+          if (fsp_is_system_or_temp_tablespace(space_id)) {
+            break;
+          }
+
+          ut_ad(LSN_MAX != start_lsn);
+          return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
+                                                 start_lsn));
         }
-        break;
 #ifdef UNIV_HOTBACKUP
       }
 #endif /* UNIV_HOTBACKUP */

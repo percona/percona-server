@@ -1,4 +1,3 @@
---source include/restart_mysqld.inc
 --echo See the buffer size of the default connection
 show status like 'net_buffer_length';
 

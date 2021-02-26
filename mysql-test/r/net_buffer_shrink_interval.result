@@ -1,4 +1,3 @@
-# restart
 See the buffer size of the default connection
 show status like 'net_buffer_length';
 Variable_name	Value

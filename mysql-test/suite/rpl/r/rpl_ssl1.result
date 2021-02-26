@@ -101,7 +101,7 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET SLAVE.]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
+include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.]
 include/start_slave.inc
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START SLAVE.]
 DROP TABLE IF EXISTS t1;

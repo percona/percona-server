@@ -1,3 +1,7 @@
+--echo Backup values
+set @old_net_buffer_length = @@global.net_buffer_length;
+set @old_net_buffer_shrink_interval = @@global.net_buffer_shrink_interval;
+
 --echo See the buffer size of the default connection
 --let $net_buffer_length= query_get_value(show status like 'net_buffer_length', Value, 1)
 --let $assert_text= net_buffer_length shall be 16384
@@ -156,5 +160,6 @@ DROP TABLE t1;
 --let $assert_cond= $net_buffer_length = 16384
 --source include/assert.inc
 
-set global net_buffer_length=default;
-set global net_buffer_shrink_interval=default;
+--echo Restore previous values
+set global net_buffer_length=@old_net_buffer_length;
+set global net_buffer_shrink_interval=@old_net_buffer_shrink_interval;

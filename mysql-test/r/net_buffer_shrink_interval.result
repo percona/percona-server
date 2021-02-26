@@ -1,3 +1,6 @@
+Backup values
+set @old_net_buffer_length = @@global.net_buffer_length;
+set @old_net_buffer_shrink_interval = @@global.net_buffer_shrink_interval;
 See the buffer size of the default connection
 include/assert.inc [net_buffer_length shall be 16384]
 Reduce initial buffer size for new connections
@@ -60,5 +63,6 @@ Check default connections size
 include/assert.inc [net_buffer_length shall be 16384]
 DROP TABLE t1;
 include/assert.inc [net_buffer_length shall be 16384]
-set global net_buffer_length=default;
-set global net_buffer_shrink_interval=default;
+Restore previous values
+set global net_buffer_length=@old_net_buffer_length;
+set global net_buffer_shrink_interval=@old_net_buffer_shrink_interval;

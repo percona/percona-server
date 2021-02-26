@@ -44,7 +44,7 @@ CREATE TEMPORARY TABLE TEMP1 (a int);
 --source include/assert.inc
 
 --echo
---echo # Verify that after CHANGE MASTER the innodb table and slave_open_temp_table
+--echo # Verify that after CHANGE REPLICATION SOURCE the innodb table and slave_open_temp_table
 --echo # both indicate that there is an open temp table at slave.
 --echo
 

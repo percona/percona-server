@@ -45,7 +45,7 @@ CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
 GRANT BACKUP_ADMIN ON *.* TO "rec_ssl_user";
 
-# Execute a change master here so this settings are cloned
+# Execute a change replication source here so this settings are cloned
 
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";

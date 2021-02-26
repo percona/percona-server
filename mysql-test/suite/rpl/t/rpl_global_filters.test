@@ -227,7 +227,7 @@ CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM perfo
 --echo # 8. Verify that the "channel_2" channel would copy the global
 --echo # replication filters to its own per-channel replication
 --echo # filters with the same values of CONFIGURED_BY when it
---echo # is created by CHANGE MASTER TO ... FOR CHANNEL.
+--echo # is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
 --echo # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
 --echo # will be removed from the P_S table.
 --echo #

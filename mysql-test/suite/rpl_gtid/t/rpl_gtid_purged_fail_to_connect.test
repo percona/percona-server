@@ -12,8 +12,8 @@
 # 3) On master, generate a transaction, flush the binary log and execute PURGE
 #    BINARY LOGS TO command so that only remaining binlog only contains
 #    transaction UUID:3.
-# 4) Verify that the slave fails if it tries to connect using CHANGE MASTER TO
-#    MASTER_AUTO_POSITION=1.
+# 4) Verify that the slave fails if it tries to connect using
+#    CHANGE REPLICATION SOURCE TO MASTER_AUTO_POSITION=1.
 # 5) Verify that appropriate messages are logged into master's and slave's
 #    error log.
 # 6) Verify that replication succeeds if it tries to connect using CHANGE

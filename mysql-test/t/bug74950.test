@@ -2,7 +2,7 @@
 # repository inside a transaction and later rolling back that transaction
 # was leaving the repository in an unusable state.
 
-CHANGE MASTER TO IGNORE_SERVER_IDS=(0,0);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(0,0);
 XA START'';
 --error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 SET @@global.master_info_repository="TABLE";

@@ -55,7 +55,7 @@ SELECT password FROM performance_schema.replication_connection_configuration;
 
 --let $expected_value_user=`SELECT User_name FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
 --let $expected_value_password=`SELECT User_password FROM mysql.slave_master_info WHERE Channel_name LIKE 'group_replication_recovery'`
---let $assert_text= The default values of the User_name and User_password are empty without a previous change master.
+--let $assert_text= The default values of the User_name and User_password are empty without a previous change replication source.
 --let $assert_cond= "$expected_value_user" = "" AND "$expected_value_password"= ""
 --source include/assert.inc
 

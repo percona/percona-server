@@ -65,14 +65,14 @@ START SLAVE;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
-# Change master still works
+# Change replication source still works
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
 # Start slave for channel should fail
 --error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 START SLAVE FOR CHANNEL 'any_channel';
 
-# Change master still works and will create the channel
+# Change replication source still works and will create the channel
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4, SOURCE_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
 
 # Start slave for channel should fail
@@ -116,7 +116,7 @@ DROP TABLE t1;
 --error ER_REPLICA_CONFIGURATION
 START SLAVE;
 
-# Change master should fail as slave not configured
+# Change replication source should fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
@@ -124,7 +124,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 --error ER_REPLICA_CONFIGURATION
 START SLAVE FOR CHANNEL 'any_channel';
 
-# Change master for channel should fail as slave not configured
+# Change replication source for channel should fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 
@@ -135,7 +135,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 --error ER_REPLICA_CONFIGURATION
 START SLAVE;
 
-# Change master should still fail as slave not configured
+# Change replication source should still fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
@@ -143,7 +143,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 --error ER_REPLICA_CONFIGURATION
 START SLAVE FOR CHANNEL 'any_channel';
 
-# Change master for channel should still fail as slave not configured
+# Change replication source for channel should still fail as slave not configured
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 

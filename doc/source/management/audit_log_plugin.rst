@@ -40,7 +40,7 @@ Example of the Disconnect event: ::
   "DB"=""
   />
 
-* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
+* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values are retrieved from the ``com_status_vars`` array in the :file:`sql/mysqld.cc` file in a MySQL source distribution. Examples include ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` field for this event include ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
 
 Example of the Query event: :: 
 

@@ -49,7 +49,7 @@ chmod 0600  $MYSQLD_SLAVE_DATADIR/master.info;
 start slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 
-# CHANGE MASTER will fail because it first parses master.info before changing
+# CHANGE REPLICATION SOURCE will fail because it first parses master.info before changing
 # it (so when master.info is bad, people have to use RESET SLAVE first).
 --replace_column 2 ####
 --error ER_MASTER_INFO

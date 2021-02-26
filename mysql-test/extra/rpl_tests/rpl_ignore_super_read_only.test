@@ -7,7 +7,7 @@
 # 1) SET GLOBAL super_read_only to 1 on slave
 # 2) Execute 'STOP SLAVE' command
 # 3) Execute 'CHANGE REPLICATION FILTER' command
-# 4) Execute 'CHANGE MASTER TO' command
+# 4) Execute 'CHANGE REPLICATION SOURCE TO' command
 # 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
 # 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
 # 8) Execute 'RESET SLAVE' command
@@ -62,7 +62,7 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 
 --echo ####################################################################
---echo # Test Case3: CHANGE MASTER command
+--echo # Test Case3: CHANGE REPLICATION SOURCE command
 --echo ####################################################################
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';

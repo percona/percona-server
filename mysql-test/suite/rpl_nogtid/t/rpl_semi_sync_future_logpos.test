@@ -9,9 +9,9 @@
 #
 # Test:
 # =====
-# Do DMLs on the master and on the slave do a stop slave. Execute change master
-# to a future binlog file name and position which doesn't exist. Master should
-# not assert.
+# Do DMLs on the master and on the slave do a stop slave. Execute change
+# replication source to a future binlog file name and position which doesn't
+# exist. Master should not assert.
 ###############################################################################
 --source include/have_semisync_plugin.inc
 --source include/master-slave.inc

@@ -16,7 +16,7 @@
 
 CREATE TABLE t1 (c1 INT KEY) ENGINE=InnoDB;
 
-# It is used by the CHANGE MASTER below
+# It is used by the CHANGE REPLICATION SOURCE below
 --source include/save_binlog_position.inc
 
 --source include/sync_slave_sql_with_master.inc

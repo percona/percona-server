@@ -8,12 +8,12 @@
 #
 # File type repo:
 # -------------------
-# R.P.F1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
+# R.P.F1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
 # R.P.F2: PRIVILEGE_CHECKS_USER persists after restarting the server.
 #
 # TABLE type repo:
 # -------------------
-# R.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
+# R.P.T1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
 # R.P.T2: PRIVILEGE_CHECKS_USER persists after restarting the server.
 # R.P.T3: RESET SLAVE should keep value of PRIVILEGE_CHECKS_USER.
 #
@@ -42,11 +42,11 @@
 # Prerequisites:
 #   1. add mtr suppression statement for errors on various error test cases for
 #      FILE and TABLE type repository.
-#   2. create user replication_applier to use in change master as
+#   2. create user replication_applier to use in change replication source as
 #      privilege_checks_user with REPLICATION_APPLIER privilege.
 #
-# TC.P.F1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
-#   1. issue change master for channel "" to have PRIVILEGE_CHECKS_USER as
+# TC.P.F1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
+#   1. issue change replication source for channel "" to have PRIVILEGE_CHECKS_USER as
 #      'replication_applier'@'localhost'.
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
 #   3. also verify privlege_checks_user info in repo file relay_info.log.
@@ -56,7 +56,7 @@
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
 #   3. also verify privlege_checks_user info in repo file relay_info.log.
 #
-# TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
+# TC.P.T1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
 #   1. create two channels ch1 and ch2 when slave is configured with TABLE type
 #      repo. "ch1" has not PRIVILEGE_CHECKS_USER, "ch2" has
 #      'replication_applier'@'localhost' as PRIVILEGE_CHECK_USER.
@@ -82,10 +82,10 @@
 #      respectively pfs and slave_relay_log_info tables.
 #
 # TC.E.F1: privilege_checks_username has more than 32 length.
-#   a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
-#      1. issue change master for default channel "" to set
+#   a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user with privilege_check_username more than 32 char.
-#      2. change master fails due to ER_WRONG_STRING_LENGTH.
+#      2. change replication source fails due to ER_WRONG_STRING_LENGTH.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. set debug point simulate_priv_check_username_above_limit to simulate
 #         failure of channel config due to more than 32 chars
@@ -96,11 +96,11 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.F2: privilege_checks_username has more than 255 length.
-#   a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
-#      1. issue change master for default channel "" to set
+#   a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user with privilege_check_hostname more than 255
 #         char.
-#      2. change master fails due to ER_WRONG_STRING_LENGTH.
+#      2. change replication source fails due to ER_WRONG_STRING_LENGTH.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. set debug point simulate_priv_check_hostname_above_limit to simulate
 #         failure of channel config due to more than 255 chars
@@ -111,10 +111,10 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.F3: privilege_checks_hostname has @.
-#   a. CHANGE MASTER will result in ER_UNKNOWN_ERROR.
-#      1. issue change master for default channel "" to set
+#   a. CHANGE REPLICATION SOURCE will result in ER_UNKNOWN_ERROR.
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user with privilege_check_hostname has @.
-#      2. change master fails due to ER_UNKNOWN_ERROR.
+#      2. change replication source fails due to ER_UNKNOWN_ERROR.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. create relay_info.log with privilege_checks_hostname to have @.
 #      2. start the slave server.
@@ -123,11 +123,11 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.F5. privilege_checks_username is anonymous.
-#   a. CHANGE MASTER will result in
+#   a. CHANGE REPLICATION SOURCE will result in
 #      ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
-#      1. issue change master for default channel "" to set
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user as ''@'localhost'.
-#      2. change master fails due to
+#      2. change replication source fails due to
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. create relay_info.log with empty string for privilege_checks_hostname.
@@ -137,12 +137,12 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.F6. privilege_checks_user is a non existent user.
-#   a. CHANGE MASTER will result in
+#   a. CHANGE REPLICATION SOURCE will result in
 #      ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
-#      1. issue change master for default channel "" to set
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user as 'replication_applier_nonexist@'localhost',
 #         this user doesn't exist.
-#      2. change master fails due to
+#      2. change replication source fails due to
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 #   b. server start will result in
 #      ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
@@ -154,10 +154,10 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.T1: privilege_checks_username has more than 32 length.
-#   a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
-#      1. issue change master for default channel "ch1" to set
+#   a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      1. issue change replication source for default channel "ch1" to set
 #         privilege_checks_user with privilege_check_username more than 32 char.
-#      2. change master fails due to ER_WRONG_STRING_LENGTH.
+#      2. change replication source fails due to ER_WRONG_STRING_LENGTH.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. set debug point simulate_priv_check_username_above_limit to simulate
 #         failure of reading channel config of ch1 due to
@@ -169,11 +169,11 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.T2: privilege_checks_hostname has more than 255 length.
-#   a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
-#      1. issue change master for default channel "ch1" to set
+#   a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      1. issue change replication source for default channel "ch1" to set
 #         privilege_checks_user with privilege_check_hostname more than 255
 #         char.
-#      2. change master fails due to ER_WRONG_STRING_LENGTH.
+#      2. change replication source fails due to ER_WRONG_STRING_LENGTH.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. set debug point simulate_priv_check_hostname_above_limit to simulate
 #         failure of reading channel config of ch1 due to
@@ -185,10 +185,10 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.T3: privilege_checks_hostname has @.
-#   a. CHANGE MASTER will result in ER_UNKNOWN_ERROR.
-#      1. issue change master for default channel "ch1" to set
+#   a. CHANGE REPLICATION SOURCE will result in ER_UNKNOWN_ERROR.
+#      1. issue change replication source for default channel "ch1" to set
 #         privilege_checks_user with privilege_check_hostname has @.
-#      2. change master fails due to ER_UNKNOWN_ERROR.
+#      2. change replication source fails due to ER_UNKNOWN_ERROR.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #      1. update config entry of channel "ch1" in mysql.slave_relay_log_info to
 #         'l@calhost' in privilege_checks_hostname.
@@ -200,17 +200,17 @@
 #
 # TC.E.T4. privilege_checks_username is NULL and privilege_checks_hostname is
 #          not NULL.
-#   a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#   a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 #   c. SLAVE START will result in failure due to invalid config.
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.T5. privilege_checks_username is anonymous.
-#   a. CHANGE MASTER will result in
+#   a. CHANGE REPLICATION SOURCE will result in
 #      ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
-#      1. issue change master for default channel "" to set
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user as ''@'localhost'.
-#      2. change master fails due to
+#      2. change replication source fails due to
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
 
 #   b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -223,12 +223,12 @@
 #      1. start slave should fail due to ER_REPLICA_AM_INIT_REPOSITORY.
 #
 # TC.E.T6. privilege_checks_user is a non existent user.
-#   a. CHANGE MASTER will result in
+#   a. CHANGE REPLICATION SOURCE will result in
 #      ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
-#      1. issue change master for default channel "" to set
+#      1. issue change replication source for default channel "" to set
 #         privilege_checks_user as 'replication_applier_nonexist@'localhost',
 #         this user doesn't exist.
-#      2. change master fails due to
+#      2. change replication source fails due to
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 #   b. server start will result in
 #      ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
@@ -389,16 +389,16 @@ CALL mtr.add_suppression("Replica SQL for channel 'ch1': Replica failed to initi
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $filename = `SELECT @@relay_log_info_file`
 
-#   2. create user replication_applier to use in change master as
+#   2. create user replication_applier to use in change replication source as
 #      privilege_checks_user with REPLICATION_APPLIER privilege.
 CREATE USER 'replication_applier'@'localhost' IDENTIFIED BY 'password';
 GRANT REPLICATION_APPLIER ON * . * TO 'replication_applier'@'localhost';
 FLUSH PRIVILEGES;
 
 --echo #
---echo # TC.P.F1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
+--echo # TC.P.F1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
 --echo #
-#  1. issue change master for default channel "" to set privilege_checks_user.
+#  1. issue change replication source for default channel "" to set privilege_checks_user.
 STOP SLAVE;
 # NULL value is accepted
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
@@ -432,7 +432,7 @@ STOP SLAVE FOR CHANNEL "";
 --echo #
 --echo # TC.E.F1: privilege_checks_username has more than 32 length.
 --echo #
-#      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -452,7 +452,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 --echo #
 --echo # TC.E.F2: privilege_checks_hostname has more than 255 length.
 --echo #
-#      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -472,7 +472,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 --echo #
 --echo # TC.E.F3: privilege_checks_hostname has @.
 --echo #
-#      a. CHANGE MASTER will result in ER_UNKNOWN_ERROR.
+#      a. CHANGE REPLICATION SOURCE will result in ER_UNKNOWN_ERROR.
 --error ER_UNKNOWN_ERROR
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -495,7 +495,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 --echo #
 --echo # TC.E.F5. privilege_checks_username is anonymous.
 --echo #
-#      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
+#      a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -515,7 +515,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 --echo #
 --echo # TC.E.F6. privilege_checks_user is a non existent user.
 --echo #
-#      a. CHANGE MASTER will result in
+#      a. CHANGE REPLICATION SOURCE will result in
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
@@ -573,7 +573,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_
 --source $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 
 --echo #
---echo # TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
+--echo # TC.P.T1: CHANGE REPLICATION SOURCE sets the PRIVILEGE_CHECKS_USER correctly.
 --echo #
 #   1. create two channels ch1 and ch2 when slave is configured with TABLE type
 #      repo. "ch1" has not PRIVILEGE_CHECKS_USER, "ch2" has
@@ -672,7 +672,7 @@ STOP SLAVE FOR CHANNEL "ch1";
 --echo #
 --echo # TC.E.T1: privilege_checks_username has more than 32 length.
 --echo #
-#      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "ch1";
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -692,7 +692,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL
 --echo #
 --echo # TC.E.T2: privilege_checks_hostname has more than 255 length.
 --echo #
-#      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
+#      a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -713,7 +713,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL
 --echo #
 --echo # TC.E.T3: privilege_checks_hostname has @.
 --echo #
-#      a. CHANGE MASTER will result in ER_UNKNOWN_ERROR.
+#      a. CHANGE REPLICATION SOURCE will result in ER_UNKNOWN_ERROR.
 --error ER_UNKNOWN_ERROR
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
@@ -747,7 +747,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL
 --echo #
 --echo # TC.E.T5. privilege_checks_username is anonymous.
 --echo #
-#      a. CHANGE MASTER will result in
+#      a. CHANGE REPLICATION SOURCE will result in
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "ch1" ;
@@ -766,7 +766,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL
 --echo #
 --echo # TC.E.T6. privilege_checks_user is a non existent user.
 --echo #
-#      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
+#      a. CHANGE REPLICATION SOURCE will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.

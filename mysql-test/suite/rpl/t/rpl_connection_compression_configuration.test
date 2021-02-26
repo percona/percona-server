@@ -60,7 +60,7 @@ SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.sl
 SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C4';
 
 --echo # case 5: ALGORITHM = ZSTD, LEVEL = 9
---echo # report error as part of change master
+--echo # report error as part of change replication source
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd', SOURCE_ZSTD_COMPRESSION_LEVEL= 9 FOR CHANNEL 'C5';
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C5';
@@ -74,7 +74,7 @@ SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.sl
 SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C6';
 
 --echo # case 7: ALGORITHM = invalid value, LEVEL = 2
---echo # report error as part of change master
+--echo # report error as part of change replication source
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT 
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz', SOURCE_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C7';
@@ -82,7 +82,7 @@ SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.sl
 SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C7';
 
 --echo # case 8: ALGORITHM = invalid value, LEVEL = 29
---echo # report error as part of change master
+--echo # report error as part of change replication source
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz', SOURCE_ZSTD_COMPRESSION_LEVEL= 29 FOR CHANNEL 'C8';
@@ -90,7 +90,7 @@ SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.sl
 SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C8';
 
 --echo # case 9: ALGORITHM = invalid value, LEVEL not specified
---echo # report error as part of change master
+--echo # report error as part of change replication source
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C9';
@@ -98,7 +98,7 @@ SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.sl
 SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C9';
 
 --echo # case 10: ALGORITHM = invalid value 
---echo # report error as part of change master
+--echo # report error as part of change replication source
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc' FOR CHANNEL 'C10';
@@ -106,7 +106,7 @@ SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.sl
 SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C10';
 
 --echo # case 11: ALGORITHM specified to more than 3 values
---echo # report error as part of change master
+--echo # report error as part of change replication source
 --replace_result $MASTER_MYPORT MASTER_PORT
 --error ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc,123' FOR CHANNEL 'C11';

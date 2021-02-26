@@ -23,7 +23,7 @@ include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 ####################################################################
-# Test Case3: CHANGE MASTER command
+# Test Case3: CHANGE REPLICATION SOURCE command
 ####################################################################
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
@@ -99,7 +99,7 @@ include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 ####################################################################
-# Test Case3: CHANGE MASTER command
+# Test Case3: CHANGE REPLICATION SOURCE command
 ####################################################################
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';

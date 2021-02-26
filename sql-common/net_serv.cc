@@ -2048,6 +2048,8 @@ error:
   return packet_error;
 }
 
+static const float PCT_LIMIT_INTERVAL_PACKET = 110.0f / 100;
+
 bool my_net_shrink_buffer(NET *net, ulong min_buf_size) {
   /* Buffer is already of smallest possible size */
   if (net->max_packet <= min_buf_size) return false;
@@ -2059,7 +2061,7 @@ bool my_net_shrink_buffer(NET *net, ulong min_buf_size) {
   /* In the last interval, packets were not smaller than 90% of the max_packet,
    * so no shrink needed. We allow 10% variance in workload to reduce number
    * of reallocs */
-  if (max_interval_packet * 110 / 100 >= net->max_packet) return false;
+  if (max_interval_packet * PCT_LIMIT_INTERVAL_PACKET >= net->max_packet) return false;
 
   /* Buffer cannot be smaller than, default, net_buffer_length + header */
   if (max_interval_packet < min_buf_size) max_interval_packet = min_buf_size;

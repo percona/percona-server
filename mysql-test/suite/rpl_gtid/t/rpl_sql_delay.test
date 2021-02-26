@@ -31,13 +31,13 @@ source include/start_slave.inc;
 
 --let $desired_delay= query_get_value(select *from performance_schema.replication_applier_configuration,DESIRED_DELAY,1)
 
---let $assert_text= Assert that the desired delay from performance_schema is same as set in the Change master to command.
+--let $assert_text= Assert that the desired delay from performance_schema is same as set in the Change replication source to command.
 --let $assert_cond= $desired_delay = $delay
 --source include/assert.inc
 
 --let $sql_delay= query_get_value(show slave status,SQL_Delay,1)
 
---let $assert_text= Assert that the sql_delay in show slave status is same as set in the Change master to command.
+--let $assert_text= Assert that the sql_delay in show slave status is same as set in the Change replication source to command.
 --let $assert_cond= $sql_delay = $delay
 --source include/assert.inc
 

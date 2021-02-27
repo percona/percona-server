@@ -58,13 +58,13 @@ Description: MyRocks storage engine plugin for Percona Server
  .
  This package includes the MyRocks/RocksDB plugin library.
 
-Package: libperconaserverclient21.2
+Package: libperconaserverclient21
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Depends: percona-server-common (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20, libperconaserverclient21
+Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
  multi-threaded SQL database server. SQL (Structured Query Language) 
@@ -73,13 +73,12 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libperconaserverclient21.2-dev
+Package: libperconaserverclient21-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient21.2 (= ${binary:Version}),
+Depends: libperconaserverclient21 (= ${binary:Version}),
          zlib1g-dev, ${misc:Depends}
-Breaks: libperconaserverclient21-dev,
-        libperconaserverclient20-dev,
+Breaks: libperconaserverclient20-dev,
         libperconaserverclient18.1-dev,
         libperconaserverclient18-dev,
         libperconaserverclient16-dev,
@@ -91,8 +90,7 @@ Breaks: libperconaserverclient21-dev,
         libmysqlclient18-dev,
         libmysqlclient20-dev,
         libmariadbclient-dev
-Replaces: libperconaserverclient21-dev,
-          libperconaserverclient20-dev,
+Replaces: libperconaserverclient20-dev,
           libperconaserverclient18.1-dev,
           libperconaserverclient18-dev,
           libperconaserverclient16-dev,

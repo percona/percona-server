@@ -161,7 +161,6 @@ bool my_net_init(NET *net, Vio *vio) {
   net->reading_or_writing = 0;
   net->where_b = net->remain_in_buf = 0;
   net->last_errno = 0;
-  net->max_interval_packet = net->max_packet;
 #ifdef MYSQL_SERVER
   net->extension = nullptr;
 #else
@@ -2032,8 +2031,13 @@ static size_t net_read_packet(NET *net, size_t *complen) {
 
   pkt_data_len = (pkt_data_len + IO_SIZE - 1) & ~(IO_SIZE - 1);
 
-  if (net->max_interval_packet < pkt_data_len)
-    net->max_interval_packet = pkt_data_len;
+#ifdef MYSQL_SERVER
+  {
+    NET_SERVER *ext = static_cast<NET_SERVER *>(net->extension);
+    if (ext != nullptr && ext->max_interval_packet < pkt_data_len)
+      ext->max_interval_packet = pkt_data_len;
+  }
+#endif
 
   /* Read the packet data (payload). */
   if (net_read_raw_loop(net, pkt_len)) goto error;
@@ -2050,25 +2054,26 @@ error:
 
 static const float PCT_LIMIT_INTERVAL_PACKET = 110.0f / 100;
 
-bool my_net_shrink_buffer(NET *net, ulong min_buf_size) {
+bool my_net_shrink_buffer(NET *net, ulong min_buf_size,
+                          ulong *max_interval_packet) {
   /* Buffer is already of smallest possible size */
   if (net->max_packet <= min_buf_size) return false;
 
-  ulong max_interval_packet = net->max_interval_packet;
+  ulong mip = *max_interval_packet;
   /*Reset buffer size for next interval */
-  net->max_interval_packet = min_buf_size;
+  *max_interval_packet = min_buf_size;
 
   /* In the last interval, packets were not smaller than 90% of the max_packet,
    * so no shrink needed. We allow 10% variance in workload to reduce number
    * of reallocs */
-  if (max_interval_packet * PCT_LIMIT_INTERVAL_PACKET >= net->max_packet) return false;
+  if (mip * PCT_LIMIT_INTERVAL_PACKET >= net->max_packet) return false;
 
   /* Buffer cannot be smaller than, default, net_buffer_length + header */
-  if (max_interval_packet < min_buf_size) max_interval_packet = min_buf_size;
+  if (mip < min_buf_size) mip = min_buf_size;
 
   /* In the last interval packets were significantly smaller than max_packet,
    * so do shrink the buffer */
-  if (net_realloc(net, max_interval_packet)) return true;
+  if (net_realloc(net, mip)) return true;
 
   /* net->max_packet is updated in net_realloc */
   return false;

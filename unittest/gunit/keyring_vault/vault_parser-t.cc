@@ -18,6 +18,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
+
+#include <boost/optional.hpp>
+
 #include "i_keys_container.h"
 #include "mock_logger.h"
 #include "my_rnd.h"
@@ -233,6 +236,11 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag) {
 }
 
 TEST_F(Vault_parser_test, GetMountConfig) {
+  Vault_parser_composer vault_parser(logger);
+  std::size_t max_versions = 0;
+  bool cas_required = false;
+  Optional_secure_string delete_version_after;
+
   Secure_string payload(
       "{"
       "  \"request_id\": \"a2c9306a-7f82-6a59-ebfa-bc6142d66c39\","
@@ -249,15 +257,32 @@ TEST_F(Vault_parser_test, GetMountConfig) {
       "  \"auth\": null"
       "}");
 
-  Vault_parser_composer vault_parser(logger);
-  std::size_t max_versions = 0;
-  bool cas_required = false;
-  Secure_string delete_version_after;
   EXPECT_FALSE(vault_parser.parse_mount_point_config(
       payload, max_versions, cas_required, delete_version_after));
   EXPECT_EQ(max_versions, 42U);
   EXPECT_TRUE(cas_required);
-  EXPECT_STREQ(delete_version_after.c_str(), "0s");
+  EXPECT_TRUE(delete_version_after != boost::none);
+  EXPECT_STREQ(delete_version_after.get().c_str(), "0s");
+
+  payload =
+      "{"
+      "  \"request_id\": \"a2c9306a-7f82-6a59-ebfa-bc6142d66c39\","
+      "  \"lease_id\": \"\","
+      "  \"renewable\": false,"
+      "  \"lease_duration\": 0,"
+      "  \"data\": {"
+      "    \"max_versions\": 43,"
+      "    \"cas_required\": false"
+      "  },"
+      "  \"wrap_info\": null,"
+      "  \"warnings\": null,"
+      "  \"auth\": null"
+      "}";
+  EXPECT_FALSE(vault_parser.parse_mount_point_config(
+      payload, max_versions, cas_required, delete_version_after));
+  EXPECT_EQ(max_versions, 43U);
+  EXPECT_FALSE(cas_required);
+  EXPECT_TRUE(delete_version_after == boost::none);
 }
 
 TEST_F(Vault_parser_test, GetMountConfigNull) {
@@ -276,7 +301,7 @@ TEST_F(Vault_parser_test, GetMountConfigNull) {
   Vault_parser_composer vault_parser(logger);
   std::size_t max_versions = 0;
   bool cas_required = false;
-  Secure_string delete_version_after;
+  Optional_secure_string delete_version_after;
   EXPECT_CALL(
       static_cast<Mock_logger &>(*logger),
       log(MY_ERROR_LEVEL, StrEq("Vault Server mount config "
@@ -303,7 +328,7 @@ TEST_F(Vault_parser_test, GetMountConfigIncomplete) {
   Vault_parser_composer vault_parser(logger);
   std::size_t max_versions = 0;
   bool cas_required = false;
-  Secure_string delete_version_after;
+  Optional_secure_string delete_version_after;
   EXPECT_CALL(static_cast<Mock_logger &>(*logger),
               log(MY_ERROR_LEVEL,
                   StrEq("Vault Server mount config response[\"data\"] does "

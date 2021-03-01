@@ -18,8 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <curl/curl.h>
-#include <boost/preprocessor/stringize.hpp>
+#include <boost/optional.hpp>
 #include <boost/scope_exit.hpp>
 #include <cstring>
 #include "generate_credential_file.h"
@@ -75,7 +74,7 @@ class Mock_vault_parser_composer : public IVault_parser_composer {
   MOCK_METHOD4(parse_mount_point_config,
                bool(const Secure_string &config_payload,
                     std::size_t &max_versions, bool &cas_required,
-                    Secure_string &delete_version_after));
+                    Optional_secure_string &delete_version_after));
   MOCK_METHOD4(compose_write_key_postdata,
                bool(const Vault_key &key, const Secure_string &encoded_key_data,
                     Vault_version_type vault_version, Secure_string &postdata));

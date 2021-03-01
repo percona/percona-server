@@ -231,7 +231,7 @@ int table_malloc_stats::rnd_pos(const void *pos)
 void table_malloc_stats::make_row(int index)
 {
   char s[64];
-  size_t sz;
+  size_t sz = sizeof(epoch);
 
   memset(&m_row, 0, sizeof(m_row));
 

@@ -121,6 +121,7 @@
 #include "table_variables_by_thread.h"
 #include "table_global_variables.h"
 #include "table_session_variables.h"
+#include "table_malloc_stats.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -333,6 +334,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_global_variables::m_share,
   &table_session_variables::m_share,
 
+  &table_malloc_stats_summary::m_share,
+  &table_malloc_stats::m_share,
   NULL
 };
 

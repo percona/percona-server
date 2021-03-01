@@ -46,6 +46,8 @@ performance_schema	global_status	def
 performance_schema	global_variables	def
 performance_schema	host_cache	def
 performance_schema	hosts	def
+performance_schema	malloc_stats	def
+performance_schema	malloc_stats_summary	def
 performance_schema	memory_summary_by_account_by_event_name	def
 performance_schema	memory_summary_by_host_by_event_name	def
 performance_schema	memory_summary_by_thread_by_event_name	def
@@ -137,6 +139,8 @@ global_status	BASE TABLE	PERFORMANCE_SCHEMA
 global_variables	BASE TABLE	PERFORMANCE_SCHEMA
 host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
+malloc_stats	BASE TABLE	PERFORMANCE_SCHEMA
+malloc_stats_summary	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
@@ -228,6 +232,8 @@ global_status	10	Dynamic
 global_variables	10	Dynamic
 host_cache	10	Dynamic
 hosts	10	Fixed
+malloc_stats	10	Fixed
+malloc_stats_summary	10	Fixed
 memory_summary_by_account_by_event_name	10	Dynamic
 memory_summary_by_host_by_event_name	10	Dynamic
 memory_summary_by_thread_by_event_name	10	Dynamic
@@ -318,6 +324,8 @@ file_summary_by_event_name	0
 file_summary_by_instance	0
 host_cache	0
 hosts	0
+malloc_stats	0
+malloc_stats_summary	0
 memory_summary_by_account_by_event_name	0
 memory_summary_by_host_by_event_name	0
 memory_summary_by_thread_by_event_name	0
@@ -416,6 +424,8 @@ global_status	0	0
 global_variables	0	0
 host_cache	0	0
 hosts	0	0
+malloc_stats	0	0
+malloc_stats_summary	0	0
 memory_summary_by_account_by_event_name	0	0
 memory_summary_by_host_by_event_name	0	0
 memory_summary_by_thread_by_event_name	0	0
@@ -507,6 +517,8 @@ global_status	0	0	NULL
 global_variables	0	0	NULL
 host_cache	0	0	NULL
 hosts	0	0	NULL
+malloc_stats	0	0	NULL
+malloc_stats_summary	0	0	NULL
 memory_summary_by_account_by_event_name	0	0	NULL
 memory_summary_by_host_by_event_name	0	0	NULL
 memory_summary_by_thread_by_event_name	0	0	NULL
@@ -598,6 +610,8 @@ global_status	NULL	NULL	NULL
 global_variables	NULL	NULL	NULL
 host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
+malloc_stats	NULL	NULL	NULL
+malloc_stats_summary	NULL	NULL	NULL
 memory_summary_by_account_by_event_name	NULL	NULL	NULL
 memory_summary_by_host_by_event_name	NULL	NULL	NULL
 memory_summary_by_thread_by_event_name	NULL	NULL	NULL
@@ -689,6 +703,8 @@ global_status	utf8_general_ci	NULL
 global_variables	utf8_general_ci	NULL
 host_cache	utf8_general_ci	NULL
 hosts	utf8_general_ci	NULL
+malloc_stats	utf8_general_ci	NULL
+malloc_stats_summary	utf8_general_ci	NULL
 memory_summary_by_account_by_event_name	utf8_general_ci	NULL
 memory_summary_by_host_by_event_name	utf8_general_ci	NULL
 memory_summary_by_thread_by_event_name	utf8_general_ci	NULL
@@ -780,6 +796,8 @@ global_status
 global_variables	
 host_cache	
 hosts	
+malloc_stats	
+malloc_stats_summary	
 memory_summary_by_account_by_event_name	
 memory_summary_by_host_by_event_name	
 memory_summary_by_thread_by_event_name	
@@ -871,6 +889,8 @@ global_status
 global_variables	
 host_cache	
 hosts	
+malloc_stats	
+malloc_stats_summary	
 memory_summary_by_account_by_event_name	
 memory_summary_by_host_by_event_name	
 memory_summary_by_thread_by_event_name	

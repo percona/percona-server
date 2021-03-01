@@ -20,6 +20,8 @@ mysql_upgrade: [ERROR] 1050: Table 'socket_instances' already exists
 mysql_upgrade: [ERROR] 1050: Table 'socket_summary_by_instance' already exists
 mysql_upgrade: [ERROR] 1050: Table 'socket_summary_by_event_name' already exists
 mysql_upgrade: [ERROR] 1050: Table 'host_cache' already exists
+mysql_upgrade: [ERROR] 1050: Table 'malloc_stats_summary' already exists
+mysql_upgrade: [ERROR] 1050: Table 'malloc_stats' already exists
 mysql_upgrade: [ERROR] 1050: Table 'mutex_instances' already exists
 mysql_upgrade: [ERROR] 1050: Table 'objects_summary_global_by_type' already exists
 mysql_upgrade: [ERROR] 1050: Table 'performance_timers' already exists

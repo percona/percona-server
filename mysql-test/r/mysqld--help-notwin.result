@@ -377,6 +377,10 @@ The following options may be given as the first argument:
  interactive connection before closing it
  --internal-tmp-disk-storage-engine[=name] 
  The default storage engine for on-disk internal tmp table
+ --jemalloc-profiling 
+ Enable jemalloc profilingStart MySQL with MALLOC_CONF set
+ to 'prof:true' for this feature to workAlso Jemalloc
+ should be compiled with profiling enabled
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
  --keep-files-on-create 
@@ -1479,6 +1483,7 @@ initialize FALSE
 initialize-insecure FALSE
 interactive-timeout 28800
 internal-tmp-disk-storage-engine InnoDB
+jemalloc-profiling FALSE
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608

@@ -61,6 +61,13 @@ typedef struct st_mysql_lex_string LEX_STRING;
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 extern PSI_memory_key key_memory_queue_item;
+extern my_bool opt_jemalloc_profiling_enabled;
+extern my_bool opt_jemalloc_detected;
+
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
+int jemalloc_profiling_dump();
+int jemalloc_profiling_enable(my_bool enable);
+bool jemalloc_detected();
 
 class PROF_MEASUREMENT;
 class QUERY_PROFILE;

@@ -4834,6 +4834,9 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
+  opt_jemalloc_detected = jemalloc_detected();
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
+
 #if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 
   if (opt_bootstrap && opt_daemonize)

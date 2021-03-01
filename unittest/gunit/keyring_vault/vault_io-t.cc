@@ -21,6 +21,7 @@
 #include <my_global.h>
 
 #include <boost/scoped_ptr.hpp>
+#include <boost/optional.hpp>
 #include <boost/preprocessor/stringize.hpp>
 
 #include <curl/curl.h>
@@ -90,7 +91,7 @@ class Mock_vault_parser_composer : public IVault_parser_composer {
   MOCK_METHOD4(parse_mount_point_config,
                bool(const Secure_string &config_payload,
                     std::size_t &max_versions, bool &cas_required,
-                    Secure_string &delete_version_after));
+                    Optional_secure_string &delete_version_after));
 
   MOCK_METHOD4(compose_write_key_postdata,
                bool(const Vault_key &    key,

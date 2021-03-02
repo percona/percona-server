@@ -132,6 +132,9 @@ void init_net_server_extension(THD *thd) {
   thd->m_net_server_extension.m_after_header = net_after_header_psi;
   thd->m_net_server_extension.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   thd->m_net_server_extension.timeout_on_full_packet = false;
+  thd->m_net_server_extension.max_interval_packet =
+      thd->get_protocol_classic()->get_net()->max_packet;
+  thd->m_net_server_extension.net_buffer_shrink_time = 0;
   /* Activate this private extension for the mysqld server. */
   thd->get_protocol_classic()->get_net()->extension =
       &thd->m_net_server_extension;

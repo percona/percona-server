@@ -782,6 +782,12 @@ The following options may be given as the first argument:
  the server option check_proxy_users is enabled.
  --net-buffer-length=# 
  Buffer length for TCP/IP and socket communication
+ --net-buffer-shrink-interval=# 
+ Check and maybe shrink network buffer with given
+ frequency(seconds). It shrinks network buffer to the
+ maximum packet size seen in previous
+ net_buffer_shrink_interval seconds. Set to 0 to disable
+ checks and shrinks
  --net-read-timeout=# 
  Number of seconds to wait for more data from a connection
  before aborting the read
@@ -1901,6 +1907,7 @@ myisam-use-mmap FALSE
 mysql-native-password OFF
 mysql-native-password-proxy-users FALSE
 net-buffer-length 16384
+net-buffer-shrink-interval 0
 net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60

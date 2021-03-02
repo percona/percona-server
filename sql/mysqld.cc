@@ -1375,6 +1375,7 @@ uint replica_rows_last_search_algorithm_used;
 ulong mts_parallel_option;
 ulong binlog_cache_size = 0;
 ulonglong max_binlog_cache_size = 0;
+ulong net_buffer_shrink_interval = 0;
 ulong replica_max_allowed_packet = 0;
 ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
@@ -11916,6 +11917,9 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Max_used_connections_time", (char *)&show_max_used_connections_time,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Net_buffer_length",
+     (char *)offsetof(System_status_var, net_buffer_length),
+     SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Not_flushed_delayed_rows", (char *)&delayed_rows_in_use,
      SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
     {"Open_files", (char *)&my_file_opened, SHOW_LONG_NOFLUSH,
@@ -13808,6 +13812,8 @@ void refresh_status() {
   /* For all threads, add status to global status and then reset. */
   Reset_thd_status reset_thd_status;
   Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
+  /* net_buffer_length does not accumulate the historical values */
+  global_status_var.net_buffer_length = 0ULL;
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /* Reset aggregated status counters. */
   reset_pfs_status_stats();

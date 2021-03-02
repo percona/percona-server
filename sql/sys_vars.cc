@@ -2821,6 +2821,16 @@ static Sys_var_ulong Sys_max_allowed_packet(
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_max_allowed_packet));
 
+static Sys_var_ulong Sys_net_buffer_shrink_interval(
+    "net_buffer_shrink_interval",
+    "Check and maybe shrink network buffer with given frequency(seconds). "
+    "It shrinks network buffer to the maximum packet size seen in previous "
+    "net_buffer_shrink_interval seconds. "
+    "Set to 0 to disable checks and shrinks",
+    GLOBAL_VAR(net_buffer_shrink_interval), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG);
+
 static Sys_var_ulong Sys_replica_max_allowed_packet(
     "replica_max_allowed_packet",
     "The maximum size of packets sent from an upstream source server to this "

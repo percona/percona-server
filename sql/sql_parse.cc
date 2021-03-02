@@ -1330,6 +1330,36 @@ void bind_fields(Item *first) {
 }
 
 /**
+  Checks if the period net_buffer_shrink_interval is over.
+ */
+static bool net_buffer_shrink_interval_is_over(
+    const THD *const thd, unsigned long long net_buffer_shrink_time) {
+  // N.B. Make a copy to use the same variable during all the function
+  // as it could be modified in another session.
+  auto interval = net_buffer_shrink_interval;
+
+  return interval != 0 &&
+         thd->start_utime / 1000000 > net_buffer_shrink_time + interval;
+}
+
+/**
+  Shrinks the packet buffer if the max size during the last
+  global.net_buffer_shrink_interval is smaller than the current size.
+ */
+static bool shrink_packet_buffer(THD *thd, unsigned long *max_interval_packet,
+                                 unsigned long long *net_buffer_shrink_time) {
+  if (!net_buffer_shrink_interval_is_over(thd, *net_buffer_shrink_time)) {
+    return false;
+  }
+
+  auto net = thd->get_protocol_classic()->get_net();
+  auto was_shrunk = my_net_shrink_buffer(net, thd->variables.net_buffer_length,
+                                         max_interval_packet);
+  *net_buffer_shrink_time = thd->start_utime / 1000000;
+  return was_shrunk;
+}
+
+/**
   Read one command from connection and execute it (query or simple command).
   This function is called in loop from thread function.
 
@@ -1490,9 +1520,21 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
+  thd->status_var.net_buffer_length = net->max_packet;
+
   DEBUG_SYNC(thd, "before_command_dispatch");
 
   return_value = dispatch_command(thd, &com_data, command);
+
+#ifdef MYSQL_SERVER
+  {
+    NET_SERVER *ext = static_cast<NET_SERVER *>(net->extension);
+    if (ext != nullptr)
+      shrink_packet_buffer(thd, &ext->max_interval_packet,
+                           &ext->net_buffer_shrink_time);
+  }
+#endif
+
   thd->get_protocol_classic()->get_output_packet()->shrink(
       thd->variables.net_buffer_length);
 

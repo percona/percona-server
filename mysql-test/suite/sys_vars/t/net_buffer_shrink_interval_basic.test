@@ -1,0 +1,37 @@
+--echo Check basic net_buffer_shrink_interval variable functionality
+
+--echo Backup values
+set @old_net_buffer_shrink_interval = @@global.net_buffer_shrink_interval;
+
+--let $net_buffer_length= query_get_value(show variables like 'net_buffer_shrink_interval', Value, 1)
+--let $assert_text= net_buffer_shrink_interval shall be 0
+--let $assert_cond= $net_buffer_length = 0
+--source include/assert.inc
+
+set global net_buffer_shrink_interval=1;
+--let $net_buffer_length= query_get_value(show variables like 'net_buffer_shrink_interval', Value, 1)
+--let $assert_text= net_buffer_shrink_interval shall be 1
+--let $assert_cond= $net_buffer_length = 1
+--source include/assert.inc
+
+set global net_buffer_shrink_interval=40000000;
+--let $net_buffer_length= query_get_value(show variables like 'net_buffer_shrink_interval', Value, 1)
+--let $assert_text= net_buffer_shrink_interval shall be 31536000
+--let $assert_cond= $net_buffer_length = 31536000
+--source include/assert.inc
+
+--error ER_GLOBAL_VARIABLE
+set session net_buffer_shrink_interval=0;
+--let $net_buffer_length= query_get_value(show variables like 'net_buffer_shrink_interval', Value, 1)
+--let $assert_text= net_buffer_shrink_interval shall be 31536000
+--let $assert_cond= $net_buffer_length = 31536000
+--source include/assert.inc
+
+set global net_buffer_shrink_interval=0;
+--let $net_buffer_length= query_get_value(show variables like 'net_buffer_shrink_interval', Value, 1)
+--let $assert_text= net_buffer_shrink_interval shall be 0
+--let $assert_cond= $net_buffer_length = 0
+--source include/assert.inc
+
+--echo Restore previous values
+set global net_buffer_shrink_interval=@old_net_buffer_shrink_interval;

@@ -62,6 +62,10 @@ typedef struct NET_SERVER {
   struct compression_attributes compression;
   mysql_compress_context compress_ctx;
   bool timeout_on_full_packet;
+  /** Max buffer length, without headers, received during the last
+  global.net_buffer_shrink_interval. */
+  unsigned long max_interval_packet;
+  unsigned long long net_buffer_shrink_time;
 } NET_SERVER;
 
 inline void net_server_ext_init(NET_SERVER *ns) {

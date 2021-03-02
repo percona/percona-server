@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 12/10/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1217,7 +1217,7 @@ option, there remain no updates that match
 \fB\-\-secure\-auth\fR
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
+As of MySQL 5\&.7\&.5, this option is deprecated; expect it to be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
 .if n \{\
 .sp
@@ -2014,7 +2014,7 @@ with the
 \fB\-\-verbose\fR
 or
 \fB\-v\fR
-option\&. The output will contain lines beginning with
+option\&. The output contains lines beginning with
 ###:
 .sp
 .if n \{\
@@ -2071,7 +2071,7 @@ Specify
 \fB\-\-verbose\fR
 or
 \fB\-v\fR
-twice to also display data types and some metadata for each column\&. The output will contain an additional comment following each column change:
+twice to also display data types and some metadata for each column\&. The output contains an additional comment following each column change:
 .sp
 .if n \{\
 .RS 4
@@ -2259,7 +2259,7 @@ for variable\-length strings\&.
 .\}
 For multibyte character sets, the maximum number of bytes per character is not present in the binary log, so the length for string types is displayed in bytes rather than in characters\&. For example,
 STRING(4)
-will be used as the data type for values from either of these column types:
+is used as the data type for values from either of these column types:
 .sp
 .if n \{\
 .RS 4
@@ -2544,7 +2544,7 @@ binlog\&.000133
 before
 \fBmysqlbinlog\fR
 reaches the end of
-binlog\&.000132, the first command will not read it, but the second command will\&.
+binlog\&.000132, the first command does not read it, but the second command does\&.
 .RE
 .sp
 .RS 4

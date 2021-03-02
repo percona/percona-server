@@ -176,7 +176,10 @@ class ha_rocksdb : public my_core::handler {
   uint m_pk_key_parts;
 
   /*
-    true <=> Primary Key columns can be decoded from the index
+    true <=> Primary Key columns can be decoded from the index. It should be
+    enabled by default and may be disabled in init_with_fields() after initial
+    keys info is loaded and it turns out the feature isn't supported for
+    particular table.
   */
   mutable bool m_pk_can_be_decoded;
 
@@ -440,7 +443,9 @@ class ha_rocksdb : public my_core::handler {
     This is a list of flags that indicate what functionality the storage engine
     implements. The current table flags are documented in handler.h
   */
-  ulonglong table_flags() const override {
+  Table_flags table_flags() const override;
+
+  static Table_flags table_flags(const bool pk_can_be_decoded) {
     DBUG_ENTER_FUNC();
 
     /*
@@ -454,7 +459,7 @@ class ha_rocksdb : public my_core::handler {
     */
     DBUG_RETURN(HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
                 HA_REC_NOT_IN_SEQ | HA_CAN_INDEX_BLOBS |
-                (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
+                (pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
                 HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);
   }

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 12/10/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -83,7 +83,7 @@ SUPER
 privilege\&. Format and content of this information is subject to change\&.
 .sp
 This includes information about the Event Scheduler\&. See
-Section\ \&23.4.5, \(lqEvent Scheduler Status\(rq\&.
+Section\ \&22.4.5, \(lqEvent Scheduler Status\(rq\&.
 .RE
 .sp
 .RS 4
@@ -259,7 +259,7 @@ for the account that you use with
 \fBmysqladmin\fR
 for connecting to the server\&. Thus, the next time you invoke
 \fBmysqladmin\fR
-(or any other client program) using the same account, you will need to specify the new password\&.
+(or any other client program) using the same account, you must specify the new password\&.
 .if n \{\
 .sp
 .\}
@@ -318,7 +318,7 @@ command line\&. Otherwise, the next argument is taken as the password\&.
 .br
 Do not use this command used if the server was started with the
 \fB\-\-skip\-grant\-tables\fR
-option\&. No password change will be applied\&. This is true even if you precede the
+option\&. No password change is applied\&. This is true even if you precede the
 password
 command with
 flush\-privileges
@@ -1115,7 +1115,7 @@ Show warnings resulting from execution of statements sent to the server\&.
 \fB\-\-secure\-auth\fR
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
+As of MySQL 5\&.7\&.5, this option is deprecated; expect it to be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
 .if n \{\
 .sp

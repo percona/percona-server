@@ -53,6 +53,7 @@
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
+#include "rpl_handler.h"                 // delegates_set_lock_type
 #include "rpl_mi.h"                      // Master_info
 #include "rpl_msr.h"                     // channel_map
 #include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
@@ -3014,7 +3015,7 @@ static const char *optimizer_switch_names[]=
   "materialization", "semijoin", "loosescan", "firstmatch", "duplicateweedout",
   "subquery_materialization_cost_based",
   "use_index_extensions", "condition_fanout_filter", "derived_merge",
-  "favor_range_scan", "default", NullS
+  "prefer_ordering_index", "favor_range_scan", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -3025,8 +3026,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
        " subquery_materialization_cost_based"
        ", block_nested_loop, batched_key_access, use_index_extensions,"
-       " condition_fanout_filter, derived_merge, favor_range_scan}"
-       " and val is one of {on, off, default}",
+       " condition_fanout_filter, derived_merge, prefer_ordering_index,"
+       " favor_range_scan} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
@@ -3842,6 +3843,15 @@ static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd
     return false;
 }
 
+static bool update_binlog_transaction_dependency_history_size(sys_var* var, THD* thd, enum_var_type v)
+{
+  my_atomic_store64(&mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size,
+                    static_cast<int64>(mysql_bin_log.m_dependency_tracker.get_writeset()->
+                        m_opt_max_history_size_base_var));
+  return false;
+}
+
+
 static PolyLock_mutex
 PLock_slave_trans_dep_tracker(&LOCK_slave_trans_dep_tracker);
 static const char *opt_binlog_transaction_dependency_tracking_names[]=
@@ -3861,10 +3871,10 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
 static Sys_var_ulong Binlog_transaction_dependency_history_size(
        "binlog_transaction_dependency_history_size",
        "Maximum number of rows to keep in the writeset history.",
-       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size_base_var),
        CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
        BLOCK_SIZE(1), &PLock_slave_trans_dep_tracker, NOT_IN_BINLOG, ON_CHECK(NULL),
-       ON_UPDATE(NULL));
+       ON_UPDATE(update_binlog_transaction_dependency_history_size));
 
 static Sys_var_mybool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
@@ -4686,7 +4696,7 @@ static Sys_var_version Sys_version(
 static char *server_version_suffix_ptr;
 static Sys_var_charptr Sys_version_suffix(
        "version_suffix", "version_suffix",
-       GLOBAL_VAR(server_version_suffix_ptr), NO_CMD_LINE,
+       GLOBAL_VAR(server_version_suffix_ptr), CMD_LINE(REQUIRED_ARG),
        IN_SYSTEM_CHARSET, DEFAULT(server_version_suffix));
 
 static char *server_version_comment_ptr;
@@ -6538,3 +6548,60 @@ static Sys_var_mybool Sys_keyring_operations(
        NOT_IN_BINLOG,
        ON_CHECK(check_keyring_access),
        ON_UPDATE(0));
+
+/**
+  Changes the `Delegate` internal state in regards to which type of lock to
+  use and in regards to whether or not to take plugin locks in each hook
+  invocation.
+ */
+static bool handle_plugin_lock_type_change(sys_var *, THD *,
+                                           enum_var_type)
+{
+  DBUG_ENTER("handle_plugin_lock_type_change");
+  delegates_acquire_locks();
+  delegates_update_lock_type();
+  delegates_release_locks();
+  DBUG_RETURN(false);
+}
+
+static Sys_var_mybool Sys_replication_optimize_for_static_plugin_config(
+       "replication_optimize_for_static_plugin_config",
+       "Optional flag that blocks plugin install/uninstall and allows skipping "
+       "the acquisition of the lock to read from the plugin list and the usage "
+       "of read-optimized spin-locks. Use only when plugin hook callback needs "
+       "optimization (a lot of semi-sync slaves, for instance).",
+       GLOBAL_VAR(opt_replication_optimize_for_static_plugin_config),
+       CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(handle_plugin_lock_type_change));
+
+/**
+  Updates the atomic access version of
+  `opt_replication_sender_observe_commit_only`.
+ */
+static bool handle_sender_observe_commit_change(sys_var *, THD *, enum_var_type)
+{
+  DBUG_ENTER("handle_sender_observe_commit_change");
+  my_atomic_store32(&opt_atomic_replication_sender_observe_commit_only,
+                    opt_replication_sender_observe_commit_only);
+  DBUG_RETURN(false);
+}
+
+static Sys_var_mybool Sys_replication_sender_observe_commit_only(
+       "replication_sender_observe_commit_only",
+       "Optional flag that allows for only calling back observer hooks at "
+       "commit.",
+       GLOBAL_VAR(opt_replication_sender_observe_commit_only),
+       CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(handle_sender_observe_commit_change));
+
+#ifndef DBUG_OFF
+Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif

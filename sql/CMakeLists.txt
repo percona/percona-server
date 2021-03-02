@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,7 @@ SET(SQL_SHARED_SOURCES
   keycaches.cc
   lock.cc
   locking_service.cc
+  locks/shared_spin_lock.cc
   log.cc
   event_crypt.cc
   mdl.cc
@@ -462,6 +463,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   sql_list.cc 
   ../sql-common/sql_string.cc
   thr_malloc.cc
+  locks/shared_spin_lock.cc
   )
 
 ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})

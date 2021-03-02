@@ -30,6 +30,8 @@ CMAKE_BUILD_TYPE=''
 COMMON_FLAGS=''
 #
 TOKUDB_BACKUP_VERSION=''
+# enable asan
+ENABLE_ASAN=0
 #
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -57,7 +59,12 @@ do
         shift
         CMAKE_BUILD_TYPE='Debug'
         BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
-        DEBUG_EXTRA="-DDEBUG_EXTNAME=OFF"
+        TARBALL_SUFFIX="-debug"
+        DEBUG_EXTRA="-DDEBUG_EXTNAME=OFF -DWITH_DEBUG=ON"
+        ;;
+    -a | --asan )
+        shift
+        ENABLE_ASAN=1
         ;;
     -v | --valgrind )
         shift
@@ -168,7 +175,7 @@ else
     REVISION=""
 fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL${BUILD_COMMENT:-}-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}"
+PRODUCT_FULL="$PRODUCT_FULL-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}${TARBALL_SUFFIX:-}"
 COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
@@ -177,12 +184,14 @@ export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 
 # If gcc >= 4.8 we can use ASAN in debug build but not if valgrind build also
-if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
-  GCC_VERSION=$(${CC} -dumpversion)
-  GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
-  if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
-    DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
-  fi
+if [[ $ENABLE_ASAN -eq 1 ]]; then
+    if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
+        GCC_VERSION=$(${CC} -dumpversion)
+        GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
+        if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
+            DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
+        fi
+    fi
 fi
 
 # TokuDB cmake flags
@@ -293,7 +302,7 @@ fi
 
 # Patch needed libraries
 (
-    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so"
+    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libncurses.so"
     DIRLIST="bin lib lib/private lib/mysql/plugin"
 
     LIBPATH=""
@@ -393,19 +402,22 @@ fi
         done
     }
 
-    mkdir $INSTALLDIR/usr/local/minimal
-    cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+    if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
+        mkdir $INSTALLDIR/usr/local/minimal
+        cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+    fi
 
     # NORMAL TARBALL
     cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
     link
 
     # MIN TARBALL
-    cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
-    rm -rf mysql-test 2> /dev/null
-    find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
-    link
-
+    if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
+        cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+        rm -rf mysql-test 2> /dev/null
+        find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
+        link
+    fi
 )
 
 # Package the archive
@@ -415,9 +427,11 @@ fi
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
-    cd "$INSTALLDIR/usr/local/minimal/"
-    find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
-    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
+    if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
+        cd "$INSTALLDIR/usr/local/minimal/"
+        find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
+        $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
+    fi
 )
 
 # Clean up

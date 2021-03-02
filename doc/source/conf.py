@@ -98,7 +98,7 @@ rst_prolog = '''
 
 .. role:: bash(code)
    :language: bash
-   
+
 .. |check|  replace:: ``|[[---CHECK---]]|``
 
 .. |xtrabackup|  replace:: :program:`xtrabackup`

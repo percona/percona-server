@@ -1106,6 +1106,9 @@ fi
 
 
 %changelog
+* Mon Feb 22 2021 Percona Development Team <info@percona.com> - 5.7.33-36
+- Release 5.7.33-36
+
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - Added RocksDB
 

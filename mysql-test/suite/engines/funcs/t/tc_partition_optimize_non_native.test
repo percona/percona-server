@@ -5,7 +5,7 @@
 --disable_warnings
 let $ENGINE=`SELECT variable_value FROM performance_schema.global_variables
              WHERE variable_name = 'DEFAULT_STORAGE_ENGINE'`;
-if ($ENGINE == "InnoDB")
+if (`SELECT 1 FROM dual WHERE '$ENGINE' IN ("InnoDB", "TokuDB", "RocksDB")`)
 {
   skip Engines supporting native partitioning are not tested using this test wrapper;
 }

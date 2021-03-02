@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -602,12 +602,12 @@ typedef struct system_variables
   ulonglong log_slow_filter;
   ulonglong log_slow_verbosity;
 
-  ulong      innodb_io_reads;
-  ulonglong  innodb_io_read;
-  ulong      innodb_io_reads_wait_timer;
-  ulong      innodb_lock_que_wait_timer;
-  ulong      innodb_innodb_que_wait_timer;
-  ulong      innodb_page_access;
+  ulong     innodb_io_reads;
+  ulonglong innodb_io_read;
+  uint64_t  innodb_io_reads_wait_timer;
+  uint64_t  innodb_lock_que_wait_timer;
+  uint64_t  innodb_innodb_que_wait_timer;
+  ulong     innodb_page_access;
 
   double long_query_time_double;
 
@@ -1171,13 +1171,13 @@ public:
   ulong      tmp_tables_disk_used;
   ulonglong  tmp_tables_size;
 
-  bool       innodb_was_used;
-  ulong      innodb_io_reads;
-  ulonglong  innodb_io_read;
-  ulong      innodb_io_reads_wait_timer;
-  ulong      innodb_lock_que_wait_timer;
-  ulong      innodb_innodb_que_wait_timer;
-  ulong      innodb_page_access;
+  bool      innodb_was_used;
+  ulong     innodb_io_reads;
+  ulonglong innodb_io_read;
+  uint64_t  innodb_io_reads_wait_timer;
+  uint64_t  innodb_lock_que_wait_timer;
+  uint64_t  innodb_innodb_que_wait_timer;
+  ulong     innodb_page_access;
 
   ulong      query_plan_flags;
   ulong      query_plan_fsort_passes;
@@ -2228,12 +2228,12 @@ public:
     Following Variables innodb_*** (is |should be) different from
     default values only if (innodb_was_used==true)
   */
-  ulonglong  innodb_trx_id;
-  ulong      innodb_io_reads;
-  ulonglong  innodb_io_read;
-  ulong      innodb_io_reads_wait_timer;
-  ulong      innodb_lock_que_wait_timer;
-  ulong      innodb_innodb_que_wait_timer;
+  ulonglong innodb_trx_id;
+  ulong     innodb_io_reads;
+  ulonglong innodb_io_read;
+  uint64_t  innodb_io_reads_wait_timer;
+  uint64_t  innodb_lock_que_wait_timer;
+  uint64_t  innodb_innodb_que_wait_timer;
 
  private:
   /*
@@ -3202,6 +3202,7 @@ public:
   {
     CE_NONE= 0,
     CE_FLUSH_ERROR,
+    CE_FLUSH_GNO_EXHAUSTED_ERROR,
     CE_SYNC_ERROR,
     CE_COMMIT_ERROR,
     CE_ERROR_COUNT

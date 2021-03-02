@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/22/2020
+.\"      Date: 12/10/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "09/22/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -281,7 +281,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-the section called \(lqImpermissible Client Character Sets\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+the section called \(lqImpermissible Client Character Sets\(rq), so the dump file cannot be loaded correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -326,7 +326,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&28.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&27.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .RE
 .PP
 \fBmysqldump\fR
@@ -617,7 +617,7 @@ Section\ \&4.2.5, \(lqConnection Transport Protocols\(rq\&.
 \fB\-\-secure\-auth\fR
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
-As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
+As of MySQL 5\&.7\&.5, this option is deprecated; expect it to be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
 .if n \{\
 .sp
@@ -1338,7 +1338,9 @@ statement at the end of the output\&.
 \fB\-\-delete\-master\-logs\fR
 On a source replication server, delete the binary logs by sending a
 PURGE BINARY LOGS
-statement to the server after performing the dump operation\&. This option automatically enables
+statement to the server after performing the dump operation\&. This option requires the
+RELOAD
+privilege as well as privileges sufficient to execute that statement\&. This option automatically enables
 \fB\-\-master\-data\fR\&.
 .RE
 .sp
@@ -1388,7 +1390,7 @@ for more information\&.
 \fB\-\-dump\-slave\fR
 causes the coordinates from the source to be used rather than those of the dumped server, as is done by the
 \fB\-\-master\-data\fR
-option\&. In addition, specfiying this option causes the
+option\&. In addition, specifiying this option causes the
 \fB\-\-master\-data\fR
 option to be overridden, if used, and effectively ignored\&.
 .if n \{\
@@ -1420,6 +1422,11 @@ in terms of enabling or disabling other options and in how locking is handled\&.
 This option causes
 \fBmysqldump\fR
 to stop the replica SQL thread before the dump and restart it again after\&.
+.sp
+\fB\-\-dump\-slave\fR
+sends a
+SHOW SLAVE STATUS
+statement to the server to obtain information, so it requires privileges sufficient to execute that statement\&.
 .sp
 In conjunction with
 \fB\-\-dump\-slave\fR, the
@@ -1466,7 +1473,10 @@ If the option value is 2, the
 CHANGE MASTER TO
 statement is written as an SQL comment, and thus is informative only; it has no effect when the dump file is reloaded\&. If the option value is 1, the statement is not written as a comment and takes effect when the dump file is reloaded\&. If no option value is specified, the default value is 1\&.
 .sp
-This option requires the
+\fB\-\-master\-data\fR
+sends a
+SHOW MASTER STATUS
+statement to the server to obtain information, so it requires privileges sufficient to execute that statement\&. This option also requires the
 RELOAD
 privilege and the binary log must be enabled\&.
 .sp
@@ -1540,7 +1550,7 @@ if the intention is to deploy a new replication replica using only some of the d
 OFF
 if the intention is to repair a table by copying it within a topology\&. Use
 OFF
-if the intention is to copy a table between replication topologies that are disjoint and will remain so\&.
+if the intention is to copy a table between replication topologies that are disjoint and for them to remain so\&.
 .sp
 The
 \fB\-\-set\-gtid\-purged\fR
@@ -2430,6 +2440,10 @@ mysql
 database and any other database that depends on the data in the
 mysql
 database for proper restoration\&.
+.sp
+Because the dump file contains a
+FLUSH PRIVILEGES
+statement, reloading the file requires privileges sufficient to execute that statement\&.
 .if n \{\
 .sp
 .\}
@@ -2860,7 +2874,7 @@ mysql
 database\&. Log table contents are not dumped\&.
 .PP
 If you encounter problems backing up views due to insufficient privileges, see
-Section\ \&23.9, \(lqRestrictions on Views\(rq
+Section\ \&22.9, \(lqRestrictions on Views\(rq
 for a workaround\&.
 .SH "COPYRIGHT"
 .br

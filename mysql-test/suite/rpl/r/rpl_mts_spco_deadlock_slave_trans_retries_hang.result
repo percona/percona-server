@@ -1,5 +1,5 @@
 #
-# 1. Create source-replica topolgy.
+# 1. Create source-replica topology.
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -49,8 +49,11 @@ include/start_slave_sql.inc
 [connection slave]
 ROLLBACK;
 #
-# 3.2. Wait till the co-ordinator thread to error out with ER_MTS_INCONSISTENT_DATA.
-include/wait_for_slave_sql_error.inc [errno=1756]
+# Add error supressions.
+CALL mtr.add_suppression("Worker 2 failed executing transaction 'ANONYMOUS'");
+#
+# 3.2. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
+include/wait_for_slave_sql_error.inc [errno=1213]
 #
 # 3.3. Restart replication threads, sync the replica and verify that table
 #      data is consistent.

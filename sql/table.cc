@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1013,28 +1013,36 @@ static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   @param[in]     share         Pointer to TABLE_SHARE
   @param[in]     handler       Pointer to handler
   @param[in,out] usable_parts  Pointer to usable_parts variable
+  @param[in]     use_extended_sk  TRUE if use_index_extensions is ON
 
   @retval                      Number of added key parts
 */
 
 static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
                                TABLE_SHARE *share, handler *handler_file,
-                               uint *usable_parts)
+                               uint *usable_parts, bool use_extended_sk)
 {
   uint max_key_length= sk->key_length;
-  bool is_unique_key= false;
+  /*
+    Secondary key becomes unique if the key does not exceed
+    key length limitation(MAX_KEY_LENGTH) and key parts
+    limitation(MAX_REF_PARTS) and PK parts are added to SK.
+  */
+  bool is_unique_key = use_extended_sk;
+  uint pk_part = 0;
   KEY_PART_INFO *current_key_part= &sk->key_part[sk->user_defined_key_parts];
 
   /* 
      For each keypart in the primary key: check if the keypart is
      already part of the secondary key and add it if not.
   */
-  for (uint pk_part= 0; pk_part < pk->user_defined_key_parts; pk_part++)
-  {
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
     KEY_PART_INFO *pk_key_part= &pk->key_part[pk_part];
-    /* MySQL does not supports more key parts than MAX_REF_LENGTH */
-    if (sk->actual_key_parts >= MAX_REF_PARTS)
-      goto end;
+    /* No more than MAX_REF_PARTS key parts are supported. */
+    if (sk->actual_key_parts >= MAX_REF_PARTS) {
+      is_unique_key = false;
+      break;
+    }
 
     bool pk_field_is_in_sk= false;
     for (uint j= 0; j < sk->user_defined_key_parts; j++)
@@ -1048,12 +1056,18 @@ static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       }
     }
 
-    /* Add PK field to secondary key if it's not already  part of the key. */
     if (!pk_field_is_in_sk)
     {
-      /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
-      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH)
-        goto end;
+      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) {
+        is_unique_key = false;
+        break;
+      }
+      max_key_length += pk_key_part->length;
+      /*
+        Do not add key part if SK is a unique key or
+        if use_index_extensions is OFF.
+      */
+      if ((sk->flags & HA_NOSAME) || !use_extended_sk) continue;
 
       *current_key_part= *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
@@ -1063,18 +1077,20 @@ static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       sk->rec_per_key[sk->actual_key_parts - 1]= 0;
       sk->set_records_per_key(sk->actual_key_parts - 1, REC_PER_KEY_UNKNOWN);
       current_key_part++;
-      max_key_length+= pk_key_part->length;
-      /*
-        Secondary key will be unique if the key  does not exceed
-        key length limitation and key parts limitation.
-      */
-      is_unique_key= true;
     }
   }
   if (is_unique_key)
     sk->actual_flags|= HA_NOSAME;
 
-end:
+  /*
+    Clean key maps for those PK parts which exceed
+    MAX_KEY_LENGTH or MAX_REF_PARTS limits.
+  */
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
+    Field *fld = pk->key_part[pk_part].field;
+    fld->part_of_key.clear_bit(sk_n);
+    fld->part_of_sortkey.clear_bit(sk_n);
+  }
   return (sk->actual_key_parts - sk->user_defined_key_parts);
 }
 
@@ -2465,16 +2481,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     const int pk_off= find_type(primary_key_name, &share->keynames,
                                   FIND_TYPE_NO_PREFIX);
     uint primary_key= (pk_off > 0 ? pk_off-1 : MAX_KEY);
-    /*
-      The following if-else is here for MyRocks:
-      set share->primary_key as early as possible, because the return value
-      of ha_rocksdb::index_flags(key, ...) (HA_KEYREAD_ONLY bit in particular)
-      depends on whether the key is the primary key.
-    */
-    if (primary_key < MAX_KEY && share->keys_in_use.is_set(primary_key))
-      share->primary_key= primary_key;
-    else
-      share->primary_key= MAX_KEY;
 
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
@@ -2539,13 +2545,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	    break;
 	  }
 	}
-
-        /*
-          The following is here for MyRocks. See the comment above
-          about "set share->primary_key as early as possible"
-        */
-        if (primary_key < MAX_KEY && share->keys_in_use.is_set(primary_key))
-          share->primary_key= primary_key;
       }
 
       for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
@@ -2637,11 +2636,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
 
-
-      if (use_extended_sk && primary_key < MAX_KEY &&
-          key && !(keyinfo->flags & HA_NOSAME))
-        key_part+= add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
-                                      share,  handler_file, &usable_parts);
+      if (primary_key < MAX_KEY && key != primary_key &&
+          (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX))
+        key_part += add_pk_parts_to_sk(keyinfo, key, share->key_info,
+                                       primary_key, share, handler_file,
+                                       &usable_parts, use_extended_sk);
 
       /* Skip unused key parts if they exist */
       key_part+= keyinfo->unused_key_parts;
@@ -2670,46 +2669,31 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (handler_file->init_with_fields())
       goto err;
 
-    if (primary_key < MAX_KEY && (handler_file->ha_table_flags() &
-                                  HA_PRIMARY_KEY_IN_READ_INDEX))
+    if (primary_key < MAX_KEY &&
+        (share->keys_in_use.is_set(primary_key)))
     {
-      keyinfo= &share->key_info[primary_key];
-      key_part= keyinfo->key_part;
-      for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
-      {
-        Field *field= key_part->field;
-        /*
-          If this field is part of the primary key and all keys contains
-          the primary key, then we can use any key to find this column
-        */
-        if (field->key_length() == key_part->length &&
-            !(field->flags & BLOB_FLAG))
-          field->part_of_key= share->keys_in_use;
-        if (field->part_of_sortkey.is_set(primary_key))
-            field->part_of_sortkey= share->keys_in_use;
-      }
-    }
-
-    if (share->primary_key != MAX_KEY)
-    {
+      share->primary_key= primary_key;
       /*
-	If we are using an integer as the primary key then allow the user to
-	refer to it as '_rowid'
+       If we are using an integer as the primary key then allow the user to
+       refer to it as '_rowid'
       */
       if (share->key_info[primary_key].user_defined_key_parts == 1)
       {
-	Field *field= share->key_info[primary_key].key_part[0].field;
-	if (field && field->result_type() == INT_RESULT)
+        Field *field= share->key_info[primary_key].key_part[0].field;
+        if (field && field->result_type() == INT_RESULT)
         {
           /* note that fieldnr here (and rowid_field_offset) starts from 1 */
-	  share->rowid_field_offset= (share->key_info[primary_key].key_part[0].
-                                      fieldnr);
+          share->rowid_field_offset= (share->key_info[primary_key].key_part[0].
+              fieldnr);
         }
       }
     }
+    else
+      share->primary_key = MAX_KEY; // we do not have a primary key
   }
   else
     share->primary_key= MAX_KEY;
+
   my_free(disk_buff);
   disk_buff=0;
   if (new_field_pack_flag <= 1)

@@ -615,6 +615,8 @@ struct System_status_var {
   ulonglong bytes_received;
   ulonglong bytes_sent;
 
+  ulonglong net_buffer_length;
+
   ulonglong max_execution_time_exceeded;
   ulonglong max_execution_time_set;
   ulonglong max_execution_time_set_failed;

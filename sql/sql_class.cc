@@ -1192,6 +1192,8 @@ void THD::set_new_thread_id() {
 void THD::cleanup_connection(void) {
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  /* net_buffer_length does not accumulate the historical values */
+  global_status_var.net_buffer_length = 0ULL;
   reset_system_status_vars(&status_var);
   mysql_mutex_unlock(&LOCK_status);
 
@@ -1439,6 +1441,8 @@ void THD::release_resources() {
   mysql_mutex_lock(&LOCK_status);
   /* Add thread status to the global totals. */
   add_to_status(&global_status_var, &status_var);
+  /* net_buffer_length does not accumulate the historical values */
+  global_status_var.net_buffer_length = 0ULL;
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Aggregate thread status into the Performance Schema. */
   if (m_psi != nullptr) {

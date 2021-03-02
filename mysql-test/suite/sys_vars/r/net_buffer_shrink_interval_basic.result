@@ -1,0 +1,17 @@
+Check basic net_buffer_shrink_interval variable functionality
+Backup values
+set @old_net_buffer_shrink_interval = @@global.net_buffer_shrink_interval;
+include/assert.inc [net_buffer_shrink_interval shall be 0]
+set global net_buffer_shrink_interval=1;
+include/assert.inc [net_buffer_shrink_interval shall be 1]
+set global net_buffer_shrink_interval=40000000;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_shrink_interval value: '40000000'
+include/assert.inc [net_buffer_shrink_interval shall be 31536000]
+set session net_buffer_shrink_interval=0;
+ERROR HY000: Variable 'net_buffer_shrink_interval' is a GLOBAL variable and should be set with SET GLOBAL
+include/assert.inc [net_buffer_shrink_interval shall be 31536000]
+set global net_buffer_shrink_interval=0;
+include/assert.inc [net_buffer_shrink_interval shall be 0]
+Restore previous values
+set global net_buffer_shrink_interval=@old_net_buffer_shrink_interval;

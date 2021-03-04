@@ -1643,6 +1643,10 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
     return nullptr;
   }
 
+  if (space_id == TRX_SYS_SPACE && page_no == TRX_SYS_PAGE_NO) {
+    return nullptr;
+  }
+
   if (fsp_is_undo_tablespace(space_id) && !srv_undo_log_encrypt) {
     /* It is an undo tablespace and undo encryption is not enabled. */
     return nullptr;

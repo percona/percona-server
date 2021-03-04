@@ -10081,12 +10081,6 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
 @return DB_SUCCESS or error code */
 dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv, bool acquire_mutex) {
-  ut_ad(space_id != TRX_SYS_SPACE);
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return DB_IO_NO_ENCRYPT_TABLESPACE;
-  }
-
   auto shard = fil_system->shard_by_id(space_id);
 
   if (acquire_mutex) shard->mutex_acquire();
@@ -12989,6 +12983,61 @@ page_no_t Fil_page_header::get_page_no() const noexcept {
 
 uint16_t Fil_page_header::get_page_type() const noexcept {
   return mach_read_from_2(m_frame + FIL_PAGE_TYPE);
+}
+
+void fil_space_t::get_encryption_info(Encryption &en) noexcept {
+  switch (encryption_type) {
+    case Encryption::NONE:
+      en.set_type(Encryption::NONE);
+      en.set_key(nullptr);
+      en.set_key_length(0);
+      en.set_initial_vector(nullptr);
+
+      en.set_key_versions_cache(nullptr);
+      en.set_key_version(0);
+      en.set_key_id(0);
+      en.set_tablespace_key(nullptr);
+      en.set_key_id_uuid(nullptr);
+      en.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
+      break;
+    case Encryption::AES:
+      ut_ad(encryption_klen != 0);
+
+      en.set_type(Encryption::AES);
+      en.set_key(encryption_key);
+      en.set_key_length(encryption_klen);
+      en.set_initial_vector(encryption_iv);
+
+      en.set_key_versions_cache(nullptr);
+      en.set_key_version(0);
+      en.set_key_id(0);
+      en.set_tablespace_key(nullptr);
+      en.set_key_id_uuid(nullptr);
+      en.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
+      break;
+    case Encryption::KEYRING:
+      ut_ad(crypt_data != nullptr);
+
+      if (crypt_data->local_keys_cache.size() == 0)
+        crypt_data->load_keys_to_local_cache();
+
+      ut_ad(crypt_data->local_keys_cache[crypt_data->max_key_version] !=
+            nullptr);
+
+      en.set_type(Encryption::KEYRING);
+
+      en.set_key(crypt_data->local_keys_cache[crypt_data->max_key_version]);
+      en.set_key_length(Encryption::KEY_LEN);
+      en.set_initial_vector(crypt_data->iv);
+
+      en.set_key_versions_cache(&crypt_data->local_keys_cache);
+      en.set_key_version(crypt_data->max_key_version);
+      en.set_key_id(crypt_data->key_id);
+      en.set_tablespace_key(nullptr);
+      en.set_key_id_uuid(crypt_data->uuid);
+      en.set_encryption_rotation(crypt_data->encryption_rotation);
+      break;
+  }
 }
 
 fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {

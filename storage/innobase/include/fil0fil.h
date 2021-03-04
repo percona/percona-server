@@ -570,12 +570,7 @@ struct fil_space_t {
   /** Copy the encryption info from this object to the provided
   Encryption object.
   @param[in]    en   Encryption object to which info is copied. */
-  void get_encryption_info(Encryption &en) noexcept {
-    en.set_type(encryption_type);
-    en.set_key(encryption_key);
-    en.set_key_length(encryption_klen);
-    en.set_initial_vector(encryption_iv);
-  }
+  void get_encryption_info(Encryption &en) noexcept;
 
  public:
   /** Get the file node corresponding to the given page number of the

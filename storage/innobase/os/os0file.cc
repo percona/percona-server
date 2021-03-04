@@ -5662,11 +5662,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       return err;
 
     } else if ((ulint)n_bytes == n) {
-      /*The page decryption failed - will handled by buf_io_comptelete*/
-      if (err == DB_IO_DECRYPT_FAIL) {
-        return (DB_IO_DECRYPT_FAIL);
-      }
-
       /** The read will succeed but decompress can fail
       for various reasons. */
 

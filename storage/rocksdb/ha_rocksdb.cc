@@ -3936,10 +3936,9 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
     if (thd->durability_property == HA_IGNORE_DURABILITY) {
       tx->set_sync(false);
     }
-#ifndef DBUG_OFF
-    // Call set_name to check that transaction name still matches.
-    tx->set_name();
-#endif
+    if (rocksdb_write_policy != rocksdb::TxnDBWritePolicy::WRITE_UNPREPARED) {
+      tx->set_name();
+    }
     if (!tx->prepare()) {
       return HA_EXIT_FAILURE;
     }
@@ -4624,7 +4623,16 @@ static inline void rocksdb_register_tx(handlerton *const hton, THD *const thd,
   DBUG_ASSERT(tx != nullptr);
 
   trans_register_ha(thd, false, rocksdb_hton, nullptr);
-  tx->set_name();
+  if (rocksdb_write_policy == rocksdb::TxnDBWritePolicy::WRITE_UNPREPARED) {
+    // Some internal operations will call trans_register_ha, but they do not
+    // go through 2pc. In this case, the xid is set with query_id == 0, which
+    // means that rocksdb will receive transactions with duplicate names.
+    //
+    // Skip setting name in these cases.
+    if (thd->query_id != 0) {
+      tx->set_name();
+    }
+  }
   if (my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
     tx->start_stmt();
     trans_register_ha(thd, true, rocksdb_hton, nullptr);

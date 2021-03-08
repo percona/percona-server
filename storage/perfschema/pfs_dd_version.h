@@ -159,8 +159,7 @@
   - WL#9090 created processlist
   - WL#13681 created error_log
 
-  80023: TODO PERCONA
-  We merging upstream update list and check/fix dd_version_check.test
+  80023:
 
   performance_schema tables changed in MySQL 8.0.23
   - malloc_stats (created - Percona Server)

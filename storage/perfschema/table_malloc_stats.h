@@ -48,7 +48,7 @@ class table_malloc_stats_totals : public PFS_engine_table {
   table_malloc_stats_totals();
 
  public:
-  ~table_malloc_stats_totals() {}
+  ~table_malloc_stats_totals() override {}
 
  private:
   void make_row();
@@ -92,7 +92,7 @@ class table_malloc_stats : public PFS_engine_table {
   table_malloc_stats();
 
  public:
-  ~table_malloc_stats() {}
+  ~table_malloc_stats() override {}
 
  private:
   void make_row(int index);

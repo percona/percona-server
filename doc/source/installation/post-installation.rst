@@ -31,7 +31,7 @@ Initializing the Data Directory
 
 If you install the server using either the source distribution or generic binary distribution files, the data directory is not initialized, and you must run the initialization process after installation. 
 
-Run `mysqld` with the `--initialize <https://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_initialize>`_ option or the `initialize-insecure <https://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_initialize-insecure>`_ option.
+Run `mysqld` with the `--initialize <https://dev.mysql.com/doc/refman/8.0/en/server-options.html#option_mysqld_initialize>`_ option or the `initialize-insecure <https://dev.mysql.com/doc/refman/8.0/en/server-options.html#option_mysqld_initialize-insecure>`_ option.
 
 Executing `mysqld` with either option does the following:
 
@@ -48,7 +48,7 @@ You should run the following steps with the ``mysql`` login.
 
     $ cd /usr/local/mysql
 
-2. Create a directory for the MySQL files. The `secure_file_priv <https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_secure_file_priv>`_ uses the directory path as a value.
+2. Create a directory for the MySQL files. The `secure_file_priv <https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_secure_file_priv>`_ uses the directory path as a value.
 
 .. code-block:: bash
 
@@ -95,7 +95,7 @@ Secure the Installation
 -----------------------
 
 The `mysql_secure_installation
-<https://dev.mysql.com/doc/refman/5.7/en/mysql-secure-installation.html>`_
+<https://dev.mysql.com/doc/refman/8.0/en/mysql-secure-installation.html>`_
 script improves the security of the installation.
 
 Running the script does the following:
@@ -151,9 +151,9 @@ Testing the Server
 
 After you have initialized the data directory, and the server is started, you can run tests on the server. 
 
-This section assumes you have used the default installation settings. If you have modified the installation, navigate to the installation location. You can also add the location by `Setting the Environment Variables <https://dev.mysql.com/doc/refman/5.7/en/setting-environment-variables.html>`_.
+This section assumes you have used the default installation settings. If you have modified the installation, navigate to the installation location. You can also add the location by `Setting the Environment Variables <https://dev.mysql.com/doc/refman/8.0/en/setting-environment-variables.html>`_.
 
-You can use the `mysqladmin <https://dev.mysql.com/doc/refman/5.7/en/mysqladmin.html>`_ client to access the server. 
+You can use the `mysqladmin <https://dev.mysql.com/doc/refman/8.0/en/mysqladmin.html>`_ client to access the server. 
 
 If you have issues connecting to the server, you should use the ``root`` user and the root account password.
 
@@ -173,7 +173,7 @@ If you have issues connecting to the server, you should use the ``root`` user an
     Threads:    2 Questions:    16 Slow queries: 0 Opens: 139 Flush tables: 3
     Open tables: 59  Queries per second avg: 0.0000 
 
-Use `mysqlshow <https://dev.mysql.com/doc/refman/5.7/en/mysqlshow.html>`_ to display database and table information.
+Use `mysqlshow <https://dev.mysql.com/doc/refman/8.0/en/mysqlshow.html>`_ to display database and table information.
 
 .. code-block:: bash
 
@@ -207,7 +207,7 @@ The time zone system tables are the following:
 If you install the server using either the source distribution or generic binary distribution files, the installation creates the time zone tables, but the tables are not populated. 
 
 The `mysql_tzinfo_to_sql
-<https://dev.mysql.com/doc/refman/5.7/en/mysql-tzinfo-to-sql.html>`_ program
+<https://dev.mysql.com/doc/refman/8.0/en/mysql-tzinfo-to-sql.html>`_ program
 populates the tables from the ``zoneinfo`` directory data available in Linux.
 
 A common method to populate the tables is to add the zoneinfo directory path to ``mysql_tzinfo_to_sql`` and then send the output into ``mysql``. 

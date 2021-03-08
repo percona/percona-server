@@ -2056,9 +2056,14 @@ int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
   Rdb_string_reader reader2(key2);
 
   // Skip the index number
-  if ((!reader1.read(INDEX_NUMBER_SIZE))) return HA_EXIT_FAILURE;
+  auto indexp1 = reader1.read(INDEX_NUMBER_SIZE);
+  if (!indexp1) return HA_EXIT_FAILURE;
 
-  if ((!reader2.read(INDEX_NUMBER_SIZE))) return HA_EXIT_FAILURE;
+  auto indexp2 = reader2.read(INDEX_NUMBER_SIZE);
+  if (!indexp2) return HA_EXIT_FAILURE;
+
+  // shouldn't compare with other index
+  DBUG_ASSERT(memcmp(indexp1, indexp2, INDEX_NUMBER_SIZE) == 0);
 
   for (uint i = 0; i < m_key_parts; i++) {
     const Rdb_field_packing *const fpi = &m_pack_info[i];
@@ -4575,8 +4580,9 @@ bool Rdb_ddl_manager::validate_auto_incr() {
       sql_print_warning(
           "RocksDB: AUTOINC mismatch - "
           "Index number (%u, %u) found in AUTOINC "
-          "but does not exist as a DDL entry",
-          gl_index_id.cf_id, gl_index_id.index_id);
+          "but does not exist as a DDL entry for table %s",
+          gl_index_id.cf_id, gl_index_id.index_id,
+          safe_get_table_name(gl_index_id).c_str());
       return false;
     }
 
@@ -4587,8 +4593,9 @@ bool Rdb_ddl_manager::validate_auto_incr() {
       sql_print_warning(
           "RocksDB: AUTOINC mismatch - "
           "Index number (%u, %u) found in AUTOINC "
-          "is on unsupported version %d",
-          gl_index_id.cf_id, gl_index_id.index_id, version);
+          "is on unsupported version %d for table %s",
+          gl_index_id.cf_id, gl_index_id.index_id, version,
+          safe_get_table_name(gl_index_id).c_str());
       return false;
     }
   }
@@ -4795,7 +4802,9 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     }
     if (validate_tables == 1 && !msg.empty()) {
       // NO_LINT_DEBUG
-      sql_print_error("%s", msg.c_str());
+      sql_print_error(
+          "%s. Use \"rocksdb_validate_tables=2\" to ignore this error.",
+          msg.c_str());
       return true;
     }
   }

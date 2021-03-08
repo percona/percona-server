@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
 
@@ -184,6 +184,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
   case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
   case HA_ERR_COMPUTE_FAILED: return "HA_ERR_COMPUTE_FAILED";
+  case HA_ERR_FTS_TOO_MANY_NESTED_EXP: return "HA_ERR_FTS_TOO_MANY_NESTED_EXP";
   }
   return "No Error!";
 }
@@ -1446,7 +1447,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   const char *error= 0;
   Log_event *res=  0;
 #if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  ulong log_max_allowed_packet;
+  ulong log_max_allowed_packet = 0;
   mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
                    &log_max_allowed_packet);
 #else

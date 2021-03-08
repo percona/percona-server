@@ -17,7 +17,7 @@ Table:
 
 .. code-block:: mysql
 
-    mysql> CREATE TABLE albums (
+      > CREATE TABLE albums (
       `artist` text NOT NULL,
       `album` text NOT NULL
       ) ENGINE=CSV DEFAULT CHARSET=utf8
@@ -27,7 +27,7 @@ Following example shows the difference in parsing for default and ``IETF_QUOTES`
 
 .. code-block:: mysql
 
-   mysql> INSERT INTO albums VALUES ("Great Artist", "Old Album"), 
+    > INSERT INTO albums VALUES ("Great Artist", "Old Album"),
     ("Great Artist", "Old Album \"Limited Edition\"");  
 
 If the variable :variable:`csv_mode` is set to empty value (default) parsed data will look like: :: 
@@ -46,7 +46,7 @@ With :variable:`csv_mode` set to empty value, parsed data will look like:
 
 .. code-block:: mysql
 
-   mysql> SELECT * FROM albums;
+   > SELECT * FROM albums;
    +--------------+--------------------+
    | artist       | album              |
    +--------------+--------------------+
@@ -64,7 +64,7 @@ With :variable:`csv_mode` set to ``IETF_QUOTES`` parsed data will look like:
 
 .. code-block:: mysql
 
-   mysql> SELECT * FROM albums;
+   > SELECT * FROM albums;
    +--------------+-----------------------------+
    | artist       | album                       |
    +--------------+-----------------------------+

@@ -146,6 +146,7 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 
 void vio_proxy_protocol_add(const struct st_vio_network *net);
 void vio_proxy_cleanup();
+void vio_force_skip_proxy(Vio *vio);
 void    vio_delete(Vio* vio);
 int vio_shutdown(Vio* vio, int how);
 int vio_cancel(Vio* vio, int how);
@@ -306,6 +307,7 @@ struct st_vio
   size_t addrLen;                       /* Length of remote address */
   enum enum_vio_type    type;           /* Type of connection */
   my_bool               inactive; /* Connection inactive (has been shutdown) */
+  my_bool               force_skip_proxy;
   char                  desc[VIO_DESCRIPTION_SIZE]; /* Description string. This
                                                       member MUST NOT be
                                                       used directly, but only

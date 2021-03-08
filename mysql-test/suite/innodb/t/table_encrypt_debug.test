@@ -1,3 +1,6 @@
+# Waiting time when (re)starting the server
+--let $explicit_default_counter=10000
+
 --let $keyring_restart_param=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --source include/table_encrypt_debug.inc
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring

@@ -24,6 +24,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "thread_utils.h"
 #include "test_utils.h"
 #include "my_stacktrace.h"
 #include "m_string.h"
@@ -68,9 +69,6 @@ TEST_F(FatalSignalDeathTest, Segfault)
    gtest library instead.
   */
   MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
-#elif defined(__SANITIZE_ADDRESS__)
-  /* AddressSanitizer */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.

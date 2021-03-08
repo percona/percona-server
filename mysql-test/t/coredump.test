@@ -1,4 +1,5 @@
 --source include/linux.inc
+--source include/not_asan.inc
 call mtr.add_suppression("Started with --core-file and --coredumper. --coredumper will take precedence.");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to");
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -97,7 +98,7 @@ remove_files_wildcard $MYSQLD_DATADIR mycore.*;
 # Check Build ID and server version has been written to error log
 --let $assert_text= Checking MySQL wrote Build ID
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select= Build ID: [a-f0-9]{40}
+--let $assert_select= Build ID: ([a-f0-9]{40}|Not Available)
 --let $assert_only_after=CURRENT_TEST: main.coredump
 --let $assert_count=2
 --source include/assert_grep.inc

@@ -25,6 +25,7 @@ Usage: $0 [OPTIONS]
         --tokubackup_branch Btanch for TokuBackup
         --rpm_release       RPM version( default = 1)
         --deb_release       DEB version( default = 1)
+        --debug             Build debug tarball
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -64,6 +65,7 @@ parse_arguments() {
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
+            --debug=*) DEBUG="$val" ;;
             --help) usage ;;      
             *)
               if test -n "$pick_args"
@@ -127,8 +129,52 @@ get_sources(){
     REVISION=$(git rev-parse --short HEAD)
     git reset --hard
     #
-    source VERSION
-    cat VERSION > ../percona-server-5.7.properties
+    if [ -f VERSION ]; then
+        source VERSION
+        cat VERSION > ../percona-server-5.7.properties
+    elif [ -f MYSQL_VERSION ]; then
+        source MYSQL_VERSION
+        cat MYSQL_VERSION > ../percona-server-5.7.properties
+    else
+        echo "VERSION file does not exist"
+        exit 1
+    fi
+    IS_RELEASE_BRANCH=$(echo ${BRANCH} | grep -c release);
+    if [ ${IS_RELEASE_BRANCH} != 0 ]; then
+        IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
+        EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
+        if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
+            echo "Major version differs from defined in version file"
+            exit 1
+        fi
+        if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
+            echo "Minor version differs from defined in version file"
+            exit 1
+        fi
+        if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
+            echo "Patch version differs from defined in version file"
+            exit 1
+        fi
+        if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
+            echo "Extra version differs from defined in version file"
+            exit 1
+        fi
+        INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
+        if [ ${INNODB_VER} != ${EXTRA} ]; then
+            echo "InnoDB version differs from defined in version file"
+            exit 1
+        fi
+        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        if [ ${FT_TAG} = 0 ]; then
+            echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+            exit 1
+        fi
+        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        if [ ${TOKUBACKUP_TAG} = 0 ]; then
+            echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+            exit 1
+        fi
+    fi
     echo "REVISION=${REVISION}" >> ../percona-server-5.7.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-5.7.properties
@@ -218,6 +264,7 @@ get_sources(){
     rsync -av storage/rocksdb/rocksdb/ ${PSDIR}/storage/rocksdb/rocksdb --exclude .git
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
+    rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -293,26 +340,30 @@ install_deps() {
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
             yum -y install epel-release
+            yum -y install selinux-policy-devel
             yum -y install git pkg-config numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
             yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
             yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
             yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
             if [ ${RHEL} = 6 ]; then
-		if [ $(uname -m) = x86_64 ]; then
-                    yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
-		else
-                    wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
-                    wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
-                    yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
-	        fi
-	    fi
+                if [ $(uname -m) = x86_64 ]; then
+                            yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
+                else
+                            wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+                            wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
+                            yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
+                fi
+            elif [[ ${RHEL} = 7 ]]; then
+                yum -y install devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
+                yum -y install devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
+            fi
         else
             yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
-	    yum -y install libcurl-devel openldap-devel selinux-policy-devel
-	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen libtirpc-devel
+            yum -y install libcurl-devel openldap-devel selinux-policy-devel
+            yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+            yum -y install rpcgen libtirpc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
@@ -417,6 +468,9 @@ build_srpm(){
     #
     cd ${WORKDIR}/rpmbuild/SPECS
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
+    #
+    sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
+    sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
@@ -708,6 +762,11 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
+      if [ ${RHEL} = 6 ]; then
+        source /opt/percona-devtoolset/enable
+      elif [ ${RHEL} = 7 ]; then
+        source /opt/rh/devtoolset-8/enable
+      fi
     fi
     #
 
@@ -720,9 +779,7 @@ build_tarball(){
     TMPREL=$(echo ${TARFILE}| awk -F '-' '{print $4}')
     RELEASE=${TMPREL%.tar.gz}
     #
-    export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
-    export CXXFLAGS="${CFLAGS}"
-    
+
     build_mecab_lib
     build_mecab_dict
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -742,8 +799,13 @@ build_tarball(){
         DIRNAME="tarball_yassl"
         CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-jemalloc=../jemalloc/ --with-yassl --with-mecab="${MECAB_INSTALL_DIR}/usr" ../TARGET
     else
-        CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-        DIRNAME="tarball"
+        if [[ "${DEBUG}" == 1 ]]; then
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            DIRNAME="tarball"
+        else
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            DIRNAME="tarball"
+        fi
     fi
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
@@ -775,6 +837,7 @@ REVISION=0
 BRANCH="5.7"
 RPM_RELEASE=1
 DEB_RELEASE=1
+DEBUG=0
 YASSL=0
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
 REPO="git://github.com/percona/percona-server.git"
@@ -783,10 +846,10 @@ MYSQL_VERSION_MAJOR=5
 MYSQL_VERSION_MINOR=7
 MYSQL_VERSION_PATCH=22
 MYSQL_VERSION_EXTRA=-22
-PRODUCT_FULL=Percona-Server-5.7.22-22
+PRODUCT_FULL=Percona-Server-5.7.32-35
 BOOST_PACKAGE_NAME=boost_1_59_0
-PERCONAFT_BRANCH=Percona-Server-5.7.22-22
-TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
+PERCONAFT_BRANCH=Percona-Server-5.7.32-35
+TOKUBACKUP_BRANCH=Percona-Server-5.7.32-35
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if [ ${YASSL} = 1 ]; then
   TARBALL=1

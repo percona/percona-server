@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -250,6 +250,25 @@ static void set_thd_tx_priority(THD* thd, int priority)
   });
 
   DBUG_VOID_RETURN;
+}
+
+/**
+  Set for the thread options about the memory and size limits when
+  transactions collect write sets.
+
+  @param thd          Thread handler
+  @param ignore_limit  if the memory limits should be ignored
+  @param allow_drop_writeset if this thread does not require WS to always be
+  logged
+*/
+static void set_thd_write_set_options(THD *thd, bool ignore_limit,
+                                      bool allow_drop_write_set) {
+  thd->get_transaction()
+      ->get_transaction_write_set_ctx()
+      ->set_local_ignore_write_set_memory_limit(ignore_limit);
+  thd->get_transaction()
+      ->get_transaction_write_set_ctx()
+      ->set_local_allow_drop_write_set(allow_drop_write_set);
 }
 
 /*
@@ -4263,6 +4282,11 @@ void set_slave_thread_options(THD* thd)
   thd->variables.option_bits= options;
   thd->variables.completion_type= 0;
 
+  /* Do not track GTIDs for slave threads to avoid performance issues. */
+  thd->variables.session_track_gtids= OFF;
+  thd->rpl_thd_ctx.session_gtids_ctx()
+      .update_tracking_activeness_from_session_variable(thd);
+
   /*
     Set autocommit= 1 when info tables are used and autocommit == 0 to
     avoid trigger asserts on mysql_execute_command(THD *thd) caused by
@@ -5145,6 +5169,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
     begin_event->common_header->data_written= 0;
     begin_event->server_id= ev->server_id;
     /*
+      This event is not generated on master and is only specific to replicas.
+      So, we don't want this BEGIN query to respect MASTER_DELAY.
+      Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+      event which triggered this.
+    */
+    begin_event->common_header->when= ev->common_header->when;
+    /*
       We must be careful to avoid SQL thread increasing its position
       farther than the event that triggered this QUERY(BEGIN).
     */
@@ -5171,6 +5202,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
   ((Query_log_event*) rollback_event)->db= "";
   rollback_event->common_header->data_written= 0;
   rollback_event->server_id= ev->server_id;
+  /*
+    This event is not generated on master and is only specific to replicas.
+    So, we don't want this ROLLBACK query to respect MASTER_DELAY.
+    Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+    event which triggered this.
+  */
+  rollback_event->common_header->when= ev->common_header->when;
   /*
     We must be careful to avoid SQL thread increasing its position
     farther than the event that triggered this QUERY(ROLLBACK).
@@ -6284,6 +6322,9 @@ extern "C" void *handle_slave_worker(void *arg)
   thd->init_for_queries(w);
   /* Set applier thread InnoDB priority */
   set_thd_tx_priority(thd, rli->get_thd_tx_priority());
+    /* Set write set related options */
+  set_thd_write_set_options(thd, rli->get_ignore_write_set_memory_limit(),
+                            rli->get_allow_drop_write_set());
 
   thd_manager->add_thd(thd);
   thd_added= true;
@@ -7424,6 +7465,9 @@ extern "C" void *handle_slave_sql(void *arg)
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   /* Set applier thread InnoDB priority */
   set_thd_tx_priority(thd, rli->get_thd_tx_priority());
+  /* Set write set related options */
+  set_thd_write_set_options(thd, rli->get_ignore_write_set_memory_limit(),
+                            rli->get_allow_drop_write_set());
 
   thd_manager->add_thd(thd);
   thd_added= true;

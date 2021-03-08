@@ -43,6 +43,10 @@ you should see the following output::
 
         ps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
 
+.. _enable-myrocks:
+
+.. rubric:: Enable MyRocks with ps-admin
+
 Run the ``ps-admin`` script as system root user or with :program:`sudo`
 and provide the MySQL root user credentials
 to properly enable the RocksDB (MyRocks) storage engine:

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -98,13 +98,6 @@ struct fil_addr_t;
 
 extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
-
-extern	volatile bool	buf_pool_withdrawing; /*!< true when withdrawing buffer
-					pool pages might cause page relocation */
-
-extern	volatile ulint	buf_withdraw_clock; /*!< the clock is incremented
-					every time a pointer to a page may
-					become obsolete */
 
 #ifdef UNIV_DEBUG
 extern my_bool	buf_disable_resize_buffer_pool_debug; /*!< if TRUE, resizing
@@ -401,6 +394,12 @@ DECLARE_THREAD(buf_resize_thread)(
 /*==============================*/
 	void*	arg);				/*!< in: a dummy parameter
 						required by os_thread_create */
+
+/** Checks if innobase_should_madvise_buf_pool() value has changed since we've
+last check and if so, then updates buf_pool_should_madvise and calls madvise
+for all chunks in all srv_buf_pool_instances.
+@see buf_pool_should_madvise comment for a longer explanation. */
+void buf_pool_update_madvise();
 
 /********************************************************************//**
 Clears the adaptive hash index on all pages in the buffer pool. */
@@ -1278,25 +1277,18 @@ This function does not return if the block is not identified.
 buf_block_t*
 buf_block_from_ahi(const byte* ptr);
 
+
 /********************************************************************//**
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
-the buf_block_t itself or a member of it
+the buf_block_t itself or a member of it. This functions checks one of
+the buffer pool instances.
 @return TRUE if ptr belongs to a buf_block_t struct */
 ibool
-buf_pointer_is_block_field(
-/*=======================*/
-	const void*		ptr);	/*!< in: pointer not
-					dereferenced */
-/** Find out if a pointer corresponds to a buf_block_t::mutex.
-@param m in: mutex candidate
-@return TRUE if m is a buf_block_t::mutex */
-#define buf_pool_is_block_mutex(m)			\
-	buf_pointer_is_block_field((const void*)(m))
-/** Find out if a pointer corresponds to a buf_block_t::lock.
-@param l in: rw-lock candidate
-@return TRUE if l is a buf_block_t::lock */
-#define buf_pool_is_block_lock(l)			\
-	buf_pointer_is_block_field((const void*)(l))
+buf_pointer_is_block_field_instance(
+/*================================*/
+       const buf_pool_t*  buf_pool,   /*!< in: buffer pool instance */
+       const void*        ptr);       /*!< in: pointer not dereferenced */
+
 
 /** Inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or
@@ -1523,14 +1515,6 @@ buf_get_nth_chunk_block(
 	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
 	ulint		n,		/*!< in: nth chunk in the buffer pool */
 	ulint*		chunk_size);	/*!< in: chunk size */
-
-/** Verify the possibility that a stored page is not in buffer pool.
-@param[in]	withdraw_clock	withdraw clock when stored the page
-@retval true	if the page might be relocated */
-UNIV_INLINE
-bool
-buf_pool_is_obsolete(
-	ulint	withdraw_clock);
 
 /** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,
 if needed.
@@ -2112,11 +2096,18 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	BufListMutex	LRU_list_mutex; /*!< LRU list mutex */
-	BufListMutex	free_list_mutex;/*!< free and withdraw list mutex */
-	BufListMutex	zip_free_mutex; /*!< buddy allocator mutex */
-	BufListMutex	zip_hash_mutex; /*!< zip_hash mutex */
-	ib_mutex_t	flush_state_mutex;/*!< Flush state protection
+	BufListMutex	chunks_mutex; /*!< protects (de)allocation of chunks:
+					- changes to chunks, n_chunks are performed
+					while holding this latch,
+					- reading buf_pool_should_madvise requires
+					holding this latch for any buf_pool_t
+					- writing to buf_pool_should_madvise requires
+					holding these latches for all buf_pool_t-s */
+	BufListMutex	LRU_list_mutex;	 /*!< LRU list mutex */
+	BufListMutex	free_list_mutex; /*!< free and withdraw list mutex */
+	BufListMutex	zip_free_mutex;	 /*!< buddy allocator mutex */
+	BufListMutex	zip_hash_mutex;	 /*!< zip_hash mutex */
+	ib_mutex_t	flush_state_mutex; /*!< Flush state protection
 					mutex */
 	BufPoolZipMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
@@ -2317,6 +2308,41 @@ struct buf_pool_t{
 					individual watch page is protected by
 					a corresponding individual page_hash
 					latch. */
+
+	/** A wrapper for buf_pool_t::allocator.alocate_large which also advices the
+	OS that this chunk should not be dumped to a core file if that was requested.
+	Emits a warning to the log and disables @@global.core_file if advising was
+	requested but could not be performed, but still return true as the allocation
+	itself succeeded.
+	@param[in]	  mem_size  number of bytes to allocate
+	@param[in/out]  chunk     mem and mem_pfx fields of this chunk will be updated
+	to contain information about allocated memory region
+	@return true if allocated successfully */
+	bool
+	allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk, bool populate);
+
+	/** A wrapper for buf_pool_t::allocator.deallocate_large which also advices
+	the OS that this chunk can be dumped to a core file.
+	Emits a warning to the log and disables @@global.core_file if advising was
+	requested but could not be performed.
+	@param[in]  chunk   mem and mem_pfx fields of this chunk will be used to
+	locate the memory region to free */
+	void
+	deallocate_chunk(buf_chunk_t *chunk);
+
+	/** Advices the OS that all chunks in this buffer pool instance can be dumped
+	to a core file.
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
+	bool
+	madvise_dump();
+
+	/** Advices the OS that all chunks in this buffer pool instance should not
+	be dumped to a core file.
+	Emits a warning to the log if could not succeed.
+	@return true if succeeded, false if no OS support or failed */
+	bool
+	madvise_dont_dump();
 
 #if BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN
 # error "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN"

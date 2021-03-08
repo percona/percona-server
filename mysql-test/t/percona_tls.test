@@ -4,6 +4,9 @@
 
 --echo # Test that tls-version on server only works
 
+# Test requires TLSv1 and TLSv1.1
+--source include/not_min_protocol_tlsv12.inc
+
 --let $restart_parameters= restart:--tls-version="TLSv1,TLSv1.1"
 --source include/restart_mysqld.inc
 

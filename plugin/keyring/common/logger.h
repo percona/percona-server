@@ -23,7 +23,8 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include "sql_plugin.h"
+#include <mysql/plugin.h>
+#include <mysql/service_my_plugin_log.h>
 
 namespace keyring {
 

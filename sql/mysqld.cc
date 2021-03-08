@@ -3364,6 +3364,11 @@ int init_common_variables()
   else
     mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
 
+  my_atomic_store64(&mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size,
+                    static_cast<int64>(mysql_bin_log.m_dependency_tracker.
+                        get_writeset()->m_opt_max_history_size_base_var));
+
+
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
@@ -7687,6 +7692,8 @@ static int mysql_init_variables(void)
   character_set_filesystem_name= (char*) "binary";
   lc_messages= (char*) "en_US";
   lc_time_names_name= (char*) "en_US";
+  opt_replication_optimize_for_static_plugin_config= 0;
+  opt_replication_sender_observe_commit_only= 0;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF

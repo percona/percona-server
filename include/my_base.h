@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -509,7 +509,8 @@ is the global server default. */
 #define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
 #define HA_ERR_DEST_SCHEMA_NOT_EXIST   202  /* Destination schema does not exist */
 #define HA_ERR_CANNOT_INITIALIZE_PARTITIONING 203 /* Partitioning can't be initialized */
-#define HA_ERR_LAST                    203  /* Copy of last error nr */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 204  /* Too many sub-expression in search string */
+#define HA_ERR_LAST                    204  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

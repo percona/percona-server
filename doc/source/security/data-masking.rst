@@ -4,7 +4,7 @@
 Data Masking
 ==================================================================
 
-This feature was implemented in |Percona Server| version :rn:`5.7.32`.
+This feature was implemented in |Percona Server| version :rn:`5.7.32-35`.
 
 The Percona Data Masking plugin is a free and Open Source implementation of the
 |MySQL|'s data masking plugin. Data Masking provides a set of functions to hide
@@ -64,6 +64,7 @@ The general purpose data masking functions are the following:
             +-----------------------------------+
 
     * - mask_outer(string, margin1, margin2 [, character])
+
       - Masks the outer part of the string. The inner section is not masked.
       - .. code-block:: MySQL
 
@@ -90,6 +91,7 @@ The special purpose data masking functions are as follows:
       - Sample
 
     * - mask_pan(string)
+
       - Masks the Primary Account Number (PAN) by replacing the
         string with an "X" except for the last four characters.
 
@@ -120,7 +122,8 @@ The special purpose data masking functions are as follows:
             +------------------------------------------+
             | 520754XXXXXX4848                         |
             +------------------------------------------+
-    * - mask_ssn(string)
+
+   * - mask_ssn(string)
       - Returns a string with only the last four numbers visible. The rest
         of the string is replaced by "X".
 
@@ -311,3 +314,4 @@ The following table displays the commands for using dictionaries to generate ran
 .. rubric:: Uninstalling the plugin
 
 The `UNINSTALL PLUGIN <https://dev.mysql.com/doc/refman/5.7/en/uninstall-plugin.html>`_ statement disables and uninstalls the plugin.
+

@@ -113,6 +113,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   memset(vio, 0, sizeof(*vio));
   vio->type= type;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
+  vio->force_skip_proxy= FALSE;
   mysql_socket_setfd(&vio->mysql_socket, sd);
   vio->localhost= flags & VIO_LOCALHOST;
   vio->read_timeout= vio->write_timeout= -1;

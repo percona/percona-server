@@ -6,6 +6,9 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
 
+# Waiting time when (re)starting the server
+--let $explicit_default_counter=10000
+
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 --echo # Starting server with keyring plugin  

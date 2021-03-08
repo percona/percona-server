@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <sql_thd_internal_api.h>
+#include <sys_vars_shared.h>
 #include <my_check_opt.h>
 #include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
@@ -157,6 +158,9 @@ static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
+/* Boolean @@innodb_buffer_pool_in_core_file. */
+char srv_buffer_pool_in_core_file = TRUE;
+
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
@@ -206,6 +210,7 @@ static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+static const uint MAX_ENCRYPTION_THREADS = 255;
 extern uint srv_fil_crypt_rotate_key_age;
 extern uint srv_n_fil_crypt_iops;
 
@@ -445,6 +450,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	PSI_KEY(buffer_block_mutex),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+	PSI_KEY(buf_pool_chunks_mutex),
 	PSI_KEY(buf_pool_flush_state_mutex),
 	PSI_KEY(buf_pool_LRU_list_mutex),
 	PSI_KEY(buf_pool_free_list_mutex),
@@ -2060,6 +2066,33 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
+/** Checks sys_vars and determines if allocator should mark
+large memory segments with MADV_DONTDUMP
+@return true if @@global.core_file AND
+NOT @@global.innodb_buffer_pool_in_core_file */
+bool innobase_should_madvise_buf_pool() {
+	return (test_flags & TEST_CORE_ON_SIGNAL) && !srv_buffer_pool_in_core_file;
+}
+
+/** Make sure that core file will not be generated, as generating a core file
+ might violate our promise to not dump buffer pool data, and/or might dump not
+ the expected memory pages due to failure in using madvise */
+void innobase_disable_core_dump() {
+	/* TODO: There is a race condition here, as test_flags is not an atomic<>
+	and there might be multiple threads calling this function
+	in parallel (once for each buffer pool thread).
+	One approach would be to use a loop with os_compare_and_swap_ulint
+	unfortunately test_flags is defined as uint, not ulint, and we don't
+	have nice portable function for dealing with uint in InnoDB.
+	Moreover that would only prevent problems with mangled bits, but not
+	help at all with that some other thread might be reading test_flags
+	and making decisions based on observed value while we are changing it.
+	The good news is that all these threads try to do the same thing: clear the
+	same bit. So this happens to work. */
+
+	test_flags &= ~TEST_CORE_ON_SIGNAL;
+}
+
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return the lock wait timeout, in seconds */
@@ -2449,6 +2482,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_WRONG_FILE_NAME);
 	case DB_COMPUTE_VALUE_FAILED:
 		return(HA_ERR_COMPUTE_FAILED);
+	case DB_FTS_TOO_MANY_NESTED_EXP:
+		return(HA_ERR_FTS_TOO_MANY_NESTED_EXP);
 	}
 }
 
@@ -16962,7 +16997,12 @@ ha_innobase::extra(
 	enum ha_extra_function operation)
 			   /*!< in: HA_EXTRA_FLUSH or some other flag */
 {
-	check_trx_exists(ha_thd());
+	if (m_prebuilt->table) {
+#ifdef UNIV_DEBUG
+		if (m_prebuilt->table->n_ref_count > 0)
+#endif
+			update_thd();
+	}
 
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in m_prebuilt can be
@@ -17047,15 +17087,14 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
-	trx_mutex_enter(trx);
+	if (!dict_table_is_temporary(m_prebuilt->table) &&
+		trx != thd_to_trx(ha_thd())) {
+		ut_ad(false);
+		return(0);
+	}
 	if (trx->lock.start_stmt) {
 		trx->lock.start_stmt = false;
-		trx_mutex_exit(trx);
-
 		TrxInInnoDB::end_stmt(trx);
-	}
-	else {
-		trx_mutex_exit(trx);
 	}
 
 	return(0);
@@ -17182,16 +17221,10 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
-	trx_mutex_enter(trx);
 	/* Only do it once per transaction. */
 	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
 		trx->lock.start_stmt = true;
-		trx_mutex_exit(trx);
-
 		TrxInInnoDB::begin_stmt(trx);
-	}
-	else {
-		trx_mutex_exit(trx);
 	}
 
 	DBUG_RETURN(0);
@@ -19544,6 +19577,16 @@ innodb_stopword_table_validate(
 	return(ret);
 }
 
+static void innodb_srv_buffer_pool_in_core_file_update(
+    THD *thd,
+    struct st_mysql_sys_var*	var,
+    void *var_ptr,
+    const void *save)
+{
+	srv_buffer_pool_in_core_file = !!(*(bool *)save);
+	buf_pool_update_madvise();
+}
+
 /** Update the system variable innodb_buffer_pool_size using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]	thd	thread handle
@@ -21319,8 +21362,24 @@ innodb_encryption_threads_validate(
 		DBUG_RETURN(1);
 	}
 
-	if (srv_n_fil_crypt_threads == 0 && intbuf > 0) { // We are starting encryption threads, we must lock
-							  // the keyring plugins
+	bool is_val_fixed = false;
+	long long requested_threads = intbuf;
+	if (intbuf < 0) {
+		requested_threads = 0;
+		is_val_fixed = true;
+	}
+	else if (intbuf > MAX_ENCRYPTION_THREADS) {
+		requested_threads = MAX_ENCRYPTION_THREADS;
+		is_val_fixed = true;
+	}
+
+	if (throw_bounds_warning(thd, "innodb_encryption_threads", is_val_fixed, intbuf)) {
+		DBUG_RETURN(1);
+	}
+
+	if (srv_n_fil_crypt_threads == 0 && requested_threads > 0) {
+		// We are starting encryption threads, we must lock
+		// the keyring plugins
 		uint number_of_keyrings_locked= lock_keyrings(NULL);
 
 		if (number_of_keyrings_locked == 0) {
@@ -21334,11 +21393,12 @@ innodb_encryption_threads_validate(
 			unlock_keyrings(NULL);
 			DBUG_RETURN(1);
 		}
-	} else if (intbuf == 0 && srv_n_fil_crypt_threads > 0) {// We are disabling encryption threads, unlock the keyrings
+	} else if (requested_threads == 0 && srv_n_fil_crypt_threads > 0) {
+		// We are disabling encryption threads, unlock the keyrings
 		unlock_keyrings(NULL);  
 	}
 
-	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(intbuf);
+	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(requested_threads);
 
 	DBUG_RETURN(0);
 }
@@ -22104,6 +22164,18 @@ static MYSQL_SYSVAR_ULONG(buffer_pool_dump_pct, srv_buf_pool_dump_pct,
   "Dump only the hottest N% of each buffer pool, defaults to 25",
   NULL, NULL, 25, 1, 100, 0);
 
+static MYSQL_SYSVAR_BOOL(
+	buffer_pool_in_core_file, srv_buffer_pool_in_core_file, PLUGIN_VAR_NOCMDARG,
+	"This option has no effect if @@core_file is OFF. "
+	"If @@core_file is ON, and this option is OFF, then the core dump file will"
+	" be generated only if it is possible to exclude buffer pool from it. "
+	"As soon as it will be determined that such exclusion is impossible a "
+	"warning will be emitted and @@core_file will be set to OFF to prevent "
+	"generating a core dump. "
+	"If this option is enabled (which is the default), then core dumping "
+	"logic will not be affected. ",
+	NULL, innodb_srv_buffer_pool_in_core_file_update, TRUE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
   PLUGIN_VAR_RQCMDARG,
@@ -22742,7 +22814,7 @@ static MYSQL_SYSVAR_UINT(encryption_threads, srv_n_fil_crypt_threads,
 			 "scrubbing",
 			 innodb_encryption_threads_validate,
 			 innodb_encryption_threads_update,
-			 srv_n_fil_crypt_threads, 0, UINT_MAX32, 0);
+			 0, 0, MAX_ENCRYPTION_THREADS, 0);
 
 static MYSQL_SYSVAR_UINT(encryption_rotate_key_age,
 			 srv_fil_crypt_rotate_key_age,
@@ -22827,6 +22899,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
   MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+  MYSQL_SYSVAR(buffer_pool_in_core_file),
   MYSQL_SYSVAR(buffer_pool_dump_pct),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(buffer_pool_evict),

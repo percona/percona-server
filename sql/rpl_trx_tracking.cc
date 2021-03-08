@@ -215,7 +215,9 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     (global_system_variables.transaction_write_set_extraction ==
      thd->variables.transaction_write_set_extraction) &&
     // must not use foreign keys
-    !write_set_ctx->get_has_related_foreign_keys();
+    !write_set_ctx->get_has_related_foreign_keys() &&
+    // it did not broke past the capacity already
+    !write_set_ctx->was_write_set_limit_reached();
   bool exceeds_capacity= false;
 
   mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
@@ -227,7 +229,7 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
      using its information for current transaction.
     */
     exceeds_capacity=
-      m_writeset_history.size() + writeset->size() > m_opt_max_history_size;
+      m_writeset_history.size() + writeset->size() > get_opt_max_history_size();
 
     /*
      Compute the greatest sequence_number among all conflicts and add the
@@ -376,7 +378,8 @@ Transaction_dependency_tracker::update_max_committed(THD *thd)
   trn_ctx->sequence_number= SEQ_UNINIT;
 
   DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
-              thd->commit_error == THD::CE_FLUSH_ERROR);
+              thd->commit_error == THD::CE_FLUSH_ERROR ||
+              thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR);
 }
 
 int64

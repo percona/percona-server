@@ -1,5 +1,8 @@
 ## Tests for checking xplugin behaviour when server is using expired ssl certificates.
 
+# Test requires TLSv1 and TLSv1.1
+--source include/not_min_protocol_tlsv12.inc
+
 ## Preamble
 --source ../include/xplugin_preamble.inc
 

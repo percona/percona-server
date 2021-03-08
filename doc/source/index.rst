@@ -5,9 +5,9 @@
 
 .. _dochome:
 
-===================================
- Percona Server 5.7 - Documentation
-===================================
+============================================
+ |Percona Server| |version| - Documentation
+============================================
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
@@ -129,6 +129,7 @@ Management Improvements
    management/data_at_rest_encryption
    management/ssl-improvement
    management/utility_user
+   management/ps-admin
 
 Security Improvements
 ======================
@@ -137,7 +138,12 @@ Security Improvements
    :maxdepth: 1
    :glob:
 
-  security/data-masking
+   security/data-masking
+   security/data-at-rest-encryption
+   security/data-masking
+   security/ssl-improvement
+   security/pam_plugin
+
 
 Diagnostics Improvements
 ========================
@@ -218,5 +224,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

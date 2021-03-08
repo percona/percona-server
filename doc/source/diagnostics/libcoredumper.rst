@@ -1,4 +1,4 @@
-.. libcoredumper:
+.. _libcoredumper:
 
 ==================================
 Using libcoredumper

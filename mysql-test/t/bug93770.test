@@ -7,6 +7,8 @@
 --source include/have_binlog_format_row.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
+# This test changes the server state as it disables binary log in the end.
+--source include/force_restart.inc
 
 CALL mtr.add_suppression("An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.");
 

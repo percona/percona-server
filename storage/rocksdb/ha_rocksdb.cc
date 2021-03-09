@@ -4540,9 +4540,8 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
         std::string tf_name = table_factory->Name();
 
         if (tf_name.find("BlockBasedTable") != std::string::npos) {
-          const rocksdb::BlockBasedTableOptions *const bbt_opt =
-              reinterpret_cast<rocksdb::BlockBasedTableOptions *>(
-                  table_factory->GetOptions());
+          const auto bbt_opt =
+              table_factory->GetOptions<rocksdb::BlockBasedTableOptions>();
 
           if (bbt_opt != nullptr) {
             if (bbt_opt->block_cache.get() != nullptr) {
@@ -4575,6 +4574,9 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
     str.append(buf);
     snprintf(buf, sizeof(buf), "\nDefault Cache Capacity: %lu",
              internal_cache_count * kDefaultInternalCacheSize);
+    str.append(buf);
+    snprintf(buf, sizeof(buf), "\nCache Capacity: %lu",
+             (uint64_t)rocksdb_block_cache_size);
     str.append(buf);
     res |= print_stats(thd, "MEMORY_STATS", "rocksdb", str, stat_print);
 

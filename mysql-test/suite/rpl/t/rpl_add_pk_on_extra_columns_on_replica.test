@@ -1,0 +1,173 @@
+# ==== Purpose ====
+#
+# This test verifies that update and delete events on a table are properly
+# applied by the replication applier threads when replica table has extra
+# columns, has primary key defined on any of the extra columns.
+#
+# ==== References ====
+#
+# PS-7578: Replication failure with UPDATE when replica server has a PK and
+#          source not
+
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+# Create an empty helper file which will be later used to load to the server.
+--let $LOAD_FILE= $MYSQLTEST_VARDIR/tmp/query_map.dat
+--write_file $LOAD_FILE
+EOF
+
+################################################################################
+# Here we write queries into the above file in the format
+#
+#          "query_identifier|query"
+#
+# so that this file can be used to load the queries into the table and fetch
+# the queries based on the identifier and execute it on the server for testing.
+#
+# Example: "CREATE_0|CREATE TABLE t1 (field1 char(15));"
+#          query_identifier = CREATE_0
+#          query = CREATE TABLE t1 (field1 char(15));
+#
+################################################################################
+
+############################
+# Variants of CREATE TABLE #
+############################
+# 1. Table with no keys.
+--exec echo "CREATE_0|CREATE TABLE t1 (field1 char(15));" >> $LOAD_FILE
+# 2. Table with a key.
+--exec echo "CREATE_1|CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1));" >> $LOAD_FILE
+# 3. Table with a composite key.
+--exec echo "CREATE_2|CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1, field2));" >> $LOAD_FILE
+
+########################
+# Query to insert data #
+########################
+--exec echo "DATA|INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');" >> $LOAD_FILE
+
+###########################
+# Variants of ALTER TABLE #
+###########################
+# 1. No PK.
+--exec echo "ALTER_0|ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1;" >> $LOAD_FILE
+# 2. PK with AUTO_INCREMENT on additional column (adding one column).
+--exec echo "ALTER_1|ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL AUTO_INCREMENT PRIMARY KEY;" >> $LOAD_FILE
+# 3. Composite PK on both source's and additional columns.
+--exec echo "ALTER_2|ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1, ADD PRIMARY KEY (field1, extra_col);" >> $LOAD_FILE
+# 4. PK with AUTO_INCREMENT on additional column (adding two columns).
+--exec echo "ALTER_3|ALTER TABLE t1 ADD COLUMN extra_col1 INT NOT NULL DEFAULT 100, ADD COLUMN extra_col2 INT NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (extra_col2);" >> $LOAD_FILE
+
+
+################################################################################
+# Create a helper table on source server and load the above created helper file
+# into the table. This table shall be used in later stage of the test to fetch
+# the queries based on the identifier and execute it on the source server.
+################################################################################
+--source include/rpl/connection_source.inc
+SET SQL_LOG_BIN=0;
+CREATE TABLE `queries` (id VARCHAR(10), query VARCHAR(255));
+--disable_query_log
+--eval LOAD DATA INFILE "$LOAD_FILE" INTO TABLE `queries` FIELDS TERMINATED BY '|'
+--enable_query_log
+SET SQL_LOG_BIN=1;
+
+################################################################################
+# Create a stored function that generates one Update_rows_log_event and one
+# Delete_row_log_event.
+################################################################################
+--delimiter |
+CREATE FUNCTION update_and_delete_some_rows () RETURNS INT
+BEGIN
+  UPDATE t1 SET field1 = "row1-updated" WHERE field1 = "row1";
+  DELETE FROM t1 where field1="row2";
+  RETURN 0;
+END|
+--delimiter ;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+
+################################################################################
+# Test all combinations of CREATE TABLE and ALTER TABLE
+################################################################################
+--let $no_of_create= `SELECT COUNT(*) FROM queries WHERE id like "CREATE%"`
+--let $no_of_alter= `SELECT COUNT(*) FROM queries WHERE id like "ALTER%"`
+--let $i=0
+while ($i < $no_of_create) {
+
+  --let $j=0
+  while ($j < $no_of_alter) {
+
+    # Get next combination of queries.
+    --let $_CREATE_TABLE_QUERY= `SELECT query FROM queries WHERE id="CREATE_$i"`
+    --let $_DATA_INSERT_QUERY= `SELECT query FROM queries WHERE id="DATA"`
+    --let $_ALTER_TABLE_QUERY= `SELECT query FROM queries WHERE id="ALTER_$j"`
+
+    --let $_TEST_QUERY= SELECT update_and_delete_some_rows()
+
+    --let $_DISPLAY_QUERY= SELECT * FROM t1
+    --let $_CLEANUP_ITER_QUERY= TRUNCATE TABLE t1
+    --let $_CLEANUP_QUERY= DROP TABLE t1
+
+    # In every iteration,
+    #
+    # 1. We insert 3 rows.
+    #
+    #    field1
+    #    -----
+    #    row1
+    #    row2
+    #    row3
+    #
+    # 2. We update 1st row
+    #
+    #    field1
+    #    -----
+    #    row1-updated
+    #    row2
+    #    row3
+    #
+    # 3. We delete 2nd row.
+    #    field1
+    #    -----
+    #    row1-updated
+    #    row3
+    #
+    # So, in the end, we expect 2 rows to be present in the table.
+    --let $expected_row_count= 2
+    --let $table_name= t1
+
+    # Define the columns to be masked during validation.
+    if ($j < 3) {
+      --let $columns_to_be_masked= extra_col
+    }
+    if ($j == 3) {
+      --let $columns_to_be_masked= extra_col1, extra_col2
+    }
+
+    # Source rpl_add_pk_on_extra_columns_on_replica.inc to replicate and
+    # validate the data.
+    --source common/rpl/rpl_add_pk_on_extra_columns_on_replica.inc
+    --inc $j
+  }
+  --inc $i
+}
+
+#
+# Cleanup
+#
+--source include/rpl/connection_source.inc
+DROP FUNCTION update_and_delete_some_rows;
+
+# Drop the helper table.
+SET SQL_LOG_BIN=0;
+DROP TABLE queries;
+SET SQL_LOG_BIN=1;
+
+# Remove the helper file.
+--remove_file $LOAD_FILE
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/deinit.inc

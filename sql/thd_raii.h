@@ -428,4 +428,24 @@ class Enable_derived_merge_guard {
   ulonglong m_save_optimizer_switch{0};
 };
 
+/**
+  RAII class to temporarily disable OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS
+  optimizer_switch for replication applier threads.
+*/
+class Disable_index_extensions_switch_guard {
+ public:
+  explicit Disable_index_extensions_switch_guard(THD *thd) : m_thd(thd) {
+    m_save_optimizer_switch = m_thd->variables.optimizer_switch;
+    m_thd->variables.optimizer_switch &= ~OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS;
+  }
+
+  ~Disable_index_extensions_switch_guard() {
+    m_thd->variables.optimizer_switch = m_save_optimizer_switch;
+  }
+
+ private:
+  THD *const m_thd{nullptr};
+  ulonglong m_save_optimizer_switch{0};
+};
+
 #endif  // THD_RAII_INCLUDED

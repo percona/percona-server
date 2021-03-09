@@ -47,6 +47,7 @@
 #include "tztime.h"            // Time_zone
 #include "rpl_msr.h"           // channel_map
 #include "binary_log.h"        // binary_log
+#include "rpl_thd_raii.h"      // Disable_index_extensions_switch_guard
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -11503,6 +11504,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
     thd->set_time(&(common_header->when));
+
+    /*
+      We don't consider index extensions in RBR, as doing so would cause
+      replication failure with UPDATE/DELETE when replica server has a PK on
+      extra columns and source does not.
+    */
+    Disable_index_extensions_switch_guard guard(thd);
 
     thd->binlog_row_event_extra_data = m_extra_row_data;
 

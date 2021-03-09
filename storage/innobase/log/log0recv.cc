@@ -1783,16 +1783,18 @@ static byte *recv_parse_or_apply_log_rec_body(
           if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
                      Encryption::MAGIC_SIZE) == 0 &&
               !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len));
+            return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len,
+                                                  start_lsn));
           } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V2,
                             Encryption::MAGIC_SIZE) == 0 &&
                      !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v2(space_id, ptr, end_ptr, len));
+            return (fil_parse_write_crypt_data_v2(space_id, ptr, end_ptr, len,
+                                                  start_lsn));
           } else if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V3,
                             Encryption::MAGIC_SIZE) == 0 &&
                      !recv_sys->apply_log_recs) {
-            return (fil_parse_write_crypt_data_v3(space_id, ptr, end_ptr, len,
-                                                  recv_needed_recovery));
+            return (fil_parse_write_crypt_data_v3(
+                space_id, ptr, end_ptr, len, recv_needed_recovery, start_lsn));
           }
 
           if (fsp_is_system_or_temp_tablespace(space_id)) {

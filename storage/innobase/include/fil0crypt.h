@@ -429,7 +429,8 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data);
 @param[in]  len  Log entry length
 @return position on log buffer */
 MY_NODISCARD byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
-                                                 const byte *end_ptr, ulint len);
+                                                 const byte *end_ptr, ulint len,
+                                                 lsn_t lsn);
 
 /** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
 @param[in]  space_id  id of space that this log entry refers to
@@ -438,7 +439,8 @@ MY_NODISCARD byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
 @param[in]  len  Log entry length
 @return position on log buffer */
 MY_NODISCARD byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
-                                                 const byte *end_ptr, ulint len);
+                                                 const byte *end_ptr, ulint len,
+                                                 lsn_t lsn);
 
 /** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
 @param[in]  space_id  id of space that this log entry refers to
@@ -447,10 +449,10 @@ MY_NODISCARD byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
 @param[in]  len  Log entry length
 @param[in]  recv_needed_recovery  Missing keys will report an error
 @return position on log buffer */
-byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len,
-                                    bool recv_needed_recovery)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
+                                                 const byte *end_ptr, ulint len,
+                                                 bool recv_needed_recovery,
+                                                 lsn_t lsn);
 
 /**
 Decrypt a page.

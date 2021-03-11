@@ -618,10 +618,6 @@ class Item_func_user : public Item_func_sysconst {
     str_value.set("", 0, system_charset_info);
   }
 
-  table_map get_initial_pseudo_tables() const override {
-    return INNER_TABLE_BIT;
-  }
-
   bool itemize(Parse_context *pc, Item **res) override;
 
   bool check_function_as_value_generator(uchar *checker_args) override {

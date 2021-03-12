@@ -3,7 +3,7 @@ select @@binlog_encryption;
 1
 select @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
-1
+ON
 select @@innodb_undo_log_encrypt;
 @@innodb_undo_log_encrypt
 1

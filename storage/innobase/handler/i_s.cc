@@ -6742,7 +6742,7 @@ static int i_s_dict_fill_innodb_tablespaces(
   OK(fields[INNODB_TABLESPACES_SPACE_VERSION]->store(space_version, true));
 
   char *filepath = nullptr;
-  if (!fsp_is_system_or_temp_tablespace(space_id)) {
+  if (!fsp_is_system_tablespace(space_id)) {
     mutex_enter(&dict_sys->mutex);
     filepath = fil_space_get_first_path(space_id);
     mutex_exit(&dict_sys->mutex);

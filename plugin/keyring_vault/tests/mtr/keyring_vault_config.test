@@ -29,6 +29,8 @@ if (!$vault_conf_mount_point_directory)
 --disable_query_log
 call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+call mtr.add_suppression("for being a mount point unsuccessful - skipped.");
+call mtr.add_suppression("for being a mount point successful - identified kv-v2 secret engine.");
 --enable_query_log
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT

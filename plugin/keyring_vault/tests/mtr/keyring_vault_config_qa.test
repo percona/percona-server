@@ -45,6 +45,8 @@ call mtr.add_suppression("Plugin keyring_vault reported: 'Cannot seek in file '/
 call mtr.add_suppression("Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
 call mtr.add_suppression("Plugin keyring_vault reported: 'Auto-detected mount point version is not the same as specified in 'secret_mount_point_version'\\.");
+call mtr.add_suppression("for being a mount point unsuccessful - skipped.");
+call mtr.add_suppression("for being a mount point successful - identified kv-v2 secret engine.");
 --enable_query_log
 
 # Installing keyring plugin.

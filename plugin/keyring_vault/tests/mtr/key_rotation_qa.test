@@ -47,6 +47,8 @@ call mtr.add_suppression("Can't read encryption key from file");
 call mtr.add_suppression("Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("Failed to decrypt encryption information, please check whether key file has been changed!");
 call mtr.add_suppression("Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+call mtr.add_suppression("for being a mount point unsuccessful - skipped.");
+call mtr.add_suppression("for being a mount point successful - identified kv-v2 secret engine.");
 --enable_query_log
 
 # Invalid syntax

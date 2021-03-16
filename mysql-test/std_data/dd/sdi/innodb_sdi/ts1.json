@@ -576,7 +576,7 @@
     "dd_version": X,
     "sdi_version": X,
     "dd_object_type": "Tablespace",
-      "dd_object": {
+    "dd_object": {
         "name": "ts1",
         "comment": "",
         "options": "autoextend_size=0;encryption=N;explicit_encryption=0;",
@@ -584,13 +584,13 @@
         "engine": "InnoDB",
         "engine_attribute": "",
         "files": [
-          {
-            "ordinal_position": 1,
-            "filename": "ts1.ibd",
-            "se_private_data": ""
-          }
+            {
+                "ordinal_position": 1,
+                "filename": "ts1.ibd",
+                "se_private_data": ""
+            }
         ]
-      }
+    }
 }
 }
 ]

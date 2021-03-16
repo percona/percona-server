@@ -46,8 +46,8 @@ include/start_slave_sql.inc
 [connection slave]
 ROLLBACK;
 #
-# 5. Wait till the co-ordinator thread to error out with ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
-include/wait_for_slave_sql_error.inc [errno=3030]
+# 5. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
+include/wait_for_slave_sql_error.inc [errno=1213]
 # Removing debug point 'simulate_exhausted_trans_retries' from @@GLOBAL.debug
 include/start_slave_sql.inc
 #
@@ -68,7 +68,7 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 include/start_slave_sql.inc
 CALL mtr.add_suppression("Consider raising the value of the slave_transaction_retries variable");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
-CALL mtr.add_suppression("Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled.");
+CALL mtr.add_suppression("Worker .* failed executing transaction");
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

@@ -119,8 +119,8 @@ INSERT INTO t1 VALUES(11, 11);
 ROLLBACK;
 
 --echo #
---echo # 5. Wait till the co-ordinator thread to error out with ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
---let $slave_sql_errno = convert_error(ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR)
+--echo # 5. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
+--let $slave_sql_errno = convert_error(ER_LOCK_DEADLOCK)
 --source include/wait_for_slave_sql_error.inc
 
 # Remove the debug point
@@ -151,7 +151,8 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 # Add suppressions on replica server.
 CALL mtr.add_suppression("Consider raising the value of the slave_transaction_retries variable");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
-CALL mtr.add_suppression("Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled.");
+CALL mtr.add_suppression("Worker .* failed executing transaction");
+
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1;

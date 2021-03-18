@@ -1114,7 +1114,7 @@ Disabled by default.
 
 This variable has been implemented in |Percona Server| :rn:`8.0.15-6`.
 When specified it will create a temporary RocksDB 'checkpoint' or
-'snapshot' in the :term:`datadir`. If the session ends with an existing
+'snapshot' in the `datadir`. If the session ends with an existing
 checkpoint, or if the variable is reset to another value, the checkpoint
 will get removed. This variable should be used by backup tools. Prolonged
 use or other misuse can have serious side effects to the server instance.
@@ -1237,7 +1237,7 @@ non-debug builds.
   :dyn: No
   :scope: Global
   :vartype: String
-  :default: | block_based_table_factory= { cache_index_and_filter_blocks=1;
+  :default: | block_based_table_factory= {cache_index_and_filter_blocks=1;
 	    |                             filter_policy=bloomfilter:10:false;
 	    |                             whole_key_filtering=1};
 	    | level_compaction_dynamic_level_bytes=true;
@@ -1270,15 +1270,15 @@ Allowed range is from ``0`` to ``18446744073709551615``.
   :dyn: Yes
   :scope: Global
   :vartype: String
-  :default:   
+  :default:
 
-Deletes the column family by name. The default value is   , an empty 
+Deletes the column family by name. The default value is   , an empty
 string.
 
 For example: ::
 
     SET @@global.ROCKSDB_DELETE_CF = 'cf_primary_key';
-    
+
 .. variable:: rocksdb_delete_obsolete_files_period_micros
 
   :cli: ``--rocksdb-delete-obsolete-files-period-micros``
@@ -1336,7 +1336,7 @@ The default value is ``TRUE``.
    :vartype: Boolean
    :default: ``ON``
 
-Specifies whether to enable optimization where the read is cached from a 
+Specifies whether to enable optimization where the read is cached from a
 failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.
 
 .. variable:: rocksdb_enable_iterate_bounds
@@ -1359,7 +1359,7 @@ Enables the rocksdb iterator upper bounds and lower bounds in read options.
   :vartype: Boolean
   :default: ``TRUE``
 
-Enables the removal of dropped column families (cfs) from metadata if the cfs do 
+Enables the removal of dropped column families (cfs) from metadata if the cfs do
 not exist in the cf manager.
 
 The default value is ``TRUE``.
@@ -1719,7 +1719,7 @@ hold any lock on row access. This variable is not effective on replica.
 
 .. note::
 
-    Due to the disabled row locks, improper use of the variable can cause data 
+    Due to the disabled row locks, improper use of the variable can cause data
     corruption or inconsistency.
 
 .. variable:: rocksdb_max_background_compactions
@@ -1733,7 +1733,7 @@ hold any lock on row access. This variable is not effective on replica.
 
 Sets DBOptions:: max_background_compactions for RocksDB.
 The default value is ``-1`` The allowed range is ``-1`` to ``64``.
-This variable was replaced 
+This variable was replaced
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
 This variable was re-implemented in |Percona Server| 8.0.20-11.
@@ -1749,7 +1749,7 @@ This variable was re-implemented in |Percona Server| 8.0.20-11.
 
 Sets DBOptions:: max_background_flushes for RocksDB.
 The default value is ``-1``. The allowed range is ``-1`` to ``64``.
-This variable has been replaced 
+This variable has been replaced
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
 This variable was re-implemented in |Percona Server| 8.0.20-11.
@@ -2110,7 +2110,7 @@ The options are the following:
 * OFF - Disables the variable
 * PK_SK - Enables the variable on all tables with a primary key
 * PK_ONLY - Enables the variable on tables where the only key is the primary key
-            
+
 .. variable:: rocksdb_read_free_rpl_tables
 
   :version 8.0.20-11: Disabled
@@ -2343,7 +2343,7 @@ The allowed range is from ``0`` to ``19``.
    :scope: Global
    :vartype: Numeric
    :default: ``19``
-   
+
 The nice value for index stats.
 The minimum = -20 (THREAD_PRIO_MIN)
 The maximum = 19 (THREAD_PRIO_MAX)
@@ -2356,7 +2356,7 @@ The maximum = 19 (THREAD_PRIO_MAX)
    :scope: Global
    :vartype: Numeric
    :default: ``0``
- 
+
 The maximum number of rows to scan in a table scan based on
 a cardinality calculation.
 The minimum is ``0`` (every modification triggers a stats recalculation).
@@ -2372,7 +2372,7 @@ The maximum is ``18,446,744,073,709,551,615``.
    :default: ``100``
 
 The number of modified rows to trigger a stats recalculation. This is a
-dependent variable for stats recalculation. 
+dependent variable for stats recalculation.
 The minimum is ``0``.
 The maximum is ``18,446,744,073,709,551,615``.
 
@@ -2388,7 +2388,7 @@ The maximum is ``18,446,744,073,709,551,615``.
 The percentage of the number of modified rows over the total number of rows
 to trigger stats recalculations. This is a dependent variable for stats
 recalculation.
-The minimum value is ``0`` 
+The minimum value is ``0``
 The maximum value is ``100`` (RDB_TBL_STATS_RECALC_THRESHOLD_PCT_MAX).
 
 .. variable:: rocksdb_table_stats_sampling_pct
@@ -2405,7 +2405,7 @@ Default value is ``10``.
 Allowed range is from ``0`` to ``100``.
 
 .. variable:: rocksdb_table_stats_use_table_scan
-   
+
   :version 8.0.20-11: Implemented
   :cli: ``--rocksdb-table-stats-use-table-scan``
   :dyn: Yes
@@ -2413,7 +2413,7 @@ Allowed range is from ``0`` to ``100``.
   :vartype: Boolean
   :default: ``FALSE``
 
-Enables table-scan-based index calculations. 
+Enables table-scan-based index calculations.
 The default value is ``FALSE``.
 
 .. variable:: rocksdb_tmpdir
@@ -2433,14 +2433,9 @@ Specifies the path to the directory for temporary files during DDL operations.
    :dyn: Yes
    :scope: Global
    :vartype: String
-   :default: ``  `` 
-   
-Defines the block cache trace option string. The format is 
- sampling frequency: max_trace_file_size:trace_file_name.  The
-sampling frequency value and max_trace_file_size value 
-are positive integers. The block accesses are saved to 
-the ``rocksdb_datadir/block_cache_traces/trace_file_name``.
-The default value is ``  ``, an empty string.
+   :default: `' '`
+
+Defines the block cache trace option string. The format is sampling frequency: max_trace_file_size:trace_file_name. The sampling frequency value and max_trace_file_size value are positive integers. The block accesses are saved to the ``rocksdb_datadir/block_cache_traces/trace_file_name``. The default value is an empty string.
 
 .. variable:: rocksdb_trace_sst_api
 
@@ -2494,11 +2489,10 @@ Empty by default.
   :dyn: No
   :scope: Global
   :vartype: Boolean
-  :default: ``OFF``
+  :default: OFF
 
-Specifies whether to use adaptive mutex
-which spins in user space before resorting to the kernel.
-Disabled by default.
+Specifies whether to use adaptive mutex which spins in user space before
+resorting to the kernel. Disabled by default.
 
 .. variable:: rocksdb_use_default_sk_cf
 
@@ -2507,7 +2501,7 @@ Disabled by default.
   :scope: Global
   :vartype: Boolean
   :default: OFF
-  
+
 Use ``default_sk`` column family for secondary keys.
 
 .. variable:: rocksdb_use_direct_io_for_flush_and_compaction
@@ -2606,9 +2600,9 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :vartype: Numeric
   :default: ``2``
 
-.. note:: 
+.. note::
 
-    In version 8.0.20-11 and later, the default is changed from ``1`` to ``2``. 
+    In version 8.0.20-11 and later, the default is changed from ``1`` to ``2``.
 
 Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.

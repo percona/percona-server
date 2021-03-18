@@ -11302,6 +11302,9 @@ ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB
 ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED
   eng "X plugin failed to register SSL reload callback. ALTER INSTANCE RELOAD TLS will have no effect on the plugin."
 
+ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DOUBLEWRITE_PATH
+  eng "Setting Percona-specific INNODB_PARALLEL_DOUBLEWRITE_PATH is deprecated and has no effect. Use INNODB_DOUBLEWRITE_DIR instead."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

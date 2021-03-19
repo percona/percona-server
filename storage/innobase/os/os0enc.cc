@@ -1345,60 +1345,23 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-#ifndef UNIV_INNOCHECKSUM
   {
     byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
     byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
 
     memcpy(check_buf, dst, src_len);
 
-    fprintf(stderr, "Robert: Comparing before and after encryption");
-
-    byte *m_key_used = m_key;
-
-    if (m_type == KEYRING)  // TODO:Robert:For decryption KEYRING
-                            // page key needs to be set to nullptr
-      m_key = nullptr;
-
     dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
-    if (space_id == 23 && page_no == 1) {
-      fprintf(stderr, "Robert: After encrypting page 23:1:");
-      ut_print_buf(stderr, dst, src_len);
-    }
-
     if (err != DB_SUCCESS ||
         memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-               src_len - FIL_PAGE_DATA - 4) != 0) {
-      fprintf(stderr,
-              "Robert: After and before encryption are different. "
-              " key_version used for encryption: %d, key used for encryption:",
-              m_key_version);
-      ut_print_buf(stderr, m_key_used, 32);
-      m_key_version =
-          mach_read_from_4(check_buf + FIL_PAGE_ENCRYPTION_KEY_VERSION);
-      fprintf(stderr,
-              "Robert: After and before encryption are different. "
-              " key_version used for decryption: %d, key used for decryption:",
-              m_key_version);
-
-      size_t key_len;
-      get_tablespace_key(m_key_id, m_key_version, &m_key, &key_len);
-      ut_print_buf(stderr, m_key, 32);
-
+               src_len - FIL_PAGE_DATA) != 0) {
+      ut_print_buf(stderr, src, src_len);
+      ut_print_buf(stderr, check_buf, src_len);
       ut_ad(0);
     }
     ut_free(buf2);
     ut_free(check_buf);
-
-    ut_ad(type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(dst, *dst_len,
-                                          type.is_page_zip_compressed(),
-                                          type.is_compressed()));
-
-    fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
   }
-
-#endif /* UNIV_INNOCHECKSUM */
 #endif /* UNIV_ENCRYPT_DEBUG */
 
 #if !defined(UNIV_INNOCHECKSUM)

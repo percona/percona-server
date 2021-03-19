@@ -534,6 +534,16 @@ class IORequest {
   /** Disable encryption of a page in encrypted tablespace */
   void disable_encryption() noexcept { m_type |= NO_ENCRYPTION; }
 
+  /** Set encryption algorithm
+  @param[in] type               The encryption algorithm to use */
+  void set_encryption_algorithm(Encryption::Type type) {
+    if (type == Encryption::NONE) {
+      return;
+    }
+
+    m_encryption.set_type(type);
+  }
+
   /** Get the encryption algorithm.
   @return the encryption algorithm */
   [[nodiscard]] Encryption encryption_algorithm() const {

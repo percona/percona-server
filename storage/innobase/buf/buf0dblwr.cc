@@ -2441,6 +2441,12 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
     return nullptr;
   }
 
+  /* Don't encrypt pages of system tablespace upto TRX_SYS_PAGE(including). The
+  doublewrite buffer header is on TRX_SYS_PAGE */
+  if (fsp_is_system_tablespace(space_id) && page_no <= FSP_TRX_SYS_PAGE_NO) {
+    return nullptr;
+  }
+
   if (!space->can_encrypt()) {
     /* Encryption key information is not available. */
     return nullptr;
@@ -2475,6 +2481,9 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
   }
 
   type.get_encryption_info().set(space->m_encryption_metadata);
+  type.set_encryption_algorithm(Encryption::AES);
+  page_size_t page_size(space->flags);
+
   auto e_block = os_file_encrypt_page(type, frame, n);
 
   if (compressed_block != nullptr) {
@@ -2945,6 +2954,7 @@ static bool is_dblwr_page_corrupted(byte *page, fil_space_t *space,
     size_t z_page_size;
 
     en.set(space->m_encryption_metadata);
+    req_type.set_encryption_algorithm(Encryption::AES);
     fil_node_t *node = space->get_file_node(&page_no);
     req_type.block_size(node->block_size);
 
@@ -3093,10 +3103,9 @@ bool dblwr::recv::Pages::dblwr_recover_page(page_no_t dblwr_page_no,
     bool data_page_zeroes = buf_page_is_zeroes(buffer.begin(), page_size);
     bool dblwr_zeroes = buf_page_is_zeroes(page, page_size);
     dberr_t dblwr_err;
-    const bool dblwr_corrupted =
-        is_dblwr_page_corrupted(page, space, page_no, &dblwr_err);
 
-    if (data_page_zeroes && !dblwr_zeroes && !dblwr_corrupted) {
+    if (data_page_zeroes && !dblwr_zeroes &&
+        !is_dblwr_page_corrupted(page, space, page_no, &dblwr_err)) {
       /* Database page contained only zeroes, while a valid copy is
       available in dblwr buffer. */
     } else {

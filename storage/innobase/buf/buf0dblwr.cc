@@ -1660,9 +1660,30 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
     return nullptr;
   }
 
+  /* Don't encrypt pages of system tablespace upto TRX_SYS_PAGE(including). The
+  doublewrite buffer header is on TRX_SYS_PAGE */
+  if (fsp_is_system_tablespace(space_id) && space->crypt_data == nullptr &&
+      page_no <= FSP_TRX_SYS_PAGE_NO) {
+    return nullptr;
+  }
+
   if (!space->can_encrypt()) {
     /* Encryption key information is not available. */
     return nullptr;
+  }
+
+  if (space->encryption_type == Encryption::KEYRING) {
+    ut_ad(space->crypt_data != nullptr);
+    if (space->crypt_data->encryption == FIL_ENCRYPTION_ON ||
+        space->crypt_data->encryption_rotation ==
+            Encryption_rotation::ENCRYPTING ||
+        space->crypt_data->encryption_rotation ==
+            Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+      // Keyring encrypted. Encryption info set via get_encryption_info()
+
+    } else {
+      return nullptr;
+    }
   }
 
   IORequest type(IORequest::WRITE);
@@ -1696,6 +1717,14 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
 
   space->get_encryption_info(type.get_encryption_info());
   type.encryption_algorithm(space->encryption_type);
+  page_size_t page_size(space->flags);
+
+  if (page_size.is_compressed()) {
+    type.mark_page_zip_compressed();
+    type.set_zip_page_physical_size(page_size.physical());
+    ut_ad(page_size.physical() > 0);
+  }
+
   auto e_block = os_file_encrypt_page(type, frame, &n);
 
   if (compressed_block != nullptr) {
@@ -2224,10 +2253,9 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
     bool data_page_zeroes = buf_page_is_zeroes(buffer.begin(), page_size);
     bool dblwr_zeroes = buf_page_is_zeroes(page, page_size);
     dberr_t dblwr_err;
-    const bool dblwr_corrupted =
-        is_dblwr_page_corrupted(page, space, page_no, &dblwr_err);
 
-    if (data_page_zeroes && !dblwr_zeroes && !dblwr_corrupted) {
+    if (data_page_zeroes && !dblwr_zeroes &&
+        !is_dblwr_page_corrupted(page, space, page_no, &dblwr_err)) {
       /* Database page contained only zeroes, while a valid copy is
       available in dblwr buffer. */
     } else {

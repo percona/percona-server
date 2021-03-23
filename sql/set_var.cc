@@ -1121,10 +1121,13 @@ int set_var::update(THD *thd) {
   int ret = 0;
   /* for persist only syntax do not update the value */
   if (type != OPT_PERSIST_ONLY) {
+    auto saved_var_source = var->get_source();
+    var->set_source(enum_variable_source::DYNAMIC);
     if (value)
       ret = (int)var->update(thd, this);
     else
       ret = (int)var->set_default(thd, this);
+    var->set_source(saved_var_source);
   }
   /*
    For PERSIST_ONLY syntax we dont change the value of the variable

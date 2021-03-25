@@ -68,7 +68,7 @@ and check your installed packages with: ::
   Percona-Server-server-55-5.5.29-rel29.4.401.rhel6.x86_64.rpm
   Percona-Server-shared-55-5.5.29-rel29.4.401.rhel6.x86_64.rpm
 
-You may have a forth, ``shared-compat``, which is for compatibility purposes.
+You may have a fourth, ``shared-compat``, which is for compatibility purposes.
 
 After checking, proceed to remove them without dependencies: ::
 
@@ -135,10 +135,19 @@ Then, download the following packages for your architecture:
 
   * ``libperconaserverclient18``
 
-At the moment of writing this guide, for *Ubuntu* 12.04LTS on ``x86_64``, a way of doing this is: ::
+Open `Percona Server 5.6 Downloads <https://www.percona.com/downloads/Percona-Server-5.6/>`_ and select the following:
 
-  $ wget -r -l 1 -nd -A deb -R "*dev*" \
-  http://www.percona.com/downloads/Percona-Server-5.6/LATEST/deb/precise/x86_64/
+* Version number
+
+* Software - the operating system or source code
+
+You can download all packages together or download the packages separately.
+
+For example, if you required all of the packages for 5.6.51-91.0 for *Ubuntu* 18.04, a way of doing this is: ::
+
+
+  $ wget -r -l 1 -nd -A deb -R "dev" \ 
+  https://downloads.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.51-91.0/binary/debian/bionic/x86_64/Percona-Server-5.6.51-91.0-rb59139e-bionic-x86_64-bundle.tar
 
 Install them in one command: ::
 
@@ -174,7 +183,7 @@ After checked that, proceed to remove them without dependencies: ::
 
   $ rpm -qa | grep Percona-Server | xargs rpm -e --nodeps
 
-It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if ommited.
+It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if omitted.
 
 Note that this procedure is the same for upgrading from |MySQL| 5.5 to |Percona Server| 5.6, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
@@ -189,7 +198,7 @@ Download the following packages for your architecture:
 At the moment of writing this guide, a way of doing this is: ::
 
   $ wget -r -l 1 -nd -A rpm -R "*devel*,*debuginfo*" \
-  http://www.percona.com/downloads/Percona-Server-5.6/LATEST/RPM/rhel6/x86_64/
+  https://downloads.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.51-91.0/binary/redhat/7/x86_64/Percona-Server-5.6.51-91.0-rb59139e-el7-x86_64-bundle.tar
 
 Install them in one command: ::
 

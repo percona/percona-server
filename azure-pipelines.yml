@@ -316,7 +316,6 @@ jobs:
       CMAKE_OPT="
         -DCMAKE_BUILD_TYPE=$(BuildType)
         -DBUILD_CONFIG=mysql_release
-        -DFEATURE_SET=community
         -DENABLE_DOWNLOADS=1
         -DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN
         -DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN

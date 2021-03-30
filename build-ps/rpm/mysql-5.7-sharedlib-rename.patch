@@ -496,3 +496,12 @@
      ${SSL_LIBRARIES}
  
      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+--- libmysql/libmysql.ver.in     2021-03-30 14:51:31.092818239 +0300
++++ libmysql/libmysql.ver.in     2021-03-30 14:53:36.302958640 +0300
+@@ -21,5 +21,5 @@
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+
+-libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.0
++libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
+ { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; ${CLIENT_API_NONBLOCKING_FUNCTIONS}; local: *; };

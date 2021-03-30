@@ -320,7 +320,6 @@ script:
       -DCMAKE_BUILD_TYPE=$BUILD
       -DBUILD_CONFIG=mysql_release
       -DREPRODUCIBLE_BUILD=OFF
-      -DFEATURE_SET=community
       -DENABLE_DOWNLOADS=1
       -DDOWNLOAD_BOOST=1
       -DWITH_BOOST=../deps

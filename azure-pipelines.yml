@@ -326,7 +326,6 @@ jobs:
       CMAKE_OPT="
         -DCMAKE_BUILD_TYPE=$(BuildType)
         -DBUILD_CONFIG=mysql_release
-        -DFEATURE_SET=community
         -DENABLE_DOWNLOADS=1
         -DDOWNLOAD_BOOST=1
         -DWITH_BOOST=$(BOOST_DIR)

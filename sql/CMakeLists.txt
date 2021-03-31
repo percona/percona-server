@@ -776,6 +776,7 @@ IF(MY_COMPILER_IS_GNU)
     ADD_COMPILE_FLAGS(
       geometry_rtree.cc
       item_geofunc_relchecks_bgwrap.cc
+      join_optimizer/access_path.cc
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
   ENDIF()

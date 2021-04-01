@@ -153,5 +153,5 @@ include/filter_file.inc
 filename: ####, position: ####, gtid_mode: OFF, GTID of last change: 
 ### Delete master backup dir
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

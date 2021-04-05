@@ -8693,7 +8693,8 @@ static int init_server_components() {
     init_optimizer_cost_module(true);
 
     bool st;
-    if (opt_initialize || dd::upgrade_57::in_progress())
+    if (opt_initialize || dd::upgrade_57::in_progress() ||
+        opt_upgrade_mode == UPGRADE_FORCE)
       st = dd::performance_schema::init_pfs_tables(
           dd::enum_dd_init_type::DD_INITIALIZE);
     else

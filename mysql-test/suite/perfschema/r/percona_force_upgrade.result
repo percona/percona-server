@@ -1,0 +1,15 @@
+# Setup
+# Checking that the accounts SDI file exists
+include/assert_grep.inc [The perfschema/accounts_XXX.sdi file exists.]
+# Stopping the server
+# Removing the accounts SDI file
+# Check that the accounts SDI file has been deleted (before restart)
+# Normal restart
+# restart;
+include/assert_grep.inc [The perfschema/accounts_XXX.sdi file does not exist.]
+# Check that the accounts SDI file is still deleted (after restart)
+include/assert_grep.inc [The perfschema/accounts_XXX.sdi file does not exist.]
+# Restart with force upgrade
+# restart: --upgrade=FORCE
+# Checking that the accounts SDI file was recreated
+include/assert_grep.inc [The perfschema/accounts_XXX.sdi file exists.]

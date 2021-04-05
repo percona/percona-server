@@ -1,0 +1,67 @@
+#
+# Test that --upgrade=FORCE restores the performance schema
+#
+
+--echo # Setup
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+let $FILELIST = $MYSQLTEST_VARDIR/tmp/perfschema.force_upgrade.filelist;
+
+# Check that the SDI file file_exists
+--echo # Checking that the accounts SDI file exists
+--list_files_write_file $FILELIST $MYSQLD_DATADIR/performance_schema *.sdi
+--let $assert_text = The perfschema/accounts_XXX.sdi file exists.
+--let $assert_select = accounts_[0-9]*.sdi
+--let $assert_count = 1
+--let $assert_file = $FILELIST
+--source include/assert_grep.inc
+
+# Stop the server
+--echo # Stopping the server
+--source include/shutdown_mysqld.inc
+
+# Remove the SDI file
+--echo # Removing the accounts SDI file
+--remove_files_wildcard $MYSQLD_DATADIR/performance_schema accounts_*.sdi
+
+--echo # Check that the accounts SDI file has been deleted (before restart)
+# assert_grep requires a running server, so restart the server before checking
+--list_files_write_file $FILELIST $MYSQLD_DATADIR/performance_schema *.sdi
+
+# Restart the server
+--echo # Normal restart
+--let $restart_parameters = restart;
+--let $wait_counter = 3000
+--source include/start_mysqld.inc
+
+# Perform the check of the accounts file (from before the restart)
+--let $assert_text = The perfschema/accounts_XXX.sdi file does not exist.
+--let $assert_select = accounts_[0-9]*.sdi
+--let $assert_count = 0
+--let $assert_file = $FILELIST
+--source include/assert_grep.inc
+
+# Under normal restart, file should still not exist
+--echo # Check that the accounts SDI file is still deleted (after restart)
+--list_files_write_file $FILELIST $MYSQLD_DATADIR/performance_schema *.sdi
+--let $assert_text = The perfschema/accounts_XXX.sdi file does not exist.
+--let $assert_select = accounts_[0-9]*.sdi
+--let $assert_count = 0
+--let $assert_file = $FILELIST
+--source include/assert_grep.inc
+
+# Restart with force upgrade
+--echo # Restart with force upgrade
+--let $restart_parameters = restart: --upgrade=FORCE
+--let $wait_counter = 3000
+--source include/restart_mysqld.inc
+
+# The SDI file should be recreated
+--echo # Checking that the accounts SDI file was recreated
+--list_files_write_file $FILELIST $MYSQLD_DATADIR/performance_schema *.sdi
+--let $assert_text = The perfschema/accounts_XXX.sdi file exists.
+--let $assert_select = accounts_[0-9]*.sdi
+--let $assert_count = 1
+--let $assert_file = $FILELIST
+--source include/assert_grep.inc
+
+--remove_file $FILELIST

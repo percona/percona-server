@@ -81,7 +81,7 @@ ELSE()
   ENDIF()
 ENDIF()
 
-IF (HAVE_AVX2)
+IF (HAVE_AVX2 AND NOT ROCKSDB_DISABLE_AVX2)
   add_compile_flags(${ROCKSDB_ROOT}/table/block_based/filter_policy.cc COMPILE_FLAGS "-mavx2")
 ENDIF()
 
@@ -101,7 +101,7 @@ IF (CMAKE_COMPILER_IS_GNUCXX)
   add_compile_options(-fno-builtin-memcmp)
 ENDIF()
 
-IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT ROCKSDB_DISABLE_MARCH_NATIVE)
   add_compile_options(-march=native)
 ENDIF()
 

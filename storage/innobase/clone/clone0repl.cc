@@ -382,6 +382,7 @@ int Clone_persist_gtid::write_other_gtids() {
 }
 
 bool Clone_persist_gtid::check_compress() {
+  DBUG_EXECUTE_IF("simulate_force_compress", { return true; });
   /* Check for explicit flush request. */
   if (m_explicit_request.load()) {
     return (true);

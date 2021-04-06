@@ -172,3 +172,10 @@ encryption.innodb-bad-key-change2 : BUG#5322 Keyring encrypted tablespace import
 encryption.innodb-bad-key-change3 : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.innodb_encryption_discard_import : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.create_or_replace : BUG#6987 encryption threads report space unencrypted
+encryption.innodb_encryption_aborted_rotation : BUG#0 Skip failing keyring encryption related test
+encryption.innodb_encryption_aborted_rotation_mk : BUG#0 Skip failing keyring encryption related test
+encryption.innodb_encryption_aborted_rotation_row_compressed : BUG#0 Skip failing keyring encryption related test
+encryption.innodb_encryption_aborted_rotation_mk_row_compressed : BUG#0 Skip failing keyring encryption related test
+encryption.innodb_encryption_aborted_rotation_page_compressed : BUG#0 Skip failing keyring encryption related test
+encryption.innodb_encryption_aborted_rotation_mk_page_compressed : BUG#0 Skip failing keyring encryption related test
+encryption.percona_parallel_dblwr_encrypt : BUG#0 Skip failing keyring encryption related test

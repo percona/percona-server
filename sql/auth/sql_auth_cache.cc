@@ -669,6 +669,9 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
                                                       system_charset_info))
     return true;
 
+  timeval tm = table->in_use->query_start_timeval_trunc(0);
+  table->field[MYSQL_PROXIES_PRIV_TIMESTAMP]->store_timestamp(&tm);
+
   return false;
 }
 
@@ -1528,8 +1531,8 @@ static bool acl_init_utility_user(bool check_no_resolve) {
   acl_users list, then resort */
 
   caching_sha2_password_generate(
-      const_cast<char*>(acl_utility_user.credentials[0].m_auth_string.str), &pwlen,
-      utility_user_password, strlen(utility_user_password));
+      const_cast<char *>(acl_utility_user.credentials[0].m_auth_string.str),
+      &pwlen, utility_user_password, strlen(utility_user_password));
 
   acl_utility_user.credentials[0].m_auth_string.length = pwlen;
 
@@ -1636,7 +1639,8 @@ static void acl_free_utility_user() {
     acl_utility_user_schema_access.clear();
     my_free(acl_utility_user_name.str);
     my_free(acl_utility_user_host_name.str);
-    my_free(const_cast<char*>(acl_utility_user.credentials[0].m_auth_string.str));
+    my_free(
+        const_cast<char *>(acl_utility_user.credentials[0].m_auth_string.str));
     memset(static_cast<void *>(&acl_utility_user), 0, sizeof(acl_utility_user));
     acl_utility_user_initialized = false;
   }

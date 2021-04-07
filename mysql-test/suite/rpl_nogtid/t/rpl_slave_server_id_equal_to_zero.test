@@ -60,15 +60,15 @@ START SLAVE;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
-# Change master still works
-CHANGE MASTER TO MASTER_LOG_POS=4;
+# Change replication source still works
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
 # Start slave for channel should fail
 --error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
 START SLAVE FOR CHANNEL 'any_channel';
 
-# Change master still works and will create the channel
-CHANGE MASTER TO MASTER_LOG_POS=4, MASTER_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
+# Change replication source still works and will create the channel
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4, SOURCE_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
 
 # Start slave for channel should fail
 --error ER_BAD_SLAVE
@@ -111,17 +111,17 @@ DROP TABLE t1;
 --error ER_SLAVE_CONFIGURATION
 START SLAVE;
 
-# Change master should fail as slave not configured
+# Change replication source should fail as slave not configured
 --error ER_SLAVE_CONFIGURATION
-CHANGE MASTER TO MASTER_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
 # Start slave for channel should fail as not configured
 --error ER_SLAVE_CONFIGURATION
 START SLAVE FOR CHANNEL 'any_channel';
 
-# Change master for channel should fail as slave not configured
+# Change replication source for channel should fail as slave not configured
 --error ER_SLAVE_CONFIGURATION
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 
 # Set original slave's server_id into @@GLOBAL.server_id
 --eval SET @@GLOBAL.server_id= $original_slave_server_id
@@ -130,17 +130,17 @@ CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
 --error ER_SLAVE_CONFIGURATION
 START SLAVE;
 
-# Change master should still fail as slave not configured
+# Change replication source should still fail as slave not configured
 --error ER_SLAVE_CONFIGURATION
-CHANGE MASTER TO MASTER_LOG_POS=4;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 
 # Start slave for channel should still fail as not configured
 --error ER_SLAVE_CONFIGURATION
 START SLAVE FOR CHANNEL 'any_channel';
 
-# Change master for channel should still fail as slave not configured
+# Change replication source for channel should still fail as slave not configured
 --error ER_SLAVE_CONFIGURATION
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
 ##
 ## Cleanup
 ##

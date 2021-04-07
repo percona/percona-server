@@ -8,7 +8,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 # Waiting time when (re)starting the server
---let $explicit_default_counter=15000
+--let $explicit_default_wait_counter=15000
 
 --disable_query_log
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
@@ -106,7 +106,7 @@ let $wait_condition = SELECT WORK_COMPLETED > 0
 --source include/wait_condition.inc
 
 # Verify the expected progress seen in PFS table
-select WORK_ESTIMATED, WORK_COMPLETED
+select WORK_ESTIMATED > WORK_COMPLETED, WORK_COMPLETED
 	FROM performance_schema.events_stages_current
 	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
 

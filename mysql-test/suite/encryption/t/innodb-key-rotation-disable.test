@@ -99,3 +99,7 @@ SET GLOBAL innodb_encryption_threads=4;
 
 SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+
+# The backup file might be a leftover after calling generate key on existing key
+--error 0,1
+--remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"

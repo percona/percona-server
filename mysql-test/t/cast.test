@@ -721,10 +721,18 @@ DROP TABLE t;
 CREATE TABLE t (col_datetime datetime, col_date date, col_time time, col_char char);
 insert into t values ('2013-03-15 18:35:20', '2013-03-15', '18:35:20','L'),
                      ('2003-01-10 00:00:23', '2003-01-10', '00:00:23', NULL);
+
+--skip_if_hypergraph  # Different warnings.
 SELECT CAST(col_char AS DATETIME) FROM t;
+--echo
+--skip_if_hypergraph  # Different warnings.
 SELECT col_char /*CAST(col_char as datetime)*/ <> col_datetime FROM t;
 
+--echo
+--skip_if_hypergraph  # Different warnings.
 SELECT CAST(col_char AS DATE) FROM t;
+--echo
+--skip_if_hypergraph  # Different warnings.
 SELECT col_char <> col_date FROM t;
 
 SELECT CAST(col_char as TIME) FROM t;
@@ -740,6 +748,7 @@ CREATE TABLE `CC` ( `pk` int, `col_datetime_key` datetime,
 KEY `idx_CC_col_datetime_key` (`col_datetime_key`));
 INSERT INTO `BB` VALUES ('X');
 INSERT INTO `CC` VALUES (1,'2027-03-17 00:10:00'), (2,'2004-11-14 12:46:43');
+--skip_if_hypergraph  # Different warnings.
 SELECT COUNT(table1.pk) FROM CC table1 JOIN BB table3 JOIN CC table2
 WHERE (table3.col_char_key < table2.col_datetime_key);
 DROP TABLE `BB`;
@@ -796,8 +805,8 @@ SET SQL_MODE = "";
 SELECT CAST(TIMESTAMP'0000-00-00 00:00' AS YEAR);
 SET SQL_MODE = default;
 SELECT CAST(TIMESTAMP'2010-01-01 08:09:10' AS YEAR);
-SELECT CAST(TIME'08:09:10' AS YEAR);
-SELECT CAST(TIME'00:00:00' AS YEAR);
+SELECT CAST(TIME'08:09:10' AS YEAR) = YEAR(CURDATE());
+SELECT CAST(TIME'00:00:00' AS YEAR) = YEAR(CURDATE());
 
 #geometry values
 --error ER_WRONG_ARGUMENTS

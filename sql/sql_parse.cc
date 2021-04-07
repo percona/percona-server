@@ -1153,17 +1153,28 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   thd->profiling->set_query_source(buf, len);
 #endif
 
+  /*
+    Clear the DA in anticipation of possible failures in anticipation
+    of possible command parsing failures.
+  */
+  thd->get_stmt_da()->reset_diagnostics_area();
+
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
   save_client_capabilities = protocol->get_client_capabilities();
   protocol->add_client_capability(CLIENT_MULTI_QUERIES);
+  /*
+    We do not prepare a COM_QUERY packet with query attributes
+    since the init commands have nobody to supply query attributes.
+  */
+  protocol->remove_client_capability(CLIENT_QUERY_ATTRIBUTES);
   /*
     We don't need return result of execution to client side.
     To forbid this we should set thd->net.vio to 0.
   */
   save_vio = protocol->get_vio();
   protocol->set_vio(nullptr);
-  protocol->create_command(&com_data, COM_QUERY, (uchar *)buf, len);
-  dispatch_command(thd, &com_data, COM_QUERY);
+  if (!protocol->create_command(&com_data, COM_QUERY, (uchar *)buf, len))
+    dispatch_command(thd, &com_data, COM_QUERY);
   protocol->set_client_capabilities(save_client_capabilities);
   protocol->set_vio(save_vio);
 
@@ -1521,7 +1532,7 @@ static void check_secondary_engine_statement(THD *thd,
   thd->variables.option_bits |= OPTION_LOG_OFF;
 
   // Restart the statement.
-  mysql_parse(thd, parser_state, true);
+  dispatch_sql_command(thd, parser_state, true);
 
   // Restore the original option bits.
   thd->variables.option_bits = saved_option_bits;
@@ -1530,6 +1541,39 @@ static void check_secondary_engine_statement(THD *thd,
   // another restart/fallback to the primary storage engine.
   check_secondary_engine_statement(thd, parser_state, query_string,
                                    query_length);
+}
+
+/**
+  Deep copy the name and value of named parameters into the THD memory.
+
+  We need to do this since the packet bytes will go away during query
+  processing.
+  It doesn't need to be done for the unnamed ones since they're being
+  copied by and into Item_param. So we don't want to duplicate this.
+  @sa @ref Item_param
+
+  @param thd the thread to copy the parmeters to.
+  @param parameters the values to copy
+  @param count the number of parameters to copy
+*/
+static void copy_bind_parameter_values(THD *thd, PS_PARAM *parameters,
+                                       unsigned long count) {
+  thd->bind_parameter_values = parameters;
+  thd->bind_parameter_values_count = count;
+  unsigned long inx;
+  PS_PARAM *par;
+  for (inx = 0, par = thd->bind_parameter_values; inx < count; inx++, par++) {
+    if (par->name_length && par->name) {
+      void *newd = thd->alloc(par->name_length);
+      memcpy(newd, par->name, par->name_length);
+      par->name = reinterpret_cast<unsigned char *>(newd);
+    }
+    if (par->length && par->value) {
+      void *newd = thd->alloc(par->length);
+      memcpy(newd, par->value, par->length);
+      par->value = reinterpret_cast<unsigned char *>(newd);
+    }
+  }
 }
 
 /**
@@ -1781,8 +1825,13 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       Prepared_statement *stmt = nullptr;
       if (!mysql_stmt_precheck(thd, com_data, command, &stmt)) {
         PS_PARAM *parameters = com_data->com_stmt_execute.parameters;
+        copy_bind_parameter_values(thd, parameters,
+                                   com_data->com_stmt_execute.parameter_count);
+
         mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                             com_data->com_stmt_execute.open_cursor, parameters);
+        thd->bind_parameter_values = nullptr;
+        thd->bind_parameter_values_count = 0;
       }
       break;
     }
@@ -1874,7 +1923,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
-      mysql_parse(thd, &parser_state, false);
+      copy_bind_parameter_values(thd, com_data->com_query.parameters,
+                                 com_data->com_query.parameter_count);
+
+      dispatch_sql_command(thd, &parser_state, false);
 
       // Check if the statement failed and needs to be restarted in
       // another storage engine.
@@ -1959,13 +2011,16 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-        mysql_parse(thd, &parser_state, false);
+        dispatch_sql_command(thd, &parser_state, false);
 
         check_secondary_engine_statement(thd, &parser_state,
                                          beginning_of_next_stmt, length);
 
         thd->set_secondary_engine_optimization(saved_secondary_engine);
       }
+
+      thd->bind_parameter_values = nullptr;
+      thd->bind_parameter_values_count = 0;
 
       /* Need to set error to true for graceful shutdown */
       if ((thd->lex->sql_command == SQLCOM_SHUTDOWN) &&
@@ -3401,6 +3456,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
         case 9:  // GROUP_REPLICATION_SERVICE_MESSAGE_INIT_FAILURE
           my_error(ER_GRP_RPL_MESSAGE_SERVICE_INIT_FAILURE, MYF(0));
           goto error;
+        case 10:  // GROUP_REPLICATION_RECOVERY_CHANNEL_STILL_RUNNING
+          my_error(ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING, MYF(0));
+          goto error;
       }
       my_ok(thd);
       res = 0;
@@ -3453,6 +3511,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
         }
         goto error;
       }
+      if (res == 11)  // GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING,
+                     ER_THD(thd, ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING));
+
       my_ok(thd);
       res = 0;
       break;
@@ -4062,7 +4125,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (lex->type & REFRESH_FLUSH_PAGE_BITMAPS ||
           lex->type & REFRESH_RESET_PAGE_BITMAPS) {
         if (check_global_access(thd, SUPER_ACL)) goto error;
-      } else if (check_global_access(thd, RELOAD_ACL))
+      } else if (is_reload_request_denied(thd, lex->type))
         goto error;
 
       if (first_table && lex->type & REFRESH_READ_LOCK) {
@@ -4905,7 +4968,7 @@ finish:
   @returns false if check is successful, true if error
 */
 
-bool show_precheck(THD *thd, LEX *lex, bool) {
+bool show_precheck(THD *thd, LEX *lex, bool lock MY_ATTRIBUTE((unused))) {
   assert(lex->sql_command == SQLCOM_SHOW_CREATE_USER);
   TABLE_LIST *const tables = lex->query_tables;
   if (tables != nullptr) {
@@ -5053,62 +5116,23 @@ void THD::reset_for_next_command() {
 #endif
 }
 
-/**
-  Create a select to return the same output as 'SELECT @@var_name'.
-
-  Used for SHOW COUNT(*) [ WARNINGS | ERROR].
-
-  This will crash with a core dump if the variable doesn't exists.
-
-  @param pc                     Current parse context
-  @param var_name		Variable name
-
-  @returns false if success, true if error
-
-  @todo - replace this function with one that generates a PT_select node
-          and performs MAKE_CMD on it.
-*/
-
-bool create_select_for_variable(Parse_context *pc, const char *var_name) {
-  LEX_STRING tmp, null_lex_string;
-  char buff[MAX_SYS_VAR_LENGTH * 2 + 4 + 8];
-  DBUG_TRACE;
-
-  THD *thd = pc->thd;
-  LEX *lex = thd->lex;
-  lex->sql_command = SQLCOM_SELECT;
-  tmp.str = const_cast<char *>(var_name);
-  tmp.length = strlen(var_name);
-  memset(&null_lex_string, 0, sizeof(null_lex_string));
-  /*
-    We set the name of Item to @@session.var_name because that then is used
-    as the column name in the output.
-  */
-  Item *var = get_system_var(pc, OPT_SESSION, tmp, null_lex_string);
-  if (var == nullptr) return true; /* purecov: inspected */
-
-  char *end = strxmov(buff, "@@session.", var_name, NullS);
-  var->item_name.copy(buff, end - buff);
-  add_item_to_list(thd, var);
-
-  return false;
-}
-
 /*
-  When you modify mysql_parse(), you may need to mofify
+  When you modify dispatch_sql_command(), you may need to modify
   mysql_test_parse_for_slave() in this same file.
 */
 
 /**
-  Parse a query.
+  Parse an SQL command from a text string and pass the resulting AST to the
+  query executor.
 
   @param thd          Current session.
   @param parser_state Parser state.
 */
 
-void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat) {
+void dispatch_sql_command(THD *thd, Parser_state *parser_state,
+                          bool update_userstat) {
   DBUG_TRACE;
-  DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
+  DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
@@ -5359,7 +5383,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
   @param srid                      The SRID for this column (only relevant if
                                    this is a geometry column).
   @param col_check_const_spec_list List of column check constraints.
-  @param hidden                    Whether or not this field shoud be hidden.
+  @param hidden                    Column hidden type.
   @param is_array                  Whether it's a typed array field
 
   @return
@@ -5378,7 +5402,8 @@ bool Alter_info::add_field(
     dd::Column::enum_hidden_type hidden, bool is_array) {
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_TRACE;
-  DBUG_ASSERT(!is_array || hidden != dd::Column::enum_hidden_type::HT_VISIBLE);
+  DBUG_ASSERT(!is_array ||
+              hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
 
   LEX_CSTRING field_name_cstr = {field_name->str, field_name->length};
 

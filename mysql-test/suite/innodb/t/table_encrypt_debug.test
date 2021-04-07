@@ -3,7 +3,7 @@ call mtr.add_suppression("\\[Warning\\] .* Plugin keyring_file reported: 'Error 
 --enable_query_log
 
 # Waiting time when (re)starting the server
---let $explicit_default_counter=15000
+--let $explicit_default_wait_counter=15000
 
 --let $keyring_restart_param=restart:$KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --let $keyring_file_test=1

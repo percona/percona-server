@@ -30,6 +30,8 @@ call mtr.add_suppression("\\[Warning\\] .* Cannot save statistics for table .* b
 call mtr.add_suppression("\\[ERROR\\] .* The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption algorithm support missing:");
+call mtr.add_suppression("\\[Warning\\].* Encryption key missing: space_id=");
+call mtr.add_suppression("\\[Warning\\].* Decrypting a page in doublewrite file failed: space_id=");
 --enable_query_log
 
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;

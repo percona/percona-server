@@ -2499,7 +2499,12 @@ PSI_mutex *pfs_init_mutex_v1(PSI_mutex_key key, const void *identity) {
     return nullptr;
   }
   pfs = create_mutex(klass, identity);
-  return reinterpret_cast<PSI_mutex *>(pfs);
+
+  /*
+    PFS_mutex is a PSI_mutex,
+    and the caller will use PSI_mutex::m_enabled.
+  */
+  return pfs;
 }
 
 /**
@@ -2526,7 +2531,12 @@ PSI_rwlock *pfs_init_rwlock_v2(PSI_rwlock_key key, const void *identity) {
     return nullptr;
   }
   pfs = create_rwlock(klass, identity);
-  return reinterpret_cast<PSI_rwlock *>(pfs);
+
+  /*
+    PFS_rwlock is a PSI_rwlock,
+    and the caller will use PSI_rwlock::m_enabled.
+  */
+  return pfs;
 }
 
 /**
@@ -2553,7 +2563,12 @@ PSI_cond *pfs_init_cond_v1(PSI_cond_key key, const void *identity) {
     return nullptr;
   }
   pfs = create_cond(klass, identity);
-  return reinterpret_cast<PSI_cond *>(pfs);
+
+  /*
+    PFS_cond is a PSI_cond,
+    and the caller will use PSI_cond::m_enabled.
+  */
+  return pfs;
 }
 
 /**
@@ -2761,7 +2776,12 @@ PSI_socket *pfs_init_socket_v1(PSI_socket_key key, const my_socket *fd,
     return nullptr;
   }
   pfs = create_socket(klass, fd, addr, addr_len);
-  return reinterpret_cast<PSI_socket *>(pfs);
+
+  /*
+    PFS_socket is a PSI_socket,
+    and the caller will use PSI_socket::m_enabled.
+  */
+  return pfs;
 }
 
 void pfs_destroy_socket_v1(PSI_socket *socket) {
@@ -3221,6 +3241,42 @@ void pfs_set_thread_start_time_vc(time_t start_time) {
 
 /**
   Implementation of the thread instrumentation interface.
+  @sa PSI_v4::set_thread_start_time_usec.
+*/
+void pfs_set_thread_start_time_usec_vc(ulonglong start_time_usec) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != nullptr)) {
+    pfs->m_start_time_usec = start_time_usec;
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v4::set_thread_rows_sent.
+*/
+void pfs_set_thread_rows_sent_vc(ulonglong rows_sent) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != nullptr)) {
+    pfs->m_rows_sent = rows_sent;
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v4::set_thread_rows_examined.
+*/
+void pfs_set_thread_rows_examined_vc(ulonglong rows_examined) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != nullptr)) {
+    pfs->m_rows_examined = rows_examined;
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_state.
 */
 void pfs_set_thread_state_v1(const char *) { /* DEPRECATED. */
@@ -3522,9 +3578,12 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
   DBUG_ASSERT(pfs_mutex != nullptr);
   DBUG_ASSERT(pfs_mutex->m_class != nullptr);
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_mutex->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags;
   ulonglong timer_start = 0;
@@ -3627,9 +3686,12 @@ static PSI_rwlock_locker *pfs_start_rwlock_wait_v2(
       (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
       (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_rwlock->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags;
   ulonglong timer_start = 0;
@@ -3754,9 +3816,12 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
   DBUG_ASSERT(pfs_cond != nullptr);
   DBUG_ASSERT(pfs_cond->m_class != nullptr);
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_cond->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags;
   ulonglong timer_start = 0;
@@ -4435,9 +4500,12 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(pfs_socket != nullptr);
   DBUG_ASSERT(pfs_socket->m_class != nullptr);
 
+  /* The caller checks for m_enabled. */
+#if 0
   if (!pfs_socket->m_enabled) {
     return nullptr;
   }
+#endif
 
   uint flags = 0;
   ulonglong timer_start = 0;
@@ -4548,9 +4616,18 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
     and therefore is thread safe. See inline_mysql_mutex_unlock().
   */
 
-  /* Always update the instrumented state */
+  /* The caller checks for m_enabled. */
+#if 0
+  if (!pfs_mutex->m_enabled) {
+    /*
+      Disabled mutexes are not updated,
+      to avoid bottlenecks.
+    */
+    return;
+  }
+#endif
+
   pfs_mutex->m_owner = nullptr;
-  pfs_mutex->m_last_locked = 0;
 
 #ifdef LATER_WL2333
   /*
@@ -4558,10 +4635,6 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
     PFS_mutex::m_lock_stat is not exposed in user visible tables
     currently, so there is no point spending time computing it.
   */
-  if (!pfs_mutex->m_enabled) {
-    return;
-  }
-
   if (!pfs_mutex->m_timed) {
     return;
   }
@@ -4569,6 +4642,7 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
   ulonglong locked_time;
   locked_time = get_wait_timer() - pfs_mutex->m_last_locked;
   pfs_mutex->m_mutex_stat.m_lock_stat.aggregate_value(locked_time);
+  pfs_mutex->m_last_locked = 0;
 #endif
 }
 
@@ -4584,9 +4658,6 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
   DBUG_ASSERT(pfs_rwlock->m_class != nullptr);
   DBUG_ASSERT(pfs_rwlock->m_lock.is_populated());
 
-  bool last_writer = false;
-  bool last_reader = false;
-
   /*
     Note that this code is still protected by the instrumented rwlock,
     and therefore is:
@@ -4595,7 +4666,21 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
     See inline_mysql_rwlock_unlock()
   */
 
-  /* Always update the instrumented state */
+  /* The caller checks for m_enabled. */
+#if 0
+  if (!pfs_rwlock->m_enabled) {
+    /*
+      Disabled rwlocks are not updated,
+      to avoid bottlenecks.
+    */
+    return;
+  }
+#endif
+
+  bool last_writer = false;
+  bool last_reader = false;
+
+  /* Update the instrumented state */
   if (pfs_rwlock->m_writer != nullptr) {
     /* Nominal case, a writer is unlocking. */
     last_writer = true;
@@ -4622,10 +4707,6 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
 
 #ifdef LATER_WL2333
   /* See WL#2333: SHOW ENGINE ... LOCK STATUS. */
-
-  if (!pfs_rwlock->m_enabled) {
-    return;
-  }
 
   if (!pfs_rwlock->m_timed) {
     return;
@@ -4845,7 +4926,9 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
 
   if (likely(rc == 0)) {
     mutex->m_owner = thread;
+#ifdef LATER_WL2333
     mutex->m_last_locked = timer_end;
+#endif /* LATER_WL2333 */
   }
 
   if (flags & STATE_FLAG_THREAD) {
@@ -4917,9 +5000,11 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
       The statistics generated are not safe, which is why they are
       just statistics, not facts.
     */
+#ifdef LATER_WL2333
     if (rwlock->m_readers == 0) {
       rwlock->m_last_read = timer_end;
     }
+#endif /* LATER_WL2333 */
     rwlock->m_writer = nullptr;
     rwlock->m_readers++;
   }
@@ -4989,13 +5074,17 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
   if (likely(rc == 0)) {
     /* Thread safe : we are protected by the instrumented rwlock */
     rwlock->m_writer = thread;
+#ifdef LATER_WL2333
     rwlock->m_last_written = timer_end;
+#endif /* LATER_WL2333 */
 
     if ((state->m_operation != PSI_RWLOCK_SHAREDEXCLUSIVELOCK) &&
         (state->m_operation != PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK)) {
       /* Reset the readers stats, they could be off */
       rwlock->m_readers = 0;
+#ifdef LATER_WL2333
       rwlock->m_last_read = 0;
+#endif /* LATER_WL2333 */
     }
   }
 
@@ -7263,10 +7352,12 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
   }
 }
 
-static PSI_prepared_stmt *pfs_create_prepared_stmt_v2(
-    void *identity, uint stmt_id, PSI_statement_locker *locker,
-    const char *stmt_name, size_t stmt_name_length, const char *sql_text,
-    size_t sql_text_length) {
+PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
+                                               PSI_statement_locker *locker,
+                                               const char *stmt_name,
+                                               size_t stmt_name_length,
+                                               const char *sql_text,
+                                               size_t sql_text_length) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   PFS_events_statements *pfs_stmt =
@@ -7293,8 +7384,8 @@ static PSI_prepared_stmt *pfs_create_prepared_stmt_v2(
   return reinterpret_cast<PSI_prepared_stmt *>(pfs);
 }
 
-static void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
-                                         PSI_prepared_stmt *ps) {
+void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
+                                  PSI_prepared_stmt *ps) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   DBUG_ASSERT(state != nullptr);
@@ -7303,14 +7394,14 @@ static void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
   state->m_in_prepare = false;
 }
 
-static void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
-static void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat = &pfs_prepared_stmt->m_reprepare_stat;
@@ -7493,8 +7584,8 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
 
     PFS_memory_safe_stat *event_name_array;
     PFS_memory_safe_stat *stat;
-    PFS_memory_stat_delta delta_buffer;
-    PFS_memory_stat_delta *delta;
+    PFS_memory_stat_alloc_delta delta_buffer;
+    PFS_memory_stat_alloc_delta *delta;
 
     /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     event_name_array = pfs_thread->write_instr_class_memory_stats();
@@ -7502,7 +7593,7 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
     delta = stat->count_alloc(size, &delta_buffer);
 
     if (delta != nullptr) {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      pfs_thread->carry_memory_stat_alloc_delta(delta, index);
     }
 
     /* Flag this memory as owned by the current thread. */
@@ -7534,8 +7625,6 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
   }
 
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global()) {
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
@@ -7558,17 +7647,25 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
       event_name_array = pfs_thread->write_instr_class_memory_stats();
       stat = &event_name_array[index];
 
+      PFS_memory_stat_free_delta free_delta_buffer;
+      PFS_memory_stat_free_delta *free_delta;
+
       if (flag_global_instrumentation && klass->m_enabled) {
-        delta = stat->count_realloc(old_size, new_size, &delta_buffer);
+        PFS_memory_stat_alloc_delta alloc_delta_buffer;
+        PFS_memory_stat_alloc_delta *alloc_delta;
+        alloc_delta = stat->count_alloc(new_size, &alloc_delta_buffer);
+        if (alloc_delta != nullptr) {
+          pfs_thread->carry_memory_stat_alloc_delta(alloc_delta, index);
+        }
         *owner_thread_hdl = pfs_thread;
       } else {
-        delta = stat->count_free(old_size, &delta_buffer);
         *owner_thread_hdl = nullptr;
         key = PSI_NOT_INSTRUMENTED;
       }
 
-      if (delta != nullptr) {
-        pfs_thread->carry_memory_stat_delta(delta, index);
+      free_delta = stat->count_free(old_size, &free_delta_buffer);
+      if (free_delta != nullptr) {
+        pfs_thread->carry_memory_stat_free_delta(free_delta, index);
       }
       return key;
     }
@@ -7582,7 +7679,8 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
   stat = &event_name_array[index];
 
   if (flag_global_instrumentation && klass->m_enabled) {
-    stat->count_global_realloc(old_size, new_size);
+    stat->count_global_alloc(new_size);
+    stat->count_global_free(old_size);
   } else {
     stat->count_global_free(old_size);
     key = PSI_NOT_INSTRUMENTED;
@@ -7616,8 +7714,6 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
   */
 
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
 
   PFS_thread *old_thread = sanitize_thread(*owner_thread);
   PFS_thread *new_thread = my_thread_get_THR_PFS();
@@ -7649,19 +7745,22 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
 
     if (old_thread != nullptr) {
       /* 1: A FREE is counted against X. */
+      PFS_memory_stat_free_delta free_delta_buffer;
+      PFS_memory_stat_free_delta *free_delta;
+
       event_name_local_array = old_thread->write_instr_class_memory_stats();
       local_stat = &event_name_local_array[index];
-      delta = local_stat->count_free(size, &delta_buffer);
+      free_delta = local_stat->count_free(size, &free_delta_buffer);
 
-      if (delta != NULL) {
-        old_thread->carry_memory_stat_delta(delta, index);
+      if (free_delta != NULL) {
+        old_thread->carry_memory_stat_free_delta(free_delta, index);
       }
 
       /* 2: A MALLOC is counted globally. */
       event_name_global_array = global_instr_class_memory_array;
       if (event_name_global_array) {
         global_stat = &event_name_global_array[index];
-        (void)global_stat->count_alloc(size, &delta_buffer);
+        global_stat->count_global_alloc(size);
       }
 
       /* 3: verify owner was X. */
@@ -7685,16 +7784,18 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
       event_name_global_array = global_instr_class_memory_array;
       if (event_name_global_array) {
         global_stat = &event_name_global_array[index];
-        (void)global_stat->count_free(size, &delta_buffer);
+        global_stat->count_global_free(size);
       }
 
       /* 2: A MALLOC is counted against Y. */
+      PFS_memory_stat_alloc_delta alloc_delta_buffer;
+      PFS_memory_stat_alloc_delta *alloc_delta;
       event_name_local_array = new_thread->write_instr_class_memory_stats();
       local_stat = &event_name_local_array[index];
-      delta = local_stat->count_alloc(size, &delta_buffer);
+      alloc_delta = local_stat->count_alloc(size, &alloc_delta_buffer);
 
-      if (delta != nullptr) {
-        new_thread->carry_memory_stat_delta(delta, index);
+      if (alloc_delta != nullptr) {
+        new_thread->carry_memory_stat_alloc_delta(alloc_delta, index);
       }
 
       /* 3: set owner to Y. */
@@ -7720,40 +7821,36 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
   */
 
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
+  PFS_memory_stat_free_delta delta_buffer;
+  PFS_memory_stat_free_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global()) {
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+    PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
     if (likely(pfs_thread != nullptr)) {
-#ifdef PFS_PARANOID
-      PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
+      if (pfs_thread == owner_thread) {
+        /*
+          Do not check pfs_thread->m_enabled.
+          If a memory alloc was instrumented,
+          the corresponding free must be instrumented.
+        */
+        /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+        PFS_memory_safe_stat *event_name_array;
+        PFS_memory_safe_stat *stat;
+        event_name_array = pfs_thread->write_instr_class_memory_stats();
+        stat = &event_name_array[index];
+        delta = stat->count_free(size, &delta_buffer);
 
-      if (owner_thread != pfs_thread) {
-        owner_thread = sanitize_thread(owner_thread);
-        if (owner_thread != nullptr) {
-          report_memory_accounting_error("pfs_memory_free_vc", pfs_thread, size,
-                                         klass, owner_thread);
+        if (delta != nullptr) {
+          pfs_thread->carry_memory_stat_free_delta(delta, index);
         }
+        return;
       }
-#endif /* PFS_PARANOID */
-
-      /*
-        Do not check pfs_thread->m_enabled.
-        If a memory alloc was instrumented,
-        the corresponding free must be instrumented.
-      */
-      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-      PFS_memory_safe_stat *event_name_array;
-      PFS_memory_safe_stat *stat;
-      event_name_array = pfs_thread->write_instr_class_memory_stats();
-      stat = &event_name_array[index];
-      delta = stat->count_free(size, &delta_buffer);
-
-      if (delta != nullptr) {
-        pfs_thread->carry_memory_stat_delta(delta, index);
-      }
-      return;
+#ifdef PFS_PARANOID
+      report_memory_accounting_error("pfs_memory_free_vc", pfs_thread, size,
+                                     klass, owner_thread);
+#endif
+      /* Fall back to global aggregate below. */
     }
   }
 
@@ -8093,6 +8190,9 @@ PSI_thread_service_v4 pfs_thread_service_v4 = {
     pfs_set_thread_command_vc,
     pfs_set_connection_type_vc,
     pfs_set_thread_start_time_vc,
+    pfs_set_thread_start_time_usec_vc,
+    pfs_set_thread_rows_sent_vc,
+    pfs_set_thread_rows_examined_vc,
     pfs_set_thread_info_vc,
     pfs_set_thread_resource_group_vc,
     pfs_set_thread_resource_group_by_id_vc,
@@ -8131,6 +8231,9 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v4) = {
     pfs_set_thread_command_vc,
     pfs_set_connection_type_vc,
     pfs_set_thread_start_time_vc,
+    pfs_set_thread_start_time_usec_vc,
+    pfs_set_thread_rows_sent_vc,
+    pfs_set_thread_rows_examined_vc,
     pfs_set_thread_info_vc,
     pfs_set_thread_vc,
     pfs_set_thread_peer_port_vc,

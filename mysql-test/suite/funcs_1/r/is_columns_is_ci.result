@@ -196,7 +196,7 @@ def	information_schema	INDEX_STATISTICS	TABLE_SCHEMA	1		NO	varchar	64	192	NULL	N
 def	information_schema	INDEX_STATISTICS	TABLE_NAME	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select			NULL
 def	information_schema	INDEX_STATISTICS	INDEX_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select			NULL
 def	information_schema	INDEX_STATISTICS	ROWS_READ	4		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
-def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	31	124	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)			select			NULL
+def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select			NULL
 def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -847,7 +847,7 @@ NULL	information_schema	GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime	NULL	NULL	N
 3.0000	information_schema	INDEX_STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(192)
 3.0000	information_schema	INDEX_STATISTICS	INDEX_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(192)
 NULL	information_schema	INDEX_STATISTICS	ROWS_READ	bigint	NULL	NULL	NULL	NULL	bigint unsigned
-4.0000	information_schema	KEYWORDS	WORD	varchar	31	124	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)
+4.0000	information_schema	KEYWORDS	WORD	varchar	128	512	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)
 NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)

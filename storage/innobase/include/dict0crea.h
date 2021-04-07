@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "que0types.h"
 #include "row0types.h"
+#include "sql/handler.h"
 #include "univ.i"
 
 #include "keyring_encryption_key_info.h"
@@ -49,7 +50,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Builds a tablespace to store various objects.
@@ -67,7 +69,8 @@ dberr_t dict_build_tablespace(
 @param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Assign a new table ID and put it into the table cache and the transaction.

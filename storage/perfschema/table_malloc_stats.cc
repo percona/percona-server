@@ -108,13 +108,15 @@ int table_malloc_stats_totals::rnd_pos(const void *pos) {
 void table_malloc_stats_totals::make_row() {
   memset(&m_row, 0, sizeof(m_row));
 
-  size_t sz = sizeof(size_t);
+  size_t sz = sizeof(epoch);
 
   epoch++;
-  jemalloc_mallctl("epoch", nullptr, 0, &epoch, sz);
+  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch, sz);
 
+  sz = sizeof(m_row.stat[0]);
   for (unsigned i = 0; i < NUM_SUMMARY_STAT; i++)
-    jemalloc_mallctl(summary_stat_type[i], &m_row.stat[i], &sz, nullptr, 0);
+    if (jemalloc_mallctl(summary_stat_type[i], &m_row.stat[i], &sz, nullptr, 0))
+      m_row.stat[i] = 0;
 
   m_row_exists = true;
 }
@@ -217,26 +219,27 @@ int table_malloc_stats::rnd_pos(const void *pos) {
 }
 
 void table_malloc_stats::make_row(int index) {
-  char s[64];
   size_t sz = sizeof(epoch);
 
   memset(&m_row, 0, sizeof(m_row));
 
   epoch++;
-  jemalloc_mallctl("epoch", nullptr, 0, &epoch, sz);
+  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch, sz);
 
   m_row.type = index;
 
   unsigned n = 0;
-  sz = sizeof(unsigned);
+  sz = sizeof(n);
   /* Reading the index of merged arenas statistics, which equals to
    * number of arenas. */
   jemalloc_mallctl("arenas.narenas", &n, &sz, nullptr, 0);
 
-  sz = sizeof(size_t);
+  sz = sizeof(m_row.stat[0]);
   for (unsigned i = 0; i < NUM_STAT; i++) {
-    sprintf(s, "stats.arenas.%u.%s.%s", n, row_type[m_row.type], stat_type[i]);
-    jemalloc_mallctl(s, &m_row.stat[i], &sz, nullptr, 0);
+    char s[64];
+    snprintf(s, sizeof(s), "stats.arenas.%u.%s.%s", n, row_type[m_row.type],
+             stat_type[i]);
+    if (jemalloc_mallctl(s, &m_row.stat[i], &sz, nullptr, 0)) m_row.stat[i] = 0;
   }
 
   m_row_exists = true;

@@ -37,13 +37,13 @@ class table_malloc_stats_totals : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual int rnd_next() override;
-  virtual int rnd_pos(const void *pos) override;
-  virtual void reset_position(void) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 
  private:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_malloc_stats_totals();
 
@@ -81,13 +81,13 @@ class table_malloc_stats : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  virtual int rnd_next() override;
-  virtual int rnd_pos(const void *pos) override;
-  virtual void reset_position(void) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
+  void reset_position(void) override;
 
  private:
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                      bool read_all) override;
 
   table_malloc_stats();
 

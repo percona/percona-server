@@ -1586,8 +1586,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       if (!force_opt)
       {
         *error= "No point in reading encrypted binlog - quitting. "
-                "Start mysqlbinlog with --force if you want to attempt "
-                "to read encrypted binlog without decryption.";
+                "Start mysqlbinlog with --force-read if you want to attempt "
+                "to read an encrypted binlog without decryption.";
         DBUG_RETURN(0);
       }
       DBUG_RETURN(new Unknown_log_event);

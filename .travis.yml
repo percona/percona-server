@@ -298,8 +298,13 @@ script:
        TIMEOUT_CMD=timeout;
        CC=$CC-$VERSION;
        CXX=$CXX-$VERSION;
+       if [[ "$CC" == "clang-$VERSION" ]]; then
+         PACKAGES="$CC $PACKAGES";
+       else
+         PACKAGES="$CXX $PACKAGES";
+       fi;
        sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
-       sudo -E apt-get -yq --allow-unauthenticated --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev libevent-dev libmecab-dev libprotobuf-dev protobuf-compiler liblz4-dev libnuma-dev || travis_terminate 1;
+       sudo -E apt-get -yq --allow-unauthenticated --no-install-suggests --no-install-recommends install $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev libevent-dev libmecab-dev libprotobuf-dev protobuf-compiler liblz4-dev libnuma-dev || travis_terminate 1;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else

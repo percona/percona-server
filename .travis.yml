@@ -284,8 +284,13 @@ script:
        TIMEOUT_CMD=timeout;
        CC=$CC-$VERSION;
        CXX=$CXX-$VERSION;
+       if [[ "$CC" == "clang-$VERSION" ]]; then
+         PACKAGES="$CC $PACKAGES";
+       else
+         PACKAGES="$CXX $PACKAGES";
+       fi;
        sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
-       sudo -E apt-get -yq --allow-unauthenticated --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev || travis_terminate 1;
+       sudo -E apt-get -yq --allow-unauthenticated --no-install-suggests --no-install-recommends install $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev || travis_terminate 1;
        if [[ "$INVERTED" != "ON" ]]; then
          sudo -E apt-get -yq --allow-unauthenticated --no-install-suggests --no-install-recommends install libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || travis_terminate 1;
        fi;

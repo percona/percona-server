@@ -30,6 +30,12 @@ THR_LOCK table_malloc_stats_totals::m_table_lock;
 
 static std::atomic<uint64_t> epoch{0};
 
+static void set_jemalloc_epoch() {
+  auto epoch_copy = epoch++;
+  size_t sz = sizeof(epoch_copy);
+  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch_copy, sz);
+}
+
 static const char *summary_stat_type[NUM_SUMMARY_STAT] = {
     "stats.allocated", "stats.active",   "stats.mapped",
     "stats.resident",  "stats.retained", "stats.metadata"};
@@ -108,16 +114,12 @@ int table_malloc_stats_totals::rnd_pos(const void *pos) {
 }
 
 void table_malloc_stats_totals::make_row() {
+  set_jemalloc_epoch();
+
   memset(&m_row, 0, sizeof(m_row));
-
-  auto epoch_copy = epoch++;
-  size_t sz = sizeof(epoch_copy);
-  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch_copy, sz);
-
-  sz = sizeof(m_row.stat[0]);
+  size_t sz = sizeof(m_row.stat[0]);
   for (unsigned i = 0; i < NUM_SUMMARY_STAT; i++)
-    if (jemalloc_mallctl(summary_stat_type[i], &m_row.stat[i], &sz, nullptr, 0))
-      m_row.stat[i] = 0;
+    jemalloc_mallctl(summary_stat_type[i], &m_row.stat[i], &sz, nullptr, 0);
 
   m_row_exists = true;
 }
@@ -220,26 +222,22 @@ int table_malloc_stats::rnd_pos(const void *pos) {
 }
 
 void table_malloc_stats::make_row(int index) {
-  auto epoch_copy = epoch++;
-  size_t sz = sizeof(epoch_copy);
-  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch_copy, sz);
-
-  memset(&m_row, 0, sizeof(m_row));
-
-  m_row.type = index;
+  set_jemalloc_epoch();
 
   unsigned n = 0;
-  sz = sizeof(n);
+  size_t sz = sizeof(n);
   /* Reading the index of merged arenas statistics, which equals to
    * number of arenas. */
   jemalloc_mallctl("arenas.narenas", &n, &sz, nullptr, 0);
 
+  memset(&m_row, 0, sizeof(m_row));
+  m_row.type = index;
   sz = sizeof(m_row.stat[0]);
   for (unsigned i = 0; i < NUM_STAT; i++) {
     char s[64];
     snprintf(s, sizeof(s), "stats.arenas.%u.%s.%s", n, row_type[m_row.type],
              stat_type[i]);
-    if (jemalloc_mallctl(s, &m_row.stat[i], &sz, nullptr, 0)) m_row.stat[i] = 0;
+    jemalloc_mallctl(s, &m_row.stat[i], &sz, nullptr, 0);
   }
 
   m_row_exists = true;

@@ -1120,8 +1120,10 @@ sub run_test_server ($$$) {
               # Test has failed, force is off
               push(@$completed, $result);
               return $completed unless $result->{'dont_kill_server'};
-              # Prevent kill of server, to get valgrind report
-              print $sock "BYE\n";
+              # Prevent kill of server, to get shutdown/valgrind report from the
+              # worker, BYE should be sent to the worker for complete exit once
+              # report is received.
+              print $sock "GETREPORTS\n";
               next;
             } elsif ($opt_max_test_fail > 0 and
                      $num_failed_test >= $opt_max_test_fail) {
@@ -1183,9 +1185,14 @@ sub run_test_server ($$$) {
           # is enabled.
           add_total_times($line);
         } elsif ($line eq 'SHUTDOWN_REPORT') {
-          # Mysqld detected crash during shutdown
+          # Shutdown/valgrind report received
           $shutdown_report = 1;
           push(@$completed, My::Test::read_test($sock));
+
+          # Shutdown worker
+          print $sock "BYE\n";
+          $sock->shutdown(SHUT_WR);
+          next;
         } else {
           # Unknown message from worker
           mtr_error("Unknown response: '$line' from client");
@@ -1293,8 +1300,10 @@ sub run_test_server ($$$) {
             $running{ $next->key() } = $next;
             $num_ndb_tests++ if ($next->{ndb_test});
           } else {
-            # No more test, tell child to exit
-            print $sock "BYE\n";
+            # No more test, get shutdown/valgrind reports from the worker, BYE
+            # should be sent to the worker for complete exit once report is
+            # received.
+            print $sock "GETREPORTS\n";
           }
         }
       }
@@ -1356,6 +1365,8 @@ sub run_worker ($) {
 
   mark_time_used('init');
 
+  my $exit_code = 0;
+
   while (my $line = <$server>) {
     chomp($line);
     if ($line eq 'TESTCASE') {
@@ -1382,36 +1393,36 @@ sub run_worker ($) {
       # Send it back, now with results set
       $test->write_test($server, 'TESTRESULT');
       mark_time_used('restart');
-    } elsif ($line eq 'BYE') {
-      mtr_report("Server said BYE");
-      my $found_err = 0;
-      my $valgrind_report_text = '';
-
+    } elsif ($line eq 'GETREPORTS') {
       stop_all_servers($opt_shutdown_timeout);
+      mark_time_used('restart');
 
+      if ( $opt_gprof ) {
+        gprof_collect(find_mysqld($basedir), keys %gprof_dirs);
+      }
+
+      my $valgrind_report_text = '';
       if ($opt_valgrind || $opt_sanitize) {
         $valgrind_report_text = valgrind_exit_reports();
       }
 
       if ($shutdown_report || $valgrind_report_text) {
-        my $test = My::Test->new(
-          name => 'shutdown_report',
-          comment => $shutdown_report_text,
-          valgrind_comment => $valgrind_report_text,
-        );
-        $test->write_test($server, "SHUTDOWN_REPORT");
-        $found_err = 1;
+        $exit_code = 1;
       }
 
-      mark_time_used('restart');
-
-      if ($opt_gprof) {
-        gprof_collect(find_mysqld($basedir), keys %gprof_dirs);
-      }
-
+      # Send reports as the last message from the worker
+      my $test = My::Test->new(
+        name => 'shutdown_report',
+        comment => $shutdown_report_text ? $shutdown_report_text : '',
+        valgrind_comment => $valgrind_report_text ? $valgrind_report_text : '',
+      );
       mark_time_used('admin');
+
       print_times_used($server, $thread_num);
-      exit($found_err);
+      $test->write_test($server, "SHUTDOWN_REPORT");
+    } elsif ($line eq 'BYE') {
+      mtr_report("Server said BYE");
+      exit($exit_code);
     } else {
       mtr_error("Could not understand server, '$line'");
     }

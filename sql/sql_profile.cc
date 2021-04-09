@@ -169,7 +169,7 @@ typedef int (*je_mallctl_func)(const char *name, void *oldp, size_t *oldlenp,
 
 bool opt_jemalloc_profiling_enabled = false;
 bool opt_jemalloc_detected = false;
-static je_mallctl_func mallctl_p = NULL;
+static je_mallctl_func mallctl_p = nullptr;
 static bool jemalloc_initialized = false;
 static unsigned jemalloc_profile_counter = 0;
 
@@ -180,10 +180,10 @@ static unsigned jemalloc_profile_counter = 0;
   tree-structured namespace
   @param  oldp      To read a value, pass a pointer via oldp to adequate space
   to contain the value, and a pointer to its length via oldlenp; otherwise pass
-  NULL and NULL.
+  nullptr and nullptr.
   @param  oldlenp
   @param  newp      To write a value, pass a pointer to the value via newp, and
-  its length via newlen; otherwise pass NULL and 0.
+  its length via newlen; otherwise pass nullptr and 0.
   @param  newlen
 
   @return Result of mallctl, mallctl returns 0 on success, or 1 if mallctl is
@@ -213,7 +213,7 @@ int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
 int jemalloc_profiling_dump() {
   char *pfn;
   size_t sz = sizeof(pfn);
-  int n = jemalloc_mallctl("opt.prof_prefix", &pfn, &sz, NULL, 0);
+  int n = jemalloc_mallctl("opt.prof_prefix", &pfn, &sz, nullptr, 0);
 
   /* Only write to custom file if user doesn't overwrite prof_prefix in
    * MALLOC_CONF */
@@ -224,16 +224,16 @@ int jemalloc_profiling_dump() {
                      jemalloc_profile_counter++);
     if (i < 0 || static_cast<size_t>(i) >= buff_size) return 1;
 
-    time_t t = time(NULL);
+    time_t t = time(nullptr);
     struct tm ltm;
     localtime_r(&t, &ltm);
     strftime(buff + i, buff_size - i, "%y%m%d%H%M%S", &ltm);
 
     pfn = buff;
-    return jemalloc_mallctl("prof.dump", NULL, 0, &pfn, sz);
+    return jemalloc_mallctl("prof.dump", nullptr, 0, &pfn, sz);
   }
 
-  return jemalloc_mallctl("prof.dump", NULL, NULL, NULL, 0);
+  return jemalloc_mallctl("prof.dump", nullptr, nullptr, nullptr, 0);
 }
 
 /**
@@ -245,7 +245,7 @@ int jemalloc_profiling_dump() {
 bool jemalloc_detected() {
   char active;
   size_t sz = sizeof(active);
-  int n = jemalloc_mallctl("opt.prof", &active, &sz, NULL, 0);
+  int n = jemalloc_mallctl("opt.prof", &active, &sz, nullptr, 0);
   return !n && active;
 }
 
@@ -256,8 +256,8 @@ bool jemalloc_detected() {
   @return 0 on success.
 */
 int jemalloc_profiling_enable(bool enable) {
-  int n = jemalloc_mallctl("prof.active", NULL, NULL, &enable, sizeof(enable));
-  n |= jemalloc_mallctl("prof.thread_active_init", NULL, NULL, &enable,
+  int n = jemalloc_mallctl("prof.active", nullptr, nullptr, &enable, sizeof(enable));
+  n |= jemalloc_mallctl("prof.thread_active_init", nullptr, nullptr, &enable,
                         sizeof(enable));
   return n;
 }

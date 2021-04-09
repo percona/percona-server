@@ -34,12 +34,12 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 --let $loop_count=2
 
 # Execute the following set of instructions twice
-# once with change master with auto position 0
-# second time change master with auto position 1
+# once with change replication source with auto position 0
+# second time change replication source with auto position 1
 while ($loop_count)
 {
   --source include/stop_slave.inc
-  eval CHANGE MASTER TO MASTER_AUTO_POSITION=$auto_position;
+  eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=$auto_position;
   SET @@global.slave_parallel_workers=4;
   --source include/start_slave.inc
 

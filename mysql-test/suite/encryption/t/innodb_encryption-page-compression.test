@@ -131,3 +131,7 @@ EVAL SET GLOBAL default_table_encryption = $default_table_encryption_orig;
 SET GLOBAL innodb_encryption_threads = 4;
 EVAL SET GLOBAL innodb_encryption_threads = $innodb_encryption_threads_orig;
 --enable_query_log
+
+# The backup file might be a leftover after calling generate key on existing key
+--error 0,1
+--remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"

@@ -59,6 +59,9 @@ Plugin_table table_processlist::m_table_def(
     "  TIME BIGINT,\n"
     "  STATE VARCHAR(64),\n"
     "  INFO LONGTEXT,\n"
+    "  TIME_MS BIGINT unsigned not null,\n"
+    "  ROWS_SENT BIGINT unsigned not null,\n"
+    "  ROWS_EXAMINED BIGINT unsigned not null,\n"
     "  PRIMARY KEY (ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -307,6 +310,10 @@ int table_processlist::make_row(PFS_thread *pfs) {
     memcpy(m_row.m_hostname, host_ip.c_str(), m_row.m_hostname_length);
   }
 
+  m_row.m_start_time_usec = pfs->m_start_time_usec;
+  m_row.m_rows_sent = pfs->m_rows_sent;
+  m_row.m_rows_examined = pfs->m_rows_examined;
+
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -385,6 +392,24 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           else {
             f->set_null();
           }
+          break;
+        case 8: /* TIME_MS */
+          if (m_row.m_start_time_usec) {
+            auto now = my_micro_time();
+            auto elapsed =
+                (now > m_row.m_start_time_usec ? now - m_row.m_start_time_usec
+                                               : 0) /
+                1000;
+            set_field_ulonglong(f, elapsed);
+          } else {
+            f->set_null();
+          }
+          break;
+        case 9: /* ROWS_SENT */
+          set_field_ulonglong(f, m_row.m_rows_sent);
+          break;
+        case 10: /* ROWS_EXAMINED */
+          set_field_ulonglong(f, m_row.m_rows_examined);
           break;
         default:
           DBUG_ASSERT(false);

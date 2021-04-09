@@ -29,23 +29,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 namespace ibt {
 
-/** After how many tablespaces are dropped, we would like to free up
-the in-memory entries of the deleted tablespaces. Note that there is
-one flush_list iteration to remove dirty pages of all deleted tablespaces.
-
-We choose 7000 because it means only one flush list iteration per
-deletion of 7000 IBTs and also because it only means 6.2MB of wasted space
-(7000 * 931 (sizeof fil_space_t including allocation of its members)) from
-in-mem fil_space_t entries.
-
-On debug builds, we choose frequency as 10 to stress the IBT deletion process
-*/
-#ifdef UNIV_DEBUG
-static const uint32_t DELETE_FREQUENCY = 10;
-#else
-static const uint32_t DELETE_FREQUENCY = 7000;
-#endif /* UNIV_DEBUG */
-
 /** Purpose for using tablespace */
 enum tbsp_purpose {
   TBSP_NONE = 0,  /*!< Tablespace is not being used for any
@@ -100,7 +83,7 @@ dberr_t open_or_create(bool create_new_db);
 /** Sesssion Temporary tablespace */
 class Tablespace {
  public:
-  Tablespace(space_id_t id);
+  Tablespace();
 
   ~Tablespace();
 
@@ -112,14 +95,9 @@ class Tablespace {
   @return true on success, false on failure */
   bool close() const;
 
-  /** Delete the IBT file by using BUF_REMOVE_NONE strategy
-  Tablespace file is removed after ensuring there is no pending IO
-  The in-memory entry is removed after ensuring all the dirty pages
-  are removed
-
-  Pages in LRU are not removed and they are removed by aging
+  /** Truncate the tablespace
   @return true on success, false on failure */
-  bool drop();
+  bool truncate();
 
   /** comparator for two tablespace objects
   @return true if space_ids are same, else false */
@@ -184,18 +162,6 @@ class Tablespace {
     return (false);
   }
 
-  /** @return true if keyring is loaded, else false */
-  static bool is_keyring_loaded() {
-    if (!Encryption::check_keyring()) {
-      ib::error() << "Can't set temporary tablespace"
-                  << " to be encrypted because"
-                  << " keyring plugin is not"
-                  << " available.";
-      return (false);
-    }
-    return (true);
-  }
-
   /** Re-encrypt encrypted session temporary tablespace with the
   new master key */
   void rotate_encryption_key();
@@ -218,6 +184,10 @@ class Tablespace {
 
   /** space_id of the current tablespace */
   const space_id_t m_space_id;
+
+  /** Next available space_id for tablespace. These are
+  hardcoded space_ids at higher range */
+  static space_id_t m_last_used_space_id;
 
   /** True only after .ibt file is created */
   bool m_inited;
@@ -326,20 +296,6 @@ class Tablespace_pool {
   @param[in]	create_new_db	true if we are bootstrapping */
   void delete_old_pool(bool create_new_db);
 
-  /** Remove tablespace from the active list of Tablespaces
-  @param[in]	ts	Tablespace object */
-  void remove_ts(Tablespace *ts);
-
-  /** @return next available space_id after ensuring deleted IBT
-  space_id are cleared at DELETE_FREQUENCY */
-  space_id_t get_next_space_id();
-
-  /** Create a Tablespace using the given space_id
-  @param[in]		space_id	tablespace id
-  @param[out]		ts		Tablespace created
-  @return DB_SUCCESS on sucess, others on failure */
-  dberr_t create_ts(space_id_t space_id, Tablespace *&ts);
-
  private:
   /** True after the pool has been initialized */
   bool m_pool_initialized;
@@ -351,10 +307,6 @@ class Tablespace_pool {
   Pool *m_active;
   /** Mutex to protect concurrent operations on the pool */
   ib_mutex_t m_mutex;
-
-  /** Next available space_id for tablespace. These are
-  hardcoded space_ids at higher range */
-  static space_id_t m_last_used_space_id;
 };
 
 /** Pool of temporary tablespace */

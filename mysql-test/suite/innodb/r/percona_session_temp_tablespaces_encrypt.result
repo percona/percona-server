@@ -100,4 +100,4 @@ SET GLOBAL big_tables=default;
 DROP TABLE t3;
 DROP TABLE t6;
 include/assert.inc [Active session temp tablespaces count should be 2]
-include/assert.inc [Inactive session temp tablespaces count should be 2]
+include/assert.inc [Inactive session temp tablespaces count should be 8]

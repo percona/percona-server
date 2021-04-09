@@ -17,17 +17,17 @@ INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
 CREATE INDEX idx ON t(c);
 SELECT c FROM t;
 c
-NULL
 14
 19
 29
+NULL
 UPDATE t SET a = 10 WHERE a = 11;
 SELECT c FROM t;
 c
-NULL
 13
 19
 29
+NULL
 SELECT * FROM t;
 a	b	c	h
 10	3	13	mm
@@ -37,18 +37,18 @@ NULL	NULL	NULL	mm
 DELETE FROM t WHERE a = 18;
 SELECT c FROM t;
 c
-NULL
 13
 29
+NULL
 START TRANSACTION;
 INSERT INTO t VALUES (128, 22, DEFAULT, "xx");
 INSERT INTO t VALUES (1290, 212, DEFAULT, "xmx");
 ROLLBACK;
 SELECT c FROM t;
 c
-NULL
 13
 29
+NULL
 SELECT * FROM t;
 a	b	c	h
 10	3	13	mm
@@ -62,22 +62,22 @@ INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
 SELECT c FROM t;
 c
 3
-7
 33
+7
 SELECT m FROM t;
 m
-5
 11
 30
+5
 SELECT p FROM t;
 p
 XXXAAA
-uuuuu
 ummuooo
+uuuuu
 SELECT * FROM t;
 a	b	c	h	j	m	n	p
-11	22	33	AAA	8	30	XXX	XXXAAA
 1	2	3	uuu	9	11	uu	uuuuu
+11	22	33	AAA	8	30	XXX	XXXAAA
 3	4	7	uooo	1	5	umm	ummuooo
 update t set a = 13 where a =11;
 delete from t where a =13;
@@ -119,9 +119,9 @@ UPDATE t SET a =22 WHERE a = 18;
 UPDATE t SET a = 33 WHERE a = 22;
 SELECT c FROM t;
 c
+103
 29
 34
-103
 ROLLBACK;
 SELECT c FROM t;
 c
@@ -249,23 +249,23 @@ END|
 CALL UPDATE_t();
 SELECT c FROM t;
 c
-NULL
 19
-29
 2103
+29
+NULL
 CALL DELETE_insert_t();
 SELECT c FROM t;
 c
-NULL
 19
-29
 2103
+29
+NULL
 DROP INDEX idx ON t;
 CALL UPDATE_t();
 SELECT c FROM t;
 c
-2103
 19
+2103
 29
 NULL
 DROP PROCEDURE DELETE_insert_t;
@@ -308,7 +308,7 @@ col_VARCHAR_nokey
 00:34:58.026613', 'v');
 EXPLAIN SELECT col_INT_key FROM b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	b	NULL	index	NULL	col_INT_key	5	NULL	3	100.00	Using index
+1	SIMPLE	b	NULL	index	NULL	col_INT_key	5	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`b`.`col_INT_key` AS `col_INT_key` from `test`.`b`
 SELECT col_INT_key FROM b;
@@ -527,8 +527,8 @@ ALTER TABLE t DROP COLUMN p, ADD COLUMN s VARCHAR(20) GENERATED ALWAYS AS(CONCAT
 SELECT s FROM t;
 s
 XXXAAA
-uuuuu
 ummuooo
+uuuuu
 ALTER TABLE t ADD  x VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), ADD INDEX idx (x);
 DROP TABLE t;
 CREATE TABLE `t1` (
@@ -628,10 +628,10 @@ INSERT INTO t1 VALUES(4, 18, default);
 CREATE INDEX idx ON t1(x);
 SELECT x FROM t1;
 x
-3
-7
 15
 22
+3
+7
 DROP TABLE t1;
 CREATE TABLE t1 (
 id INT NOT NULL,
@@ -652,9 +652,9 @@ ERROR HY000: Table has no partition for value 22
 CREATE INDEX idx ON t1(x);
 SELECT x FROM t1;
 x
+15
 3
 7
-15
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) ,c int) ENGINE=RocksDB PARTITION BY RANGE (b) (
 PARTITION p0 VALUES LESS THAN (6),
@@ -667,9 +667,9 @@ CREATE INDEX idx ON t1 (b);
 INSERT INTO t1 VALUES (5,DEFAULT,9);
 SELECT * FROM t1;
 a	b	c
-5	6	9
 10	11	2
 19	20	8
+5	6	9
 ALTER TABLE t1 REMOVE PARTITIONING;
 DROP TABLE t1;
 CREATE TABLE `t#P#1` (a INT, bt INT GENERATED ALWAYS AS (a+1) ,c int) ENGINE=RocksDB
@@ -993,10 +993,10 @@ affected rows: 4
 info: Records: 4  Duplicates: 0  Warnings: 0
 SELECT x FROM t;
 x
-NULL
 14
 19
 29
+NULL
 DROP TABLE t;
 CREATE TABLE t1 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10)) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (11, 3, DEFAULT, 'mm');
@@ -1160,10 +1160,10 @@ CREATE INDEX idx2 ON t(e, c, d);
 ALTER TABLE t DROP COLUMN c;
 SELECT d FROM t;
 d
-NULL
 17
 20
 30
+NULL
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -1242,10 +1242,10 @@ t	CREATE TABLE `t` (
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT l FROM t;
 l
-NULL
 25
 37
 57
+NULL
 SELECT * FROM t;
 a	b	e	h	c	x	i	j	k	l
 11	3	11	mm	14	mm	25	NULL	NULL	25
@@ -1263,10 +1263,10 @@ KEY vidx (c, d)
 INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
 SELECT c, d FROM t;
 c	d
-NULL	NULL
-NULL	NULL
-NULL	NULL
 0	0
+NULL	NULL
+NULL	NULL
+NULL	NULL
 SELECT * FROM t;
 a	b	c	d
 0	0	0	0
@@ -1276,10 +1276,10 @@ NULL	NULL	NULL	NULL
 ALTER TABLE t DROP COLUMN c;
 SELECT d FROM t;
 d
-NULL
-NULL
-NULL
 0
+NULL
+NULL
+NULL
 SELECT * FROM t;
 a	b	d
 0	0	0
@@ -1303,10 +1303,10 @@ NULL	NULL	NULL	NULL
 ALTER TABLE t DROP COLUMN c, ADD INDEX vidx(d);
 SELECT d FROM t;
 d
-NULL
-NULL
-NULL
 0
+NULL
+NULL
+NULL
 SELECT * FROM t;
 a	b	d
 0	0	0

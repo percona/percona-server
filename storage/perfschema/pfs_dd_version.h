@@ -162,10 +162,21 @@
   80023:
 
   performance_schema tables changed in MySQL 8.0.23
-  - malloc_stats (created - Percona Server)
-  - malloc_stats_totals (created - Percona Server)
+  - WL#12819 replication_applier_configuration, added column
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+  - performance_schema.replication_asynchronous_connection_failover,
+  added column MANAGED_NAME
+  - added table
+  performance_schema.replication_asynchronous_connection_failover_managed
+
+  performance_schema tables changed in Percona Server 8.0.23-14
+  - add time_ms, rows_sent and rows_examined columns to
+  performance_schema.processlist
+  - malloc_stats
+  - malloc_stats_totals
 */
 
-static const uint PFS_DD_VERSION = 80022;
+static const uint PFS_DD_VERSION = 80023;
 
 #endif /* PFS_DD_VERSION_H */

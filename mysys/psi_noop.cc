@@ -63,7 +63,7 @@
 #include "my_macros.h"
 #include "my_sys.h"  // IWYU pragma: keep
 #include "my_thread.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
@@ -128,6 +128,12 @@ static void set_thread_command_noop(int) { return; }
 static void set_connection_type_noop(opaque_vio_type) { return; }
 
 static void set_thread_start_time_noop(time_t) { return; }
+
+static void set_thread_start_time_usec_noop(ulonglong) { return; }
+
+static void set_thread_rows_sent_noop(ulonglong) { return; }
+
+static void set_thread_rows_examined_noop(ulonglong) { return; }
 
 static void set_thread_info_noop(const char *, uint) { return; }
 
@@ -206,6 +212,9 @@ static PSI_thread_service_t psi_thread_noop = {
     set_thread_command_noop,
     set_connection_type_noop,
     set_thread_start_time_noop,
+    set_thread_start_time_usec_noop,
+    set_thread_rows_sent_noop,
+    set_thread_rows_examined_noop,
     set_thread_info_noop,
     set_thread_resource_group_noop,
     set_thread_resource_group_by_id_noop,

@@ -2364,7 +2364,7 @@ class ib_dec_counter {
 
   void operator()(upd_node_t *node) {
     ut_ad(node->table->n_foreign_key_checks_running > 0);
-    os_atomic_decrement_ulint(&node->table->n_foreign_key_checks_running, 1);
+    node->table->n_foreign_key_checks_running.fetch_sub(1);
   }
 };
 
@@ -3237,13 +3237,14 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	table		table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
+@param[in]	create_info     HA_CREATE_INFO object
 @param[in,out]	trx		transaction
 @param[in]	fil_encryption_t mode	encryption mode
 @param[in]	keyring_encryption_key_id	encryption key_id
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(
-    dict_table_t *table, const char *compression, trx_t *trx,
-    const fil_encryption_t mode,
+    dict_table_t *table, const char *compression,
+    const HA_CREATE_INFO *create_info, trx_t *trx, const fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   mem_heap_t *heap;
   dberr_t err;
@@ -3273,7 +3274,8 @@ dberr_t row_create_table_for_mysql(
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, trx, mode, keyring_encryption_key_id);
+  err = dict_build_table_def(table, create_info, trx, mode,
+                             keyring_encryption_key_id);
   if (err != DB_SUCCESS) {
     trx->error_state = err;
     goto error_handling;
@@ -3306,7 +3308,7 @@ dberr_t row_create_table_for_mysql(
 
       ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-      err = dict_set_compression(table, compression);
+      err = dict_set_compression(table, compression, false);
 
       switch (err) {
         case DB_SUCCESS:
@@ -4252,7 +4254,7 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
     }
 
   } else {
-    err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+    err = fil_delete_tablespace(space_id, BUF_REMOVE_NONE);
 
     if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
       ib::error(ER_IB_MSG_991)

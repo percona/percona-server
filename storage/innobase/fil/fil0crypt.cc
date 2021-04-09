@@ -971,7 +971,7 @@ static fil_space_crypt_t *fil_space_set_crypt_data(
 @return position on log buffer */
 byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
                                     const byte *end_ptr, ulint len,
-                                    bool recv_needed_recovery) {
+                                    bool recv_needed_recovery, lsn_t lsn) {
   ptr += 4;  // skip offset and len
 
 #ifdef UNIV_DEBUG
@@ -990,6 +990,15 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V3 is set
   ut_ad(
       (memcmp(ptr, Encryption::KEY_MAGIC_PS_V3, Encryption::MAGIC_SIZE) == 0));
+
+  fil_space_t *space = fil_space_get(space_id);
+  /* If space is already loaded and have header_page_flushed_lsn greater than
+  this REDO entry LSN, then skip it because header has the latest
+  information. */
+  if (space != nullptr && space->m_header_page_flush_lsn > lsn) {
+    return ptr + len;
+  }
+
   ptr += Encryption::MAGIC_SIZE;
 
   uint type = mach_read_from_1(ptr);
@@ -1095,10 +1104,8 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
   }
 
   /* update fil_space memory cache with crypt_data */
-  fil_space_t *space = fil_space_acquire_silent(space_id);
   if (space != nullptr) {
     crypt_data = fil_space_set_crypt_data(space, crypt_data);
-    fil_space_release(space);
   } else {
     // crypt_data was created as part of creating a new tablespace
     if (recv_sys->crypt_datas->count(space_id) > 0) {
@@ -1121,7 +1128,7 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
 @param[in]  len  Log entry length
 @return position on log buffer */
 byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len) {
+                                    const byte *end_ptr, ulint len, lsn_t lsn) {
   ptr += 4;  // skip offset and len
 
 #ifdef UNIV_DEBUG
@@ -1140,6 +1147,15 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V2 is set
   ut_ad(
       (memcmp(ptr, Encryption::KEY_MAGIC_PS_V2, Encryption::MAGIC_SIZE) == 0));
+
+  fil_space_t *space = fil_space_get(space_id);
+  /* If space is already loaded and have header_page_flushed_lsn greater than
+  this REDO entry LSN, then skip it because header has the latest
+  information. */
+  if (space != nullptr && space->m_header_page_flush_lsn > lsn) {
+    return ptr + len;
+  }
+
   ptr += Encryption::MAGIC_SIZE;
 
   uint type = mach_read_from_1(ptr);
@@ -1200,9 +1216,8 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   }
 
   /* update fil_space memory cache with crypt_data */
-  if (fil_space_t *space = fil_space_acquire_silent(space_id)) {
+  if (space != nullptr) {
     crypt_data = fil_space_set_crypt_data(space, crypt_data);
-    fil_space_release(space);
   } else {
     fil_space_destroy_crypt_data(&crypt_data);
   }
@@ -1220,7 +1235,7 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
 @param[in]  len  Log entry length
 @return position on log buffer */
 byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len) {
+                                    const byte *end_ptr, ulint len, lsn_t lsn) {
   ptr += 4;  // skip offset and len
   ptr += 2;  // skip iv_length
 
@@ -1236,6 +1251,15 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V1 is set
   ut_ad(
       (memcmp(ptr, Encryption::KEY_MAGIC_PS_V1, Encryption::MAGIC_SIZE) == 0));
+
+  fil_space_t *space = fil_space_get(space_id);
+  /* If space is already loaded and have header_page_flushed_lsn greater than
+  this REDO entry LSN, then skip it because header has the latest
+  information. */
+  if (space != nullptr && space->m_header_page_flush_lsn > lsn) {
+    return ptr + len;
+  }
+
   ptr += Encryption::MAGIC_SIZE;
 
   ptr += 4;  // skip space_id
@@ -1309,9 +1333,8 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
   }
 
   /* update fil_space memory cache with crypt_data */
-  if (fil_space_t *space = fil_space_acquire_silent(space_id)) {
+  if (space != nullptr) {
     crypt_data = fil_space_set_crypt_data(space, crypt_data);
-    fil_space_release(space);
   } else {
     fil_space_destroy_crypt_data(&crypt_data);
   }
@@ -2198,7 +2221,8 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
     // if space is marked as encrytped this means some of the pages are
     // encrypted and space should be skipped size must be set - i.e. tablespace
     // has been read
-    if (!state->space->is_encrypted && !state->space->exclude_from_rotation &&
+    if (!state->space->is_space_encrypted &&
+        !state->space->exclude_from_rotation &&
         fil_crypt_space_needs_rotation(state, key_state, recheck)) {
       ut_ad(key_state->key_id != ENCRYPTION_KEY_VERSION_INVALID);
       /* init state->min_key_version_found before
@@ -2756,7 +2780,8 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 
   ut_ad(state->space->n_pending_ops > 0);
 
-  for (; state->offset < end && !state->space->is_encrypted; state->offset++) {
+  for (; state->offset < end && !state->space->is_space_encrypted;
+       state->offset++) {
     /* we can't rotate pages in dblwr buffer as
      * it's not possible to read those due to lots of asserts
      * in buffer pool.
@@ -3332,7 +3357,7 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
 
   DBUG_EXECUTE_IF("crash_on_t1_flush_after_dd_update",
                   if (strcmp(state->space->name, "test/t1") == 0)
-                      DBUG_ABORT(););
+                      DBUG_SUICIDE(););
 
   // encrypt encryption_validation_tag with just max_key_version or leave it
   // unencrypted for unencrypted tablespace
@@ -3597,7 +3622,7 @@ void fil_crypt_thread() {
             fil_crypt_rotate_pages(&new_state, &thr);
           }
 
-          if (thr.space->is_encrypted) {
+          if (thr.space->is_space_encrypted) {
             /* There were some pages that were corrupted or could not have been
              * decrypted - abort rotating space */
             mutex_enter(&thr.space->crypt_data->mutex);

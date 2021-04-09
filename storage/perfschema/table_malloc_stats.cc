@@ -14,6 +14,8 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <atomic>
+
 #include "storage/perfschema/table_malloc_stats.h"
 
 #include "sql/field.h"
@@ -26,7 +28,7 @@
 
 THR_LOCK table_malloc_stats_totals::m_table_lock;
 
-static uint64_t epoch = 0;
+static std::atomic<uint64_t> epoch{0};
 
 static const char *summary_stat_type[NUM_SUMMARY_STAT] = {
     "stats.allocated", "stats.active",   "stats.mapped",
@@ -108,10 +110,9 @@ int table_malloc_stats_totals::rnd_pos(const void *pos) {
 void table_malloc_stats_totals::make_row() {
   memset(&m_row, 0, sizeof(m_row));
 
-  size_t sz = sizeof(epoch);
-
-  epoch++;
-  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch, sz);
+  auto epoch_copy = epoch++;
+  size_t sz = sizeof(epoch_copy);
+  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch_copy, sz);
 
   sz = sizeof(m_row.stat[0]);
   for (unsigned i = 0; i < NUM_SUMMARY_STAT; i++)
@@ -219,12 +220,11 @@ int table_malloc_stats::rnd_pos(const void *pos) {
 }
 
 void table_malloc_stats::make_row(int index) {
-  size_t sz = sizeof(epoch);
+  auto epoch_copy = epoch++;
+  size_t sz = sizeof(epoch_copy);
+  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch_copy, sz);
 
   memset(&m_row, 0, sizeof(m_row));
-
-  epoch++;
-  jemalloc_mallctl("epoch", nullptr, nullptr, &epoch, sz);
 
   m_row.type = index;
 

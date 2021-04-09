@@ -256,7 +256,8 @@ bool jemalloc_detected() {
   @return 0 on success.
 */
 int jemalloc_profiling_enable(bool enable) {
-  int n = jemalloc_mallctl("prof.active", nullptr, nullptr, &enable, sizeof(enable));
+  int n = jemalloc_mallctl("prof.active", nullptr, nullptr, &enable,
+                           sizeof(enable));
   n |= jemalloc_mallctl("prof.thread_active_init", nullptr, nullptr, &enable,
                         sizeof(enable));
   return n;

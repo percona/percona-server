@@ -18,6 +18,10 @@ that configures :program:`yum` and installs the `Percona GPG key
 
 Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
+|Percona Server| is certified for Red Hat Enterprise Linux 8. This certification is based on common and secure best practices, and successful interoperability with the operating system. Percona Server is listed in the `Red Hat Ecosystem Catalog <https://catalog.redhat.com/software/applications/detail/5869161>`_. 
+
+
+
 What's in each RPM package?
 ===========================
 

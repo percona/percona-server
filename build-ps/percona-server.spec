@@ -945,6 +945,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_wrappers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -983,6 +984,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_wrappers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so

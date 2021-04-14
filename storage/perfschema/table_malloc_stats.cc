@@ -125,7 +125,7 @@ void table_malloc_stats_totals::make_row() {
 }
 
 int table_malloc_stats_totals::read_row_values(TABLE *table, unsigned char *,
-                                                Field **fields, bool read_all) {
+                                               Field **fields, bool read_all) {
   Field *f;
 
   if (unlikely(!m_row_exists)) return HA_ERR_RECORD_DELETED;

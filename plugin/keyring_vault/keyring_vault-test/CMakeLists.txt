@@ -12,6 +12,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/plugin/keyring_vault
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault)
 
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_vault" -DEXTRA_CODE_FOR_UNIT_TESTING)
+
 MYSQL_ADD_EXECUTABLE(keyring_vault-test
                ./keyring_vault-test.cc
                ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
@@ -33,7 +35,7 @@ MYSQL_ADD_EXECUTABLE(keyring_vault-test
                ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
                ADD_TEST)
 
-TARGET_LINK_LIBRARIES(keyring_vault-test strings regex mysys sql)
+TARGET_LINK_LIBRARIES(keyring_vault-test strings mysys sql_main minchassis)
 TARGET_LINK_LIBRARIES(keyring_vault-test binlog rpl master slave)
 TARGET_LINK_LIBRARIES(keyring_vault-test ${CURL_LIBRARY} ${SSL_LIBRARIES})
 

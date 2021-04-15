@@ -34,10 +34,6 @@
 #include "vault_test_base.h"
 
 extern std::string uuid;
-#ifndef MERGE_UNITTESTS
-std::string uuid = generate_uuid();
-const char *error_message_for_error_log(int) { return nullptr; }
-#endif
 
 namespace keyring__vault_io_unittest {
 using namespace keyring;

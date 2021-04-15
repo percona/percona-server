@@ -23,10 +23,6 @@
 #include "vault_credentials.h"
 #include "vault_credentials_parser.h"
 
-#ifndef MERGE_UNITTESTS
-const char *error_message_for_error_log(int) { return nullptr; }
-#endif
-
 namespace keyring__vault_credentials_parser_unittest {
 using namespace keyring;
 

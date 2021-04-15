@@ -2197,7 +2197,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
 
   /* Decide the logging format prior to preparing table/record metadata */
-  res= res || thd->decide_logging_format(table_list);
+  res= res || thd->decide_logging_format(table_list, false);
   if (!res)
   {
      prepare_triggers_for_insert_stmt(table);

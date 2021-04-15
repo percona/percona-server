@@ -4868,7 +4868,7 @@ public:
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
-  int decide_logging_format(TABLE_LIST *tables);
+  int decide_logging_format(TABLE_LIST *tables, bool use_cached_table_flags= true);
   /**
     is_dml_gtid_compatible() and is_ddl_gtid_compatible() check if the
     statement that is about to be processed will safely get a

@@ -1,0 +1,24 @@
+SET @old_audit_log_timestamps     = @@global.audit_log_timestamps;
+
+# audit_log_timestamps -- values UTC|SYSTEM
+SET GLOBAL  audit_log_timestamps=UTC;
+SELECT      @@global.audit_log_timestamps;
+SET GLOBAL  audit_log_timestamps=SYSTEM;
+SELECT      @@global.audit_log_timestamps;
+
+# sess var
+--error ER_GLOBAL_VARIABLE
+SET SESSION audit_log_timestamps=UTC;
+
+# wrong value
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL  audit_log_timestamps=ON;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL  audit_log_timestamps=2;
+
+
+# log_timestamps -- default UTC
+SET GLOBAL  audit_log_timestamps=DEFAULT;
+SELECT      @@global.audit_log_timestamps;
+
+SET GLOBAL audit_log_timestamps      = @old_audit_log_timestamps;

@@ -1,0 +1,20 @@
+SET @old_audit_log_timestamps     = @@global.audit_log_timestamps;
+SET GLOBAL  audit_log_timestamps=UTC;
+SELECT      @@global.audit_log_timestamps;
+@@global.audit_log_timestamps
+UTC
+SET GLOBAL  audit_log_timestamps=SYSTEM;
+SELECT      @@global.audit_log_timestamps;
+@@global.audit_log_timestamps
+SYSTEM
+SET SESSION audit_log_timestamps=UTC;
+ERROR HY000: Variable 'audit_log_timestamps' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL  audit_log_timestamps=ON;
+ERROR 42000: Variable 'audit_log_timestamps' can't be set to the value of 'ON'
+SET GLOBAL  audit_log_timestamps=2;
+ERROR 42000: Variable 'audit_log_timestamps' can't be set to the value of '2'
+SET GLOBAL  audit_log_timestamps=DEFAULT;
+SELECT      @@global.audit_log_timestamps;
+@@global.audit_log_timestamps
+UTC
+SET GLOBAL audit_log_timestamps      = @old_audit_log_timestamps;

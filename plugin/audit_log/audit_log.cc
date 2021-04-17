@@ -23,7 +23,9 @@
 
 #include "m_ctype.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "mysql/components/services/component_sys_var_service.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_memory.h"
@@ -31,6 +33,7 @@
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "sql/log.h"
 #include "sql/mysqld.h"
 #include "typelib.h"
 
@@ -78,6 +81,7 @@ static char *audit_log_include_databases = nullptr;
 static char *audit_log_exclude_commands = nullptr;
 static char *audit_log_include_commands = nullptr;
 std::atomic<uint64_t> audit_log_buffer_size_overflow(0);
+static ulong audit_log_timestamps = enum_iso8601_tzmode::iso8601_utc;
 
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
@@ -140,16 +144,6 @@ static ulonglong next_record_id() noexcept {
 }
 
 static const constexpr auto MAX_RECORD_ID_SIZE = 50;
-static const constexpr auto MAX_TIMESTAMP_SIZE = 25;
-
-static char *make_timestamp(char *buf, size_t buf_len, time_t t) noexcept {
-  tm tm;
-
-  memset(&tm, 0, sizeof(tm));
-  strftime(buf, buf_len, "%FT%TZ", gmtime_r(&t, &tm));
-
-  return buf;
-}
 
 static char *make_record_id(char *buf, size_t buf_len) noexcept {
   tm tm;
@@ -385,10 +379,15 @@ static char *make_argv(char *buf, size_t len, int argc, char **argv) noexcept {
 }
 
 static char *audit_log_audit_record(char *buf, size_t buflen, const char *name,
-                                    time_t t, size_t *outlen) noexcept {
+                                    ulonglong t, size_t *outlen) noexcept {
   char id_str[MAX_RECORD_ID_SIZE];
-  char timestamp[MAX_TIMESTAMP_SIZE];
   char arg_buf[512];
+
+  char timestamp[iso8601_size];
+
+  make_iso8601_timestamp(
+      timestamp, t, static_cast<enum_iso8601_tzmode>(audit_log_timestamps));
+
   static const char *format_string[] = {
       "<AUDIT_RECORD\n"
       "  NAME=\"%s\"\n"
@@ -420,8 +419,7 @@ static char *audit_log_audit_record(char *buf, size_t buflen, const char *name,
 
   *outlen = snprintf(
       buf, buflen, format_string[static_cast<int>(audit_log_format)], name,
-      make_record_id(id_str, sizeof(id_str)),
-      make_timestamp(timestamp, sizeof(timestamp), t), server_version,
+      make_record_id(id_str, sizeof(id_str)), timestamp, server_version,
       make_argv(arg_buf, sizeof(arg_buf), orig_argc - 1, orig_argv + 1));
 
   /* make sure that record is not truncated */
@@ -431,16 +429,20 @@ static char *audit_log_audit_record(char *buf, size_t buflen, const char *name,
 }
 
 static char *audit_log_general_record(char *buf, size_t buflen,
-                                      const char *name, time_t t, int status,
+                                      const char *name, ulonglong t, int status,
                                       const mysql_event_general &event,
                                       const char *default_db,
                                       size_t *outlen) noexcept {
   char id_str[MAX_RECORD_ID_SIZE];
-  char timestamp[MAX_TIMESTAMP_SIZE];
   char *query, *user, *host, *external_user, *ip, *db;
   char *endptr = buf, *endbuf = buf + buflen;
   size_t full_outlen = 0, buflen_estimated;
   size_t query_length;
+
+  char timestamp[iso8601_size];
+
+  make_iso8601_timestamp(
+      timestamp, t, static_cast<enum_iso8601_tzmode>(audit_log_timestamps));
 
   static const char *format_string[] = {
       "<AUDIT_RECORD\n"
@@ -539,7 +541,7 @@ static char *audit_log_general_record(char *buf, size_t buflen,
                      strlen(name) + event.general_sql_command.length +
                      20 + /* general_thread_id */
                      20 + /* status */
-                     MAX_RECORD_ID_SIZE + MAX_TIMESTAMP_SIZE;
+                     MAX_RECORD_ID_SIZE + iso8601_size;
   if (buflen_estimated > buflen) {
     *outlen = buflen_estimated;
     return NULL;
@@ -547,8 +549,7 @@ static char *audit_log_general_record(char *buf, size_t buflen,
 
   *outlen = snprintf(endptr, endbuf - endptr,
                      format_string[static_cast<int>(audit_log_format)], name,
-                     make_record_id(id_str, sizeof(id_str)),
-                     make_timestamp(timestamp, sizeof(timestamp), t),
+                     make_record_id(id_str, sizeof(id_str)), timestamp,
                      event.general_sql_command.str, event.general_thread_id,
                      status, query, user, host, external_user, ip, db);
 
@@ -559,13 +560,16 @@ static char *audit_log_general_record(char *buf, size_t buflen,
 }
 
 static char *audit_log_connection_record(char *buf, size_t buflen,
-                                         const char *name, time_t t,
+                                         const char *name, ulonglong t,
                                          const mysql_event_connection &event,
                                          size_t *outlen) noexcept {
   char id_str[MAX_RECORD_ID_SIZE];
-  char timestamp[MAX_TIMESTAMP_SIZE];
   char *user, *priv_user, *external_user, *proxy_user, *host, *ip, *database;
   char *endptr = buf, *endbuf = buf + buflen;
+  char timestamp[iso8601_size];
+
+  make_iso8601_timestamp(
+      timestamp, t, static_cast<enum_iso8601_tzmode>(audit_log_timestamps));
 
   static const char *format_string[] = {
       "<AUDIT_RECORD\n"
@@ -633,15 +637,14 @@ static char *audit_log_connection_record(char *buf, size_t buflen,
 
   DBUG_ASSERT((endptr - buf) * 2 +
                   strlen(format_string[static_cast<int>(audit_log_format)]) +
-                  strlen(name) + MAX_RECORD_ID_SIZE + MAX_TIMESTAMP_SIZE +
+                  strlen(name) + MAX_RECORD_ID_SIZE + iso8601_size +
                   20 + /* event.thread_id */
                   20   /* event.status */
               < buflen);
 
   *outlen = snprintf(endptr, endbuf - endptr,
                      format_string[static_cast<int>(audit_log_format)], name,
-                     make_record_id(id_str, sizeof(id_str)),
-                     make_timestamp(timestamp, sizeof(timestamp), t),
+                     make_record_id(id_str, sizeof(id_str)), timestamp,
                      event.connection_id, event.status, user, priv_user,
                      external_user, proxy_user, host, ip, database);
 
@@ -860,7 +863,7 @@ static int audit_log_plugin_init(MYSQL_PLUGIN plugin_info) {
 
   if (init_new_log_file()) return (1);
 
-  if (audit_log_audit_record(buf, sizeof(buf), "Audit", time(nullptr), &len))
+  if (audit_log_audit_record(buf, sizeof(buf), "Audit", my_micro_time(), &len))
     audit_log_write(buf, len);
 
   return 0;
@@ -878,7 +881,8 @@ static int audit_log_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
   char buf[1024];
   size_t len;
 
-  if (audit_log_audit_record(buf, sizeof(buf), "NoAudit", time(nullptr), &len))
+  if (audit_log_audit_record(buf, sizeof(buf), "NoAudit", my_micro_time(),
+                             &len))
     audit_log_write(buf, len);
 
   audit_handler_close(log_handler);
@@ -985,6 +989,10 @@ static bool audit_log_update_thd_local(MYSQL_THD thd,
         !audit_log_check_account_included(priv_user.str, priv_user.length,
                                           priv_host.str, priv_host.length))
       local->skip_session = true;
+
+    my_plugin_log_message(&plugin_ptr, MY_INFORMATION_LEVEL,
+                          "priv_user <%s> priv_host<%s>", priv_user.str,
+                          priv_host.str);
     if (audit_log_exclude_accounts != nullptr &&
         audit_log_check_account_excluded(priv_user.str, priv_user.length,
                                          priv_host.str, priv_host.length))
@@ -1141,15 +1149,16 @@ static int audit_log_notify(MYSQL_THD thd, mysql_event_class_t event_class,
         }
         log_rec = audit_log_general_record(
             log_rec, buflen, event_general->general_command.str,
-            event_general->general_time, event_general->general_error_code,
-            *event_general, local->db, &len);
+            event_general->general_time * 1000000,
+            event_general->general_error_code, *event_general, local->db, &len);
         if (len > buflen) {
           buflen = len + 1024;
-          log_rec = audit_log_general_record(
-              get_record_buffer(thd, buflen), buflen,
-              event_general->general_command.str, event_general->general_time,
-              event_general->general_error_code, *event_general, local->db,
-              &len);
+          log_rec =
+              audit_log_general_record(get_record_buffer(thd, buflen), buflen,
+                                       event_general->general_command.str,
+                                       event_general->general_time * 1000000,
+                                       event_general->general_error_code,
+                                       *event_general, local->db, &len);
           DBUG_ASSERT(log_rec);
         }
         if (log_rec) audit_log_write(log_rec, len);
@@ -1165,18 +1174,18 @@ static int audit_log_notify(MYSQL_THD thd, mysql_event_class_t event_class,
         (const mysql_event_connection *)event;
     switch (event_connection->event_subclass) {
       case MYSQL_AUDIT_CONNECTION_CONNECT:
-        log_rec =
-            audit_log_connection_record(buf, sizeof(buf), "Connect",
-                                        time(nullptr), *event_connection, &len);
+        log_rec = audit_log_connection_record(buf, sizeof(buf), "Connect",
+                                              my_micro_time(),
+                                              *event_connection, &len);
         break;
       case MYSQL_AUDIT_CONNECTION_DISCONNECT:
         log_rec = audit_log_connection_record(
-            buf, sizeof(buf), "Quit", time(nullptr), *event_connection, &len);
+            buf, sizeof(buf), "Quit", my_micro_time(), *event_connection, &len);
         break;
       case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
-        log_rec =
-            audit_log_connection_record(buf, sizeof(buf), "Change user",
-                                        time(nullptr), *event_connection, &len);
+        log_rec = audit_log_connection_record(buf, sizeof(buf), "Change user",
+                                              my_micro_time(),
+                                              *event_connection, &len);
         break;
       default:
         log_rec = nullptr;
@@ -1338,6 +1347,16 @@ static MYSQL_THDVAR_STR(query_stack,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
                             PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Query stack.", nullptr, nullptr, "");
+
+static const char *audit_log_timestamps_names[] = {"UTC", "SYSTEM", nullptr};
+
+static TYPELIB audit_log_timestamps_typelib = {
+    array_elements(audit_log_timestamps_names) - 1,
+    "audit_log_timestamps_typelib", audit_log_timestamps_names, nullptr};
+
+static MYSQL_SYSVAR_ENUM(timestamps, audit_log_timestamps, PLUGIN_VAR_RQCMDARG,
+                         "The audit log timestamp time zone.", nullptr, nullptr,
+                         ASYNCHRONOUS, &audit_log_timestamps_typelib);
 
 static int audit_log_exclude_accounts_validate(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
@@ -1621,6 +1640,7 @@ static SYS_VAR *audit_log_system_variables[] = {MYSQL_SYSVAR(file),
                                                 MYSQL_SYSVAR(include_commands),
                                                 MYSQL_SYSVAR(local),
                                                 MYSQL_SYSVAR(local_ptr),
+                                                MYSQL_SYSVAR(timestamps),
                                                 NULL};
 
 static char thd_local_init_buf[sizeof(audit_log_thd_local)];

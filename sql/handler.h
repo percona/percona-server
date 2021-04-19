@@ -2317,7 +2317,7 @@ public:
 protected:
   TABLE_SHARE *table_share;             /* The table definition */
   TABLE *table;                         /* The current open table */
-  Table_flags cached_table_flags;       /* Set on init() and open() */
+  mutable Table_flags cached_table_flags;  /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;
 public:
@@ -2597,8 +2597,19 @@ public:
   }
   /**
     The cached_table_flags is set at ha_open and ha_external_lock
+
+    @param recalculate[in]  Force flags recalculation instead of using cached
+    value.
+
+    @retval                 table flags
   */
-  Table_flags ha_table_flags() const { return cached_table_flags; }
+  Table_flags ha_table_flags(bool recalculate = false) const
+  {
+    if (recalculate)
+      cached_table_flags= table_flags();
+    return cached_table_flags;
+  }
+
   /**
     These functions represent the public interface to *users* of the
     handler class, hence they are *not* virtual. For the inheritance

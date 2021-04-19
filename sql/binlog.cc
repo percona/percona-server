@@ -11524,12 +11524,15 @@ const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_m
 
   @param[in] thd    Client thread
   @param[in] tables Tables involved in the query
+  @param[in] use_cached_table_flags use cached value of
+  handler::cached_table_flags. Do not use cached value and force recalculation
+  in case of 'false'.
 
   @retval 0 No error; statement can be logged.
   @retval -1 One of the error conditions above applies (1, 2, 4, 5, 6 or 9).
 */
 
-int THD::decide_logging_format(TABLE_LIST *tables)
+int THD::decide_logging_format(TABLE_LIST *tables, bool use_cached_table_flags)
 {
   DBUG_ENTER("THD::decide_logging_format");
   DBUG_PRINT("info", ("query: %s", query().str));
@@ -11687,7 +11690,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         continue;
       }
 
-      handler::Table_flags const flags= table->table->file->ha_table_flags();
+      handler::Table_flags const flags= table->table->file->ha_table_flags(!use_cached_table_flags);
 
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           table->table_name, flags));

@@ -1545,6 +1545,8 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-validate-user-plugins to disable.)
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
+ --version-suffix=name 
+ version_suffix
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
  --windowing-use-high-precision 
@@ -1962,6 +1964,7 @@ utility-user-schema-access (No default value)
 validate-config FALSE
 validate-user-plugins TRUE
 verbose TRUE
+version-suffix -debug
 wait-timeout 28800
 windowing-use-high-precision TRUE
 

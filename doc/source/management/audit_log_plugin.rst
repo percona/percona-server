@@ -680,6 +680,22 @@ This variable is used to specify the ``priority`` value for syslog. This
 variable has the same meaning as the appropriate parameter described in the
 `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
+.. variable:: audit_log_timestamps
+
+   :cli: Yes
+   :scope: Global
+   :dyn: No
+   :vartype: Numeric
+   :default: UTC
+
+This variable controls the timestamp time zone added to the events in the audit log. 
+
+The available values are the following:
+
+* UTC - Default
+
+* SYSTEM - the local system time zone
+
 Status Variables
 ================
 
@@ -691,6 +707,7 @@ Status Variables
 The number of times an audit log entry was either
 dropped or written directly to the file due to its size being bigger
 than :variable:`audit_log_buffer_size` variable.
+
 
 Version Specific Information
 ============================

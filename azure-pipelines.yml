@@ -28,33 +28,46 @@ jobs:
           BuildType: Debug
 
       # clang-5 and newer compilers
-      Ubuntu Bionic clang-11 Release:
+      Ubuntu Bionic clang-12 Release:
         imageName: 'ubuntu-18.04'
         Compiler: clang
-        CompilerVer: 11
+        CompilerVer: 12
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-11 Release INVERTED=ON:
+        Ubuntu Bionic clang-12 Release INVERTED=ON:
           imageName: 'ubuntu-18.04'
           Compiler: clang
-          CompilerVer: 11
+          CompilerVer: 12
           BuildType: RelWithDebInfo
           Inverted: ON
 
-      Ubuntu Bionic clang-11 Debug INVERTED=ON:
+      Ubuntu Bionic clang-12 Debug INVERTED=ON:
         imageName: 'ubuntu-18.04'
         Compiler: clang
-        CompilerVer: 11
+        CompilerVer: 12
         BuildType: Debug
         Inverted: ON
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-11 Debug:
+        Ubuntu Bionic clang-12 Debug:
+          imageName: 'ubuntu-18.04'
+          Compiler: clang
+          CompilerVer: 12
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic clang-11 Release:
           imageName: 'ubuntu-18.04'
           Compiler: clang
           CompilerVer: 11
-          BuildType: Debug
+          BuildType: RelWithDebInfo
+
+      Ubuntu Bionic clang-11 Debug:
+        imageName: 'ubuntu-18.04'
+        Compiler: clang
+        CompilerVer: 11
+        BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Bionic clang-10 Release:
@@ -138,12 +151,11 @@ jobs:
         BuildType: Debug
 
       # gcc-5 and newer compilers
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-10 Release:
-          imageName: 'ubuntu-18.04'
-          Compiler: gcc
-          CompilerVer: 10
-          BuildType: RelWithDebInfo
+      Ubuntu Bionic gcc-10 Release:
+        imageName: 'ubuntu-18.04'
+        Compiler: gcc
+        CompilerVer: 10
+        BuildType: RelWithDebInfo
 
       Ubuntu Bionic gcc-10 Debug:
         imageName: 'ubuntu-18.04'

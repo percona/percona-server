@@ -176,6 +176,7 @@ get_sources(){
             exit 1
         fi
     fi
+    echo >> ../percona-server-8.0.properties
     echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-8.0.properties

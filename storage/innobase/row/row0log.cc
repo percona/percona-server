@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -475,7 +475,7 @@ void row_log_online_op(
 
   if (mrec_size >= avail_size) {
     dberr_t err;
-    IORequest request(IORequest::WRITE);
+    IORequest request(IORequest::ROW_LOG | IORequest::WRITE);
     const os_offset_t byte_offset =
         (os_offset_t)log->tail.blocks * srv_sort_buf_size;
     byte *buf = log->tail.block;
@@ -594,7 +594,7 @@ static void row_log_table_close_func(
 
   if (size >= avail) {
     dberr_t err;
-    IORequest request(IORequest::WRITE);
+    IORequest request(IORequest::ROW_LOG | IORequest::WRITE);
     const os_offset_t byte_offset =
         (os_offset_t)log->tail.blocks * srv_sort_buf_size;
 
@@ -2940,9 +2940,16 @@ next_block:
       goto func_exit;
     }
 
+<<<<<<< HEAD
     IORequest request(IORequest::NO_ENCRYPTION | IORequest::READ);
 
     byte *buf = index->online_log->head.block;
+||||||| 7ed30a74896
+    IORequest request;
+=======
+    IORequest request(IORequest::READ | IORequest::ROW_LOG);
+    ;
+>>>>>>> mysql-8.0.24
 
     err = os_file_read_no_error_handling_int_fd(
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
@@ -3741,10 +3748,16 @@ next_block:
       goto func_exit;
     }
 
+<<<<<<< HEAD
     IORequest request(IORequest::NO_ENCRYPTION | IORequest::READ);
 
     byte *buf = index->online_log->head.block;
 
+||||||| 7ed30a74896
+    IORequest request;
+=======
+    IORequest request(IORequest::READ | IORequest::ROW_LOG);
+>>>>>>> mysql-8.0.24
     dberr_t err = os_file_read_no_error_handling_int_fd(
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 

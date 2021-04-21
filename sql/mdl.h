@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -31,7 +32,7 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -125,6 +126,19 @@ class MDL_context_owner {
     Does the owner still have connection to the client?
   */
   virtual bool is_connected() = 0;
+
+  /**
+    Indicates that owner thread might have some commit order (non-MDL) waits
+    for it which are still taken into account by MDL deadlock detection,
+    even in cases when it doesn't have any MDL locks acquired and therefore
+    can't have any MDL waiters.
+
+    @note It is important for this check to be non-racy and quick (perhaps
+          at expense of being pretty pessimistic), so it can be used to
+          make decisions reliably about whether we can skip deadlock
+          detection in some cases.
+  */
+  virtual bool might_have_commit_order_waiters() const = 0;
 
   /**
      Within MDL subsystem this one is only used for DEBUG_SYNC.
@@ -419,7 +433,7 @@ struct MDL_key {
   uint name_length() const { return m_object_name_length; }
 
   const char *col_name() const {
-    DBUG_ASSERT(!use_normalized_object_name());
+    assert(!use_normalized_object_name());
 
     if (m_db_name_length + m_object_name_length + 3 < m_length) {
       /* A column name was stored in the key buffer. */
@@ -431,7 +445,7 @@ struct MDL_key {
   }
 
   uint col_name_length() const {
-    DBUG_ASSERT(!use_normalized_object_name());
+    assert(!use_normalized_object_name());
 
     if (m_db_name_length + m_object_name_length + 3 < m_length) {
       /* A column name was stored in the key buffer. */
@@ -461,7 +475,7 @@ struct MDL_key {
                     const char *name) {
     m_ptr[0] = (char)mdl_namespace;
 
-    DBUG_ASSERT(!use_normalized_object_name());
+    assert(!use_normalized_object_name());
 
     /*
       It is responsibility of caller to ensure that db and object names
@@ -482,8 +496,8 @@ struct MDL_key {
             implementation, possibly relying on the key format,
             must be investigated first, though.
     */
-    DBUG_ASSERT(strlen(db) <= NAME_LEN);
-    DBUG_ASSERT((mdl_namespace == TABLESPACE) || (strlen(name) <= NAME_LEN));
+    assert(strlen(db) <= NAME_LEN);
+    assert((mdl_namespace == TABLESPACE) || (strlen(name) <= NAME_LEN));
     m_db_name_length =
         static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) - m_ptr - 1);
     m_object_name_length = static_cast<uint16>(
@@ -510,20 +524,20 @@ struct MDL_key {
     char *start;
     char *end;
 
-    DBUG_ASSERT(!use_normalized_object_name());
+    assert(!use_normalized_object_name());
 
-    DBUG_ASSERT(strlen(db) <= NAME_LEN);
+    assert(strlen(db) <= NAME_LEN);
     start = m_ptr + 1;
     end = strmake(start, db, NAME_LEN);
     m_db_name_length = static_cast<uint16>(end - start);
 
-    DBUG_ASSERT(strlen(name) <= NAME_LEN);
+    assert(strlen(name) <= NAME_LEN);
     start = end + 1;
     end = strmake(start, name, NAME_LEN);
     m_object_name_length = static_cast<uint16>(end - start);
 
     size_t col_len = strlen(column_name);
-    DBUG_ASSERT(col_len <= NAME_LEN);
+    assert(col_len <= NAME_LEN);
     start = end + 1;
     size_t remaining =
         MAX_MDLKEY_LENGTH - m_db_name_length - m_object_name_length - 3;
@@ -586,7 +600,7 @@ struct MDL_key {
       extra_length = static_cast<uint16>(end - start) + 1;  // With \0
     }
     m_length = m_db_name_length + m_object_name_length + 3 + extra_length;
-    DBUG_ASSERT(m_length <= MAX_MDLKEY_LENGTH);
+    assert(m_length <= MAX_MDLKEY_LENGTH);
   }
 
   /**
@@ -628,10 +642,10 @@ struct MDL_key {
       FUNCTION, PROCEDURE, EVENT and RESOURCE_GROUPS names are case and accent
       insensitive. For other objects key should not be formed from this method.
     */
-    DBUG_ASSERT(use_normalized_object_name());
+    assert(use_normalized_object_name());
 
-    DBUG_ASSERT(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN &&
-                normalized_name_len <= NAME_CHAR_LEN * 2);
+    assert(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN &&
+           normalized_name_len <= NAME_CHAR_LEN * 2);
 
     // Database name.
     m_db_name_length =
@@ -656,7 +670,7 @@ struct MDL_key {
       *(m_ptr + m_length) = 0;
     }
 
-    DBUG_ASSERT(m_length + m_object_name_length < MAX_MDLKEY_LENGTH);
+    assert(m_length + m_object_name_length < MAX_MDLKEY_LENGTH);
   }
 
   /**
@@ -676,18 +690,18 @@ struct MDL_key {
       Key suffix provided should be in compatible format and
       its components should adhere to length restrictions.
     */
-    DBUG_ASSERT(strlen(part_key) == db_length);
-    DBUG_ASSERT(db_length + 1 + strlen(part_key + db_length + 1) + 1 ==
-                part_key_length);
-    DBUG_ASSERT(db_length <= NAME_LEN);
-    DBUG_ASSERT(part_key_length <= NAME_LEN + 1 + NAME_LEN + 1);
+    assert(strlen(part_key) == db_length);
+    assert(db_length + 1 + strlen(part_key + db_length + 1) + 1 ==
+           part_key_length);
+    assert(db_length <= NAME_LEN);
+    assert(part_key_length <= NAME_LEN + 1 + NAME_LEN + 1);
 
     m_ptr[0] = (char)mdl_namespace;
     /*
       Partial key of objects with normalized object name can not be used to
       initialize MDL key.
     */
-    DBUG_ASSERT(!use_normalized_object_name());
+    assert(!use_normalized_object_name());
 
     memcpy(m_ptr + 1, part_key, part_key_length);
     m_length = static_cast<uint16>(part_key_length + 1);
@@ -834,7 +848,7 @@ class MDL_request {
                                     const char *src_file, uint src_line);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg) {
-    DBUG_ASSERT(ticket == nullptr);
+    assert(ticket == nullptr);
     type = type_arg;
   }
 
@@ -868,7 +882,7 @@ class MDL_request {
 
       - Sql_cmd_handler_open::execute()
       - mysql_execute_command()
-      - SELECT_LEX_UNIT::prepare()
+      - Query_expression::prepare()
       - fill_defined_view_parts()
 
       No new cases are expected.  In all other cases, so far only
@@ -1002,7 +1016,7 @@ class MDL_ticket : public MDL_wait_for_subgraph {
   bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor) override;
   uint get_deadlock_weight() const override;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   enum_mdl_duration get_duration() const { return m_duration; }
   void set_duration(enum_mdl_duration dur) { m_duration = dur; }
 #endif
@@ -1022,13 +1036,13 @@ class MDL_ticket : public MDL_wait_for_subgraph {
   friend class MDL_context;
 
   MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg
-#ifndef DBUG_OFF
+#ifndef NDEBUG
              ,
              enum_mdl_duration duration_arg
 #endif
              )
       : m_type(type_arg),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         m_duration(duration_arg),
 #endif
         m_ctx(ctx_arg),
@@ -1038,10 +1052,10 @@ class MDL_ticket : public MDL_wait_for_subgraph {
         m_psi(nullptr) {
   }
 
-  ~MDL_ticket() override { DBUG_ASSERT(m_psi == nullptr); }
+  ~MDL_ticket() override { assert(m_psi == nullptr); }
 
   static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                             ,
                             enum_mdl_duration duration_arg
 #endif
@@ -1051,7 +1065,7 @@ class MDL_ticket : public MDL_wait_for_subgraph {
  private:
   /** Type of metadata lock. Externally accessible. */
   enum enum_mdl_type m_type;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Duration of lock represented by this ticket.
     Context private. Debug-only.
@@ -1449,7 +1463,7 @@ class MDL_context {
 
   bool has_locks_waited_for() const;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool has_locks(enum_mdl_duration duration) {
     return !m_ticket_store.is_empty(duration);
   }
@@ -1695,7 +1709,7 @@ class MDL_context {
 void mdl_init();
 void mdl_destroy();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern mysql_mutex_t LOCK_open;
 #endif
 

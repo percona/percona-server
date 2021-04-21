@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,14 +65,6 @@ IF(EXISTS "/etc/os-release")
     IF(MY_OS_RELEASE MATCHES "stretch")
       SET(LINUX_DEBIAN_9 1)
     ENDIF()
-  ENDIF()
-ENDIF()
-
-IF(MY_HOST_SYSTEM_VERSION AND MY_HOST_FILESYSTEM_NAME)
-  IF( MY_HOST_SYSTEM_VERSION MATCHES "\\.el6(uek)?\\."
-      OR
-      MY_HOST_FILESYSTEM_NAME MATCHES "\\.el6\\.")
-    SET(LINUX_RHEL6 1)
   ENDIF()
 ENDIF()
 

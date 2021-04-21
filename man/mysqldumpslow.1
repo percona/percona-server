@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldumpslow\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMPSLOW\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMPSLOW\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -33,7 +33,70 @@ mysqldumpslow \- Summarize slow query log files
 .SH "SYNOPSIS"
 .HP \w'\fBmysqldumpslow\fR\ 'u
 \fBmysqldumpslow\fR
+<<<<<<< HEAD
 .SH "DESCRIPTION"
+||||||| 7ed30a74896
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqldumpslow [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB \&.\&.\&.]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Example of usage:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqldumpslow\fR
+Reading mysql slow query log from /usr/local/mysql/data/mysqld80\-slow\&.log
+Count: 1  Time=4\&.32s (4s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t2 select * from t1
+Count: 3  Time=2\&.53s (7s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t2 select * from t1 limit N
+Count: 3  Time=2\&.13s (6s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t1 select * from t1
+.fi
+.if n \{\
+.RE
+.\}
+=======
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysqldumpslow [\fIoptions\fR] [\fIlog_file\fR \&.\&.\&.]
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Example output with no options given:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Reading mysql slow query log from /usr/local/mysql/data/mysqld80\-slow\&.log
+Count: 1  Time=4\&.32s (4s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t2 select * from t1
+Count: 3  Time=2\&.53s (7s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t2 select * from t1 limit N
+Count: 3  Time=2\&.13s (6s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t1 select * from t1
+.fi
+.if n \{\
+.RE
+.\}
+>>>>>>> mysql-8.0.24
 .PP
 \fBmysqldumpslow\fR
 is not currently compatible with Percona extended slow query log format\&. Please use
@@ -42,9 +105,15 @@ from \fBPercona Toolkit\fR instead (https://www.percona.com/doc/percona-toolkit/
 .SH "COPYRIGHT"
 .br
 .PP
+<<<<<<< HEAD
 Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .br
 Copyright \(co 2016, Percona Inc.
+||||||| 7ed30a74896
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+=======
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+>>>>>>> mysql-8.0.24
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

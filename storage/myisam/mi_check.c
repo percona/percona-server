@@ -1,7 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
+||||||| e5d189ecb94
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -876,7 +882,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if (record >= info->state->data_file_length)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       char llbuff2[22], llbuff3[22];
 #endif
       mi_check_print_error(param,"Found key at page %s that points to record outside datafile",llstr(page,llbuff));
@@ -1557,7 +1563,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
-  DBUG_ASSERT(param->use_buffers < SIZE_T_MAX);
+  assert(param->use_buffers < SIZE_T_MAX);
 
   if (!param->using_global_keycache)
     (void) init_key_cache(dflt_key_cache, param->key_cache_block_size,
@@ -2071,7 +2077,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_ENTER("sort_one_index");
 
   /* cannot walk over R-tree indices */
-  DBUG_ASSERT(keyinfo->key_alg != HA_KEY_ALG_RTREE);
+  assert(keyinfo->key_alg != HA_KEY_ALG_RTREE);
   new_page_pos=param->new_file_pos;
   param->new_file_pos+=keyinfo->block_length;
 
@@ -2110,7 +2116,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       if (keypos >= endpos ||
 	  (key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
 	break;
-      DBUG_ASSERT(keypos <= endpos);
+      assert(keypos <= endpos);
       if (keyinfo->flag & HA_FULLTEXT)
       {
         uint off;
@@ -3853,7 +3859,7 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
       _mi_print_key(stdout,sort_param->seg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(sort_param));
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (cmp > 0)
   {
     mi_check_print_error(param,
@@ -4692,8 +4698,8 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
   MI_KEYDEF    *key=share->keyinfo;
   uint          i;
 
-  DBUG_ASSERT(info->state->records == 0 &&
-              (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES));
+  assert(info->state->records == 0 &&
+         (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES));
   for (i=0 ; i < share->base.keys ; i++,key++)
   {
     if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
@@ -4838,7 +4844,7 @@ static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
       break;
     case HA_KEYTYPE_END:                        /* purecov: inspected */
       /* keep compiler happy */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
     }
   }

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -343,9 +343,22 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
   STRING(REGEX REPLACE "[ ]+$" "" ${var} "${${var}}")
 ENDMACRO()
 
+<<<<<<< HEAD
 EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
+||||||| e5d189ecb94
+EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+=======
+EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+  STRING_APPEND(CLIENT_LIBS " -xatomic=gcc")
+ENDIF()
+
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 IF(WITH_EMBEDDED_SERVER)
   EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
+  IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+    STRING_APPEND(EMBEDD_LIBS " -xatomic=gcc")
+  ENDIF()
 ENDIF()
 
 IF(MSVC)

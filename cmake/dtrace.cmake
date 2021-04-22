@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,13 @@
 
 # Check if OS supports DTrace
 MACRO(CHECK_DTRACE)
- FIND_PROGRAM(DTRACE dtrace)
- MARK_AS_ADVANCED(DTRACE)
+  IF(DEFINED ENABLE_DTRACE AND NOT ENABLE_DTRACE)
+    MESSAGE(STATUS "DTRACE is disabled")
+  ELSE()
+    FIND_PROGRAM(DTRACE dtrace)
+    MARK_AS_ADVANCED(DTRACE)
 
+<<<<<<< HEAD
  # On FreeBSD, dtrace does not handle userland tracing yet
  IF(ENABLE_DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
    MESSAGE(FATAL_ERROR "dtrace is not supported on this system")
@@ -47,6 +51,70 @@ MACRO(CHECK_DTRACE)
      SET(DTRACE_FLAGS -64 CACHE INTERNAL "DTrace architecture flags")
    ENDIF()
  ENDIF()
+||||||| e5d189ecb94
+ # On FreeBSD, dtrace does not handle userland tracing yet
+ IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+   SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
+ ENDIF()
+ SET(HAVE_DTRACE ${ENABLE_DTRACE})
+ EXECUTE_PROCESS(
+   COMMAND ${DTRACE} -V
+   OUTPUT_VARIABLE out)
+ IF(out MATCHES "Sun D" OR out MATCHES "Oracle D")
+   IF(NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD" AND
+      NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+     SET(HAVE_REAL_DTRACE_INSTRUMENTING ON CACHE BOOL "Real DTrace detected")
+   ENDIF()
+ ENDIF()
+ IF(HAVE_REAL_DTRACE_INSTRUMENTING)
+   IF(SIZEOF_VOIDP EQUAL 4)
+     SET(DTRACE_FLAGS -32 CACHE INTERNAL "DTrace architecture flags")
+   ELSE()
+     SET(DTRACE_FLAGS -64 CACHE INTERNAL "DTrace architecture flags")
+   ENDIF()
+ ENDIF()
+=======
+    IF(DTRACE)
+      EXECUTE_PROCESS(
+        COMMAND ${DTRACE} -V
+        OUTPUT_VARIABLE out)
+      IF(out MATCHES "Sun D" OR out MATCHES "Oracle D")
+        IF(NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD" AND
+            NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+          SET(HAVE_REAL_DTRACE_INSTRUMENTING ON CACHE BOOL "Real DTrace detected")
+        ENDIF()
+      ENDIF()
+    ENDIF()
+
+    # On FreeBSD, dtrace does not handle userland tracing yet
+    IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+      # We do not support DTrace 2.0 on Linux
+      IF(LINUX AND HAVE_REAL_DTRACE_INSTRUMENTING)
+        # Break the build if ENABLE_DTRACE set explicitly.
+        IF(DEFINED ENABLE_DTRACE AND ENABLE_DTRACE)
+          MESSAGE(FATAL_ERROR "Found unsupported dtrace at ${DTRACE}\n ${out}")
+        ELSE()
+          MESSAGE(WARNING "Found unsupported dtrace at ${DTRACE}\n ${out}")
+          SET(HAVE_REAL_DTRACE_INSTRUMENTING OFF CACHE BOOL "")
+          SET(ENABLE_DTRACE OFF CACHE BOOL "Enable dtrace")
+        ENDIF()
+      ELSE()
+        SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
+        MESSAGE(STATUS "DTRACE is enabled")
+      ENDIF()
+    ENDIF()
+    SET(HAVE_DTRACE ${ENABLE_DTRACE})
+
+    IF(HAVE_REAL_DTRACE_INSTRUMENTING)
+      IF(SIZEOF_VOIDP EQUAL 4)
+        SET(DTRACE_FLAGS -32 CACHE INTERNAL "DTrace architecture flags")
+      ELSE()
+        SET(DTRACE_FLAGS -64 CACHE INTERNAL "DTrace architecture flags")
+      ENDIF()
+    ENDIF()
+
+  ENDIF()
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 ENDMACRO()
 
 CHECK_DTRACE()

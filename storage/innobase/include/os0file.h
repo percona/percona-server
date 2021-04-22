@@ -1,7 +1,15 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2009, 2017, Percona Inc.
+||||||| e5d189ecb94
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+=======
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -835,6 +843,7 @@ private:
 #define IORequestWrite		IORequest(IORequest::WRITE)
 #define IORequestLogRead	IORequest(IORequest::LOG | IORequest::READ)
 #define IORequestLogWrite	IORequest(IORequest::LOG | IORequest::WRITE)
+<<<<<<< HEAD
 
 struct Zip_compressed_info
 {
@@ -843,6 +852,10 @@ struct Zip_compressed_info
 
 };
 
+||||||| e5d189ecb94
+
+=======
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 /**
 The IO Context that is passed down to the low level IO code */
 class IORequest {
@@ -886,10 +899,19 @@ public:
 		This can be used to force a read and write without any
 		compression e.g., for redo log, merge sort temporary files
 		and the truncate redo log. */
+<<<<<<< HEAD
 		NO_COMPRESSION = 512,
 
 		/** Force write of decrypted pages in encrypted tablespace. */
 		NO_ENCRYPTION = 1024
+||||||| e5d189ecb94
+		NO_COMPRESSION = 512
+=======
+		NO_COMPRESSION = 512,
+
+		/** Row log used in online DDL */
+		ROW_LOG = 1024
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 	};
 
 	/** Default constructor */
@@ -917,7 +939,7 @@ public:
                 m_is_page_zip_compressed(false),
                 m_zip_page_physical_size(0)
 	{
-		if (is_log()) {
+		if (is_log() || is_row_log()) {
 			disable_compression();
 		}
 
@@ -955,6 +977,13 @@ public:
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & LOG) == LOG);
+	}
+
+	/** @return true if it is a row log entry used in online DDL */
+	bool is_row_log() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return((m_type & ROW_LOG) == ROW_LOG);
 	}
 
 	/** @return true if the simulated AIO thread should be woken up */

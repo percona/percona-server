@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@ int heap_update(HP_INFO *info, const uchar *old_record, const uchar *new_record)
   hp_copy_record_data_to_chunkset(share, new_record, pos);
   if (++(share->records) == share->blength) share->blength+= share->blength;
 
+<<<<<<< HEAD
   if (new_chunk_count < old_chunk_count)
   {
     /* Shrink the chunkset to its new size */
@@ -79,6 +80,11 @@ int heap_update(HP_INFO *info, const uchar *old_record, const uchar *new_record)
   }
 
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+||||||| e5d189ecb94
+#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+=======
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
+>>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
 #endif
   if (auto_key_changed)

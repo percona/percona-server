@@ -195,30 +195,14 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     query_cache.flush();			// RESET QUERY CACHE
   }
 
-<<<<<<< HEAD
-  DBUG_ASSERT(!thd || thd->locked_tables_mode ||
-              !thd->mdl_context.has_locks() ||
-              thd->handler_tables_hash.records ||
-              thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
-              thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
-              thd->global_read_lock.is_acquired() ||
-              thd->backup_tables_lock.is_acquired() ||
-              thd->backup_binlog_lock.is_acquired());
-||||||| e5d189ecb94
-  DBUG_ASSERT(!thd || thd->locked_tables_mode ||
-              !thd->mdl_context.has_locks() ||
-              thd->handler_tables_hash.records ||
-              thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
-              thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
-              thd->global_read_lock.is_acquired());
-=======
   assert(!thd || thd->locked_tables_mode ||
          !thd->mdl_context.has_locks() ||
          thd->handler_tables_hash.records ||
          thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
          thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
-         thd->global_read_lock.is_acquired());
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+         thd->global_read_lock.is_acquired() ||
+         thd->backup_tables_lock.is_acquired() ||
+         thd->backup_binlog_lock.is_acquired());
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too

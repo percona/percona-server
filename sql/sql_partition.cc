@@ -268,24 +268,6 @@ bool partition_default_handling(Partition_handler *part_handler,
 {
   DBUG_ENTER("partition_default_handling");
 
-<<<<<<< HEAD
-||||||| e5d189ecb94
-  if (!part_handler)
-  {
-    DBUG_ASSERT(0);
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-=======
-  if (!part_handler)
-  {
-    assert(0);
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
-  }
-
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   if (!is_create_table_ind)
   {
     if (part_info->use_default_num_partitions)
@@ -7897,13 +7879,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter)
 {
   uint32 nparts;
-<<<<<<< HEAD
-  get_col_endpoint_func  get_col_endpoint= NULL;
-||||||| e5d189ecb94
-  get_col_endpoint_func  get_col_endpoint;
-=======
   get_col_endpoint_func  get_col_endpoint = NULL;
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
   if (part_info->part_type == RANGE_PARTITION)

@@ -1944,7 +1944,6 @@ public:
       lex->var_list.empty();
     lex->set_statement= is_set_statement;
 
-<<<<<<< HEAD
     if (is_set_statement)
     {
       sp_head* sp= lex->sphead;
@@ -1958,14 +1957,7 @@ public:
     {
       sp_create_assignment_lex(thd, set_pos.raw.end);
     }
-    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-||||||| e5d189ecb94
-    sp_create_assignment_lex(thd, set_pos.raw.end);
-    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-=======
-    sp_create_assignment_lex(thd, set_pos.raw.end);
     assert(pc->thd->lex->select_lex == pc->thd->lex->current_select());
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     pc->select= pc->thd->lex->select_lex;
 
     return list->contextualize(pc);

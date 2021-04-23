@@ -1275,19 +1275,9 @@ public:
     }
     
     // write the buffer
-<<<<<<< HEAD
     uint32 write_bytes= std::min<uint32>(*buf_len_p, len);
-    DBUG_ASSERT(write_bytes > 0);
-    if (event_encrypter.encrypt_and_write(output_cache, pos, write_bytes))
-||||||| e5d189ecb94
-    uint32 write_bytes= std::min<uint32>(*buf_len_p, *event_len_p);
-    DBUG_ASSERT(write_bytes > 0);
-    if (my_b_write(output_cache, *buf_p, write_bytes))
-=======
-    uint32 write_bytes= std::min<uint32>(*buf_len_p, *event_len_p);
     assert(write_bytes > 0);
-    if (my_b_write(output_cache, *buf_p, write_bytes))
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+    if (event_encrypter.encrypt_and_write(output_cache, pos, write_bytes))
       DBUG_RETURN(true);
 
     if (event_encrypter.is_encryption_enabled() && is_header)
@@ -5327,17 +5317,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     s.common_footer->checksum_alg= static_cast<enum_binlog_checksum_alg>
                                      (binlog_checksum_options);
 
-<<<<<<< HEAD
   crypto.disable();
-  DBUG_ASSERT((s.common_footer)->checksum_alg !=
-               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-||||||| e5d189ecb94
-  DBUG_ASSERT((s.common_footer)->checksum_alg !=
-               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-=======
   assert((s.common_footer)->checksum_alg !=
          binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   if (!s.is_valid())
     goto err;
   s.dont_set_created= null_created_arg;
@@ -8857,19 +8839,9 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
         s.common_footer->checksum_alg= is_relay_log ? relay_log_checksum_alg :
                                        static_cast<enum_binlog_checksum_alg>
                                        (binlog_checksum_options);
-<<<<<<< HEAD
-      DBUG_ASSERT(!is_relay_log ||
-                  relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+      assert(!is_relay_log ||
+             relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
       write_to_file(&s);
-||||||| e5d189ecb94
-      DBUG_ASSERT(!is_relay_log ||
-                  relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-      s.write(&log_file);
-=======
-        assert(!is_relay_log ||
-               relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-      s.write(&log_file);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
       bytes_written+= s.common_header->data_written;
       flush_io_cache(&log_file);
       update_binlog_end_pos();
@@ -9186,17 +9158,9 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
     active transactional storage engines, such as is the case if this is a
     replication applier and log_slave_updates=0.
   */
-<<<<<<< HEAD
-  DBUG_ASSERT((thd->slave_thread ?
-              opt_log_slave_updates : thd->variables.sql_log_bin) ||
-              total_ha_2pc > 1);
-||||||| e5d189ecb94
-  DBUG_ASSERT(thd->slave_thread ?
-              opt_log_slave_updates : thd->variables.sql_log_bin);
-=======
-  assert(thd->slave_thread ?
-         opt_log_slave_updates : thd->variables.sql_log_bin);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert((thd->slave_thread ?
+         opt_log_slave_updates : thd->variables.sql_log_bin) ||
+         total_ha_2pc > 1);
 
   /*
     Set HA_IGNORE_DURABILITY to not flush the prepared record of the
@@ -9993,23 +9957,17 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       Now flush error and sync erros are ignored and we are continuing and
       committing. And at this time, commit_error cannot be COMMIT_ERROR.
     */
-<<<<<<< HEAD
-    DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR);
+    assert(thd->commit_error != THD::CE_COMMIT_ERROR);
 
     /*
       Acquire a shared lock to block commits if an X lock has been acquired by
       LOCK TABLES FOR BACKUP or START TRANSACTION WITH CONSISTENT SNAPSHOT. We
       only reach this code if binlog_order_commits=0.
     */
-    DBUG_ASSERT(opt_binlog_order_commits == 0);
+    assert(opt_binlog_order_commits == 0);
 
     slock();
 
-||||||| e5d189ecb94
-    DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR);
-=======
-    assert(thd->commit_error != THD::CE_COMMIT_ERROR);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     /*
       storage engine commit
     */

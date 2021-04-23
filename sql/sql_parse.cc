@@ -2629,15 +2629,9 @@ mysql_execute_command(THD *thd, bool first_level)
   SELECT_LEX_UNIT *const unit= lex->unit;
   // keep GTID violation state in order to roll it back on statement failure
   bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
-<<<<<<< HEAD
-  DBUG_ASSERT(select_lex->master_unit() == unit);
+  assert(select_lex->master_unit() == unit);
   struct system_variables *per_query_variables_backup= NULL;
 
-||||||| e5d189ecb94
-  DBUG_ASSERT(select_lex->master_unit() == unit);
-=======
-  assert(select_lex->master_unit() == unit);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
   assert(!lex->describe || is_explainable_query(lex->sql_command) ||
@@ -5630,17 +5624,9 @@ void THD::reset_for_next_command()
   // function and move it to the proper file. /Matz
   THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
-<<<<<<< HEAD
-  DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
-  DBUG_ASSERT(! thd->in_sub_stmt);
-  DBUG_ASSERT(!thd->query_cache_tls.first_query_block);
-||||||| e5d189ecb94
-  DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
-  DBUG_ASSERT(! thd->in_sub_stmt);
-=======
   assert(!thd->sp_runtime_ctx); /* not for substatements of routines */
   assert(! thd->in_sub_stmt);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(!thd->query_cache_tls.first_query_block);
   thd->free_list= 0;
   /*
     Those two lines below are theoretically unneeded as

@@ -307,17 +307,11 @@ void Gcs_xcom_state_exchange::reset_with_flush()
 
 void Gcs_xcom_state_exchange::reset()
 {
-<<<<<<< HEAD
 #ifndef NDEBUG
-  Gcs_xcom_communication_interface *binding_broadcaster=
-||||||| e5d189ecb94
-  Gcs_xcom_communication_interface *binding_broadcaster=
-=======
   Gcs_xcom_communication_interface *binding_broadcaster MY_ATTRIBUTE((unused)) =
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
-#endif
   assert(binding_broadcaster->number_buffered_messages() == 0);
+#endif
 
   m_configuration_id= null_synode;
 

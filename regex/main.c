@@ -563,13 +563,7 @@ eprint(err)
 int err;
 {
 	static char epbuf[100];
-<<<<<<< HEAD
-	size_t MY_ATTRIBUTE((unused)) len;
-||||||| e5d189ecb94
-	size_t len;
-=======
 	size_t len MY_ATTRIBUTE((unused));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 	len = my_regerror(MY_REG_ITOA|err, (my_regex_t *)NULL, epbuf, sizeof(epbuf));
 	assert(len <= sizeof(epbuf));

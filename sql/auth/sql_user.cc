@@ -735,7 +735,6 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
-<<<<<<< HEAD
   /* trying to change the password of the utility user? */
   if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), NULL))
   {
@@ -744,12 +743,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       goto end;
   }
 
-  DBUG_ASSERT(acl_user->plugin.length != 0);
-||||||| e5d189ecb94
-  DBUG_ASSERT(acl_user->plugin.length != 0);
-=======
   assert(acl_user->plugin.length != 0);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
     DBUG_RETURN(1);

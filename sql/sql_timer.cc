@@ -156,14 +156,8 @@ thd_timer_set(THD *thd, THD_timer_info *thd_timer, unsigned long time)
   if (thd_timer == NULL && (thd_timer= thd_timer_create()) == NULL)
     DBUG_RETURN(NULL);
 
-<<<<<<< HEAD
-  DBUG_ASSERT(!thd_timer->destroy);
-  DBUG_ASSERT(!thd_timer->thread_id);
-||||||| e5d189ecb94
-  DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
-=======
-  assert(!thd_timer->destroy && !thd_timer->thread_id);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(!thd_timer->destroy);
+  assert(!thd_timer->thread_id);
 
   /* Mark the notification as pending. */
   thd_timer->thread_id= thd->thread_id();

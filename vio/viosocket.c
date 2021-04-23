@@ -508,34 +508,10 @@ int vio_shutdown(Vio * vio, int how)
   int r=0;
   DBUG_ENTER("vio_shutdown");
 
-<<<<<<< HEAD
   r= vio_cancel(vio, how);
-||||||| e5d189ecb94
- if (vio->inactive == FALSE)
-  {
-    DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
-      vio->type == VIO_TYPE_SOCKET ||
-      vio->type == VIO_TYPE_SSL);
-=======
- if (vio->inactive == FALSE)
-  {
-    assert(vio->type ==  VIO_TYPE_TCPIP ||
-           vio->type == VIO_TYPE_SOCKET ||
-           vio->type == VIO_TYPE_SSL);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
-<<<<<<< HEAD
   if (vio->inactive == FALSE)
   {
-||||||| e5d189ecb94
-    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
-      r= -1;
-=======
-    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
-      r= -1;
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     if (mysql_socket_close(vio->mysql_socket))
       r= -1;
   }

@@ -1749,7 +1749,6 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
-<<<<<<< HEAD
 void* Slave_worker::operator new(size_t request)
 {
   void* ptr;
@@ -1764,12 +1763,7 @@ void Slave_worker::operator delete(void * ptr)
   free(ptr);
 }
 
-#ifndef DBUG_OFF
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 static bool may_have_timestamp(Log_event *ev)
 {
   bool res= false;

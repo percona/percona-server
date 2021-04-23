@@ -923,14 +923,8 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(name, &hp_create_info, &internal_share, &created);
   my_free(hp_create_info.keydef);
-<<<<<<< HEAD
   my_free(hp_create_info.columndef);
-  DBUG_ASSERT(file == 0);
-||||||| e5d189ecb94
-  DBUG_ASSERT(file == 0);
-=======
   assert(file == 0);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   return (error);
 }
 

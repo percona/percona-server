@@ -996,8 +996,7 @@ public:
   }
 };
 
-<<<<<<< HEAD
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static inline void trigger_buffer_overrun()
 {
@@ -1038,11 +1037,6 @@ public:
   }
 };
 
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-=======
-#ifndef NDEBUG
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 /**
   @@session.dbug and @@global.dbug variables.
 

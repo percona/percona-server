@@ -1231,14 +1231,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
       It works since these namespaces contain only one element so keys
       for them look like '<namespace-id>\0\0'.
     */
-<<<<<<< HEAD
-
-    DBUG_ASSERT(mdl_key->length() == 3);
-||||||| e5d189ecb94
-    DBUG_ASSERT(mdl_key->length() == 3);
-=======
     assert(mdl_key->length() == 3);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
     switch (mdl_key->mdl_namespace())
     {

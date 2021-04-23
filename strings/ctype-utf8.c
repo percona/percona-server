@@ -5150,13 +5150,7 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
   const uchar *const se= src + srclen;
   const MY_UNICASE_INFO *uni_plane= (cs->state & MY_CS_BINSORT) ?
                                      NULL : cs->caseinfo;
-<<<<<<< HEAD
-  DBUG_ASSERT(src || srclen == 0);
-||||||| e5d189ecb94
-  DBUG_ASSERT(src);
-=======
-  assert(src);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(src || srclen == 0);
 
   for (; dst < de && nweights; nweights--)
   {
@@ -5197,16 +5191,8 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
   const uchar *const de= dst + dstlen;
   const uchar *const se= src + srclen;
 
-<<<<<<< HEAD
-  DBUG_ASSERT(src || srclen == 0);
-  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
-||||||| e5d189ecb94
-  DBUG_ASSERT(src);
-  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
-=======
-  assert(src);
+  assert(src || srclen == 0);
   assert(cs->state & MY_CS_BINSORT);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
   for ( ; dst < de && nweights; nweights--)
   {

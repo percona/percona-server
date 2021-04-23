@@ -58,16 +58,8 @@ TEST(StringDeathTest, AppendEmptyString)
   tbl_name.append('.');
   tbl_name.append(String(table_name, system_charset_info));
   // We now have eight characters, c_ptr() is not safe.
-<<<<<<< HEAD
-#ifndef DBUG_OFF
-  MY_EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-  EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
-=======
 #ifndef NDEBUG
-  EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  MY_EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
 #endif
   EXPECT_STREQ("aaaaaaa.", tbl_name.c_ptr_safe());
 }

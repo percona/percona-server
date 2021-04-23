@@ -1139,10 +1139,9 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
   {
     MDL_request mdl_request;
 
-<<<<<<< HEAD
-    DBUG_ASSERT(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                                               "", "",
-                                                               MDL_SHARED));
+    assert(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                          "", "",
+                                                          MDL_SHARED));
 
     /*
       Do not allow upgrading backup locks to FTWRL. Otherwise we can end up
@@ -1153,15 +1152,6 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
         thd->backup_binlog_lock.abort_if_acquired())
         DBUG_RETURN(true);
 
-||||||| e5d189ecb94
-    DBUG_ASSERT(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                                               "", "",
-                                                               MDL_SHARED));
-=======
-    assert(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                                          "", "",
-                                                          MDL_SHARED));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 

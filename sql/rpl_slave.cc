@@ -2602,24 +2602,12 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
 
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
-<<<<<<< HEAD
                     const char act[]
                         = "now signal in_get_master_version_and_clock "
                         "wait_for signal.get_master_uuid";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
-||||||| e5d189ecb94
-                    const char act[]= "now wait_for signal.get_master_uuid";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
-=======
-                    const char act[]= "now wait_for signal.get_master_uuid";
                     assert(opt_debug_sync_timeout > 0);
                     assert(!debug_sync_set_action(current_thd,
                                                   STRING_WITH_LEN(act)));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
                   };);
 
   DBUG_EXECUTE_IF("dbug.simulate_busy_io",
@@ -6857,7 +6845,6 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group. 
   */
-<<<<<<< HEAD
   const bool precondition= !rli->gaq->full() ||
     ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
       rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
@@ -6868,20 +6855,9 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     fprintf(stderr, "rli->checkpoint_seqno = %u\n", rli->checkpoint_seqno);
     fprintf(stderr, "rli->checkpoint_group = %u\n", rli->checkpoint_group);
     fprintf(stderr, "rli->mts_group_status = %d\n", rli->mts_group_status);
-    DBUG_ASSERT(precondition);
+    assert(precondition);
   }
 #endif
-||||||| e5d189ecb94
-  DBUG_ASSERT(!rli->gaq->full() ||
-              ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-                rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
-               rli->checkpoint_seqno == rli->checkpoint_group));
-=======
-  assert(!rli->gaq->full() ||
-         ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
-          rli->checkpoint_seqno == rli->checkpoint_group));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
   /*
     Currently, the checkpoint routine is being called by the SQL Thread.
@@ -7032,7 +7008,6 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /* end-of "Coordinator::"commit_positions" */
 
 end:
-<<<<<<< HEAD
 
   if (binlog_prot_acquired)
   {
@@ -7040,12 +7015,7 @@ end:
     rli->info_thd->backup_binlog_lock.release_protection(rli->info_thd);
   }
 
-#ifndef DBUG_OFF
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
   DBUG_EXECUTE_IF("mts_checkpoint",

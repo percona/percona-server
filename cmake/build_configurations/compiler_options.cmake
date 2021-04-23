@@ -54,16 +54,10 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-<<<<<<< HEAD
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
-      SET(COMMON_C_FLAGS             "-fabi-version=2 ${COMMON_C_FLAGS}")
+      SET(COMMON_C_FLAGS "-fabi-version=2 ${COMMON_C_FLAGS}")
     ENDIF()
-||||||| e5d189ecb94
-    SET(COMMON_C_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
-=======
-    SET(COMMON_C_FLAGS "-fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_C_FLAGS "-fno-inline ")
@@ -83,42 +77,19 @@ IF(UNIX)
     IF(C_NO_EXPENSIVE_OPTIMIZATIONS)
       SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -fno-expensive-optimizations")
     ENDIF()
-<<<<<<< HEAD
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_C_FLAGS}")
-||||||| e5d189ecb94
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
-=======
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
     ENDIF()
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+    STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-<<<<<<< HEAD
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-fno-omit-frame-pointer -fno-strict-aliasing")
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
       SET(COMMON_CXX_FLAGS             "-fabi-version=2 ${COMMON_CXX_FLAGS}")
     ENDIF()
-||||||| e5d189ecb94
-    SET(COMMON_CXX_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
-=======
-    SET(COMMON_CXX_FLAGS               "-fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     # GCC 6 has C++14 as default, set it explicitly to the old default.
     EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GXX_VERSION)
-<<<<<<< HEAD
-||||||| e5d189ecb94
-    IF(GXX_VERSION VERSION_EQUAL 6.0 OR GXX_VERSION VERSION_GREATER 6.0)
-      SET(COMMON_CXX_FLAGS             "${COMMON_CXX_FLAGS} -std=gnu++03")
-    ENDIF()
-=======
-    IF(GXX_VERSION VERSION_EQUAL 6.0 OR GXX_VERSION VERSION_GREATER 6.0)
-      STRING_PREPEND(COMMON_CXX_FLAGS "-std=gnu++03 ")
-    ENDIF()
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_CXX_FLAGS "-fno-inline ")
@@ -138,64 +109,26 @@ IF(UNIX)
     IF(CXX_NO_EXPENSIVE_OPTIMIZATIONS)
       STRING_APPEND(COMMON_CXX_FLAGS " -fno-expensive-optimizations")
     ENDIF()
-<<<<<<< HEAD
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_CXX_FLAGS}")
-||||||| e5d189ecb94
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
-=======
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_CXX_FLAGS "-fPIC ")
     ENDIF()
-
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+    STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
 
   # Default Clang flags
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-<<<<<<< HEAD
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_C_FLAGS}")
-||||||| e5d189ecb94
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
-=======
     SET(COMMON_C_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
     ENDIF()
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+    STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-<<<<<<< HEAD
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -D_FORTIFY_SOURCE=2 ${COMMON_CXX_FLAGS}")
-||||||| e5d189ecb94
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 6.0 OR
-        CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-      IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-        SET(COMMON_CXX_FLAGS           "${COMMON_CXX_FLAGS} -std=gnu++03")
-      ENDIF()
-    ENDIF()
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
-=======
     SET(COMMON_CXX_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 6.0 OR
-        CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-      IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-        STRING_PREPEND(COMMON_CXX_FLAGS "-std=gnu++03 ")
-      ENDIF()
-    ENDIF()
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_CXX_FLAGS  "-fPIC ")
     ENDIF()
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+    STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
 
   # Solaris flags

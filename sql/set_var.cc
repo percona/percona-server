@@ -726,19 +726,13 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool free_joins)
   }
 
 err:
-<<<<<<< HEAD
-  if (free_joins)
-    free_underlaid_joins(thd, thd->lex->select_lex);
-||||||| e5d189ecb94
-  free_underlaid_joins(thd, thd->lex->select_lex);
-=======
   it.rewind();
   while ((var= it++))
   {
     var->cleanup();
   }
-  free_underlaid_joins(thd, thd->lex->select_lex);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  if (free_joins)
+    free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 

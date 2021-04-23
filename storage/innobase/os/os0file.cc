@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| e5d189ecb94
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -1921,16 +1913,9 @@ os_file_io_complete(
 	} else if (type.is_read()) {
 		Encryption	encryption(type.encryption_algorithm());
 
-<<<<<<< HEAD
 		bool is_page_encrypted= type.is_encryption_disabled() 
 					? false
 					: encryption.is_encrypted_page(buf);
-||||||| e5d189ecb94
-		ut_ad(!type.is_log());
-=======
-		ut_ad(!type.is_log());
-		ut_ad(!type.is_row_log());
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 		if (is_page_encrypted)
 		{

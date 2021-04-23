@@ -4640,36 +4640,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     mysql_mutex_unlock(log_lock);
   }
 
-<<<<<<< HEAD
-#ifdef HAVE_REPLICATION
-  if (opt_bin_log && expire_logs_days)
-  {
-    time_t purge_time= server_start_time - expire_logs_days*24*60*60;
-    if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-  }
-  if (opt_bin_log && max_binlog_files)
-  {
-    mysql_bin_log.purge_logs_maximum_number(max_binlog_files);
-  }
-  if (opt_bin_log && binlog_space_limit)
-  {
-    mysql_bin_log.purge_logs_by_size(true);
-  }
-#endif
-
-||||||| e5d189ecb94
-#ifdef HAVE_REPLICATION
-  if (opt_bin_log && expire_logs_days)
-  {
-    time_t purge_time= server_start_time - expire_logs_days*24*60*60;
-    if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-  }
-#endif
-
-=======
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   if (opt_myisam_log)
     (void) mi_log(1);
 
@@ -5349,6 +5319,12 @@ int mysqld_main(int argc, char **argv)
       if (purge_time >= 0)
         mysql_bin_log.purge_logs_before_date(purge_time, true);
     }
+
+    if (opt_bin_log && max_binlog_files)
+      mysql_bin_log.purge_logs_maximum_number(max_binlog_files);
+
+    if (opt_bin_log && binlog_space_limit)
+      mysql_bin_log.purge_logs_by_size(true);
 #endif
 
     (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));

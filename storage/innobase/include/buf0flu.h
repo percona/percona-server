@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| e5d189ecb94
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2021, Oracle and/or its affiliates.
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,

@@ -240,18 +240,6 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
     {
-<<<<<<< HEAD
-||||||| e5d189ecb94
-    #ifndef DBUG_OFF
-      unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                                      BINLOG_CHECKSUM_ALG_DESC_LEN];
-    #endif
-=======
-    #ifndef NDEBUG
-      unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                                      BINLOG_CHECKSUM_ALG_DESC_LEN];
-    #endif
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
       /*
         FD event is checksummed and therefore verified w/o
         the binlog-in-use flag.
@@ -264,16 +252,6 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
          The only algorithm currently is CRC32. Zero indicates
          the binlog file is checksum-free *except* the FD-event.
       */
-<<<<<<< HEAD
-||||||| e5d189ecb94
-    #ifndef DBUG_OFF
-      BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-    #endif
-=======
-    #ifndef NDEBUG
-      BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-    #endif
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
       BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch over  the max number of alg

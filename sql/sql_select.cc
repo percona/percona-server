@@ -1007,14 +1007,8 @@ bool SELECT_LEX::optimize(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::optimize");
 
-<<<<<<< HEAD
-  DBUG_ASSERT(master_unit()->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
-  DBUG_ASSERT(join == NULL);
-||||||| e5d189ecb94
-  DBUG_ASSERT(join == NULL);
-=======
+  assert(master_unit()->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
   assert(join == NULL);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   JOIN *const join_local= new JOIN(thd, this);
   if (!join_local)
     DBUG_RETURN(true);  /* purecov: inspected */

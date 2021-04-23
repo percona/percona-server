@@ -490,64 +490,10 @@ IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
           Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
 ENDIF()
 
-<<<<<<< HEAD
-# Set DBUG_OFF and other optional release-only flags for non-debug project types
-FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
-  FOREACH(LANG C CXX)
-    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
-     "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF -DNDEBUG")
-  ENDFOREACH()
-ENDFOREACH()
-
-IF(NOT CMAKE_BUILD_TYPE
-    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio" 
-    AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
-    # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
-    # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set.
-    ADD_DEFINITIONS(-DDBUG_OFF)
-ENDIF()
-
-||||||| e5d189ecb94
-# Set DBUG_OFF and other optional release-only flags for non-debug project types
-FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
-  FOREACH(LANG C CXX)
-    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
-     "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
-  ENDFOREACH()
-ENDFOREACH()
-
-IF(NOT CMAKE_BUILD_TYPE
-    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio" 
-    AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
-    # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
-    # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set.
-    ADD_DEFINITIONS(-DDBUG_OFF)
-ENDIF()
-
-=======
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 # Add safemutex for debug configurations
-<<<<<<< HEAD
 FOREACH(LANG C CXX)
-  SET(CMAKE_${LANG}_FLAGS_DEBUG
-    "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+  STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
 ENDFOREACH()
-||||||| e5d189ecb94
-IF(NOT WITH_INNODB_MEMCACHED)
-  FOREACH(LANG C CXX)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG
-          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-  ENDFOREACH()
-ENDIF()
-=======
-IF(NOT WITH_INNODB_MEMCACHED)
-  FOREACH(LANG C CXX)
-    STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
-  ENDFOREACH()
-ENDIF()
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 # Enable debug sync for debug builds.
 FOREACH(LANG C CXX)

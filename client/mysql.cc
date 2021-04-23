@@ -2871,15 +2871,7 @@ static void initialize_readline (char *name)
   rl_completion_entry_function= &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-<<<<<<< HEAD
 #elif defined(XLINE_HAVE_COMPLETION_INT)
-  setlocale(LC_ALL,""); /* so as libedit use isprint */
-||||||| e5d189ecb94
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
-  setlocale(LC_ALL,""); /* so as libedit use isprint */
-=======
-#elif defined(EDITLINE_HAVE_COMPLETION_INT)
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;
   rl_add_defun("magic-space", &fake_magic_space, -1);

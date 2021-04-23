@@ -1476,13 +1476,7 @@ void Query_logger::cleanup()
 bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   size_t query_length)
 {
-<<<<<<< HEAD
-  DBUG_ASSERT(thd->enable_slow_log);
-||||||| e5d189ecb94
-  DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
-=======
-  assert(thd->enable_slow_log && opt_slow_log);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(thd->enable_slow_log);
 
   if (!(*slow_log_handler_list))
     return false;

@@ -1,12 +1,6 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| e5d189ecb94
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-=======
    Copyright (c) 2000, 2021, Oracle and/or its affiliates.
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1285,7 +1279,6 @@ THD::THD(bool enable_plugins)
   enable_slow_log= 0;
   commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
-<<<<<<< HEAD
   busy_time=            0;
   cpu_time=             0;
   bytes_received=       0;
@@ -1293,12 +1286,7 @@ THD::THD(bool enable_plugins)
   binlog_bytes_written= 0;
   updated_row_count=    0;
   sent_row_count_2=     0;
-#ifndef DBUG_OFF
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
 #ifndef EMBEDDED_LIBRARY

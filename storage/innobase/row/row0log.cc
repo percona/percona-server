@@ -3114,17 +3114,10 @@ all_done:
 			goto func_exit;
 		}
 
-<<<<<<< HEAD
-		IORequest	request(IORequest::NO_ENCRYPTION | IORequest::READ);
+		IORequest	request(IORequest::NO_ENCRYPTION | IORequest::READ | IORequest::ROW_LOG);
 
 		byte*		buf = index->online_log->head.block;
 
-||||||| e5d189ecb94
-		IORequest	request;
-
-=======
-		IORequest request(IORequest::READ | IORequest::ROW_LOG);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 		err = os_file_read_no_error_handling_int_fd(
 			request,
 			index->online_log->fd,
@@ -4001,16 +3994,10 @@ all_done:
 			goto func_exit;
 		}
 
-<<<<<<< HEAD
-		IORequest	request(IORequest::NO_ENCRYPTION | IORequest::READ);
+		IORequest	request(IORequest::NO_ENCRYPTION | IORequest::READ | IORequest::ROW_LOG);
 
 		byte*		buf = index->online_log->head.block;
 
-||||||| e5d189ecb94
-		IORequest	request;
-=======
-		IORequest	request(IORequest::READ | IORequest::ROW_LOG);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 		dberr_t	err = os_file_read_no_error_handling_int_fd(
 			request,
 				index->online_log->fd,

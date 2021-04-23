@@ -1351,13 +1351,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     buffer by one with the size to fit the event. When encryption is on - the buffer
     will be replaced with memory allocated for storing decrypted data.
   */
-<<<<<<< HEAD
-  DBUG_ASSERT(encrypt_binlog || packet_buffer == m_packet.ptr());
-||||||| e5d189ecb94
-  DBUG_ASSERT(packet_buffer == m_packet.ptr());
-=======
-  assert(packet_buffer == m_packet.ptr());
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(encrypt_binlog || packet_buffer == m_packet.ptr());
   *event_ptr= (uchar *)m_packet.ptr() + event_offset;
 
   DBUG_PRINT("info",

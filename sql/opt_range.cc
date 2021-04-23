@@ -748,16 +748,8 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
-<<<<<<< HEAD
-#ifndef DBUG_OFF
-  friend int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-  friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
-=======
 #ifndef NDEBUG
-  friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  friend int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
 #endif
   bool test_use_count(SEL_ARG *root);
   SEL_ARG *first();

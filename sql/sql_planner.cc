@@ -3310,19 +3310,9 @@ bool Optimize_table_order::fix_semijoin_strategies()
         (join->best_positions + last_inner)->table->emb_sj_nest;
       const uint table_count= my_count_bits(sjm_nest->sj_inner_tables);
       first= last_inner - table_count + 1;
-<<<<<<< HEAD
-      DBUG_ASSERT((join->best_positions + first)->table->emb_sj_nest ==
-                  sjm_nest);
-      memcpy(static_cast<void*>(join->best_positions + first), // stale semijoin strategy here too
-||||||| e5d189ecb94
-      DBUG_ASSERT((join->best_positions + first)->table->emb_sj_nest ==
-                  sjm_nest);
-      memcpy(join->best_positions + first, // stale semijoin strategy here too
-=======
       assert((join->best_positions + first)->table->emb_sj_nest ==
              sjm_nest);
-      memcpy(join->best_positions + first, // stale semijoin strategy here too
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+      memcpy(static_cast<void*>(join->best_positions + first), // stale semijoin strategy here too
              sjm_nest->nested_join->sjm.positions,
              sizeof(POSITION) * table_count);
       join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE_SCAN;

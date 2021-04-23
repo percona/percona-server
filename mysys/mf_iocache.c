@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2015, MariaDB
-||||||| e5d189ecb94
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
-=======
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -427,20 +421,8 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
                       (ulong) info, type, (ulong) seek_offset,
                       (int) clear_cache));
 
-<<<<<<< HEAD
-  DBUG_ASSERT(type == READ_CACHE || type == WRITE_CACHE);
-  DBUG_ASSERT(info->type == READ_CACHE || info->type == WRITE_CACHE);
-||||||| e5d189ecb94
-  /* One can't do reinit with the following types */
-  DBUG_ASSERT(type != READ_NET && info->type != READ_NET &&
-	      type != WRITE_NET && info->type != WRITE_NET &&
-	      type != SEQ_READ_APPEND && info->type != SEQ_READ_APPEND);
-=======
-  /* One can't do reinit with the following types */
-  assert(type != READ_NET && info->type != READ_NET &&
-         type != WRITE_NET && info->type != WRITE_NET &&
-         type != SEQ_READ_APPEND && info->type != SEQ_READ_APPEND);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(type == READ_CACHE || type == WRITE_CACHE);
+  assert(info->type == READ_CACHE || info->type == WRITE_CACHE);
 
   /* If the whole file is in memory, avoid flushing to disk */
   if (! clear_cache &&
@@ -618,31 +600,7 @@ static int _my_b_cache_read(IO_CACHE *info, uchar *Buffer, size_t Count)
 {
   size_t length, diff_length, left_length= 0, max_length;
   my_off_t pos_in_file;
-<<<<<<< HEAD
   DBUG_ENTER("_my_b_cache_read");
-||||||| e5d189ecb94
-  DBUG_ENTER("_my_b_read");
-
-  /* If the buffer is not empty yet, copy what is available. */
-  if ((left_length= (size_t) (info->read_end-info->read_pos)))
-  {
-    DBUG_ASSERT(Count >= left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, left_length);
-    Buffer+=left_length;
-    Count-=left_length;
-  }
-=======
-  DBUG_ENTER("_my_b_read");
-
-  /* If the buffer is not empty yet, copy what is available. */
-  if ((left_length= (size_t) (info->read_end-info->read_pos)))
-  {
-    assert(Count >= left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, left_length);
-    Buffer+=left_length;
-    Count-=left_length;
-  }
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
   /* pos_in_file always point on where info->buffer was read */
   pos_in_file=info->pos_in_file+ (size_t) (info->read_end - info->buffer);
@@ -1190,24 +1148,6 @@ static int _my_b_cache_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
   DBUG_ENTER("_my_b_cache_read_r");
   DBUG_ASSERT(!(cache->myflags & MY_ENCRYPT));
 
-<<<<<<< HEAD
-||||||| e5d189ecb94
-  if ((left_length= (size_t) (cache->read_end - cache->read_pos)))
-  {
-    DBUG_ASSERT(Count >= left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer, cache->read_pos, left_length);
-    Buffer+= left_length;
-    Count-= left_length;
-  }
-=======
-  if ((left_length= (size_t) (cache->read_end - cache->read_pos)))
-  {
-    assert(Count >= left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer, cache->read_pos, left_length);
-    Buffer+= left_length;
-    Count-= left_length;
-  }
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   while (Count)
   {
     size_t cnt, len;
@@ -1376,28 +1316,8 @@ static int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count)
   my_off_t pos_in_file;
   save_count=Count;
 
-<<<<<<< HEAD
-  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
+  assert(!(info->myflags & MY_ENCRYPT));
 
-||||||| e5d189ecb94
-  /* first, read the regular buffer */
-  if ((left_length=(size_t) (info->read_end-info->read_pos)))
-  {
-    DBUG_ASSERT(Count > left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, left_length);
-    Buffer+=left_length;
-    Count-=left_length;
-  }
-=======
-  /* first, read the regular buffer */
-  if ((left_length=(size_t) (info->read_end-info->read_pos)))
-  {
-    assert(Count > left_length);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, left_length);
-    Buffer+=left_length;
-    Count-=left_length;
-  }
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   lock_append_buffer(info);
 
   /* pos_in_file always point on where info->buffer was read */
@@ -1628,14 +1548,8 @@ int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count)
     Assert that we cannot come here with a shared cache. If we do one
     day, we might need to add a call to copy_to_read_buffer().
   */
-<<<<<<< HEAD
-  DBUG_ASSERT(!info->share);
-  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
-||||||| e5d189ecb94
-  DBUG_ASSERT(!info->share);
-=======
   assert(!info->share);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(!(info->myflags & MY_ENCRYPT));
 
   lock_append_buffer(info);
   rest_length= (size_t) (info->write_end - info->write_pos);
@@ -1701,14 +1615,8 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
     Assert that we cannot come here with a shared cache. If we do one
     day, we might need to add a call to copy_to_read_buffer().
   */
-<<<<<<< HEAD
-  DBUG_ASSERT(!info->share);
-  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
-||||||| e5d189ecb94
-  DBUG_ASSERT(!info->share);
-=======
   assert(!info->share);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+  assert(!(info->myflags & MY_ENCRYPT));
 
   if (pos < info->pos_in_file)
   {
@@ -1800,22 +1708,12 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
       }
       else
       {
-<<<<<<< HEAD
         int res= info->write_function(info, info->write_buffer, length);
         if (res)
         {
           UNLOCK_APPEND_BUFFER;
           DBUG_RETURN(res);
         }
-||||||| e5d189ecb94
-	info->end_of_file+=(info->write_pos-info->append_read_pos);
-	DBUG_ASSERT(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
-      }
-=======
-	info->end_of_file+=(info->write_pos-info->append_read_pos);
-	assert(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
-      }
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
         set_if_bigger(info->end_of_file, info->pos_in_file);
       }

@@ -8976,14 +8976,8 @@ void run_explain(struct st_connection *cn, struct st_command *command,
 char *re_eprint(int err)
 {
   static char epbuf[100];
-<<<<<<< HEAD
-  size_t len MY_ATTRIBUTE((unused))= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
-||||||| e5d189ecb94
-  size_t len= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
-=======
   size_t len MY_ATTRIBUTE((unused))
       = my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }

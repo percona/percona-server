@@ -2868,15 +2868,9 @@ void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 
 THD *handler::ha_thd(void) const
 {
-<<<<<<< HEAD
   if (unlikely(cloned))
     return current_thd;
-  DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
-||||||| e5d189ecb94
-  DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
-=======
   assert(!table || !table->in_use || table->in_use == current_thd);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
@@ -3105,24 +3099,14 @@ int handler::ha_rnd_init(bool scan)
   DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
   DBUG_ENTER("ha_rnd_init");
-<<<<<<< HEAD
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type != F_UNLCK);
-  DBUG_ASSERT(inited == NONE || (inited == RND && scan));
+  assert(table_share->tmp_table != NO_TMP_TABLE ||
+         m_lock_type != F_UNLCK);
+  assert(inited == NONE || (inited == RND && scan));
   if (scan && is_using_prohibited_gap_locks(table, false))
   {
     DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
   }
 
-||||||| e5d189ecb94
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type != F_UNLCK);
-  DBUG_ASSERT(inited == NONE || (inited == RND && scan));
-=======
-  assert(table_share->tmp_table != NO_TMP_TABLE ||
-         m_lock_type != F_UNLCK);
-  assert(inited == NONE || (inited == RND && scan));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
   inited= (result= rnd_init(scan)) ? NONE : RND;
   end_range= NULL;
   DBUG_RETURN(result);
@@ -5176,26 +5160,12 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
      so we could be holding the same lock level as for inplace_alter_table().
      TABLE::mdl_ticket is 0 for temporary tables.
    */
-<<<<<<< HEAD
-   DBUG_ASSERT((table->s->tmp_table != NO_TMP_TABLE && !table->mdl_ticket) ||
-               (ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                   table->s->db.str,
-                                                   table->s->table_name.str,
-                                                   MDL_EXCLUSIVE) ||
-                     !commit));
-||||||| e5d189ecb94
-   DBUG_ASSERT(ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                       table->s->db.str,
-                                       table->s->table_name.str,
-                                       MDL_EXCLUSIVE) ||
-               !commit);
-=======
-  assert(ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                           table->s->db.str,
-                                                           table->s->table_name.str,
-                                                           MDL_EXCLUSIVE) ||
-         !commit);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+   assert((table->s->tmp_table != NO_TMP_TABLE && !table->mdl_ticket) ||
+          (ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                             table->s->db.str,
+                                                             table->s->table_name.str,
+                                                             MDL_EXCLUSIVE) ||
+           !commit));
 
    return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
 }

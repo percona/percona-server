@@ -167,31 +167,7 @@ lsn_t	recv_max_page_lsn;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-<<<<<<< HEAD
-#ifndef	DBUG_OFF
-||||||| e5d189ecb94
-#ifndef UNIV_HOTBACKUP
-# ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t	recv_writer_thread_key;
-# endif /* UNIV_PFS_THREAD */
-
-/** Flag indicating if recv_writer thread is active. */
-volatile bool	recv_writer_thread_active = false;
-#endif /* !UNIV_HOTBACKUP */
-
-#ifndef	DBUG_OFF
-=======
-#ifndef UNIV_HOTBACKUP
-# ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t	recv_writer_thread_key;
-# endif /* UNIV_PFS_THREAD */
-
-/** Flag indicating if recv_writer thread is active. */
-volatile bool	recv_writer_thread_active = false;
-#endif /* !UNIV_HOTBACKUP */
-
 #ifndef	NDEBUG
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
@@ -4616,7 +4592,6 @@ recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 	return(result);
 }
 
-<<<<<<< HEAD
 /** Decrypt double write buffer pages if system tablespace is
 encrypted. This function process only pages from sys_pages list.
 Other pages from parallel doublewrite buffer will be decrypted after
@@ -4657,12 +4632,7 @@ recv_dblwr_t::decrypt_sys_dblwr_pages()
 	}
 }
 
-#ifndef DBUG_OFF
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */

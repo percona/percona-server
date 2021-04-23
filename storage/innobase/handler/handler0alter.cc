@@ -4452,22 +4452,10 @@ prepare_inplace_alter_table_dict(
 	/* The primary index would be rebuilt if a FTS Doc ID
 	column is to be added, and the primary index definition
 	is just copied from old table and stored in indexdefs[0] */
-<<<<<<< HEAD
-	DBUG_ASSERT(!add_fts_doc_id || new_clustered);
-	DBUG_ASSERT(!!new_clustered ==
-		    (innobase_need_rebuild(ha_alter_info, old_table)
-		     || add_fts_doc_id));
-||||||| e5d189ecb94
-	DBUG_ASSERT(!add_fts_doc_id || new_clustered);
-	DBUG_ASSERT(!!new_clustered ==
-		    (innobase_need_rebuild(ha_alter_info)
-		     || add_fts_doc_id));
-=======
 	assert(!add_fts_doc_id || new_clustered);
 	assert(!!new_clustered ==
-	       (innobase_need_rebuild(ha_alter_info)
-		|| add_fts_doc_id));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
+	       (innobase_need_rebuild(ha_alter_info, old_table)
+	        || add_fts_doc_id));
 
 	/* Allocate memory for dictionary index definitions */
 
@@ -4929,19 +4917,9 @@ new_clustered_failed:
 			add_cols, ctx->heap, prebuilt);
 		ctx->add_cols = add_cols;
 	} else {
-<<<<<<< HEAD
-		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info, old_table));
-		DBUG_ASSERT(old_table->s->primary_key
-			    == altered_table->s->primary_key);
-||||||| e5d189ecb94
-		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
-		DBUG_ASSERT(old_table->s->primary_key
-			    == altered_table->s->primary_key);
-=======
-		assert(!innobase_need_rebuild(ha_alter_info));
+		assert(!innobase_need_rebuild(ha_alter_info, old_table));
 		assert(old_table->s->primary_key
 		       == altered_table->s->primary_key);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 		for (dict_index_t* index
 			     = dict_table_get_first_index(user_table);
@@ -7212,18 +7190,8 @@ innobase_rename_columns_try(
 	uint	i = 0;
 	ulint	num_v = 0;
 
-<<<<<<< HEAD
-	DBUG_ASSERT(ha_alter_info->handler_flags
-		    & Alter_inplace_info::ALTER_COLUMN_NAME);
-||||||| e5d189ecb94
-	DBUG_ASSERT(ctx);
-	DBUG_ASSERT(ha_alter_info->handler_flags
-		    & Alter_inplace_info::ALTER_COLUMN_NAME);
-=======
-	assert(ctx);
 	assert(ha_alter_info->handler_flags
 	       & Alter_inplace_info::ALTER_COLUMN_NAME);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
 		bool	is_virtual = innobase_is_v_fld(*fp);
@@ -7587,12 +7555,6 @@ innobase_update_foreign_try(
 	ulint	i;
 
 	DBUG_ENTER("innobase_update_foreign_try");
-<<<<<<< HEAD
-||||||| e5d189ecb94
-	DBUG_ASSERT(ctx);
-=======
-	assert(ctx);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 	foreign_id = dict_table_get_highest_foreign_id(ctx->new_table);
 
@@ -8436,19 +8398,9 @@ alter_stats_rebuild(
 		DBUG_VOID_RETURN;
 	}
 
-<<<<<<< HEAD
-#ifndef DBUG_OFF
-	bool	file_unreadable_orig = false;
-#endif /* DBUG_OFF */
-||||||| e5d189ecb94
-#ifndef DBUG_OFF
-	bool	ibd_file_missing_orig = false;
-#endif /* DBUG_OFF */
-=======
 #ifndef NDEBUG
-	bool	ibd_file_missing_orig = false;
+	bool	file_unreadable_orig = false;
 #endif /* NDEBUG */
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 	DBUG_EXECUTE_IF(
 		"ib_rename_index_fail2",

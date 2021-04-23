@@ -293,24 +293,12 @@ my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
   }
 
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
-<<<<<<< HEAD
-  DBUG_ASSERT(buffer != NULL);
+  assert(buffer != NULL);
   my_bool status = (buffer == NULL || flush_buffer_to_file(buffer, backup_file));
 
   if (file_io.close(backup_file, MYF(MY_WME)) < 0) return TRUE;
 
   return status;
-||||||| e5d189ecb94
-  DBUG_ASSERT(buffer != NULL);
-  return buffer == NULL ||
-         flush_buffer_to_file(buffer, backup_file) ||
-         file_io.close(backup_file, MYF(MY_WME)) < 0;
-=======
-  assert(buffer != NULL);
-  return buffer == NULL ||
-         flush_buffer_to_file(buffer, backup_file) ||
-         file_io.close(backup_file, MYF(MY_WME)) < 0;
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 }
 
 my_bool Buffered_file_io::remove_backup(myf myFlags)

@@ -2253,14 +2253,8 @@ innobase_release_temporary_latches(
 	handlerton*	hton MY_ATTRIBUTE((unused)),	/*!< in: handlerton */
 	THD*		thd MY_ATTRIBUTE((unused)))	/*!< in: MySQL thread */
 {
-<<<<<<< HEAD
 #ifdef UNIV_DEBUG
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-||||||| e5d189ecb94
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-=======
 	assert(hton == innodb_hton_ptr);
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 	if (!innodb_inited || thd == NULL) {
 
@@ -7103,29 +7097,10 @@ ha_innobase::open(
 			else
 				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
 
-<<<<<<< HEAD
+			free_share(m_share);
 			dict_table_close(ib_table, FALSE, FALSE);
 			ib_table = NULL;
 			is_part = NULL;
-||||||| e5d189ecb94
-		dict_table_close(ib_table, FALSE, FALSE);
-		ib_table = NULL;
-		is_part = NULL;
-=======
-		free_share(m_share);
-		dict_table_close(ib_table, FALSE, FALSE);
-		ib_table = NULL;
-		is_part = NULL;
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
-
-<<<<<<< HEAD
-			free_share(m_share);
-||||||| e5d189ecb94
-		free_share(m_share);
-		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-=======
-		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
->>>>>>> 37b047220a907c2a6d7235ddf2b7a6be916cc82e
 
 			DBUG_RETURN(ret_err);
 		}

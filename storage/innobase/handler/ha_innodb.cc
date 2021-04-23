@@ -6985,13 +6985,6 @@ ha_innobase::open(
 	m_user_thd = NULL;
 	m_share = NULL;
 
-	if (UNIV_UNLIKELY(m_share->ib_table && m_share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
-		free_share(m_share);
-
-		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-	}
-
 	/* Will be allocated if it is needed in ::update_row() */
 	m_upd_buf = NULL;
 	m_upd_buf_size = 0;
@@ -7032,6 +7025,14 @@ ha_innobase::open(
 		if (m_share == NULL) {
 			dict_table_close(ib_table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY);
+		}
+
+		if (UNIV_UNLIKELY(m_share->ib_table &&
+				  m_share->ib_table->is_corrupt &&
+				  srv_pass_corrupt_table <= 1)) {
+			free_share(m_share);
+
+			DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 		}
 	}
 

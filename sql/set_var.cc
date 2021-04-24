@@ -858,6 +858,27 @@ int set_var::check(THD *thd)
 
 
 /**
+  Set member variable `var` (used by PS).
+
+  @param thd            thread handler
+
+  @retval
+    0   ok
+  @retval
+    1   ERROR
+*/
+int set_var::populate_sys_var(THD *thd)
+{
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+  {
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
   Check variable, but without assigning value (used by PS).
 
   @param thd            thread handler
@@ -871,8 +892,7 @@ int set_var::check(THD *thd)
 */
 int set_var::light_check(THD *thd)
 {
-  var= var_tracker.bind_system_variable(thd);
-  if (var == NULL)
+  if (populate_sys_var(thd))
   {
     return 1;
   }

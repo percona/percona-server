@@ -5296,13 +5296,20 @@ finish:
        When variables are restored after "SET STATEMENT ... FOR ..." statement
        execution an update callback must be invoked for the system variables
        to save special logic if it is. set_var_base class does not contain
-       refference to variable as it is just an interface class. But only
+       reference to variable as it is just an interface class. But only
        system variables are allowed to be used in "SET STATEMENT ... FOR ..."
        statement, so cast from set_var_base* to set_var* can be used here.
     */
     while ((var=(set_var *)it++))
     {
-      var->var->stmt_update(thd);
+        if (var->var) {
+            var->var->stmt_update(thd);
+        }
+        else if (!var->populate_sys_var(thd))
+        {
+            var->var->stmt_update(thd);
+            var->cleanup();
+        }
     }
 
     thd->lex->set_statement= false;

@@ -335,6 +335,7 @@ public:
   }
 #endif
   virtual void cleanup() { var= NULL; }
+  int populate_sys_var(THD *thd);
 };
 
 

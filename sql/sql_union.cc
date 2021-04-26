@@ -1299,8 +1299,8 @@ void Query_expression::cleanup(THD *thd, bool full) {
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) {
 #ifndef DBUG_OFF
     if (cleaned == UC_CLEAN)
-      for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select())
-        DBUG_ASSERT(!sl->join);
+      for (Query_block *qb = first_query_block(); qb; qb = qb->next_query_block())
+        DBUG_ASSERT(!qb->join);
 #endif
     return;
   }

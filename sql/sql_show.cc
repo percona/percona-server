@@ -4110,7 +4110,7 @@ static int make_temporary_tables_old_format(THD *thd,
   char tmp[128];
   String buffer(tmp, sizeof(tmp), thd->charset());
   LEX *lex = thd->lex;
-  Name_resolution_context *context = &lex->select_lex->context;
+  Name_resolution_context *context = &lex->query_block->context;
 
   if (thd->lex->option_type == OPT_GLOBAL) {
     ST_FIELD_INFO *field_info = &schema_table->fields_info[0];
@@ -4124,7 +4124,7 @@ static int make_temporary_tables_old_format(THD *thd,
   ST_FIELD_INFO *field_info = &schema_table->fields_info[2];
   buffer.length(0);
   buffer.append(field_info->old_name);
-  buffer.append(lex->select_lex->db);
+  buffer.append(lex->query_block->db);
 
   if (lex->wild && lex->wild->ptr()) {
     buffer.append(STRING_WITH_LEN(" ("));
@@ -4301,7 +4301,7 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
                  "fill_global_temporary_tables_before_storing_rec");
 
       if (store_temporary_table_record(thd, m_tables->table, tmp,
-                                       m_client_thd->lex->select_lex->db,
+                                       m_client_thd->lex->query_block->db,
                                        m_client_thd->mem_root))
         m_failed = true;
     }
@@ -4344,7 +4344,7 @@ static int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond) {
 
   for (tmp = thd->temporary_tables; tmp; tmp = tmp->next) {
     if (store_temporary_table_record(thd, tables->table, tmp,
-                                     thd->lex->select_lex->db, thd->mem_root)) {
+                                     thd->lex->query_block->db, thd->mem_root)) {
       DBUG_RETURN(1);
     }
   }

@@ -11805,15 +11805,15 @@ void THD::issue_unsafe_warnings() {
   if ((unsafe_type_flags & (1U << LEX::BINLOG_STMT_UNSAFE_LIMIT)) != 0) {
     if ((lex->sql_command == SQLCOM_DELETE ||
          lex->sql_command == SQLCOM_UPDATE) &&
-        lex->select_lex->select_limit) {
-      ORDER *order = (ORDER *)((lex->select_lex->order_list.elements)
-                                   ? lex->select_lex->order_list.first
+        lex->query_block->select_limit) {
+      ORDER *order = (ORDER *)((lex->query_block->order_list.elements)
+                                   ? lex->query_block->order_list.first
                                    : nullptr);
-      if ((lex->select_lex->select_limit &&
-           lex->select_lex->select_limit->fixed &&
-           lex->select_lex->select_limit->val_int() == 0) ||
+      if ((lex->query_block->select_limit &&
+           lex->query_block->select_limit->fixed &&
+           lex->query_block->select_limit->val_int() == 0) ||
           is_order_deterministic(lex->query_tables,
-                                 lex->select_lex->where_cond(), order)) {
+                                 lex->query_block->where_cond(), order)) {
         unsafe_type_flags &= ~(1U << LEX::BINLOG_STMT_UNSAFE_LIMIT);
       }
     }

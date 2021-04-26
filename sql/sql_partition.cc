@@ -4053,8 +4053,8 @@ bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
   thd->variables.character_set_client = system_charset_info;
   LEX *old_lex = thd->lex;
   LEX lex;
-  SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
+  Query_expression unit(CTX_NONE);
+  Query_block select(thd->mem_root, nullptr, nullptr);
   lex.new_static_query(&unit, &select);
   thd->lex = &lex;
 

@@ -1732,35 +1732,6 @@ bool fil_system_get_file_by_space_num(space_id_t space_num,
 bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
     MY_ATTRIBUTE((warn_unused_result));
 
-<<<<<<< HEAD
-/** Truncate the tablespace to needed size.
-@param[in]	space_id	Id of tablespace to truncate
-@param[in]	size_in_pages	Truncate size.
-@return true if truncate was successful. */
-bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
-    MY_ATTRIBUTE((warn_unused_result));
-
-/** Drop and create an UNDO tablespace.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages)
-    MY_ATTRIBUTE((warn_unused_result));
-
-||||||| 7ed30a74896
-/** Drop and create an UNDO tablespace.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages)
-    MY_ATTRIBUTE((warn_unused_result));
-
-=======
->>>>>>> mysql-8.0.24
 /** Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
 @param[in,out]	trx		Transaction covering the close
@@ -1874,18 +1845,9 @@ The fil_node_t::handle will not be left open.
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
                      uint32_t flags, const char *space_name,
-<<<<<<< HEAD
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space,
+                     const char *path_in, bool strict, bool old_space,
                      Keyring_encryption_info &keyring_encryption_info)
     MY_ATTRIBUTE((warn_unused_result));
-||||||| 7ed30a74896
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space) MY_ATTRIBUTE((warn_unused_result));
-=======
-                     const char *path_in, bool strict, bool old_space)
-    MY_ATTRIBUTE((warn_unused_result));
->>>>>>> mysql-8.0.24
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache.

@@ -2894,23 +2894,17 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field_list.push_back(field = new Item_empty_string("State", 30));
   field->set_nullable(true);
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
-<<<<<<< HEAD
-  field->maybe_null = true;
+  field->set_nullable(true);
   field_list.push_back(field = new Item_return_int("Time_ms",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
-  field->maybe_null = true;
+  field->set_nullable(true);
   field_list.push_back(field = new Item_return_int("Rows_sent",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
   field_list.push_back(field = new Item_return_int("Rows_examined",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
-||||||| 7ed30a74896
-  field->maybe_null = true;
-=======
-  field->set_nullable(true);
->>>>>>> mysql-8.0.24
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;

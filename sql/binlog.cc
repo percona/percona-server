@@ -8193,17 +8193,9 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
     active transactional storage engines, such as is the case if this is a
     replication applier and log_slave_updates=0.
   */
-<<<<<<< HEAD
-  DBUG_ASSERT((thd->slave_thread ? opt_log_slave_updates
-                                 : thd->variables.sql_log_bin) ||
-              total_ha_2pc > 1);
-||||||| 7ed30a74896
-  DBUG_ASSERT(thd->slave_thread ? opt_log_slave_updates
-                                : thd->variables.sql_log_bin);
-=======
-  assert(thd->slave_thread ? opt_log_slave_updates
-                           : thd->variables.sql_log_bin);
->>>>>>> mysql-8.0.24
+  assert((thd->slave_thread ? opt_log_slave_updates
+                            : thd->variables.sql_log_bin) ||
+         total_ha_2pc > 1);
 
   /*
     Set HA_IGNORE_DURABILITY to not flush the prepared record of the
@@ -8898,23 +8890,17 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
       Now flush error and sync erros are ignored and we are continuing and
       committing. And at this time, commit_error cannot be COMMIT_ERROR.
     */
-<<<<<<< HEAD
-    DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR);
+    assert(thd->commit_error != THD::CE_COMMIT_ERROR);
 
     /*
       Acquire a shared lock to block commits if an X lock has been acquired by
       LOCK TABLES FOR BACKUP or START TRANSACTION WITH CONSISTENT SNAPSHOT. We
       only reach this code if binlog_order_commits=0.
     */
-    DBUG_ASSERT(opt_binlog_order_commits == 0);
+    assert(opt_binlog_order_commits == 0);
 
     slock();
 
-||||||| 7ed30a74896
-    DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR);
-=======
-    assert(thd->commit_error != THD::CE_COMMIT_ERROR);
->>>>>>> mysql-8.0.24
     /*
       storage engine commit
     */

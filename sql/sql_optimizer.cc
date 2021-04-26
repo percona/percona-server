@@ -394,7 +394,6 @@ bool JOIN::optimize() {
     }
   }
 
-<<<<<<< HEAD
   if (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
       thd->lex->sql_command == SQLCOM_REPLACE_SELECT) {
     /*
@@ -404,20 +403,15 @@ bool JOIN::optimize() {
       an impact to our decision to switch to row- based. We can only
       suppress warning here.
     */
-    if (select_lex->select_limit && select_lex->select_limit->fixed &&
-        select_lex->select_limit->val_int() &&
-        !is_order_deterministic(&select_lex->top_join_list, where_cond,
+    if (query_block->select_limit && query_block->select_limit->fixed &&
+        query_block->select_limit->val_int() &&
+        !is_order_deterministic(&query_block->top_join_list, where_cond,
                                 order.order)) {
       thd->order_deterministic = false;
     }
   }
 
-  if (select_lex->partitioned_table_count && prune_table_partitions()) {
-||||||| 7ed30a74896
-  if (select_lex->partitioned_table_count && prune_table_partitions()) {
-=======
   if (query_block->partitioned_table_count && prune_table_partitions()) {
->>>>>>> mysql-8.0.24
     error = 1;
     DBUG_PRINT("error", ("Error from prune_partitions"));
     return true;
@@ -3058,17 +3052,9 @@ bool JOIN::get_best_combination() {
   if (query_block->outer_join) make_outerjoin_info();
 
   // sjm is no longer needed, trash it. To reuse it, reset its members!
-<<<<<<< HEAD
-  for (TABLE_LIST *sj_nest : select_lex->sj_nests) {
+  for (TABLE_LIST *sj_nest : query_block->sj_nests) {
     TRASH(static_cast<void *>(&sj_nest->nested_join->sjm),
           sizeof(sj_nest->nested_join->sjm));
-||||||| 7ed30a74896
-  for (TABLE_LIST *sj_nest : select_lex->sj_nests) {
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
-=======
-  for (TABLE_LIST *sj_nest : query_block->sj_nests) {
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
->>>>>>> mysql-8.0.24
   }
 
   return false;

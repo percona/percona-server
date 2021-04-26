@@ -104,115 +104,6 @@ void IB_thread::set_state(State new_state) {
   m_state->store(new_state);
 }
 
-<<<<<<< HEAD
-/** Returns the thread identifier of current thread. Currently the thread
-identifier in Unix is the thread handle itself.
-@return current thread native handle */
-os_thread_id_t os_thread_get_curr_id() {
-#ifdef _WIN32
-  return (reinterpret_cast<os_thread_id_t>((UINT_PTR)::GetCurrentThreadId()));
-#else
-  return (::pthread_self());
-#endif /* _WIN32 */
-}
-
-/** Returns the system-specific thread identifier of current thread. On Linux,
-returns tid.  On other systems currently returns os_thread_get_curr_id().
-
-@return	current thread identifier */
-os_tid_t os_thread_get_tid() noexcept {
-#ifdef UNIV_LINUX
-  return ((os_tid_t)syscall(SYS_gettid));
-#else
-  return (os_thread_get_curr_id());
-#endif
-}
-
-/** Set priority for current thread.
-@param[in]	priority	priority intended to set
-@retval		true		set as intended
-@retval		false		got different priority after attempt to set */
-bool os_thread_set_priority(int priority) {
-#ifdef UNIV_LINUX
-  setpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid), priority);
-
-  /* linux might be able to set different setting for each thread */
-  return (getpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid)) == priority);
-#else
-  return (false);
-#endif /* UNIV_LINUX */
-}
-
-/** Set priority for current thread.
-@param[in]	priority	priority intended to set
-@param[in]	thread_name	name of thread, used for log message */
-void os_thread_set_priority(int priority, const char *thread_name) {
-#ifdef UNIV_LINUX
-  if (os_thread_set_priority(priority)) {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::info()
-#else
-    ib::error(ER_IB_MSG_1262)
-#endif /* UNIV_NO_ERR_MSGS */
-        << thread_name << " priority: " << priority;
-  } else {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::error()
-#else
-    ib::info(ER_IB_MSG_1268)
-#endif /* UNIV_NO_ERR_MSGS */
-        << "If the mysqld execution user is authorized," << thread_name
-        << " thread priority can be changed."
-        << " See the man page of setpriority().";
-||||||| 7ed30a74896
-/** Returns the thread identifier of current thread. Currently the thread
-identifier in Unix is the thread handle itself.
-@return current thread native handle */
-os_thread_id_t os_thread_get_curr_id() {
-#ifdef _WIN32
-  return (reinterpret_cast<os_thread_id_t>((UINT_PTR)::GetCurrentThreadId()));
-#else
-  return (::pthread_self());
-#endif /* _WIN32 */
-}
-
-/** Set priority for current thread.
-@param[in]	priority	priority intended to set
-@retval		true		set as intended
-@retval		false		got different priority after attempt to set */
-bool os_thread_set_priority(int priority) {
-#ifdef UNIV_LINUX
-  setpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid), priority);
-
-  /* linux might be able to set different setting for each thread */
-  return (getpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid)) == priority);
-#else
-  return (false);
-#endif /* UNIV_LINUX */
-}
-
-/** Set priority for current thread.
-@param[in]	priority	priority intended to set
-@param[in]	thread_name	name of thread, used for log message */
-void os_thread_set_priority(int priority, const char *thread_name) {
-#ifdef UNIV_LINUX
-  if (os_thread_set_priority(priority)) {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::info()
-#else
-    ib::error(ER_IB_MSG_1262)
-#endif /* UNIV_NO_ERR_MSGS */
-        << thread_name << " priority: " << priority;
-  } else {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::error()
-#else
-    ib::info(ER_IB_MSG_1268)
-#endif /* UNIV_NO_ERR_MSGS */
-        << "If the mysqld execution user is authorized," << thread_name
-        << " thread priority can be changed."
-        << " See the man page of setpriority().";
-=======
 std::string to_string(std::thread::id thread_id, bool hex_value) {
   try {
     std::stringstream ss;
@@ -225,8 +116,19 @@ std::string to_string(std::thread::id thread_id, bool hex_value) {
     return ss.str();
   } catch (...) {
     return "invalid_thread_id";
->>>>>>> mysql-8.0.24
   }
+}
+
+/** Returns the system-specific thread identifier of current thread. On Linux,
+returns tid.  On other systems currently returns os_thread_get_curr_id().
+
+@return	current thread identifier */
+os_tid_t os_thread_get_tid() noexcept {
+#ifdef UNIV_LINUX
+  return ((os_tid_t)syscall(SYS_gettid));
+#else
+  return (os_thread_get_curr_id());
+#endif
 }
 
 /** Set relative scheduling priority for a given thread on Linux. Currently a

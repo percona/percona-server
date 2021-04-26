@@ -30,14 +30,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifndef os0enc_h
 #define os0enc_h
 
-<<<<<<< HEAD
+#include <mysql/components/my_service.h>
+
 #include "keyring_encryption_key_info.h"
 #include "template_utils.h"
 
-||||||| 7ed30a74896
-=======
-#include <mysql/components/my_service.h>
->>>>>>> mysql-8.0.24
 #include "univ.i"
 
 namespace innobase {

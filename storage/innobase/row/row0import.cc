@@ -3862,9 +3862,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   dict_name::convert_to_space(tablespace_name);
 
   err = fil_ibd_open(true, FIL_TYPE_IMPORT, table->space, fsp_flags,
-<<<<<<< HEAD
-                     tablespace_name.c_str(), table->name.m_name, filepath,
-                     true, false, keyring_encryption_info);
+                     tablespace_name.c_str(), filepath, true, false,
+                     keyring_encryption_info);
 
   if (err == DB_SUCCESS && cfg.m_is_keyring_encrypted &&
       (!keyring_encryption_info.page0_has_crypt_data ||
@@ -3883,12 +3882,6 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
             " Please make sure that ibd and cfg files are match");
     err = DB_ERROR;
   }
-||||||| 7ed30a74896
-                     tablespace_name.c_str(), table->name.m_name, filepath,
-                     true, false);
-=======
-                     tablespace_name.c_str(), filepath, true, false);
->>>>>>> mysql-8.0.24
 
   DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
                   err = DB_TABLESPACE_NOT_FOUND;);

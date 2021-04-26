@@ -8,22 +8,10 @@
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-<<<<<<< HEAD:mysql-test/include/log_encrypt_6.inc
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find masterkey, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find masterkey, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression ("InnoDB: New log files created");
-||||||| 7ed30a74896:mysql-test/suite/innodb/t/log_encrypt_6.test
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find masterkey, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression (" New log files created");
-=======
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find masterkey, please check the keyring is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression (" New log files created");
->>>>>>> mysql-8.0.24:mysql-test/suite/innodb/t/log_encrypt_6.test
 --enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -98,30 +86,6 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_
 --error 1
 --exec $NEW_CMD
 
-<<<<<<< HEAD:mysql-test/include/log_encrypt_6.inc
-||||||| 7ed30a74896:mysql-test/suite/innodb/t/log_encrypt_6.test
-
---echo # Search for error message
-let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
-let SEARCH_PATTERN=  Redo log was encrypted, but keyring plugin is not loaded;
---source include/search_pattern.inc
-let SEARCH_PATTERN= Aborting;
---source include/search_pattern.inc
-
-
-
-=======
-
---echo # Search for error message
-let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
-let SEARCH_PATTERN=  Redo log was encrypted, but keyring is not loaded;
---source include/search_pattern.inc
-let SEARCH_PATTERN= Aborting;
---source include/search_pattern.inc
-
-
-
->>>>>>> mysql-8.0.24:mysql-test/suite/innodb/t/log_encrypt_6.test
 --echo # Restart without keyring plugin possible if redo files removed
 --remove_file $MYSQLD_DATADIR1/ib_logfile0
 --remove_file $MYSQLD_DATADIR1/ib_logfile1

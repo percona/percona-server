@@ -805,21 +805,7 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
   RETURN VALUE
     Name of time zone as String
 */
-<<<<<<< HEAD
 const String *Time_zone_utc::get_name() const { return &tz_UTC_name; }
-||||||| 7ed30a74896
-const String *Time_zone_utc::get_name() const {
-  /* Should be never called */
-  DBUG_ASSERT(0);
-  return nullptr;
-}
-=======
-const String *Time_zone_utc::get_name() const {
-  /* Should be never called */
-  assert(0);
-  return nullptr;
-}
->>>>>>> mysql-8.0.24
 
 /*
   Instance of this class represents some time zone which is

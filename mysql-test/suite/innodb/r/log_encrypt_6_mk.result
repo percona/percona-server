@@ -53,16 +53,6 @@ a	LEFT(b,10)
 UNINSTALL PLUGIN keyring_file;
 DROP DATABASE tde_db;
 # Try starting without keyring : Error
-<<<<<<< HEAD:mysql-test/suite/innodb/r/log_encrypt_6_mk.result
-||||||| 7ed30a74896:mysql-test/suite/innodb/r/log_encrypt_6.result
-# Search for error message
-Pattern "Redo log was encrypted, but keyring plugin is not loaded" found
-Pattern "Aborting" found
-=======
-# Search for error message
-Pattern "Redo log was encrypted, but keyring is not loaded" found
-Pattern "Aborting" found
->>>>>>> mysql-8.0.24:mysql-test/suite/innodb/r/log_encrypt_6.result
 # Restart without keyring plugin possible if redo files removed
 # Start the DB server with datadir1
 # Search for error message

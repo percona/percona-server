@@ -529,23 +529,7 @@ static void vio_wait_until_woken(Vio *vio) {
 int vio_shutdown(Vio *vio, int how) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
   int r = vio_cancel(vio, how);
-||||||| 7ed30a74896
-  if (vio->inactive == false) {
-    DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET ||
-                vio->type == VIO_TYPE_SSL);
-
-    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR)) r = -1;
-=======
-  if (vio->inactive == false) {
-    assert(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET ||
-           vio->type == VIO_TYPE_SSL);
-
-    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR)) r = -1;
->>>>>>> mysql-8.0.24
 
   if (!vio->inactive) {
 #ifdef USE_PPOLL_IN_VIO
@@ -577,16 +561,15 @@ int vio_shutdown(Vio *vio, int how) {
   return r;
 }
 
-<<<<<<< HEAD
 int vio_cancel(Vio *vio, int how) {
   int r = 0;
   DBUG_ENTER("vio_cancel");
 
   if (!vio->inactive) {
-    DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET ||
-                vio->type == VIO_TYPE_SSL);
+    assert(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET ||
+           vio->type == VIO_TYPE_SSL);
 
-    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
+    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
     if (mysql_socket_shutdown(vio->mysql_socket, how)) r = -1;
 #ifdef _WIN32
     /* Cancel possible IO in progress (shutdown does not do that on
@@ -598,12 +581,7 @@ int vio_cancel(Vio *vio, int how) {
   DBUG_RETURN(r);
 }
 
-#ifndef DBUG_OFF
-||||||| 7ed30a74896
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> mysql-8.0.24
 void vio_description(Vio *vio, char *buf) {
   switch (vio->type) {
     case VIO_TYPE_SOCKET:

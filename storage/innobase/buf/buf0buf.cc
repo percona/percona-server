@@ -3415,23 +3415,11 @@ static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
   can only transition away from the IO_READ state, and once this is done, it
   will not be IO_READ again as long as we have it buf-fixed.
 
-<<<<<<< HEAD
-  The read of the io fix will not be optimized out in this loop, as rw_lock
-  result in a memory barrier, which causes compiler to be
-  unable to do so.*/
-  ib_time_monotonic_us_t start_time = 0;
-  while (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-    if (start_time == 0) start_time = trx_stats::start_io_read(trx, 0);
-||||||| 7ed30a74896
-  The read of the io fix will not be optimized out in this loop, as rw_lock
-  result in a memory barrier, which causes compiler to be
-  unable to do so.*/
-  while (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
-=======
   The repeated reads of io_fix will not be optimized out because it's an atomic
   variable.*/
+  ib_time_monotonic_us_t start_time = 0;
   while (block->page.was_io_fix_read()) {
->>>>>>> mysql-8.0.24
+    if (start_time == 0) start_time = trx_stats::start_io_read(trx, 0);
     /* Page is X-latched on block->lock until the read is completed.
     Let's just wait for S-lock on block->lock, it will be granted as soon as the
     read completes. */
@@ -4647,14 +4635,8 @@ static void buf_page_init_low(buf_page_t *bpage) noexcept {
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
   bpage->flush_type = BUF_FLUSH_LRU;
-<<<<<<< HEAD
-  bpage->io_fix = BUF_IO_NONE;
-  ut_a(bpage->buf_fix_count == 0);
-||||||| 7ed30a74896
-  bpage->io_fix = BUF_IO_NONE;
-=======
   bpage->reinit_io_fix();
->>>>>>> mysql-8.0.24
+  ut_a(bpage->buf_fix_count == 0);
   bpage->buf_fix_count.store(0);
   bpage->freed_page_clock = 0;
   bpage->access_time = 0;
@@ -5688,7 +5670,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
             << "that is not supported by this instance";
       }
 
-<<<<<<< HEAD
       /* From version 3.23.38 up we store the page checksum
       to the 4 first bytes of the page end lsn field */
       bool is_corrupted;
@@ -5697,37 +5678,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
             BlockReporter(true, frame, bpage->size,
                           fsp_is_checksum_disabled(bpage->id.space()));
         is_corrupted = reporter.is_corrupted();
-||||||| 7ed30a74896
-    if (compressed_page || is_corrupted) {
-      /* Not a real corruption if it was triggered by
-      error injection */
-      DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
-                      goto page_not_corrupt;);
+      }
 
-    corrupt:
-      /* Compressed pages are basically gibberish avoid
-      printing the contents. */
-      if (!compressed_page) {
-        ib::error(ER_IB_MSG_81)
-            << "Database page corruption on disk"
-               " or a failed file read of page "
-            << bpage->id << ". You may have to recover from "
-            << "a backup.";
-
-        buf_page_print(frame, bpage->size, BUF_PAGE_PRINT_NO_CRASH);
-
-        ib::info(ER_IB_MSG_82) << "It is also possible that your"
-                                  " operating system has corrupted"
-                                  " its own file cache and rebooting"
-                                  " your computer removes the error."
-                                  " If the corrupt page is an index page."
-                                  " You can also try to fix the"
-                                  " corruption by dumping, dropping,"
-                                  " and reimporting the corrupt table."
-                                  " You can use CHECK TABLE to scan"
-                                  " your table for corruption. "
-                               << FORCE_RECOVERY_MSG;
-=======
 #ifdef UNIV_LINUX
     /* A crash during extending file might cause the inconsistent contents.
     No problem for the cases. Just fills with zero for them.
@@ -5745,38 +5697,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       error injection */
       DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
                       goto page_not_corrupt;);
-
-    corrupt:
-      /* Compressed pages are basically gibberish avoid
-      printing the contents. */
-      if (!compressed_page) {
-        ib::error(ER_IB_MSG_81)
-            << "Database page corruption on disk"
-               " or a failed file read of page "
-            << bpage->id << ". You may have to recover from "
-            << "a backup.";
-
-        buf_page_print(frame, bpage->size, BUF_PAGE_PRINT_NO_CRASH);
-
-        ib::info(ER_IB_MSG_82) << "It is also possible that your"
-                                  " operating system has corrupted"
-                                  " its own file cache and rebooting"
-                                  " your computer removes the error."
-                                  " If the corrupt page is an index page."
-                                  " You can also try to fix the"
-                                  " corruption by dumping, dropping,"
-                                  " and reimporting the corrupt table."
-                                  " You can use CHECK TABLE to scan"
-                                  " your table for corruption. "
-                               << FORCE_RECOVERY_MSG;
->>>>>>> mysql-8.0.24
-      }
-
-      if (compressed_page || is_corrupted) {
-        /* Not a real corruption if it was triggered by
-        error injection */
-        DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
-                        goto page_not_corrupt;);
 
       corrupt:
         /* Compressed pages are basically gibberish avoid

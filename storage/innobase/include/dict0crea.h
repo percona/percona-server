@@ -45,18 +45,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "keyring_encryption_key_info.h"
 
 /** Build a table definition without updating SYSTEM TABLES
-<<<<<<< HEAD
-@param[in,out]	table	dict table object
-@param[in,out]	trx	transaction instance
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-||||||| 7ed30a74896
-@param[in,out]	table	dict table object
-@param[in,out]	trx	transaction instance
-=======
 @param[in,out]	table		dict table object
 @param[in]	create_info	HA_CREATE_INFO object
 @param[in,out]	trx		transaction instance
->>>>>>> mysql-8.0.24
+@param[in]	keyring_encryption_key_id 	info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
     dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
@@ -73,18 +65,10 @@ dberr_t dict_build_tablespace(
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
-<<<<<<< HEAD
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-||||||| 7ed30a74896
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
-=======
 @param[in,out]	table		Table to build in its own tablespace.
 @param[in]	create_info	HA_CREATE_INFO object
 @param[in,out]	trx		Transaction
->>>>>>> mysql-8.0.24
+@param[in]	keyring_encryption_key_id 	info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
     dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,

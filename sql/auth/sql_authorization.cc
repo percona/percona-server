@@ -1459,17 +1459,9 @@ static bool hosts_match_for_grants(ACL_HOST_AND_IP &acl_db_host,
 void get_sp_access_map(
     ACL_USER *acl_user, SP_access_map *sp_map,
     malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
-<<<<<<< HEAD
         *hash,
     bool effective_grants) {
-  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-||||||| 7ed30a74896
-        *hash) {
-  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-=======
-        *hash) {
   assert(assert_acl_cache_read_lock(current_thd));
->>>>>>> mysql-8.0.24
   /* Add routine access */
   for (const auto &key_and_value : *hash) {
     GRANT_NAME *grant_proc = key_and_value.second.get();

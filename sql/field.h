@@ -1681,14 +1681,8 @@ class Field {
   }
 
   void set_column_format(column_format_type column_format_arg) {
-<<<<<<< HEAD
-    DBUG_ASSERT(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
-    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
-||||||| 7ed30a74896
-    DBUG_ASSERT(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
-=======
     assert(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
->>>>>>> mysql-8.0.24
+    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
@@ -3815,22 +3809,6 @@ class Field_blob : public Field_longstr {
   */
   void set_keep_old_value(bool old_value_flag) {
     /*
-<<<<<<< HEAD
-||||||| 7ed30a74896
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    DBUG_ASSERT(is_virtual_gcol());
-
-    /*
-=======
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
-    /*
->>>>>>> mysql-8.0.24
       If set to true, ensure that 'value' is copied to 'old_value' when
       keep_old_value() is called.
     */
@@ -3876,22 +3854,6 @@ class Field_blob : public Field_longstr {
     this field object.
   */
   void keep_old_value() {
-<<<<<<< HEAD
-||||||| 7ed30a74896
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    DBUG_ASSERT(is_virtual_gcol());
-
-=======
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
->>>>>>> mysql-8.0.24
     // Transfer ownership of the current BLOB value to old_value
     if (m_keep_old_value) {
       old_value.takeover(value);

@@ -268,22 +268,6 @@ static bool partition_default_handling(Partition_handler *part_handler,
                                        const char *normalized_path) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
-||||||| 7ed30a74896
-  if (!part_handler) {
-    DBUG_ASSERT(0);
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    return true;
-  }
-
-=======
-  if (!part_handler) {
-    assert(0);
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    return true;
-  }
-
->>>>>>> mysql-8.0.24
   if (!is_create_table_ind) {
     if (part_info->use_default_num_partitions) {
       if (part_handler->get_num_parts(normalized_path, &part_info->num_parts)) {

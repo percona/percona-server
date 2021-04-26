@@ -1726,8 +1726,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
         This will not be called for minor downgrade, so all tables
         will have a corresponding Object_table.
       */
-<<<<<<< HEAD
-      DBUG_ASSERT((*it)->entity() != nullptr);
+      assert((*it)->entity() != nullptr);
 
       /*
         Percona Server supports mysql.ibd encryption in earlier versions than
@@ -1744,11 +1743,6 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
         (*it)->entity()->unset_target_encrypted();
       }
 
-||||||| 7ed30a74896
-      DBUG_ASSERT((*it)->entity() != nullptr);
-=======
-      assert((*it)->entity() != nullptr);
->>>>>>> mysql-8.0.24
       const Object_table_definition *table_def =
           (*it)->entity()->target_table_definition();
 

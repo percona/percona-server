@@ -5,15 +5,7 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-<<<<<<< HEAD:mysql-test/suite/innodb/r/log_encrypt_7_mk.result
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-||||||| 7ed30a74896:mysql-test/suite/innodb/r/log_encrypt_7.result
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-DROP DATABASE IF EXISTS tde_db;
-=======
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
-DROP DATABASE IF EXISTS tde_db;
->>>>>>> mysql-8.0.24:mysql-test/suite/innodb/r/log_encrypt_7.result
 CREATE DATABASE tde_db;
 USE tde_db;
 SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;

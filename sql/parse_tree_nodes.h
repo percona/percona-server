@@ -3561,16 +3561,8 @@ class PT_show_grants final : public PT_show_base {
   PT_show_grants(const POS &pos, const LEX_USER *opt_for_user,
                  const List<LEX_USER> *opt_using_users, bool effective_grants)
       : PT_show_base(pos, SQLCOM_SHOW_GRANTS),
-<<<<<<< HEAD
         sql_cmd(opt_for_user, opt_using_users, effective_grants) {
-    DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
-||||||| 7ed30a74896
-        sql_cmd(opt_for_user, opt_using_users) {
-    DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
-=======
-        sql_cmd(opt_for_user, opt_using_users) {
     assert(opt_using_users == nullptr || opt_for_user != nullptr);
->>>>>>> mysql-8.0.24
   }
 
   Sql_cmd *make_cmd(THD *thd) override;

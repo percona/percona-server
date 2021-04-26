@@ -3007,19 +3007,8 @@ bool log_read_encryption() {
       return (true);
     } else {
       ut_free(log_block_buf_ptr);
-<<<<<<< HEAD
-      ib::error() << "Can't set redo log tablespace"
-                  << " encryption metadata.";
-||||||| 7ed30a74896
-      ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
-                                   " information in log file header, please"
-                                   " check if keyring plugin loaded and"
-                                   " the key file exists.";
-=======
-      ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
-                                   " information in log file header, please"
-                                   " check if keyring is loaded.";
->>>>>>> mysql-8.0.24
+      ib::error(ER_IB_MSG_1241) << "Can't set redo log tablespace"
+                                << " encryption metadata.";
       return (false);
     }
   } else if (encryption_magic) {

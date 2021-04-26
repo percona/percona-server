@@ -4045,24 +4045,14 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
-<<<<<<< HEAD
 
   Keyring_encryption_info keyring_encryption_info;
 
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space,
-                             expected_fsp_flags, space_name, tbl_name, filepath,
-                             true, false, keyring_encryption_info);
+                             expected_fsp_flags, space_name, filepath, true,
+                             false, keyring_encryption_info);
 
   table->keyring_encryption_info = keyring_encryption_info;
-||||||| 7ed30a74896
-  dberr_t err =
-      fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
-                   space_name, tbl_name, filepath, true, false);
-=======
-  dberr_t err =
-      fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
-                   space_name, filepath, true, false);
->>>>>>> mysql-8.0.24
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -6355,17 +6345,9 @@ bool dd_tablespace_update_cache(THD *thd) {
 
       /* It's safe to pass space_name in tablename charset
       because filename is already in filename charset. */
-<<<<<<< HEAD
       dberr_t err = fil_ibd_open(is_enc_in_progress, purpose, id, flags,
-                                 space_name, nullptr, filename, false, false,
+                                 space_name, filename, false, false,
                                  keyring_encryption_info);
-||||||| 7ed30a74896
-      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name, nullptr,
-                                 filename, false, false);
-=======
-      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name,
-                                 filename, false, false);
->>>>>>> mysql-8.0.24
       switch (err) {
         case DB_SUCCESS:
           break;

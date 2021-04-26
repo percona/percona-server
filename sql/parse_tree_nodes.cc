@@ -2827,17 +2827,11 @@ Sql_cmd *PT_alter_table_standalone_stmt::make_cmd(THD *thd) {
 
   thd->lex->create_info = &m_create_info;
 
-<<<<<<< HEAD
-  Table_ddl_parse_context pc(thd, thd->lex->current_select(), &m_alter_info);
+  Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
+                             &m_alter_info);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-||||||| 7ed30a74896
-  Table_ddl_parse_context pc(thd, thd->lex->current_select(), &m_alter_info);
-=======
-  Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
-                             &m_alter_info);
->>>>>>> mysql-8.0.24
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation) ||
       m_action->contextualize(&pc))
     return nullptr;

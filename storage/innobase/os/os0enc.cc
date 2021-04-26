@@ -362,9 +362,13 @@ void Encryption::get_keyring_key(const char *key_name, byte **key,
 #ifndef UNIV_INNOCHECKSUM
   int ret;
   char *key_type = nullptr;
-  /* We call key ring API to get master key here. */
-  ret = my_key_fetch(key_name, &key_type, nullptr,
-                     reinterpret_cast<void **>(key), key_len);
+
+  /* We call keyring API to get master key here. */
+  ret = (keyring_operations_helper::read_secret(
+      innobase::encryption::keyring_reader_service, key_name, nullptr, key,
+      key_len, &key_type, PSI_INSTRUMENT_ME) > -1)
+          ? 0
+          : 1;
 
   if (key_type) {
     my_free(key_type);
@@ -616,22 +620,8 @@ void Encryption::get_master_key(uint32_t master_key_id, char *srv_uuid,
   }
 
 #ifndef UNIV_HOTBACKUP
-<<<<<<< HEAD
   /* We call key ring API to get master key here. */
   get_keyring_key(key_name, master_key, &key_len);
-||||||| 7ed30a74896
-  /* We call key ring API to get master key here. */
-  int ret = my_key_fetch(key_name, &key_type, nullptr,
-                         reinterpret_cast<void **>(master_key), &key_len);
-=======
-  /* We call keyring API to get master key here. */
-  int ret =
-      (keyring_operations_helper::read_secret(
-           innobase::encryption::keyring_reader_service, key_name, nullptr,
-           master_key, &key_len, &key_type, PSI_INSTRUMENT_ME) > -1)
-          ? 0
-          : 1;
->>>>>>> mysql-8.0.24
 #else  /* !UNIV_HOTBACKUP */
   /* We call MEB to get master key here. */
   int ret = meb_key_fetch(key_name, &key_type, nullptr,

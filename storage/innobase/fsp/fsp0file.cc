@@ -739,16 +739,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
                                        m_encryption_iv, m_first_page)) {
       ib::error(ER_IB_MSG_401)
           << "Encryption information in datafile: " << m_filepath
-<<<<<<< HEAD
-          << " can't be decrypted, please confirm the "
-          << "keyfile is match and keyring plugin is loaded.";
-||||||| 7ed30a74896
-          << " can't be decrypted, please confirm the "
-             "keyfile is match and keyring plugin is loaded.";
-=======
           << " can't be decrypted, please confirm that"
-             " keyring is loaded.";
->>>>>>> mysql-8.0.24
+          << " keyring is loaded.";
 
       m_is_valid = false;
       free_first_page();

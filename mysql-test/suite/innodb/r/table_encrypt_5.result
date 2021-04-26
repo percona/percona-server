@@ -200,16 +200,8 @@ c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
-<<<<<<< HEAD
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-# new non encrypt table 
-||||||| 7ed30a74896
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-# new non encrypt table
-=======
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # new non encrypt table
->>>>>>> mysql-8.0.24
 CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
 c4 JSON ,
@@ -567,16 +559,8 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 COUNT(*)
 64
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-<<<<<<< HEAD
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-# encrypt table not accessible 
-||||||| 7ed30a74896
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
-# encrypt table not accessible
-=======
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # encrypt table not accessible
->>>>>>> mysql-8.0.24
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;

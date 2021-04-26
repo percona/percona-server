@@ -477,20 +477,6 @@ extern bool srv_undo_log_truncate;
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
 
-<<<<<<< HEAD
-/** Initial size of an UNDO tablespace when it is created new
-or truncated under low load.
-page size | FSP_EXTENT_SIZE  | Initial Size | Pages
-----------+------------------+--------------+-------
-    4 KB  | 256 pages = 1 MB |   16 MB      | 4096
-    8 KB  | 128 pages = 1 MB |   16 MB      | 2048
-   16 KB  |  64 pages = 1 MB |   16 MB      | 1024
-   32 KB  |  64 pages = 2 MB |   16 MB      |  512
-   64 KB  |  64 pages = 4 MB |   16 MB      |  256  */
-#define INITIAL_UNDO_SPACE_SIZE (16 * 1024 * 1024)
-#define INITIAL_UNDO_SPACE_SIZE_IN_PAGES \
-  static_cast<os_offset_t>(INITIAL_UNDO_SPACE_SIZE / UNIV_PAGE_SIZE)
-
 /** Enable or disable encryption of temporary tablespace.*/
 extern bool srv_tmp_tablespace_encrypt;
 
@@ -512,22 +498,6 @@ extern ulonglong srv_max_bitmap_file_size;
 extern ulonglong srv_max_changed_pages;
 
 
-||||||| 7ed30a74896
-/** Initial size of an UNDO tablespace when it is created new
-or truncated under low load.
-page size | FSP_EXTENT_SIZE  | Initial Size | Pages
-----------+------------------+--------------+-------
-    4 KB  | 256 pages = 1 MB |   16 MB      | 4096
-    8 KB  | 128 pages = 1 MB |   16 MB      | 2048
-   16 KB  |  64 pages = 1 MB |   16 MB      | 1024
-   32 KB  |  64 pages = 2 MB |   16 MB      |  512
-   64 KB  |  64 pages = 4 MB |   16 MB      |  256  */
-#define INITIAL_UNDO_SPACE_SIZE (16 * 1024 * 1024)
-#define INITIAL_UNDO_SPACE_SIZE_IN_PAGES \
-  static_cast<os_offset_t>(INITIAL_UNDO_SPACE_SIZE / UNIV_PAGE_SIZE)
-
-=======
->>>>>>> mysql-8.0.24
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;

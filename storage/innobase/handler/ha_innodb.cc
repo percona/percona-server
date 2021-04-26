@@ -3738,15 +3738,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
-<<<<<<< HEAD
-    space_id_t space_id;
-    uint32_t fsp_flags = 0;
     bool is_enc_in_progress{false};
-||||||| 7ed30a74896
-    space_id_t space_id;
-    uint32_t fsp_flags = 0;
-=======
->>>>>>> mysql-8.0.24
     const auto &p = dd_tablespace->se_private_data();
     const auto &o = dd_tablespace->options();
     const char *space_name = dd_tablespace->name().c_str();
@@ -3769,7 +3761,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
-<<<<<<< HEAD
     if (p.exists(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS]) &&
         p.get(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS],
               &is_enc_in_progress)) {
@@ -3777,10 +3768,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       break;
     }
 
-||||||| 7ed30a74896
-=======
     /* Get the spacename for this tablespace from the DD. */
->>>>>>> mysql-8.0.24
     if (dd_tablespace->files().size() != 1 &&
         strcmp(space_name, sys_space_name) != 0) {
       /* Only the InnoDB system tablespace has support for
@@ -4001,29 +3989,14 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
-<<<<<<< HEAD
     Keyring_encryption_info keyring_encryption_info;
 
     /* It's safe to pass space_name in tablename charset because
     filename is already in filename charset. */
+    bool validate = recv_needed_recovery && srv_force_recovery == 0;
     dberr_t err = fil_ibd_open(
         validate || is_enc_in_progress, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-        space_name, nullptr, filename, false, false, keyring_encryption_info);
-||||||| 7ed30a74896
-    /* The IBD filename from the DD has not yet been opened. Try to open it.
-    It's safe to pass space_name in tablename charset because filename is
-    already in filename charset. */
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, nullptr, filename, false, false);
-=======
-    /* The IBD filename from the DD has not yet been opened. Try to open it.
-    It's safe to pass space_name in tablename charset because filename is
-    already in filename charset. */
-    bool validate = recv_needed_recovery && srv_force_recovery == 0;
-    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, filename, false, false);
->>>>>>> mysql-8.0.24
+        space_name, filename, false, false, keyring_encryption_info);
 
     switch (err) {
       case DB_SUCCESS: {
@@ -5896,21 +5869,9 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
 
     fil_space_release(space);
 
-<<<<<<< HEAD
   } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, flags,
-                          dict_sys_t::s_dd_space_name,
-                          dict_sys_t::s_dd_space_name, filename, true, false,
-                          keyring_encryption_info) == DB_SUCCESS) {
-||||||| 7ed30a74896
-  } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, 0,
-                          dict_sys_t::s_dd_space_name,
                           dict_sys_t::s_dd_space_name, filename, true,
-                          false) == DB_SUCCESS) {
-=======
-  } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, 0,
-                          dict_sys_t::s_dd_space_name, filename, true,
-                          false) == DB_SUCCESS) {
->>>>>>> mysql-8.0.24
+                          false, keyring_encryption_info) == DB_SUCCESS) {
     /* Set fil_space_t::size, which is 0 initially. */
     ulint size = fil_space_get_size(space_id);
     ut_a(size != ULINT_UNDEFINED);
@@ -7957,7 +7918,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       ib_table->ibd_file_missing && !dict_table_is_discarded(ib_table)) {
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
-<<<<<<< HEAD
     FilSpace space;
     int error = 0;
     if (ib_table) space = fil_space_acquire_silent(ib_table->space);
@@ -7971,28 +7931,11 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
       error = HA_ERR_TABLE_CORRUPT;
     }
-||||||| 7ed30a74896
-
-=======
-
-    free_share(m_share);
->>>>>>> mysql-8.0.24
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = nullptr;
 
-<<<<<<< HEAD
     free_share(m_share);
     return error;
-||||||| 7ed30a74896
-    free_share(m_share);
-    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-
-    return HA_ERR_TABLE_CORRUPT;
-=======
-    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-
-    return HA_ERR_TABLE_CORRUPT;
->>>>>>> mysql-8.0.24
   }
 
   if (nullptr == ib_table) {
@@ -8957,27 +8900,6 @@ static mysql_row_templ_t *build_template_field(
       templ->rec_field_no = templ->clust_rec_field_no;
     } else {
       templ->rec_field_no = index->get_col_pos(v_no, false, true);
-<<<<<<< HEAD
-      /* Virtual columns may have to be read from the
-      secondary index before evaluating a pushed down
-      end-range condition in row_search_end_range_check().
-      Also consider column prefixes, since they can be used
-      for end-range checks. */
-      templ->icp_rec_field_no =
-          templ->rec_field_no != ULINT_UNDEFINED
-              ? templ->rec_field_no
-              : index->get_col_pos(v_no, true, true, nullptr);
-||||||| 7ed30a74896
-      /* Virtual columns may have to be read from the
-      secondary index before evaluating a pushed down
-      end-range condition in row_search_end_range_check().
-      Also consider column prefixes, since they can be used
-      for end-range checks. */
-      templ->icp_rec_field_no = templ->rec_field_no != ULINT_UNDEFINED
-                                    ? templ->rec_field_no
-                                    : index->get_col_pos(v_no, true, true);
-=======
->>>>>>> mysql-8.0.24
     }
   }
 
@@ -9215,14 +9137,6 @@ void ha_innobase::build_template(bool whole_row) {
 
         set_templ_icp(templ, index, m_prebuilt->index, column_position);
 
-<<<<<<< HEAD
-        templ->icp_rec_field_no =
-            m_prebuilt->index->get_col_pos(i - num_v, true, false, nullptr);
-||||||| 7ed30a74896
-        templ->icp_rec_field_no =
-            m_prebuilt->index->get_col_pos(i - num_v, true, false);
-=======
->>>>>>> mysql-8.0.24
         ut_ad(templ->icp_rec_field_no != ULINT_UNDEFINED);
 
         /* Index condition pushdown can be used on

@@ -3,37 +3,11 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
-<<<<<<< HEAD:mysql-test/include/log_encrypt_3.inc
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
-call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Redo log key generation failed.");
-||||||| 7ed30a74896:mysql-test/suite/innodb/t/log_encrypt_3.test
-#Suppress following messages from myslqd log
---disable_query_log
-call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
-call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] .* Plugin mysqlx reported.*");
-call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
---enable_query_log
-=======
-#Suppress following messages from myslqd log
---disable_query_log
-call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
-call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
-call mtr.add_suppression("\\[Warning\\] .* Plugin mysqlx reported.*");
-call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
---enable_query_log
->>>>>>> mysql-8.0.24:mysql-test/suite/innodb/t/log_encrypt_3.test
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring is loaded.");
+call mtr.add_suppression("Redo log key generation failed.");
 
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 CREATE DATABASE tde_db;

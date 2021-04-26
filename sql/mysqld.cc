@@ -1175,12 +1175,8 @@ ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
-<<<<<<< HEAD
-bool opt_libcoredumper, opt_corefile = 0;
-||||||| 7ed30a74896
-=======
 bool opt_keyring_migration_to_component = false;
->>>>>>> mysql-8.0.24
+bool opt_libcoredumper, opt_corefile = 0;
 
 #if defined(_WIN32)
 /*
@@ -6757,30 +6753,7 @@ static int init_server_components() {
     binlog_expire_logs_seconds = 0;
   assert(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
 
-<<<<<<< HEAD
-  if (opt_bin_log) {
-    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
-      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
-                          expire_logs_days * 24 * 60 * 60;
-      DBUG_EXECUTE_IF("expire_logs_always_at_start",
-                      { purge_time = my_time(0); });
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-    }
-    if (binlog_space_limit) mysql_bin_log.purge_logs_by_size(true);
-  } else {
-||||||| 7ed30a74896
-  if (opt_bin_log) {
-    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
-      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
-                          expire_logs_days * 24 * 60 * 60;
-      DBUG_EXECUTE_IF("expire_logs_always_at_start",
-                      { purge_time = my_time(0); });
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-    }
-  } else {
-=======
   if (!opt_bin_log) {
->>>>>>> mysql-8.0.24
     if (binlog_expire_logs_seconds_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
     if (expire_logs_days_supplied)
@@ -7331,16 +7304,8 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
   }
 
-<<<<<<< HEAD
-||||||| 7ed30a74896
-  my_init_signals();
-
-=======
   keyring_lockable_init();
 
-  my_init_signals();
-
->>>>>>> mysql-8.0.24
   size_t guardize = 0;
 #ifndef _WIN32
   int retval = pthread_attr_getguardsize(&connection_attrib, &guardize);
@@ -7692,6 +7657,8 @@ int mysqld_main(int argc, char **argv)
                       { purge_time = my_time(0); });
       mysql_bin_log.purge_logs_before_date(purge_time, true);
     }
+
+    if (binlog_space_limit) mysql_bin_log.purge_logs_by_size(true);
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
   }
@@ -8928,22 +8895,6 @@ struct my_option my_long_options[] = {
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-<<<<<<< HEAD
-    {"skip-slave-start", 0, "If set, slave is not autostarted.",
-     &opt_skip_slave_start, &opt_skip_slave_start, nullptr, GET_BOOL, NO_ARG, 0,
-     0, 0, nullptr, 0, nullptr},
-||||||| 7ed30a74896
-    {"skip-slave-start", 0, "If set, slave is not autostarted.",
-     &opt_skip_slave_start, &opt_skip_slave_start, nullptr, GET_BOOL, NO_ARG, 0,
-     0, 0, nullptr, 0, nullptr},
-    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", nullptr, nullptr, nullptr,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-=======
-    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", nullptr, nullptr, nullptr,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.24
 #if defined(_WIN32)
     {"slow-start-timeout", 0,
      "Maximum number of milliseconds that the service control manager should "

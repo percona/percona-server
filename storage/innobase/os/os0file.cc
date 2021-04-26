@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| 7ed30a74896
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.24
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are

@@ -1618,7 +1618,6 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
-<<<<<<< HEAD
 void *Slave_worker::operator new(size_t request MY_ATTRIBUTE((unused))) {
   void *ptr;
   if (posix_memalign(&ptr, __alignof__(Slave_worker), sizeof(Slave_worker))) {
@@ -1629,12 +1628,7 @@ void *Slave_worker::operator new(size_t request MY_ATTRIBUTE((unused))) {
 
 void Slave_worker::operator delete(void *ptr) { free(ptr); }
 
-#ifndef DBUG_OFF
-||||||| 7ed30a74896
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> mysql-8.0.24
 static bool may_have_timestamp(Log_event *ev) {
   bool res = false;
 

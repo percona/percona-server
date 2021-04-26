@@ -5034,13 +5034,7 @@ static inline size_t my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs,
   uchar *dst0 = dst;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-<<<<<<< HEAD
-  DBUG_ASSERT(src || srclen == 0);
-||||||| 7ed30a74896
-  DBUG_ASSERT(src);
-=======
-  assert(src);
->>>>>>> mysql-8.0.24
+  assert(src || srclen == 0);
 
   // We manually hoist this if test out of the loop; seemingly GCC
   // (at least 6.1.1) isn't smart enough to do it on its own.
@@ -5144,16 +5138,8 @@ size_t my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs, uchar *dst,
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
 
-<<<<<<< HEAD
-  DBUG_ASSERT(src || srclen == 0);
-  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
-||||||| 7ed30a74896
-  DBUG_ASSERT(src);
-  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
-=======
-  assert(src);
+  assert(src || srclen == 0);
   assert(cs->state & MY_CS_BINSORT);
->>>>>>> mysql-8.0.24
 
   for (; dst < de && nweights; nweights--) {
     int res;

@@ -189,19 +189,11 @@ dberr_t Parallel_reader::Ctx::split() {
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
-<<<<<<< HEAD
-    : m_max_threads(max_threads),
-      m_ctxs(),
-      m_sync(sync),
-      m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
-||||||| 7ed30a74896
-    : m_max_threads(max_threads), m_ctxs(), m_sync(sync) {
-=======
     : m_max_threads(max_threads),
       m_n_threads{max_threads},
       m_ctxs(),
-      m_sync(sync) {
->>>>>>> mysql-8.0.24
+      m_sync(sync),
+      m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);

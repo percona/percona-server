@@ -1575,19 +1575,13 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
       return true;
     }
 
-<<<<<<< HEAD
   /* trying to change the password of the utility user? */
   if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), nullptr)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     return true;
   }
 
-    DBUG_ASSERT(acl_user->plugin.length != 0);
-||||||| 7ed30a74896
-    DBUG_ASSERT(acl_user->plugin.length != 0);
-=======
     assert(acl_user->plugin.length != 0);
->>>>>>> mysql-8.0.24
     is_role = acl_user->is_role;
 
     if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) return true;

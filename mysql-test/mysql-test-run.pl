@@ -287,7 +287,7 @@ our @DEFAULT_SUITES = qw(
   test_service_sql_api
   test_services
   x
-<<<<<<< HEAD
+  component_keyring_file
 
   audit_log
   binlog_57_decryption
@@ -314,10 +314,6 @@ our @DEFAULT_SUITES = qw(
   interactive_utilities
   jp
   stress
-||||||| 7ed30a74896
-=======
-  component_keyring_file
->>>>>>> mysql-8.0.24
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
@@ -3020,37 +3016,8 @@ sub read_plugin_defs($$) {
           my $component_location = dirname($plugin);
           remove_one_config($orig_plug_file, $component_location);
         }
-<<<<<<< HEAD
-
-        $ENV{ $plug_var . '_LOAD' }       = $load_var;
-        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
-        $ENV{ $plug_var . '_EARLY_LOAD' } = $early_load_var;
-        $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
-||||||| 7ed30a74896
-
-        $ENV{ $plug_var . '_LOAD' }       = $load_var;
-        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
-        $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
-=======
->>>>>>> mysql-8.0.24
       }
     } else {
-<<<<<<< HEAD
-      $ENV{$plug_var}            = "";
-      $ENV{ $plug_var . '_DIR' } = "";
-      $ENV{ $plug_var . '_OPT' } = "";
-      $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
-      $ENV{ $plug_var . '_EARLY_LOAD' } = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
-||||||| 7ed30a74896
-      $ENV{$plug_var}            = "";
-      $ENV{ $plug_var . '_DIR' } = "";
-      $ENV{ $plug_var . '_OPT' } = "";
-      $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
-=======
       if ($plugin) {
 
         if ($requires_config =~ "yes") {
@@ -3078,6 +3045,7 @@ sub read_plugin_defs($$) {
 
           $ENV{ $plug_var . '_LOAD' }       = $load_var;
           $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
+          $ENV{ $plug_var . '_EARLY_LOAD' } = $early_load_var;
           $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
         }
       } else {
@@ -3086,9 +3054,9 @@ sub read_plugin_defs($$) {
         $ENV{ $plug_var . '_OPT' } = "";
         $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
         $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
+        $ENV{ $plug_var . '_EARLY_LOAD' } = "" if $plug_names;
         $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
       }
->>>>>>> mysql-8.0.24
     }
   }
   close PLUGDEF;

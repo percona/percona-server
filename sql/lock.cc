@@ -1049,22 +1049,14 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
   if (!m_state) {
     MDL_request mdl_request;
 
-<<<<<<< HEAD
-    DBUG_ASSERT(!thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::GLOBAL, "", "", MDL_SHARED));
+    assert(!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL, "",
+                                                         "", MDL_SHARED));
     /*
       Do not allow upgrading table backup lock to FTWRL. Otherwise we can end
       up with deadlocks being reported for queries previously blocked on a
       backup lock.
     */
     if (thd->backup_tables_lock.abort_if_acquired()) return true;
-||||||| 7ed30a74896
-    DBUG_ASSERT(!thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::GLOBAL, "", "", MDL_SHARED));
-=======
-    assert(!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL, "",
-                                                         "", MDL_SHARED));
->>>>>>> mysql-8.0.24
     MDL_REQUEST_INIT(&mdl_request, MDL_key::GLOBAL, "", "", MDL_SHARED,
                      MDL_EXPLICIT);
 

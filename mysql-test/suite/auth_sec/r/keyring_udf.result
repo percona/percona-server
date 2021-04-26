@@ -404,16 +404,8 @@ select keyring_key_generate('key_id','DSA',384);
 keyring_key_generate('key_id','DSA',384)
 1
 #Check if user you can access another user's keys
-<<<<<<< HEAD
 select keyring_key_remove('roots_key_id');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-||||||| 7ed30a74896
-select keyring_key_remove('roots_key');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-=======
-select keyring_key_remove('roots_key');
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
->>>>>>> mysql-8.0.24
 #Check that the user is able to access the key via procedure
 call shared_key();
 keyring_key_fetch('$roots_key_id')
@@ -425,16 +417,8 @@ select keyring_key_generate('key_id','DSA',384);
 keyring_key_generate('key_id','DSA',384)
 1
 #Check if user with larger privileges can access another user's key
-<<<<<<< HEAD
 select keyring_key_remove('key_id');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-||||||| 7ed30a74896
-select keyring_key_remove('another_Rob_DSA_no_privilege');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-=======
-select keyring_key_remove('another_Rob_DSA_no_privilege');
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
->>>>>>> mysql-8.0.24
 #Cleanup
 select keyring_key_remove('key_id');
 keyring_key_remove('key_id')

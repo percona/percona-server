@@ -136,18 +136,6 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
     uint32_t computed;
 
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) {
-<<<<<<< HEAD
-||||||| 7ed30a74896
-#ifndef DBUG_OFF
-      unsigned char fd_alg = event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                                       BINLOG_CHECKSUM_ALG_DESC_LEN];
-#endif
-=======
-#ifndef NDEBUG
-      unsigned char fd_alg = event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                                       BINLOG_CHECKSUM_ALG_DESC_LEN];
-#endif
->>>>>>> mysql-8.0.24
       /*
         FD event is checksummed and therefore verified w/o
         the binlog-in-use flag.
@@ -156,28 +144,10 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
       flags = le16toh(flags);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-<<<<<<< HEAD
       /*
          The only algorithm currently is CRC32. Zero indicates
          the binlog file is checksum-free *except* the FD-event.
       */
-||||||| 7ed30a74896
-        /*
-           The only algorithm currently is CRC32. Zero indicates
-           the binlog file is checksum-free *except* the FD-event.
-        */
-#ifndef DBUG_OFF
-      BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-#endif
-=======
-        /*
-           The only algorithm currently is CRC32. Zero indicates
-           the binlog file is checksum-free *except* the FD-event.
-        */
-#ifndef NDEBUG
-      BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-#endif
->>>>>>> mysql-8.0.24
       BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch over  the max number of alg

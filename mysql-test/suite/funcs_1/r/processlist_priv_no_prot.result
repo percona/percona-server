@@ -31,19 +31,11 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-<<<<<<< HEAD
   `INFO` longtext,
   `TIME_MS` bigint NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
   `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
-||||||| 7ed30a74896
-  `INFO` longtext
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
-=======
-  `INFO` longtext
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
->>>>>>> mysql-8.0.24
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS	ROWS_SENT	ROWS_EXAMINED
@@ -115,19 +107,11 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-<<<<<<< HEAD
   `INFO` longtext,
   `TIME_MS` bigint NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
   `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
-||||||| 7ed30a74896
-  `INFO` longtext
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
-=======
-  `INFO` longtext
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
->>>>>>> mysql-8.0.24
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist	TIME_MS	ROWS_SENT	ROWS_EXAMINED

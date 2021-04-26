@@ -33,41 +33,6 @@ let $q2 = SELECT (SELECT y FROM t1 WHERE x = 1);
 let $q3 = SELECT * FROM v1;
 let $q4 = SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 let $q5 = SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
-<<<<<<< HEAD
-let $q6 = SELECT * FROM t1 tt
-            WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-
---eval EXPLAIN $q1
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q2
-SHOW STATUS LIKE 'Last_query_cost';
---disable_warnings
---eval EXPLAIN $q3
-SHOW STATUS LIKE 'Last_query_cost';
---enable_warnings
---eval EXPLAIN $q4
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q5
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q6
-SHOW STATUS LIKE 'Last_query_cost';
-||||||| 7ed30a74896
-let $q6 = SELECT * FROM t1 tt
-            WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-
---eval EXPLAIN $q1
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q2
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q3
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q4
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q5
-SHOW STATUS LIKE 'Last_query_cost';
---eval EXPLAIN $q6
-SHOW STATUS LIKE 'Last_query_cost';
-=======
 
 # When debugging, the statements below can be uncommented to see what
 # their estimated cost is in the primary storage engine. The actual
@@ -86,7 +51,6 @@ SHOW STATUS LIKE 'Last_query_cost';
 #SHOW STATUS LIKE 'Last_query_cost';
 #--eval EXPLAIN $q5
 #SHOW STATUS LIKE 'Last_query_cost';
->>>>>>> mysql-8.0.24
 
 ALTER TABLE t1 SECONDARY_ENGINE MOCK;
 ALTER TABLE t1 SECONDARY_LOAD;

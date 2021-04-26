@@ -2940,16 +2940,10 @@ next_block:
       goto func_exit;
     }
 
-<<<<<<< HEAD
-    IORequest request(IORequest::NO_ENCRYPTION | IORequest::READ);
+    IORequest request(
+        IORequest::READ | IORequest::ROW_LOG | IORequest::NO_ENCRYPTION);
 
     byte *buf = index->online_log->head.block;
-||||||| 7ed30a74896
-    IORequest request;
-=======
-    IORequest request(IORequest::READ | IORequest::ROW_LOG);
-    ;
->>>>>>> mysql-8.0.24
 
     err = os_file_read_no_error_handling_int_fd(
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
@@ -3748,16 +3742,11 @@ next_block:
       goto func_exit;
     }
 
-<<<<<<< HEAD
-    IORequest request(IORequest::NO_ENCRYPTION | IORequest::READ);
+    IORequest request(
+        IORequest::READ | IORequest::ROW_LOG | IORequest::NO_ENCRYPTION);
 
     byte *buf = index->online_log->head.block;
 
-||||||| 7ed30a74896
-    IORequest request;
-=======
-    IORequest request(IORequest::READ | IORequest::ROW_LOG);
->>>>>>> mysql-8.0.24
     dberr_t err = os_file_read_no_error_handling_int_fd(
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 

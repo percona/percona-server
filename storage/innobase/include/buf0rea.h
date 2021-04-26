@@ -104,28 +104,6 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
                             const page_size_t &page_size, bool inside_ibuf,
                             trx_t *trx);
 
-<<<<<<< HEAD
-/** Unconditionally reads the next N pages from the the starting page.
-@param[in]	page_id		          Start reading from this page.
-@param[in]	page_size	          Tablespace page size
-@param[in]  n_pages             Number of pages to read ahead.
-@param[in]  trx                 Transaction to account I/O to
-@return number of page read requests issued */
-size_t buf_phy_read_ahead(const page_id_t &page_id,
-                          const page_size_t &page_size, size_t n_pages,
-                          trx_t *trx);
-
-||||||| 7ed30a74896
-/** Unconditionally reads the next N pages from the the starting page.
-@param[in]	page_id		          Start reading from this page.
-@param[in]	page_size	          Tablespace page size
-@param[in]  n_pages             Number of pages to read ahead.
-@return number of page read requests issued */
-size_t buf_phy_read_ahead(const page_id_t &page_id,
-                          const page_size_t &page_size, size_t n_pages);
-
-=======
->>>>>>> mysql-8.0.24
 /** Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note

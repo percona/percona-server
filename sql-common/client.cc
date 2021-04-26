@@ -114,17 +114,9 @@
 #define SOCKET_ERROR -1
 #endif
 
-<<<<<<< HEAD
-#include <mysql/client_plugin.h>
-||||||| 7ed30a74896
-#include <openssl/x509v3.h>
-
-#include <mysql/client_plugin.h>
-=======
 #include <mysql/client_plugin.h>
 #include <openssl/x509v3.h>
 
->>>>>>> mysql-8.0.24
 #include <new>
 
 #include "../libmysql/init_commands_array.h"

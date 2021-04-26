@@ -23,14 +23,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef SQL_ALTER_INSTANCE_INCLUDED
 #define SQL_ALTER_INSTANCE_INCLUDED
 
-<<<<<<< HEAD
-#include "system_key.h"
-
-||||||| 7ed30a74896
-=======
 #include <my_inttypes.h>
 
->>>>>>> mysql-8.0.24
+#include "system_key.h"
+
 class THD;
 /*
   Base class for execution control for ALTER INSTANCE ... statement

@@ -109,19 +109,9 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql, const char *binlog_filename,
   function_enter(kWho);
 
   DBUG_EXECUTE_IF("rpl_semisync_before_send_ack", {
-<<<<<<< HEAD
     const char act[] = "now WAIT_FOR continue";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-||||||| 7ed30a74896
-    const char act[] = "now SIGNAL sending_ack WAIT_FOR continue";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-=======
-    const char act[] = "now SIGNAL sending_ack WAIT_FOR continue";
     assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
->>>>>>> mysql-8.0.24
   };);
 
   /* Prepare the buffer of the reply. */

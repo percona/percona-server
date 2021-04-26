@@ -89,7 +89,7 @@ bool Rotate_innodb_key::acquire_backup_locks() {
                                     true) ||
       acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
     // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
   return false;
@@ -137,35 +137,7 @@ bool Rotate_innodb_master_key::execute() {
     return true;
   }
 
-<<<<<<< HEAD
   if (acquire_backup_locks()) return true;
-||||||| 7ed30a74896
-  /*
-    Acquire shared backup lock to block concurrent backup. Acquire exclusive
-    backup lock to block any concurrent DDL. The fact that we acquire both
-    these locks also ensures that concurrent KEY rotation requests are blocked.
-  */
-  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
-                                    true) ||
-      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
-    // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
-    return true;
-  }
-=======
-  /*
-    Acquire shared backup lock to block concurrent backup. Acquire exclusive
-    backup lock to block any concurrent DDL. The fact that we acquire both
-    these locks also ensures that concurrent KEY rotation requests are blocked.
-  */
-  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
-                                    true) ||
-      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
-    // MDL subsystem has to set an error in Diagnostics Area
-    assert(m_thd->get_stmt_da()->is_error());
-    return true;
-  }
->>>>>>> mysql-8.0.24
 
   if (hton->rotate_encryption_master_key()) {
     /* SE should have raised error */
@@ -346,26 +318,6 @@ bool Rotate_binlog_master_key::execute() {
   my_ok(m_thd);
   return false;
 }
-<<<<<<< HEAD
-
-bool Rotate_redo_system_key::execute() {
-  DBUG_TRACE;
-
-  Security_context *sctx = m_thd->security_context();
-  if (!sctx->check_access(SUPER_ACL) &&
-      !sctx->has_global_grant(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER or ENCRYPTION_KEY_ADMIN");
-    return true;
-  }
-
-  if (rotate_percona_system_key.rotate()) return true;
-
-  my_ok(m_thd);
-  return false;
-}
-||||||| 7ed30a74896
-=======
 
 bool Reload_keyring::execute() {
   DBUG_TRACE;
@@ -386,4 +338,20 @@ bool Reload_keyring::execute() {
   my_ok(m_thd);
   return false;
 }
->>>>>>> mysql-8.0.24
+
+bool Rotate_redo_system_key::execute() {
+  DBUG_TRACE;
+
+  Security_context *sctx = m_thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or ENCRYPTION_KEY_ADMIN");
+    return true;
+  }
+
+  if (rotate_percona_system_key.rotate()) return true;
+
+  my_ok(m_thd);
+  return false;
+}

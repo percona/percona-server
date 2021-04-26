@@ -4428,21 +4428,11 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   /* The primary index would be rebuilt if a FTS Doc ID
   column is to be added, and the primary index definition
   is just copied from old table and stored in indexdefs[0] */
-<<<<<<< HEAD
-  DBUG_ASSERT(!add_fts_doc_id || new_clustered);
-  DBUG_ASSERT(
+  assert(!add_fts_doc_id || new_clustered);
+  assert(
       !!new_clustered ==
       (innobase_need_rebuild(ha_alter_info, old_table, is_file_per_table) ||
        add_fts_doc_id));
-||||||| 7ed30a74896
-  DBUG_ASSERT(!add_fts_doc_id || new_clustered);
-  DBUG_ASSERT(!!new_clustered ==
-              (innobase_need_rebuild(ha_alter_info) || add_fts_doc_id));
-=======
-  assert(!add_fts_doc_id || new_clustered);
-  assert(!!new_clustered ==
-         (innobase_need_rebuild(ha_alter_info) || add_fts_doc_id));
->>>>>>> mysql-8.0.24
 
   /* Allocate memory for dictionary index definitions */
 
@@ -4849,17 +4839,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
                                           add_cols, ctx->heap, prebuilt);
     ctx->add_cols = add_cols;
   } else {
-<<<<<<< HEAD
-    DBUG_ASSERT(
+    assert(
         !innobase_need_rebuild(ha_alter_info, old_table, is_file_per_table));
-    DBUG_ASSERT(old_table->s->primary_key == altered_table->s->primary_key);
-||||||| 7ed30a74896
-    DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
-    DBUG_ASSERT(old_table->s->primary_key == altered_table->s->primary_key);
-=======
-    assert(!innobase_need_rebuild(ha_alter_info));
     assert(old_table->s->primary_key == altered_table->s->primary_key);
->>>>>>> mysql-8.0.24
 
     for (dict_index_t *index = user_table->first_index(); index != nullptr;
          index = index->next()) {

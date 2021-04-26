@@ -58,32 +58,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0vec.h"
 
-<<<<<<< HEAD
 #include "fil0crypt.h"  //dla FIL_ENCRYPTION_KEY_DEFAULT
 #include "fil0fil.h"
 #include "sql/sql_zip_dict.h"
 
-/** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table		dict table object
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		transaction instance
-@return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
     dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
     fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-||||||| 7ed30a74896
-/** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table		dict table object
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		transaction instance
-@return DB_SUCCESS or error code */
-dberr_t dict_build_table_def(dict_table_t *table,
-                             const HA_CREATE_INFO *create_info, trx_t *trx) {
-=======
-dberr_t dict_build_table_def(dict_table_t *table,
-                             const HA_CREATE_INFO *create_info, trx_t *trx) {
->>>>>>> mysql-8.0.24
   std::string db_name;
   std::string tbl_name;
   dict_name::get_table(table->name.m_name, db_name, tbl_name);
@@ -211,7 +193,6 @@ dberr_t dict_build_tablespace(
   return (err);
 }
 
-<<<<<<< HEAD
 /** Determine the session temporary tablespace for temp or intrinsic tables
 @param[in]   innodb_session   InnoDB session context(thd)
 @param[in]   is_intrinsic     true if temp table is created by optimizer
@@ -258,30 +239,10 @@ static ibt::Tablespace *determine_session_temp_tblsp(
   return (tblsp);
 }
 
-/** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table		Table to build in its own tablespace.
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		Transaction
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-@return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
     dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
     fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-||||||| 7ed30a74896
-/** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table		Table to build in its own tablespace.
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		Transaction
-@return DB_SUCCESS or error code */
-dberr_t dict_build_tablespace_for_table(dict_table_t *table,
-                                        const HA_CREATE_INFO *create_info,
-                                        trx_t *trx) {
-=======
-dberr_t dict_build_tablespace_for_table(dict_table_t *table,
-                                        const HA_CREATE_INFO *create_info,
-                                        trx_t *trx) {
->>>>>>> mysql-8.0.24
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;

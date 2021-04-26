@@ -2879,22 +2879,12 @@ void handler::ha_statistic_increment(
   if (table && table->in_use) (table->in_use->status_var.*offset)++;
 }
 
-<<<<<<< HEAD
-THD *handler::ha_thd(void) const {
-  if (unlikely(cloned)) return current_thd;
-  DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
-  return (table && table->in_use) ? table->in_use : current_thd;
-||||||| 7ed30a74896
-THD *handler::ha_thd(void) const {
-  DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
-  return (table && table->in_use) ? table->in_use : current_thd;
-=======
 THD *handler::ha_thd() const {
+  if (unlikely(cloned)) return current_thd;
   assert(table == nullptr || table->in_use == nullptr ||
          table->in_use == current_thd);
   return table != nullptr && table->in_use != nullptr ? table->in_use
                                                       : current_thd;
->>>>>>> mysql-8.0.24
 }
 
 void handler::unbind_psi() {
@@ -3130,19 +3120,11 @@ int handler::ha_rnd_init(bool scan) {
   DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
   DBUG_TRACE;
-<<<<<<< HEAD
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
-  DBUG_ASSERT(inited == NONE || (inited == RND && scan));
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == NONE || (inited == RND && scan));
   if (scan && is_using_prohibited_gap_locks(table, false)) {
     return HA_ERR_LOCK_DEADLOCK;
   }
-||||||| 7ed30a74896
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
-  DBUG_ASSERT(inited == NONE || (inited == RND && scan));
-=======
-  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
-  assert(inited == NONE || (inited == RND && scan));
->>>>>>> mysql-8.0.24
   inited = (result = rnd_init(scan)) ? NONE : RND;
   end_range = nullptr;
   return result;
@@ -5167,23 +5149,11 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
     so we could be holding the same lock level as for inplace_alter_table().
      TABLE::mdl_ticket is 0 for temporary tables.
   */
-<<<<<<< HEAD
-  DBUG_ASSERT((table->s->tmp_table != NO_TMP_TABLE && !table->mdl_ticket) ||
-              (ha_thd()->mdl_context.owns_equal_or_stronger_lock(
-                   MDL_key::TABLE, table->s->db.str, table->s->table_name.str,
-                   MDL_EXCLUSIVE) ||
-               !commit));
-||||||| 7ed30a74896
-  DBUG_ASSERT(ha_thd()->mdl_context.owns_equal_or_stronger_lock(
-                  MDL_key::TABLE, table->s->db.str, table->s->table_name.str,
-                  MDL_EXCLUSIVE) ||
-              !commit);
-=======
-  assert(ha_thd()->mdl_context.owns_equal_or_stronger_lock(
-             MDL_key::TABLE, table->s->db.str, table->s->table_name.str,
-             MDL_EXCLUSIVE) ||
-         !commit);
->>>>>>> mysql-8.0.24
+  assert((table->s->tmp_table != NO_TMP_TABLE && !table->mdl_ticket) ||
+         (ha_thd()->mdl_context.owns_equal_or_stronger_lock(
+              MDL_key::TABLE, table->s->db.str, table->s->table_name.str,
+              MDL_EXCLUSIVE) ||
+          !commit));
 
   return commit_inplace_alter_table(altered_table, ha_alter_info, commit,
                                     old_table_def, new_table_def);
@@ -7815,22 +7785,6 @@ int handler::compare_key_in_buffer(const uchar *buf) const {
   assert(end_range != nullptr &&
          (m_record_buffer == nullptr || !m_record_buffer->is_out_of_range()));
 
-<<<<<<< HEAD
-||||||| 7ed30a74896
-  /*
-    End range on descending scans is only checked with ICP for now, and then we
-    check it with compare_key_icp() instead of this function.
-  */
-  DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
-
-=======
-  /*
-    End range on descending scans is only checked with ICP for now, and then we
-    check it with compare_key_icp() instead of this function.
-  */
-  assert(range_scan_direction == RANGE_SCAN_ASC);
-
->>>>>>> mysql-8.0.24
   // Make the fields in the key point into the buffer instead of record[0].
   const ptrdiff_t diff = buf - table->record[0];
   if (diff != 0) move_key_field_offsets(end_range, range_key_part, diff);

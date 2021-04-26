@@ -32,7 +32,6 @@ leak:Perl_pmruntime
 leak:/usr/bin/perl
 leak:/lib64/libperl.so.*
 leak:/bin/bash
-<<<<<<< HEAD
 leak:/usr/bin/sed
 leak:/usr/bin/python2.7
 leak:/usr/bin/zip
@@ -43,10 +42,6 @@ leak:/lib/*libbfd-2.34-system.so
 leak:/usr/bin/*ld.bfd
 leak:/usr/lib/*collect2
 
-||||||| 7ed30a74896
-=======
-leak:/usr/bin/zip
->>>>>>> mysql-8.0.24
 # OpenLDAP bug 9081
 # Fixed in 2.4.49, we build with 2.4.48
 leak:ldap_initialize

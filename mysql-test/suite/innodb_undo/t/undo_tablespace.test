@@ -254,43 +254,6 @@ SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
        WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
 DROP UNDO TABLESPACE undo_004;
 
-
-# Check that it won't work with LTFB
-LOCK TABLES FOR BACKUP;
-
---error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
-CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
-
---connect (con1,'localhost','root',,)
-SET @@session.lock_wait_timeout=1;
-
---error ER_LOCK_WAIT_TIMEOUT
-CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
-
---connection default
---disconnect con1
-
-UNLOCK TABLES;
-
-CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
-
-LOCK TABLES FOR BACKUP;
-
- --error ER_CANT_EXECUTE_WITH_BACKUP_LOCK 
-ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-
-UNLOCK TABLES;
-ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
---let $inactive_undo_space = undo_003
---source include/wait_until_undo_space_is_empty.inc
-
-LOCK TABLES FOR BACKUP;
-
- --error ER_CANT_EXECUTE_WITH_BACKUP_LOCK 
-DROP UNDO TABLESPACE undo_003;
-UNLOCK TABLES;
-DROP UNDO TABLESPACE undo_003;
-
 --echo #
 --echo # Show that the setting innodb_validate_tablespace_paths does not affect undo tablespaces.
 --echo #
@@ -328,6 +291,43 @@ SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
        WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
 
+
+# Check that it won't work with LTFB
+LOCK TABLES FOR BACKUP;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
+
+--connect (con1,'localhost','root',,)
+SET @@session.lock_wait_timeout=1;
+
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
+
+--connection default
+--disconnect con1
+
+UNLOCK TABLES;
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo3.ibu';
+
+LOCK TABLES FOR BACKUP;
+
+ --error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+
+UNLOCK TABLES;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+--let $inactive_undo_space = undo_003
+--source include/wait_until_undo_space_is_empty.inc
+
+LOCK TABLES FOR BACKUP;
+
+ --error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+DROP UNDO TABLESPACE undo_003;
+UNLOCK TABLES;
+DROP UNDO TABLESPACE undo_003;
+
 --echo #
 --echo # Cleanup
 --echo #
@@ -340,17 +340,13 @@ let $inactive_undo_space = undo_005;
 source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_005;
 
-<<<<<<< HEAD
---source include/wait_until_count_sessions.inc
-
-||||||| 7ed30a74896
-=======
 ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
 let $inactive_undo_space = undo_006;
 source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_006;
 
->>>>>>> mysql-8.0.24
+--source include/wait_until_count_sessions.inc
+
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Log writer is waiting for checkpointer to to catch up lag");
 call mtr.add_suppression("\\[Warning\\] .* Tablespace .*, name 'undo_004', file 'undo_004.ibu' is missing");

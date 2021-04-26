@@ -1285,16 +1285,8 @@ inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
 
   DBUG_PRINT("info", ("Read event %s", Log_event::get_type_str(Log_event_type(
                                            (*event_ptr)[EVENT_TYPE_OFFSET]))));
-<<<<<<< HEAD
-#ifndef DBUG_OFF
-  if (!readahead && check_event_count()) return 1;
-||||||| 7ed30a74896
-#ifndef DBUG_OFF
-  if (check_event_count()) return 1;
-=======
 #ifndef NDEBUG
-  if (check_event_count()) return 1;
->>>>>>> mysql-8.0.24
+  if (!readahead && check_event_count()) return 1;
 #endif
   return 0;
 }

@@ -478,18 +478,6 @@ void recv_sys_close() {
 
   mutex_free(&recv_sys->mutex);
 
-<<<<<<< HEAD
-||||||| 7ed30a74896
-  ut_ad(!recv_writer_is_active());
-  mutex_free(&recv_sys->writer_mutex);
-
-=======
-#ifndef UNIV_HOTBACKUP
-  ut_ad(!recv_writer_is_active());
-#endif /* !UNIV_HOTBACKUP */
-  mutex_free(&recv_sys->writer_mutex);
-
->>>>>>> mysql-8.0.24
   ut_free(recv_sys);
   recv_sys = nullptr;
 }
@@ -633,20 +621,14 @@ void recv_sys_init(ulint max_mem) {
 
   new (&recv_sys->missing_ids) recv_sys_t::Missing_Ids();
 
-<<<<<<< HEAD
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover(false));
-
-  using CryptDatas = recv_sys_t::CryptDatas;
-  recv_sys->crypt_datas = UT_NEW(CryptDatas(), mem_log_recv_space_hash_key);
-||||||| 7ed30a74896
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
-=======
   new (&recv_sys->saved_recs) recv_sys_t::Mlog_records();
 
   recv_sys->saved_recs.resize(recv_sys_t::MAX_SAVED_MLOG_RECS);
 
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
->>>>>>> mysql-8.0.24
+  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover(false));
+
+  using CryptDatas = recv_sys_t::CryptDatas;
+  recv_sys->crypt_datas = UT_NEW(CryptDatas(), mem_log_recv_space_hash_key);
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -778,116 +760,6 @@ void MetadataRecover::store() {
 
   mutex_exit(&dict_persist->mutex);
 }
-<<<<<<< HEAD
-||||||| 7ed30a74896
-
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static void recv_writer_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  /* The code flow is as follows:
-  Step 1: In recv_recovery_from_checkpoint_start().
-  Step 2: This recv_writer thread is started.
-  Step 3: In recv_recovery_from_checkpoint_finish().
-  Step 4: Wait for recv_writer thread to complete.
-  Step 5: Assert that recv_writer thread is not active anymore.
-
-  It is possible that the thread that is started in step 2,
-  becomes active only after step 4 and hence the assert in
-  step 5 fails.  So mark this thread active only if necessary. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-  if (!recv_recovery_on) {
-    mutex_exit(&recv_sys->writer_mutex);
-    return;
-  }
-  mutex_exit(&recv_sys->writer_mutex);
-
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-    ut_a(srv_shutdown_state_matches([](auto state) {
-      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
-    }));
-
-    os_thread_sleep(100000);
-
-    mutex_enter(&recv_sys->writer_mutex);
-
-    if (!recv_recovery_on) {
-      mutex_exit(&recv_sys->writer_mutex);
-      break;
-    }
-
-    if (log_test != nullptr) {
-      mutex_exit(&recv_sys->writer_mutex);
-      continue;
-    }
-
-    /* Flush pages from end of LRU if required */
-    os_event_reset(recv_sys->flush_end);
-    recv_sys->flush_type = BUF_FLUSH_LRU;
-    os_event_set(recv_sys->flush_start);
-    os_event_wait(recv_sys->flush_end);
-
-    mutex_exit(&recv_sys->writer_mutex);
-  }
-}
-
-=======
-
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static void recv_writer_thread() {
-  ut_ad(!srv_read_only_mode);
-
-  /* The code flow is as follows:
-  Step 1: In recv_recovery_from_checkpoint_start().
-  Step 2: This recv_writer thread is started.
-  Step 3: In recv_recovery_from_checkpoint_finish().
-  Step 4: Wait for recv_writer thread to complete.
-  Step 5: Assert that recv_writer thread is not active anymore.
-
-  It is possible that the thread that is started in step 2,
-  becomes active only after step 4 and hence the assert in
-  step 5 fails.  So mark this thread active only if necessary. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-  if (!recv_recovery_on) {
-    mutex_exit(&recv_sys->writer_mutex);
-    return;
-  }
-  mutex_exit(&recv_sys->writer_mutex);
-
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-    ut_a(srv_shutdown_state_matches([](auto state) {
-      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
-    }));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    mutex_enter(&recv_sys->writer_mutex);
-
-    if (!recv_recovery_on) {
-      mutex_exit(&recv_sys->writer_mutex);
-      break;
-    }
-
-    if (log_test != nullptr) {
-      mutex_exit(&recv_sys->writer_mutex);
-      continue;
-    }
-
-    /* Flush pages from end of LRU if required */
-    os_event_reset(recv_sys->flush_end);
-    recv_sys->flush_type = BUF_FLUSH_LRU;
-    os_event_set(recv_sys->flush_start);
-    os_event_wait(recv_sys->flush_end);
-
-    mutex_exit(&recv_sys->writer_mutex);
-  }
-}
-
->>>>>>> mysql-8.0.24
 #endif /* !UNIV_HOTBACKUP */
 
 /** Frees the recovery system. */
@@ -1304,15 +1176,9 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-<<<<<<< HEAD
     if (abort) return;
 
-    os_thread_sleep(500000);
-||||||| 7ed30a74896
-    os_thread_sleep(500000);
-=======
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
->>>>>>> mysql-8.0.24
   }
 
   if (!allow_ibuf) {
@@ -1390,17 +1256,11 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
     bool abort = recv_sys->found_corrupt_log;
     mutex_exit(&recv_sys->mutex);
 
-<<<<<<< HEAD
     if (abort) {
       return;
     }
 
-    os_thread_sleep(500000);
-||||||| 7ed30a74896
-    os_thread_sleep(500000);
-=======
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
->>>>>>> mysql-8.0.24
 
     mutex_enter(&recv_sys->mutex);
   }
@@ -3197,21 +3057,14 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     mlog_id_t type = MLOG_BIGGEST_TYPE;
 
-<<<<<<< HEAD
-    ulint len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no,
-                                   false, &body);
-||||||| 7ed30a74896
-    ulint len =
-        recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
-=======
     byte *body = nullptr;
     size_t len = 0;
 
     /* Avoid parsing if we have the record saved already. */
     if (!recv_sys->get_saved_rec(i, space_id, page_no, type, body, len)) {
-      len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
+      len = recv_parse_log_rec(
+          &type, ptr, end_ptr, &space_id, &page_no, false, &body);
     }
->>>>>>> mysql-8.0.24
 
     if (recv_sys->found_corrupt_log &&
         !recv_report_corrupt_log(ptr, type, space_id, page_no)) {
@@ -4154,40 +4007,6 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
   /* Now wait for currently in progress batches to finish. */
   buf_flush_wait_LRU_batch_end();
 
-<<<<<<< HEAD
-||||||| 7ed30a74896
-  mutex_exit(&recv_sys->writer_mutex);
-
-  ulint count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    os_thread_sleep(100000);
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
-
-=======
-  mutex_exit(&recv_sys->writer_mutex);
-
-  ulint count = 0;
-
-  while (recv_writer_is_active()) {
-    ++count;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (count >= 600) {
-      ib::info(ER_IB_MSG_738);
-      count = 0;
-    }
-  }
-
->>>>>>> mysql-8.0.24
   MetadataRecover *metadata;
 
   if (!aborting) {

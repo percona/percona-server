@@ -141,7 +141,6 @@ bool Binlog_event_data_istream::fill_event_data(
           m_event_length - LOG_EVENT_MINIMAL_HEADER_LEN))
     return true;
 
-<<<<<<< HEAD
   if (crypto_data.is_enabled()) {
     // crypto only works on binlog files
     Basic_binlog_ifile *binlog_file =
@@ -160,12 +159,7 @@ bool Binlog_event_data_istream::fill_event_data(
     memcpy(event_data, m_decryption_buffer.data(), m_event_length);
   }
 
-#ifndef DBUG_OFF
-||||||| 7ed30a74896
-#ifndef DBUG_OFF
-=======
 #ifndef NDEBUG
->>>>>>> mysql-8.0.24
   debug_corrupt_event(event_data, m_event_length);
 #endif
 

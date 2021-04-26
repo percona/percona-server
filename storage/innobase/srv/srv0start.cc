@@ -2887,19 +2887,21 @@ files_checked:
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
-      fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
-      if (space == nullptr) {
-        dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-                         predefined_flags, dict_sys_t::s_dd_space_name,
-                         dict_sys_t::s_dd_space_file_name, true, false);
-        if (error != DB_SUCCESS) {
-          ib::error(ER_IB_MSG_1142);
-          return (srv_init_abort(DB_ERROR));
+        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+        if (space == nullptr) {
+          Keyring_encryption_info keyring_encryption_info;
+          dberr_t error = fil_ibd_open(
+              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+              predefined_flags, dict_sys_t::s_dd_space_name,
+              dict_sys_t::s_dd_space_file_name, true, false,
+              keyring_encryption_info);
+          if (error != DB_SUCCESS) {
+            ib::error(ER_IB_MSG_1142);
+            return (srv_init_abort(DB_ERROR));
+          }
+        } else {
+          fil_space_release(space);
         }
-      } else {
-        fil_space_release(space);
-      }
 
       dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
       /* We write redo log here. We assume that there should be enough room in
@@ -2920,69 +2922,6 @@ files_checked:
         return (srv_init_abort(DB_READ_ONLY));
       }
 
-<<<<<<< HEAD
-      if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
-        /* Open this table in case srv_dict_metadata
-        should be applied to this table before
-        checkpoint. And because DD is not fully up yet,
-        the table can be opened by internal APIs. */
-
-        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
-        if (space == nullptr) {
-          Keyring_encryption_info keyring_encryption_info;
-          dberr_t error = fil_ibd_open(
-              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-              predefined_flags, dict_sys_t::s_dd_space_name,
-              dict_sys_t::s_dd_space_name, dict_sys_t::s_dd_space_file_name,
-              true, false, keyring_encryption_info);
-          if (error != DB_SUCCESS) {
-            ib::error(ER_IB_MSG_1142);
-            return (srv_init_abort(DB_ERROR));
-          }
-        } else {
-          fil_space_release(space);
-        }
-
-        dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
-        /* This writes redo logs. Since the log file
-        size hasn't changed now, there should be enough
-        room in log files, supposing log_free_check()
-        works fine before crash */
-        srv_dict_metadata->store();
-      }
-
-||||||| 7ed30a74896
-      if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
-        /* Open this table in case srv_dict_metadata
-        should be applied to this table before
-        checkpoint. And because DD is not fully up yet,
-        the table can be opened by internal APIs. */
-
-        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
-        if (space == nullptr) {
-          dberr_t error =
-              fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-                           predefined_flags, dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_file_name, true, false);
-          if (error != DB_SUCCESS) {
-            ib::error(ER_IB_MSG_1142);
-            return (srv_init_abort(DB_ERROR));
-          }
-        } else {
-          fil_space_release(space);
-        }
-
-        dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
-        /* This writes redo logs. Since the log file
-        size hasn't changed now, there should be enough
-        room in log files, supposing log_free_check()
-        works fine before crash */
-        srv_dict_metadata->store();
-      }
-
-=======
->>>>>>> mysql-8.0.24
       /* Prepare to delete the old redo log files */
       flushed_lsn = srv_prepare_to_delete_redo_log_files(i);
 

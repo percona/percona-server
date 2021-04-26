@@ -1804,14 +1804,8 @@ void JOIN::cleanup_item_list(const mem_root_deque<Item *> &items) const {
 bool Query_block::optimize(THD *thd) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
-  DBUG_ASSERT(master_unit()->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
-  DBUG_ASSERT(join == nullptr);
-||||||| 7ed30a74896
-  DBUG_ASSERT(join == nullptr);
-=======
+  assert(master_query_expression()->cleaned == Query_expression::UC_DIRTY);
   assert(join == nullptr);
->>>>>>> mysql-8.0.24
   JOIN *const join_local = new (thd->mem_root) JOIN(thd, this);
   if (!join_local) return true; /* purecov: inspected */
 

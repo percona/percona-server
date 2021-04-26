@@ -30,82 +30,6 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 
-<<<<<<< HEAD
-auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
-mysql_clone                             plugin_output_directory CLONE_PLUGIN    clone
-qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
-qa_auth_server                          plugin_output_directory PLUGIN_AUTH_SERVER    qa_auth_server
-qa_auth_client                          plugin_output_directory PLUGIN_AUTH_CLIENT    qa_auth_client
-udf_example                             plugin_output_directory UDF_EXAMPLE_LIB
-ha_example                              plugin_output_directory EXAMPLE_PLUGIN         EXAMPLE
-semisync_master                         plugin_output_directory SEMISYNC_MASTER_PLUGIN
-semisync_slave                          plugin_output_directory SEMISYNC_SLAVE_PLUGIN
-ha_archive                              plugin_output_directory ARCHIVE_PLUGIN
-ha_blackhole                            plugin_output_directory BLACKHOLE_PLUGIN
-ha_federated                            plugin_output_directory FEDERATED_PLUGIN
-ha_partition                            plugin_output_directory PARTITION_PLUGIN  partition
-ha_mock                                 plugin_output_directory MOCK_PLUGIN
-mypluglib                               plugin_output_directory SIMPLE_PARSER
-libpluginmecab                          plugin_output_directory MECAB
-adt_null                                plugin_output_directory AUDIT_NULL
-keyring_udf                             plugin_output_directory KEYRING_UDF keyring_udf
-data_masking                            plugin_output_directory DATA_MASKING_PLUGIN data_masking
-keyring_file                            plugin_output_directory KEYRING_PLUGIN        keyring_file
-test_security_context                   plugin_output_directory TEST_SECURITY_CONTEXT  test_security_context
-libdaemon_example                       plugin_output_directory DAEMONEXAMPLE
-replication_observers_example_plugin    plugin_output_directory RPL_OBS_EXAMPLE
-libmemcached                            plugin_output_directory DAEMON_MEMCACHED
-# libmemcached     			plugin_output_directory DAEMON_MEMCACHED daemon_memcached
-innodb_engine      			plugin_output_directory INNODB_ENGINE
-validate_password  			plugin_output_directory VALIDATE_PASSWORD validate_password
-rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
-ddl_rewriter                            plugin_output_directory DDL_REWRITER
-rewriter           			plugin_output_directory REWRITER
-mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
-test_udf_services  			plugin_output_directory TESTUDFSERVICES
-test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
-test_udf_services  			plugin_output_directory TESTUDFEXTENSIONSERVICES test_udf_extension_services
-group_replication  			plugin_output_directory GROUP_REPLICATION
-locking_service    			plugin_output_directory LOCKING_SERVICE
-version_token      			plugin_output_directory VERSION_TOKEN
-||||||| 7ed30a74896
-auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
-mysql_clone                             plugin_output_directory CLONE_PLUGIN    clone
-qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
-qa_auth_server                          plugin_output_directory PLUGIN_AUTH_SERVER    qa_auth_server
-qa_auth_client                          plugin_output_directory PLUGIN_AUTH_CLIENT    qa_auth_client
-udf_example                             plugin_output_directory UDF_EXAMPLE_LIB
-ha_example                              plugin_output_directory EXAMPLE_PLUGIN         EXAMPLE
-semisync_master                         plugin_output_directory SEMISYNC_MASTER_PLUGIN
-semisync_slave                          plugin_output_directory SEMISYNC_SLAVE_PLUGIN
-ha_archive                              plugin_output_directory ARCHIVE_PLUGIN
-ha_blackhole                            plugin_output_directory BLACKHOLE_PLUGIN
-ha_federated                            plugin_output_directory FEDERATED_PLUGIN
-ha_partition                            plugin_output_directory PARTITION_PLUGIN  partition
-ha_mock                                 plugin_output_directory MOCK_PLUGIN
-mypluglib                               plugin_output_directory SIMPLE_PARSER
-libpluginmecab                          plugin_output_directory MECAB
-adt_null                                plugin_output_directory AUDIT_NULL
-keyring_udf                             plugin_output_directory KEYRING_UDF keyring_udf
-keyring_file                            plugin_output_directory KEYRING_PLUGIN        keyring_file
-test_security_context                   plugin_output_directory TEST_SECURITY_CONTEXT  test_security_context
-libdaemon_example                       plugin_output_directory DAEMONEXAMPLE
-replication_observers_example_plugin    plugin_output_directory RPL_OBS_EXAMPLE
-libmemcached                            plugin_output_directory DAEMON_MEMCACHED
-# libmemcached     			plugin_output_directory DAEMON_MEMCACHED daemon_memcached
-innodb_engine      			plugin_output_directory INNODB_ENGINE
-validate_password  			plugin_output_directory VALIDATE_PASSWORD validate_password
-rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
-ddl_rewriter                            plugin_output_directory DDL_REWRITER
-rewriter           			plugin_output_directory REWRITER
-mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
-test_udf_services  			plugin_output_directory TESTUDFSERVICES
-test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
-test_udf_services  			plugin_output_directory TESTUDFEXTENSIONSERVICES test_udf_extension_services
-group_replication  			plugin_output_directory GROUP_REPLICATION
-locking_service    			plugin_output_directory LOCKING_SERVICE
-version_token      			plugin_output_directory VERSION_TOKEN
-=======
 auth_test_plugin                        plugin_output_directory  no PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
 mysql_clone                             plugin_output_directory  no CLONE_PLUGIN    clone
 qa_auth_interface                       plugin_output_directory  no PLUGIN_AUTH_INTERFACE qa_auth_interface
@@ -124,6 +48,7 @@ mypluglib                               plugin_output_directory  no SIMPLE_PARSE
 libpluginmecab                          plugin_output_directory  no MECAB
 adt_null                                plugin_output_directory  no AUDIT_NULL
 keyring_udf                             plugin_output_directory  no KEYRING_UDF keyring_udf
+data_masking                            plugin_output_directory  no DATA_MASKING_PLUGIN data_masking
 keyring_file                            plugin_output_directory  no KEYRING_PLUGIN        keyring_file
 test_security_context                   plugin_output_directory  no TEST_SECURITY_CONTEXT  test_security_context
 libdaemon_example                       plugin_output_directory  no DAEMONEXAMPLE
@@ -142,7 +67,6 @@ test_udf_services  			plugin_output_directory  no TESTUDFEXTENSIONSERVICES test_
 group_replication  			plugin_output_directory  no GROUP_REPLICATION
 locking_service    			plugin_output_directory  no LOCKING_SERVICE
 version_token      			plugin_output_directory  no VERSION_TOKEN
->>>>>>> mysql-8.0.24
 # Test services framework
 libtest_services                        plugin_output_directory  no TESTSERVICES
 libtest_services_threaded               plugin_output_directory  no TESTSERVICESTHREADED
@@ -229,8 +153,10 @@ component_mysqlbackup           plugin_output_directory  no  MYSQLBACKUP_COMPONE
 component_query_attributes      plugin_output_directory  no  QUERY_ATTRIBUTES_COMPONENT
 
 # component_reference_cache
-<<<<<<< HEAD
-component_reference_cache      plugin_output_directory REFERENCE_CACHE_COMPONENT
+component_reference_cache      plugin_output_directory  no  REFERENCE_CACHE_COMPONENT
+
+# keyring file component
+component_keyring_file          plugin_output_directory  yes  KEYRING_FILE_COMPONENT component_keyring_file
 
 # Percona additions
 auth_socket        plugin_output_directory  SOCKET_AUTH
@@ -244,11 +170,3 @@ authentication_ldap_simple          plugin_output_directory  AUTH_LDAP          
 keyring_vault      plugin_output_directory      KEYRING_VAULT_PLUGIN keyring_vault
 test_udf_wrappers  plugin_output_directory  TEST_UDF_WRAPPERS_LIB
 binlog_utils_udf   plugin_output_directory  BINLOG_UTILS_UDF_LIB
-||||||| 7ed30a74896
-component_reference_cache      plugin_output_directory REFERENCE_CACHE_COMPONENT
-=======
-component_reference_cache      plugin_output_directory  no  REFERENCE_CACHE_COMPONENT
-
-# keyring file component
-component_keyring_file          plugin_output_directory  yes  KEYRING_FILE_COMPONENT component_keyring_file
->>>>>>> mysql-8.0.24

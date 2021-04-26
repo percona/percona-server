@@ -129,19 +129,11 @@ t1	CREATE TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-<<<<<<< HEAD
   `INFO` longtext,
   `TIME_MS` bigint NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
   `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
-||||||| 7ed30a74896
-  `INFO` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
-=======
-  `INFO` longtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
->>>>>>> mysql-8.0.24
 DROP TABLE t1;
 #########################################################
 # Issue WL#6599/HLS/6h): I_S schema/table name,

@@ -681,7 +681,6 @@ bool do_server_upgrade_checks(THD *thd) {
     return dd::end_transaction(thd, true);
   }
 
-<<<<<<< HEAD
   if (!error_count.has_too_many_errors()) {
     /*
       Get hold of the InnoDB handlerton. The check for partitioned tables
@@ -691,8 +690,7 @@ bool do_server_upgrade_checks(THD *thd) {
         ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
     handlerton *hton =
         (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
-    DBUG_ASSERT(hton != nullptr &&
-                hton->is_tablespace_keyring_pre_v3_encrypted);
+    assert(hton != nullptr && hton->is_tablespace_keyring_pre_v3_encrypted);
 
     /*
       Get hold of all tablespaces, keep the non-implicit InnoDB spaces
@@ -717,20 +715,7 @@ bool do_server_upgrade_checks(THD *thd) {
     }
   }
 
-  /*
-    If there are errors from any of the checks, we abort upgrade.
-  */
-  if (error_count.has_errors()) return dd::end_transaction(thd, true);
-
-||||||| 7ed30a74896
-  /*
-    If there are errors from any of the checks, we abort upgrade.
-  */
-  if (error_count.has_errors()) return dd::end_transaction(thd, true);
-
-=======
   thd->pop_internal_handler();
->>>>>>> mysql-8.0.24
   return false;
 }
 

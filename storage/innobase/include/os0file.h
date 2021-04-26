@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, 2017, Percona Inc.
-||||||| 7ed30a74896
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2021, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.0.24
+Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -350,16 +342,10 @@ class IORequest {
     /** We optimise cases where punch hole is not done if the compressed length
     of the page is the same as the original size of the page. Ignore such
     optimisations if this flag is set. */
-<<<<<<< HEAD
-    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024,
+    DISABLE_PUNCH_HOLE_OPTIMISATION = 2048,
 
     /** Force write of decrypted pages in encrypted tablespace. */
-    NO_ENCRYPTION = 2048
-||||||| 7ed30a74896
-    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024
-=======
-    DISABLE_PUNCH_HOLE_OPTIMISATION = 2048
->>>>>>> mysql-8.0.24
+    NO_ENCRYPTION = 4096
   };
 
   /** Default constructor */
@@ -384,18 +370,10 @@ class IORequest {
         m_compression(),
         m_encryption(),
         m_eblock(nullptr),
-<<<<<<< HEAD
         m_elen(0),
         m_is_page_zip_compressed(false),
         m_zip_page_physical_size(0) {
-    if (is_log()) {
-||||||| 7ed30a74896
-        m_elen(0) {
-    if (is_log()) {
-=======
-        m_elen(0) {
     if (is_log() || is_row_log()) {
->>>>>>> mysql-8.0.24
       disable_compression();
     }
 

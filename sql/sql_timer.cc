@@ -161,14 +161,8 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   if (thd_timer == nullptr && (thd_timer = thd_timer_create()) == nullptr)
     return nullptr;
 
-<<<<<<< HEAD
-  DBUG_ASSERT(!thd_timer->destroy);
-  DBUG_ASSERT(!thd_timer->thread_id);
-||||||| 7ed30a74896
-  DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
-=======
-  assert(!thd_timer->destroy && !thd_timer->thread_id);
->>>>>>> mysql-8.0.24
+  assert(!thd_timer->destroy);
+  assert(!thd_timer->thread_id);
 
   /* Mark the notification as pending. */
   thd_timer->thread_id = thd->thread_id();

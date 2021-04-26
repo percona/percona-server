@@ -16379,7 +16379,7 @@ alter_instance_action:
             $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR, 0);
           }
         | RELOAD KEYRING_SYM {
-            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR, 0);
           }
         ;
 

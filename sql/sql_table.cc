@@ -2225,19 +2225,9 @@ static bool rm_table_eval_gtid_and_table_groups_state(
           which are not logged (previous 'if' would detect them).
           Such temporary tables will be just dropped, but not logged.
         */
-<<<<<<< HEAD
-        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables_to_binlog());
-        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables_to_binlog());
-        DBUG_ASSERT(!drop_ctx->has_tmp_nonexistent_tables());
-||||||| 7ed30a74896
-        DBUG_ASSERT(!drop_ctx->has_tmp_trans_tables());
-        DBUG_ASSERT(!drop_ctx->has_tmp_non_trans_tables());
-        DBUG_ASSERT(!drop_ctx->has_tmp_nonexistent_tables());
-=======
-        assert(!drop_ctx->has_tmp_trans_tables());
-        assert(!drop_ctx->has_tmp_non_trans_tables());
+        assert(!drop_ctx->has_tmp_trans_tables_to_binlog());
+        assert(!drop_ctx->has_tmp_non_trans_tables_to_binlog());
         assert(!drop_ctx->has_tmp_nonexistent_tables());
->>>>>>> mysql-8.0.24
         drop_ctx->gtid_and_table_groups_state =
             Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;
       } else if ((drop_ctx->has_base_atomic_tables() ||
@@ -7120,16 +7110,8 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     key_info->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
 #ifndef NDEBUG
   decltype(key_info->flags) flags_before_switch = key_info->flags;
-<<<<<<< HEAD
-#endif /* DBUG_OFF */
-  switch (static_cast<int>(key->type)) {
-||||||| 7ed30a74896
-#endif /* DBUG_OFF */
-  switch (key->type) {
-=======
 #endif /* NDEBUG */
-  switch (key->type) {
->>>>>>> mysql-8.0.24
+  switch (static_cast<int>(key->type)) {
     case KEYTYPE_MULTIPLE:
       break;
     case KEYTYPE_FULLTEXT:
@@ -15327,17 +15309,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
           Should already have been checked in
           transfer_preexisting_foreign_keys().
         */
-<<<<<<< HEAD
-        DBUG_ASSERT(false);
-||||||| 7ed30a74896
-        DBUG_ASSERT(false);
-      default:
-        DBUG_ASSERT(0);
-=======
         assert(false);
-      default:
-        assert(0);
->>>>>>> mysql-8.0.24
     }
   }
 

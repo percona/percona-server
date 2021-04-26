@@ -398,19 +398,11 @@ bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2) {
   return false;
 }
 
-<<<<<<< HEAD
 void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
   my_bitmap_map *to = map->bitmap, *from = map2->bitmap, *end;
   uint len = no_words_in_map(map), len2 = no_words_in_map(map2);
-||||||| 7ed30a74896
-void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
-  DBUG_ASSERT(to->bitmap && from->bitmap);
-=======
-void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
-  assert(to->bitmap && from->bitmap);
->>>>>>> mysql-8.0.24
 
-  DBUG_ASSERT(map->bitmap && map2->bitmap);
+  assert(map->bitmap && map2->bitmap);
 
   end = to + std::min(len, len2);
   for (; to < end; to++, from++) *to &= *from;

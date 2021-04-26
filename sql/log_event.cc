@@ -1,13 +1,7 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2009, 2016, MariaDB
-||||||| 7ed30a74896
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
-=======
    Copyright (c) 2000, 2021, Oracle and/or its affiliates.
->>>>>>> mysql-8.0.24
+   Copyright (c) 2018, Percona and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1246,8 +1240,7 @@ bool Log_event::need_checksum() {
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options)
             : binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
-<<<<<<< HEAD
-  DBUG_ASSERT(
+  assert(
       !ret ||
       ((common_footer->checksum_alg ==
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
@@ -1279,70 +1272,6 @@ bool Log_event::need_checksum() {
         */
         get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
        common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
-||||||| 7ed30a74896
-  DBUG_ASSERT(
-      !ret ||
-      ((common_footer->checksum_alg ==
-            static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
-        /*
-           Stop event closes the relay-log and its checksum alg
-           preference is set by the caller can be different
-           from the server's binlog_checksum_options.
-        */
-        get_type_code() == binary_log::STOP_EVENT ||
-        /*
-           Rotate:s can be checksummed regardless of the server's
-           binlog_checksum_options. That applies to both
-           the local RL's Rotate and the master's Rotate
-           which IO thread instantiates via queue_binlog_ver_3_event.
-        */
-        get_type_code() == binary_log::ROTATE_EVENT ||
-        /*
-           The previous event has its checksum option defined
-           according to the format description event.
-        */
-        get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
-        /* FD is always checksummed */
-        get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-        /*
-           View_change_log_event is queued into relay log by the
-           local member, which may have a different checksum algorithm
-           than the one of the event source.
-        */
-        get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
-       common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
-=======
-  assert(!ret ||
-         ((common_footer->checksum_alg ==
-               static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
-           /*
-              Stop event closes the relay-log and its checksum alg
-              preference is set by the caller can be different
-              from the server's binlog_checksum_options.
-           */
-           get_type_code() == binary_log::STOP_EVENT ||
-           /*
-              Rotate:s can be checksummed regardless of the server's
-              binlog_checksum_options. That applies to both
-              the local RL's Rotate and the master's Rotate
-              which IO thread instantiates via queue_binlog_ver_3_event.
-           */
-           get_type_code() == binary_log::ROTATE_EVENT ||
-           /*
-              The previous event has its checksum option defined
-              according to the format description event.
-           */
-           get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
-           /* FD is always checksummed */
-           get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-           /*
-              View_change_log_event is queued into relay log by the
-              local member, which may have a different checksum algorithm
-              than the one of the event source.
-           */
-           get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
-          common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
->>>>>>> mysql-8.0.24
 
   assert(common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   assert(((get_type_code() != binary_log::ROTATE_EVENT &&
@@ -1525,17 +1454,9 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
           (unsigned long)hexdump_from, ptr[0], ptr[1], ptr[2], ptr[3], ptr[4],
           ptr[5], ptr[6], ptr[7], ptr[8], ptr[9], ptr[10], ptr[11], ptr[12],
           ptr[13], ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
-<<<<<<< HEAD
-      DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
-      DBUG_ASSERT(write_res == 0);
-||||||| 7ed30a74896
-      DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar *)emit_buf, bytes_written);
-=======
       assert(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar *)emit_buf, bytes_written);
->>>>>>> mysql-8.0.24
+      write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
+      assert(write_res == 0);
       ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
       hexdump_from += LOG_EVENT_MINIMAL_HEADER_LEN;
     }
@@ -1559,17 +1480,9 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
             snprintf(emit_buf, sizeof(emit_buf), "# %8.8lx %-48.48s |%16s|\n",
                      (unsigned long)(hexdump_from + (i & 0xfffffff0)),
                      hex_string, char_string);
-<<<<<<< HEAD
-        DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-        write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
-        DBUG_ASSERT(write_res == 0);
-||||||| 7ed30a74896
-        DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-        my_b_write(file, (uchar *)emit_buf, bytes_written);
-=======
         assert(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-        my_b_write(file, (uchar *)emit_buf, bytes_written);
->>>>>>> mysql-8.0.24
+        write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
+        assert(write_res == 0);
         hex_string[0] = 0;
         char_string[0] = 0;
         c = char_string;
@@ -1587,24 +1500,16 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
           snprintf(emit_buf, sizeof(emit_buf), "# %8.8lx %-48.48s |%s|\n",
                    (unsigned long)(hexdump_from + (i & 0xfffffff0)), hex_string,
                    char_string);
-<<<<<<< HEAD
-      DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
-      DBUG_ASSERT(write_res == 0);
-||||||| 7ed30a74896
-      DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar *)emit_buf, bytes_written);
-=======
       assert(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar *)emit_buf, bytes_written);
->>>>>>> mysql-8.0.24
+      write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
+      assert(write_res == 0);
     }
     /*
       need a # to prefix the rest of printouts for example those of
       Rows_log_event::print_helper().
     */
     write_res = my_b_write(file, reinterpret_cast<const uchar *>("# "), 2);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
 }
 
@@ -4347,18 +4252,10 @@ void Query_log_event::print_query_header(
     end += sprintf(end, ".%06d", (int)common_header->when.tv_usec);
   end = my_stpcpy(end, print_event_info->delimiter);
   *end++ = '\n';
-<<<<<<< HEAD
-  DBUG_ASSERT(end < buff + sizeof(buff));
+  assert(end < buff + sizeof(buff));
   MY_ATTRIBUTE((unused))
   int write_res = my_b_write(file, (uchar *)buff, (uint)(end - buff));
-  DBUG_ASSERT(write_res == 0);
-||||||| 7ed30a74896
-  DBUG_ASSERT(end < buff + sizeof(buff));
-  my_b_write(file, (uchar *)buff, (uint)(end - buff));
-=======
-  assert(end < buff + sizeof(buff));
-  my_b_write(file, (uchar *)buff, (uint)(end - buff));
->>>>>>> mysql-8.0.24
+  assert(write_res == 0);
   if (!print_event_info->require_row_format &&
       (!print_event_info->thread_id_printed ||
        ((common_header->flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
@@ -4947,21 +4844,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           query_start_status = thd->status_var;
         }
 
-<<<<<<< HEAD
-        /*
-          Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
-        */
-        thd->reset_rewritten_query();
         dispatch_sql_command(thd, &parser_state, true);
-||||||| 7ed30a74896
-        /*
-          Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
-        */
-        thd->reset_rewritten_query();
-        dispatch_sql_command(thd, &parser_state);
-=======
-        dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.0.24
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -10176,15 +10059,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         break;
 
       case ROW_LOOKUP_NOT_NEEDED:
-<<<<<<< HEAD
-        DBUG_ASSERT(get_general_type_code() == binary_log::WRITE_ROWS_EVENT ||
-                    get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
-                    get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
-||||||| 7ed30a74896
-        DBUG_ASSERT(get_general_type_code() == binary_log::WRITE_ROWS_EVENT);
-=======
-        assert(get_general_type_code() == binary_log::WRITE_ROWS_EVENT);
->>>>>>> mysql-8.0.24
+        assert(get_general_type_code() == binary_log::WRITE_ROWS_EVENT ||
+               get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
+               get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
 
         /* No need to scan for rows, just apply it */
         do_apply_row_ptr = &Rows_log_event::do_apply_row;
@@ -12497,17 +12374,11 @@ int Delete_rows_log_event::do_after_row_operations(
 
 int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
   int error;
-<<<<<<< HEAD
-  DBUG_ASSERT(m_table != nullptr);
+  assert(m_table != nullptr);
   if (m_rows_lookup_algorithm == ROW_LOOKUP_NOT_NEEDED) {
     error = unpack_current_row(rli, &m_cols, false, false);
     if (error) return error;
   }
-||||||| 7ed30a74896
-  DBUG_ASSERT(m_table != nullptr);
-=======
-  assert(m_table != nullptr);
->>>>>>> mysql-8.0.24
   /* m_table->record[0] contains the BI */
   m_table->mark_columns_per_binlog_row_image(thd);
   error = m_table->file->ha_delete_row(m_table->record[0]);

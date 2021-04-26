@@ -134,7 +134,8 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
                          double num_rows, double worst_seeks) {
   // Limit the number of matched rows
   num_rows = std::min(num_rows, double(thd->variables.max_seeks_for_key));
-  if (table->covering_keys.is_set(keyno)) {
+  if (table->covering_keys.is_set(keyno) ||
+      (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);
@@ -463,48 +464,9 @@ Key_use *Optimize_table_order::find_best_ref(
               cur_fanout = (double)table->quick_rows[key];
             }
           }
-<<<<<<< HEAD
-          // Limit the number of matched rows
-          const double tmp_fanout =
-              min(cur_fanout, (double)thd->variables.max_seeks_for_key);
-          if (table->covering_keys.is_set(key) ||
-              (table->file->index_flags(key, 0, 0) & HA_CLUSTERED_INDEX)) {
-            // We can use only index tree
-            const Cost_estimate index_read_cost =
-                table->file->index_scan_cost(key, 1, tmp_fanout);
-            cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
-          } else if (key == table->s->primary_key &&
-                     table->file->primary_key_is_clustered()) {
-            const Cost_estimate table_read_cost =
-                table->file->read_cost(key, 1, tmp_fanout);
-            cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
-          } else
-            cur_read_cost = prefix_rowcount *
-                            min(table->cost_model()->page_read_cost(tmp_fanout),
-                                tab->worst_seeks);
-||||||| 7ed30a74896
-          // Limit the number of matched rows
-          const double tmp_fanout =
-              min(cur_fanout, (double)thd->variables.max_seeks_for_key);
-          if (table->covering_keys.is_set(key)) {
-            // We can use only index tree
-            const Cost_estimate index_read_cost =
-                table->file->index_scan_cost(key, 1, tmp_fanout);
-            cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
-          } else if (key == table->s->primary_key &&
-                     table->file->primary_key_is_clustered()) {
-            const Cost_estimate table_read_cost =
-                table->file->read_cost(key, 1, tmp_fanout);
-            cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
-          } else
-            cur_read_cost = prefix_rowcount *
-                            min(table->cost_model()->page_read_cost(tmp_fanout),
-                                tab->worst_seeks);
-=======
           cur_read_cost =
               prefix_rowcount *
               find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
->>>>>>> mysql-8.0.24
         }
       } else if ((found_part & 1) &&
                  (!(table->file->index_flags(key, 0, false) &
@@ -667,49 +629,10 @@ Key_use *Optimize_table_order::find_best_ref(
           }
         }
 
-<<<<<<< HEAD
-        // Limit the number of matched rows
-        tmp_fanout =
-            std::min(tmp_fanout, double(thd->variables.max_seeks_for_key));
-        if (table->covering_keys.is_set(key) ||
-            (table->file->index_flags(key, 0, 0) & HA_CLUSTERED_INDEX)) {
-          // We can use only index tree
-          const Cost_estimate index_read_cost =
-              table->file->index_scan_cost(key, 1, tmp_fanout);
-          cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
-        } else if (key == table->s->primary_key &&
-                   table->file->primary_key_is_clustered()) {
-          const Cost_estimate table_read_cost =
-              table->file->read_cost(key, 1, tmp_fanout);
-          cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
-        } else
-          cur_read_cost = prefix_rowcount *
-                          min(table->cost_model()->page_read_cost(tmp_fanout),
-                              tab->worst_seeks);
-||||||| 7ed30a74896
-        // Limit the number of matched rows
-        tmp_fanout =
-            std::min(tmp_fanout, double(thd->variables.max_seeks_for_key));
-        if (table->covering_keys.is_set(key)) {
-          // We can use only index tree
-          const Cost_estimate index_read_cost =
-              table->file->index_scan_cost(key, 1, tmp_fanout);
-          cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
-        } else if (key == table->s->primary_key &&
-                   table->file->primary_key_is_clustered()) {
-          const Cost_estimate table_read_cost =
-              table->file->read_cost(key, 1, tmp_fanout);
-          cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
-        } else
-          cur_read_cost = prefix_rowcount *
-                          min(table->cost_model()->page_read_cost(tmp_fanout),
-                              tab->worst_seeks);
-=======
         cur_read_cost =
             prefix_rowcount *
             find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
 
->>>>>>> mysql-8.0.24
       } else {
         // No useful predicates on the first keypart; cannot use key
         trace_access_idx.add("usable", false).add("chosen", false);
@@ -3460,19 +3383,9 @@ bool Optimize_table_order::fix_semijoin_strategies() {
           (join->best_positions + last_inner)->table->emb_sj_nest;
       const uint table_count = my_count_bits(sjm_nest->sj_inner_tables);
       first = last_inner - table_count + 1;
-<<<<<<< HEAD
-      DBUG_ASSERT((join->best_positions + first)->table->emb_sj_nest ==
-                  sjm_nest);
+      assert((join->best_positions + first)->table->emb_sj_nest == sjm_nest);
       memcpy(static_cast<void *>(join->best_positions +
                                  first),  // stale semijoin strategy here too
-||||||| 7ed30a74896
-      DBUG_ASSERT((join->best_positions + first)->table->emb_sj_nest ==
-                  sjm_nest);
-      memcpy(join->best_positions + first,  // stale semijoin strategy here too
-=======
-      assert((join->best_positions + first)->table->emb_sj_nest == sjm_nest);
-      memcpy(join->best_positions + first,  // stale semijoin strategy here too
->>>>>>> mysql-8.0.24
              sjm_nest->nested_join->sjm.positions,
              sizeof(POSITION) * table_count);
       join->best_positions[first].sj_strategy = SJ_OPT_MATERIALIZE_SCAN;

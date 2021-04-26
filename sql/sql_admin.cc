@@ -1294,16 +1294,7 @@ static bool mysql_admin_table(
         */
         if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
-<<<<<<< HEAD
       } else if ((!skip_flush && open_for_modify) || fatal_error) {
-        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
-                         table->table_name, false);
-||||||| 7ed30a74896
-      } else if (open_for_modify || fatal_error) {
-        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
-                         table->table_name, false);
-=======
-      } else if (open_for_modify || fatal_error) {
         if (operator_func == &handler::ha_analyze)
           /*
             Force update of key distribution statistics in rec_per_key array and
@@ -1319,7 +1310,6 @@ static bool mysql_admin_table(
         else
           tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
                            table->table_name, false);
->>>>>>> mysql-8.0.24
       } else {
         /*
           Reset which partitions that should be processed

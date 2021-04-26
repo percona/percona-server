@@ -1020,8 +1020,7 @@ class Sys_var_lexstring : public Sys_var_charptr {
   }
 };
 
-<<<<<<< HEAD
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static inline void trigger_buffer_overrun() {
   int *mem = static_cast<int *>(my_malloc(127, 0, MYF(0)));
@@ -1054,11 +1053,6 @@ class Debug_shutdown_actions {
   }
 };
 
-||||||| 7ed30a74896
-#ifndef DBUG_OFF
-=======
-#ifndef NDEBUG
->>>>>>> mysql-8.0.24
 /**
   @@session.dbug and @@global.dbug variables.
 

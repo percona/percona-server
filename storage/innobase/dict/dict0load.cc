@@ -1368,25 +1368,16 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
     */
     if (fsp_is_system_or_temp_tablespace(space_id) ||
         fsp_is_undo_tablespace(space_id) ||
-<<<<<<< HEAD
         !fsp_is_shared_tablespace(fsp_flags)) {
       continue;
     }
 
     // For tables in cache check if they contain crypt_data in page0
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, NULL, 0)) {
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
         mtr_commit(&mtr);
         return std::make_pair(true, 0);  // will cause upgrade to fail
       }
-||||||| 7ed30a74896
-        !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
-                                0)) {
-=======
-        !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true)) {
->>>>>>> mysql-8.0.24
       continue;
     }
 
@@ -1408,18 +1399,9 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
     }
 
     /* Check that the .ibd file exists. */
-<<<<<<< HEAD
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, space_name, filepath,
-                               true, true, keyring_encryption_info);
-||||||| 7ed30a74896
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, space_name, filepath, true, true);
-=======
-    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, filepath, true, true);
->>>>>>> mysql-8.0.24
+                               fsp_flags, space_name, filepath, true, true,
+                               keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
@@ -1688,22 +1670,13 @@ std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
     }
 
     /* Check that the .ibd file exists. */
-<<<<<<< HEAD
     Keyring_encryption_info keyring_encryption_info;
 
     // We do not need to validate tablespace for online encryption as encryption
     // threads do not work in 5.7. Only ENCRYPTION='KEYRING' works.
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, tbl_name, filepath, true,
-                               true, keyring_encryption_info);
-||||||| 7ed30a74896
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, tbl_name, filepath, true, true);
-=======
-    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, filepath, true, true);
->>>>>>> mysql-8.0.24
+                               fsp_flags, space_name, filepath, true, true,
+                               keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
@@ -2454,14 +2427,8 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   upgrade */
   Keyring_encryption_info keyring_encryption_info;
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-<<<<<<< HEAD
-                             space_name, tbl_name, filepath, true, true,
+                             space_name, filepath, true, true,
                              keyring_encryption_info);
-||||||| 7ed30a74896
-                             space_name, tbl_name, filepath, true, true);
-=======
-                             space_name, filepath, true, true);
->>>>>>> mysql-8.0.24
 
   if (err != DB_SUCCESS) {
     /* We failed to find a sensible tablespace file */

@@ -669,17 +669,9 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
 
   if (query_result() != nullptr) query_result()->estimated_rowcount = 0;
 
-<<<<<<< HEAD
-  for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
-    DBUG_ASSERT(cleaned == UC_DIRTY);
-    thd->lex->set_current_select(sl);
-||||||| 7ed30a74896
-  for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
-    thd->lex->set_current_select(sl);
-=======
   for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
+    assert(cleaned == UC_DIRTY);
     thd->lex->set_current_query_block(sl);
->>>>>>> mysql-8.0.24
 
     // LIMIT is required for optimization
     if (set_limit(thd, sl)) return true; /* purecov: inspected */

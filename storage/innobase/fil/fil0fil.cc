@@ -4014,13 +4014,9 @@ void Fil_shard::close_all_files() {
 
 /** Close all open files. */
 void Fil_system::close_all_files() {
-<<<<<<< HEAD
   Fil_system::wait_for_changed_page_tracker();
 
-||||||| 7ed30a74896
-=======
 #ifndef UNIV_HOTBACKUP
->>>>>>> mysql-8.0.24
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   bool should_validate_space_reference_count = srv_fast_shutdown == 0;
   DBUG_EXECUTE_IF("buf_disable_space_reference_count_check",
@@ -4621,19 +4617,11 @@ dberr_t Fil_shard::wait_for_pending_operations(space_id_t space_id,
 
     mutex_release();
 
-<<<<<<< HEAD
     if (count == 0) {
       break;
-||||||| 7ed30a74896
-    if (count > 0) {
-      os_thread_sleep(20000);
-=======
-    if (count > 0) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
->>>>>>> mysql-8.0.24
     }
 
-    os_thread_sleep(20000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mutex_acquire();
 
   } while (count > 0);
@@ -6175,40 +6163,10 @@ static dberr_t fil_create_tablespace(
   return err;
 }
 
-<<<<<<< HEAD
-/** Create an IBD tablespace file.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name in dbname/tablename format.
-                                For general tablespaces, the 'dbname/' part
-                                may be missing.
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBD_FILE_INITIAL_SIZE
-@param[in]      mode            keyring encryption mode
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-@return DB_SUCCESS or error code */
 dberr_t fil_ibd_create(
     space_id_t space_id, const char *name, const char *path, uint32_t flags,
     page_no_t size, const fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-||||||| 7ed30a74896
-/** Create an IBD tablespace file.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name in dbname/tablename format.
-                                For general tablespaces, the 'dbname/' part
-                                may be missing.
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBD_FILE_INITIAL_SIZE
-@return DB_SUCCESS or error code */
-dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
-                       uint32_t flags, page_no_t size) {
-=======
-dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
-                       uint32_t flags, page_no_t size) {
->>>>>>> mysql-8.0.24
   ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
   ut_ad(!srv_read_only_mode);
   return fil_create_tablespace(space_id, name, path, flags, size,
@@ -6224,74 +6182,11 @@ dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
                                KeyringEncryptionKeyIdInfo());
 }
 
-<<<<<<< HEAD
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages) {
-  auto space = fil_space_get(old_space_id);
-  std::string space_name(space->name);
-  std::string file_name(space->files.front().name);
-
-  /* Mark the old tablespace to be deleted. We defer the actual deletion
-  to avoid concurrency bottleneck.  Leave the pages in the buffer pool
-  and increment the space version number. */
-  auto err = fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE);
-
-  if (err != DB_SUCCESS) {
-    return false;
-  }
-
-  ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
-  /* Create the new UNDO tablespace. */
-  err = fil_create_tablespace(new_space_id, space_name.c_str(),
-                              file_name.c_str(), flags, size_in_pages,
-                              FIL_TYPE_TABLESPACE, FIL_ENCRYPTION_DEFAULT,
-                              KeyringEncryptionKeyIdInfo());
-
-  return (err == DB_SUCCESS);
-}
-
-||||||| 7ed30a74896
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages) {
-  auto space = fil_space_get(old_space_id);
-  std::string space_name(space->name);
-  std::string file_name(space->files.front().name);
-
-  /* Mark the old tablespace to be deleted. We defer the actual deletion
-  to avoid concurrency bottleneck.  Leave the pages in the buffer pool
-  and increment the space version number. */
-  auto err = fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE);
-
-  if (err != DB_SUCCESS) {
-    return false;
-  }
-
-  ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
-  /* Create the new UNDO tablespace. */
-  err =
-      fil_create_tablespace(new_space_id, space_name.c_str(), file_name.c_str(),
-                            flags, size_in_pages, FIL_TYPE_TABLESPACE);
-
-  return (err == DB_SUCCESS);
-}
-
-=======
->>>>>>> mysql-8.0.24
 #ifndef UNIV_HOTBACKUP
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
                      uint32_t flags, const char *space_name,
-<<<<<<< HEAD
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space,
+                     const char *path_in, bool strict, bool old_space,
                      Keyring_encryption_info &keyring_encryption_info) {
-||||||| 7ed30a74896
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space) {
-=======
-                     const char *path_in, bool strict, bool old_space) {
->>>>>>> mysql-8.0.24
   Datafile df;
   bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
   bool for_import = (purpose == FIL_TYPE_IMPORT);
@@ -8967,15 +8862,8 @@ dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
   }
 #endif
 
-<<<<<<< HEAD
-  return shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
-                      message, trx, should_buffer);
-||||||| 7ed30a74896
-  return shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
-                      message);
-=======
   auto const err = shard->do_io(type, sync, page_id, page_size, byte_offset,
-                                len, buf, message);
+                                len, buf, message, trx, should_buffer);
 #ifdef UNIV_DEBUG
   /* If the error prevented async io, then we haven't actually transfered the
   io responsibility at all, so we revert the debug io responsibility info. */
@@ -8984,7 +8872,6 @@ dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
   }
 #endif
   return err;
->>>>>>> mysql-8.0.24
 }
 
 /** If the tablespace is on the unflushed list and there are no pending

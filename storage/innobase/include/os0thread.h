@@ -68,87 +68,6 @@ class IB_thread {
   void set_state(State state);
 };
 
-<<<<<<< HEAD
-/** Operating system thread native handle */
-using os_thread_id_t = std::thread::native_handle_type;
-
-#ifdef UNIV_LINUX
-/** An alias for pid_t on Linux, where setpriority() accepts thread id
-of this type and not pthread_t */
-using os_tid_t = pid_t;
-#else
-using os_tid_t = os_thread_id_t;
-#endif
-
-/** Returns the thread identifier of current thread. Currently the thread
-identifier in Unix is the thread handle itself.
-@return current thread native handle */
-os_thread_id_t os_thread_get_curr_id();
-
-bool os_thread_set_priority(int priority);
-
-void os_thread_set_priority(int priority, const char *thread_name);
-
-/** Return the thread handle. The purpose of this function is to cast the
-native handle to an integer type for consistency
-@return the current thread ID cast to an uint64_t */
-#define os_thread_handle() ((uint64_t)(os_thread_get_curr_id()))
-
-/** Compares two thread ids for equality.
-@param[in]	lhs	OS thread or thread id
-@param[in]	rhs	OS thread or thread id
-return true if equal */
-#define os_thread_eq(lhs, rhs) ((lhs) == (rhs))
-
-/** Advises the OS to give up remainder of the thread's time slice. */
-#define os_thread_yield()      \
-  do {                         \
-    std::this_thread::yield(); \
-  } while (false)
-
-/** The thread sleeps at least the time given in microseconds.
-@param[in]	usecs		time in microseconds */
-#define os_thread_sleep(usecs)                                     \
-  do {                                                             \
-    std::this_thread::sleep_for(std::chrono::microseconds(usecs)); \
-  } while (false)
-||||||| 7ed30a74896
-/** Operating system thread native handle */
-using os_thread_id_t = std::thread::native_handle_type;
-
-/** Returns the thread identifier of current thread. Currently the thread
-identifier in Unix is the thread handle itself.
-@return current thread native handle */
-os_thread_id_t os_thread_get_curr_id();
-
-bool os_thread_set_priority(int priority);
-
-void os_thread_set_priority(int priority, const char *thread_name);
-
-/** Return the thread handle. The purpose of this function is to cast the
-native handle to an integer type for consistency
-@return the current thread ID cast to an uint64_t */
-#define os_thread_handle() ((uint64_t)(os_thread_get_curr_id()))
-
-/** Compares two thread ids for equality.
-@param[in]	lhs	OS thread or thread id
-@param[in]	rhs	OS thread or thread id
-return true if equal */
-#define os_thread_eq(lhs, rhs) ((lhs) == (rhs))
-
-/** Advises the OS to give up remainder of the thread's time slice. */
-#define os_thread_yield()      \
-  do {                         \
-    std::this_thread::yield(); \
-  } while (false)
-
-/** The thread sleeps at least the time given in microseconds.
-@param[in]	usecs		time in microseconds */
-#define os_thread_sleep(usecs)                                     \
-  do {                                                             \
-    std::this_thread::sleep_for(std::chrono::microseconds(usecs)); \
-  } while (false)
-=======
 /** Returns the string representation of the thread ID supplied. It uses the
  only standard-compliant way of printing the thread ID.
  @param thread_id The thread ID to convert to string.
@@ -157,6 +76,14 @@ return true if equal */
  be ignored.
 */
 std::string to_string(std::thread::id thread_id, bool hex_value = false);
+
+#ifdef UNIV_LINUX
+/** An alias for pid_t on Linux, where setpriority() accepts thread id
+of this type and not pthread_t */
+using os_tid_t = pid_t;
+#else
+using os_tid_t = os_thread_id_t;
+#endif
 
 /** A class to allow any trivially copyable object to be XOR'ed. Trivially
 copyable according to
@@ -220,7 +147,6 @@ using Xor_digit_for_thread_id =
 /** A type to store XORed objects of type std::thread::id */
 using Atomic_xor_of_thread_id =
     Atomic_xor_of_things<std::thread::id, Xor_digit_for_thread_id>;
->>>>>>> mysql-8.0.24
 
 /** Returns the system-specific thread identifier of current
 thread. On Linux, returns tid. On other systems currently returns

@@ -2242,7 +2242,7 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
           sys_space->crypt_data->key_id = 10;
           while (DBUG_EVALUATE_IF("wait_for_ts1_to_be_considered_for_rotation",
                                   true, false))
-            os_thread_sleep(1000);
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
           sys_space->crypt_data->key_id = key_id;
         });
 
@@ -2374,7 +2374,7 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
                 crypt_data->key_id = 10;
                 while (
                     DBUG_EVALUATE_IF("hang_on_ts_hang_rotation", true, false))
-                  os_thread_sleep(1000);
+                  std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 crypt_data->key_id = key_id;
               });
 
@@ -3069,8 +3069,7 @@ class TransactionAndHeapGuard {
 
     // This should only wait in rare cases
     while (!rw_lock_x_lock_nowait(dict_operation_lock)) {
-      // os_thread_sleep(6000);
-      os_thread_sleep(6);
+      std::this_thread::sleep_for(std::chrono::microseconds(6));
       if (space->stop_new_ops)  // space is about to be dropped
         return false;           // do not try to lock the DD
     }
@@ -3563,7 +3562,7 @@ void fil_crypt_thread() {
     if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       return;
     }
-    os_thread_sleep(1000000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
 
   /* state of this thread */
@@ -3827,7 +3826,7 @@ void fil_space_crypt_close_tablespace(const fil_space_t *space) {
     /* wakeup throttle (all) sleepers */
     os_event_set(fil_crypt_throttle_sleep_event);
 
-    os_thread_sleep(20000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     // dict_mutex_enter_for_mysql();
 
     mutex_enter(&crypt_data->mutex);

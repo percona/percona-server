@@ -1360,9 +1360,9 @@ loop:
     const auto priority = srv_current_thread_priority;
 
     if (n_iterations < 3) {
-      os_thread_yield();
+      std::this_thread::yield();
       if (!priority) {
-        os_thread_yield();
+        std::this_thread::yield();
       }
     } else {
       ulint i, b;
@@ -1380,8 +1380,9 @@ loop:
       if (b > MAX_FREE_LIST_BACKOFF_SLEEP) {
         b = MAX_FREE_LIST_BACKOFF_SLEEP;
       }
-      os_thread_sleep(b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
-                                    : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER));
+      std::this_thread::sleep_for(std::chrono::microseconds(
+          b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
+                        : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER)));
     }
 
     buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time,

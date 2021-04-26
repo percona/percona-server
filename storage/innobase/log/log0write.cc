@@ -2132,7 +2132,8 @@ static void log_writer_wait_on_tracker(log_t &log, lsn_t last_write_lsn,
           << lsn_diff << " bytes, tracked LSN: " << tracked_lsn;
     }
     count++;
-    os_thread_sleep(SLEEP_BETWEEN_RETRIES_IN_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SLEEP_BETWEEN_RETRIES_IN_US));
 
     MONITOR_INC(MONITOR_LOG_WRITER_ON_TRACKER_WAITS);
 

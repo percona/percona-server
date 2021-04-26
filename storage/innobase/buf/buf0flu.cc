@@ -3633,8 +3633,8 @@ static void buf_lru_manager_sleep_if_needed(
   const auto cur_time = ut_time_monotonic_ms();
 
   if (next_loop_time > cur_time) {
-    os_thread_sleep(std::min(int64_t{1000000L},
-                             (next_loop_time - cur_time) * int64_t{1000}));
+    std::this_thread::sleep_for(std::chrono::milliseconds(
+        std::min(int64_t{1000L}, next_loop_time - cur_time)));
   }
 }
 

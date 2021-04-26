@@ -6459,7 +6459,7 @@ static bool dd_update_tablespace_props(
     if (handle_timeout_or_space_drop()) {
       return true;
     }
-    os_thread_sleep(lock_wait_timeout);
+    std::this_thread::sleep_for(std::chrono::microseconds(lock_wait_timeout));
     waited_so_far_for_lock += lock_wait_timeout;
   }
 
@@ -6475,7 +6475,7 @@ static bool dd_update_tablespace_props(
     if (handle_timeout_or_space_drop()) {
       return true;
     }
-    os_thread_sleep(lock_wait_timeout);
+    std::this_thread::sleep_for(std::chrono::microseconds(lock_wait_timeout));
     waited_so_far_for_lock += lock_wait_timeout;
   }
 

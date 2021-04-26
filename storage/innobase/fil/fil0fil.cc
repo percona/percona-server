@@ -3295,7 +3295,7 @@ There must not be any pending I/O's or flushes on the files.
 void Fil_shard::space_free_low(fil_space_t *&space) {
   /* Wait for fil_space_t::release_for_io(); */
   while (space->n_pending_ios) {
-    os_thread_sleep(100);
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 
 #ifndef UNIV_HOTBACKUP

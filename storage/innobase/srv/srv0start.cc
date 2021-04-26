@@ -3609,7 +3609,7 @@ void srv_pre_dd_shutdown() {
         << "Waiting for"
            " keyring encryption threads"
            " to exit";
-    os_thread_sleep(1000000);  // 1s
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
 
   srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);

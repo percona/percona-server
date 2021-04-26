@@ -82,7 +82,7 @@ std::string to_string(std::thread::id thread_id, bool hex_value = false);
 of this type and not pthread_t */
 using os_tid_t = pid_t;
 #else
-using os_tid_t = os_thread_id_t;
+using os_tid_t = std::thread::id;
 #endif
 
 /** A class to allow any trivially copyable object to be XOR'ed. Trivially

@@ -755,9 +755,8 @@ void JT_data_source::cleanup() {
   producing_records = false;
 }
 
-Table_function_sequence::Table_function_sequence(THD *thd_arg,
-                                                 const char *alias, Item *a)
-    : Table_function(thd_arg),
+Table_function_sequence::Table_function_sequence(const char *alias, Item *a)
+    : Table_function(),
       m_table_alias(alias),
       m_source(a),
       m_vt_list(),
@@ -810,7 +809,7 @@ table_map Table_function_sequence::used_tables() {
   return m_source->used_tables();
 }
 
-bool Table_function_sequence::print(String *str,
+bool Table_function_sequence::print(const THD *thd, String *str,
                                     enum_query_type query_type) const {
   if (str->append(STRING_WITH_LEN("sequence_table("))) return true;
   m_source->print(thd, str, query_type);
@@ -828,7 +827,7 @@ bool Table_function_sequence::do_init_args() {
   DBUG_ASSERT(!m_upper_bound_precalculated);
 
   Item *dummy = m_source;
-  if (m_source->fix_fields(thd, &dummy)) return true;
+  if (m_source->fix_fields(current_thd, &dummy)) return true;
 
   DBUG_ASSERT(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (m_source->has_aggregation() || m_source->has_subquery() ||

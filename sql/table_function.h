@@ -436,7 +436,7 @@ class Table_function_sequence final : public Table_function {
   static constexpr const char *value_field_name = "value";
 
  public:
-  Table_function_sequence(THD *thd_arg, const char *alias, Item *a);
+  Table_function_sequence(const char *alias, Item *a);
 
   /**
     Returns function's name
@@ -475,7 +475,8 @@ class Table_function_sequence final : public Table_function {
       true  on error
       false on success
   */
-  virtual bool print(String *str, enum_query_type query_type) const override;
+  virtual bool print(const THD *thd, String *str,
+                     enum_query_type query_type) const override;
 
   virtual bool walk(Item_processor processor, enum_walk walk,
                     uchar *arg) override;

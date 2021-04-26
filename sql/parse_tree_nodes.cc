@@ -1239,7 +1239,7 @@ bool PT_table_sequence_function::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
   auto stf = new (pc->mem_root)
-      Table_function_sequence(pc->thd, m_table_alias.str, m_expr);
+      Table_function_sequence(m_table_alias.str, m_expr);
   if (stf == nullptr) return true;  // OOM
 
   LEX_CSTRING alias;

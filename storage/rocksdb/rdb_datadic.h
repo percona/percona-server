@@ -1352,7 +1352,7 @@ class Rdb_tbl_def {
   uint m_pk_index;
 
   uint get_pk_index() const {
-    DBUG_ASSERT(m_pk_index <= MAX_INDEXES);
+    assert(m_pk_index <= MAX_INDEXES);
     return (m_pk_index == MAX_INDEXES ? m_key_count - 1 : m_pk_index);
   }
 

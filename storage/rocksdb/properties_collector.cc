@@ -197,6 +197,7 @@ const char *Rdb_tbl_prop_coll::INDEXSTATS_KEY = "__indexstats__";
 */
 rocksdb::Status Rdb_tbl_prop_coll::Finish(
     rocksdb::UserCollectedProperties *const properties) {
+  assert(properties != nullptr);
 
   if (!m_recorded) {
     m_total_puts = 0;
@@ -244,9 +245,9 @@ rocksdb::Status Rdb_tbl_prop_coll::Finish(
                                   max_distinct_keys);
         }
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       for (size_t i = 0; i < stat.m_distinct_keys_per_prefix.size(); i++) {
-        DBUG_ASSERT(stat.m_distinct_keys_per_prefix[i] <= stat.m_rows);
+        assert(stat.m_distinct_keys_per_prefix[i] <= stat.m_rows);
       }
 #endif
     }

@@ -191,7 +191,7 @@ int Rdb_convert_to_record_value_decoder::decode_varchar(
   if (field_dec->m_field_length_bytes == 1) {
     data_len = (uchar)data_len_str[0];
   } else {
-    DBUG_ASSERT(field_dec->m_field_length_bytes == 2);
+    assert(field_dec->m_field_length_bytes == 2);
     data_len = uint2korr(data_len_str);
   }
 
@@ -216,8 +216,8 @@ Rdb_value_field_iterator<value_field_decoder>::Rdb_value_field_iterator(
     TABLE *table, Rdb_string_reader *value_slice_reader,
     const Rdb_converter *rdb_converter, uchar *const buf)
     : m_buf(buf) {
-  DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(buf != nullptr);
+  assert(table != nullptr);
+  assert(buf != nullptr);
 
   m_table = table;
   m_value_slice_reader = value_slice_reader;
@@ -267,14 +267,14 @@ bool Rdb_value_field_iterator<value_field_decoder>::end_of_fields() const {
 
 template <typename value_field_decoder>
 int Rdb_value_field_iterator<value_field_decoder>::get_field_index() const {
-  DBUG_ASSERT(m_field_dec != nullptr);
+  assert(m_field_dec != nullptr);
   return m_field_dec->m_field_index;
 }
 
 template <typename value_field_decoder>
 enum_field_types Rdb_value_field_iterator<value_field_decoder>::get_field_type()
     const {
-  DBUG_ASSERT(m_field_dec != nullptr);
+  assert(m_field_dec != nullptr);
   return m_field_dec->m_field_type;
 }
 
@@ -292,9 +292,9 @@ bool Rdb_value_field_iterator<value_field_decoder>::is_null() const {
 Rdb_converter::Rdb_converter(const THD *thd, const Rdb_tbl_def *tbl_def,
                              TABLE *table)
     : m_thd(thd), m_tbl_def(tbl_def), m_table(table) {
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(tbl_def != nullptr);
-  DBUG_ASSERT(table != nullptr);
+  assert(thd != nullptr);
+  assert(tbl_def != nullptr);
+  assert(table != nullptr);
 
   m_key_requested = false;
   m_verify_row_debug_checksums = false;
@@ -323,7 +323,7 @@ void Rdb_converter::get_storage_type(Rdb_field_encoder *const encoder,
 
   // STORE_SOME uses unpack_info.
   if (pk_descr->has_unpack_info(kp)) {
-    DBUG_ASSERT(pk_descr->can_unpack(kp));
+    assert(pk_descr->can_unpack(kp));
     encoder->m_storage_type = Rdb_field_encoder::STORE_SOME;
     m_maybe_unpack_info = true;
   } else if (pk_descr->can_unpack(kp)) {
@@ -474,7 +474,7 @@ void Rdb_converter::setup_field_encoders() {
       HA_CAN_BIT_FIELD. We don't handle this case today at all (nor do we need
       to), and we use pack_length everywhere, so just assert it and move on.
     */
-    DBUG_ASSERT(field->pack_length() == field->pack_length_in_rec());
+    assert(field->pack_length() == field->pack_length_in_rec());
 
     auto field_type = field->real_type();
     m_encoder_arr[i].m_field_type = field_type;
@@ -537,11 +537,11 @@ int Rdb_converter::decode(const std::shared_ptr<Rdb_key_def> &key_def,
                           const rocksdb::Slice *value_slice,
                           bool decode_value) {
   // Currently only support decode primary key, Will add decode secondary later
-  DBUG_ASSERT(key_def->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY ||
-              key_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
+  assert(key_def->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY ||
+         key_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
 
   const rocksdb::Slice *updated_key_slice = key_slice;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   String last_rowkey;
   last_rowkey.copy(key_slice->data(), key_slice->size(), &my_charset_bin);
   DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_read1",
@@ -729,10 +729,10 @@ int Rdb_converter::encode_value_slice(
     const rocksdb::Slice &pk_packed_slice, Rdb_string_writer *pk_unpack_info,
     bool is_update_row, bool store_row_debug_checksums, char *ttl_bytes,
     bool *is_ttl_bytes_updated, rocksdb::Slice *const value_slice) {
-  DBUG_ASSERT(pk_def != nullptr);
+  assert(pk_def != nullptr);
   // Currently only primary key will store value slice
-  DBUG_ASSERT(pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY ||
-              pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
+  assert(pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY ||
+         pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
   DBUG_ASSERT_IMP(m_maybe_unpack_info, pk_unpack_info);
 
   bool has_ttl = pk_def->has_ttl();
@@ -751,13 +751,13 @@ int Rdb_converter::encode_value_slice(
     *is_ttl_bytes_updated = false;
     char *const data = const_cast<char *>(m_storage_record.ptr());
     if (has_ttl_column) {
-      DBUG_ASSERT(pk_def->get_ttl_field_index() != UINT_MAX);
+      assert(pk_def->get_ttl_field_index() != UINT_MAX);
       Field *const field = m_table->field[pk_def->get_ttl_field_index()];
-      DBUG_ASSERT(field->pack_length_in_rec() == ROCKSDB_SIZEOF_TTL_RECORD);
-      DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
+      assert(field->pack_length_in_rec() == ROCKSDB_SIZEOF_TTL_RECORD);
+      assert(field->real_type() == MYSQL_TYPE_LONGLONG);
 
       uint64 ts = uint8korr(field->field_ptr());
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       ts += rdb_dbug_set_ttl_rec_ts();
 #endif
       rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);
@@ -779,7 +779,7 @@ int Rdb_converter::encode_value_slice(
         memcpy(data, ttl_bytes, sizeof(uint64));
       } else {
         uint64 ts = static_cast<uint64>(std::time(nullptr));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         ts += rdb_dbug_set_ttl_rec_ts();
 #endif
         rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);
@@ -847,7 +847,7 @@ int Rdb_converter::encode_value_slice(
       if (field_var->get_length_bytes() == 1) {
         data_len = field_var->field_ptr()[0];
       } else {
-        DBUG_ASSERT(field_var->get_length_bytes() == 2);
+        assert(field_var->get_length_bytes() == 2);
         data_len = uint2korr(field_var->field_ptr());
       }
       m_storage_record.append(reinterpret_cast<char *>(field_var->field_ptr()),

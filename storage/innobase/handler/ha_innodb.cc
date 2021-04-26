@@ -6300,7 +6300,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                         "this phrase can only be used with REPEATABLE READ "
                         "isolation level.");
   } else {
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     trx_sys_mutex_enter();
     trx_mutex_enter(from_trx);
     if (!trx_clone_read_view(trx, from_trx)) {

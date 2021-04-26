@@ -307,7 +307,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   trx_mutex_exit(trx);
 
   if (srv_print_lock_wait_timeout_info) {
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     const lock_t *wait_lock = trx->lock.wait_lock;
     if (wait_lock != nullptr) {
       lock_queue_iterator_t iter;

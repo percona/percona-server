@@ -471,25 +471,25 @@ class Rdb_buf_writer {
   Rdb_buf_writer() { reset(); }
 
   void write_uint32(const uint32 n) {
-    DBUG_ASSERT(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
+    assert(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
     rdb_netbuf_store_uint32(m_ptr, n);
     m_ptr += sizeof(n);
   }
 
   void write_uint64(const uint64 n) {
-    DBUG_ASSERT(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
+    assert(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
     rdb_netbuf_store_uint64(m_ptr, n);
     m_ptr += sizeof(n);
   }
 
   void write_uint16(const uint16 n) {
-    DBUG_ASSERT(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
+    assert(m_ptr + sizeof(n) <= m_buf.data() + buf_length);
     rdb_netbuf_store_uint16(m_ptr, n);
     m_ptr += sizeof(n);
   }
 
   void write_byte(const uchar c) {
-    DBUG_ASSERT(m_ptr + sizeof(c) <= m_buf.data() + buf_length);
+    assert(m_ptr + sizeof(c) <= m_buf.data() + buf_length);
     rdb_netbuf_store_byte(m_ptr, c);
     m_ptr += sizeof(c);
   }
@@ -497,13 +497,13 @@ class Rdb_buf_writer {
   void write_index(const uint32 n) { write_uint32(n); }
 
   void write(const char *buf, const size_t size) {
-    DBUG_ASSERT(m_ptr + size <= m_buf.data() + buf_length);
+    assert(m_ptr + size <= m_buf.data() + buf_length);
     memcpy(m_ptr, buf, size);
     m_ptr += size;
   }
 
   void write(const uchar *buf, const size_t size) {
-    DBUG_ASSERT(m_ptr + size <= m_buf.data() + buf_length);
+    assert(m_ptr + size <= m_buf.data() + buf_length);
     memcpy(m_ptr, buf, size);
     m_ptr += size;
   }

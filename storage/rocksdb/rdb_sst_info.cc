@@ -395,8 +395,8 @@ void Rdb_sst_info::commit_sst_file(Rdb_sst_file_ordered *sst_file) {
 }
 
 void Rdb_sst_info::close_curr_sst_file() {
-  DBUG_ASSERT(m_sst_file != nullptr);
-  DBUG_ASSERT(m_curr_size > 0);
+  assert(m_sst_file != nullptr);
+  assert(m_curr_size > 0);
 
   commit_sst_file(m_sst_file);
 
@@ -474,7 +474,7 @@ int Rdb_sst_info::finish(Rdb_sst_commit_info *commit_info,
   // them and ingest them all in one go, and any racing calls to commit
   // won't see them at all
   commit_info->init(m_cf, std::move(m_committed_files));
-  DBUG_ASSERT(m_committed_files.size() == 0);
+  assert(m_committed_files.size() == 0);
 
   m_done = true;
   RDB_MUTEX_UNLOCK_CHECK(m_commit_mutex);

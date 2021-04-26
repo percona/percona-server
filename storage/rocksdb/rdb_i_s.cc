@@ -827,7 +827,7 @@ static int rdb_i_s_global_info_fill_table(
         const char act[] =
             "now signal ready_to_mark_cf_dropped_in_global_info "
             "wait_for mark_cf_dropped_done_in_global_info";
-        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
       }
     });
 
@@ -994,7 +994,7 @@ const char *GetCompactionReasonString(CompactionReason compaction_reason) {
     case CompactionReason::kNumOfReasons:
       // fall through
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       return "Invalid";
   }
 }
@@ -1007,15 +1007,15 @@ const char *GetCompactionReasonString(CompactionReason compaction_reason) {
 static int rdb_i_s_active_compact_stats_fill_table(
     my_core::THD *thd, my_core::Table_ref *tables,
     my_core::Item *cond MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(tables != nullptr);
+  assert(thd != nullptr);
+  assert(tables != nullptr);
 
   DBUG_ENTER_FUNC();
   auto ongoing_compaction = compaction_stats.get_current_stats();
 
   for (const auto &it : ongoing_compaction) {
     Field **field = tables->table->field;
-    DBUG_ASSERT(field != nullptr);
+    assert(field != nullptr);
     std::ostringstream oss;
     std::copy(it.info.input_files.begin(), it.info.input_files.end(),
               std::ostream_iterator<std::string>(oss, ","));
@@ -1057,15 +1057,15 @@ static int rdb_i_s_active_compact_stats_fill_table(
 static int rdb_i_s_compact_history_fill_table(
     my_core::THD *thd, my_core::Table_ref *tables,
     my_core::Item *cond MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(tables != nullptr);
+  assert(thd != nullptr);
+  assert(tables != nullptr);
 
   DBUG_ENTER_FUNC();
 
   int ret = 0;
   for (const auto &record : compaction_stats.get_recent_history()) {
     Field **field = tables->table->field;
-    DBUG_ASSERT(field != nullptr);
+    assert(field != nullptr);
 
     std::ostringstream oss;
     std::copy(record.info.input_files.begin(), record.info.input_files.end(),
@@ -1344,7 +1344,7 @@ static int rdb_i_s_active_compact_stats_init(void *p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER_FUNC();
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
 
   schema = reinterpret_cast<my_core::ST_SCHEMA_TABLE *>(p);
 
@@ -1358,7 +1358,7 @@ static int rdb_i_s_compact_history_init(void *p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER_FUNC();
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
 
   schema = reinterpret_cast<my_core::ST_SCHEMA_TABLE *>(p);
 
@@ -1442,9 +1442,9 @@ static int rdb_i_s_sst_props_fill_table(
     my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(tables != nullptr);
-  DBUG_ASSERT(tables->table != nullptr);
+  assert(thd != nullptr);
+  assert(tables != nullptr);
+  assert(tables->table != nullptr);
 
   int ret = 0;
   Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(),
@@ -1456,7 +1456,7 @@ static int rdb_i_s_sst_props_fill_table(
   }
 
   Field **field = tables->table->field;
-  DBUG_ASSERT(field != nullptr);
+  assert(field != nullptr);
 
   /* Iterate over all the column families */
   rocksdb::DB *const rdb = rdb_get_rocksdb_db();
@@ -1553,7 +1553,7 @@ static int rdb_i_s_sst_props_fill_table(
 static int rdb_i_s_sst_props_init(void *const p) {
   DBUG_ENTER_FUNC();
 
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
 
   my_core::ST_SCHEMA_TABLE *schema;
 

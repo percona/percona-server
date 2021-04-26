@@ -4142,9 +4142,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
     if (is_optimistic()) {
       const auto bpage = &block->page;
 
-      const auto state = buf_page_get_io_fix_unlocked(bpage);
-
-      if (state == BUF_IO_READ) {
+      if (bpage->was_io_fix_read()) {
         /* The page is being read to buffer pool, but we cannot wait around for
         the read to complete. */
 

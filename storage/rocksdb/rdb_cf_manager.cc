@@ -87,7 +87,7 @@ void Rdb_cf_manager::cleanup() {
 std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_or_create_cf(
     rocksdb::DB *const rdb, const std::string &cf_name, bool create) {
   assert(rdb != nullptr);
-  DBUG_ASSERT(!cf_name.empty());
+  assert(!cf_name.empty());
   std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;
 
   if (cf_name == PER_INDEX_CF_NAME) {
@@ -122,7 +122,7 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_or_create_cf(
           rdb->CreateColumnFamily(opts, cf_name, &cf_handle_ptr);
 
       if (s.ok()) {
-        DBUG_ASSERT(cf_handle_ptr != nullptr);
+        assert(cf_handle_ptr != nullptr);
         cf_handle.reset(cf_handle_ptr);
         m_cf_name_map[cf_handle_ptr->GetName()] = cf_handle;
         m_cf_id_map[cf_handle_ptr->GetID()] = cf_handle;
@@ -151,7 +151,7 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_cf(
 
 std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_cf(
     const std::string &cf_name, const bool lock_held_by_caller) const {
-  DBUG_ASSERT(!cf_name.empty());
+  assert(!cf_name.empty());
   std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;
 
   if (!lock_held_by_caller) {
@@ -269,17 +269,17 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
     thd->thread_stack = reinterpret_cast<char *>(&(thd));
     thd->store_globals();
     static constexpr char act[] = "now signal ready_to_restart_during_drop_cf";
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     thd->restore_globals();
     delete thd;
   });
 
   auto id_iter = m_cf_id_map.find(cf_id);
-  DBUG_ASSERT(id_iter != m_cf_id_map.end());
+  assert(id_iter != m_cf_id_map.end());
   m_cf_id_map.erase(id_iter);
 
   auto name_iter = m_cf_name_map.find(cf_name);
-  DBUG_ASSERT(name_iter != m_cf_name_map.end());
+  assert(name_iter != m_cf_name_map.end());
   m_cf_name_map.erase(name_iter);
 
   dict_manager->delete_dropped_cf_and_flags(batch, cf_id);
@@ -301,7 +301,7 @@ struct Rdb_cf_scanner : public Rdb_tables_scanner {
   explicit Rdb_cf_scanner(uint32_t cf_id) : m_cf_id(cf_id) {}
 
   int add_table(Rdb_tbl_def *tdef) override {
-    DBUG_ASSERT(tdef != nullptr);
+    assert(tdef != nullptr);
 
     for (uint i = 0; i < tdef->m_key_count; i++) {
       const Rdb_key_def &kd = *tdef->m_key_descr_arr[i];
@@ -319,7 +319,7 @@ struct Rdb_cf_scanner : public Rdb_tables_scanner {
 int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
                             Rdb_dict_manager *const dict_manager,
                             const std::string &cf_name) {
-  DBUG_ASSERT(!cf_name.empty());
+  assert(!cf_name.empty());
   dict_manager->assert_lock_held();
   uint32_t cf_id = 0;
 
@@ -388,7 +388,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
 int Rdb_cf_manager::create_cf_flags_if_needed(
     const Rdb_dict_manager *const dict_manager, const uint32 &cf_id,
     const std::string &cf_name, const bool is_per_partition_cf) {
-  DBUG_ASSERT(!cf_name.empty());
+  assert(!cf_name.empty());
   uchar flags =
       (is_cf_name_reverse(cf_name.c_str()) ? Rdb_key_def::REVERSE_CF_FLAG : 0) |
       (is_per_partition_cf ? Rdb_key_def::PER_PARTITION_CF_FLAG : 0);

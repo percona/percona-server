@@ -4868,7 +4868,6 @@ static void innodb_undo_tablespaces_deprecate() {
 /** Validate innodb_parallel_doublewrite_path. Log a warning if it was set
 explicitly. */
 static void innodb_parallel_doublewrite_path_deprecate() {
-  acquire_sysvar_source_service();
   if (sysvar_source_svc != nullptr) {
     static const char *variable_name = "innodb_parallel_doublewrite_path";
     enum enum_variable_source source;
@@ -4880,13 +4879,11 @@ static void innodb_parallel_doublewrite_path_deprecate() {
       }
     }
   }
-  release_sysvar_source_service();
 }
 
 /** Validate innodb_parallel_dblwr_encrypt. Log a warning if it was set
 explicitly. */
 static void innodb_parallel_dblwr_encrypt_deprecate() {
-  acquire_sysvar_source_service();
   if (sysvar_source_svc != nullptr) {
     static const char *variable_name = "innodb_parallel_dblwr_encrypt";
     enum enum_variable_source source;
@@ -4898,7 +4895,6 @@ static void innodb_parallel_dblwr_encrypt_deprecate() {
       }
     }
   }
-  release_sysvar_source_service();
 }
 
 /** Initialize and normalize innodb_buffer_pool_size. */

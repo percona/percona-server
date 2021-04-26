@@ -290,7 +290,7 @@ class ha_rocksdb : public my_core::handler {
   */
   bool m_dup_key_found;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Index tuple (for duplicate PK/unique SK). Used for sanity checking.
   */

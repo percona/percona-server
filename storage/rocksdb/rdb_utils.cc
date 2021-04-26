@@ -345,7 +345,7 @@ bool Regex_list_handler::set_patterns(
 }
 
 bool Regex_list_handler::matches(const std::string &str) const {
-  DBUG_ASSERT(m_pattern != nullptr);
+  assert(m_pattern != nullptr);
 
   // Make sure no one else changes the list while we are accessing it.
   mysql_rwlock_rdlock(&m_rwlock);

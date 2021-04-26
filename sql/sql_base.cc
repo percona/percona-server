@@ -10530,7 +10530,7 @@ inline Const_ordered_table_node *Join_node::add_table(const TABLE *table) {
 
 inline Join_node::Join_node(const mem_root_deque<TABLE_LIST *> *join_list,
                             Item *cond, const ORDER *order) {
-  DBUG_ASSERT(!join_list->empty());
+  assert(!join_list->empty());
   max_sort_length = current_thd->variables.max_sort_length;
   add_join_list(join_list);
   add_ordered_columns(order);
@@ -10556,7 +10556,7 @@ inline Const_ordered_table_node *Join_node::get_const_ordered_table_node(
   while ((node = it++)) {
     if (node->get_table() == table) return node;
   }
-  DBUG_ASSERT(0);
+  assert(0);
   return add_table(table);
 }
 
@@ -10628,7 +10628,7 @@ void Join_node::add_const_equi_columns(Item *cond) {
     uint arg_count = ((const Item_func *)cond)->argument_count();
     bool const_value = false;
 
-    DBUG_ASSERT(arg_count == 2);
+    assert(arg_count == 2);
 
     bool variable_field = false;
     for (i = 0; i < arg_count; i++) {

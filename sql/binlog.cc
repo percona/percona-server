@@ -9516,7 +9516,7 @@ void MYSQL_BIN_LOG::publish_coordinates_for_global_status(void) const {
 void MYSQL_BIN_LOG::xlock(void) {
   mysql_mutex_lock(&LOCK_log);
 
-  DBUG_ASSERT(!snapshot_lock_acquired);
+  assert(!snapshot_lock_acquired);
 
   /*
     We must ensure that no writes to binlog and no commits to storage engines

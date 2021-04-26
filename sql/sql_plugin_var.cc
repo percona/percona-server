@@ -84,7 +84,7 @@ int do_def_check(THD *thd, SYS_VAR *var, void *dest,
     case PLUGIN_VAR_DOUBLE:
       return check_func_double(thd, var, dest, value);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return 1;
   }
 }
@@ -693,7 +693,7 @@ void sys_var_pluginvar::persist_only_to_string(THD *thd, set_var *var,
                        system_charset_info);
         return;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         return;
     }
   }
@@ -1083,7 +1083,7 @@ Item *sys_var_pluginvar::copy_value(THD *thd) {
     case PLUGIN_VAR_DOUBLE:
       return new Item_float(*(const double *)val_ptr, DECIMAL_NOT_SPECIFIED);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return (nullptr);
 }

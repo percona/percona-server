@@ -1615,7 +1615,7 @@ class Start_encryption_log_event final
       : Start_encryption_event(crypto_scheme_arg, key_version_arg, nonce_arg),
         Log_event(header(), footer(), Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING) {
-    DBUG_ASSERT(crypto_scheme == 1);
+    assert(crypto_scheme == 1);
     common_header->set_is_valid(crypto_scheme == 1);
   }
 

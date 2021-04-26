@@ -1015,7 +1015,7 @@ bool set_and_validate_user_attributes(
   bool current_password_empty = false;
   bool new_password_empty = false;
 
-  DBUG_ASSERT(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
+  assert(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
 
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;

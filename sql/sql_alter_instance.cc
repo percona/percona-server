@@ -169,11 +169,11 @@ bool Rotate_percona_system_key::rotate() {
   size_t key_length{0};
 
   if (!is_valid_percona_system_key(system_key_name, &key_length)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
-  DBUG_ASSERT(key_length != 0);
+  assert(key_length != 0);
 
   std::ostringstream key_id_with_uuid_ss;
   key_id_with_uuid_ss << system_key_name;
@@ -198,7 +198,7 @@ bool Rotate_percona_system_key::rotate() {
     my_error(ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST, MYF(0), system_key_id);
     return true;
   }
-  DBUG_ASSERT(memcmp(key_type, "AES", 3) == 0);
+  assert(memcmp(key_type, "AES", 3) == 0);
   my_free(key_type);
   my_free(key);
   key = key_type = nullptr;
@@ -213,7 +213,7 @@ bool Rotate_percona_system_key::rotate() {
 }
 
 bool Rotate_innodb_system_key::execute() {
-  DBUG_ASSERT(strlen(server_uuid) != 0);
+  assert(strlen(server_uuid) != 0);
 
   if (check_security_context() || acquire_backup_locks()) return true;
 

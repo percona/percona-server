@@ -7285,7 +7285,7 @@ static SEL_ROOT *and_all_keys(RANGE_OPT_PARAM *param, SEL_ROOT *key1,
                               SEL_ROOT *key2) {
   SEL_ARG *next;
 
-  DBUG_ASSERT(key1->elements > 0);
+  assert(key1->elements > 0);
   // We will be modifying key1, so clone it if we need to.
   if (key1->use_count > 0) {
     if (!(key1 = key1->clone_tree(param))) return nullptr;  // OOM

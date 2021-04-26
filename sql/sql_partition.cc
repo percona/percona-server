@@ -1480,7 +1480,7 @@ bool fix_partition_func(THD *thd, TABLE *table, bool is_create_table_ind) {
     part_handler = table->file->get_partition_handler();
 
     if (!part_handler) {
-      DBUG_ASSERT(0);
+      assert(0);
       my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
       return true;
     }

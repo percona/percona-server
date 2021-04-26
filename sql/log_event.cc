@@ -1591,7 +1591,7 @@ static bool my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length) {
   for (s = ptr; length > 0; s++, length--) {
     const uchar *len_and_str = quote_table + *s * 5;
     write_res = my_b_write(file, len_and_str + 1, len_and_str[0]);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
   if (my_b_printf(file, "'") == (size_t)-1) return true;
   return false;
@@ -1611,7 +1611,7 @@ static void my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits) {
     int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
     MY_ATTRIBUTE((unused))
     int write_res = my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
   my_b_printf(file, "'");
 }
@@ -4424,7 +4424,7 @@ void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   print_query_header(head, print_event_info);
   MY_ATTRIBUTE((unused))
   int write_res = my_b_write(head, pointer_cast<const uchar *>(query), q_len);
-  DBUG_ASSERT(write_res == 0);
+  assert(write_res == 0);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* !MYSQL_SERVER */
@@ -5636,7 +5636,7 @@ void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
     MY_ATTRIBUTE((unused))
     int write_res = my_b_write(head, pointer_cast<const uchar *>(new_log_ident),
                                (uint)ident_len);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
   my_b_printf(head, "  pos: %s\n", llstr(pos, buf));
 }
@@ -6730,7 +6730,7 @@ void User_var_log_event::print(FILE *,
   quoted_id[quoted_len] = '\0';
   MY_ATTRIBUTE((unused))
   int write_res = my_b_write(head, (uchar *)quoted_id, quoted_len);
-  DBUG_ASSERT(write_res == 0);
+  assert(write_res == 0);
 
   if (is_null) {
     my_b_printf(head, ":=NULL%s\n", print_event_info->delimiter);
@@ -7411,7 +7411,7 @@ void Execute_load_query_log_event::print(FILE *,
   if (local_fname) {
     write_res =
         my_b_write(head, pointer_cast<const uchar *>(query), fn_pos_start);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
     my_b_printf(head, " LOCAL INFILE ");
     pretty_print_str(head, local_fname, strlen(local_fname));
 
@@ -7420,11 +7420,11 @@ void Execute_load_query_log_event::print(FILE *,
     my_b_printf(head, " INTO");
     my_b_write(head, pointer_cast<const uchar *>(query) + fn_pos_end,
                q_len - fn_pos_end);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   } else {
     write_res = my_b_write(head, pointer_cast<const uchar *>(query), q_len);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
 

@@ -780,7 +780,7 @@ List<Create_field> *Table_function_sequence::get_field_list() {
 }
 
 bool Table_function_sequence::fill_result_table() {
-  DBUG_ASSERT(!table->materialized);
+  assert(!table->materialized);
   // reset table
   empty_table();
 
@@ -824,12 +824,12 @@ bool Table_function_sequence::walk(Item_processor processor, enum_walk walk,
 }
 
 bool Table_function_sequence::do_init_args() {
-  DBUG_ASSERT(!m_upper_bound_precalculated);
+  assert(!m_upper_bound_precalculated);
 
   Item *dummy = m_source;
   if (m_source->fix_fields(current_thd, &dummy)) return true;
 
-  DBUG_ASSERT(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
+  assert(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (m_source->has_aggregation() || m_source->has_subquery() ||
       m_source != dummy) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "SEQUENCE_TABLE");

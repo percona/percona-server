@@ -62,7 +62,7 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
 
 bool Binlog_event_data_istream::start_decryption(
     binary_log::Start_encryption_event *see) {
-  DBUG_ASSERT(!crypto_data.is_enabled());
+  assert(!crypto_data.is_enabled());
 
   Start_encryption_log_event *sele =
       down_cast<Start_encryption_log_event *>(see);
@@ -112,7 +112,7 @@ bool Binlog_event_data_istream::Decryption_buffer::set_size(
   if (size_to_set > m_size) {
     return resize(size_to_set);
   }
-  DBUG_ASSERT(size_to_set < m_size);
+  assert(size_to_set < m_size);
 
   if (size_to_set < (m_size / 2)) {
     if (++m_number_of_events_with_half_the_size == 100) {

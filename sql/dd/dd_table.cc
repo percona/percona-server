@@ -2730,12 +2730,12 @@ Encrypt_result is_system_tablespace_encrypted(THD *thd) {
   if (thd->dd_client()->acquire("innodb_system", &tsp)) {
     return {true, false};
   }
-  DBUG_ASSERT(tsp);
+  assert(tsp);
 
   if (tsp->options().exists("encryption")) {
     String_type e;
     (void)tsp->options().get("encryption", &e);
-    DBUG_ASSERT(!e.empty());
+    assert(!e.empty());
     return {false, is_encrypted(e)};
   }
 

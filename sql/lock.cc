@@ -1173,9 +1173,9 @@ bool Global_backup_lock::acquire(THD *thd) {
 
   DBUG_ENTER("Global_backup_lock::acquire");
 
-  DBUG_ASSERT(m_lock == nullptr);
-  DBUG_ASSERT(!thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
-                                                            MDL_SHARED));
+  assert(m_lock == nullptr);
+  assert(!thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
+                                                       MDL_SHARED));
 
   MDL_REQUEST_INIT(&mdl_request, m_namespace, "", "", MDL_SHARED, MDL_EXPLICIT);
 
@@ -1197,9 +1197,9 @@ bool Global_backup_lock::acquire(THD *thd) {
 void Global_backup_lock::release(THD *thd) noexcept {
   DBUG_ENTER("Global_backup_lock::release");
 
-  DBUG_ASSERT(m_lock != nullptr);
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
-                                                           MDL_SHARED));
+  assert(m_lock != nullptr);
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(m_namespace, "", "",
+                                                      MDL_SHARED));
 
   thd->mdl_context.release_lock(m_lock);
 
@@ -1227,9 +1227,9 @@ bool Global_backup_lock::acquire_protection(THD *thd,
 
   DBUG_ENTER("Global_backup_lock::acquire_protection");
 
-  DBUG_ASSERT(duration != MDL_EXPLICIT ||
-              !thd->mdl_context.owns_equal_or_stronger_lock(
-                  m_namespace, "", "", MDL_INTENTION_EXCLUSIVE));
+  assert(duration != MDL_EXPLICIT ||
+         !thd->mdl_context.owns_equal_or_stronger_lock(
+             m_namespace, "", "", MDL_INTENTION_EXCLUSIVE));
 
   init_protection_request(&mdl_request, duration);
 

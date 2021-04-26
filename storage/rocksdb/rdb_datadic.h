@@ -370,7 +370,7 @@ class Rdb_key_def {
   // b describes the lookup key, which can be a prefix of a.
   // b might be outside of the index_number range, if successor() is called.
   int cmp_full_keys(const rocksdb::Slice &a, const rocksdb::Slice &b) const {
-    DBUG_ASSERT(covers_key(a));
+    assert(covers_key(a));
 
     return memcmp(a.data(), b.data(), std::min(a.size(), b.size()));
   }
@@ -917,12 +917,12 @@ class Rdb_key_def {
   static bool is_variable_length_field(const enum_field_types type);
 
  private:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   inline bool is_storage_available(const int offset, const int needed) const {
     const int storage_length = static_cast<int>(max_storage_fmt_length());
     return (storage_length - offset) >= needed;
   }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   /* Global number of this index (used as prefix in StorageFormat) */
   const uint32 m_index_number;
@@ -1262,17 +1262,17 @@ class Rdb_field_encoder {
 
 inline Field *Rdb_key_def::get_table_field_for_part_no(TABLE *table,
                                                        uint part_no) const {
-  DBUG_ASSERT(part_no < get_key_parts());
+  assert(part_no < get_key_parts());
   return m_pack_info[part_no].get_field_in_table(table);
 }
 
 inline bool Rdb_key_def::can_unpack(const uint kp) const {
-  DBUG_ASSERT(kp < m_key_parts);
+  assert(kp < m_key_parts);
   return (m_pack_info[kp].m_unpack_func != nullptr);
 }
 
 inline bool Rdb_key_def::has_unpack_info(const uint kp) const {
-  DBUG_ASSERT(kp < m_key_parts);
+  assert(kp < m_key_parts);
   return m_pack_info[kp].uses_unpack_info();
 }
 
@@ -1784,7 +1784,7 @@ class Rdb_system_merge_op : public rocksdb::AssociativeMergeOperator {
   bool Merge(const rocksdb::Slice &key, const rocksdb::Slice *existing_value,
              const rocksdb::Slice &value, std::string *new_value,
              rocksdb::Logger *logger) const override {
-    DBUG_ASSERT(new_value != nullptr);
+    assert(new_value != nullptr);
 
     if (key.size() != Rdb_key_def::INDEX_NUMBER_SIZE * 3 ||
         GetKeyType(key) != Rdb_key_def::AUTO_INC ||

@@ -2751,7 +2751,7 @@ void JOIN::adjust_access_methods() {
         tab->set_type(JT_INDEX_SCAN);  // Read with index_first / index_next
         // From table scan to index scan, thus filter effect needs no recalc.
       } else if (!tab->table()->no_keyread && !tl->uses_materialization()) {
-        DBUG_ASSERT(tab->table()->covering_keys.is_clear_all());
+        assert(tab->table()->covering_keys.is_clear_all());
         if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN) {
           Key_map clustering_keys;
           for (uint i2 = 0; i2 < tab->table()->s->keys; i2++) {

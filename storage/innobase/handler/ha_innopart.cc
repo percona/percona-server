@@ -858,7 +858,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
         if (thd->dd_client()->acquire(table_share->db.str,
                                       table_share->table_name.str, &table_def))
           return HA_ERR_INTERNAL_ERROR;
-        DBUG_ASSERT(table_def);
+        assert(table_def);
       }
 
       table_parts = Ha_innopart_share::open_table_parts(thd, table, table_def,

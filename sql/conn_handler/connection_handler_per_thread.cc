@@ -271,7 +271,7 @@ static void *handle_connection(void *arg) {
 
     DBUG_EXECUTE_IF("after_thread_setup", {
       const char act[] = "now signal thread_setup";
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE

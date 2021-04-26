@@ -2353,7 +2353,7 @@ struct TABLE {
   bool should_binlog_drop_if_temp(void) const;
 
   void set_tmp_dd_table_ptr(const dd::Table *tmp_dd_table_ptr_) noexcept {
-    DBUG_ASSERT(tmp_dd_table_ptr_ != nullptr);
+    assert(tmp_dd_table_ptr_ != nullptr);
     tmp_dd_table_ptr = tmp_dd_table_ptr_;
   }
 

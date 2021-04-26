@@ -747,11 +747,10 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
   std::unique_ptr<dd::Properties> p{dd::Properties_impl::parse_properties(
       ddse_tablespaces.begin()->get_options())};
 
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
 
-  DBUG_ASSERT(memcmp(ddse_tablespaces.begin()->get_name(),
-                     MYSQL_TABLESPACE_NAME.str,
-                     MYSQL_TABLESPACE_NAME.length) == 0);
+  assert(memcmp(ddse_tablespaces.begin()->get_name(), MYSQL_TABLESPACE_NAME.str,
+                MYSQL_TABLESPACE_NAME.length) == 0);
 
   if (p->exists("encryption")) {
     dd::String_type tablespace_encryption;

@@ -28,6 +28,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -146,7 +147,7 @@ static char *opt_password = nullptr, *current_user = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
             *opt_ignore_error = nullptr, *log_error_file = nullptr;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static char *start_sql_file = nullptr, *finish_sql_file = nullptr;
 #endif
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
@@ -607,7 +608,7 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"start-sql-file", OPT_START_SQL_FILE,
      "Execute SQL statements from the file at the mysqldump start. "
      "Each line has to contain one statement terminated with a semicolon. "
@@ -1913,7 +1914,7 @@ static const char *unquote_name(const char *opt_quoted_name,
   const char qtype = ansi_quotes_mode ? '\"' : '`';
 
   if (*opt_quoted_name != qtype) {
-    DBUG_ASSERT(strchr(opt_quoted_name, qtype) == 0);
+    assert(strchr(opt_quoted_name, qtype) == 0);
     return (const char *)opt_quoted_name;
   }
 
@@ -1925,7 +1926,7 @@ static const char *unquote_name(const char *opt_quoted_name,
       if (*opt_quoted_name == qtype)
         *to++ = qtype;
       else {
-        DBUG_ASSERT(*opt_quoted_name == '\0');
+        assert(*opt_quoted_name == '\0');
       }
     } else {
       *to++ = *opt_quoted_name++;
@@ -2783,7 +2784,7 @@ static bool contains_autoinc_column(const char *autoinc_column,
                                     ssize_t autoinc_column_len,
                                     const char *keydef,
                                     key_type_t type) noexcept {
-  DBUG_ASSERT(type != key_type_t::NONE);
+  assert(type != key_type_t::NONE);
 
   if (autoinc_column == nullptr) return false;
 
@@ -2934,7 +2935,7 @@ static void skip_secondary_keys(const char *table, char *create_str,
         that column anymore.
       */
       if (type != key_type_t::NONE && has_autoinc) {
-        DBUG_ASSERT(autoinc_column != NULL);
+        assert(autoinc_column != NULL);
 
         my_free(autoinc_column);
         autoinc_column = NULL;
@@ -2958,7 +2959,7 @@ static void skip_secondary_keys(const char *table, char *create_str,
           /* empty */;
 
         if (*end == '`' && end > ptr + 1) {
-          DBUG_ASSERT(autoinc_column == NULL);
+          assert(autoinc_column == NULL);
 
           autoinc_column_len = end - ptr - 1;
           autoinc_column = my_strndup(PSI_NOT_INSTRUMENTED, ptr + 1,
@@ -3012,7 +3013,7 @@ static void skip_compressed_columns(char *create_str,
   char *prefix_ptr = strstr(ptr, prefix);
   while (prefix_ptr != nullptr) {
     char *const suffix_ptr = strstr(prefix_ptr + prefix_length, suffix);
-    DBUG_ASSERT(suffix_ptr != nullptr);
+    assert(suffix_ptr != nullptr);
     if (!opt_compressed_columns_with_dictionaries) {
       if (!opt_compressed_columns) {
         /* Strip out all compressed columns extensions. */
@@ -3032,7 +3033,7 @@ static void skip_compressed_columns(char *create_str,
       if (dictionaries != nullptr && prefix_ptr + prefix_length != suffix_ptr) {
         const char *dictionary_keyword_ptr =
             strstr(prefix_ptr + prefix_length, dictionary_keyword);
-        DBUG_ASSERT(dictionary_keyword_ptr < suffix_ptr);
+        assert(dictionary_keyword_ptr < suffix_ptr);
         const auto dictionary_name_length =
             suffix_ptr - (dictionary_keyword_ptr + dictionary_keyword_length);
 
@@ -3137,7 +3138,7 @@ static void print_optional_create_compression_dictionary(
       DBUG_VOID_RETURN;
     }
     const ulong *const lengths = mysql_fetch_lengths(result);
-    DBUG_ASSERT(lengths != nullptr);
+    assert(lengths != nullptr);
 
     char quoted_buff[NAME_LEN * 2 + 3];
     const char *quoted_dictionary_name =
@@ -4304,7 +4305,7 @@ static void dump_skipped_keys(const char *table) {
 
       skipped_keys_list.pop_front();
     }
-    DBUG_ASSERT(skipped_keys_list.empty());
+    assert(skipped_keys_list.empty());
   }
 
   if (!alter_constraints_list.empty()) {
@@ -4320,7 +4321,7 @@ static void dump_skipped_keys(const char *table) {
 
       alter_constraints_list.pop_front();
     }
-    DBUG_ASSERT(alter_constraints_list.empty());
+    assert(alter_constraints_list.empty());
   }
 }
 
@@ -6681,7 +6682,7 @@ static bool server_supports_backup_locks(void) noexcept {
   @retval  1 failure
            0 success
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SQL_STATEMENT_MAX_LEN 1024  // 1023 chars for statement + trailing 0
 static int execute_sql_file(const char *sql_file) {
   static const char *win_eol = "\r\n";
@@ -6734,7 +6735,7 @@ static int execute_sql_file(const char *sql_file) {
   fclose(file);
   return 0;
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 int main(int argc, char **argv) {
   char bin_log_name[FN_REFLEN];
@@ -6769,7 +6770,7 @@ int main(int argc, char **argv) {
     exit(EX_MYSQLERR);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (execute_sql_file(start_sql_file)) goto err;
 #endif
 
@@ -6968,7 +6969,7 @@ int main(int argc, char **argv) {
     server.
   */
 err:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   execute_sql_file(finish_sql_file);
 #endif
 

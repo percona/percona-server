@@ -932,7 +932,7 @@ class Bloom_filter final {
     }
     // Duplicating ut_hash_ulint calculation
     const ulong pos = (key ^ 1653893711) % SIZE;
-    DBUG_ASSERT(pos < SIZE);
+    assert(pos < SIZE);
     if (bit_set->test(pos)) return false;
     bit_set->set(pos);
     return true;
@@ -1593,7 +1593,7 @@ class THD : public MDL_context_owner,
   ulong innodb_page_access;
 
   void mark_innodb_used(ulonglong trx_id) noexcept {
-    DBUG_ASSERT(innodb_slow_log_enabled());
+    assert(innodb_slow_log_enabled());
     if (trx_id && !is_attachable_transaction_active()) innodb_trx_id = trx_id;
     innodb_was_used = true;
   }

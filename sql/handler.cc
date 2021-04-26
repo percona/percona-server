@@ -368,7 +368,7 @@ handlerton *ha_enforce_handlerton(THD *thd) {
     plugin_ref plugin = ha_resolve_by_name(thd, &name, false);
     if (plugin) {
       handlerton *hton = plugin_data<handlerton *>(plugin);
-      DBUG_ASSERT(hton);
+      assert(hton);
       return hton;
     } else {
       my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), enforce_storage_engine,
@@ -2466,7 +2466,7 @@ static int ha_clone_consistent_snapshot(THD *thd) {
   THD *from_thd;
   ulong id;
   Item *val = thd->lex->donor_transaction_id;
-  DBUG_ASSERT(val);
+  assert(val);
 
   if (thd->lex->table_or_sp_used()) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -2570,7 +2570,7 @@ static bool store_binlog_info_handlerton(THD *thd, plugin_ref plugin,
 int ha_store_binlog_info(THD *thd) {
   if (!mysql_bin_log.is_open()) return 0;
 
-  DBUG_ASSERT(tc_log == &mysql_bin_log);
+  assert(tc_log == &mysql_bin_log);
 
   LOG_INFO li;
   bool warn = true;

@@ -47,6 +47,7 @@
   Kindahl.
 */
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -172,7 +173,7 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
   }
 
   else {
-    DBUG_ASSERT(thread_safe == 0);
+    assert(thread_safe == 0);
     map->mutex = NULL;
   }
 
@@ -229,7 +230,7 @@ bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit) {
 
 bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit) {
   bool res;
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
+  assert(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   res = bitmap_fast_test_and_set(map, bitmap_bit);
   bitmap_unlock(map);
@@ -259,7 +260,7 @@ static bool bitmap_fast_test_and_clear(MY_BITMAP *map, uint bitmap_bit) {
 
 bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit) {
   bool res;
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
+  assert(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   res = bitmap_fast_test_and_clear(map, bitmap_bit);
   bitmap_unlock(map);
@@ -581,7 +582,7 @@ uint bitmap_lock_set_next(MY_BITMAP *map) {
 
 void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit) {
   bitmap_lock(map);
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
+  assert(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_clear_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }

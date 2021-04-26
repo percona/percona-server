@@ -3725,7 +3725,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         false, mysqldump will not work.
       */
       if (thd->variables.option_bits & OPTION_TABLE_LOCK) {
-        DBUG_ASSERT(!thd->backup_tables_lock.is_acquired());
+        assert(!thd->backup_tables_lock.is_acquired());
         /*
           Can we commit safely? If not, return to avoid releasing
           transactional metadata locks.
@@ -3738,8 +3738,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
 
       if (thd->backup_tables_lock.is_acquired()) {
-        DBUG_ASSERT(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
-        DBUG_ASSERT(!thd->global_read_lock.is_acquired());
+        assert(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
+        assert(!thd->global_read_lock.is_acquired());
 
         thd->backup_tables_lock.release(thd);
       }
@@ -5443,7 +5443,7 @@ bool Alter_info::add_field(
       key_type = KEYTYPE_MULTIPLE;
     if (type_modifier & CLUSTERING_FLAG)
       key_type = static_cast<enum keytype>(key_type | KEYTYPE_CLUSTERING);
-    DBUG_ASSERT(key_type != KEYTYPE_MULTIPLE);
+    assert(key_type != KEYTYPE_MULTIPLE);
     List<Key_part_spec> key_parts;
     auto key_part_spec =
         new (thd->mem_root) Key_part_spec(field_name_cstr, 0, ORDER_ASC);

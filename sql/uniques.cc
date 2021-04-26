@@ -660,7 +660,7 @@ void Unique::reset() {
     file_ptrs.clear();
     MY_ATTRIBUTE((unused))
     int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
-    DBUG_ASSERT(reinit_res == 0);
+    assert(reinit_res == 0);
   }
   /*
     If table is used - finish index access and delete all records.
@@ -933,7 +933,7 @@ bool Unique::get(TABLE *table) {
 
   MY_ATTRIBUTE((unused))
   int reinit_res = reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);
-  DBUG_ASSERT(reinit_res == 0);
+  assert(reinit_res == 0);
 
   Uniq_param uniq_param;
   uniq_param.max_rows = elements;

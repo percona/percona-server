@@ -752,7 +752,7 @@ static bool vio_client_must_be_proxied(const struct sockaddr *p_addr) noexcept {
             &((const struct sockaddr_in6 *)p_addr)->sin6_addr;
         struct in6_addr *addr = &vio_pp_networks[i].addr.in6;
         struct in6_addr *mask = &vio_pp_networks[i].mask.in6;
-        DBUG_ASSERT(vio_pp_networks[i].family == AF_INET6);
+        assert(vio_pp_networks[i].family == AF_INET6);
         if ((check->s6_addr32[0] & mask->s6_addr32[0]) == addr->s6_addr32[0] &&
             ((check->s6_addr32[1] & mask->s6_addr32[1]) ==
              addr->s6_addr32[1]) &&

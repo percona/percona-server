@@ -2166,7 +2166,7 @@ const char *thd_innodb_tmpdir(THD *thd) {
 @return reference to private handler */
 MY_ATTRIBUTE((warn_unused_result))
 innodb_session_t *&thd_to_innodb_session(THD *thd) {
-  DBUG_ASSERT(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
+  assert(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
   innodb_session_t *&innodb_session =
       *(innodb_session_t **)thd_ha_data(thd, innodb_hton_ptr);
 
@@ -6272,7 +6272,7 @@ which the consistent read should be cloned
 static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                                                   THD *from_thd) {
   DBUG_ENTER("innobase_start_trx_and_clone_read_view");
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   /* Get transaction handle from the donor session */
   trx_t *const from_trx = thd_to_trx(from_thd);

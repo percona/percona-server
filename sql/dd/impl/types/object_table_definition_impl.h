@@ -119,10 +119,10 @@ class Object_table_definition_impl : public Object_table_definition {
   void remove_element(const String_type &element_name,
                       Element_numbers *element_numbers,
                       Element_definitions *element_definitions) {
-    DBUG_ASSERT(element_numbers != nullptr &&
-                element_numbers->find(element_name) != element_numbers->end() &&
-                element_definitions->find((*element_numbers)[element_name]) !=
-                    element_definitions->end());
+    assert(element_numbers != nullptr &&
+           element_numbers->find(element_name) != element_numbers->end() &&
+           element_definitions->find((*element_numbers)[element_name]) !=
+               element_definitions->end());
 
     element_definitions->erase((*element_numbers)[element_name]);
     element_numbers->erase(element_name);

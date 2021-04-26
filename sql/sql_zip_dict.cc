@@ -89,7 +89,7 @@ static const dd::String_type dict_cols_table_str =
     "ENGINE=InnoDB CHARACTER SET=utf8mb4 COLLATE=utf8mb4_general_ci "
     "STATS_PERSISTENT=0 TABLESPACE=mysql";
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Skip creating compression dictionary tables during bootstrap.
 This is used simulate upgrade from mysql datadir to percona server
 datadir and verify if compression dictionary tables are created
@@ -171,7 +171,7 @@ bool acquire_dict_mdl(THD *thd, enum_mdl_type mdl_type) {
   */
   if (thd->mdl_context.acquire_lock(mdl_request,
                                     thd->variables.lock_wait_timeout)) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
     DBUG_LOG("zip_dict",
              "MDL acquisition on compression_dictionary table failed "
@@ -218,7 +218,7 @@ uses Read Committed Isolation and does non-locking reads
 @param[in,out] thd  Session object
 @return TABLE* on success else nullptr */
 static TABLE *open_dictionary_table_read(THD *thd) {
-  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
+  assert(!thd->is_attachable_ro_transaction_active());
   thd->begin_attachable_ro_transaction();
 
   TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
@@ -326,7 +326,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
   DBUG_ENTER("mysql_create_zip_dict");
   handlerton *hton = ha_default_handlerton(thd);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const std::string name_str(name, name_len);
   const std::string data_str(data, data_len);
   const std::string query_str(to_string(thd->query()));
@@ -365,8 +365,8 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
   TABLE *table = open_dictionary_table_write(thd);
 
   if (table == nullptr) {
-    DBUG_ASSERT(thd->is_error());
-    DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() != 0);
+    assert(thd->is_error());
+    assert(thd->get_stmt_da()->mysql_errno() != 0);
 
     if (thd->get_stmt_da()->mysql_errno() == ER_CANT_LOCK) {
       error = ER_READ_ONLY_MODE;
@@ -458,7 +458,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
         my_error(error, MYF(0));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         error = ER_UNKNOWN_ERROR;
         my_error(error, MYF(0));
     }
@@ -471,11 +471,11 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
                                 thd->query().length, true) != 0) {
     failure = true;
     error = thd->get_stmt_da()->mysql_errno();
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
   }
 
   if (failure) {
-    DBUG_ASSERT(error != 0);
+    assert(error != 0);
     trans_rollback_stmt(thd);
     trans_rollback_implicit(thd);
   } else {
@@ -519,7 +519,7 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
   DBUG_ENTER("mysql_drop_zip_dict");
   handlerton *hton = ha_default_handlerton(thd);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const std::string name_str(name, name_len);
   DBUG_LOG("zip_dict", "thd->query: " << thd->query().str
                                       << " dict_name: " << name_str
@@ -546,7 +546,7 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
   TABLE *table = open_dictionary_table_write(thd);
 
   if (table == nullptr) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     if (thd->get_stmt_da()->mysql_errno() == ER_CANT_LOCK) {
       thd->clear_error();
       my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -614,7 +614,7 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
       my_error(error, MYF(0));
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       error = ER_UNKNOWN_ERROR;
       my_error(error, MYF(0));
       break;
@@ -627,11 +627,11 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
                                 thd->query().length, true) != 0) {
     failure = true;
     error = thd->get_stmt_da()->mysql_errno();
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
   }
 
   if (failure) {
-    DBUG_ASSERT(error != 0);
+    assert(error != 0);
     trans_rollback_stmt(thd);
     trans_rollback_implicit(thd);
   } else {
@@ -650,13 +650,13 @@ An attachable RO trx is used to do the read
 @param[in]      zip_dict_name   dictionary entry name
 @return 0 for failure, else dictionary id */
 uint64 get_id_for_name(THD *thd, const LEX_CSTRING &zip_dict_name) {
-  DBUG_ASSERT(zip_dict_name.str != nullptr);
-  DBUG_ASSERT(zip_dict_name.length != 0);
+  assert(zip_dict_name.str != nullptr);
+  assert(zip_dict_name.length != 0);
 
   TABLE *table = open_dictionary_table_read(thd);
 
   if (table == nullptr) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     if (thd->get_stmt_da()->mysql_errno() == ER_CANT_LOCK) {
       thd->clear_error();
       my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -694,12 +694,12 @@ from table_share mem_root
 @return false on success, true on failure */
 bool get_name_for_id(THD *thd, uint64 zip_dict_id, TABLE_SHARE *share,
                      LEX_CSTRING *zip_dict_name, LEX_CSTRING *zip_dict_data) {
-  DBUG_ASSERT(zip_dict_id != 0);
+  assert(zip_dict_id != 0);
 
   TABLE *table = open_dictionary_table_read(thd);
 
   if (table == nullptr) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     if (thd->get_stmt_da()->mysql_errno() == ER_CANT_LOCK) {
       thd->clear_error();
       my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -762,7 +762,7 @@ static bool cols_table_insert_low(TABLE *table, uint64 table_id,
   int ret = table->file->ha_write_row(table->record[0]);
 
   if (ret != 0) {
-    DBUG_ASSERT(0);
+    assert(0);
     int error = ER_UNKNOWN_ERROR;
     my_error(error, MYF(0));
     return (true);
@@ -807,7 +807,7 @@ static bool cols_table_delete_low(TABLE *table, uint64 table_id,
       my_error(ER_INNODB_FORCED_RECOVERY, MYF(0));
       return (true);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       return (true);
   }
@@ -830,14 +830,14 @@ bool cols_table_insert(THD *thd, const dd::Table &table) {
     }
     uint64 zip_dict_id;
     column_options.get("zip_dict_id", &zip_dict_id);
-    DBUG_ASSERT(zip_dict_id != 0);
+    assert(zip_dict_id != 0);
     uint64 table_id = table.id();
     uint64 column_id = col_obj->id();
 
     if (cols_table == nullptr) {
       cols_table = open_dictionary_cols_table_write(thd);
       if (cols_table == nullptr) {
-        DBUG_ASSERT(thd->is_error());
+        assert(thd->is_error());
         if (thd->get_stmt_da()->mysql_errno() == ER_CANT_LOCK) {
           thd->clear_error();
           my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -876,7 +876,7 @@ bool cols_table_delete(THD *thd, const dd::Table &table) {
     if (cols_table == nullptr) {
       cols_table = open_dictionary_cols_table_write(thd);
       if (cols_table == nullptr) {
-        DBUG_ASSERT(thd->is_error());
+        assert(thd->is_error());
         if (thd->get_stmt_da()->mysql_errno() == ER_CANT_LOCK) {
           thd->clear_error();
           my_error(ER_READ_ONLY_MODE, MYF(0));

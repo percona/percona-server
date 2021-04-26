@@ -2780,7 +2780,7 @@ static void set_proxy() {
       if (net.family == AF_INET)
         bits = 32;
       else {
-        DBUG_ASSERT(net.family == AF_INET6);
+        assert(net.family == AF_INET6);
         bits = 128;
       }
     }
@@ -2823,7 +2823,7 @@ static void set_proxy() {
         net.mask.in6.s6_addr32[2] =
             (bits == 96) ? 0xffffffff : ~((0x80000000 >> (bits - 64 - 1)) - 1);
       } else if (bits > 96) {
-        DBUG_ASSERT(bits <= 128);
+        assert(bits <= 128);
         net.mask.in6.s6_addr32[0] = 0xffffffff;
         net.mask.in6.s6_addr32[1] = 0xffffffff;
         net.mask.in6.s6_addr32[2] = 0xffffffff;
@@ -10975,7 +10975,7 @@ static void set_server_version(void) {
     end = my_stpcpy(end, "-tsan");
 #endif
 
-  DBUG_ASSERT(end < server_version + SERVER_VERSION_LENGTH);
+  assert(end < server_version + SERVER_VERSION_LENGTH);
   my_stpcpy(server_version_suffix,
             server_version + strlen(MYSQL_SERVER_VERSION));
 }

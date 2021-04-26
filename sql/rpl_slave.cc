@@ -5563,7 +5563,7 @@ requesting master dump") ||
               if (event_type == binary_log::XID_EVENT) {
                 static constexpr char act[] =
                     "now signal relay_xid_reached wait_for resume";
-                DBUG_ASSERT(
+                assert(
                     !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
               }
             });
@@ -6464,7 +6464,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
   };);
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group.

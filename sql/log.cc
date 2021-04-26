@@ -1699,7 +1699,7 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
 static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
   ulonglong res;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (thd->variables.query_exec_time != 0)
     res = thd->lex->sql_command != SQLCOM_SET_OPTION
               ? thd->variables.query_exec_time
@@ -1753,7 +1753,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   if (opt_log_slow_sp_statements > 0 && thd->lex) {
     if (thd->lex->sql_command == SQLCOM_CALL) {
       if (!thd->stmt_arena->is_regular()) {
-        DBUG_ASSERT(sp_sql_command != -1);
+        assert(sp_sql_command != -1);
         if (sp_sql_command == SQLCOM_CALL) return false;
       } else
 	 return false;

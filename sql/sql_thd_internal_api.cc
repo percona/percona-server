@@ -312,7 +312,7 @@ NULL.
 @param[out] stats a pointer to fragmentation statistics to fill */
 void thd_get_fragmentation_stats(const THD *thd,
                                  fragmentation_stats_t *stats) noexcept {
-  DBUG_ASSERT(stats != nullptr);
+  assert(stats != nullptr);
   if (likely(thd != nullptr)) {
     stats->scan_pages_contiguous =
         thd->status_var.fragmentation_stats.scan_pages_contiguous;

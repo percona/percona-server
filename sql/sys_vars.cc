@@ -1960,8 +1960,8 @@ export bool fix_delay_key_write(sys_var *, THD *, enum_var_type) {
 */
 static bool check_delay_key_write(sys_var *self MY_ATTRIBUTE((unused)),
                                   THD *thd, set_var *var) {
-  DBUG_ASSERT(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
-              !thd->backup_tables_lock.is_acquired());
+  assert(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
+         !thd->backup_tables_lock.is_acquired());
 
   if (var->save_result.ulonglong_value == DELAY_KEY_WRITE_ALL) {
     const ulong timeout = thd->variables.lock_wait_timeout;
@@ -2699,7 +2699,7 @@ static Sys_var_double Sys_long_query_time(
     VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(update_cached_long_query_time));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool update_cached_query_exec_time(sys_var *self MY_ATTRIBUTE((unused)),
                                           THD *thd, enum_var_type type) {
   if (type == OPT_SESSION)
@@ -7624,6 +7624,6 @@ static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
     GLOBAL_VAR(tf_sequence_table_max_upper_bound), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, ULLONG_MAX), DEFAULT(1048576), BLOCK_SIZE(1));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 Debug_shutdown_actions Debug_shutdown_actions::instance;
 #endif

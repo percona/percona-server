@@ -685,7 +685,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
 
     // Build the CREATE VIEW DDL statement and execute it.
     if (view_def == nullptr) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (is_comp_dict && compression_dict::skip_bootstrap) {
         continue;
       }
@@ -710,7 +710,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
     thd->update_charset();
 
     if (dd::execute_query(thd, view_def->build_ddl_create_view())) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (is_comp_dict && compression_dict::skip_bootstrap) {
         continue;
       }

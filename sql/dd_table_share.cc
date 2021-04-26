@@ -1123,12 +1123,12 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
       return (true);
     }
 
-    DBUG_ASSERT(zip_dict_id != 0);
+    assert(zip_dict_id != 0);
 
     if (compression_dict::get_name_for_id(thd, zip_dict_id, share,
                                           &reg_field->zip_dict_name,
                                           &reg_field->zip_dict_data)) {
-      DBUG_ASSERT(0);
+      assert(0);
       return (true);
     }
   }

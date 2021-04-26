@@ -340,7 +340,7 @@ struct System_variables {
   bool sysdate_is_now;
   bool binlog_rows_query_log_events;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulonglong query_exec_time;
   double query_exec_time_double;
 #endif

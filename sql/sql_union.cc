@@ -1297,10 +1297,10 @@ void Query_expression::cleanup(THD *thd, bool full) {
   assert(thd == current_thd);
 
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (cleaned == UC_CLEAN)
       for (Query_block *qb = first_query_block(); qb; qb = qb->next_query_block())
-        DBUG_ASSERT(!qb->join);
+        assert(!qb->join);
 #endif
     return;
   }

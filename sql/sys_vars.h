@@ -956,7 +956,7 @@ class Sys_var_proxy_user : public sys_var {
   }
   bool check_update_type(Item_result) override { return true; }
   void persist_only_to_string(THD *, set_var *, String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
  protected:
@@ -1765,7 +1765,7 @@ class Sys_var_debug_sync : public sys_var {
     return type != STRING_RESULT;
   }
   void persist_only_to_string(THD *, set_var *, String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 };
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -2362,7 +2362,7 @@ class Sys_var_gtid_next : public sys_var {
     return nullptr;
   }
   void persist_only_to_string(THD *, set_var *, String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 };
 
@@ -2498,7 +2498,7 @@ class Sys_var_charptr_func : public sys_var {
     return nullptr;
   }
   void persist_only_to_string(THD *, set_var *, String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 };
 

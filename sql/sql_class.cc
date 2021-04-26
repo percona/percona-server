@@ -1171,12 +1171,12 @@ THD::~THD() {
 extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
                                        enum mysql_trx_stat_type type,
                                        uint64_t value) {
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(!thd_is_background_thread(thd));
+  assert(thd);
+  assert(!thd_is_background_thread(thd));
   thd->mark_innodb_used(trx_id);
   switch (type) {
     case MYSQL_TRX_STAT_IO_READ_BYTES:
-      DBUG_ASSERT(value > 0);
+      assert(value > 0);
       thd->innodb_io_read += value;
       thd->innodb_io_reads++;
       break;
@@ -1506,7 +1506,7 @@ void THD::update_stats(bool ran_command) noexcept {
 
   if (ran_command) {
     // The replication thread has the COM_CONNECT command.
-    DBUG_ASSERT(get_command() != COM_SLEEP);
+    assert(get_command() != COM_SLEEP);
     if ((get_command() == COM_QUERY || get_command() == COM_CONNECT) &&
         (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END)) {
       // A SQL query.
@@ -2425,7 +2425,7 @@ void THD::leave_locked_tables_mode() {
     global_read_lock.set_explicit_lock_duration(this);
 
     /* Make sure table backup lock are not released when leaving LTM */
-    DBUG_ASSERT(!backup_tables_lock.is_acquired());
+    assert(!backup_tables_lock.is_acquired());
 
     /*
       Also ensure that we don't release metadata locks for open HANDLERs

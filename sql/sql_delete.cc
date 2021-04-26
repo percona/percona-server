@@ -912,7 +912,7 @@ static bool db_or_table_name_equals(const char *a, dd::String_type const &b) {
 */
 static bool has_cascade_dependency(THD *thd, TABLE_LIST &table,
                                    TABLE_LIST *table_list) {
-  DBUG_ASSERT(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
+  assert(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj = nullptr;

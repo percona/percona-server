@@ -7185,7 +7185,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
       key_info->flags |= HA_CLUSTERING;
       break;
     case KEYTYPE_CLUSTERING:
-      DBUG_ASSERT(0);
+      assert(0);
     default:
       assert(false);
       return true;
@@ -15657,7 +15657,7 @@ static bool remove_secondary_keys(
     std::vector<dd::Index *> *dd_disabled_sec_keys) {
   uint i;
   DBUG_TRACE;
-  DBUG_ASSERT(alter_info->delayed_key_count > 0);
+  assert(alter_info->delayed_key_count > 0);
 
   /*
     We need to mark all fields for read and write as being done in
@@ -15715,7 +15715,7 @@ static bool remove_secondary_keys(
     for (i = 0; i < alter_info->delayed_key_count; i++) {
       if (strcmp(alter_info->delayed_key_info[i].name, dd_index_name) == 0) {
         dd_disabled_sec_keys->push_back(index);
-        DBUG_ASSERT(index->type() == dd::Index::IT_MULTIPLE);
+        assert(index->type() == dd::Index::IT_MULTIPLE);
         index->set_disabled(true);
       }
     }
@@ -15757,7 +15757,7 @@ static bool restore_secondary_keys(
     std::vector<dd::Index *> *dd_disabled_sec_keys) {
   uint i;
   DBUG_ENTER("restore_secondary_keys");
-  DBUG_ASSERT(alter_info->delayed_key_count > 0);
+  assert(alter_info->delayed_key_count > 0);
 
   THD_STAGE_INFO(thd, stage_restoring_secondary_keys);
 

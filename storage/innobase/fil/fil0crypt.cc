@@ -1041,7 +1041,7 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
       fil_space_create_crypt_data(encryption, key_id, uuid, key_operation);
   /* Need to overwrite these as above will initialize fields. */
   crypt_data->type = type;
-  DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
+  assert(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
   crypt_data->max_key_version = max_key_version;
   // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
@@ -1181,7 +1181,7 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
   fil_space_crypt_t *crypt_data = fil_space_create_crypt_data(
       encryption, key_id, uuid, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
   /* Need to overwrite these as above will initialize fields. */
-  DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
+  assert(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
   crypt_data->max_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
   // set memory to ENCRYPTION_KEYRING_VALIDATION_TAG
@@ -1287,7 +1287,7 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
       fil_space_create_crypt_data(encryption, key_id, server_uuid,
                                   Crypt_key_operation::FETCH_OR_GENERATE_KEY);
   /* Need to overwrite these as above will initialize fields. */
-  DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
+  assert(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
   crypt_data->encryption = encryption;
   crypt_data->private_version = 1;

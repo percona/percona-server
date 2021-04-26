@@ -77,7 +77,7 @@ bool IO_CACHE_ostream::truncate(my_off_t offset) {
   MY_ATTRIBUTE((unused))
   const auto reinit_res =
       reinit_io_cache(&m_io_cache, WRITE_CACHE, offset, false, true);
-  DBUG_ASSERT(reinit_res == 0);
+  assert(reinit_res == 0);
   return false;
 }
 

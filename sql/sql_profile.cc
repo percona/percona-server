@@ -527,8 +527,8 @@ static void my_b_print_status(IO_CACHE *log_file, const char *status,
                               const PROF_MEASUREMENT &start,
                               const PROF_MEASUREMENT &stop) noexcept {
   DBUG_ENTER("my_b_print_status");
-  DBUG_ASSERT(log_file != nullptr);
-  DBUG_ASSERT(status != nullptr);
+  assert(log_file != nullptr);
+  assert(status != nullptr);
   char query_time_buff[22 + 7];
   const char *tmp;
 

@@ -138,7 +138,7 @@ int Rdb_convert_to_record_key_decoder::decode(
     uchar *const buf, Rdb_field_packing *fpi, TABLE *table,
     bool has_unpack_info, Rdb_string_reader *reader,
     Rdb_string_reader *unpack_reader) {
-  DBUG_ASSERT(buf != nullptr);
+  assert(buf != nullptr);
 
   // If we need unpack info, but there is none, tell the unpack function
   // this by passing unp_reader as nullptr. If we never read unpack_info
@@ -239,7 +239,7 @@ int Rdb_key_field_iterator::next() {
     */
     if ((m_secondary_key && m_hidden_pk_exists && fpi + 1 == m_fpi_end) ||
         m_is_hidden_pk) {
-      DBUG_ASSERT(fpi->m_unpack_func);
+      assert(fpi->m_unpack_func);
       if ((fpi->m_skip_func)(fpi, m_reader)) {
         return HA_ERR_ROCKSDB_CORRUPT_DATA;
       }
@@ -317,7 +317,7 @@ Rdb_key_def::Rdb_key_def(
   DBUG_ASSERT_IMP(m_index_type == INDEX_TYPE_PRIMARY &&
                       m_kv_format_version <= PRIMARY_FORMAT_VERSION_UPDATE2,
                   m_total_index_flags_length == 0);
-  DBUG_ASSERT(m_cf_handle);
+  assert(m_cf_handle);
 }
 
 Rdb_key_def::Rdb_key_def(const Rdb_key_def &k)
@@ -387,8 +387,8 @@ Rdb_key_def::~Rdb_key_def() {
 
 void Rdb_key_def::setup(const TABLE *const tbl,
                         const Rdb_tbl_def *const tbl_def) {
-  DBUG_ASSERT(tbl != nullptr);
-  DBUG_ASSERT(tbl_def != nullptr);
+  assert(tbl != nullptr);
+  assert(tbl_def != nullptr);
 
   /*
     Set max_length based on the table.  This can be called concurrently from
@@ -494,7 +494,7 @@ void Rdb_key_def::setup(const TABLE *const tbl,
         Field *const field = key_part ? key_part->field : nullptr;
 
         if (simulating_extkey && !hidden_pk_exists) {
-          DBUG_ASSERT(secondary_key);
+          assert(secondary_key);
           /* Check if this field is already present in the key definition */
           bool found = false;
           for (uint j = 0; j < key_info->actual_key_parts; j++) {
@@ -557,9 +557,9 @@ void Rdb_key_def::setup(const TABLE *const tbl,
         if (!m_ttl_column.empty() &&
             my_strcasecmp(system_charset_info, field->field_name,
                           m_ttl_column.c_str()) == 0) {
-          DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
-          DBUG_ASSERT(field->key_type() == HA_KEYTYPE_ULONGLONG);
-          DBUG_ASSERT(!field->is_nullable());
+          assert(field->real_type() == MYSQL_TYPE_LONGLONG);
+          assert(field->key_type() == HA_KEYTYPE_ULONGLONG);
+          assert(!field->is_nullable());
           m_ttl_pk_key_part_offset = dst_i;
         }
 
@@ -616,9 +616,9 @@ void Rdb_key_def::setup(const TABLE *const tbl,
 uint Rdb_key_def::extract_ttl_duration(const TABLE *const table_arg,
                                        const Rdb_tbl_def *const tbl_def_arg,
                                        uint64 *ttl_duration) {
-  DBUG_ASSERT(table_arg != nullptr);
-  DBUG_ASSERT(tbl_def_arg != nullptr);
-  DBUG_ASSERT(ttl_duration != nullptr);
+  assert(table_arg != nullptr);
+  assert(tbl_def_arg != nullptr);
+  assert(ttl_duration != nullptr);
   std::string table_comment(table_arg->s->comment.str,
                             table_arg->s->comment.length);
 
@@ -726,7 +726,7 @@ const std::string Rdb_key_def::gen_qualifier_for_table(
                          : qualifier_str + RDB_TTL_COL_QUALIFIER +
                                RDB_QUALIFIER_VALUE_SEP;
   } else {
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   return qualifier_str;
@@ -738,7 +738,7 @@ const std::string Rdb_key_def::gen_qualifier_for_table(
 */
 const std::string Rdb_key_def::gen_cf_name_qualifier_for_partition(
     const std::string &prefix) {
-  DBUG_ASSERT(!prefix.empty());
+  assert(!prefix.empty());
 
   return prefix + RDB_PER_PARTITION_QUALIFIER_NAME_SEP + RDB_CF_NAME_QUALIFIER +
          RDB_QUALIFIER_VALUE_SEP;
@@ -746,7 +746,7 @@ const std::string Rdb_key_def::gen_cf_name_qualifier_for_partition(
 
 const std::string Rdb_key_def::gen_ttl_duration_qualifier_for_partition(
     const std::string &prefix) {
-  DBUG_ASSERT(!prefix.empty());
+  assert(!prefix.empty());
 
   return prefix + RDB_PER_PARTITION_QUALIFIER_NAME_SEP +
          RDB_TTL_DURATION_QUALIFIER + RDB_QUALIFIER_VALUE_SEP;
@@ -754,7 +754,7 @@ const std::string Rdb_key_def::gen_ttl_duration_qualifier_for_partition(
 
 const std::string Rdb_key_def::gen_ttl_col_qualifier_for_partition(
     const std::string &prefix) {
-  DBUG_ASSERT(!prefix.empty());
+  assert(!prefix.empty());
 
   return prefix + RDB_PER_PARTITION_QUALIFIER_NAME_SEP + RDB_TTL_COL_QUALIFIER +
          RDB_QUALIFIER_VALUE_SEP;
@@ -764,10 +764,10 @@ const std::string Rdb_key_def::parse_comment_for_qualifier(
     const std::string &comment, const TABLE *const table_arg,
     const Rdb_tbl_def *const tbl_def_arg, bool *per_part_match_found,
     const char *const qualifier) {
-  DBUG_ASSERT(table_arg != nullptr);
-  DBUG_ASSERT(tbl_def_arg != nullptr);
-  DBUG_ASSERT(per_part_match_found != nullptr);
-  DBUG_ASSERT(qualifier != nullptr);
+  assert(table_arg != nullptr);
+  assert(tbl_def_arg != nullptr);
+  assert(per_part_match_found != nullptr);
+  assert(qualifier != nullptr);
 
   std::string empty_result;
 
@@ -793,11 +793,11 @@ const std::string Rdb_key_def::parse_comment_for_qualifier(
   std::string search_str_part;
   if (table_arg->part_info != nullptr) {
     std::string partition_name = tbl_def_arg->base_partition();
-    DBUG_ASSERT(!partition_name.empty());
+    assert(!partition_name.empty());
     search_str_part = gen_qualifier_for_table(qualifier, partition_name);
   }
 
-  DBUG_ASSERT(!search_str.empty());
+  assert(!search_str.empty());
 
   // Basic O(N) search for a matching assignment. At most we expect maybe
   // ten or so elements here.
@@ -867,7 +867,7 @@ int Rdb_key_def::read_memcmp_key_part(const TABLE *table_arg,
   }
 
   Rdb_field_packing *fpi = &m_pack_info[part_num];
-  DBUG_ASSERT(table_arg->s != nullptr);
+  assert(table_arg->s != nullptr);
 
   if ((fpi->m_skip_func)(fpi, reader)) {
     return 1;
@@ -904,14 +904,14 @@ uint Rdb_key_def::get_primary_key_tuple(const TABLE *const table,
                                         const Rdb_key_def &pk_descr,
                                         const rocksdb::Slice *const key,
                                         uchar *const pk_buffer) const {
-  DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(key != nullptr);
-  DBUG_ASSERT(m_index_type == Rdb_key_def::INDEX_TYPE_SECONDARY);
-  DBUG_ASSERT(pk_buffer);
+  assert(table != nullptr);
+  assert(key != nullptr);
+  assert(m_index_type == Rdb_key_def::INDEX_TYPE_SECONDARY);
+  assert(pk_buffer);
 
   uint size = 0;
   uchar *buf = pk_buffer;
-  DBUG_ASSERT(m_pk_key_parts);
+  assert(m_pk_key_parts);
 
   /* Put the PK number */
   rdb_netbuf_store_index(buf, pk_descr.m_index_number);
@@ -964,11 +964,11 @@ uint Rdb_key_def::get_memcmp_sk_parts(const TABLE *table,
                                       const rocksdb::Slice &key,
                                       uchar *sk_buffer,
                                       uint *n_null_fields) const {
-  DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(sk_buffer != nullptr);
-  DBUG_ASSERT(n_null_fields != nullptr);
-  DBUG_ASSERT(m_keyno != table->s->primary_key);
-  DBUG_ASSERT(!table_has_hidden_pk(table));
+  assert(table != nullptr);
+  assert(sk_buffer != nullptr);
+  assert(n_null_fields != nullptr);
+  assert(m_keyno != table->s->primary_key);
+  assert(!table_has_hidden_pk(table));
 
   uchar *buf = sk_buffer;
 
@@ -1007,10 +1007,10 @@ uint Rdb_key_def::pack_index_tuple(TABLE *const tbl, uchar *const pack_buffer,
                                    uchar *const packed_tuple,
                                    const uchar *const key_tuple,
                                    const key_part_map &keypart_map) const {
-  DBUG_ASSERT(tbl != nullptr);
-  DBUG_ASSERT(pack_buffer != nullptr);
-  DBUG_ASSERT(packed_tuple != nullptr);
-  DBUG_ASSERT(key_tuple != nullptr);
+  assert(tbl != nullptr);
+  assert(pack_buffer != nullptr);
+  assert(packed_tuple != nullptr);
+  assert(key_tuple != nullptr);
 
   /* We were given a record in KeyTupleFormat. First, save it to record */
   const uint key_len = calculate_key_len(tbl, m_keyno, keypart_map);
@@ -1028,7 +1028,7 @@ uint Rdb_key_def::pack_index_tuple(TABLE *const tbl, uchar *const pack_buffer,
   @return Number of bytes that were changed
 */
 int Rdb_key_def::successor(uchar *const packed_tuple, const uint len) {
-  DBUG_ASSERT(packed_tuple != nullptr);
+  assert(packed_tuple != nullptr);
 
   int changed = 0;
   uchar *p = packed_tuple + len - 1;
@@ -1047,7 +1047,7 @@ int Rdb_key_def::successor(uchar *const packed_tuple, const uint len) {
   @return Number of bytes that were changed
 */
 int Rdb_key_def::predecessor(uchar *const packed_tuple, const uint len) {
-  DBUG_ASSERT(packed_tuple != nullptr);
+  assert(packed_tuple != nullptr);
 
   int changed = 0;
   uchar *p = packed_tuple + len - 1;
@@ -1071,7 +1071,7 @@ static const std::map<char, size_t> UNPACK_HEADER_SIZES = {
   @return The length in bytes of the header specified by the given tag
 */
 size_t Rdb_key_def::get_unpack_header_size(char tag) {
-  DBUG_ASSERT(is_unpack_data_tag(tag));
+  assert(is_unpack_data_tag(tag));
   return UNPACK_HEADER_SIZES.at(tag);
 }
 
@@ -1082,7 +1082,7 @@ size_t Rdb_key_def::get_unpack_header_size(char tag) {
   not covered, map->bitmap will be set to null.
  */
 void Rdb_key_def::get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const {
-  DBUG_ASSERT(map->bitmap == nullptr);
+  assert(map->bitmap == nullptr);
   bitmap_init(map, nullptr, MAX_REF_PARTS);
   uint curr_bitmap_pos = 0;
 
@@ -1153,7 +1153,7 @@ void Rdb_key_def::get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const {
  */
 bool Rdb_key_def::covers_lookup(const rocksdb::Slice *const unpack_info,
                                 const MY_BITMAP *const lookup_bitmap) const {
-  DBUG_ASSERT(lookup_bitmap != nullptr);
+  assert(lookup_bitmap != nullptr);
   if (!use_covered_bitmap_format() || lookup_bitmap->bitmap == nullptr) {
     return false;
   }
@@ -1193,7 +1193,7 @@ uchar *Rdb_key_def::pack_field(Field *const field, Rdb_field_packing *pack_info,
                                Rdb_string_writer *const unpack_info,
                                uint *const n_null_fields) const {
   if (field->is_nullable()) {
-    DBUG_ASSERT(is_storage_available(tuple - packed_tuple, 1));
+    assert(is_storage_available(tuple - packed_tuple, 1));
     if (field->is_real_null()) {
       /* NULL value. store '\0' so that it sorts before non-NULL values */
       *tuple++ = 0;
@@ -1212,7 +1212,7 @@ uchar *Rdb_key_def::pack_field(Field *const field, Rdb_field_packing *pack_info,
   Rdb_pack_field_context pack_ctx(unpack_info);
 
   // Set the offset for methods which do not take an offset as an argument
-  DBUG_ASSERT(
+  assert(
       is_storage_available(tuple - packed_tuple, pack_info->m_max_image_len));
 
   (pack_info->m_pack_func)(pack_info, field, pack_buffer, &tuple, &pack_ctx);
@@ -1256,10 +1256,10 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
                               const longlong hidden_pk_id, uint n_key_parts,
                               uint *const n_null_fields,
                               const char *const ttl_bytes) const {
-  DBUG_ASSERT(tbl != nullptr);
-  DBUG_ASSERT(pack_buffer != nullptr);
-  DBUG_ASSERT(record != nullptr);
-  DBUG_ASSERT(packed_tuple != nullptr);
+  assert(tbl != nullptr);
+  assert(pack_buffer != nullptr);
+  assert(record != nullptr);
+  assert(packed_tuple != nullptr);
   // Checksums for PKs are made when record is packed.
   // We should never attempt to make checksum just from PK values
   DBUG_ASSERT_IMP(should_store_row_debug_checksums,
@@ -1345,7 +1345,7 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
     }
 
     Field *const field = m_pack_info[i].get_field_in_table(tbl);
-    DBUG_ASSERT(field != nullptr);
+    assert(field != nullptr);
 
     uint field_offset = field->field_ptr() - tbl->record[0];
     uint null_offset = field->null_offset(tbl->record[0]);
@@ -1379,7 +1379,7 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
 
   if (unpack_info) {
     const size_t len = unpack_info->get_current_pos() - unpack_start_pos;
-    DBUG_ASSERT(len <= std::numeric_limits<uint16_t>::max());
+    assert(len <= std::numeric_limits<uint16_t>::max());
 
     // Don't store the unpack_info if it has only the header (that is, there's
     // no meaningful content).
@@ -1414,7 +1414,7 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
     }
   }
 
-  DBUG_ASSERT(is_storage_available(tuple - packed_tuple, 0));
+  assert(is_storage_available(tuple - packed_tuple, 0));
 
   return tuple - packed_tuple;
 }
@@ -1432,18 +1432,18 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
 
 uint Rdb_key_def::pack_hidden_pk(const longlong hidden_pk_id,
                                  uchar *const packed_tuple) const {
-  DBUG_ASSERT(packed_tuple != nullptr);
+  assert(packed_tuple != nullptr);
 
   uchar *tuple = packed_tuple;
   rdb_netbuf_store_index(tuple, m_index_number);
   tuple += INDEX_NUMBER_SIZE;
-  DBUG_ASSERT(m_key_parts == 1);
-  DBUG_ASSERT(is_storage_available(tuple - packed_tuple,
-                                   m_pack_info[0].m_max_image_len));
+  assert(m_key_parts == 1);
+  assert(is_storage_available(tuple - packed_tuple,
+                              m_pack_info[0].m_max_image_len));
 
   m_pack_info[0].fill_hidden_pk_val(&tuple, hidden_pk_id);
 
-  DBUG_ASSERT(is_storage_available(tuple - packed_tuple, 0));
+  assert(is_storage_available(tuple - packed_tuple, 0));
   return tuple - packed_tuple;
 }
 
@@ -1551,17 +1551,17 @@ void Rdb_key_def::pack_tiny(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_TINY);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_TINY);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length >= 1);
+  assert(length >= 1);
   if (fpi->m_field_unsigned_flag)
     *to = *ptr;
   else
@@ -1574,17 +1574,17 @@ void Rdb_key_def::pack_short(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_SHORT);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_SHORT);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length >= 2);
+  assert(length >= 2);
 #ifdef WORDS_BIGENDIAN
   if (!field->table->s->db_low_byte_first) {
     if (fpi->m_field_unsigned_flag)
@@ -1609,17 +1609,17 @@ void Rdb_key_def::pack_medium(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_INT24);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_INT24);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length >= 3);
+  assert(length >= 3);
   if (fpi->m_field_unsigned_flag)
     to[0] = ptr[2];
   else
@@ -1634,17 +1634,17 @@ void Rdb_key_def::pack_long(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONG);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_LONG);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length >= 4);
+  assert(length >= 4);
 #ifdef WORDS_BIGENDIAN
   if (!field->table->s->db_low_byte_first) {
     if (fpi->m_field_unsigned_flag)
@@ -1673,11 +1673,11 @@ void Rdb_key_def::pack_longlong(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_LONGLONG);
 
   static const int PACK_LENGTH = 8;
   const size_t length = fpi->m_max_image_len;
@@ -1702,11 +1702,11 @@ void Rdb_key_def::pack_double(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_DOUBLE);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_DOUBLE);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -1737,17 +1737,17 @@ void Rdb_key_def::pack_float(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_FLOAT);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_FLOAT);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length == sizeof(float));
+  assert(length == sizeof(float));
   float nr;
 
 #ifdef WORDS_BIGENDIAN
@@ -1790,11 +1790,11 @@ void Rdb_key_def::pack_new_decimal(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_NEWDECIMAL);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_NEWDECIMAL);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -1810,11 +1810,11 @@ void Rdb_key_def::pack_datetime2(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_DATETIME2);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_DATETIME2);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -1829,11 +1829,11 @@ void Rdb_key_def::pack_timestamp2(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_TIMESTAMP2);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -1848,11 +1848,11 @@ void Rdb_key_def::pack_time2(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_TIME2);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_TIME2);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -1867,11 +1867,11 @@ void Rdb_key_def::pack_year(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_YEAR);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_YEAR);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -1879,7 +1879,7 @@ void Rdb_key_def::pack_year(
       dynamic_cast<Field_num *const>(field)->is_unsigned();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length >= 1);
+  assert(length >= 1);
   if (unsigned_flag)
     *to = *ptr;
   else
@@ -1892,17 +1892,17 @@ void Rdb_key_def::pack_newdate(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_NEWDATE);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_NEWDATE);
 
   const size_t length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
 
-  DBUG_ASSERT(length >= 3);
+  assert(length >= 3);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -1918,10 +1918,10 @@ void Rdb_key_def::pack_with_make_sort_key(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
 
   const int max_len = fpi->m_max_image_len;
   field->make_sort_key(*dst, max_len);
@@ -1940,9 +1940,9 @@ void Rdb_key_def::pack_with_make_sort_key(
 int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
                               const rocksdb::Slice *key2,
                               std::size_t *const column_index) const {
-  DBUG_ASSERT(key1 != nullptr);
-  DBUG_ASSERT(key2 != nullptr);
-  DBUG_ASSERT(column_index != nullptr);
+  assert(key1 != nullptr);
+  assert(key2 != nullptr);
+  assert(column_index != nullptr);
 
   // the caller should check the return value and
   // not rely on column_index being valid
@@ -1959,7 +1959,7 @@ int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
   if (!indexp2) return HA_EXIT_FAILURE;
 
   // shouldn't compare with other index
-  DBUG_ASSERT(memcmp(indexp1, indexp2, INDEX_NUMBER_SIZE) == 0);
+  assert(memcmp(indexp1, indexp2, INDEX_NUMBER_SIZE) == 0);
 
   for (uint i = 0; i < m_key_parts; i++) {
     const Rdb_field_packing *const fpi = &m_pack_info[i];
@@ -1984,7 +1984,7 @@ int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
 
     const auto before_skip1 = reader1.get_current_ptr();
     const auto before_skip2 = reader2.get_current_ptr();
-    DBUG_ASSERT(fpi->m_skip_func);
+    assert(fpi->m_skip_func);
     if ((fpi->m_skip_func)(fpi, &reader1)) {
       return HA_EXIT_FAILURE;
     }
@@ -2018,7 +2018,7 @@ int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
 
 size_t Rdb_key_def::key_length(const TABLE *const table,
                                const rocksdb::Slice &key) const {
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   Rdb_string_reader reader(&key);
 
@@ -2203,7 +2203,7 @@ bool Rdb_key_def::index_format_min_check(const int pk_min,
     case INDEX_TYPE_SECONDARY:
       return (m_kv_format_version >= sk_min);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return false;
   }
 }
@@ -2344,10 +2344,10 @@ void Rdb_key_def::pack_unsigned(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(length == fpi->m_max_image_len);
+  assert(fpi != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(length == fpi->m_max_image_len);
 
   const uchar *ptr = field->field_ptr();
   uchar *to = *dst;
@@ -2407,7 +2407,7 @@ int Rdb_key_def::unpack_unsigned(
     Rdb_unpack_func_context *const, uchar *const to,
     Rdb_string_reader *const reader,
     Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(length == fpi->m_max_image_len);
+  assert(length == fpi->m_max_image_len);
 
   const uchar *from;
   if (!(from = (const uchar *)reader->read(length))) {
@@ -2503,7 +2503,7 @@ int Rdb_key_def::unpack_floating_point(
   // On little-endian, swap the bytes around
   swap_func(dst, tmp);
 #else
-  DBUG_ASSERT(swap_func == nullptr);
+  assert(swap_func == nullptr);
 #endif
 
   return UNPACK_SUCCESS;
@@ -2566,7 +2566,7 @@ int Rdb_key_def::unpack_newdate(
     Rdb_string_reader *const reader,
     Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   const char *from;
-  DBUG_ASSERT(fpi->m_max_image_len == 3);
+  assert(fpi->m_max_image_len == 3);
 
   if (!(from = reader->read(3))) {
     /* Mem-comparable image doesn't have enough bytes */
@@ -2589,11 +2589,11 @@ void Rdb_key_def::pack_bit(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
     Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
-  DBUG_ASSERT(field != nullptr);
-  DBUG_ASSERT(dst != nullptr);
-  DBUG_ASSERT(*dst != nullptr);
-  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_BIT);
+  assert(fpi != nullptr);
+  assert(field != nullptr);
+  assert(dst != nullptr);
+  assert(*dst != nullptr);
+  assert(field->real_type() == MYSQL_TYPE_BIT);
 
   uint length = fpi->m_max_image_len;
   const uchar *ptr = field->field_ptr();
@@ -2615,7 +2615,7 @@ int Rdb_key_def::unpack_bit(
     Rdb_field_packing *const fpi, Rdb_unpack_func_context *const,
     uchar *const to, Rdb_string_reader *const reader,
     Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi != nullptr);
+  assert(fpi != nullptr);
   const char *from;
   if (!(from = reader->read(fpi->m_max_image_len))) {
     /* Mem-comparable image doesn't have enough bytes */
@@ -2675,7 +2675,7 @@ int unpack_utf8_str_templ(
                               : (src[0] << 8) | src[1];
     src += bytes;
     int res = cset->cset->wc_mb(cset, wc, dst, dst_end);
-    DBUG_ASSERT(res > 0 && res <= bytes + 1);
+    assert(res > 0 && res <= bytes + 1);
     if (res < 0) return UNPACK_FAILURE;
     dst += res;
   }
@@ -3029,8 +3029,8 @@ unpack_info:
     // (value_length - trimmed_len) is the number of trimmed space *characters*
     // then, padding_bytes is the number of *bytes* added as padding
     // then, we add 8, because we don't store negative values.
-    DBUG_ASSERT(padding_bytes % fpi->space_xfrm_len == 0);
-    DBUG_ASSERT((value_length - trimmed_len) % fpi->space_mb_len == 0);
+    assert(padding_bytes % fpi->space_xfrm_len == 0);
+    assert((value_length - trimmed_len) % fpi->space_mb_len == 0);
     const size_t removed_chars =
         RDB_TRIMMED_CHARS_OFFSET +
         (value_length - trimmed_len) / fpi->space_mb_len -
@@ -3039,7 +3039,7 @@ unpack_info:
     if (fpi->m_unpack_info_uses_two_bytes) {
       unpack_info->write_uint16(removed_chars);
     } else {
-      DBUG_ASSERT(removed_chars < 0x100);
+      assert(removed_chars < 0x100);
       unpack_info->write_uint8(removed_chars);
     }
   }
@@ -3094,7 +3094,7 @@ void Rdb_key_def::store_field(const uchar *data, const size_t length,
     if (length_bytes == 1) {
       ptr[0] = length;
     } else {
-      DBUG_ASSERT(length_bytes == 2);
+      assert(length_bytes == 2);
       int2store(ptr, length);
     }
     // data is not used for varchar as field->ptr + length_bytes
@@ -3106,7 +3106,7 @@ void Rdb_key_def::store_field(const uchar *data, const size_t length,
     memset(ptr + length_bytes, 0, 8);
     memcpy(ptr + length_bytes, &blob_data, sizeof(uchar **));
   } else {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -3123,7 +3123,7 @@ const char *Rdb_key_def::get_data_value(const Field *field) {
     memcpy(&blob, field_blob->field_ptr() + length_bytes, sizeof(char *));
     return reinterpret_cast<const char *>(blob);
   } else {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 }
@@ -3137,7 +3137,7 @@ uchar *Rdb_key_def::get_data_start_ptr(Rdb_field_packing *const fpi, uchar *dst,
     auto handler = static_cast<ha_rocksdb *>(ctx->table->file);
     data_start = handler->get_blob_buffer(fpi->m_max_field_bytes);
   } else {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   return data_start;
 }
@@ -3221,7 +3221,7 @@ int Rdb_key_def::unpack_binary_varlength(
     Rdb_field_packing *const fpi, Rdb_unpack_func_context *const ctx,
     uchar *dst MY_ATTRIBUTE((__unused__)), Rdb_string_reader *const reader,
     Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
-  DBUG_ASSERT(fpi->m_field_charset == &my_charset_bin);
+  assert(fpi->m_field_charset == &my_charset_bin);
   const uchar *ptr;
   size_t len = 0;
   bool finished = false;
@@ -3347,7 +3347,7 @@ int Rdb_key_def::unpack_binary_or_utf8_varlength_space_pad(
         src += bytes;
         const CHARSET_INFO *cset = fpi->m_field_charset;
         int res = cset->cset->wc_mb(cset, wc, data, data_end);
-        DBUG_ASSERT(res <= bytes + 1);
+        assert(res <= bytes + 1);
         if (res <= 0) return UNPACK_FAILURE;
         data += res;
         len += res;
@@ -3484,8 +3484,8 @@ int Rdb_key_def::unpack_unknown_varlength(Rdb_field_packing *const fpi,
     return UNPACK_FAILURE;
   }
 
-  DBUG_ASSERT(len_bytes > 0);
-  DBUG_ASSERT(unp_reader != nullptr);
+  assert(len_bytes > 0);
+  assert(unp_reader != nullptr);
 
   if ((ptr = (uchar *)unp_reader->read(len_bytes))) {
     uint len = 0;
@@ -3522,7 +3522,7 @@ static uint rdb_read_unpack_simple(Rdb_bit_reader *const reader,
   for (uint i = 0; i < src_len; i++) {
     if (codec->m_dec_size[src[i]] > 0) {
       uint *ret;
-      DBUG_ASSERT(reader != nullptr);
+      assert(reader != nullptr);
 
       if ((ret = reader->read(codec->m_dec_size[src[i]])) == nullptr) {
         return UNPACK_FAILURE;
@@ -3576,14 +3576,14 @@ int Rdb_key_def::unpack_simple_varlength_space_pad(
   uchar *data = data_start;
 
   // For simple collations, char_length is also number of bytes.
-  DBUG_ASSERT((size_t)fpi->m_max_image_len >=
-              (fpi->m_max_field_bytes / fpi->m_field_charset->mbmaxlen));
+  assert((size_t)fpi->m_max_image_len >=
+         (fpi->m_max_field_bytes / fpi->m_field_charset->mbmaxlen));
   uchar *data_end = data + fpi->m_max_field_bytes;
   Rdb_bit_reader bit_reader(unp_reader);
 
   uint space_padding_bytes = 0;
   uint extra_spaces;
-  DBUG_ASSERT(unp_reader != nullptr);
+  assert(unp_reader != nullptr);
 
   if ((fpi->m_unpack_info_uses_two_bytes
            ? unp_reader->read_uint16(&extra_spaces)
@@ -3753,14 +3753,14 @@ static void rdb_get_mem_comparable_space(const CHARSET_INFO *const cs,
                                          const std::vector<uchar> **xfrm,
                                          size_t *const xfrm_len,
                                          size_t *const mb_len) {
-  DBUG_ASSERT(cs->number < MY_ALL_CHARSETS_SIZE);
+  assert(cs->number < MY_ALL_CHARSETS_SIZE);
   if (!rdb_mem_comparable_space[cs->number].get()) {
     RDB_MUTEX_LOCK_CHECK(rdb_mem_cmp_space_mutex);
     if (!rdb_mem_comparable_space[cs->number].get()) {
       // Upper bound of how many bytes can be occupied by multi-byte form of a
       // character in any charset.
       const int MAX_MULTI_BYTE_CHAR_SIZE = 4;
-      DBUG_ASSERT(cs->mbmaxlen <= MAX_MULTI_BYTE_CHAR_SIZE);
+      assert(cs->mbmaxlen <= MAX_MULTI_BYTE_CHAR_SIZE);
 
       // multi-byte form of the ' ' (space) character
       uchar space_mb[MAX_MULTI_BYTE_CHAR_SIZE];
@@ -3806,8 +3806,8 @@ static bool rdb_is_binary_collation(const my_core::CHARSET_INFO *const cs) {
 
 static const Rdb_collation_codec *rdb_init_collation_mapping(
     const my_core::CHARSET_INFO *const cs) {
-  DBUG_ASSERT(cs);
-  DBUG_ASSERT(cs->state & MY_CS_AVAILABLE);
+  assert(cs);
+  assert(cs->state & MY_CS_AVAILABLE);
   const Rdb_collation_codec *codec = rdb_collation_data[cs->number];
 
   if (codec == nullptr && rdb_is_simple_collation(cs)) {
@@ -3884,7 +3884,7 @@ static int get_segment_size_from_collation(const CHARSET_INFO *const cs) {
     */
     ret = 9;
   }
-  DBUG_ASSERT(ret < RDB_SPACE_XFRM_SIZE);
+  assert(ret < RDB_SPACE_XFRM_SIZE);
   return ret;
 }
 
@@ -4083,7 +4083,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
       m_covered = Rdb_key_def::KEY_COVERED;
@@ -4106,7 +4106,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_VAR_STRING:
-      DBUG_ASSERT(0);
+      assert(0);
     default:
       break;
   }
@@ -4164,7 +4164,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
       // - For VARBINARY(N), values may have different lengths, so we're using
       //   variable-length encoding. This is also the only charset where the
       //   values are not space-padded for comparison.
-      DBUG_ASSERT(m_make_unpack_info_func == nullptr);
+      assert(m_make_unpack_info_func == nullptr);
       m_unpack_func = is_varlength ? Rdb_key_def::unpack_binary_varlength
                                    : Rdb_key_def::unpack_binary_str;
       m_covered = Rdb_key_def::KEY_COVERED;
@@ -4196,7 +4196,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
       } else {
         // SQL layer pads CHAR(N) values to their maximum length.
         // We just store that and restore it back.
-        DBUG_ASSERT(m_make_unpack_info_func == nullptr);
+        assert(m_make_unpack_info_func == nullptr);
         m_unpack_func = (cs == &my_charset_utf8mb4_bin)
                             ? Rdb_key_def::unpack_utf8mb4_str
                             : (cs == &my_charset_utf8mb3_bin)
@@ -4272,7 +4272,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // Same as above: we don't know how to restore the value from its
         // mem-comparable form.
         // Here, we just indicate to the SQL layer we can't do it.
-        DBUG_ASSERT(m_unpack_func == nullptr);
+        assert(m_unpack_func == nullptr);
         m_unpack_info_stores_value = false;
         m_covered = Rdb_key_def::KEY_NOT_COVERED;  // Indicate that index-only
                                                    // reads are not possible
@@ -4318,7 +4318,7 @@ Field *Rdb_field_packing::get_field_in_table(const TABLE *const tbl) const {
 
 void Rdb_field_packing::fill_hidden_pk_val(uchar **dst,
                                            const longlong hidden_pk_id) const {
-  DBUG_ASSERT(m_max_image_len == 8);
+  assert(m_max_image_len == 8);
 
   String to;
   rdb_netstr_append_uint64(&to, hidden_pk_id);
@@ -4474,7 +4474,7 @@ void Rdb_key_def::write_index_flag_field(Rdb_string_writer *const buf,
                                          enum INDEX_FLAG flag) const {
   uint len;
   uint offset = calculate_index_flag_offset(m_index_flags_bitmap, flag, &len);
-  DBUG_ASSERT(offset + len <= buf->get_current_pos());
+  assert(offset + len <= buf->get_current_pos());
   memcpy(buf->ptr() + offset, val, len);
 }
 
@@ -4505,7 +4505,7 @@ void Rdb_tbl_def::set_name(const std::string &name) {
   m_dbname_tablename = name;
   err = rdb_split_normalized_tablename(name, &m_dbname, &m_tablename,
                                        &m_partition);
-  DBUG_ASSERT(err == 0);
+  assert(err == 0);
 
   check_if_is_mysql_system_table();
 }
@@ -4580,7 +4580,7 @@ struct Rdb_validate_tbls : public Rdb_tables_scanner {
   information just read from the RocksDB data dictionary.
 */
 int Rdb_validate_tbls::add_table(Rdb_tbl_def *tdef) {
-  DBUG_ASSERT(tdef != nullptr);
+  assert(tdef != nullptr);
 
   /*
     Add the database/table into the list that are not temp table.
@@ -4865,7 +4865,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
 
       std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
           cf_manager->get_cf(gl_index_id.cf_id);
-      DBUG_ASSERT(cfh);
+      assert(cfh);
 
       uint32 ttl_rec_offset =
           Rdb_key_def::has_index_flag(index_info.m_index_flags,
@@ -4891,7 +4891,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       }
     }
 
-    DBUG_ASSERT(tdef->m_key_count > 0);
+    assert(tdef->m_key_count > 0);
     tdef->m_tbl_stats.set(
         tdef->m_key_count > 0 ? tdef->m_key_descr_arr[0]->m_stats.m_rows : 0, 0,
         0);
@@ -5149,7 +5149,7 @@ void Rdb_ddl_manager::set_table_stats(const std::string &tbl_name) {
   mysql_rwlock_rdlock(&m_rwlock);
   const auto &tbl_def = find(tbl_name, false /* needs lock */);
   if (tbl_def) {
-    DBUG_ASSERT(tbl_def->m_key_count > 0);
+    assert(tbl_def->m_key_count > 0);
     // Take the number of rows of the first index as the number of rows of
     // the table. This is an estimated value.
     tbl_def->m_tbl_stats.set(tbl_def->m_key_count > 0
@@ -5287,7 +5287,7 @@ void Rdb_ddl_manager::cleanup() {
 int Rdb_ddl_manager::scan_for_tables(Rdb_tables_scanner *const tables_scanner) {
   int ret;
 
-  DBUG_ASSERT(tables_scanner != nullptr);
+  assert(tables_scanner != nullptr);
 
   // This method should NOT accquire dict_manager lock and
   // cf_manager lock in order to prevent deadlocks.
@@ -5307,8 +5307,8 @@ int Rdb_ddl_manager::scan_for_tables(Rdb_tables_scanner *const tables_scanner) {
 bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
                             Rdb_cf_manager *const cf_manager,
                             const bool enable_remove_orphaned_dropped_cfs) {
-  DBUG_ASSERT(rdb_dict != nullptr);
-  DBUG_ASSERT(cf_manager != nullptr);
+  assert(rdb_dict != nullptr);
+  assert(cf_manager != nullptr);
 
   mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
 
@@ -5447,7 +5447,7 @@ void Rdb_dict_manager::add_or_update_index_cf_mapping(
 void Rdb_dict_manager::add_cf_flags(rocksdb::WriteBatch *const batch,
                                     const uint32_t cf_id,
                                     const uint32_t cf_flags) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
 
   Rdb_buf_writer<Rdb_key_def::INDEX_NUMBER_SIZE * 2> key_writer;
   key_writer.write_uint32(Rdb_key_def::CF_DEFINITION);
@@ -5463,7 +5463,7 @@ void Rdb_dict_manager::add_cf_flags(rocksdb::WriteBatch *const batch,
 
 void Rdb_dict_manager::delete_cf_flags(rocksdb::WriteBatch *const batch,
                                        const uint &cf_id) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
 
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2] = {0};
 
@@ -5593,7 +5593,7 @@ bool Rdb_dict_manager::get_index_info(
 
 bool Rdb_dict_manager::get_cf_flags(const uint32_t cf_id,
                                     uint32_t *const cf_flags) const {
-  DBUG_ASSERT(cf_flags != nullptr);
+  assert(cf_flags != nullptr);
 
   bool found = false;
   std::string value;
@@ -5606,7 +5606,7 @@ bool Rdb_dict_manager::get_cf_flags(const uint32_t cf_id,
 
   if (status.ok()) {
     const uchar *val = (const uchar *)value.c_str();
-    DBUG_ASSERT(val);
+    assert(val);
 
     const uint16_t version = rdb_netbuf_to_uint16(val);
 
@@ -5621,7 +5621,7 @@ bool Rdb_dict_manager::get_cf_flags(const uint32_t cf_id,
 
 void Rdb_dict_manager::add_dropped_cf(rocksdb::WriteBatch *const batch,
                                       const uint &cf_id) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
 
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2] = {0};
   uchar value_buf[Rdb_key_def::VERSION_SIZE] = {0};
@@ -5652,14 +5652,14 @@ bool Rdb_dict_manager::get_dropped_cf(const uint &cf_id) const {
 
 void Rdb_dict_manager::delete_dropped_cf_and_flags(
     rocksdb::WriteBatch *const batch, const uint &cf_id) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
   delete_dropped_cf(batch, cf_id);
   delete_cf_flags(batch, cf_id);
 }
 
 void Rdb_dict_manager::delete_dropped_cf(rocksdb::WriteBatch *const batch,
                                          const uint &cf_id) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
 
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2] = {0};
 
@@ -5703,8 +5703,8 @@ void Rdb_dict_manager::get_all_dropped_cfs(
 void Rdb_dict_manager::get_ongoing_index_operation(
     std::unordered_set<GL_INDEX_ID> *gl_index_ids,
     Rdb_key_def::DATA_DICT_TYPE dd_type) const {
-  DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
-              dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
+  assert(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
+         dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
   Rdb_buf_writer<Rdb_key_def::INDEX_NUMBER_SIZE> index_writer;
   index_writer.write_uint32(dd_type);
@@ -5798,8 +5798,8 @@ int Rdb_dict_manager::remove_orphaned_dropped_cfs(
  */
 bool Rdb_dict_manager::is_index_operation_ongoing(
     const GL_INDEX_ID &gl_index_id, Rdb_key_def::DATA_DICT_TYPE dd_type) const {
-  DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
-              dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
+  assert(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
+         dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
   bool found = false;
   std::string value;
@@ -5820,8 +5820,8 @@ bool Rdb_dict_manager::is_index_operation_ongoing(
 void Rdb_dict_manager::start_ongoing_index_operation(
     rocksdb::WriteBatch *const batch, const GL_INDEX_ID &gl_index_id,
     Rdb_key_def::DATA_DICT_TYPE dd_type) const {
-  DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
-              dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
+  assert(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
+         dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
   Rdb_buf_writer<Rdb_key_def::INDEX_NUMBER_SIZE * 3> key_writer;
   Rdb_buf_writer<Rdb_key_def::VERSION_SIZE> value_writer;
@@ -5845,8 +5845,8 @@ void Rdb_dict_manager::start_ongoing_index_operation(
 void Rdb_dict_manager::end_ongoing_index_operation(
     rocksdb::WriteBatch *const batch, const GL_INDEX_ID &gl_index_id,
     Rdb_key_def::DATA_DICT_TYPE dd_type) const {
-  DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
-              dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
+  assert(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
+         dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
   delete_with_prefix(batch, dd_type, gl_index_id);
 }
@@ -5913,8 +5913,8 @@ void Rdb_dict_manager::add_create_index(
 void Rdb_dict_manager::finish_indexes_operation(
     const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
     Rdb_key_def::DATA_DICT_TYPE dd_type) const {
-  DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
-              dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
+  assert(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
+         dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
   const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
   rocksdb::WriteBatch *const batch = wb.get();
@@ -6043,7 +6043,7 @@ bool Rdb_dict_manager::get_max_index_id(uint32_t *const index_id) const {
 
 bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
                                            const uint32_t index_id) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
 
   uint32_t old_index_id = -1;
   if (get_max_index_id(&old_index_id)) {
@@ -6069,7 +6069,7 @@ bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
 void Rdb_dict_manager::add_stats(
     rocksdb::WriteBatch *const batch,
     const std::vector<Rdb_index_stats> &stats) const {
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
 
   for (const auto &it : stats) {
     Rdb_buf_writer<Rdb_key_def::INDEX_NUMBER_SIZE * 3> key_writer;
@@ -6143,7 +6143,7 @@ bool Rdb_dict_manager::get_auto_incr_val(const GL_INDEX_ID &gl_index_id,
 
 uint Rdb_seq_generator::get_and_update_next_number(
     Rdb_dict_manager *const dict) {
-  DBUG_ASSERT(dict != nullptr);
+  assert(dict != nullptr);
 
   uint res;
   RDB_MUTEX_LOCK_CHECK(m_mutex);
@@ -6153,7 +6153,7 @@ uint Rdb_seq_generator::get_and_update_next_number(
   const std::unique_ptr<rocksdb::WriteBatch> wb = dict->begin();
   rocksdb::WriteBatch *const batch = wb.get();
 
-  DBUG_ASSERT(batch != nullptr);
+  assert(batch != nullptr);
   dict->update_max_index_id(batch, res);
   dict->commit(batch);
 

@@ -52,7 +52,7 @@
 #include <vector>
 
 #include "sql/debug_sync.h"
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include "sql/sql_test.h"  // print_where
 #endif
 
@@ -1911,14 +1911,13 @@ int Partition_base::start_stmt(THD *thd, thr_lock_type lock_type) {
   uint i;
   /* Assert that read_partitions is included in lock_partitions */
   assert(bitmap_is_subset(&m_part_info->read_partitions,
-                               &m_part_info->lock_partitions));
+                          &m_part_info->lock_partitions));
   /*
     m_locked_partitions is set in previous external_lock/LOCK TABLES.
     Current statement's lock requests must not include any partitions
     not previously locked.
   */
-  assert(
-      bitmap_is_subset(&m_part_info->lock_partitions, &m_locked_partitions));
+  assert(bitmap_is_subset(&m_part_info->lock_partitions, &m_locked_partitions));
   DBUG_ENTER("Partition_base::start_stmt");
 
   for (i = bitmap_get_first_set(&(m_part_info->lock_partitions));
@@ -2847,10 +2846,10 @@ int Partition_base::info(uint flag) {
   int res, error = 0;
   DBUG_ENTER("Partition_base::info");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (bitmap_is_set_all(&(m_part_info->read_partitions)))
     DBUG_PRINT("info", ("All partitions are used"));
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
   if (flag & HA_STATUS_AUTO) {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     if (!table->found_next_number_field) {
@@ -3935,7 +3934,11 @@ enum_alter_inplace_result Partition_base::check_if_supported_inplace_alter(
     DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 
   if (ha_alter_info->alter_info->flags &
-      (Alter_info::ALTER_COALESCE_PARTITION |
+      ((allow_unsafe_alter() ? 0ULL
+                             : (ulonglong)Alter_info::ALTER_ADD_PARTITION) |
+       (allow_unsafe_alter() ? 0ULL
+                             : (ulonglong)Alter_info::ALTER_DROP_PARTITION) |
+       Alter_info::ALTER_COALESCE_PARTITION |
        Alter_info::ALTER_REORGANIZE_PARTITION |
        Alter_info::ALTER_EXCHANGE_PARTITION)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
@@ -4103,7 +4106,7 @@ bool Partition_base::commit_inplace_alter_table(
 
   if (commit) {
     assert(ha_alter_info->group_commit_ctx ==
-                part_inplace_ctx->handler_ctx_array);
+           part_inplace_ctx->handler_ctx_array);
 
     // Call SE to drop partition/sub partitions
     if (ha_alter_info->alter_info->flags & Alter_info::ALTER_DROP_PARTITION) {
@@ -4556,7 +4559,7 @@ void Partition_base::cancel_pushed_idx_cond() {
 
 int Partition_base::initialize_auto_increment(bool no_lock) {
   DBUG_ENTER("Partition_base::initialize_auto_increment");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE) {
     mysql_mutex_assert_owner(part_share->auto_inc_mutex);
   }

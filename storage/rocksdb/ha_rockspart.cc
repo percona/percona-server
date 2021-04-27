@@ -87,10 +87,10 @@ handler *ha_rockspart::clone(const char *name, MEM_ROOT *mem_root) {
     goto err;
 
   /* We will not use clone() interface to clone individual partition
-  handlers. This is because tokudb_create_handler() gives ha_tokupart handler
-  instead of ha_tokudb handlers. This happens because of presence of parition
-  info in TABLE_SHARE. New partition handlers are created for each partiton
-  in native_part::Partition_base::open() */
+  handlers. This is because rocksdb_create_handler() gives ha_rockspart
+  handler instead of ha_rocksdb handlers when partition info is present in
+  TABLE_SHARE. New partition handlers are created for each partition in
+  native_part::Partition_base::open() */
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, nullptr))
     goto err;
@@ -111,3 +111,7 @@ ulong ha_rockspart::index_flags(uint idx, uint part, bool all_parts) const {
 }
 
 bool ha_rockspart::rpl_lookup_rows() { return true; }
+
+bool ha_rockspart::allow_unsafe_alter() const {
+  return myrocks::ha_rocksdb::allow_unsafe_alter();
+}

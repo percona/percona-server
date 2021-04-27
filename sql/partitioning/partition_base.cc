@@ -3936,7 +3936,11 @@ enum_alter_inplace_result Partition_base::check_if_supported_inplace_alter(
     DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 
   if (ha_alter_info->alter_info->flags &
-      (Alter_info::ALTER_COALESCE_PARTITION |
+      ((allow_unsafe_alter() ? 0ULL
+                             : (ulonglong)Alter_info::ALTER_ADD_PARTITION) |
+       (allow_unsafe_alter() ? 0ULL
+                             : (ulonglong)Alter_info::ALTER_DROP_PARTITION) |
+       Alter_info::ALTER_COALESCE_PARTITION |
        Alter_info::ALTER_REORGANIZE_PARTITION |
        Alter_info::ALTER_EXCHANGE_PARTITION)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,

@@ -894,6 +894,7 @@ rocksdb_allow_concurrent_memtable_write	OFF
 rocksdb_allow_mmap_reads	OFF
 rocksdb_allow_mmap_writes	OFF
 rocksdb_allow_to_start_after_corruption	OFF
+rocksdb_allow_unsafe_alter	OFF
 rocksdb_alter_column_default_inplace	ON
 rocksdb_blind_delete_primary_key	OFF
 rocksdb_block_cache_size	536870912

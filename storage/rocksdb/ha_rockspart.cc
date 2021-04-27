@@ -111,3 +111,7 @@ ulong ha_rockspart::index_flags(uint idx, uint part, bool all_parts) const {
 }
 
 bool ha_rockspart::rpl_lookup_rows() { return true; }
+
+bool ha_rockspart::allow_unsafe_alter() const {
+  return myrocks::ha_rocksdb::allow_unsafe_alter();
+}

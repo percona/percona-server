@@ -485,6 +485,8 @@ class ha_rocksdb : public my_core::handler {
 
   bool init_with_fields() override;
 
+  static bool allow_unsafe_alter() noexcept;
+
   static ulong index_flags(bool &pk_can_be_decoded,
                            const TABLE_SHARE *table_share, uint inx, uint part,
                            bool all_parts);

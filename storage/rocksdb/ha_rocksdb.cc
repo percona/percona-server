@@ -154,6 +154,7 @@ static char *rocksdb_default_cf_options = nullptr;
 static char *rocksdb_override_cf_options = nullptr;
 static char *rocksdb_update_cf_options = nullptr;
 static bool rocksdb_use_default_sk_cf = false;
+static bool rocksdb_allow_unsafe_alter = false;
 
 ///////////////////////////////////////////////////////////
 // Globals
@@ -1778,6 +1779,11 @@ static MYSQL_SYSVAR_BOOL(use_default_sk_cf, rocksdb_use_default_sk_cf,
                          "Use default_sk for secondary keys", nullptr, nullptr,
                          false);
 
+static MYSQL_SYSVAR_BOOL(allow_unsafe_alter, rocksdb_allow_unsafe_alter,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                         "Enable crash unsafe INPLACE ADD|DROP partition.",
+                         nullptr, nullptr, false);
+
 static MYSQL_SYSVAR_UINT(flush_log_at_trx_commit,
                          rocksdb_flush_log_at_trx_commit, PLUGIN_VAR_RQCMDARG,
                          "Sync on transaction commit. Similar to "
@@ -2330,6 +2336,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(override_cf_options),
     MYSQL_SYSVAR(update_cf_options),
     MYSQL_SYSVAR(use_default_sk_cf),
+    MYSQL_SYSVAR(allow_unsafe_alter),
 
     MYSQL_SYSVAR(flush_log_at_trx_commit),
     MYSQL_SYSVAR(write_disable_wal),
@@ -6419,6 +6426,10 @@ bool ha_rocksdb::init_with_fields() {
   cached_table_flags = table_flags();
 
   DBUG_RETURN(false); /* Ok */
+}
+
+bool ha_rocksdb::allow_unsafe_alter() noexcept {
+  return rocksdb_allow_unsafe_alter;
 }
 
 bool ha_rocksdb::rpl_can_handle_stm_event() const noexcept {

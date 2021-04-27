@@ -41,6 +41,7 @@ class ha_rockspart : public native_part::Partition_base {
   enum row_type get_partition_row_type(const dd::Table *, uint) override {
     return ROW_TYPE_NOT_USED;
   }
+  bool allow_unsafe_alter() const override;
 
  private:
   handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) const override;

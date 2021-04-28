@@ -4630,7 +4630,6 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 static void buf_page_init_low(buf_page_t *bpage) noexcept {
   ut_ad(bpage->id.space() != UINT32_UNDEFINED);
   ut_ad(bpage->id.page_no() != UINT32_UNDEFINED);
-  ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->reinit_io_fix();

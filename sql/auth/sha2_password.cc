@@ -757,6 +757,7 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio,
                                       const char *scramble) {
   MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
   strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH + 1);
+  mpvio->scramble[SCRAMBLE_LENGTH] = '\0';
 }
 
 /**
@@ -1122,8 +1123,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 */
 
 int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
-                                          const char *inbuf,
-                                          unsigned int inbuflen) {
+                                   const char *inbuf, unsigned int inbuflen) {
   DBUG_TRACE;
   std::string digest;
   std::string source(inbuf, inbuflen);

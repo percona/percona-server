@@ -470,6 +470,7 @@ void Status_pfs::Data::read() {
   /* Set fixed data. */
   m_pid = 0;
   strncpy(m_destination, &g_local_string[0], sizeof(m_destination) - 1);
+  m_destination[sizeof(m_destination) - 1] = '\0';
 
   std::string file_line;
   int line_number = 0;
@@ -494,6 +495,7 @@ void Status_pfs::Data::read() {
       case 3:
         /* read source string */
         strncpy(m_source, file_line.c_str(), sizeof(m_source) - 1);
+        m_source[sizeof(m_source) - 1] = '\0';
         break;
       case 4:
         /* Read error number. */
@@ -502,10 +504,12 @@ void Status_pfs::Data::read() {
       case 5:
         /* read error string */
         strncpy(m_error_mesg, file_line.c_str(), sizeof(m_error_mesg) - 1);
+        m_error_mesg[sizeof(m_error_mesg) - 1] = '\0';
         break;
       case 6:
         /* Read binary log file name. */
         strncpy(m_binlog_file, file_line.c_str(), sizeof(m_binlog_file) - 1);
+        m_binlog_file[sizeof(m_binlog_file) - 1] = '\0';
         break;
       case 7:
         /* Read binary log position. */
@@ -548,6 +552,7 @@ void Status_pfs::Data::recover() {
       case 3:
         /* Read binary log file name. */
         strncpy(m_binlog_file, file_line.c_str(), sizeof(m_binlog_file) - 1);
+        m_binlog_file[sizeof(m_binlog_file) - 1] = '\0';
         break;
       case 4:
         /* Read binary log position. */

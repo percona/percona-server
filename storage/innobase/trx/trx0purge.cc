@@ -841,6 +841,7 @@ void Tablespace::set_file_name(const char *file_name) {
   /* Make a copy of the filename and normalize it. */
   char norm_fn[FN_REFLEN];
   strncpy(norm_fn, file_name, FN_REFLEN - 1);
+  norm_fn[FN_REFLEN - 1] = '\0';
   Fil_path::normalize(norm_fn);
   std::string tmp_fn{norm_fn};
 

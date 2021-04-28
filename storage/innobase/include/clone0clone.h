@@ -219,6 +219,7 @@ class Clone_Task_Manager {
         ut_ad(m_err_file_len != 0);
 
         strncpy(m_err_file_name, file_name, m_err_file_len);
+        m_err_file_name[m_err_file_len - 1] = '\0';
       }
     }
 

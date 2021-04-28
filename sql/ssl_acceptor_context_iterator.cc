@@ -126,14 +126,17 @@ bool get_tls_status(property_iterator it, TLS_channel_property *property) {
   /* Copy interface */
   copy_size = min(data.interface().length(), MAX_CHANNEL_NAME_SIZE);
   strncpy(property->channel_name, data.interface().c_str(), copy_size);
+  property->channel_name[copy_size] = '\0';
 
   /* Copy property name */
   copy_size = min(data.property().length(), MAX_PROPERTY_NAME_SIZE);
   strncpy(property->property_name, data.property().c_str(), copy_size);
+  property->property_name[copy_size] = '\0';
 
   /* Copy property value */
   copy_size = min(data.value().length(), MAX_PROPERTY_VALUE_SIZE);
   strncpy(property->property_value, data.value().c_str(), copy_size);
+  property->property_value[copy_size] = '\0';
 
   return true;
 }

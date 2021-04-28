@@ -80,6 +80,7 @@ struct Service_status_msg {
 
   Service_status_msg(const char *msg) {
     strncpy(m_service_msg, msg, sizeof(m_service_msg));
+    m_service_msg[sizeof(m_service_msg) - 1] = '\0';
   }
 
   /**

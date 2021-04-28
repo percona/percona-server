@@ -84,8 +84,7 @@ Encryption::Encryption(const Encryption &other) noexcept
   memcpy(m_key_id_uuid, other.m_key_id_uuid, SERVER_UUID_LEN + 1);
 }
 
-Encryption::~Encryption() {
-}
+Encryption::~Encryption() {}
 
 void Encryption::set_key(byte *key, ulint key_len) noexcept {
   m_key = key;
@@ -1787,6 +1786,8 @@ bool Encryption::check_keyring() noexcept {
     size_t key_len;
     char *key_type = nullptr;
     char key_name[MASTER_KEY_NAME_MAX_LEN];
+
+    ut_ad(sizeof(DEFAULT_MASTER_KEY) < MASTER_KEY_NAME_MAX_LEN);
 
     key_name[sizeof(DEFAULT_MASTER_KEY)] = 0;
 

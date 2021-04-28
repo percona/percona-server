@@ -112,11 +112,12 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
 static int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
                                      const char *inbuf, unsigned int inbuflen) {
   /*
-    if buffer specified by server is smaller than the buffer given
-    by plugin then return error
+    Check that the buffer from the plugin is large enough to contain
+    the buffer specifed by the server (+1 for null termination of the string).
+    Otherwise return an error.
   */
-  if (*buflen < inbuflen) return 1;
-  strncpy(outbuf, inbuf, inbuflen);
+  if (*buflen <= inbuflen) return 1;
+  strncpy(outbuf, inbuf, inbuflen + 1);
   *buflen = strlen(inbuf);
   return 0;
 }

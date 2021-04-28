@@ -1314,6 +1314,7 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
     return (false);
   }
   strncpy(name, reinterpret_cast<const char *>(field), NAME_LEN);
+  name[NAME_LEN] = '\0';
 
   /* read the 4 byte flags from the TYPE field */
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_TABLESPACES__FLAGS, &len);

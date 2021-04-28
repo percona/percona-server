@@ -293,6 +293,7 @@ Ndb_split_string_address_port(const char *arg, char *host, size_t hostlen,
       if (*port_colon == ':')
       {
         strncpy(serv, port_colon + 1, servlen);
+        serv[servlen - 1] = '\0';
       }
       else
       {

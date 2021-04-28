@@ -206,6 +206,7 @@ static long process_tls_version(const char *tls_version) {
   if (strlen(tls_version) - 1 > sizeof(tls_version_option)) return -1;
 
   strncpy(tls_version_option, tls_version, sizeof(tls_version_option));
+  tls_version_option[sizeof(tls_version_option) - 1] = '\0';
   token = xcom_strtok(tls_version_option, separator, &saved_ctx);
   while (token) {
     for (index = 0; index < tls_versions_count; index++) {
@@ -229,7 +230,8 @@ static int PasswordCallBack(char *passwd, int sz, int rw MY_ATTRIBUTE((unused)),
                             void *userdata MY_ATTRIBUTE((unused))) {
   const char *pw = ssl_pw ? ssl_pw : "yassl123";
   strncpy(passwd, pw, (size_t)sz);
-  return (int)strlen(pw);
+  passwd[sz - 1] = '\0';
+  return (int)strlen(passwd);
 }
 /* purecov: end */
 

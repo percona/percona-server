@@ -12853,7 +12853,9 @@ void Fil_path::convert_to_filename_charset(std::string &name) {
   char filename[MAX_TABLE_NAME_LEN + 20];
 
   strncpy(filename, name.c_str(), sizeof(filename) - 1);
+  filename[sizeof(filename) - 1] = '\0';
   strncpy(old_name, filename, sizeof(old_name));
+  old_name[sizeof(old_name) - 1] = '\0';
 
   innobase_convert_to_filename_charset(filename, old_name, MAX_TABLE_NAME_LEN);
 

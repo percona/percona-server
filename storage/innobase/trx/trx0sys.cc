@@ -239,6 +239,7 @@ void trx_sys_read_binlog_position(char *file, uint64_t &offset) {
   }
 
   strncpy(file, current_name, TRX_SYS_MYSQL_LOG_NAME_LEN);
+  file[TRX_SYS_MYSQL_LOG_NAME_LEN] = '\0';
   offset = static_cast<uint64_t>(high);
   offset = (offset << 32);
   offset |= static_cast<uint64_t>(low);

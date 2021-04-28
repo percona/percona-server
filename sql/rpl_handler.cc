@@ -348,6 +348,7 @@ int get_user_var_str(const char *name, char *value, size_t len,
   }
   it->second->val_str(&null_val, &str, precision);
   strncpy(value, str.c_ptr(), len);
+  value[len - 1] = '\0';
   if (null_value) *null_value = null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;

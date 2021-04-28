@@ -123,6 +123,7 @@ LocalConfig::~LocalConfig(){
 void LocalConfig::setError(int lineNumber, const char * _msg) {
   error_line = lineNumber;
   strncpy(error_msg, _msg, sizeof(error_msg));
+  error_msg[sizeof(error_msg) - 1] = '\0';
 }
 
 const char *nodeIdTokens[] = {

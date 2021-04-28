@@ -205,6 +205,7 @@ class Trigger {
     m_has_parse_error = true;
     strncpy(m_parse_error_message, error_message,
             sizeof(m_parse_error_message));
+    m_parse_error_message[sizeof(m_parse_error_message) - 1] = '\0';
   }
 
   /**

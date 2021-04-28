@@ -230,14 +230,16 @@ class Status_pfs : public Table_pfs {
       /* Clone from local instance. */
       if (host == nullptr) {
         strncpy(m_source, &g_local_string[0], sizeof(m_source) - 1);
+        m_source[sizeof(m_source) - 1] = '\0';
       } else {
-        snprintf(m_source, sizeof(m_source) - 1, "%s:%u", host, port);
+        snprintf(m_source, sizeof(m_source), "%s:%u", host, port);
       }
       /* Clone into local instance. */
       if (destination == nullptr) {
         destination = &g_local_string[0];
       }
       strncpy(m_destination, destination, sizeof(m_destination) - 1);
+      m_destination[sizeof(m_destination) - 1] = '\0';
       m_error_number = 0;
       memset(m_error_mesg, 0, sizeof(m_error_mesg));
       m_binlog_pos = 0;
@@ -266,6 +268,7 @@ class Status_pfs : public Table_pfs {
       m_state = Table_pfs::STATE_FAILED;
       m_error_number = err_num;
       strncpy(m_error_mesg, err_mesg, sizeof(m_error_mesg) - 1);
+      m_error_mesg[sizeof(m_error_mesg) - 1] = '\0';
       write(true);
     }
 
@@ -275,6 +278,7 @@ class Status_pfs : public Table_pfs {
     void update_binlog_position(const char *binlog_file, uint64_t position) {
       m_binlog_pos = position;
       strncpy(m_binlog_file, binlog_file, sizeof(m_binlog_file) - 1);
+      m_binlog_file[sizeof(m_binlog_file) - 1] = '\0';
     }
 
     /** Length of variable length character columns. */

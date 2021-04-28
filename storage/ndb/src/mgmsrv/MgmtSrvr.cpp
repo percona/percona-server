@@ -4680,6 +4680,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted,
       epd.password_length = password_length;
       strncpy(epd.encryption_password, encryption_password,
               MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH);
+      epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] = '\0';
 
       ssig.ptr[0].p = (Uint32*)&epd;
       ssig.ptr[0].sz = (sizeof(EncryptionPasswordData) + 3) / 4;

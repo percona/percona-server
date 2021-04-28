@@ -304,6 +304,7 @@ std::string get_tmp_dir(const std::string &name) {
   }
   char buf[MAX_LEN];
   strncpy(buf, pattern, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
   const char *res = mkdtemp(buf);
   if (res == nullptr) {
     throw std::runtime_error("Could not create temporary directory");

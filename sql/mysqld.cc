@@ -10471,6 +10471,7 @@ bool mysqld_get_one_option(int optid,
 
       /* Save original argument string for error reporting */
       strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+      orig_argument[sizeof(orig_argument) - 1] = '\0';
 
       /* Split instrument name and value at the equal sign */
       if (!(p = strchr(argument, '='))) goto pfs_error;

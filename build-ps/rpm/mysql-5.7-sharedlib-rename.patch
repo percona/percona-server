@@ -489,6 +489,17 @@
      mysqlgcs
      )
  ENDFOREACH()
+--- storage/tokudb/PerconaFT/tools/CMakeLists.txt
++++ storage/tokudb/PerconaFT/tools/CMakeLists.txt
+@@ -20,7 +20,7 @@ foreach(tool ${tools})
+         target_link_libraries(${tool} sql binlog rpl master slave)
+       endif ()
+     else ()
+-      target_link_libraries(${tool} perconaserverclient)
++      target_link_libraries(${tool} mysqlclient)
+     endif ()
+   endif ()
+
 --- unittest/gunit/xplugin/xcl/CMakeLists.txt
 +++ unittest/gunit/xplugin/xcl/CMakeLists.txt
 @@ -71,7 +71,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}

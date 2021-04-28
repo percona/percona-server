@@ -9013,17 +9013,19 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
                                                       const char *message) {
   char errmsg[MYSQL_ERRMSG_SIZE] = {0};
   if (message == nullptr)
-    sprintf(
-        errmsg,
+    snprintf(
+        errmsg, sizeof(errmsg),
         "An error occurred during %s stage of the commit. "
         "'binlog_error_action' is set to '%s'.",
         thd->commit_error == THD::CE_FLUSH_ERROR ? "flush" : "sync",
         binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
-  else
-    strncpy(errmsg, message, MYSQL_ERRMSG_SIZE - 1);
+  else {
+    strncpy(errmsg, message, sizeof(errmsg) - 1);
+    errmsg[sizeof(errmsg) - 1] = '\0';
+  }
   if (binlog_error_action == ABORT_SERVER) {
     char err_buff[MYSQL_ERRMSG_SIZE + 25];
-    sprintf(err_buff, "%s Server is being stopped.", errmsg);
+    snprintf(err_buff, sizeof(err_buff), "%s Server is being stopped.", errmsg);
     exec_binlog_error_action_abort(err_buff);
   } else {
     DEBUG_SYNC(thd, "before_binlog_closed_due_to_error");

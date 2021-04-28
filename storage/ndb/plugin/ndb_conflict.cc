@@ -63,6 +63,7 @@ bool ExceptionsTableWriter::has_prefix_ci(const char *col_name,
   uint prefix_len = strlen(prefix);
   if (col_len < prefix_len) return false;
   char col_name_prefix[FN_HEADLEN];
+  assert(prefix_len < sizeof(col_name_prefix));
   strncpy(col_name_prefix, col_name, prefix_len);
   col_name_prefix[prefix_len] = '\0';
   return (my_strcasecmp(cs, col_name_prefix, prefix) == 0);

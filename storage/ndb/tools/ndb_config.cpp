@@ -428,7 +428,8 @@ print_diff(const Iter& iter)
       }
       else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &config_value) == 0)
       {
-        strncpy(str, config_value,300);
+        strncpy(str, config_value, sizeof(str) - 1);
+        str[sizeof(str) - 1] = '\0';
       }
       else
       {
@@ -446,7 +447,9 @@ print_diff(const Iter& iter)
         uint64 memory_convert = 0;
         uint64 def_value = 0;
         uint len = strlen(ConfigInfo::m_ParamInfo[p]._default) - 1;
-        strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,299);
+        strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,
+                sizeof(parse_str) - 1);
+        parse_str[sizeof(parse_str) - 1] = '\0';
         if (parse_str[len] == 'M' || parse_str[len] == 'm')
         {
           memory_convert = 1048576;

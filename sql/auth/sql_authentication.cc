@@ -4111,6 +4111,7 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio,
                                       const char *scramble) {
   MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
   strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH + 1);
+  mpvio->scramble[SCRAMBLE_LENGTH] = '\0';
 }
 
 /**

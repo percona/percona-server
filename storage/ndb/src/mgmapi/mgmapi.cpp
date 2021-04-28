@@ -3692,6 +3692,7 @@ int ndb_mgm_get_version(NdbMgmHandle handle,
   }
 
   strncpy(str, result.c_str(), len);
+  str[len - 1] = '\0';
 
   delete prop;
   DBUG_RETURN(1);

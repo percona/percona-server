@@ -1481,6 +1481,7 @@ int compile_messages(const char *messages_to_clients,
 
   char myname[FN_REFLEN];
   strncpy(myname, my_progname, sizeof(myname) - 1);
+  myname[sizeof(myname) - 1] = '\0';
   char *args[1];
   args[0] = myname;
 

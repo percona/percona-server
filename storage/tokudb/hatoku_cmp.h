@@ -142,8 +142,8 @@ class KEY_AND_COL_INFO {
   MY_NODISCARD uint32_t get_len_of_offsets(const TABLE_SHARE &table_share,
                                            uint32_t keynr) const;
 
-  MY_NODISCARD inline uint32_t get_max_desc_size(const TABLE &form) const
-      noexcept {
+  MY_NODISCARD inline uint32_t get_max_desc_size(
+      const TABLE &form) const noexcept {
     uint32_t max_row_desc_buff_size;
     // upper bound of key comparison descriptor
     max_row_desc_buff_size = 2 * (form.s->fields * 6) + 10;
@@ -154,8 +154,8 @@ class KEY_AND_COL_INFO {
     return max_row_desc_buff_size;
   }
 
-  MY_NODISCARD inline uint32_t get_max_secondary_key_pack_desc_size() const
-      noexcept {
+  MY_NODISCARD inline uint32_t get_max_secondary_key_pack_desc_size()
+      const noexcept {
     uint32_t ret_val = 0;
     //
     // the fixed stuff:

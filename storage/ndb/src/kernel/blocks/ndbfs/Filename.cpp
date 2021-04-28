@@ -174,6 +174,7 @@ Filename::set(Ndbfs* fs,
     if(buf[0] == DIR_SEPARATOR[0])
     {
       strncpy(theName, buf, PATH_MAX);
+      buf[sizeof(buf) - 1] = '\0';
       m_base_name = theName;
     }
     else

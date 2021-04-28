@@ -6077,6 +6077,15 @@ static int server_socket_unix(const char *path, int access_mask) {
         return 1;
     }
 
+    /*
+     * Check that path can fit in the addr.sun_path.  This must be
+     * NULL-terminated so sizeof(addr.sun_path) must be larger than
+     * strlen(path).
+     */
+    if (strlen(path) >= sizeof(addr.sun_path)) {
+      return 1;
+    }
+
     if ((sfd = new_socket_unix()) == -1) {
         return 1;
     }

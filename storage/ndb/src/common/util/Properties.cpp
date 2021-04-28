@@ -419,9 +419,11 @@ Properties::print(FILE * out, const char * prefix) const{
   char buf[1024];
   if(prefix == 0)
     buf[0] = 0;
-  else
-    strncpy(buf, prefix, 1024);
-  
+  else {
+    strncpy(buf, prefix, sizeof(buf));
+    buf[sizeof(buf) - 1] = '\0';
+  }
+
   for (auto i : impl->content){
     switch(i.second.valueType){
     case PropertiesType_Uint32:

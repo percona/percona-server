@@ -240,6 +240,7 @@ int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
   size_t length;
 
   strncpy(tmp_dir, out_dir, FN_REFLEN);
+  tmp_dir[sizeof(tmp_dir) - 1] = '\0';
   length = strlen(out_dir);
 
   /* Loop and remove all non-existent directories from the tail */

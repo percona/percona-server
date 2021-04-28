@@ -57,7 +57,7 @@ public:
   void setNote(const char *txt) {
     strncpy(note, txt, LIST_ITEM_NOTE_SIZE);
     /* If txt is too long, strncpy() leaves it unterminated */
-    note[LIST_ITEM_NOTE_SIZE] = '\0';
+    note[LIST_ITEM_NOTE_SIZE - 1] = '\0';
   }
 
   const char * getNote() const {

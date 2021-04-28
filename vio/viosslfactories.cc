@@ -556,6 +556,7 @@ long process_tls_version(const char *tls_version) {
   if (strlen(tls_version) - 1 > sizeof(tls_version_option)) return -1;
 
   strncpy(tls_version_option, tls_version, sizeof(tls_version_option));
+  tls_version_option[sizeof(tls_version_option) - 1] = '\0';
   token = my_strtok_r(tls_version_option, separator, &lasts);
   while (token) {
     for (unsigned int i = 0; i < tls_versions_count; i++) {
@@ -776,7 +777,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
 #endif
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
-
 
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
   {

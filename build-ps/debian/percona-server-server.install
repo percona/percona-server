@@ -71,6 +71,7 @@ usr/lib/mysql/plugin/component_log_sink_json.so
 usr/lib/mysql/plugin/component_log_sink_syseventlog.so
 usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/component_query_attributes.so
 usr/lib/mysql/plugin/component_test_udf_services.so
 usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/mysql_clone.so
@@ -99,6 +100,7 @@ usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
+usr/lib/mysql/plugin/debug/component_query_attributes.so
 usr/lib/mysql/plugin/debug/component_test_component_deinit.so
 usr/lib/mysql/plugin/debug/component_reference_cache.so
 

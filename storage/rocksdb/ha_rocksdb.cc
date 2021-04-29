@@ -649,7 +649,7 @@ std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
 std::atomic<uint64_t> rocksdb_manual_compactions_processed(0);
 std::atomic<uint64_t> rocksdb_manual_compactions_running(0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 std::atomic<uint64_t> rocksdb_num_get_for_update_calls(0);
 #endif
 
@@ -2979,7 +2979,7 @@ class Rdb_transaction {
         std::max(m_auto_incr_map[gl_index_id], curr_id);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulonglong get_auto_incr(const GL_INDEX_ID &gl_index_id) {
     if (m_auto_incr_map.count(gl_index_id) > 0) {
       return m_auto_incr_map[gl_index_id];
@@ -5408,7 +5408,7 @@ static inline void rocksdb_smart_next(bool seek_backward,
   }
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // simulate that RocksDB has reported corrupted data
 static void dbug_change_status_to_corrupted(rocksdb::Status *status) {
   *status = rocksdb::Status::Corruption();
@@ -5568,10 +5568,10 @@ static ulonglong rdb_get_int_col_max_value(const Field *field) {
 void ha_rocksdb::load_auto_incr_value() {
   ulonglong auto_incr = 0;
   bool validate_last = false, use_datadic = true;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   DBUG_EXECUTE_IF("myrocks_autoinc_upgrade", use_datadic = false;);
   validate_last = true;
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
   if (use_datadic && dict_manager.get_auto_incr_val(
                          m_tbl_def->get_autoincr_gl_index_id(), &auto_incr)) {
@@ -5627,7 +5627,7 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
     if (last_val != max_val) {
       last_val++;
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     ulonglong dd_val;
     if (last_val <= max_val) {
       const auto &gl_index_id = m_tbl_def->get_autoincr_gl_index_id();
@@ -5954,9 +5954,9 @@ bool ha_rocksdb::should_hide_ttl_rec(const Rdb_key_def &kd,
 
   /* Hide record if it has expired before the current snapshot time. */
   uint64 read_filter_ts = 0;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   read_filter_ts += rdb_dbug_set_ttl_read_filter_ts();
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
   bool is_hide_ttl =
       ts + kd.m_ttl_duration + read_filter_ts <= static_cast<uint64>(curr_ts);
   if (is_hide_ttl) {
@@ -5989,7 +5989,7 @@ int ha_rocksdb::rocksdb_skip_expired_records(const Rdb_key_def &kd,
   return HA_EXIT_SUCCESS;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void dbug_append_garbage_at_end(rocksdb::PinnableSlice *on_disk_rec) {
   std::string str(on_disk_rec->data(), on_disk_rec->size());
   on_disk_rec->Reset();
@@ -6018,7 +6018,7 @@ void dbug_create_err_inplace_alter() {
   my_printf_error(ER_UNKNOWN_ERROR,
                   "Intentional failure in inplace alter occurred.", MYF(0));
 }
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
 int ha_rocksdb::convert_record_from_storage_format(
     const rocksdb::Slice *const key, uchar *const buf) {
@@ -7705,17 +7705,17 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
   const rocksdb::Slice &rkey = m_scan_it->key();
   const rocksdb::Slice &value = m_scan_it->value();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   bool save_keyread_only = m_keyread_only;
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
   DBUG_EXECUTE_IF("dbug.rocksdb.HA_EXTRA_KEYREAD", { m_keyread_only = true; });
 
   bool covered_lookup = (m_keyread_only && kd.can_cover_lookup()) ||
                         kd.covers_lookup(&value, &m_lookup_bitmap);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   m_keyread_only = save_keyread_only;
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
   if (covered_lookup && m_lock_rows == RDB_LOCK_NONE) {
     pk_size =
@@ -8447,7 +8447,7 @@ rocksdb::Status ha_rocksdb::get_for_update(
   rocksdb::Status s =
       tx->get_for_update(key_descr, key, value, exclusive, do_validate);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ++rocksdb_num_get_for_update_calls;
 #endif
   return s;
@@ -9240,7 +9240,7 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
     // next time
     m_dup_key_found = true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // save it for sanity checking later
     m_dup_key_retrieved_record.copy(m_retrieved_record.data(),
                                     m_retrieved_record.size(), &my_charset_bin);
@@ -9397,7 +9397,7 @@ int ha_rocksdb::check_and_lock_sk(const uint key_id,
       m_dup_key_found = true;
       m_last_rowkey.copy((const char *)m_pk_packed_tuple, pk_size,
                          &my_charset_bin);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       // save it for sanity checking later
       m_dup_key_retrieved_record.copy(rkey.data(), rkey.size(),
                                       &my_charset_bin);
@@ -12191,7 +12191,7 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
   *nb_reserved_values = 1;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /* Debugger help function */
 static char dbug_item_print_buf[512];
@@ -12209,7 +12209,7 @@ const char *dbug_print_item(Item *const item) {
   }
 }
 
-#endif /*DBUG_OFF*/
+#endif /*NDEBUG*/
 
 /**
   SQL layer calls this function to push an index condition.
@@ -13449,7 +13449,7 @@ static SHOW_VAR rocksdb_status_vars[] = {
                        SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("additional_compaction_triggers",
                        &rocksdb_additional_compaction_triggers, SHOW_LONGLONG),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DEF_STATUS_VAR_PTR("num_get_for_update_calls",
                        &rocksdb_num_get_for_update_calls, SHOW_LONGLONG),
 #endif
@@ -14049,14 +14049,14 @@ bool rdb_is_ttl_enabled() { return rocksdb_enable_ttl; }
 bool rdb_is_ttl_read_filtering_enabled() {
   return rocksdb_enable_ttl_read_filtering;
 }
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 int rdb_dbug_set_ttl_rec_ts() { return rocksdb_debug_ttl_rec_ts; }
 int rdb_dbug_set_ttl_snapshot_ts() { return rocksdb_debug_ttl_snapshot_ts; }
 int rdb_dbug_set_ttl_read_filter_ts() {
   return rocksdb_debug_ttl_read_filter_ts;
 }
 bool rdb_dbug_set_ttl_ignore_pk() { return rocksdb_debug_ttl_ignore_pk; }
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
 void rdb_update_global_stats(const operation_type &type, uint count,
                              bool is_system_table) {
@@ -14114,7 +14114,7 @@ const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type) {
 // In case of core dump generation we want this function NOT to be optimized
 // so that we can capture as much data as possible to debug the root cause
 // more efficiently.
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 #ifdef __clang__
 MY_ATTRIBUTE((optnone))
 #else

@@ -186,7 +186,7 @@ static void *fetch(void *arg)
     char  key_id[12];  // Key#1000000\0
     char *key_type= NULL;
     char  user[13];  // User#1000000\0
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     char key_stack[]= "KEeeeeeeeEEEEEeeeeEEEEEEEEEEEEY!";
 #endif
     int key_nr= random_keys ? rand() % number_of_keys_to_fetch : i;

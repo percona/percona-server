@@ -4781,7 +4781,7 @@ public:
   {
     mysql_mutex_lock(&thd->LOCK_temporary_tables);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     const char* tmp_proc_info= thd->proc_info;
     if (tmp_proc_info &&
         !strncmp(tmp_proc_info,

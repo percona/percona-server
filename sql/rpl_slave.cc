@@ -6840,7 +6840,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                  };);
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group. 

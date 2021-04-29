@@ -97,7 +97,7 @@ uint hp_get_encoded_data_length(HP_SHARE *info, const uchar *record,
 }
 
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
 static void dump_chunk(HP_SHARE *info, const uchar *curr_chunk)
 {
   uint i;
@@ -151,7 +151,7 @@ hp_process_field_data_to_chunkset(HP_SHARE *info, const uchar *data,
     if (to_copy == 0)
     {
       /* Jump to the next chunk */
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
       dump_chunk(info, curr_chunk);
 #endif
       curr_chunk= *((uchar **) (curr_chunk + info->recordspace.offset_link));
@@ -280,7 +280,7 @@ uint hp_process_record_data_to_chunkset(HP_SHARE *info, const uchar *record,
     }
   }
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   dump_chunk(info, curr_chunk);
 #endif
 
@@ -313,7 +313,7 @@ void hp_copy_record_data_to_chunkset(HP_SHARE *info, const uchar *record,
   Macro to switch curr_chunk to the next chunk in the chunkset and reset
   src_offset.
 */
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
 #define SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset)     \
   {                                                                     \
     curr_chunk= *((uchar**) (curr_chunk + share->recordspace.offset_link)); \
@@ -354,7 +354,7 @@ int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos)
 
   DBUG_ENTER("hp_extract_record");
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   if (share->recordspace.is_variable_size)
   {
     dump_chunk(share, curr_chunk);

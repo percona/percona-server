@@ -1836,7 +1836,7 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime)
 {
   ulonglong res;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (thd->variables.query_exec_time != 0)
     res= thd->lex->sql_command != SQLCOM_SET_OPTION ?
       thd->variables.query_exec_time : 0;

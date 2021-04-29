@@ -148,7 +148,7 @@ static char  *opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static char  *start_sql_file= NULL, *finish_sql_file= NULL;
 #endif
 static char **defaults_argv= 0;
@@ -573,7 +573,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	{"start-sql-file", OPT_START_SQL_FILE, "Execute SQL statements from the file"
     " at the mysqldump start. Each line has to contain one statement terminated"
     " with a semicolon. Line length limit is 1023 characters.",
@@ -7251,7 +7251,7 @@ static my_bool server_supports_backup_locks(void)
   @retval  1 failure
            0 success
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SQL_STATEMENT_MAX_LEN 1024  // 1023 chars for statement + trailing 0
 static int execute_sql_file(const char *sql_file)
 {
@@ -7312,7 +7312,7 @@ static int execute_sql_file(const char *sql_file)
   fclose(file);
   return 0;
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 int main(int argc, char **argv)
 {
@@ -7356,7 +7356,7 @@ int main(int argc, char **argv)
     exit(EX_MYSQLERR);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (execute_sql_file(start_sql_file))
     goto err;
 #endif
@@ -7579,7 +7579,7 @@ int main(int argc, char **argv)
     server.
   */
 err:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   execute_sql_file(finish_sql_file);
 #endif
 

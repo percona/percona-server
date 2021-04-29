@@ -83,7 +83,7 @@ static MYSQL_SYSVAR_BOOL(flush, opt_query_response_time_flush,
        "Update of this variable flushes statistics and re-reads "
        "query_response_time_range_base.",
        NULL, query_response_time_flush_update, FALSE);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static MYSQL_THDVAR_ULONGLONG(exec_time_debug, PLUGIN_VAR_NOCMDOPT,
        "Pretend queries take this many microseconds. When 0 (the default) use "
        "the actual execution time. Used only for debugging.",
@@ -112,7 +112,7 @@ static struct st_mysql_sys_var *query_response_time_info_vars[]=
   MYSQL_SYSVAR(range_base),
   MYSQL_SYSVAR(stats),
   MYSQL_SYSVAR(flush),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MYSQL_SYSVAR(exec_time_debug),
 #endif
   MYSQL_SYSVAR(session_stats),
@@ -247,7 +247,7 @@ static int query_response_time_audit_notify(MYSQL_THD thd,
     }
     QUERY_TYPE query_type=
       (sql_command_flags[sql_command] & CF_CHANGES_DATA) ? WRITE : READ;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (THDVAR(thd, exec_time_debug)) {
       ulonglong t = THDVAR(thd, exec_time_debug);
       if ((thd->lex->sql_command == SQLCOM_SET_OPTION) ||

@@ -280,7 +280,7 @@ bool Rdb_tbl_prop_coll::FilledWithDeletions() const {
 rocksdb::UserCollectedProperties Rdb_tbl_prop_coll::GetReadableProperties()
     const {
   std::string s;
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   s.append("[...");
   s.append(std::to_string(m_stats.size()));
   s.append("  records...]");

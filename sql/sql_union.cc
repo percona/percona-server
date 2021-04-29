@@ -923,7 +923,7 @@ bool st_select_lex_unit::cleanup(bool full)
 
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN))
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (cleaned == UC_CLEAN)
       for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
         DBUG_ASSERT(!sl->join);

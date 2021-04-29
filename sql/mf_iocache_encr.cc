@@ -195,7 +195,7 @@ static int my_b_encr_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
       DBUG_RETURN(0);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (info->pos_in_file == 0) crypt_data->block_length= 0;
 #endif
 
@@ -261,7 +261,7 @@ static int my_b_encr_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
     else
     {
       /* if we write a partial block, it *must* be the last write */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       info->write_function= 0;
 #endif
       crypt_data->last_block_length= wlength;

@@ -206,7 +206,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   // The below type_code assert is correct and needed in 99% of time. In normal testing we do not
   // anticipate type_code to be of unknown value. This is why we only skip this assert when
   // debug variable expect_Unknown_event is set.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (binary_log_debug::debug_expect_unknown_event)
     return;
 #endif

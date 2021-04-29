@@ -1589,7 +1589,7 @@ srv_printf_innodb_monitor(
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	srv_debug_monitor_printed = true;
 #endif
 
@@ -1903,7 +1903,7 @@ srv_export_innodb_status(void)
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** false before InnoDB monitor has been printed at least once, true
 afterwards */
 bool	srv_debug_monitor_printed	= false;

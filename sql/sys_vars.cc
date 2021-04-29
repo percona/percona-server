@@ -2283,7 +2283,7 @@ static Sys_var_double Sys_long_query_time(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool update_cached_query_exec_time(sys_var *self, THD *thd,
                                           enum_var_type type)
 {
@@ -6626,6 +6626,6 @@ static Sys_var_mybool Sys_replication_sender_observe_commit_only(
        ON_CHECK(0),
        ON_UPDATE(handle_sender_observe_commit_change));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 Debug_shutdown_actions Debug_shutdown_actions::instance;
 #endif

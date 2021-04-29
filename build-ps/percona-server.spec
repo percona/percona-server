@@ -921,6 +921,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
@@ -962,6 +963,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
@@ -1205,6 +1207,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
@@ -1278,6 +1281,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
@@ -1337,6 +1341,7 @@ fi
 %endif
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*

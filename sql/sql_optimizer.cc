@@ -2683,7 +2683,7 @@ void JOIN::adjust_access_methods()
       }
       else if (!tab->table()->no_keyread && !tl->uses_materialization())
       {
-        DBUG_ASSERT(tab->table()->covering_keys.is_clear_all());
+        assert(tab->table()->covering_keys.is_clear_all());
         if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN)
         {
           key_map clustering_keys;

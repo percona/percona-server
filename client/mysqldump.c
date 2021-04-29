@@ -2053,7 +2053,7 @@ static char *unquote_name(const char *opt_quoted_name, char *buff)
     return (char*)opt_quoted_name;
   if (*opt_quoted_name != qtype)
   {
-    DBUG_ASSERT(strchr(opt_quoted_name, qtype) == 0);
+    assert(strchr(opt_quoted_name, qtype) == 0);
     return (char*)opt_quoted_name;
   }
 
@@ -2067,7 +2067,7 @@ static char *unquote_name(const char *opt_quoted_name, char *buff)
         *to++= qtype;
       else
       {
-        DBUG_ASSERT(*opt_quoted_name == '\0');
+        assert(*opt_quoted_name == '\0');
       }
     }
     else
@@ -3056,7 +3056,7 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
   const char *from, *to;
   uint idnum;
 
-  DBUG_ASSERT(type != KEY_TYPE_NONE);
+  assert(type != KEY_TYPE_NONE);
 
   if (autoinc_column == NULL)
     return FALSE;
@@ -3208,7 +3208,7 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
       */
       if (type != KEY_TYPE_NONE && has_autoinc)
       {
-          DBUG_ASSERT(autoinc_column != NULL);
+          assert(autoinc_column != NULL);
 
           my_free(autoinc_column);
           autoinc_column= NULL;
@@ -3233,7 +3233,7 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
 
         if (*end == '`' && end > ptr + 1)
         {
-          DBUG_ASSERT(autoinc_column == NULL);
+          assert(autoinc_column == NULL);
 
           autoinc_column_len= end - ptr - 1;
           autoinc_column= my_strndup(PSI_NOT_INSTRUMENTED, ptr + 1,
@@ -3289,7 +3289,7 @@ static void skip_compressed_columns(char *create_str, LIST **dictionaries)
   while ((prefix_ptr= strstr(ptr, prefix)) != 0)
   {
     suffix_ptr= strstr(prefix_ptr + prefix_length, suffix);
-    DBUG_ASSERT(suffix_ptr != 0);
+    assert(suffix_ptr != 0);
     if (!opt_compressed_columns_with_dictionaries)
     {
       if (!opt_compressed_columns)
@@ -3321,7 +3321,7 @@ static void skip_compressed_columns(char *create_str, LIST **dictionaries)
 
         dictionary_keyword_ptr= strstr(prefix_ptr + prefix_length,
                                        dictionary_keyword);
-        DBUG_ASSERT(dictionary_keyword_ptr < suffix_ptr);
+        assert(dictionary_keyword_ptr < suffix_ptr);
         dictionary_name_length= suffix_ptr -
           (dictionary_keyword_ptr + dictionary_keyword_length);
 
@@ -3442,7 +3442,7 @@ static void print_optional_create_compression_dictionary(FILE* sql_file,
       DBUG_VOID_RETURN;
     }
     lengths= mysql_fetch_lengths(result);
-    DBUG_ASSERT(lengths != 0);
+    assert(lengths != 0);
 
     quoted_dictionary_name= quote_name(dictionary_name, quoted_buff, 0);
 
@@ -4559,8 +4559,8 @@ static void dump_skipped_keys(const char *table)
     }
   }
 
-  DBUG_ASSERT(skipped_keys_list == NULL);
-  DBUG_ASSERT(alter_constraints_list == NULL);
+  assert(skipped_keys_list == NULL);
+  assert(alter_constraints_list == NULL);
 }
 
 

@@ -536,11 +536,11 @@ int vio_cancel(Vio * vio, int how)
 
   if (vio->inactive == FALSE)
   {
-    DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
+    assert(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
 
-    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
+    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
     if (mysql_socket_shutdown(vio->mysql_socket, how))
       r= -1;
 #ifdef  _WIN32
@@ -740,7 +740,7 @@ static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
         struct in6_addr *check= &((struct sockaddr_in6 *)addr)->sin6_addr;
         struct in6_addr *addr= &vio_pp_networks[i].addr.in6;
         struct in6_addr *mask= &vio_pp_networks[i].mask.in6;
-        DBUG_ASSERT(vio_pp_networks[i].family == AF_INET6);
+        assert(vio_pp_networks[i].family == AF_INET6);
         if ((check->s6_addr32[0] & mask->s6_addr32[0]) == addr->s6_addr32[0]
             && ((check->s6_addr32[1] & mask->s6_addr32[1])
                 == addr->s6_addr32[1])

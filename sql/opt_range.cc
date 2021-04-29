@@ -788,7 +788,7 @@ public:
     {
       if (cur_selarg->next_key_part)
       {
-        DBUG_ASSERT(count >= 0
+        assert(count >= 0
                     || (long)cur_selarg->next_key_part->use_count >= count);
         cur_selarg->next_key_part->use_count+= count;
         cur_selarg->next_key_part->increment_use_count(count);
@@ -8072,12 +8072,12 @@ static SEL_ARG *
 and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
              uint clone_flag)
 {
-  DBUG_ASSERT(key1->part < key2->part);
+  assert(key1->part < key2->part);
 
   SEL_ARG *next;
   ulong use_count=key1->use_count;
 
-  DBUG_ASSERT(key1->elements > 0);
+  assert(key1->elements > 0);
   if (key1->elements != 1)
   {
     key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?

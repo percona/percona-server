@@ -565,7 +565,7 @@ void TABLE_SHARE::destroy()
 bool TABLE_SHARE::has_compressed_columns() const
 {
   DBUG_ENTER("has_compressed_columns");
-  DBUG_ASSERT(field != 0);
+  assert(field != 0);
 
   Field **field_ptr= field;
   while(*field_ptr != 0 &&
@@ -7796,7 +7796,7 @@ bool TABLE::check_read_removal(uint index)
 bool TABLE::has_compressed_columns() const
 {
   DBUG_ENTER("has_compressed_columns");
-  DBUG_ASSERT(field != 0);
+  assert(field != 0);
 
   Field **field_ptr= field;
   while(*field_ptr != 0 &&
@@ -7814,7 +7814,7 @@ bool TABLE::has_compressed_columns() const
 bool TABLE::has_compressed_columns_with_dictionaries() const
 {
   DBUG_ENTER("has_compressed_columns_with_dictionaries");
-  DBUG_ASSERT(field != 0);
+  assert(field != 0);
 
   Field **field_ptr= field;
   while(*field_ptr != 0 &&
@@ -7840,8 +7840,8 @@ void TABLE::update_compressed_columns_info(const List<Create_field>& fields)
     ++field_ptr;
     field_definition= it++;
   }
-  DBUG_ASSERT(field_definition == 0);
-  DBUG_ASSERT(*field_ptr == 0);
+  assert(field_definition == 0);
+  assert(*field_ptr == 0);
 }
 
 /**

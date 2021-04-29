@@ -1117,7 +1117,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
                                  share->pack.header_length),
                                 1,
                                 MYF(MY_WME));
-        DBUG_ASSERT(init_res == 0);
+        assert(init_res == 0);
 	lock_memory(param);
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||

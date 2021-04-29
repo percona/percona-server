@@ -154,7 +154,7 @@ NULL.
 void thd_get_fragmentation_stats(const THD *thd,
                                  fragmentation_stats_t* stats)
 {
-  DBUG_ASSERT(stats != NULL);
+  assert(stats != NULL);
   if (likely(thd != NULL))
   {
     stats->scan_pages_contiguous=
@@ -180,7 +180,7 @@ void thd_get_fragmentation_stats(const THD *thd,
 void thd_add_fragmentation_stats(THD *thd,
                                  const fragmentation_stats_t* stats)
 {
-  DBUG_ASSERT(stats != NULL);
+  assert(stats != NULL);
   if (likely(thd != NULL))
   {
     thd->status_var.fragmentation_stats.scan_pages_contiguous+=

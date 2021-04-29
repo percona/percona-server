@@ -1556,7 +1556,7 @@ export bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type)
 */
 static bool check_delay_key_write(sys_var *self, THD *thd, set_var *var)
 {
-  DBUG_ASSERT(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
+  assert(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
               !thd->backup_tables_lock.is_acquired());
 
   if (var->save_result.ulonglong_value == DELAY_KEY_WRITE_ALL)

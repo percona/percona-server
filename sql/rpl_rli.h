@@ -1017,7 +1017,7 @@ public:
   inline ulonglong get_group_master_log_pos() { return m_group_master_log_pos; }
   inline void set_group_master_log_name(const char *log_file_name)
   {
-    DBUG_ASSERT(!info_thd ||
+    assert(!info_thd ||
                 info_thd->backup_binlog_lock.is_protection_acquired());
 
     strmake(m_group_master_log_name, log_file_name,
@@ -1025,7 +1025,7 @@ public:
   }
   inline void set_group_master_log_pos(ulonglong log_pos)
   {
-    DBUG_ASSERT(!info_thd ||
+    assert(!info_thd ||
                 info_thd->backup_binlog_lock.is_protection_acquired());
     m_group_master_log_pos= log_pos;
   }

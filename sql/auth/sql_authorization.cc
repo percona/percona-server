@@ -1322,7 +1322,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {
     int error;
     GRANT_TABLE *grant_table;
-    DBUG_ASSERT(!acl_is_utility_user(tmp_Str->user.str,
+    assert(!acl_is_utility_user(tmp_Str->user.str,
                                      tmp_Str->host.str, NULL));
 
     if (!(Str= get_current_user(thd, tmp_Str)))

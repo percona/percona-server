@@ -88,7 +88,7 @@ bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker,
       if (worker->id == 1)
       {
         static const char act[]= "now SIGNAL signal.w1.wait_for_its_turn";
-        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
       }
     });
 

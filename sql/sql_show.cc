@@ -1961,7 +1961,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (share->was_encryption_key_id_set)
     {
-      DBUG_ASSERT(share->encrypt_type.length == 0 || my_strcasecmp(system_charset_info, share->encrypt_type.str, "KEYRING") != 0
+      assert(share->encrypt_type.length == 0 || my_strcasecmp(system_charset_info, share->encrypt_type.str, "KEYRING") != 0
                   || share->encrypt_type.length == strlen("KEYRING"));
 
       char *end;

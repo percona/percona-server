@@ -138,11 +138,11 @@ static void threadpool_init_net_server_extension(THD *thd)
 #ifdef HAVE_PSI_INTERFACE
   // socket_connection.cc:init_net_server_extension should have been called
   // already for us. We only need to overwrite the "before" callback
-  DBUG_ASSERT(thd->m_net_server_extension.m_user_data == thd);
+  assert(thd->m_net_server_extension.m_user_data == thd);
   thd->m_net_server_extension.m_before_header=
     threadpool_net_before_header_psi_noop;
 #else
-  DBUG_ASSERT(thd->get_protocol_classic()->get_net()->extension == NULL);
+  assert(thd->get_protocol_classic()->get_net()->extension == NULL);
 #endif
 }
 

@@ -3602,7 +3602,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 
 void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
 {
-  DBUG_ASSERT(current_thd == NULL || thd == current_thd);
+  assert(current_thd == NULL || thd == current_thd);
 
   if (var->flags & PLUGIN_VAR_THDLOCAL)
   {
@@ -4575,7 +4575,7 @@ copy_system_variables(THD *thd, bool enable_plugins)
   struct system_variables *dst;
   ulong idx;
 
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   dst= (struct system_variables *)
     my_malloc(key_memory_THD_variables, sizeof(struct system_variables),
@@ -4644,7 +4644,7 @@ copy_system_variables(THD *thd, bool enable_plugins)
 
 void free_system_variables(struct system_variables *v, bool enable_plugins)
 {
-  DBUG_ASSERT(v);
+  assert(v);
 
   if (enable_plugins)
   {

@@ -2524,10 +2524,10 @@ bool lock_binlog_for_backup(THD *thd)
 
   DBUG_EXECUTE_IF("delay_slave_worker_0", {
     static const char act[]= "now WAIT_FOR signal.w1.wait_for_its_turn";
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 
     static const char act2[]= "now SIGNAL signal.lock_binlog_for_backup";
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
   });
 
   DBUG_RETURN(thd->backup_binlog_lock.acquire(thd));
@@ -3967,7 +3967,7 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
-      DBUG_ASSERT(!thd->backup_tables_lock.is_acquired());
+      assert(!thd->backup_tables_lock.is_acquired());
       /*
         Can we commit safely? If not, return to avoid releasing
         transactional metadata locks.
@@ -3982,8 +3982,8 @@ end_with_restore_list:
 
     if (thd->backup_tables_lock.is_acquired())
     {
-      DBUG_ASSERT(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
-      DBUG_ASSERT(!thd->global_read_lock.is_acquired());
+      assert(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
+      assert(!thd->global_read_lock.is_acquired());
 
       thd->backup_tables_lock.release(thd);
     }
@@ -5283,8 +5283,8 @@ finish:
          thd->in_multi_stmt_transaction_mode());
 
   if (per_query_variables_backup) {
-    DBUG_ASSERT(lex->set_statement);
-    DBUG_ASSERT(!lex->var_list.is_empty());
+    assert(lex->set_statement);
+    assert(!lex->var_list.is_empty());
 
     List_iterator_fast<set_var_base> it(thd->lex->var_list);
     set_var *var;
@@ -6112,7 +6112,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
       key_type= KEYTYPE_MULTIPLE;
     if (type_modifier & CLUSTERING_FLAG)
       key_type= static_cast<enum keytype>(key_type | KEYTYPE_CLUSTERING);
-    DBUG_ASSERT(key_type != KEYTYPE_MULTIPLE);
+    assert(key_type != KEYTYPE_MULTIPLE);
 
     lex->col_list.push_back(new Key_part_spec(*field_name, 0));
     Key *key= new Key(key_type, null_lex_str, &default_key_create_info, 0,

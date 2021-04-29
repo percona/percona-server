@@ -439,7 +439,7 @@ handlerton *ha_enforce_handlerton(THD* thd)
     if (plugin)
     {
       handlerton *hton= plugin_data<handlerton*>(plugin);
-      DBUG_ASSERT(hton);
+      assert(hton);
       return hton;
     }
     else
@@ -2507,7 +2507,7 @@ static int ha_clone_consistent_snapshot(THD *thd)
   THD *from_thd;
   ulong id;
   Item *val= thd->lex->donor_transaction_id;
-  DBUG_ASSERT(val);
+  assert(val);
 
   if (thd->lex->table_or_sp_used())
   {
@@ -2633,7 +2633,7 @@ int ha_store_binlog_info(THD *thd)
   if (!mysql_bin_log.is_open())
     return 0;
 
-  DBUG_ASSERT(tc_log == &mysql_bin_log);
+  assert(tc_log == &mysql_bin_log);
 
   /* Block commits to get consistent binlog coordinates */
   tc_log->xlock();
@@ -2860,7 +2860,7 @@ void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
   if (table && table->in_use)
   {
-    DBUG_ASSERT(!table->in_use->status_var_aggregated);
+    assert(!table->in_use->status_var_aggregated);
     (table->in_use->status_var.*offset)++;
   }
 }

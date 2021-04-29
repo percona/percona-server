@@ -794,7 +794,7 @@ void ha_partition::update_field_defs_with_zip_dict_info(THD* thd,
                                                         const char* part_name)
 {
   DBUG_ENTER("ha_partition::update_field_defs_with_zip_dict_info");
-  DBUG_ASSERT(part_name == NULL);
+  assert(part_name == NULL);
   char full_name[FN_REFLEN];
   create_partition_name(full_name, table_share->path.str, m_name_buffer_ptr,
                         NORMAL_PART_NAME, FALSE);
@@ -803,8 +803,8 @@ void ha_partition::update_field_defs_with_zip_dict_info(THD* thd,
   As table structure is the same for all partitions,
   we can use the first partition for this function.
   */
-  DBUG_ASSERT(m_file);
-  DBUG_ASSERT(m_file[0]);
+  assert(m_file);
+  assert(m_file[0]);
 
   m_file[0]->update_field_defs_with_zip_dict_info(thd, full_name);
 

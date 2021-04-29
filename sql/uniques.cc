@@ -402,7 +402,7 @@ Unique::reset()
     file_ptrs.clear();
     MY_ATTRIBUTE((unused)) int reinit_res=
       reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
-    DBUG_ASSERT(reinit_res == 0);
+    assert(reinit_res == 0);
   }
   elements= 0;
 }

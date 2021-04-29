@@ -579,7 +579,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     NOTE: SSL_CTX_set_cipher_list will return 0 if
     none of the provided ciphers could be selected
   */
-  DBUG_ASSERT(strlen(tls_cipher_blocked) + 1 <= sizeof(cipher_list));
+  assert(strlen(tls_cipher_blocked) + 1 <= sizeof(cipher_list));
   strcat(cipher_list, tls_cipher_blocked);
 
   /*
@@ -604,7 +604,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
   else
   {
-    DBUG_ASSERT(strlen(cipher_list) + strlen(tls_ciphers_list) + 1
+    assert(strlen(cipher_list) + strlen(tls_ciphers_list) + 1
                 <= sizeof(cipher_list));
     strcat(cipher_list, tls_ciphers_list);
   }

@@ -1679,7 +1679,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
 
     if (!part_handler)
     {
-      DBUG_ASSERT(0);
+      assert(0);
       my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
     }

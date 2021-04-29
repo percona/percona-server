@@ -2163,7 +2163,7 @@ innodb_session_t*&
 thd_to_innodb_session(
 	THD*	thd)
 {
-	DBUG_ASSERT(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
+	assert(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
 	innodb_session_t*& innodb_session =
 		*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr);
 
@@ -5035,7 +5035,7 @@ innobase_create_zip_dict(
 		HA_CREATE_ZIP_DICT_UNKNOWN_ERROR;
 
 	DBUG_ENTER("innobase_create_zip_dict");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
+	assert(hton == innodb_hton_ptr);
 
 	if (UNIV_UNLIKELY(high_level_read_only)) {
 		DBUG_RETURN(HA_CREATE_ZIP_DICT_READ_ONLY);
@@ -5087,7 +5087,7 @@ innobase_drop_zip_dict(
 	handler_drop_zip_dict_result result = HA_DROP_ZIP_DICT_UNKNOWN_ERROR;
 
 	DBUG_ENTER("innobase_drop_zip_dict");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
+	assert(hton == innodb_hton_ptr);
 
 	if (UNIV_UNLIKELY(high_level_read_only)) {
 		DBUG_RETURN(HA_DROP_ZIP_DICT_READ_ONLY);
@@ -5239,7 +5239,7 @@ innobase_start_trx_and_clone_read_view(
 	trx_t*	from_trx;
 
 	DBUG_ENTER("innobase_start_trx_and_clone_read_view");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
+	assert(hton == innodb_hton_ptr);
 
 	/* Get transaction handle from the donor session */
 

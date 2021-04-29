@@ -502,7 +502,7 @@ public:
     {
       MY_ATTRIBUTE((unused)) int reinit_res=
         reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
-      DBUG_ASSERT(reinit_res == 0);
+      assert(reinit_res == 0);
     }
     else
       my_b_seek(&cache_log, pos);
@@ -622,7 +622,7 @@ protected:
     */
     MY_ATTRIBUTE((unused)) int reinit_res=
       reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
-    DBUG_ASSERT(reinit_res == 0);
+    assert(reinit_res == 0);
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
 
@@ -1255,7 +1255,7 @@ public:
 
       // Store end_log_pos
       int4store(*buf_p + LOG_POS_OFFSET, end_log_pos);
-      DBUG_ASSERT(output_cache == mysql_bin_log.get_log_file());
+      assert(output_cache == mysql_bin_log.get_log_file());
 
       len= *event_len_p;
 
@@ -1263,7 +1263,7 @@ public:
       {
         uint32 write_bytes= std::min<uint32>(*buf_len_p, *event_len_p);
         len= write_bytes;
-        DBUG_ASSERT(write_bytes > 0);
+        assert(write_bytes > 0);
         
         // update the checksum
         if (have_checksum)
@@ -5341,7 +5341,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     }
     DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions",
                     { static uint next_key_version = 1;
-                      DBUG_ASSERT(crypto.get_key_version() == next_key_version++);});
+                      assert(crypto.get_key_version() == next_key_version++);});
 
     uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
     memset(nonce, 0, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
@@ -9484,11 +9484,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
             if (!skip_first_query)
             {
               static const char act[]= "now WAIT_FOR signal.lock_binlog_for_backup";
-              DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+              assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 
               static const char act2[]= "now SIGNAL finished_delay_slave_worker_0";
-              DBUG_ASSERT(opt_debug_sync_timeout > 0);
-              DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
+              assert(opt_debug_sync_timeout > 0);
+              assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
 
               DBUG_SET("-d,delay_slave_worker_0");
             }
@@ -10681,7 +10681,7 @@ void MYSQL_BIN_LOG::xlock(void)
 {
   mysql_mutex_lock(&LOCK_log);
 
-  DBUG_ASSERT(!snapshot_lock_acquired);
+  assert(!snapshot_lock_acquired);
 
   /*
     We must ensure that no writes to binlog and no commits to storage engines

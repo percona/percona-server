@@ -5910,7 +5910,7 @@ requesting master dump") ||
           if (event_type == binary_log::XID_EVENT)
           {
             const char act[]= "now signal relay_xid_reached wait_for resume";
-            DBUG_ASSERT(!debug_sync_set_action(current_thd,
+            assert(!debug_sync_set_action(current_thd,
                                                STRING_WITH_LEN(act)));
           }
         }
@@ -6936,7 +6936,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
       Acquire protection against global BINLOG lock before rli->data_lock is
       locked (otherwise we would also block SHOW SLAVE STATUS).
     */
-    DBUG_ASSERT(!info_thd->backup_binlog_lock.is_acquired());
+    assert(!info_thd->backup_binlog_lock.is_acquired());
     DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
     mysql_mutex_assert_not_owner(&rli->data_lock);
     error= info_thd->backup_binlog_lock.acquire_protection(info_thd,
@@ -6952,7 +6952,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   else
   {
     mysql_mutex_assert_owner(&rli->data_lock);
-    DBUG_ASSERT(rli->info_thd->backup_binlog_lock.is_protection_acquired());
+    assert(rli->info_thd->backup_binlog_lock.is_protection_acquired());
   }
 
   /*

@@ -437,7 +437,7 @@ bool set_and_validate_user_attributes(THD *thd,
   const char *inbuf;
   char *password= NULL;
 
-  DBUG_ASSERT(!acl_is_utility_user(Str->user.str, Str->host.str, NULL));
+  assert(!acl_is_utility_user(Str->user.str, Str->host.str, NULL));
 
   what_to_set= 0;
   /* update plugin,auth str attributes */

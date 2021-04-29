@@ -2265,7 +2265,7 @@ static
 bool check_drop_database_foreign_keys(THD *thd, TABLE_LIST *tables,
                                       bool drop_view)
 {
-  DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_DROP_DB);
+  assert(thd_sql_command(thd) == SQLCOM_DROP_DB);
 
   for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
@@ -2307,11 +2307,11 @@ bool check_drop_database_foreign_keys(THD *thd, TABLE_LIST *tables,
     FOREIGN_KEY_INFO *fk_info;
     while ((fk_info= it++))
     {
-      DBUG_ASSERT(!my_strcasecmp(system_charset_info,
+      assert(!my_strcasecmp(system_charset_info,
                                  fk_info->referenced_db->str,
                                  table->db));
 
-      DBUG_ASSERT(!my_strcasecmp(system_charset_info,
+      assert(!my_strcasecmp(system_charset_info,
                                  fk_info->referenced_table->str,
                                  table->table_name));
 
@@ -4262,7 +4262,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
       key_info->flags|= HA_CLUSTERING;
       break;
     case KEYTYPE_CLUSTERING:
-      DBUG_ASSERT(0);
+      assert(0);
     default:
       key_info->flags = HA_NOSAME;
       break;
@@ -9324,7 +9324,7 @@ remove_secondary_keys(THD *thd, HA_CREATE_INFO* create_info, TABLE *table,
 {
   uint i;
   DBUG_ENTER("remove_secondary_keys");
-  DBUG_ASSERT(alter_info->delayed_key_count > 0);
+  assert(alter_info->delayed_key_count > 0);
 
   /*
     We need to mark all fields for read and write as being done in
@@ -9406,7 +9406,7 @@ restore_secondary_keys(THD *thd, HA_CREATE_INFO* create_info, TABLE *table,
 {
   uint i;
   DBUG_ENTER("restore_secondary_keys");
-  DBUG_ASSERT(alter_info->delayed_key_count > 0);
+  assert(alter_info->delayed_key_count > 0);
 
   THD_STAGE_INFO(thd, stage_restoring_secondary_keys);
 

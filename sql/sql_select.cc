@@ -129,7 +129,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   if (single_query)
   {
-    DBUG_ASSERT(unit->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
+    assert(unit->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
     unit->set_limit(unit->global_parameters());
 
     select->context.resolve_in_select_list= true;

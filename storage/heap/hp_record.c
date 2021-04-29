@@ -429,7 +429,7 @@ int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos)
       {
         uint newsize= info->blob_offset + length;
 
-        DBUG_ASSERT(share->blobs > 0);
+        assert(share->blobs > 0);
         /*
           Make sure we have enough space in blob_buffer and store the pointer
           to this blob in record.

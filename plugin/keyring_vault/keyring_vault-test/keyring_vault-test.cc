@@ -131,8 +131,8 @@ static void *store(void *arg)
       key_len= rand() % max_generated_key_length;
       key= static_cast<uchar *>(
           my_malloc(keyring::key_memory_KEYRING, key_len, MYF(0)));
-      DBUG_ASSERT(key != NULL);
-      DBUG_ASSERT(!my_rand_buffer(key, key_len));
+      assert(key != NULL);
+      assert(!my_rand_buffer(key, key_len));
     }
     else
     {
@@ -206,8 +206,8 @@ static void *fetch(void *arg)
       my_atomic_add32(&number_of_keys_fetched, 1);
       if (!generate_random_keys_data && number_of_keys_to_generate == 0)
       {
-        DBUG_ASSERT(key_len == strlen(key_stack) + 1);
-        DBUG_ASSERT(strcmp(reinterpret_cast<const char *>(
+        assert(key_len == strlen(key_stack) + 1);
+        assert(strcmp(reinterpret_cast<const char *>(
                                reinterpret_cast<uchar *>(key_data)),
                            key_stack) == 0);
       }

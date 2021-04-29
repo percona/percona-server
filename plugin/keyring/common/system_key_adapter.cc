@@ -52,7 +52,7 @@ namespace keyring
 
     if (my_atomic_casptr(typed_addr, &null_system_key_data, system_key_data_candidate)) {
       system_key_data.key_data_size = system_key_data_candidate_size;
-      DBUG_ASSERT(system_key_data.key_data == system_key_data_candidate);
+      assert(system_key_data.key_data == system_key_data_candidate);
     } else {
       delete []system_key_data_candidate; // too late - system key data was already constructed
     }
@@ -60,7 +60,7 @@ namespace keyring
 
   size_t System_key_adapter::get_key_data_size()
   {
-    DBUG_ASSERT(keyring_key != NULL);
+    assert(keyring_key != NULL);
 
     void *addr= & this->system_key_data.key_data;
     void * volatile * typed_addr= static_cast<void * volatile *>(addr);
@@ -73,7 +73,7 @@ namespace keyring
 
   uchar* System_key_adapter::get_key_data()
   {
-    DBUG_ASSERT(keyring_key != NULL);
+    assert(keyring_key != NULL);
 
     void *addr= & this->system_key_data.key_data;
     void * volatile * typed_addr= static_cast<void * volatile *>(addr);
@@ -98,7 +98,7 @@ namespace keyring
   {
     if (key_data)
     {
-      DBUG_ASSERT(key_data_size <= 512);
+      assert(key_data_size <= 512);
       memset_s(key_data, 512, 0, key_data_size);
       delete[] key_data;
       key_data = NULL;

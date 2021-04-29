@@ -1757,7 +1757,7 @@ public:
     Log_event(header(), footer(), Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
     crypto_scheme(crypto_scheme_arg), key_version(key_version_arg)
   {
-    DBUG_ASSERT(crypto_scheme == 1);
+    assert(crypto_scheme == 1);
     is_valid_param= crypto_scheme == 1;
     memcpy(nonce, nonce_arg, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
   }

@@ -219,7 +219,7 @@ size_t my_b_fill(IO_CACHE *info)
 
   if (info->myflags & MY_ENCRYPT)
   {
-    DBUG_ASSERT(info->read_pos == info->read_end);
+    assert(info->read_pos == info->read_end);
     return _my_b_read(info, 0, 0) ? 0 : info->read_end - info->read_pos;
   }
   pos_in_file= info->pos_in_file + (size_t) (info->read_end - info->buffer);

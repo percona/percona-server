@@ -142,7 +142,7 @@ init_functions(IO_CACHE* info)
       info->write_function = _my_b_encr_write;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
   else
@@ -170,7 +170,7 @@ init_functions(IO_CACHE* info)
         info->share ? _my_b_cache_write_r : _my_b_cache_write;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
   setup_io_cache(info);
@@ -198,7 +198,7 @@ void init_io_cache_encryption_ext(
   size_t encr_block_size, size_t encr_header_size)
 {
   DBUG_ENTER("init_io_cache_encryption_ext");
-  DBUG_ASSERT((read_function == NULL && write_function == NULL &&
+  assert((read_function == NULL && write_function == NULL &&
               encr_block_size == 0 && encr_header_size == 0) ||
               (read_function != NULL && write_function != NULL &&
               encr_block_size > 0));
@@ -259,7 +259,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
 
   if (file >= 0)
   {
-    DBUG_ASSERT(!(cache_myflags & MY_ENCRYPT));
+    assert(!(cache_myflags & MY_ENCRYPT));
     pos= mysql_file_tell(file, MYF(0));
     if ((pos == (my_off_t) -1) && (my_errno() == ESPIPE))
     {
@@ -282,7 +282,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
     if (type == WRITE_CACHE && _my_b_encr_read)
     {
       cache_myflags|= MY_ENCRYPT;
-      DBUG_ASSERT(seek_offset == 0);
+      assert(seek_offset == 0);
     }
 
   info->disk_writes= 0;
@@ -293,7 +293,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   min_cache=use_async_io ? IO_SIZE*4 : IO_SIZE*2;
   if (type == READ_CACHE || type == SEQ_READ_APPEND)
   {                       /* Assume file isn't growing */
-    DBUG_ASSERT(!(cache_myflags & MY_ENCRYPT));
+    assert(!(cache_myflags & MY_ENCRYPT));
     if (!(cache_myflags & MY_DONT_CHECK_FILESIZE))
     {
       /* Calculate end of file to avoid allocating oversized buffers */
@@ -512,7 +512,7 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count)
   /* If the buffer is not empty yet, copy what is available. */
   if ((left_length= (size_t)(info->read_end - info->read_pos)))
   {
-    DBUG_ASSERT(Count > left_length);
+    assert(Count > left_length);
     memcpy(Buffer, info->read_pos, left_length);
     Buffer+= left_length;
     Count-= left_length;
@@ -529,7 +529,7 @@ int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
   int res;
 
   /* Always use my_b_flush_io_cache() to flush write_buffer! */
-  DBUG_ASSERT(Buffer != info->write_buffer);
+  assert(Buffer != info->write_buffer);
 
   if (info->pos_in_file + info->buffer_length > info->end_of_file)
   {
@@ -539,7 +539,7 @@ int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
   }
 
   rest_length= (size_t)(info->write_end - info->write_pos);
-  DBUG_ASSERT(Count >= rest_length);
+  assert(Count >= rest_length);
   memcpy(info->write_pos, Buffer, (size_t)rest_length);
   Buffer+= rest_length;
   Count-= rest_length;
@@ -1146,7 +1146,7 @@ static int _my_b_cache_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
   size_t length, diff_length, left_length= 0;
   IO_CACHE_SHARE *cshare= cache->share;
   DBUG_ENTER("_my_b_cache_read_r");
-  DBUG_ASSERT(!(cache->myflags & MY_ENCRYPT));
+  assert(!(cache->myflags & MY_ENCRYPT));
 
   while (Count)
   {
@@ -1526,8 +1526,8 @@ static int _my_b_cache_write_r(IO_CACHE *info, const uchar *Buffer,
   if (res)
     return res;
 
-  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
-  DBUG_ASSERT(info->share);
+  assert(!(info->myflags & MY_ENCRYPT));
+  assert(info->share);
   copy_to_read_buffer(info, Buffer, old_pos_in_file);
 
   return 0;
@@ -1694,7 +1694,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     {
       if (append_cache)
       {
-        DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
+        assert(!(info->myflags & MY_ENCRYPT));
         if (mysql_file_write(info->file, info->write_buffer, length,
                              info->myflags | MY_NABP))
           info->error= -1;
@@ -1703,7 +1703,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 
         info->end_of_file+= info->write_pos - info->append_read_pos;
         info->append_read_pos= info->write_buffer;
-        DBUG_ASSERT(info->end_of_file ==
+        assert(info->end_of_file ==
                     mysql_file_tell(info->file, MYF(0)));
       }
       else

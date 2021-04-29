@@ -1155,7 +1155,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
       Acquire protection against global BINLOG lock before rli->data_lock is
       locked (otherwise we would also block SHOW SLAVE STATUS).
     */
-    DBUG_ASSERT(!info_thd->backup_binlog_lock.is_acquired());
+    assert(!info_thd->backup_binlog_lock.is_acquired());
     DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
     mysql_mutex_assert_not_owner(&data_lock);
     if (info_thd->backup_binlog_lock.acquire_protection(info_thd, MDL_EXPLICIT,
@@ -1167,7 +1167,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   else
   {
     mysql_mutex_assert_owner(&data_lock);
-    DBUG_ASSERT(info_thd->backup_binlog_lock.is_protection_acquired());
+    assert(info_thd->backup_binlog_lock.is_protection_acquired());
   }
 
   inc_event_relay_log_pos();

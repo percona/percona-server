@@ -898,12 +898,12 @@ extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
                                        enum mysql_trx_stat_type type,
                                        uint64_t value)
 {
-  DBUG_ASSERT(thd && !thd_is_background_thread(thd));
+  assert(thd && !thd_is_background_thread(thd));
   thd->mark_innodb_used(trx_id);
   switch (type)
   {
     case MYSQL_TRX_STAT_IO_READ_BYTES:
-      DBUG_ASSERT(value > 0);
+      assert(value > 0);
       thd->innodb_io_read+= value;
       thd->innodb_io_reads++;
       break;
@@ -1761,7 +1761,7 @@ void THD::update_stats(bool ran_command)
   if (ran_command)
   {
     // The replication thread has the COM_CONNECT command.
-    DBUG_ASSERT(get_command() != COM_SLEEP);
+    assert(get_command() != COM_SLEEP);
     if ((get_command() == COM_QUERY || get_command() == COM_CONNECT) &&
         (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END)) {
       // A SQL query.
@@ -3933,7 +3933,7 @@ void thd_increment_bytes_sent(size_t length)
   THD *thd= current_thd;
   if (likely(thd != NULL))
   { /* current_thd==NULL when close_connection() calls net_send_error() */
-    DBUG_ASSERT(!thd->status_var_aggregated);
+    assert(!thd->status_var_aggregated);
     thd->status_var.bytes_sent+= length;
     thd->bytes_sent+= length;
   }
@@ -3945,7 +3945,7 @@ void thd_increment_bytes_received(size_t length)
   THD *thd= current_thd;
   if (likely(thd != NULL))
   {
-    DBUG_ASSERT(!thd->status_var_aggregated);
+    assert(!thd->status_var_aggregated);
     thd->status_var.bytes_received+= length;
     thd->bytes_received+= length;
   }
@@ -4635,7 +4635,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
-  DBUG_ASSERT(!status_var_aggregated);
+  assert(!status_var_aggregated);
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
@@ -4740,7 +4740,7 @@ void THD::leave_locked_tables_mode()
     global_read_lock.set_explicit_lock_duration(this);
 
     /* Make sure backup locks are not released when leaving LTM */
-    DBUG_ASSERT(!backup_tables_lock.is_acquired());
+    assert(!backup_tables_lock.is_acquired());
     backup_binlog_lock.set_explicit_locks_duration(this);
 
     /*

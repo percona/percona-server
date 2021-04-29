@@ -871,7 +871,7 @@ bool Mysqld_socket_listener::setup_listener()
 #endif // HAVE_POLL
   }
 #ifdef HAVE_POLL
-  DBUG_ASSERT(count <= MAX_SOCKETS);
+  assert(count <= MAX_SOCKETS);
 #endif // HAVE_POLL
   return false;
 }

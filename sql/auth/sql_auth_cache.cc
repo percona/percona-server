@@ -1584,7 +1584,7 @@ acl_init_utility_user(bool check_no_resolve)
     goto cleanup;
   }
 
-  DBUG_ASSERT(utility_user_privileges <= UINT_MAX32);
+  assert(utility_user_privileges <= UINT_MAX32);
   acl_utility_user.access= utility_user_privileges & UINT_MAX32;
   if (acl_utility_user.access)
   {

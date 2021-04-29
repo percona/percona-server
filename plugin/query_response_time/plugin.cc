@@ -163,7 +163,7 @@ static int query_response_time_info_init(void *p)
                           "QUERY_RESPONSE_TIME_WRITE"))
     i_s_query_response_time->fill_table= query_response_time_fill_rw;
   else
-    DBUG_ASSERT(0);
+    assert(0);
   query_response_time_init();
   return 0;
 }
@@ -207,7 +207,7 @@ static int query_response_time_audit_notify(MYSQL_THD thd,
 {
   const struct mysql_event_general *event_general=
     (const struct mysql_event_general *) event;
-  DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
+  assert(event_class == MYSQL_AUDIT_GENERAL_CLASS);
   if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS &&
       query_response_time_should_log(thd))
   {

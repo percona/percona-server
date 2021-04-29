@@ -902,7 +902,7 @@ static bool db_or_table_name_equals(const char* a, const char *b) {
 static bool has_cascade_dependency(THD *thd, const TABLE_LIST &table,
                                    TABLE_LIST *table_list)
 {
-  DBUG_ASSERT(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
+  assert(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
 
   List <st_handler_tablename> fk_table_list;
   List_iterator<st_handler_tablename> fk_table_list_it(fk_table_list);

@@ -2050,7 +2050,7 @@ void Log_event::print_header(IO_CACHE* file,
       Rows_log_event::print_helper().
     */
     write_res= my_b_write(file, reinterpret_cast<const uchar*>("# "), 2);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -2076,14 +2076,14 @@ my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
     if (*s > 0x1F && *s != '\'' && *s != '\\')
     {
       write_res= my_b_write(file, s, 1);
-      DBUG_ASSERT(write_res == 0);
+      assert(write_res == 0);
     }
     else
     {
       uchar hex[10];
       size_t len= my_snprintf((char*) hex, sizeof(hex), "%s%02x", "\\x", *s);
       write_res = my_b_write(file, hex, len);
-      DBUG_ASSERT(write_res == 0);
+      assert(write_res == 0);
     }
   }
   my_b_printf(file, "'");
@@ -2106,7 +2106,7 @@ my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits)
     int is_set= (ptr[(bitnum) / 8] >> (7 - bitnum % 8))  & 0x01;
     MY_ATTRIBUTE((unused)) int write_res=
       my_b_write(file, (const uchar*) (is_set ? "1" : "0"), 1);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
   my_b_printf(file, "'");
 }
@@ -4570,7 +4570,7 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   print_query_header(head, print_event_info);
   MY_ATTRIBUTE((unused)) int write_res=
     my_b_write(head, (uchar*)query, q_len);
-  DBUG_ASSERT(write_res == 0);
+  assert(write_res == 0);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
@@ -5750,7 +5750,7 @@ Format_description_log_event(const char* buf, uint event_len,
 
 bool Format_description_log_event::start_decryption(Start_encryption_log_event* sele)
 {
-  DBUG_ASSERT(!crypto_data.is_enabled());
+  assert(!crypto_data.is_enabled());
 
   if (!sele->is_valid())
     return true;
@@ -6802,7 +6802,7 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   {
     MY_ATTRIBUTE((unused)) int write_res=
       my_b_write(head, (uchar*) new_log_ident, (uint)ident_len);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
   }
   my_b_printf(head, "  pos: %s\n", llstr(pos, buf));
 }
@@ -6963,7 +6963,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       Acquire protection against global BINLOG lock before rli->data_lock is
       locked (otherwise we would also block SHOW SLAVE STATUS).
     */
-    DBUG_ASSERT(!thd->backup_binlog_lock.is_acquired());
+    assert(!thd->backup_binlog_lock.is_acquired());
     DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
     mysql_mutex_assert_not_owner(&rli->data_lock);
     const ulong timeout= thd->variables.lock_wait_timeout;
@@ -8055,7 +8055,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   quoted_id[quoted_len]= '\0';
   MY_ATTRIBUTE((unused)) int write_res=
     my_b_write(head, (uchar*) quoted_id, quoted_len);
-  DBUG_ASSERT(write_res == 0);
+  assert(write_res == 0);
 
   if (is_null)
   {
@@ -9277,7 +9277,7 @@ void Execute_load_query_log_event::print(FILE* file,
   if (local_fname)
   {
     write_res= my_b_write(head, (uchar*) query, fn_pos_start);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
     my_b_printf(head, " LOCAL INFILE ");
     pretty_print_str(head, local_fname, strlen(local_fname));
 
@@ -9285,13 +9285,13 @@ void Execute_load_query_log_event::print(FILE* file,
       my_b_printf(head, " REPLACE");
     my_b_printf(head, " INTO");
     write_res= my_b_write(head, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
   else
   {
     write_res= my_b_write(head, (uchar*) query, q_len);
-    DBUG_ASSERT(write_res == 0);
+    assert(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
 

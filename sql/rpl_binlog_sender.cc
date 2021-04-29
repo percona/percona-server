@@ -649,8 +649,8 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
           static const char act[] =
               "now "
               "wait_for signal.continue";
-          DBUG_ASSERT(opt_debug_sync_timeout > 0);
-          DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+          assert(opt_debug_sync_timeout > 0);
+          assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         }
       });
     }
@@ -1234,7 +1234,7 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
         m_event_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
       event_len-= BINLOG_CHECKSUM_LEN;
 
-    DBUG_ASSERT(event_ptr[EVENT_TYPE_OFFSET] == binary_log::START_ENCRYPTION_EVENT);
+    assert(event_ptr[EVENT_TYPE_OFFSET] == binary_log::START_ENCRYPTION_EVENT);
     Start_encryption_log_event sele(reinterpret_cast<char*>(event_ptr), event_len, m_fdle.get());
         
     if (!sele.is_valid())

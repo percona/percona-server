@@ -96,7 +96,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_
 
 --echo # Search for error message
 let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
-let SEARCH_PATTERN=  Redo log was encrypted, but keyring plugin is not loaded;
+let SEARCH_PATTERN=  Redo log was encrypted, but keyring is not loaded;
 --source include/search_pattern.inc
 
 # shutdown server

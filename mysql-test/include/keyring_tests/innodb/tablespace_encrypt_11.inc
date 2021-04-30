@@ -12,7 +12,7 @@
 --let $explicit_default_wait_counter=10000
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Failed to decrypt encryption information, found unexpected version of it!");
 call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[Innodb\\] Decrypting a page in doublewrite file failed");
 call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[Innodb\\] Encryption key missing");

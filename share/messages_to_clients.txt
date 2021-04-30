@@ -9601,10 +9601,10 @@ ER_DA_REDO_ENCRYPTION_CANT_PARSE_KEY
   eng "Couldn't parse system key: %s"
 
 ER_DA_REDO_ENCRYPTION_KEYRING
-  eng "Redo log cannot be encrypted if the keyring plugin is not loaded."
+  eng "Redo log cannot be encrypted if the keyring is not loaded."
 
 ER_DA_UNDO_NO_KEYRING
-  eng "Undo log can't be encrypted if the keyring plugin is not loaded."
+  eng "Undo log can't be encrypted if the keyring is not loaded."
 
 ER_DA_ENCRYPTION_TABLE_CHECK_FAILED
   eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?";

@@ -11,7 +11,7 @@
 --let $explicit_default_wait_counter=10000
 
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
 call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 

@@ -7539,7 +7539,7 @@ OBSOLETE_ER_IB_MSG_668
   eng "Cannot continue operation. ib_logfiles are too small for innodb_thread_concurrency %lu. The combined size of ib_logfiles should be bigger than 200 kB * innodb_thread_concurrency. To get mysqld to start up, set innodb_thread_concurrency in my.cnf to a lower value, for example, to 8. After an ERROR-FREE shutdown of mysqld you can adjust the size of ib_logfiles. %s"
 
 OBSOLETE_ER_IB_MSG_669
-  eng "Redo log was encrypted, but keyring plugin is not loaded."
+  eng "Redo log was encrypted, but keyring is not loaded."
 
 OBSOLETE_ER_IB_MSG_670
   eng "Read redo log encryption metadata successful."
@@ -7548,7 +7548,7 @@ OBSOLETE_ER_IB_MSG_671
   eng "Can't set redo log tablespace encryption metadata."
 
 OBSOLETE_ER_IB_MSG_672
-  eng "Cannot read the encryption information in log file header, please check if keyring plugin loaded and the key file exists."
+  eng "Cannot read the encryption information in log file header, please check if keyring loaded and the key file exists."
 
 OBSOLETE_ER_IB_MSG_673
   eng "Can't set redo log tablespace to be encrypted in read-only mode."
@@ -11339,10 +11339,10 @@ ER_REDO_ENCRYPTION_CANT_PARSE_KEY
   eng "Couldn't parse system key: %s"
 
 ER_REDO_ENCRYPTION_KEYRING
-  eng "Redo log cannot be encrypted if the keyring plugin is not loaded."
+  eng "Redo log cannot be encrypted if the keyring is not loaded."
 
 ER_UNDO_NO_KEYRING
-  eng "Undo log can't be encrypted if the keyring plugin is not loaded."
+  eng "Undo log can't be encrypted if the keyring is not loaded."
 
 ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
   eng "Couldn't fetch default percona_redo key. Please check if keyring is operational."

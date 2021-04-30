@@ -1,4 +1,4 @@
-call mtr.add_suppression("\\[InnoDB\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[InnoDB\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[InnoDB\\] Can't set temporary tablespace to be encrypted because keyring plugin is not available.");
 call mtr.add_suppression("\\[InnoDB\\] Unable to encrypt a session temp tablespace. Probably due to missing keyring plugin");
 #
@@ -9,7 +9,7 @@ INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
 SET GLOBAL default_table_encryption=ON;
 SET big_tables=ON;
 INSERT INTO t1 SELECT * FROM t1;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 DROP TABLE t1;
 SET big_tables=default;
 SET GLOBAL default_table_encryption=default;

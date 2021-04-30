@@ -187,6 +187,7 @@ ERROR HY000: Can't initialize function 'keyring_key_remove'; Mismatch encountere
 select PLUGIN_NAME,PLUGIN_AUTHOR from information_schema.plugins where PLUGIN_NAME like '%keyring%';
 PLUGIN_NAME	PLUGIN_AUTHOR
 keyring_vault	Percona
+daemon_keyring_proxy_plugin	Oracle
 keyring_udf	Oracle Corporation
 select keyring_key_generate('key_id','AES',16);
 keyring_key_generate('key_id','AES',16)
@@ -365,37 +366,37 @@ select keyring_key_length_fetch('Rob1');
 keyring_key_length_fetch('Rob1')
 NULL
 select keyring_key_fetch('') into @x;
-ERROR HY000: Function 'keyring_key_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_fetch' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_length_fetch('') into @x;
-ERROR HY000: Function 'keyring_key_length_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_length_fetch' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_type_fetch('') into @x;
-ERROR HY000: Function 'keyring_key_type_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_type_fetch' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_remove('Rob_not_existing') into @x;
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_remove('') into @x;
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_generate('Wrong_type','xxx', 16) into @x;
-ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_generate('','AES', 16) into @x;
-ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
@@ -416,7 +417,7 @@ keyring_key_generate('key_id','DSA',384)
 1
 #Check if user you can access another user's keys
 select keyring_key_remove('roots_key_id');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 #Check that the user is able to access the key via procedure
 call shared_key();
 keyring_key_fetch('$roots_key_id')
@@ -429,7 +430,7 @@ keyring_key_generate('key_id','DSA',384)
 1
 #Check if user with larger privileges can access another user's key
 select keyring_key_remove('key_id');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 #Cleanup
 select keyring_key_remove('key_id');
 keyring_key_remove('key_id')
@@ -546,12 +547,12 @@ select keyring_key_remove('key_id');
 keyring_key_remove('key_id')
 1
 select keyring_key_store('Wrong_type','xxx', '0123456789012345') into @x;
-ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
 select keyring_key_store('','AES', '0123456789012345') into @x;
-ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select @x;
 @x
 NULL
@@ -596,17 +597,17 @@ UNINSTALL PLUGIN keyring_vault;
 #The keyring plugin was uninstalled, the keyring_udf functions should fail with
 #appropriate error message
 select keyring_key_store('Rob_uninstalled','AES','123');
-ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select keyring_key_fetch('Rob_uninstalled');
-ERROR HY000: Function 'keyring_key_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_fetch' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select keyring_key_type_fetch('Rob_uninstalled');
-ERROR HY000: Function 'keyring_key_type_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_type_fetch' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select keyring_key_length_fetch('Rob_uninstalled');
-ERROR HY000: Function 'keyring_key_length_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_length_fetch' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select keyring_key_remove('Rob_uninstalled');
-ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 select keyring_key_generate('Rob_uninstalled_generate','DSA',128);
-ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 UNINSTALL PLUGIN keyring_udf;
 # Test cases for keyring_udf not loaded and keyring_vault plugin loaded

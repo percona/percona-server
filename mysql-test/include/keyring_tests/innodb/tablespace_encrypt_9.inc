@@ -78,7 +78,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo # Restart after crash without Keyring plugin loaded
 --source include/keyring_tests/helper/instance_backup_manifest.inc
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 # Search the failure pattern in error log

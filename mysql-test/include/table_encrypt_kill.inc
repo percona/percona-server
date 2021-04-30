@@ -15,7 +15,7 @@
 -- disable_query_log
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
 
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("Operating system error number");
 call mtr.add_suppression("The error means the system cannot find the path specified");
 call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
@@ -26,7 +26,7 @@ call mtr.add_suppression("Cannot open table tde_db/t_encrypt.* from the internal
 call mtr.add_suppression("\\[Warning\\] .* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("\\[Warning\\] .* Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 -- enable_query_log
 

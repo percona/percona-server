@@ -7,9 +7,9 @@
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
 call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("InnoDB: Resizing redo log from");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
@@ -20,7 +20,7 @@ call mtr.add_suppression("Plugin keyring_file reported: 'File");
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_CAPACITY= `select @@innodb_redo_log_capacity`;
+let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $MYSQLD_BASEDIR= `select @@basedir`;
@@ -38,12 +38,12 @@ CREATE DATABASE test;
 EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --secure-file-priv="" >$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
---let $restart_parameters= restart: --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
+--let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 

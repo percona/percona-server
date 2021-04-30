@@ -29,11 +29,11 @@ if (!$vault_conf_mount_point_directory)
 --disable_query_log
 call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("Can't generate new master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.'");
-call mtr.add_suppression("Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
-call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key, please check the keyring is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.'");
+call mtr.add_suppression("Slave: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
+call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 call mtr.add_suppression("keyring_vault initialization failure");
 call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
@@ -50,6 +50,8 @@ eval SET @@global.keyring_vault_config='$conf_file2';
 --echo [On Master]
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$conf_file1';
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 100;
 
 --echo
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -102,7 +104,6 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 --echo [On Master]
 CREATE TABLE t4(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t4 VALUES(1, "rpltest");
---source include/save_master_pos.inc
 
 --connection slave
 --echo [On Slave]
@@ -117,7 +118,8 @@ eval SET @@global.keyring_vault_config='$conf_file2';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 --source include/start_slave_sql.inc
---source include/sync_slave_sql.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t4;
 
 --connection master
@@ -136,6 +138,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo # Installing keyring_vault plugin on master.
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
+
 --echo # Cleanup
 DROP TABLE t1,t2,t3,t4;
 

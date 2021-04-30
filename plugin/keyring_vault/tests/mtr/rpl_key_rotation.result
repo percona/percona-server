@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault2.conf';
 [On Master]
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault1.conf';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 100;
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -65,7 +66,6 @@ include/stop_slave_sql.inc
 [On Master]
 CREATE TABLE t4(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t4 VALUES(1, "rpltest");
-include/save_master_pos.inc
 [On Slave]
 START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=3185]
@@ -79,7 +79,7 @@ PLUGIN_NAME	keyring_vault
 PLUGIN_VERSION	1.0
 PLUGIN_STATUS	ACTIVE
 include/start_slave_sql.inc
-include/sync_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t4;
 c1	c2
 1	rpltest
@@ -96,7 +96,7 @@ c1	c2
 2	ccccc
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Installing keyring_vault plugin on master.
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 Warnings:

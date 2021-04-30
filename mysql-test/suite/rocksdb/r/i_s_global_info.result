@@ -4,7 +4,7 @@ ROCKSDB_GLOBAL_INFO	CREATE TEMPORARY TABLE `ROCKSDB_GLOBAL_INFO` (
   `TYPE` varchar(513) NOT NULL DEFAULT '',
   `NAME` varchar(513) NOT NULL DEFAULT '',
   `VALUE` varchar(513) NOT NULL DEFAULT ''
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_global_info;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

@@ -5,7 +5,7 @@ ROCKSDB_LOCKS	CREATE TEMPORARY TABLE `ROCKSDB_LOCKS` (
   `TRANSACTION_ID` int NOT NULL DEFAULT '0',
   `KEY` varchar(513) NOT NULL DEFAULT '',
   `MODE` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_locks;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

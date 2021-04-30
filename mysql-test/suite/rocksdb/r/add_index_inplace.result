@@ -495,7 +495,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(5)) /*!80000 INVISIBLE */
-) ENGINE=ROCKSDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin
 ALTER TABLE t1 ALTER INDEX kb VISIBLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -504,7 +504,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(5))
-) ENGINE=ROCKSDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin
 include/assert.inc [No new index ids allocated]
 DROP TABLE t1;
 SET global rocksdb_table_stats_sampling_pct = @prior_rocksdb_table_stats_sampling_pct;

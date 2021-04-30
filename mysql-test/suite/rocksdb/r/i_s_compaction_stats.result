@@ -5,7 +5,7 @@ ROCKSDB_COMPACTION_STATS	CREATE TEMPORARY TABLE `ROCKSDB_COMPACTION_STATS` (
   `LEVEL` varchar(513) NOT NULL DEFAULT '',
   `TYPE` varchar(513) NOT NULL DEFAULT '',
   `VALUE` double NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_compaction_stats;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

@@ -1011,7 +1011,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 COUNT(*)
 64
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-# old encrypt table not accessible 
+# old encrypt table not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 Got one of the listed errors
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;

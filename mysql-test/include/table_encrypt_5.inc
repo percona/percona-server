@@ -165,7 +165,7 @@ CREATE TABLE tde_db.t_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
---echo # new non encrypt table 
+--echo # new non encrypt table
 CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
                        c4 JSON ,
@@ -314,7 +314,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
---echo # encrypt table not accessible 
+--echo # encrypt table not accessible
 --error 3185
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 --error 3185
@@ -577,7 +577,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
---echo # old encrypt table not accessible 
+--echo # old encrypt table not accessible
 --error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE

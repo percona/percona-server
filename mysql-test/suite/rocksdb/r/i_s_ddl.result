@@ -13,7 +13,7 @@ ROCKSDB_DDL	CREATE TEMPORARY TABLE `ROCKSDB_DDL` (
   `INDEX_FLAGS` bigint NOT NULL DEFAULT '0',
   `CF` varchar(193) NOT NULL DEFAULT '',
   `AUTO_INCREMENT` bigint unsigned DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_ddl;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

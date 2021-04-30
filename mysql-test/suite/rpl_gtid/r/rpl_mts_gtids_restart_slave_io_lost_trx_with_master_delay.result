@@ -7,7 +7,7 @@ CREATE TABLE t1(i INT) ENGINE=InnoDB;
 FLUSH LOGS;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=5;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=5;
 include/start_slave.inc
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
@@ -19,9 +19,9 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Adding debug point 'sql_delay_without_timestamps' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
-include/assert.inc [Assert that the applier thread is not waiting for MASTER_DELAY seconds.]
+include/assert.inc [Assert that the applier thread is not waiting for SOURCE_DELAY seconds.]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug
 include/start_slave_sql.inc
 SET GLOBAL DEBUG= @save_debug;
@@ -38,9 +38,9 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Adding debug point 'sql_delay_without_timestamps' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
-include/assert.inc [Assert that the applier thread is not waiting for MASTER_DELAY seconds.]
+include/assert.inc [Assert that the applier thread is not waiting for SOURCE_DELAY seconds.]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug
 include/start_slave_sql.inc
 SET GLOBAL DEBUG= @save_debug;
@@ -61,9 +61,9 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Adding debug point 'sql_delay_without_timestamps' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
-include/assert.inc [Assert that the applier thread is not waiting for MASTER_DELAY seconds.]
+include/assert.inc [Assert that the applier thread is not waiting for SOURCE_DELAY seconds.]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug
 include/start_slave_sql.inc
 SET GLOBAL DEBUG= @save_debug;
@@ -84,9 +84,9 @@ include/stop_slave_io.inc
 include/wait_for_slave_io_to_stop.inc
 # Adding debug point 'sql_delay_without_timestamps' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
-include/assert.inc [Assert that the applier thread is not waiting for MASTER_DELAY seconds.]
+include/assert.inc [Assert that the applier thread is not waiting for SOURCE_DELAY seconds.]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug
 include/start_slave_sql.inc
 SET GLOBAL DEBUG= @save_debug;
@@ -103,9 +103,9 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Adding debug point 'sql_delay_without_timestamps' to @@GLOBAL.debug
 START REPLICA IO_THREAD;
-include/assert.inc [Assert that the applier thread is not waiting for MASTER_DELAY seconds.]
+include/assert.inc [Assert that the applier thread is not waiting for SOURCE_DELAY seconds.]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug
 include/start_slave_sql.inc
 SET GLOBAL DEBUG= @save_debug;

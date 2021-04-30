@@ -6,7 +6,7 @@ ROCKSDB_PERF_CONTEXT	CREATE TEMPORARY TABLE `ROCKSDB_PERF_CONTEXT` (
   `PARTITION_NAME` varchar(193) DEFAULT NULL,
   `STAT_TYPE` varchar(193) NOT NULL DEFAULT '',
   `VALUE` bigint NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_perf_context;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded
@@ -16,7 +16,7 @@ Table	Create Table
 ROCKSDB_PERF_CONTEXT_GLOBAL	CREATE TEMPORARY TABLE `ROCKSDB_PERF_CONTEXT_GLOBAL` (
   `STAT_TYPE` varchar(193) NOT NULL DEFAULT '',
   `VALUE` bigint NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_perf_context_global;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

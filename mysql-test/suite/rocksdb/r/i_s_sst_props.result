@@ -18,7 +18,7 @@ ROCKSDB_SST_PROPS	CREATE TEMPORARY TABLE `ROCKSDB_SST_PROPS` (
   `OLDEST_KEY_TIME` bigint NOT NULL DEFAULT '0',
   `FILTER_POLICY` varchar(193) NOT NULL DEFAULT '',
   `COMPRESSION_OPTIONS` varchar(193) NOT NULL DEFAULT ''
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_sst_props;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

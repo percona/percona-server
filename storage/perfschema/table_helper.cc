@@ -805,11 +805,13 @@ int PFS_column_row::make_row(const MDL_key *mdl) {
       m_object_type = OBJECT_TYPE_FOREIGN_KEY;
       m_schema_name_length = mdl->db_name_length();
       m_object_name_length = mdl->name_length();
+      m_column_name_length = 0;
       break;
     case MDL_key::CHECK_CONSTRAINT:
       m_object_type = OBJECT_TYPE_CHECK_CONSTRAINT;
       m_schema_name_length = mdl->db_name_length();
       m_object_name_length = mdl->name_length();
+      m_column_name_length = 0;
       break;
     case MDL_key::NAMESPACE_END:
     default:

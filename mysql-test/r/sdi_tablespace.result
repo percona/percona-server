@@ -70,7 +70,7 @@ c1
         "CREATED
         "LAST_ALTERED
         "hID
-        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "a",
@@ -299,7 +299,7 @@ c1
         "CREATED
         "LAST_ALTERED
         "hID
-        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "a",
@@ -616,7 +616,7 @@ c1
         "CREATED
         "LAST_ALTERED
         "hID
-        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "c1",
@@ -1171,7 +1171,7 @@ c1
         "CREATED
         "LAST_ALTERED
         "hID
-        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "a",
@@ -1400,7 +1400,7 @@ c1
         "CREATED
         "LAST_ALTERED
         "hID
-        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "a",
@@ -1716,7 +1716,7 @@ c1
         "CREATED
         "LAST_ALTERED
         "hID
-        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_encryption=0;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "c1",

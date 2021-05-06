@@ -497,8 +497,7 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://dl.bintray.com/boostorg/release/1.73.0/source/${BOOST_PACKAGE_NAME}.tar.gz
-    #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget http://downloads.sourceforge.net/boost/boost/1.73.0/${BOOST_PACKAGE_NAME}.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3

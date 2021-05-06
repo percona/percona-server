@@ -361,8 +361,17 @@ install_deps() {
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
+        fi
+        if [ "x$RHEL" = "x8" ]; then
+            yum -y install centos-release-stream
+            yum -y install gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils
+            yum -y install gcc-toolset-10-valgrind gcc-toolset-10-valgrind-devel gcc-toolset-10-libatomic-devel
+            yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
+            yum -y remove centos-release-stream
         fi
     else
         apt-get -y install dirmngr || true

@@ -1130,6 +1130,7 @@ Rows_sent	0
 Rows_examined	0
 ========================
 
+KILL QUERY 276447231;
 mysqltest: At line 1: Query 'KILL QUERY 276447231' failed.
 ERROR 1094 (00000): 
 # PROCESSLIST should not be dumped if error was expected
@@ -1176,6 +1177,8 @@ Rows_sent	0
 Rows_examined	0
 ========================
 
+KILL QUERY 276447231;
+ERROR HY000: Unknown thread id: 276447231
 mysqltest: At line 1: Query 'KILL QUERY 276447231' failed with wrong error 1094: '', should have failed with error '1064'.
 End of tests
 # To test cat_file command can handle \r\n at the 256th place

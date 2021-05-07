@@ -369,6 +369,8 @@ IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
     SET(HAVE_ASAN 1)
+    STRING_APPEND(CMAKE_C_FLAGS   " -fsanitize=address")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -fsanitize=address")
     # This works with clang, but not gcc it seems.
     MY_CHECK_CXX_COMPILER_FLAG(
       "-fsanitize=address -fsanitize-address-use-after-scope"

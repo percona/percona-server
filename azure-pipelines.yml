@@ -153,17 +153,31 @@ jobs:
         BuildType: Debug
 
       # gcc-5 and newer compilers
-      Ubuntu Bionic gcc-10 Release:
+      Ubuntu Bionic gcc-11 Release:
         imageName: 'ubuntu-18.04'
         Compiler: gcc
-        CompilerVer: 10
+        CompilerVer: 11
         BuildType: RelWithDebInfo
 
-      Ubuntu Bionic gcc-10 Debug:
+      Ubuntu Bionic gcc-11 Debug:
         imageName: 'ubuntu-18.04'
         Compiler: gcc
-        CompilerVer: 10
+        CompilerVer: 11
         BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic gcc-10 Release:
+          imageName: 'ubuntu-18.04'
+          Compiler: gcc
+          CompilerVer: 10
+          BuildType: RelWithDebInfo
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic gcc-10 Debug:
+          imageName: 'ubuntu-18.04'
+          Compiler: gcc
+          CompilerVer: 10
+          BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Bionic gcc-9 Release:

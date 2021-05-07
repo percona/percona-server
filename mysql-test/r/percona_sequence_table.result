@@ -575,11 +575,11 @@ Note	1003	/* select#1 */ select ((`tt1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 1
 EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (SELECT 0 AS a UNION SELECT 1 UNION SELECT 2) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
 -> Inner hash join (no condition)
-    -> Table scan on tt1  (cost=1.42 rows=3)
-        -> Union materialize with deduplication
-            -> Rows fetched before execution  (cost=0.00 rows=1)
-            -> Rows fetched before execution  (cost=0.00 rows=1)
-            -> Rows fetched before execution  (cost=0.00 rows=1)
+    -> Table scan on tt1  (cost=0.85..2.54 rows=3)
+        -> Union materialize with deduplication  (cost=1.15..2.84 rows=3)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
     -> Hash
         -> Materialize table function
 
@@ -609,8 +609,8 @@ Note	1003	/* select#1 */ select ((`tt1`.`column_0` * 10) + `tt2`.`value`) AS `tt
 EXPLAIN FORMAT=TREE SELECT tt1.column_0 * 10 + value FROM (VALUES ROW(0), ROW(1), ROW(2)) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
 -> Inner hash join (no condition)
-    -> Table scan on tt1  (cost=1.42 rows=3)
-        -> Materialize  (cost=0.00 rows=3)
+    -> Table scan on tt1  (cost=0.85..2.54 rows=3)
+        -> Materialize  (cost=1.15..2.84 rows=3)
             -> Rows fetched before execution  (cost=0.00 rows=3)
     -> Hash
         -> Materialize table function

@@ -186,6 +186,14 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
+# Suppress warnings for gcc-11 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-bounds FILES ../sql/spatial.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES ../sql/spatial.cc)
+  # a false positive with a bison-generated file (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

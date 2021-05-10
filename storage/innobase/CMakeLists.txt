@@ -196,6 +196,12 @@ IF(HAVE_CAST_FUNCTION_TYPE)
     COMPILE_FLAGS "-Wno-cast-function-type")
 ENDIF()
 
+# Suppress warnings for gcc-11 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  # a false positive with a bison-generated file (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES pars/pars0grm.cc)
+ENDIF()
+
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+
 # Compile them with -O0 as a workaround.
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")

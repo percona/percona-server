@@ -1772,7 +1772,6 @@ utility-user-privileges
 utility-user-schema-access (No default value)
 validate-user-plugins TRUE
 verbose TRUE
-version-suffix -debug
 wait-timeout 28800
 
 To see what values a running MySQL server is using, type

@@ -6,7 +6,7 @@ Data at Rest Encryption
 
 .. contents::
    :local:
- 
+
 Data security is a concern for institutions and organizations. ``Transparent
 Data Encryption (TDE)`` or ``Data at Rest Encryption`` encrypts
 data files. Data at rest is

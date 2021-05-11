@@ -502,6 +502,7 @@ jobs:
         -DWITH_KEYRING_VAULT=ON
         -DWITH_KEYRING_VAULT_TEST=ON
         -DWITH_PAM=ON
+        -DWITH_PACKAGE_FLAGS=OFF
       "
 
       if [[ "$OS_NAME" == "Darwin" ]]; then

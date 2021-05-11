@@ -16588,7 +16588,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                        thd->variables.lock_wait_timeout))
       return true;
 
-    DEBUG_SYNC_C("after_mdl_locks_acquired");
+    DEBUG_SYNC(thd, "after_mdl_locks_acquired");
 
     /*
       If we are executing ALTER TABLE RENAME under LOCK TABLES we also need

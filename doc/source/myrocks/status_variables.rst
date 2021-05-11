@@ -30,6 +30,8 @@ The following global status variables are available:
      - Numeric
    * - :variable:`rocksdb_rows_read`
      - Numeric
+   * - :variable:`rocksdb_rows_unfiltered_no_snapshot`
+     - Numeric
    * - :variable:`rocksdb_rows_updated`
      - Numeric
    * - :variable:`rocksdb_rows_expired`
@@ -248,6 +250,10 @@ This variable shows the number of rows that were inserted into MyRocks tables.
 .. variable:: rocksdb_rows_read
 
 This variable shows the number of rows that were read from MyRocks tables.
+
+.. variable:: rocksdb_rows_unfiltered_no_snapshot
+
+This variable shows how many reads need TTL and have no snapshot timestamp.
 
 .. variable:: rocksdb_rows_updated
 

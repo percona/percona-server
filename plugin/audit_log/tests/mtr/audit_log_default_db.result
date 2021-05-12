@@ -82,7 +82,7 @@ set global audit_log_flush= ON;
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"select @@version_comment limit 1","user1[user1] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT DATABASE()","user1[user1] @ localhost []","localhost","","","test"
-"Init DB","<ID>","<DATETIME>","error","<CONN_ID>",0,"","user1[user1] @ localhost []","localhost","","","test"
+"Init DB","<ID>","<DATETIME>","init db","<CONN_ID>",0,"","user1[user1] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
 ===================================================================

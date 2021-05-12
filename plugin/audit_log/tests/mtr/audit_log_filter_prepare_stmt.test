@@ -1,0 +1,35 @@
+--echo #
+--echo # PS-1116 : Audit plugin reports "command_class=error" for server-side prepared statements
+--echo #
+
+CREATE USER prepare_test  IDENTIFIED BY 'mysql';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file= $MYSQLD_DATADIR/test_audit.log;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $log_file
+SET GLOBAL audit_log_flush=ON;
+
+#Filter by excluding select command
+SET GLOBAL audit_log_exclude_commands= 'set_option,prepare_sql,execute_sql';
+
+PREPARE pstmt FROM 'SHOW GLOBAL VARIABLES WHERE Variable_name = ?';
+SET @pvar='max_allowed_packet';
+EXECUTE pstmt USING @pvar;
+
+#Allow everything
+SET GLOBAL audit_log_exclude_commands = NULL;
+SET GLOBAL audit_log_include_commands = NULL;
+
+PREPARE pstmt1 FROM 'SHOW GLOBAL VARIABLES WHERE Variable_name = ?';
+SET @pvar1 = 'max_allowed_packet';
+EXECUTE pstmt1 USING @pvar1;
+
+SET GLOBAL audit_log_flush=ON;
+
+--source audit_log_echo.inc
+
+DEALLOCATE PREPARE pstmt;
+DEALLOCATE PREPARE pstmt1;
+DROP USER prepare_test;

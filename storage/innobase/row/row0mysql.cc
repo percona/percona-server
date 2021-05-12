@@ -2016,9 +2016,6 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
     return (DB_TABLE_CORRUPT);
   }
 
-  if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
-    mem_heap_empty(prebuilt->compress_heap);
-
   trx->op_info = "inserting";
 
   row_mysql_delay_if_needed();

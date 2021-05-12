@@ -35,7 +35,7 @@ perl;
     }
     $line =~ s/"([a-zA-Z_ ]*)","([0-9]+)_[0-9_ :T-]*","[0-9_ :A-Z-]*"/"$1","<ID>","<DATETIME>"/;
     $line =~ s/"(Connect|Quit|Change user)","<ID>","<DATETIME>","[0-9]+"/"$1","<ID>","<DATETIME>","<CONN_ID>"/;
-    $line =~ s/"([A-Za-z ]+)","<ID>","<DATETIME>","([a-z_]+)","[0-9]+"/"$1","<ID>","<DATETIME>","$2","<CONN_ID>"/;
+    $line =~ s/"([A-Za-z ]+)","<ID>","<DATETIME>","(init db|[a-z_]+)","[0-9]+"/"$1","<ID>","<DATETIME>","$2","<CONN_ID>"/;
     if ($line =~ /SET GLOBAL .*_accounts/) {
       print "*************************************************************\n";
     }

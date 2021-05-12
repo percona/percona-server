@@ -1,0 +1,6 @@
+$AUDIT_LOG_OPT
+$AUDIT_LOG_LOAD
+--audit_log_file=test_audit.log
+--audit_log_policy=QUERIES
+--audit-log-format=csv
+--audit_log_strategy=SYNCHRONOUS

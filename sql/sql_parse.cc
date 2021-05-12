@@ -179,6 +179,11 @@ const LEX_STRING command_name[] MY_ATTRIBUTE((unused)) = {
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
+size_t get_command_name_len(void)
+{
+  return sizeof(command_name) / sizeof(command_name[0]);
+}
+
 #ifdef HAVE_REPLICATION
 /**
   Returns true if all tables should be ignored.

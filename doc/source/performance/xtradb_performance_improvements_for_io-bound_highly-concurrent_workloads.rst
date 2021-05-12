@@ -89,7 +89,7 @@ As of |Percona Server| 8.0.20-11, the parallel doublewrite buffer is replaced wi
    :vartype: String
    :default: ``xb_doublewrite``
 
-As of |Percona Server| 8.0.20-11, this variable is considered **deprecated** and has no effect. You should use `innodb_doublewrite_dir <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_doublewrite_dir>`_. 
+As of |Percona Server| 8.0.20-11, this variable is considered **deprecated** and has no effect. You should use `innodb_doublewrite_dir <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_doublewrite_dir>`_.
 
 This variable is used to specify the location of the parallel doublewrite file.
 It accepts both absolute and relative paths. In the latter case they are
@@ -116,7 +116,6 @@ Version Specific Information
 Other Reading
 =============
 
-* :ref:`page_cleaner_tuning`
 * Bug :mysqlbug:`74637` - make dirty page flushing more adaptive
 * Bug :mysqlbug:`67808` - in innodb engine, double write and multi-buffer pool
   instance reduce concurrency

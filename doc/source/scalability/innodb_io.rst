@@ -27,7 +27,7 @@ System Variables
    :default: ``fdatasync``
    :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``
 
-Starting from |Percona Server| 8.0.20-11, the `innodb_flush_method <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_flush_method>`_ affects doublewrite buffers exactly the same as in |MySQL| 8.0.20. 
+Starting from |Percona Server| 8.0.20-11, the `innodb_flush_method <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_flush_method>`__ affects doublewrite buffers exactly the same as in |MySQL| 8.0.20. 
  
 Status Variables
 ================================================================================

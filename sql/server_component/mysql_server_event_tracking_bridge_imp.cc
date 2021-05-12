@@ -1026,10 +1026,15 @@ DEFINE_BOOL_METHOD(Event_general_bridge_implementation::notify,
     plugin_data.general_rows =
         static_cast<unsigned long long>(event_information->rows_);
 
+    std::string cmd_class_lowercase;
     if (event_information->command_.str != nullptr &&
         thd->lex->sql_command == SQLCOM_END &&
         thd->get_command() != COM_QUERY) {
-      plugin_data.general_sql_command = {STRING_WITH_LEN("")};
+      cmd_class_lowercase = event_information->command_.str;
+      std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
+                     cmd_class_lowercase.begin(), ::tolower);
+      plugin_data.general_sql_command.str = cmd_class_lowercase.c_str();
+      plugin_data.general_sql_command.length = cmd_class_lowercase.length();
     } else {
       plugin_data.general_sql_command =
           sql_statement_names[thd->lex->sql_command];

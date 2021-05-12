@@ -215,7 +215,7 @@ using std::max;
 
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
-const std::string Command_names::m_names[] = {
+const std::array<const std::string, COM_END + 1> Command_names::m_names = {
     "Sleep",
     "Quit",
     "Init DB",

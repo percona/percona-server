@@ -349,6 +349,8 @@ install_deps() {
 	    yum -y install zstd libzstd libzstd-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
+            rm -f /usr/bin/cmake
+            cp -p /usr/bin/cmake3 /usr/bin/cmake
             yum -y install Percona-Server-shared-56
 	          yum -y install libevent2-devel
 	      else

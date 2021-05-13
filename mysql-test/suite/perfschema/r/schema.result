@@ -66,6 +66,8 @@ innodb_redo_log_files
 keyring_component_status
 keyring_keys
 log_status
+malloc_stats
+malloc_stats_totals
 memory_summary_by_account_by_event_name
 memory_summary_by_host_by_event_name
 memory_summary_by_thread_by_event_name
@@ -1176,6 +1178,25 @@ hosts	CREATE TABLE `hosts` (
   `MAX_SESSION_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
   `MAX_SESSION_TOTAL_MEMORY` bigint unsigned NOT NULL,
   UNIQUE KEY `HOST` (`HOST`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table malloc_stats;
+Table	Create Table
+malloc_stats	CREATE TABLE `malloc_stats` (
+  `TYPE` char(8) NOT NULL,
+  `ALLOCATED` bigint unsigned NOT NULL,
+  `NMALLOC` bigint unsigned NOT NULL,
+  `NDALLOC` bigint unsigned NOT NULL,
+  `NREQUESTS` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table malloc_stats_totals;
+Table	Create Table
+malloc_stats_totals	CREATE TABLE `malloc_stats_totals` (
+  `ALLOCATED` bigint unsigned NOT NULL,
+  `ACTIVE` bigint unsigned NOT NULL,
+  `MAPPED` bigint unsigned NOT NULL,
+  `RESIDENT` bigint unsigned NOT NULL,
+  `RETAINED` bigint unsigned NOT NULL,
+  `METADATA` bigint unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table mutex_instances;
 Table	Create Table

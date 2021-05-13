@@ -814,6 +814,7 @@ MySQL clients support the protocol:
 #include "sql/persisted_variable.h"              // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
+#include "sql/sql_profile.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"  // range_optimizer_init
@@ -9302,6 +9303,10 @@ int mysqld_main(int argc, char **argv)
       LogErr(SYSTEM_LEVEL, ER_SRV_START);
     }
   }
+
+  opt_jemalloc_detected = jemalloc_detected();
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
+
   init_sql_statement_names();
   ulong requested_open_files = 0;
   if (!opt_validate_config) adjust_related_options(&requested_open_files);

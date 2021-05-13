@@ -375,6 +375,8 @@ table_replication_applier_filters.cc
 table_replication_applier_global_filters.cc
 table_binary_log_transaction_compression_stats.cc
 telemetry_pfs_metrics.cc
+table_malloc_stats.cc
+table_malloc_stats.h
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY

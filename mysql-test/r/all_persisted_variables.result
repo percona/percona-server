@@ -22,7 +22,8 @@ performance_schema.global_variables WHERE variable_name NOT IN
 'innodb_monitor_disable',
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
-'rbr_exec_mode');
+'rbr_exec_mode',
+'jemalloc_profiling');
 ************************************************************
 * 1. Check that there are no persisted variable settings.
 ************************************************************

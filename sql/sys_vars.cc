@@ -132,6 +132,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"            // my_locale_by_number
 #include "sql/sql_parse.h"             // killall_non_super_threads
+#include "sql/sql_profile.h"
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
@@ -2255,6 +2256,31 @@ static Sys_var_bool Sys_ft_query_extra_word_chars(
     "If enabled, all non-whitespace characters are considered word symbols "
     "for full text search queries",
     SESSION_VAR(ft_query_extra_word_chars), CMD_LINE(OPT_ARG), DEFAULT(false));
+
+static bool jemalloc_profiling_check(sys_var *, THD *, set_var *) {
+  return !jemalloc_detected();
+}
+
+static bool jemalloc_profiling_update(sys_var *, THD *, enum_var_type) {
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
+  return false;
+}
+
+static Sys_var_bool Sys_jemalloc_profiling(
+    "jemalloc_profiling",
+    "Enable jemalloc profiling"
+    "Start MySQL with MALLOC_CONF set to 'prof:true' for this feature to work"
+    "Also Jemalloc should be compiled with profiling enabled",
+    GLOBAL_VAR(opt_jemalloc_profiling_enabled), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(jemalloc_profiling_check), ON_UPDATE(jemalloc_profiling_update),
+    NULL, sys_var::PARSE_EARLY);
+
+static Sys_var_bool Sys_jemalloc_detected(
+    "jemalloc_detected",
+    "This is true if Jemalloc with PROFILING enabled detected",
+    READ_ONLY GLOBAL_VAR(opt_jemalloc_detected), NO_CMD_LINE, DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static bool check_init_string(sys_var *, THD *, set_var *var) {
   if (var->save_result.string_value.str == nullptr) {

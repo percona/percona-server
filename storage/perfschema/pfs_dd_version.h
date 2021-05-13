@@ -177,6 +177,12 @@
   performance_schema tables changed in MySQL 8.0.24
   - WL#13446 added performance_schema.keyring_component_status
 
+  80025:
+
+  performance_schema tables changed in Percona Server 8.0.25-15
+  - malloc_stats
+  - malloc_stats_totals
+
   80027:
 
   performance_schema tables changed in MySQL 8.0.27

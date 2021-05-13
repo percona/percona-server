@@ -300,6 +300,7 @@ class Statement_backup
 {
   LEX *m_lex;
   LEX_CSTRING m_query_string;
+  bool m_safe_to_display;
 
 public:
   LEX *lex() const { return m_lex; }
@@ -320,6 +321,12 @@ public:
     m_query_string= thd->query();
     thd->set_query(stmt->m_query_string);
 
+    m_safe_to_display = thd->safe_to_display();
+
+    /* Keep the current behaviour of displaying prepared statements always by
+    default. This can be changed in future if required. */
+    thd->set_safe_display(true);
+
     DBUG_VOID_RETURN;
   }
 
@@ -337,6 +344,7 @@ public:
     thd->lex=  m_lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+    thd->set_safe_display(m_safe_to_display);
     stmt->m_query_string= thd->query();
     thd->set_query(m_query_string);
 

@@ -173,6 +173,10 @@
   performance_schema tables changed in Percona Server 8.0.23-14
   - add time_ms, rows_sent and rows_examined columns to
   performance_schema.processlist
+
+  80025:
+
+  performance_schema tables changed in Percona Server 8.0.25-15
   - malloc_stats
   - malloc_stats_totals
 */

@@ -3917,6 +3917,8 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
 
   mysql_prlock_rdlock(&m_rwlock);
 
+  DEBUG_SYNC(src_ctx->get_thd(), "acl_mdl_dead_lock");
+
   /*
     Iterators must be initialized after taking a read lock.
 

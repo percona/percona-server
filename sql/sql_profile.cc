@@ -39,6 +39,7 @@
 
 #include "my_config.h"
 
+#include <dlfcn.h>
 #include <string.h>
 #include <algorithm>
 
@@ -163,6 +164,104 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {
     }
   }
   return 0;
+}
+
+typedef int (*je_mallctl_func)(const char *name, void *oldp, size_t *oldlenp,
+                               void *newp, size_t newlen);
+
+bool opt_jemalloc_profiling_enabled = false;
+bool opt_jemalloc_detected = false;
+static je_mallctl_func mallctl_p = nullptr;
+static bool jemalloc_initialized = false;
+static unsigned jemalloc_profile_counter = 0;
+
+/**
+  Wrapper over jemalloc mallctl
+
+  @param  name      The period-separated name argument specifies a location in a
+                    tree-structured namespace
+  @param  oldp      To read a value, pass a pointer via oldp to adequate space
+                    to contain the value; otherwise pass nullptr.
+  @param  oldlenp   A pointer to oldp allocated memory size or nullptr if empty.
+  @param  newp      To write a value, pass a pointer to the value via newp;
+                    otherwise pass nullptr.
+  @param  newlen    Size of the memory allocated to newp or 0.
+
+  @return Result of mallctl, mallctl returns 0 on success, or 1 if mallctl is
+  not available.
+*/
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+                     size_t newlen) {
+  if (!jemalloc_initialized) {
+    mallctl_p = (je_mallctl_func)dlsym(RTLD_DEFAULT, "mallctl");
+    jemalloc_initialized = true;
+  }
+
+  if (!mallctl_p) return 1;
+
+  return mallctl_p(name, oldp, oldlenp, newp, newlen);
+}
+
+/**
+  Dumps a memory profile to a temporary file.
+
+  It writes to /tmp/jeprof_mysqld.<PID>.<COUNTER>.<DATE> or
+  to a file determined by `prof_prefix` if `prof_prefix`
+  is different from default.
+
+  @return 0 on success.
+*/
+int jemalloc_profiling_dump() {
+  char *pfn;
+  size_t sz = sizeof(pfn);
+  int n = jemalloc_mallctl("opt.prof_prefix", &pfn, &sz, nullptr, 0);
+
+  /* Only write to custom file if user doesn't overwrite prof_prefix in
+   * MALLOC_CONF */
+  if (n || !strcmp(pfn, "jeprof")) {
+    char buff[64];
+    size_t buff_size = sizeof(buff);
+    int i = snprintf(buff, buff_size, "/tmp/jeprof_mysqld.%u.%u.", getpid(),
+                     jemalloc_profile_counter++);
+    if (i < 0 || static_cast<size_t>(i) >= buff_size) return 1;
+
+    time_t t = time(nullptr);
+    struct tm ltm;
+    localtime_r(&t, &ltm);
+    strftime(buff + i, buff_size - i, "%y%m%d%H%M%S", &ltm);
+
+    pfn = buff;
+    return jemalloc_mallctl("prof.dump", nullptr, 0, &pfn, sz);
+  }
+
+  return jemalloc_mallctl("prof.dump", nullptr, nullptr, nullptr, 0);
+}
+
+/**
+  Detected means Jemalloc loaded and profiling initialized using prof:true in
+  MALLOC_CONF environment variable.
+
+  @return true on Jemalloc with profiling detected.
+*/
+bool jemalloc_detected() {
+  char active;
+  size_t sz = sizeof(active);
+  int n = jemalloc_mallctl("opt.prof", &active, &sz, nullptr, 0);
+  return !n && active;
+}
+
+/**
+  Actually enable or disable profiling during runtime, for existing and
+  newly created threads.
+
+  @return 0 on success.
+*/
+int jemalloc_profiling_enable(bool enable) {
+  int n = jemalloc_mallctl("prof.active", nullptr, nullptr, &enable,
+                           sizeof(enable));
+  n |= jemalloc_mallctl("prof.thread_active_init", nullptr, nullptr, &enable,
+                        sizeof(enable));
+  return n;
 }
 
 #if defined(ENABLED_PROFILING)

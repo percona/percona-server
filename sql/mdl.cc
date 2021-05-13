@@ -3921,6 +3921,20 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
 
   mysql_prlock_rdlock(&m_rwlock);
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /*
+    Fire the sync point only when the visited ticket belongs to the thread
+    running this deadlock detection (i.e. the initial node of the graph
+    walk). At recursion depth >= 2 src_ctx belongs to another connection,
+    and debug_sync() would then manipulate that connection's
+    debug_sync_control without any synchronization, racing with the owner
+    thread (and with other concurrent deadlock detectors) executing the
+    same action.
+  */
+  if (src_ctx->get_thd() == current_thd)
+    DEBUG_SYNC(current_thd, "acl_mdl_dead_lock");
+#endif
+
   /*
     Iterators must be initialized after taking a read lock.
 

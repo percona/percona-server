@@ -1,0 +1,5 @@
+source include/have_jemalloc.inc;
+show variables like 'jemalloc%';
+set global jemalloc_profiling=on;
+show variables like 'jemalloc%';
+set global jemalloc_profiling=off;

@@ -53,6 +53,7 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // reset_mqh
 #include "sql/sql_const.h"
+#include "sql/sql_profile.h"
 #include "sql/sql_servers.h"  // servers_reload
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -363,6 +364,12 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
   }
   if (options & REFRESH_OPTIMIZER_COSTS) reload_optimizer_cost_constants();
+
+  if (options & DUMP_MEMORY_PROFILE) {
+    tmp_write_to_binlog = 0;
+    if (opt_jemalloc_profiling_enabled) jemalloc_profiling_dump();
+  }
+
   if (options & REFRESH_REPLICA) {
     tmp_write_to_binlog = 0;
     if (reset_slave_cmd(thd)) {

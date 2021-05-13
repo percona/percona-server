@@ -429,6 +429,10 @@ static bool check_session_admin_no_super(sys_var *self, THD *thd,
  */
 static bool check_session_admin(sys_var *self, THD *thd, set_var *setv) {
   Security_context *sctx = thd->security_context();
+
+  /* Skip ACL checks for SET commands */
+  DBUG_EXECUTE_IF("skip_session_admin_check", return false;);
+
   if (check_session_admin_privileges_only(self, thd, setv) &&
       !sctx->check_access(SUPER_ACL)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),

@@ -1,0 +1,269 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# We rely on g++ to compile c-program
+--source include/not_windows.inc
+# Because of 6K connections, mysqld consumes close to
+# 14G virtual memory
+--source include/big_test.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # PS-7143 : Server freezes and reaches max connections due to ACL Cache Lock waits
+--echo #
+
+--echo # Check if system can handle 12k concurrent threads
+--echo # 12K because server creates 6K threads and clients
+--echo # another 6k threads/processes
+
+--echo # There is no easy way to check if the system can
+--echo # handle 12K threads. We compile C-program (need g++)
+--echo # and execute it and check return status
+
+--write_file $MYSQL_TMP_DIR/thread_limit_test.cc
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <atomic>
+#include <iostream>
+#include <thread>
+#include <chrono>
+
+#define NUM_THREADS     12000
+std::atomic<int> current_threads{0};
+using namespace std;
+
+void* ThreadTask(void *threadid)
+{
+   long tid;
+   tid = (long)threadid;
+   std::cout << "Hello World! It's me, thread# " << tid << std::endl;
+   ++current_threads;
+   while (current_threads.load() < NUM_THREADS) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+   }
+   std::cout << "Thread exiting # " << tid << std::endl;
+   pthread_exit(NULL);
+}
+
+int main ()
+{
+   pthread_t threads[NUM_THREADS];
+   int rc;
+   for(long t=0; t<NUM_THREADS; t++){
+      std::cout << "In main: creating thread: " << t << std::endl;
+      rc = pthread_create(&threads[t], NULL, ThreadTask, (void *)t);
+      if (rc){
+         std::cout << "ERROR: return code from pthread_create() is " << strerror(rc) << std::endl;
+         exit(-1);
+      }
+   }
+
+   for(long t=0; t<NUM_THREADS; t++){
+	pthread_join(threads[t], NULL);
+   }
+
+   std::cout << "finish executing main " << std::endl;
+   return(0);
+}
+EOF
+--echo # Require g++ to compile this program. If the exec fails "sh: 1: g++: not found". Please install g++ and retry
+--exec g++ $MYSQL_TMP_DIR/thread_limit_test.cc -std=c++11 -lpthread -o $MYSQL_TMP_DIR/thread_limit 2>&1 > $MYSQL_TMP_DIR/thread_limit_gcc_error.txt
+
+--echo # if the below exec fails, it means the operating system has limit of threads less than 12K
+--echo # This testcase needs OS that can create 12k threads.
+--echo # Try these settings (only if they are less 12,000)
+--echo # ulimit -i  12000
+--echo # echo 12000 > /proc/sys/kernel/threads-max
+--echo # echo 60000 > /proc/sys/vm/max_map_count
+--echo # echo 12000 > /proc/sys/kernel/pid_max
+--echo # echo 12000 > /sys/fs/cgroup/pids/user.slice/user-$UID.slice/pids.max
+--exec $MYSQL_TMP_DIR/thread_limit 2>&1 > $MYSQL_TMP_DIR/thread_limit_gcc_error.txt
+--remove_file $MYSQL_TMP_DIR/thread_limit_test.cc
+--remove_file $MYSQL_TMP_DIR/thread_limit_gcc_error.txt
+--remove_file $MYSQL_TMP_DIR/thread_limit
+
+--echo # Precondition check of the system is completed. The system can handle 12K concurrent threads
+
+--source include/count_sessions.inc
+
+--let $debug_point = skip_session_admin_check
+--source include/add_debug_point.inc
+
+CREATE USER satya@'%' IDENTIFIED BY 'hello';
+GRANT ALL on test.* to satya@'%';
+GRANT ALL on mysql.* to satya@'%';
+
+--let $old_max_conn=`SELECT @@global.max_connections`
+SET GLOBAL max_connections = 6000;
+
+--connect (con_flush,localhost,root,,)
+--connect (con0,localhost,root,,)
+
+--let $i = 1
+while ($i <= 200) {
+ --connect (con$i, localhost, root)
+ --inc $i
+}
+
+--let $i = 201
+while ($i <= 700) {
+ --connect (con$i, 127.0.0.1, satya,hello,test)
+ --inc $i
+}
+
+--connection default
+--let $initial_con_count=`SELECT COUNT(*) FROM information_schema.processlist`
+
+--echo # Sleeping 15 seconds for allowing user to connect client for observability
+--echo # we cannot establish connection later as database freezes. Do now if you wish
+--echo # be in mysql-source/bld/mysql-test directory and execute the below command
+--echo # ../runtime_output_directory/mysql -uroot -S ./var/tmp/mysqld.1.sock
+#--sleep 15
+#--echo # sleep over
+
+--echo # connection con0: Hold ACL x lock and let readers wait
+--connection con0
+SET DEBUG_SYNC= 'acl_x_lock SIGNAL x_locked WAIT_FOR all_wait_s_locks_done';
+--send FLUSH PRIVILEGES
+
+--echo # 200 connections try for SHARED ACL lock and go into waiting list
+--echo # because FLUSH PRIVILEGES holds EXCLUSIVE lock
+--disable_query_log
+--let $i = 1
+while ($i <= 200) {
+ --connection con$i
+ SET DEBUG_SYNC = 'now WAIT_FOR x_locked NO_CLEAR_EVENT';
+ SET DEBUG_SYNC = 'acl_s_lock SIGNAL s_locked WAIT_FOR new_xlock NO_CLEAR_EVENT';
+ --send SHOW CREATE USER root@localhost
+ --inc $i
+}
+--enable_query_log
+
+--echo # Connection default. Waiting for 200 connections to reach blocking state
+--connection default
+--let $wait_timeout = 600
+let $wait_condition=
+  SELECT COUNT(*) = 200 FROM information_schema.processlist
+    WHERE state = 'Waiting for acl cache lock' AND
+          info = 'SHOW CREATE USER root@localhost';
+--source include/wait_condition.inc
+
+--echo # Now release X-lock by FLUSH PRIVILEGES. Now All 200 readers get the
+--echo # SHARED lock and they wait on debug sync point after acquiring SHARED
+--echo # ACL MDL lock
+SET DEBUG_SYNC = 'now SIGNAL all_wait_s_locks_done';
+
+--echo # Wait for 200 connection to reach acquired SHARED ACL MDL lock state
+--let $wait_timeout = 600
+let $wait_condition=
+ SELECT COUNT(*) = 200 FROM information_schema.processlist
+   WHERE state = 'debug sync point: acl_s_lock' AND
+         info = 'SHOW CREATE USER root@localhost';
+--source include/wait_condition.inc
+
+--echo # Start 5000 connection will go into ACL cache lock waiting state
+--let $i = 1
+while ($i <= 5000) {
+ --exec_in_background $MYSQL -usatya -phello -h 127.0.0.1 -P $MASTER_MYPORT test -e "SELECT 1" 2>&1 > /dev/null
+ if ($i == 1500) {
+   --connection con_flush
+   --send FLUSH PRIVILEGES;
+ }
+ --inc $i
+}
+
+--echo # Connection default: Wait for those 5000 new connections to reach ACL cache lock waiting state
+--connection default
+--let $wait_timeout = 600
+let $wait_condition=
+  SELECT COUNT(*) = 5000 FROM information_schema.processlist
+    WHERE USER = 'unauthenticated user' AND STATE = 'Waiting for acl cache lock';
+--source include/wait_condition.inc
+
+--echo # Start another 500 connections and stop them in just before deadlock check iteration
+--disable_query_log
+--let $i = 201
+while ($i <= 700) {
+  --connection con$i
+  SET DEBUG_SYNC = 'now WAIT_FOR s_locked NO_CLEAR_EVENT';
+  SET DEBUG_SYNC = 'mdl_acquire_lock_wait SIGNAL before_dead_lock WAIT_FOR start_dead_lock_check NO_CLEAR_EVENT';
+  SET DEBUG_SYNC = 'acl_mdl_dead_lock SIGNAL dead_locked WAIT_FOR resume_wait_graph NO_CLEAR_EVENT';
+  --send SHOW CREATE USER root@localhost
+  --inc $i
+}
+--enable_query_log
+
+--echo # Connection default: Make 500 threads stop just before deadlock check
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR before_dead_lock NO_CLEAR_EVENT';
+
+--echo # Now signal waiting threads to start deadlock checks
+SET DEBUG_SYNC = 'now SIGNAL start_dead_lock_check';
+
+--echo # Waiting for 500 threads to reach before deadlock check state
+--let $wait_timeout = 60
+let $wait_condition=
+  SELECT COUNT(*) = 500 FROM information_schema.processlist
+    WHERE STATE = 'debug sync point: mdl_acquire_lock_wait'
+    AND info = 'SHOW CREATE USER root@localhost';
+
+--echo # Signal 500 threads to start deadlocks checks
+SET DEBUG_SYNC = 'now SIGNAL resume_wait_graph';
+--echo # Now let the initial 200 readers who took the SHARED lock to resume
+--echo # They will not be able to release the lock/ticket to internal rwlock
+--echo # taken as SHARED by Deadlock check threads. These threads need exclusive
+--echo # mode to remove ticket from granted list
+SET DEBUG_SYNC = 'now SIGNAL new_xlock';
+
+--echo # database freezes now and new connections are blocked
+--echo # and finally we hit max_connections limit
+--echo # Freeze start..  Also observe high cpu usage.. mysql server is doing deadlock checks
+
+SELECT NOW() INTO @start;
+
+--connection default
+--echo # Waiting for connections to finish
+--echo # initial_con_count is $initial_con_count
+--let $wait_timeout = 600
+let $wait_condition=
+  SELECT COUNT(*) = $initial_con_count FROM information_schema.processlist;
+--source include/wait_condition.inc
+
+SELECT NOW() INTO @end;
+#--echo # Freeze over..
+#--echo # total time mysqld freezed:
+#--echo #########################################################################
+#SELECT TIMEDIFF(@end, @start) AS freeze_time;
+#--echo #########################################################################
+
+--echo # Cleanup
+--eval SET GLOBAL max_connections = $old_max_conn
+--disable_result_log
+--echo # closing connections
+--let $i = 0
+while ($i <= 700) {
+ --connection con$i
+ --reap
+ --disconnect con$i
+ --inc $i
+}
+--connection con_flush
+--reap
+--disconnect con_flush
+
+--enable_result_log
+
+--connection default
+--echo # all new connections disconnected.
+--source include/wait_until_count_sessions.inc
+DROP USER satya@'%';
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC = RESET;
+--let $assert_text = All the connections should finish within 60 seconds if there is no hang due to ACL
+--let $assert_cond= "[SELECT TIMEDIFF(@end, @start) < 60]" = 1
+--source include/assert.inc
+# Restart to release virtual memory
+--source include/restart_mysqld.inc
+

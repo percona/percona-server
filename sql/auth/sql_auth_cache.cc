@@ -2551,6 +2551,8 @@ bool acl_reload(THD *thd, bool mdl_locked) {
 
   if (!acl_cache_lock.lock()) goto end;
 
+  DEBUG_SYNC(thd, "acl_x_lock");
+
   old_acl_users = acl_users;
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;

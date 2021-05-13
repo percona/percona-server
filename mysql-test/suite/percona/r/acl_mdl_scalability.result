@@ -1,0 +1,71 @@
+#
+# PS-7143 : Server freezes and reaches max connections due to ACL Cache Lock waits
+#
+# Check if system can handle 12k concurrent threads
+# 12K because server creates 6K threads and clients
+# another 6k threads/processes
+# There is no easy way to check if the system can
+# handle 12K threads. We compile C-program (need g++)
+# and execute it and check return status
+# Require g++ to compile this program. If the exec fails "sh: 1: g++: not found". Please install g++ and retry
+# if the below exec fails, it means the operating system has limit of threads less than 12K
+# This testcase needs OS that can create 12k threads.
+# Try these settings (only if they are less 12,000)
+# ulimit -i  12000
+# echo 12000 > /proc/sys/kernel/threads-max
+# echo 60000 > /proc/sys/vm/max_map_count
+# echo 12000 > /proc/sys/kernel/pid_max
+# echo 12000 > /sys/fs/cgroup/pids/user.slice/user-.slice/pids.max
+# Precondition check of the system is completed. The system can handle 12K concurrent threads
+# Adding debug point 'skip_session_admin_check' to @@GLOBAL.debug
+CREATE USER satya@'%' IDENTIFIED BY 'hello';
+GRANT ALL on test.* to satya@'%';
+GRANT ALL on mysql.* to satya@'%';
+SET GLOBAL max_connections = 6000;
+# Sleeping 15 seconds for allowing user to connect client for observability
+# we cannot establish connection later as database freezes. Do now if you wish
+# be in mysql-source/bld/mysql-test directory and execute the below command
+# ../runtime_output_directory/mysql -uroot -S ./var/tmp/mysqld.1.sock
+# connection con0: Hold ACL x lock and let readers wait
+SET DEBUG_SYNC= 'acl_x_lock SIGNAL x_locked WAIT_FOR all_wait_s_locks_done';
+FLUSH PRIVILEGES;
+# 200 connections try for SHARED ACL lock and go into waiting list
+# because FLUSH PRIVILEGES holds EXCLUSIVE lock
+# Connection default. Waiting for 200 connections to reach blocking state
+# Now release X-lock by FLUSH PRIVILEGES. Now All 200 readers get the
+# SHARED lock and they wait on debug sync point after acquiring SHARED
+# ACL MDL lock
+SET DEBUG_SYNC = 'now SIGNAL all_wait_s_locks_done';
+# Wait for 200 connection to reach acquired SHARED ACL MDL lock state
+# Start 5000 connection will go into ACL cache lock waiting state
+FLUSH PRIVILEGES;;
+# Connection default: Wait for those 5000 new connections to reach ACL cache lock waiting state
+# Start another 500 connections and stop them in just before deadlock check iteration
+# Connection default: Make 500 threads stop just before deadlock check
+SET DEBUG_SYNC = 'now WAIT_FOR before_dead_lock NO_CLEAR_EVENT';
+# Now signal waiting threads to start deadlock checks
+SET DEBUG_SYNC = 'now SIGNAL start_dead_lock_check';
+# Waiting for 500 threads to reach before deadlock check state
+# Signal 500 threads to start deadlocks checks
+SET DEBUG_SYNC = 'now SIGNAL resume_wait_graph';
+# Now let the initial 200 readers who took the SHARED lock to resume
+# They will not be able to release the lock/ticket to internal rwlock
+# taken as SHARED by Deadlock check threads. These threads need exclusive
+# mode to remove ticket from granted list
+SET DEBUG_SYNC = 'now SIGNAL new_xlock';
+# database freezes now and new connections are blocked
+# and finally we hit max_connections limit
+# Freeze start..  Also observe high cpu usage.. mysql server is doing deadlock checks
+SELECT NOW() INTO @start;
+# Waiting for connections to finish
+# initial_con_count is 704
+SELECT NOW() INTO @end;
+# Cleanup
+SET GLOBAL max_connections = 151;
+# closing connections
+# all new connections disconnected.
+DROP USER satya@'%';
+# Removing debug point 'skip_session_admin_check' from @@GLOBAL.debug
+SET DEBUG_SYNC = RESET;
+include/assert.inc [All the connections should finish within 60 seconds if there is no hang due to ACL]
+# restart

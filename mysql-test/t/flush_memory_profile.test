@@ -1,0 +1,6 @@
+#In order to run this test start mysql-test-run like this: MALLOC_CONF="prof:true" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 ./mysql-test-run ...
+source include/have_jemalloc.inc;
+
+set global jemalloc_profiling=on;
+flush memory profile;
+set global jemalloc_profiling=off;

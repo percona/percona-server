@@ -493,6 +493,10 @@ The following options may be given as the first argument:
  --internal-tmp-mem-storage-engine=name 
  The default storage engine for in-memory internal
  temporary tables.
+ --jemalloc-profiling 
+ Enable jemalloc profilingStart MySQL with MALLOC_CONF set
+ to 'prof:true' for this feature to workAlso Jemalloc
+ should be compiled with profiling enabled
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
  --keep-files-on-create 
@@ -1819,6 +1823,7 @@ initialize TRUE
 initialize-insecure TRUE
 interactive-timeout 28800
 internal-tmp-mem-storage-engine TempTable
+jemalloc-profiling FALSE
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608

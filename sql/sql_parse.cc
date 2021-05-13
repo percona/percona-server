@@ -4384,7 +4384,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
       [[fallthrough]];
     case SQLCOM_FLUSH: {
       int write_to_binlog;
-      if (is_reload_request_denied(thd, lex->type)) goto error;
+
+      if (lex->type & DUMP_MEMORY_PROFILE) {
+        if (check_global_access(thd, SUPER_ACL)) goto error;
+      } else if (is_reload_request_denied(thd, lex->type))
+        goto error;
 
       if (first_table && lex->type & REFRESH_READ_LOCK) {
         /*

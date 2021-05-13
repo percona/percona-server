@@ -1,0 +1,3 @@
+set global jemalloc_profiling=on;
+flush memory profile;
+set global jemalloc_profiling=off;

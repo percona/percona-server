@@ -1,0 +1,10 @@
+show variables like 'jemalloc%';
+Variable_name	Value
+jemalloc_detected	ON
+jemalloc_profiling	OFF
+set global jemalloc_profiling=on;
+show variables like 'jemalloc%';
+Variable_name	Value
+jemalloc_detected	ON
+jemalloc_profiling	ON
+set global jemalloc_profiling=off;

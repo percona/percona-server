@@ -1,0 +1,6 @@
+show create table performance_schema.malloc_stats;
+show create table performance_schema.malloc_stats_totals;
+--replace_column 2 # 3 # 4 # 5 #
+select * from performance_schema.malloc_stats;
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 #
+select * from performance_schema.malloc_stats_totals;

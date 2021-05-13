@@ -14314,6 +14314,8 @@ flush_option:
           { Lex->type|= REFRESH_USER_RESOURCES; }
         | OPTIMIZER_COSTS_SYM
           { Lex->type|= REFRESH_OPTIMIZER_COSTS; }
+        | MEMORY_SYM PROFILE_SYM
+          { Lex->type|= DUMP_MEMORY_PROFILE; }
         ;
 
 opt_table_list:

@@ -1,0 +1,20 @@
+select * from performance_schema.malloc_stats limit 1;
+select * from performance_schema.malloc_stats
+where type='small';
+insert into performance_schema.malloc_stats
+set type='FOO', nmalloc='BAR';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'malloc_stats'
+update performance_schema.malloc_stats
+set type='FOO';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'malloc_stats'
+delete from performance_schema.malloc_stats
+where type like "huge";
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'malloc_stats'
+delete from performance_schema.malloc_stats;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'malloc_stats'
+LOCK TABLES performance_schema.malloc_stats READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'malloc_stats'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.malloc_stats WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'malloc_stats'
+UNLOCK TABLES;

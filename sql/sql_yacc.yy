@@ -14246,6 +14246,8 @@ flush_option:
           { Lex->type|= REFRESH_OPTIMIZER_COSTS; }
         | CHANGED_PAGE_BITMAPS_SYM
           { Lex->type|= REFRESH_FLUSH_PAGE_BITMAPS; }
+        | MEMORY_SYM PROFILE_SYM
+          { Lex->type|= DUMP_MEMORY_PROFILE; }
         ;
 
 opt_table_list:

@@ -59,6 +59,8 @@ performance_schema	host_cache	def
 performance_schema	hosts	def
 performance_schema	keyring_keys	def
 performance_schema	log_status	def
+performance_schema	malloc_stats	def
+performance_schema	malloc_stats_totals	def
 performance_schema	memory_summary_by_account_by_event_name	def
 performance_schema	memory_summary_by_host_by_event_name	def
 performance_schema	memory_summary_by_thread_by_event_name	def
@@ -172,6 +174,8 @@ host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
 keyring_keys	BASE TABLE	PERFORMANCE_SCHEMA
 log_status	BASE TABLE	PERFORMANCE_SCHEMA
+malloc_stats	BASE TABLE	PERFORMANCE_SCHEMA
+malloc_stats_totals	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
@@ -285,6 +289,8 @@ host_cache	10	Dynamic
 hosts	10	Fixed
 keyring_keys	10	Dynamic
 log_status	10	Dynamic
+malloc_stats	10	Fixed
+malloc_stats_totals	10	Fixed
 memory_summary_by_account_by_event_name	10	Dynamic
 memory_summary_by_host_by_event_name	10	Dynamic
 memory_summary_by_thread_by_event_name	10	Dynamic
@@ -397,6 +403,8 @@ host_cache	0
 hosts	0
 keyring_keys	0
 log_status	0
+malloc_stats	0
+malloc_stats_totals	0
 memory_summary_by_account_by_event_name	0
 memory_summary_by_host_by_event_name	0
 memory_summary_by_thread_by_event_name	0
@@ -517,6 +525,8 @@ host_cache	0	0
 hosts	0	0
 keyring_keys	0	0
 log_status	0	0
+malloc_stats	0	0
+malloc_stats_totals	0	0
 memory_summary_by_account_by_event_name	0	0
 memory_summary_by_host_by_event_name	0	0
 memory_summary_by_thread_by_event_name	0	0
@@ -630,6 +640,8 @@ host_cache	0	0	NULL
 hosts	0	0	NULL
 keyring_keys	0	0	NULL
 log_status	0	0	NULL
+malloc_stats	0	0	NULL
+malloc_stats_totals	0	0	NULL
 memory_summary_by_account_by_event_name	0	0	NULL
 memory_summary_by_host_by_event_name	0	0	NULL
 memory_summary_by_thread_by_event_name	0	0	NULL
@@ -743,6 +755,8 @@ host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
 keyring_keys	NULL	NULL	NULL
 log_status	NULL	NULL	NULL
+malloc_stats	NULL	NULL	NULL
+malloc_stats_totals	NULL	NULL	NULL
 memory_summary_by_account_by_event_name	NULL	NULL	NULL
 memory_summary_by_host_by_event_name	NULL	NULL	NULL
 memory_summary_by_thread_by_event_name	NULL	NULL	NULL
@@ -856,6 +870,8 @@ host_cache	utf8mb4_0900_ai_ci	NULL
 hosts	utf8mb4_0900_ai_ci	NULL
 keyring_keys	utf8mb4_bin	NULL
 log_status	utf8mb4_0900_ai_ci	NULL
+malloc_stats	utf8mb4_0900_ai_ci	NULL
+malloc_stats_totals	utf8mb4_0900_ai_ci	NULL
 memory_summary_by_account_by_event_name	utf8mb4_0900_ai_ci	NULL
 memory_summary_by_host_by_event_name	utf8mb4_0900_ai_ci	NULL
 memory_summary_by_thread_by_event_name	utf8mb4_0900_ai_ci	NULL
@@ -969,6 +985,8 @@ host_cache
 hosts	
 keyring_keys	
 log_status	
+malloc_stats	
+malloc_stats_totals	
 memory_summary_by_account_by_event_name	
 memory_summary_by_host_by_event_name	
 memory_summary_by_thread_by_event_name	
@@ -1082,6 +1100,8 @@ host_cache
 hosts	
 keyring_keys	
 log_status	
+malloc_stats	
+malloc_stats_totals	
 memory_summary_by_account_by_event_name	
 memory_summary_by_host_by_event_name	
 memory_summary_by_thread_by_event_name	

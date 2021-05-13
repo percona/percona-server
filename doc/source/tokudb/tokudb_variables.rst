@@ -832,7 +832,7 @@ value ``ULONG``::
 
 When this variable is set to ``ON`` all new tables and indices will be placed
 within their corresponding database directory within the
-:variable:`tokudb_data_dir` or system :term:`datadir`. Existing table files
+:variable:`tokudb_data_dir` or system `datadir`. Existing table files
 will not be automatically relocated to their corresponding database directory.
 If you rename a table, while this variable is enabled, the mapping in the
 |Percona FT| directory file will be updated and the files will be renamed on

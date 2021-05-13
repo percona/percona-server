@@ -1,0 +1,3 @@
+show variables like 'jemalloc_detected';
+Variable_name	Value
+jemalloc_detected	#

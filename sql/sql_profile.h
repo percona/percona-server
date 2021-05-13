@@ -65,6 +65,14 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #include "mysql/service_mysql_alloc.h"
 
 extern PSI_memory_key key_memory_queue_item;
+extern bool opt_jemalloc_profiling_enabled;
+extern bool opt_jemalloc_detected;
+
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+                     size_t newlen);
+int jemalloc_profiling_dump();
+int jemalloc_profiling_enable(bool enable);
+bool jemalloc_detected();
 
 class PROFILING;
 class QUERY_PROFILE;

@@ -1,0 +1,27 @@
+show create table performance_schema.malloc_stats;
+Table	Create Table
+malloc_stats	CREATE TABLE `malloc_stats` (
+  `TYPE` char(8) NOT NULL,
+  `ALLOCATED` bigint unsigned NOT NULL,
+  `NMALLOC` bigint unsigned NOT NULL,
+  `NDALLOC` bigint unsigned NOT NULL,
+  `NREQUESTS` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.malloc_stats_totals;
+Table	Create Table
+malloc_stats_totals	CREATE TABLE `malloc_stats_totals` (
+  `ALLOCATED` bigint unsigned NOT NULL,
+  `ACTIVE` bigint unsigned NOT NULL,
+  `MAPPED` bigint unsigned NOT NULL,
+  `RESIDENT` bigint unsigned NOT NULL,
+  `RETAINED` bigint unsigned NOT NULL,
+  `METADATA` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from performance_schema.malloc_stats;
+TYPE	ALLOCATED	NMALLOC	NDALLOC	NREQUESTS
+small	#	#	#	#
+large	#	#	#	#
+huge	#	#	#	#
+select * from performance_schema.malloc_stats_totals;
+ALLOCATED	ACTIVE	MAPPED	RESIDENT	RETAINED	METADATA
+#	#	#	#	#	#

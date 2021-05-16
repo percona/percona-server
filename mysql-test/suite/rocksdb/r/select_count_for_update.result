@@ -1,0 +1,51 @@
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, key sk(a)) ENGINE=rocksdb;
+INSERT INTO t1 values (1, 1), (2, 2), (3, 3);
+connect  con1,localhost,root,,;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+include/assert.inc [t1 should have 3 rows]
+connection con1;
+connection con1;
+connection default;
+SET lock_wait_timeout = 1;
+include/assert.inc [t1 should have 3 rows]
+connection default;
+connection default;
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY) LOCK IN SHARE MODE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY) FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection con1;
+COMMIT;
+include/assert.inc [t1 should have 3 rows]
+connection con1;
+connection con1;
+connection default;
+include/assert.inc [t1 should have 3 rows]
+connection default;
+connection default;
+connection con1;
+BEGIN;
+include/assert.inc [t1 should have 3 rows]
+connection con1;
+connection con1;
+connection default;
+SET lock_wait_timeout = 1;
+include/assert.inc [t1 should have 3 rows]
+connection default;
+connection default;
+SELECT COUNT(*) FROM t1 FORCE INDEX (sk) LOCK IN SHARE MODE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT COUNT(*) FROM t1 FORCE INDEX (sk) FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection con1;
+COMMIT;
+include/assert.inc [t1 should have 3 rows]
+connection con1;
+connection con1;
+disconnect con1;
+connection default;
+include/assert.inc [t1 should have 3 rows]
+connection default;
+connection default;
+DROP TABLE t1;

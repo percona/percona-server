@@ -947,9 +947,10 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 Slave_worker*
 Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 {
-  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
+  for(std::pair<ulong,size_t> *it = rli->least_occupied_workers.begin(); 
+    it != rli->least_occupied_workers.end(); ++ it)
   {
-    Slave_worker *w_i= *it;
+    Slave_worker *w_i= rli->workers[it->second];
     if (w_i->jobs.len == 0)
       return w_i;
   }

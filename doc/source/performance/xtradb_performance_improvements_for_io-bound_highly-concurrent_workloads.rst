@@ -107,10 +107,10 @@ compiled with ``UNIV_PERF_DEBUG`` C preprocessor define.
 
 This variable can be added to the configuration file.
 
- .. _adaptive_network_buffers:
+.. _adaptive_network_buffers:
 
 Adaptive Network Buffers 
--------------------------
+===========================
 
 To find the buffer size of the current connection, use the ``network_buffer_length`` status variable. Add ``SHOW GLOBAL`` to review the cumulative buffer sizes for all connections. This variable can help to estimate the maximum size of the network buffer's overhead.
 

@@ -493,6 +493,8 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
@@ -537,6 +539,8 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
@@ -868,6 +872,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
+%if 0%{?rhel} < 7
+%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
+%endif
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -914,6 +921,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
@@ -941,6 +949,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_wrappers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -954,6 +963,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
@@ -979,6 +989,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_wrappers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -1196,6 +1207,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
@@ -1269,6 +1281,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
@@ -1328,6 +1341,7 @@ fi
 %endif
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
@@ -1341,6 +1355,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13
+- Release 8.0.22-13
+
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - Added RocksDB
 

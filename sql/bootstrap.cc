@@ -58,7 +58,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_initialize.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_parse.h"  // mysql_parse
+#include "sql/sql_parse.h"  // dispatch_sql_command
 #include "sql/sql_profile.h"
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/system_variables.h"
@@ -208,8 +208,9 @@ static int process_iterator(THD *thd, Command_iterator *it,
     */
     if (rc != READ_BOOTSTRAP_SUCCESS) {
       /*
-        mysql_parse() may have set a successful error status for the previous
-        query. We must clear the error status to report the bootstrap error.
+        dispatch_sql_command() may have set a successful error status for the
+        previous query.
+        We must clear the error status to report the bootstrap error.
       */
       thd->get_stmt_da()->reset_diagnostics_area();
 
@@ -249,7 +250,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-    mysql_parse(thd, &parser_state, true);
+    dispatch_sql_command(thd, &parser_state, true);
     thd->pop_internal_handler();
 
     error = thd->is_error();
@@ -358,6 +359,20 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
   thd->security_context()->skip_grants();
 
   thd->set_new_thread_id();
+
+  DBUG_EXECUTE_IF("bootstrap_crash", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("bootstrap_hang", {
+    while (1) my_sleep(1000000);
+  });
+  DBUG_EXECUTE_IF("bootstrap_buffer_overrun", {
+    int *mem = static_cast<int *>(my_malloc(PSI_NOT_INSTRUMENTED, 127, 0));
+    // Allocations are usually aligned, so even if 127 bytes were requested,
+    // it's mostly safe to assume there are 128 bytes. Writing into the last
+    // byte is safe for the rest of the code, but still enough to trigger
+    // AddressSanitizer (ASAN) or Valgrind.
+    *static_cast<volatile int *>(mem + (128 / sizeof(*mem)) - 1) = 1;
+    my_free(mem);
+  });
 
   handle_bootstrap_args args;
 

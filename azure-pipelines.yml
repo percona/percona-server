@@ -6,7 +6,7 @@ jobs:
 
   variables:
     UBUNTU_CODE_NAME: bionic
-    BOOST_VERSION: boost_1_72_0
+    BOOST_VERSION: boost_1_73_0
     BOOST_DIR: $(Pipeline.Workspace)/boost
     USE_CCACHE: 1
     CCACHE_DIR: $(Pipeline.Workspace)/ccache
@@ -30,33 +30,46 @@ jobs:
           BuildType: Debug
 
       # clang-5 and newer compilers
-      Ubuntu Bionic clang-11 Release:
+      Ubuntu Bionic clang-12 Release:
         imageName: 'ubuntu-18.04'
         Compiler: clang
-        CompilerVer: 11
+        CompilerVer: 12
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-11 Release INVERTED=ON:
+        Ubuntu Bionic clang-12 Release INVERTED=ON:
           imageName: 'ubuntu-18.04'
           Compiler: clang
-          CompilerVer: 11
+          CompilerVer: 12
           BuildType: RelWithDebInfo
           Inverted: ON
 
-      Ubuntu Bionic clang-11 Debug INVERTED=ON:
+      Ubuntu Bionic clang-12 Debug INVERTED=ON:
         imageName: 'ubuntu-18.04'
         Compiler: clang
-        CompilerVer: 11
+        CompilerVer: 12
         BuildType: Debug
         Inverted: ON
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-11 Debug:
+        Ubuntu Bionic clang-12 Debug:
+          imageName: 'ubuntu-18.04'
+          Compiler: clang
+          CompilerVer: 12
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic clang-11 Release:
           imageName: 'ubuntu-18.04'
           Compiler: clang
           CompilerVer: 11
-          BuildType: Debug
+          BuildType: RelWithDebInfo
+
+      Ubuntu Bionic clang-11 Debug:
+        imageName: 'ubuntu-18.04'
+        Compiler: clang
+        CompilerVer: 11
+        BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Bionic clang-10 Release:
@@ -140,6 +153,18 @@ jobs:
         BuildType: Debug
 
       # gcc-5 and newer compilers
+      Ubuntu Bionic gcc-11 Release:
+        imageName: 'ubuntu-18.04'
+        Compiler: gcc
+        CompilerVer: 11
+        BuildType: RelWithDebInfo
+
+      Ubuntu Bionic gcc-11 Debug:
+        imageName: 'ubuntu-18.04'
+        Compiler: gcc
+        CompilerVer: 11
+        BuildType: Debug
+
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Bionic gcc-10 Release:
           imageName: 'ubuntu-18.04'
@@ -147,11 +172,12 @@ jobs:
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
-      Ubuntu Bionic gcc-10 Debug:
-        imageName: 'ubuntu-18.04'
-        Compiler: gcc
-        CompilerVer: 10
-        BuildType: Debug
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic gcc-10 Debug:
+          imageName: 'ubuntu-18.04'
+          Compiler: gcc
+          CompilerVer: 10
+          BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Bionic gcc-9 Release:
@@ -232,15 +258,17 @@ jobs:
         CC=$(Compiler)-$(CompilerVer)
         if [[ "$(Compiler)" == "clang" ]]; then
           CXX=clang++-$(CompilerVer)
+          PACKAGES="$CC $PACKAGES"
         else
           CXX=g++-$(CompilerVer)
+          PACKAGES="$CXX $PACKAGES"
         fi
       fi
 
       echo CC=$CC CXX=$CXX BuildType=$(BuildType) Ubuntu=$UBUNTU_CODE_NAME OS_NAME=$OS_NAME
       echo --- Configure required LLVM and Ubuntu Toolchain repositories
       if [[ "$OS_NAME" == "Linux" ]] && [[ "$CC" == "clang"* ]]; then
-        PACKAGES="llvm-$(CompilerVer)-dev"
+        PACKAGES="llvm-$(CompilerVer)-dev $PACKAGES"
         curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
         echo "deb http://apt.llvm.org/$UBUNTU_CODE_NAME/ llvm-toolchain-$UBUNTU_CODE_NAME-$(CompilerVer) main" | sudo tee -a /etc/apt/sources.list > /dev/null
       fi
@@ -249,8 +277,8 @@ jobs:
       if [[ "$OS_NAME" == "Linux" ]]; then
         sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
         sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
- 
-        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $CXX $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev || exit 1;
+
+        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev libldap2-dev || exit 1;
         if [[ "$(Inverted)" != "ON" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
         fi
@@ -326,13 +354,11 @@ jobs:
       CMAKE_OPT="
         -DCMAKE_BUILD_TYPE=$(BuildType)
         -DBUILD_CONFIG=mysql_release
-        -DFEATURE_SET=community
         -DENABLE_DOWNLOADS=1
         -DDOWNLOAD_BOOST=1
         -DWITH_BOOST=$(BOOST_DIR)
         -DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN
         -DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN
-        -DMERGE_UNITTESTS=ON
         -DWITH_KEYRING_VAULT=ON
         -DWITH_PAM=ON
       "

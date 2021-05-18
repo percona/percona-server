@@ -63,11 +63,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/sql_zip_dict.h"
 
 /** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table	dict table object
-@param[in,out]	trx	transaction instance
+@param[in,out]	table		dict table object
+@param[in]	create_info	HA_CREATE_INFO object
+@param[in,out]	trx		transaction instance
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   std::string db_name;
   std::string tbl_name;
@@ -98,7 +100,7 @@ dberr_t dict_build_table_def(
     dict_table_assign_new_id(table, trx);
   }
 
-  dberr_t err = dict_build_tablespace_for_table(table, trx, mode,
+  dberr_t err = dict_build_tablespace_for_table(table, create_info, trx, mode,
                                                 keyring_encryption_key_id);
 
   return (err);
@@ -155,8 +157,15 @@ dberr_t dict_build_tablespace(
   - page 3 will contain the root of the clustered index of the
   first table we create here. */
 
+  /* Set the initial size of the file being created. */
+  page_no_t size{};
+
+  size = tablespace->get_autoextend_size() > 0
+             ? (tablespace->get_autoextend_size() / srv_page_size)
+             : FIL_IBD_FILE_INITIAL_SIZE;
+
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
-                       tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE, mode,
+                       tablespace->flags(), size, mode,
                        keyring_encryption_key_id);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
@@ -175,7 +184,7 @@ dberr_t dict_build_tablespace(
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
   ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-  bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
+  bool ret = fsp_header_init(space, size, &mtr, false);
   mtr_commit(&mtr);
 
   DBUG_EXECUTE_IF("fil_ibd_create_log",
@@ -236,12 +245,14 @@ static ibt::Tablespace *determine_session_temp_tblsp(
 }
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
+@param[in,out]	table		Table to build in its own tablespace.
+@param[in]	create_info	HA_CREATE_INFO object
+@param[in,out]	trx		Transaction
 @param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
@@ -330,9 +341,13 @@ dberr_t dict_build_tablespace_for_table(
     std::string tablespace_name(table->name.m_name);
     dict_name::convert_to_space(tablespace_name);
 
+    page_no_t size{};
+    size = create_info && create_info->m_implicit_tablespace_autoextend_size > 0
+               ? (create_info->m_implicit_tablespace_autoextend_size /
+                  srv_page_size)
+               : FIL_IBD_FILE_INITIAL_SIZE;
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
-                         FIL_IBD_FILE_INITIAL_SIZE, mode,
-                         keyring_encryption_key_id);
+                         size, mode, keyring_encryption_key_id);
 
     ut_free(filepath);
 
@@ -345,8 +360,15 @@ dberr_t dict_build_tablespace_for_table(
 
     mtr_start(&mtr);
 
-    bool ret =
-        fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
+    bool ret = fsp_header_init(table->space, size, &mtr, false);
+
+    if (ret) {
+      fil_set_autoextend_size(
+          table->space,
+          (create_info ? create_info->m_implicit_tablespace_autoextend_size
+                       : 0));
+    }
+
     mtr_commit(&mtr);
 
     DBUG_EXECUTE_IF("fil_ibd_create_log",

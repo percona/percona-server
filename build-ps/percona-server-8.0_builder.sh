@@ -25,6 +25,7 @@ Usage: $0 [OPTIONS]
         --tokubackup_branch Btanch for TokuBackup
         --rpm_release       RPM version( default = 1)
         --deb_release       DEB version( default = 1)
+        --debug             Build debug tarball
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -64,6 +65,7 @@ parse_arguments() {
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
+            --debug=*) DEBUG="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -138,41 +140,43 @@ get_sources(){
         echo "VERSION file does not exist"
 	exit 1
     fi
-
-    IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
-    EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
-    if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
-        echo "Major version differs from defined in version file"
-        exit 1
+    IS_RELEASE_BRANCH=$(echo ${BRANCH} | grep -c release);
+    if [ ${IS_RELEASE_BRANCH} != 0 ]; then
+        IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
+        EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
+        if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
+            echo "Major version differs from defined in version file"
+            exit 1
+        fi
+        if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
+            echo "Minor version differs from defined in version file"
+            exit 1
+        fi
+        if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
+            echo "Patch version differs from defined in version file"
+            exit 1
+        fi
+        if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
+            echo "Extra version differs from defined in version file"
+            exit 1
+        fi
+        INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
+        if [ ${INNODB_VER} != ${EXTRA} ]; then
+            echo "InnoDB version differs from defined in version file"
+            exit 1
+        fi
+        FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
+        if [ ${FT_TAG} = 0 ]; then
+            echo "There is no TAG for PerconaFT. Please set it and re-run build!"
+            exit 1
+        fi
+        TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
+        if [ ${TOKUBACKUP_TAG} = 0 ]; then
+            echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
+            exit 1
+        fi
     fi
-    if [ ${MYSQL_VERSION_MINOR} != ${MINOR} ]; then
-        echo "Minor version differs from defined in version file"
-        exit 1
-    fi
-    if [ ${MYSQL_VERSION_PATCH} != ${PATCH} ]; then
-        echo "Patch version differs from defined in version file"
-        exit 1
-    fi
-    if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
-        echo "Extra version differs from defined in version file"
-        exit 1
-    fi
-    INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
-    if [ ${INNODB_VER} != ${EXTRA} ]; then
-        echo "InnoDB version differs from defined in version file"
-        exit 1
-    fi
-    FT_TAG=$(git ls-remote --tags git://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
-    if [ ${FT_TAG} = 0 ]; then
-        echo "There is no TAG for PerconaFT. Please set it and re-run build!"
-        exit 1
-    fi
-    TOKUBACKUP_TAG=$(git ls-remote --tags git://github.com/percona/Percona-TokuBackup.git | grep -c ${TOKUBACKUP_BRANCH})
-    if [ ${TOKUBACKUP_TAG} = 0 ]; then
-        echo "There is no TAG for Percona-TokuBackup. Please set it and re-run build!"
-        exit 1
-    fi
-    
+    echo >> ../percona-server-8.0.properties
     echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
     BRANCH_NAME="${BRANCH}"
     echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-8.0.properties
@@ -349,14 +353,25 @@ install_deps() {
 	    yum -y install zstd libzstd libzstd-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
+            rm -f /usr/bin/cmake
+            cp -p /usr/bin/cmake3 /usr/bin/cmake
             yum -y install Percona-Server-shared-56
 	          yum -y install libevent2-devel
 	      else
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
+            yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
+        fi
+        if [ "x$RHEL" = "x8" ]; then
+            yum -y install centos-release-stream
+            yum -y install gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils
+            yum -y install gcc-toolset-10-valgrind gcc-toolset-10-valgrind-devel gcc-toolset-10-libatomic-devel
+            yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
+            yum -y remove centos-release-stream
         fi
     else
         apt-get -y install dirmngr || true
@@ -480,9 +495,11 @@ build_srpm(){
     cd ${WORKDIR}/rpmbuild/SPECS
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
+    sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
+    sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
+    #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://dl.bintray.com/boostorg/release/1.73.0/source/${BOOST_PACKAGE_NAME}.tar.gz
-    #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -764,9 +781,6 @@ build_tarball(){
     TMPREL=$(echo ${TARFILE}| awk -F '-' '{print $4}')
     RELEASE=${TMPREL%.tar.gz}
     #
-    export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
-    export CXXFLAGS="${CFLAGS}"
-
     build_mecab_lib
     build_mecab_dict
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -797,8 +811,13 @@ build_tarball(){
         CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else
-        CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-        DIRNAME="tarball"
+        if [[ "${DEBUG}" == 1 ]]; then
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            DIRNAME="tarball"
+        else
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            DIRNAME="tarball"
+        fi
     fi
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
@@ -827,6 +846,7 @@ PERCONAFT_REPO=
 INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
+DEBUG=0
 REVISION=0
 BRANCH="release-8.0.22-13"
 RPM_RELEASE=1

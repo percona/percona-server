@@ -23,6 +23,8 @@
 
 /* C++ standard header files */
 #include <cinttypes>
+#include <deque>
+#include <map>
 #include <regex>
 #include <set>
 #include <string>
@@ -179,7 +181,10 @@ class ha_rocksdb : public my_core::handler {
   uint m_pk_key_parts;
 
   /*
-    true <=> Primary Key columns can be decoded from the index
+    true <=> Primary Key columns can be decoded from the index. It should be
+    enabled by default and may be disabled in init_with_fields() after initial
+    keys info is loaded and it turns out the feature isn't supported for
+    particular table.
   */
   mutable bool m_pk_can_be_decoded;
 
@@ -251,6 +256,22 @@ class ha_rocksdb : public my_core::handler {
   */
   rocksdb::PinnableSlice m_retrieved_record;
 
+  /*
+    In case blob indexes are covering, then this buffer will be used
+    to store the unpacked blob values temporarily.
+    Alocation of m_blob_buffer_start will be done as part of reset_blob_buffer()
+    and deallocation will be done in release_blob_buffer()
+    Use case of below 3 parameters -
+    1) m_blob_buffer_start - stores start pointer of the blob buffer.
+    2) m_blob_buffer_current - stores current pointer where we can store blob
+    data. 3) m_total_blob_buffer_allocated - amount of total buffer alocated.
+  */
+  uchar *m_blob_buffer_start = nullptr;
+
+  uchar *m_blob_buffer_current = nullptr;
+
+  uint m_total_blob_buffer_allocated = 0;
+
   /* Type of locking to apply to rows */
   enum { RDB_LOCK_NONE, RDB_LOCK_READ, RDB_LOCK_WRITE } m_lock_rows;
 
@@ -303,6 +324,7 @@ class ha_rocksdb : public my_core::handler {
 
   int create_key_defs(const TABLE *const table_arg,
                       Rdb_tbl_def *const tbl_def_arg,
+                      const std::string &actual_user_table_name,
                       const TABLE *const old_table_arg = nullptr,
                       const Rdb_tbl_def *const old_tbl_def_arg = nullptr) const
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -335,6 +357,8 @@ class ha_rocksdb : public my_core::handler {
                                  const Rdb_key_def &kd,
                                  const rocksdb::Slice &key,
                                  rocksdb::PinnableSlice *value) const;
+
+  int fill_virtual_columns();
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true,
@@ -409,6 +433,9 @@ class ha_rocksdb : public my_core::handler {
 
   int m_checksums_pct;
 
+  /* stores the count of index keys with checksum */
+  ha_rows m_validated_checksums = 0;
+
   ha_rocksdb(my_core::handlerton *const hton,
              my_core::TABLE_SHARE *const table_arg);
   virtual ~ha_rocksdb() override;
@@ -440,11 +467,12 @@ class ha_rocksdb : public my_core::handler {
         an engine that can only handle statement-based logging. This is
         used in testing.
     */
-    DBUG_RETURN(HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-                HA_CAN_INDEX_BLOBS |
-                (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
-                HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
-                HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);
+    DBUG_RETURN(
+        HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_CAN_INDEX_BLOBS |
+        (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
+        HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
+        HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE | HA_GENERATED_COLUMNS |
+        HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN | HA_SUPPORTS_DEFAULT_EXPRESSION);
   }
 
   bool init_with_fields() override;
@@ -690,6 +718,7 @@ class ha_rocksdb : public my_core::handler {
   };
 
   int create_cfs(const TABLE *const table_arg, Rdb_tbl_def *const tbl_def_arg,
+                 const std::string &actual_user_table_name,
                  std::array<struct key_def_cf_info, MAX_INDEXES + 1> *const cfs)
       const MY_ATTRIBUTE((__warn_unused_result__));
 
@@ -875,13 +904,12 @@ class ha_rocksdb : public my_core::handler {
 
     /* Free blob data */
     m_retrieved_record.Reset();
-
+    release_blob_buffer();
     DBUG_RETURN(HA_EXIT_SUCCESS);
   }
 
   int check(THD *const thd, HA_CHECK_OPT *const check_opt) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int remove_rows(Rdb_tbl_def *const tbl);
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -892,8 +920,9 @@ class ha_rocksdb : public my_core::handler {
   int create(const char *const name, TABLE *const form,
              HA_CREATE_INFO *const create_info, dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int create_table(const std::string &table_name, const TABLE *table_arg,
-                   ulonglong auto_increment_value);
+  int create_table(const std::string &table_name,
+                   const std::string &actual_user_table_name,
+                   const TABLE *table_arg, ulonglong auto_increment_value);
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -950,6 +979,24 @@ class ha_rocksdb : public my_core::handler {
   virtual bool rpl_lookup_rows() override;
 
   virtual bool use_read_free_rpl() const;  // MyRocks only
+
+  /*
+    Returns the buffer of size(current_size) which will be used
+    to store a blob value while unpacking keys from covering index.
+  */
+  uchar *get_blob_buffer(uint current_size);
+
+  /*
+    Resets the m_blob_buffer_current to m_blob_buffer_start.
+    If m_blob_buffer_start is nullptr, then the buffer of size total_size
+    will be allocated.
+  */
+  bool reset_blob_buffer(uint total_size);
+
+  /*
+    Releases the blob buffer memory
+  */
+  void release_blob_buffer();
 
  private:
   /* Flags tracking if we are inside different replication operation */
@@ -1080,5 +1127,43 @@ struct Rdb_hton_init_state {
 
 // file name indicating RocksDB data corruption
 std::string rdb_corruption_marker_file_name();
+
+struct Rdb_compaction_stats_record {
+  time_t start_timestamp;
+  time_t end_timestamp;
+  rocksdb::CompactionJobInfo info;
+};
+
+// Holds records of recently run compaction jobs, including ongoing ones. This
+// class accesses its internal data structures under a mutex lock.
+class Rdb_compaction_stats {
+ public:
+  Rdb_compaction_stats() {}
+
+  // resize_history() sets the max number of completed compactions for which we
+  // store history. Records for all ongoing compactions are stored in addition
+  // to at most `max_history_len` historical records.
+  void resize_history(size_t max_history_len);
+
+  // get_current_stats() returns the details of pending compactions only.
+  std::vector<Rdb_compaction_stats_record> get_current_stats();
+
+  // get_recent_history() returns the details of recently completed compactions.
+  std::vector<Rdb_compaction_stats_record> get_recent_history();
+
+  void record_start(rocksdb::CompactionJobInfo info);
+  void record_end(rocksdb::CompactionJobInfo info);
+
+ private:
+  std::mutex m_mutex;
+  // History of completed compactions.
+  std::deque<Rdb_compaction_stats_record> m_history;
+  size_t m_max_history_len = 0;
+  // Hold ongoing compactions in a map keyed on thread ID, as we use that to
+  // match `record_start()`s with `record_end()`s.
+  std::map<uint64_t, Rdb_compaction_stats_record> m_tid_to_pending_compaction;
+};
+
+extern Rdb_compaction_stats compaction_stats;
 
 }  // namespace myrocks

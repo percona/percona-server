@@ -53,6 +53,7 @@ our @EXPORT = qw(
 );
 
 use File::Spec;
+use My::Constants;
 use IO::Handle qw[ flush ];
 use POSIX qw(_exit floor);
 
@@ -199,6 +200,7 @@ sub mtr_report_test ($) {
   my $result   = $tinfo->{'result'};
   my $retry    = $tinfo->{'retries'} ? "retry-" : "";
   my $warnings = $tinfo->{'warnings'};
+  my $skip_ignored   = $tinfo->{'skip_ignored'};
 
   if ($::opt_test_progress and $tinfo->{'name'} and !$retry) {
     $tests_completed = $tests_completed + 1;
@@ -219,12 +221,12 @@ sub mtr_report_test ($) {
   }
 
   if ($result eq 'MTR_RES_FAILED') {
-    my $fail   = "fail";
+    my $fail = $skip_ignored ? "noskip-${retry}fail" : "${retry}fail";
     my $timest = format_time();
 
     if ($warnings) {
       mtr_report($report,
-                 "[ $retry$fail ]  Found warnings/errors in error log file!");
+                 "[ $fail ]  Found warnings/errors in error log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
     } else {
@@ -235,7 +237,7 @@ sub mtr_report_test ($) {
         mtr_report("\n$tinfo->{'comment'}");
         return;
       } else {
-        mtr_report($report, "[ $retry$fail ]\n        Test ended at $timest");
+        mtr_report($report, "[ $fail ]\n        Test ended at $timest");
       }
 
       if ($logfile) {
@@ -277,16 +279,19 @@ sub mtr_report_test ($) {
       }
     }
   } elsif ($result eq 'MTR_RES_PASSED') {
+
+    my $pass = $skip_ignored ? "noskip-${retry}pass" : "${retry}pass";
+
     my $timer_str = $tinfo->{timer} || "";
     $tot_real_time += ($timer_str / 1000);
     # Please note, that disk_usage() will print a space to separate
     # its information from the preceding string, if the disk usage report
     # is enabled. Otherwise an empty string is returned.
     if ($::opt_quiet) {
-      mtr_buffered_report(sprintf("%-60s%-s", $report, "[ ${retry}pass ]"));
+      mtr_buffered_report(sprintf("%-60s%-s", $report, "[ $pass ]"));
     } else {
       mtr_report($report,
-                 "[ ${retry}pass ] ",
+                 "[ $pass ] ",
                  sprintf("%5s%s", $timer_str, disk_usage()));
     }
 
@@ -569,7 +574,9 @@ sub mtr_report_stats ($$;$) {
     } elsif ($tinfo->{'result'} eq 'MTR_RES_SKIPPED') {
       # Test was skipped (disabled not counted)
       $tot_skipped++ unless $tinfo->{'disable'};
-      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
+      $tot_skipdetect++
+        if (defined $tinfo->{'skip_reason'}
+            and $tinfo->{skip_reason} eq MTR_SKIP_BY_TEST);
     } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED') {
       # Test passed
       $tot_tests++;

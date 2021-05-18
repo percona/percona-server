@@ -1,7 +1,5 @@
---source include/have_debug_sync.inc
-
 # Restart the server with keyring loaded
---let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_parameters="$keyring_restart_param"
 --let $restart_hide_args=1
 --source include/restart_mysqld.inc
 

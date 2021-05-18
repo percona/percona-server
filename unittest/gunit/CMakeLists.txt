@@ -45,6 +45,7 @@ MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 SET(DISABLE_PSI_DEFINITIONS
   "DISABLE_PSI_COND"
   "DISABLE_PSI_FILE"
+  "DISABLE_PSI_MEMORY"
   "DISABLE_PSI_METADATA"
   "DISABLE_PSI_MUTEX"
   "DISABLE_PSI_RWLOCK"
@@ -147,6 +148,7 @@ SET(TESTS
   mysys_base64
   mysys_lf
   mysys_my_b_vprintf
+  mysys_my_checksum
   mysys_my_getopt
   mysys_my_getpw
   mysys_my_loadpath
@@ -195,6 +197,11 @@ FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
 ENDFOREACH()
 
+OPTION(WITH_FAILING_GUNIT_TESTS "Build deliberately failing GUint tests" OFF)
+IF (WITH_FAILING_GUNIT_TESTS)
+    LIST(APPEND TESTS junit_integration)
+ENDIF()
+
 # Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
   character_set_deprecation
@@ -215,7 +222,9 @@ SET(SERVER_TESTS
   gis_algos
   gis_area
   gis_distance
+  gis_frechet_distance
   gis_geometries
+  gis_hausdorff_distance
   gis_is_simple
   gis_isvalid
   gis_relops
@@ -226,6 +235,7 @@ SET(SERVER_TESTS
   handler
   hash_join
   histograms
+  hypergraph_optimizer
   initialize_password
   insert_delayed
   into_syntax
@@ -311,6 +321,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
+  ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
 
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
@@ -383,6 +394,16 @@ MYSQL_ADD_EXECUTABLE(rpl_channel_credentials-t rpl_channel_credentials-t.cc
   LINK_LIBRARIES rpl_channel_credentials_lib gunit_small
 )
 
+ADD_LIBRARY(rpl_commit_order_queue_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/changestreams/apply/commit_order_queue.cc
+)
+
+MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_commit_order_queue
+  LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sqlgunitlib
+)
+
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
@@ -393,3 +414,6 @@ ADD_SUBDIRECTORY(libmysqlgcs)
 ADD_SUBDIRECTORY(keyring_vault)
 ADD_SUBDIRECTORY(temptable)
 ADD_SUBDIRECTORY(binlogevents)
+ADD_SUBDIRECTORY(memory)
+ADD_SUBDIRECTORY(containers)
+ADD_SUBDIRECTORY(locks)

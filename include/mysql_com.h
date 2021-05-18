@@ -185,8 +185,10 @@
 
 /** Field will not be loaded in secondary engine. */
 #define NOT_SECONDARY_FLAG (1 << 29)
+/** Field is explicitly marked as invisible by the user. */
+#define FIELD_IS_INVISIBLE (1 << 30)
 
-#define CLUSTERING_FLAG (1U << 30)
+#define CLUSTERING_FLAG (1 << 31)
 
 /** @}*/
 
@@ -247,6 +249,7 @@
 #define REFRESH_THREAD_STATS 0x8000000L   /** Refresh thread stats */
 #define REFRESH_FLUSH_PAGE_BITMAPS 0x10000000L
 #define REFRESH_RESET_PAGE_BITMAPS 0x20000000L
+#define DUMP_MEMORY_PROFILE 0x40000000L
 
 static const int PURGE_BITMAPS_TO_LSN = 1;
 
@@ -688,15 +691,6 @@ static const int PURGE_BITMAPS_TO_LSN = 1;
 #define CLIENT_DEPRECATE_EOF (1UL << 24)
 
 /**
-  Verify server certificate.
-
-  Client only flag.
-
-  @deprecated in favor of --ssl-mode.
-*/
-#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
-
-/**
   The client can handle optional metadata information in the resultset.
 */
 #define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
@@ -721,10 +715,38 @@ static const int PURGE_BITMAPS_TO_LSN = 1;
 #define CLIENT_ZSTD_COMPRESSION_ALGORITHM (1UL << 26)
 
 /**
+  Support optional extension for query parameters into the @ref
+  page_protocol_com_query and @ref page_protocol_com_stmt_execute packets.
+
+  Server
+  ------
+
+  Expects an optional part containing the query parameter set(s). Executes the
+  query for each set of parameters or returns an error if more than 1 set of
+  parameters is sent and the server can't execute it.
+
+  Client
+  ------
+
+  Can send the optional part containing the query parameter set(s).
+*/
+#define CLIENT_QUERY_ATTRIBUTES (1UL << 27)
+
+/**
   This flag will be reserved to extend the 32bit capabilities structure to
   64bits.
 */
 #define CLIENT_CAPABILITY_EXTENSION (1UL << 29)
+
+/**
+  Verify server certificate.
+
+  Client only flag.
+
+  @deprecated in favor of --ssl-mode.
+*/
+#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
+
 /**
   Don't reset the options after an unsuccessful connect
 
@@ -753,7 +775,7 @@ static const int PURGE_BITMAPS_TO_LSN = 1;
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
    CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
-   CLIENT_ZSTD_COMPRESSION_ALGORITHM)
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and
@@ -1040,6 +1062,8 @@ bool net_write_command(struct NET *net, unsigned char command,
 bool net_write_packet(struct NET *net, const unsigned char *packet,
                       size_t length);
 unsigned long my_net_read(struct NET *net);
+bool my_net_shrink_buffer(NET *net, unsigned long min_buf_size,
+                          unsigned long *max_interval_packet);
 void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
 void my_net_set_retry_count(struct NET *net, unsigned int retry_count);

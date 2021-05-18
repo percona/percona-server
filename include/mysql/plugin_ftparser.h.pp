@@ -116,8 +116,7 @@ enum mysql_trx_stat_type {
   MYSQL_TRX_STAT_ACCESS_PAGE_ID
 };
 void thd_report_innodb_stat(void * thd, unsigned long long trx_id,
-                            enum mysql_trx_stat_type type,
-                            unsigned long long value);
+                            enum mysql_trx_stat_type type, uint64_t value);
 unsigned long thd_log_slow_verbosity(const void * thd);
 int thd_opt_slow_log();
 int thd_is_background_thread(const void * thd);
@@ -138,6 +137,9 @@ int thd_command(const void * thd);
 long long thd_start_time(const void * thd);
 void thd_kill(unsigned long id);
 int thd_get_ft_query_extra_word_chars(void);
+typedef bool (*ssl_reload_callback_t)(void *);
+bool register_ssl_reload_callback(ssl_reload_callback_t);
+bool deregister_ssl_reload_callback(ssl_reload_callback_t);
 enum enum_ftparser_mode {
   MYSQL_FTPARSER_SIMPLE_MODE = 0,
   MYSQL_FTPARSER_WITH_STOPWORDS = 1,

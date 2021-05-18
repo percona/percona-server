@@ -186,19 +186,19 @@ store Doc ID during sort */
 store doc id during sort
 @param[out] psort Parallel sort info to be instantiated
 @param[out] merge Parallel merge info to be instantiated
-@return true if all successful */
-ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
-                              const dict_table_t *old_table,
-                              const dict_table_t *new_table,
-                              ibool opt_doc_id_size, fts_psort_t **psort,
-                              fts_psort_t **merge) {
+@return InnoDB error code */
+dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
+                                const dict_table_t *old_table,
+                                const dict_table_t *new_table,
+                                ibool opt_doc_id_size, fts_psort_t **psort,
+                                fts_psort_t **merge) {
   ulint i;
   ulint j;
   fts_psort_common_t *common_info = nullptr;
   fts_psort_t *psort_info = nullptr;
   fts_psort_t *merge_info = nullptr;
   ulint block_size;
-  ibool ret = TRUE;
+  dberr_t error = DB_SUCCESS;
 
   block_size = 3 * srv_sort_buf_size;
 
@@ -207,7 +207,7 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
 
   if (!psort_info) {
     ut_free(dup);
-    return (FALSE);
+    return (DB_OUT_OF_MEMORY);
   }
 
   /* Common Info for all sort threads */
@@ -217,7 +217,8 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
   if (!common_info) {
     ut_free(dup);
     ut_free(psort_info);
-    return (FALSE);
+    *psort = nullptr;
+    return (DB_OUT_OF_MEMORY);
   }
 
   common_info->dup = dup;
@@ -231,6 +232,24 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
 
   ut_ad(trx->mysql_thd != nullptr);
   const char *path = thd_innodb_tmpdir(trx->mysql_thd);
+
+  /* Initialize merge_info structures parallel merge and insert
+     into auxiliary FTS tables (FTS_INDEX_TABLE) */
+  *merge = merge_info = static_cast<fts_psort_t *>(
+      ut_malloc_nokey(FTS_NUM_AUX_INDEX * sizeof *merge_info));
+
+  if (!merge_info) {
+    ut_free(common_info);
+    error = DB_OUT_OF_MEMORY;
+    goto func_exit;
+  }
+
+  for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
+    merge_info[j].child_status = 0;
+    merge_info[j].state = 0;
+    merge_info[j].psort_common = common_info;
+  }
+
   /* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
   each parallel sort thread. Each "sort bucket" holds records for
   a particular "FTS index partition" */
@@ -242,13 +261,14 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
           static_cast<merge_file_t *>(ut_zalloc_nokey(sizeof(merge_file_t)));
 
       if (!psort_info[j].merge_file[i]) {
-        ret = FALSE;
+        error = DB_OUT_OF_MEMORY;
         goto func_exit;
       }
 
       psort_info[j].merge_buf[i] = row_merge_buf_create(dup->index);
 
       if (row_merge_file_create(psort_info[j].merge_file[i], path) < 0) {
+        error = DB_TEMP_FILE_WRITE_FAIL;
         goto func_exit;
       }
 
@@ -260,7 +280,7 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
           ut_align(psort_info[j].block_alloc[i], 1024));
 
       if (!psort_info[j].merge_block[i]) {
-        ret = FALSE;
+        error = DB_OUT_OF_MEMORY;
         goto func_exit;
       }
 
@@ -272,7 +292,7 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
             ut_malloc_nokey(block_size + 1024));
 
         if (psort_info[j].crypt_alloc[i] == NULL) {
-          ret = FALSE;
+          error = DB_OUT_OF_MEMORY;
           goto func_exit;
         }
 
@@ -292,23 +312,15 @@ ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
     mutex_create(LATCH_ID_FTS_PLL_TOKENIZE, &psort_info[j].mutex);
   }
 
-  /* Initialize merge_info structures parallel merge and insert
-  into auxiliary FTS tables (FTS_INDEX_TABLE) */
-  *merge = merge_info = static_cast<fts_psort_t *>(
-      ut_malloc_nokey(FTS_NUM_AUX_INDEX * sizeof *merge_info));
-
-  for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
-    merge_info[j].child_status = 0;
-    merge_info[j].state = 0;
-    merge_info[j].psort_common = common_info;
-  }
-
 func_exit:
-  if (!ret) {
+  if (error != DB_SUCCESS) {
+    row_fts_free_pll_merge_buf(psort_info);
     row_fts_psort_info_destroy(psort_info, merge_info);
+    *psort = nullptr;
+    *merge = nullptr;
   }
 
-  return (ret);
+  return (error);
 }
 /** Clean up and deallocate FTS parallel sort structures, and close the
  merge sort files  */
@@ -331,7 +343,9 @@ void row_fts_psort_info_destroy(
         ut_free(psort_info[j].crypt_alloc[i]);
       }
 
-      mutex_free(&psort_info[j].mutex);
+      // If error is unset, then the mutex has not been initialized yet.
+      if (psort_info[j].error != DB_ERROR_UNSET)
+        mutex_free(&psort_info[j].mutex);
     }
 
     os_event_destroy(merge_info[0].psort_common->sort_event);
@@ -356,7 +370,8 @@ void row_fts_free_pll_merge_buf(
 
   for (j = 0; j < fts_sort_pll_degree; j++) {
     for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-      row_merge_buf_free(psort_info[j].merge_buf[i]);
+      if (psort_info[j].merge_buf[i])
+        row_merge_buf_free(psort_info[j].merge_buf[i]);
     }
   }
 

@@ -103,15 +103,19 @@ st_alter_tablespace::st_alter_tablespace(
       undo_buffer_size{opts.undo_buffer_size},
       redo_buffer_size{opts.redo_buffer_size},
       initial_size{opts.initial_size},
-      autoextend_size{opts.autoextend_size},
       max_size{opts.max_size},
       file_block_size{opts.file_block_size},
       nodegroup_id{opts.nodegroup_id},
       wait_until_completed{opts.wait_until_completed},
       ts_comment{opts.ts_comment.str},
+      encryption{opts.encryption.str},
       explicit_encryption{opts.encryption.str != nullptr},
       encryption_key_id{opts.encryption_key_id.was_encryption_key_id_set,
-                        opts.encryption_key_id.id} {}
+                        opts.encryption_key_id.id} {
+  if (opts.autoextend_size.has_value()) {
+    autoextend_size = opts.autoextend_size.value();
+  }
+}
 
 bool validate_tablespace_name_length(const char *tablespace_name) {
   DBUG_ASSERT(tablespace_name != nullptr);
@@ -244,6 +248,13 @@ bool lock_tablespace_names(THD *thd, Names... names) {
   }
 
   if (thd->global_read_lock.can_acquire_protection()) {
+    return true;
+  }
+
+  // Acquire Percona's LOCK TABLES FOR BACKUP lock
+  if (thd->backup_tables_lock.abort_if_acquired() ||
+      thd->backup_tables_lock.acquire_protection(
+          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
     return true;
   }
 
@@ -572,6 +583,11 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
   // Add datafile
   tablespace->add_file()->set_filename(
       dd::make_string_type(tblspc_datafile_name));
+
+  tablespace->options().set("autoextend_size",
+                            m_options->autoextend_size.has_value()
+                                ? m_options->autoextend_size.value()
+                                : 0);
 
   // Write changes to dictionary.
   if (dc.store(tablespace.get())) {
@@ -976,6 +992,11 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
     tsmp.second->set_engine_attribute(m_options->engine_attribute);
   }
 
+  if (m_options->autoextend_size.has_value()) {
+    tsmp.second->options().set("autoextend_size",
+                               m_options->autoextend_size.value());
+  }
+
   /*
     Even if the tablespace already exists in the DD we still need to
     validate the name, since we are not allowed to modify
@@ -1378,13 +1399,6 @@ bool Sql_cmd_create_undo_tablespace::execute(THD *thd) {
     return true;
   }
 
-  // Acquire Percona's LOCK TABLES FOR BACKUP lock
-  if (thd->backup_tables_lock.abort_if_acquired() ||
-      thd->backup_tables_lock.acquire_protection(
-          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
-    return true;
-  }
-
   handlerton *hton = nullptr;
   if (get_stmt_hton(thd, m_options->engine_name, m_undo_tablespace_name.str,
                     "CREATE UNDO TABLESPACE", &hton)) {
@@ -1532,13 +1546,6 @@ bool Sql_cmd_alter_undo_tablespace::execute(THD *thd) {
     return true;
   }
 
-  // Acquire Percona's LOCK TABLES FOR BACKUP lock
-  if (thd->backup_tables_lock.abort_if_acquired() ||
-      thd->backup_tables_lock.acquire_protection(
-          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
-    return true;
-  }
-
   handlerton *hton = nullptr;
   if (get_stmt_hton(thd, m_options->engine_name, m_undo_tablespace_name.str,
                     "ALTER UNDO TABLESPACE", &hton)) {
@@ -1627,13 +1634,6 @@ bool Sql_cmd_drop_undo_tablespace::execute(THD *thd) {
   Rollback_guard rollback_on_return{thd};
 
   if (check_global_access(thd, CREATE_TABLESPACE_ACL)) {
-    return true;
-  }
-
-  // Acquire Percona's LOCK TABLES FOR BACKUP lock
-  if (thd->backup_tables_lock.abort_if_acquired() ||
-      thd->backup_tables_lock.acquire_protection(
-          thd, MDL_TRANSACTION, thd->variables.lock_wait_timeout)) {
     return true;
   }
 

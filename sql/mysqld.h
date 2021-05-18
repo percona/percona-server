@@ -113,6 +113,8 @@ typedef Bitmap<((MAX_INDEXES + 7) / 8 * 8)> Key_map; /* Used for finding keys */
 #define SPECIAL_NO_HOST_CACHE 512 /* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
+extern bool dynamic_plugins_are_initialized;
+
 /* Function prototypes */
 
 /**
@@ -235,6 +237,7 @@ extern Time_zone *default_tz;
 extern const char *default_storage_engine;
 extern const char *default_tmp_storage_engine;
 extern ulonglong temptable_max_ram;
+extern ulonglong temptable_max_mmap;
 extern bool temptable_use_mmap;
 extern bool using_udf_functions;
 extern bool locked_in_memory;
@@ -328,6 +331,7 @@ extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong slave_max_allowed_packet;
 extern ulong binlog_row_event_max_size;
+extern ulong net_buffer_shrink_interval;
 extern ulong binlog_checksum_options;
 extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
@@ -476,6 +480,7 @@ extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
+extern PSI_mutex_key key_monitor_info_run_lock;
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
@@ -521,6 +526,7 @@ extern PSI_thread_key key_thread_one_connection;
 extern PSI_thread_key key_thread_compress_gtid_table;
 extern PSI_thread_key key_thread_parser_service;
 extern PSI_thread_key key_thread_handle_con_admin_sockets;
+extern PSI_cond_key key_monitor_info_run_cond;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
@@ -644,6 +650,9 @@ extern PSI_stage_info stage_waiting_for_no_channel_reference;
 extern PSI_stage_info stage_hook_begin_trans;
 extern PSI_stage_info stage_binlog_transaction_compress;
 extern PSI_stage_info stage_binlog_transaction_decompress;
+extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
+extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
+extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
 extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
@@ -724,6 +733,7 @@ extern mysql_mutex_t LOCK_collect_instance_log;
 extern mysql_mutex_t LOCK_tls_ctx_options;
 extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
+extern mysql_mutex_t LOCK_partial_revokes;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -819,6 +829,8 @@ bool mysqld_partial_revokes();
                turned ON/OFF on server.
 */
 void set_mysqld_partial_revokes(bool value);
+
+bool check_and_update_partial_revokes_sysvar(THD *thd);
 
 #ifdef _WIN32
 

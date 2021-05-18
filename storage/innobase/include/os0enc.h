@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2020 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,22 +31,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #define os0enc_h
 
 #include "keyring_encryption_key_info.h"
-#include "page0types.h"
 #include "template_utils.h"
 
 #include "univ.i"
 
 // Forward declaration.
 class IORequest;
-struct fil_space_t;
-namespace file {
-struct Block;
-struct Block_deleter;
-using Block_ptr = std::unique_ptr<Block, Block_deleter>;
-}  // namespace file
-
-/** Disk sector size of aligning write buffer for DIRECT_IO */
-extern ulint os_io_ptr_align;
 
 enum class Encryption_rotation : std::uint8_t {
   NO_ROTATION,
@@ -180,7 +170,6 @@ class Encryption {
       : m_type(NONE),
         m_key(nullptr),
         m_klen(0),
-        m_key_allocated(false),
         m_iv(nullptr),
         m_tablespace_key(nullptr),
         m_key_version(0),
@@ -486,6 +475,12 @@ class Encryption {
   @return encryption type **/
   Type get_type() const;
 
+  /** Check if the encryption algorithm is NONE.
+  @return true if no algorithm is set, false otherwise. */
+  bool is_none() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return m_type == NONE;
+  }
+
   /** Set encryption type
   @param[in]  type  encryption type **/
   void set_type(Type type);
@@ -560,27 +555,19 @@ class Encryption {
   @return master key id **/
   static uint32_t get_master_key_id();
 
-  /** Encrypt a page in doublewerite buffer. The page is
-  encrypted using its tablespace key.
-  @param[in]	space_id	tablespace id
-  @param[in]	in_page		unencrypted page
-  @param[out]	enc_block	encrypted block
-  @param[out]	enc_block_len	encrypted block len
-  @return true if encrypted, else false */
-  static bool dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
-                                 file::Block_ptr &enc_block,
-                                 ulint &enc_block_len);
-
-  /** Decrypt a page from doublewrite buffer. Tablespace object
-  (fil_space_t) must have encryption key, iv set properly.
-  The decrpyted page will be written in the same buffer of input page.
-  @param[in]		space	tablespace obejct
-  @param[in,out]	page	in: encrypted page
-                                out: decrypted page
-  @return true on success, false on failure */
-  static bool dblwr_decrypt_page(fil_space_t *space, page_t *in_page);
-
  private:
+  /** Encrypt the page data contents. Page type can't be
+  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+  FIL_PAGE_ENCRYPTED_RTREE.
+  @param[in]  type      IORequest
+  @param[in]  src       page data which need to encrypt
+  @param[in]  src_len   size of the source in bytes
+  @param[in,out]  dst       destination area
+  @param[in,out]  dst_len   size of the destination in bytes
+  @return true if operation successful, false otherwise. */
+  bool encrypt_low(const IORequest &type, byte *src, ulint src_len, byte *dst,
+                   ulint *dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
+
   /** Encrypt type */
   Type m_type;
 
@@ -589,9 +576,6 @@ class Encryption {
 
   /** Encrypt key length*/
   ulint m_klen;
-
-  /** Encrypt key allocated */
-  bool m_key_allocated;
 
   /** Encrypt initial vector */
   byte *m_iv;
@@ -630,13 +614,4 @@ class Encryption {
                             uint key_version);
 };
 
-/** Encrypt a page in doublewerite buffer. The page is
-encrypted using its tablespace key.
-@param[in]	space_id	tablespace id
-@param[in]	page		unencrypted page
-@param[out]	enc_block	encrypted block
-@param[out]	enc_block_len	encrypted block len
-@return true if encrypted, else false */
-bool os_dblwr_encrypt_page(space_id_t space_id, page_t *in_page,
-                           file::Block_ptr &enc_block, ulint &enc_block_len);
 #endif /* os0enc_h */

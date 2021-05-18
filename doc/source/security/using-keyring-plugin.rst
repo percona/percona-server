@@ -32,7 +32,7 @@ option to enable keyrings.
 We recommend the plugin should be loaded in the configuration file to facilitate
 recovery for encrypted tables. Also, the redo log and the undo log encryption cannot
 be used without ``--early-plugin-load``. The normal plugin load happens too late
-in startup. 
+in startup.
 
 .. note::
 
@@ -48,6 +48,9 @@ To use the keyring_vault, you can add this option to your configuration file:
     early-plugin-load="keyring_vault=keyring_vault.so"
     loose-keyring_vault_config="/home/mysql/keyring_vault.conf"
 
+    The keyring_vault extension, ".so" and the file location for the vault
+    configuration should be changed to match your operating system's extension
+    and operating system location.
 
 
 You could also run the following command which loads the keyring_file plugin:
@@ -232,7 +235,7 @@ System Variables
     :vartype: Text
     :default:
 
-This variable is used to define the location of the :ref:`keyring_vault_plugin`
+This variable is used to define the location of the `keyring_vault_plugin`
 configuration file.
 
 .. variable:: keyring_vault_timeout
@@ -242,7 +245,7 @@ configuration file.
   :scope: Global
   :vartype: Numeric
   :default: ``15``
- 
+
 Set the duration in seconds for the Vault server connection timeout. The
 default value is ``15``. The allowed range is from ``0`` to ``86400``. The
 timeout can be also disabled to wait an infinite amount of time by setting

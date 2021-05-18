@@ -2977,12 +2977,14 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   ut_ad(rec_clust || rec_index == prebuilt_index);
   ut_ad(!rec_clust || rec_index->is_clustered());
 
-  if (blob_heap != nullptr) {
+  /* If blob_heap provided by the caller is not that of prebuilt's blob heap
+  then the onus would be on the caller to empty the blob heap if required. */
+  if (blob_heap != nullptr && blob_heap == prebuilt->blob_heap) {
     mem_heap_empty(blob_heap);
   }
 
   if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
-    mem_heap_empty(prebuilt->compress_heap);
+    row_mysql_prebuilt_free_compress_heap(prebuilt);
 
   if (clust_templ_for_sec) {
     /* Store all clustered index column of secondary index record. */

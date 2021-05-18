@@ -62,6 +62,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // key_mutex_slave_parallel_worker
 #include "sql/psi_memory_key.h"
+#include "sql/raii/sentry.h"  // raii::Sentry<>
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_msr.h"  // For channel_map
 #include "sql/rpl_reporting.h"
@@ -326,6 +327,11 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
         rli->get_privilege_checks_hostname().c_str());
   }
 
+  if (this->m_assign_gtids_to_anonymous_transactions_info.set_info(
+          rli->m_assign_gtids_to_anonymous_transactions_info.get_type(),
+          (rli->m_assign_gtids_to_anonymous_transactions_info.get_value()
+               .c_str())))
+    return 1;
   id = i;
   curr_group_exec_parts.clear();
   relay_log_change_notified = false;  // the 1st group to contain relaylog name
@@ -1164,23 +1170,6 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
       mysql_mutex_unlock(&jobs_lock);
 
       // Fatal error happens, it notifies the following transaction to rollback
-      if (get_commit_order_manager()) {
-        /*
-          If we still have the deadlock flag set, it means that the current
-          thread was involved in a deadlock in its last retry (or all retries
-          have been exhausted). In such a case, we must release all transaction
-          locks by rolling back the transaction and clear the deadlock flag
-          before we wait for this worker's turn in report_rollback().
-        */
-        if (found_commit_order_deadlock()) {
-          /*
-            We call cleanup_context() because it is even capable of rolling
-            back XA transactions.
-          */
-          cleanup_context(info_thd, true);
-          reset_commit_order_deadlock();
-        }
-      }
       Commit_order_manager::wait_and_finish(info_thd, true);
 
       // Killing Coordinator to indicate eventual consistency error
@@ -1876,17 +1865,6 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
       DBUG_EXECUTE_IF("simulate_exhausted_trans_retries",
                       { trans_retries = slave_trans_retries; };);
     }
-#ifndef DBUG_OFF
-    else {
-      /*
-        The non-debug binary will not retry this transactions, stopping the
-        SQL thread because of the non-temporary error. But, as this situation
-        is not supposed to happen as described in the comment above, we will
-        fail an assert to ease the issue investigation when it happens.
-      */
-      if (DBUG_EVALUATE_IF("rpl_fake_cod_deadlock", 0, 1)) DBUG_ASSERT(false);
-    }
-#endif
   }
 
   if (!has_temporary_error(thd, error, &silent) ||
@@ -1916,12 +1894,28 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
 
   DBUG_TRACE;
 
+  /* Flag to check for cleanup */
+  bool cleaned_up{false};
+
+  /* Resets the worker context for next transaction retry, if any */
+  auto clean_retry_context = [&]() -> void {
+    if (!cleaned_up) {
+      cleanup_context(thd, true);
+      reset_commit_order_deadlock();
+      cleaned_up = true;
+    }
+  };
+
+  /* Object of sentry class to perform cleanup */
+  raii::Sentry<> retry_context_guard{clean_retry_context};
+
   if (slave_trans_retries == 0) return true;
 
   do {
     /* Simulate a lock deadlock error */
     uint error = 0;
     bool ret;
+    cleaned_up = false;
 
     std::tie(ret, silent, error) = check_and_report_end_of_retries(thd);
     if (ret) return true;
@@ -1954,8 +1948,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     c_rli->retried_trans++;
     mysql_mutex_unlock(&c_rli->data_lock);
 
-    cleanup_context(thd, true);
-    reset_commit_order_deadlock();
+    clean_retry_context();
     worker_sleep(min<ulong>(trans_retries, MAX_SLAVE_RETRY_PAUSE));
 
   } while (read_and_apply_events(start_relay_number, start_relay_pos,

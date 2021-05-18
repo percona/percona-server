@@ -202,13 +202,14 @@ SELECT MASTER_POS_WAIT('server1-bin.000001', 120, 5);
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
 
 ###############################################################################
-# Step-3.6: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
-#           channels, should throw error ER_SLAVE_MULTIPLE_CHANNELS_CMD.
+# Step-3.6: CHANGE REPLICATION SOURCE TO without 'FOR CHANNEL' clause when we
+#           have multiple channels, should throw error
+#           ER_SLAVE_MULTIPLE_CHANNELS_CMD.
 ###############################################################################
 
---echo ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
+--echo ===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=10,  MASTER_CONNECT_RETRY=10, MASTER_RETRY_COUNT=10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 
 ###############################################################################
 # Step-3.7: Flush relay logs without empty channel acts on all replication
@@ -363,11 +364,11 @@ while ($i <= $number_of_channels)
   --source include/stop_slave.inc
 
   #############################################################################
-  # Step 4.6: CHANGE MASTER TO ... FOR CHANNEL 'channel_name'
+  # Step 4.6: CHANGE REPLICATION SOURCE TO ... FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing CHANGE MASTER FOR CHANNEL on channel $channel_name.
-  --eval CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL $channel_name
+  --echo ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel $channel_name.
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL $channel_name
   --let $status_items=Connect_Retry, Master_Retry_Count, Slave_IO_State,Slave_SQL_Running_State, Channel_Name
   --let $rpl_channel_name=$channel_name
   --source include/show_slave_status.inc

@@ -1,3 +1,5 @@
+--source include/have_debug_sync.inc
+
 call mtr.add_suppression("Function 'keyring_file' already exists");
 call mtr.add_suppression("Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");

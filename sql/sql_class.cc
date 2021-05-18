@@ -454,7 +454,10 @@ THD::THD(bool enable_plugins)
       m_stmt_da(&main_da),
       duplicate_slave_id(false),
       is_a_srv_session_thd(false),
-      m_is_plugin_fake_ddl(false) {
+      m_is_plugin_fake_ddl(false),
+      m_inside_system_variable_global_update(false),
+      bind_parameter_values(nullptr),
+      bind_parameter_values_count(0) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -885,6 +888,8 @@ void THD::set_new_thread_id() {
 void THD::cleanup_connection(void) {
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  /* net_buffer_length does not accumulate the historical values */
+  global_status_var.net_buffer_length = 0ULL;
   reset_system_status_vars(&status_var);
   mysql_mutex_unlock(&LOCK_status);
 
@@ -1090,6 +1095,8 @@ void THD::release_resources() {
   mysql_mutex_lock(&LOCK_status);
   /* Add thread status to the global totals. */
   add_to_status(&global_status_var, &status_var);
+  /* net_buffer_length does not accumulate the historical values */
+  global_status_var.net_buffer_length = 0ULL;
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Aggregate thread status into the Performance Schema. */
   if (m_psi != nullptr) {
@@ -1163,7 +1170,7 @@ THD::~THD() {
 
 extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
                                        enum mysql_trx_stat_type type,
-                                       unsigned long long value) {
+                                       uint64_t value) {
   DBUG_ASSERT(thd);
   DBUG_ASSERT(!thd_is_background_thread(thd));
   thd->mark_innodb_used(trx_id);
@@ -2249,16 +2256,25 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
 void THD::set_sent_row_count(ha_rows count) {
   m_sent_row_count = count;
   MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_rows_sent)(m_sent_row_count);
+#endif
 }
 
 void THD::inc_sent_row_count(ha_rows count) {
   m_sent_row_count += count;
   MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_rows_sent)(m_sent_row_count);
+#endif
 }
 
 void THD::inc_examined_row_count(ha_rows count) {
   m_examined_row_count += count;
   MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_rows_examined)(m_examined_row_count);
+#endif
 }
 
 void THD::inc_status_created_tmp_disk_tables() {
@@ -2810,7 +2826,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership(bool claim) {
+void THD::claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
     Ownership of the THD object is transfered to this thread.
@@ -2848,8 +2864,8 @@ void THD::rpl_detach_engine_ha_data() {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
 
-  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
-  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached());
+  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached());
 
   if (rli) rli->detach_engine_ha_data(this);
 }
@@ -2858,16 +2874,16 @@ void THD::rpl_reattach_engine_ha_data() {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
 
-  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
-  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_fake || rli_fake->is_engine_ha_data_detached());
+  DBUG_ASSERT(!rli_slave || rli_slave->is_engine_ha_data_detached());
 
   if (rli) rli->reattach_engine_ha_data(this);
 }
 
-bool THD::rpl_unflag_detached_engine_ha_data() const {
+bool THD::is_engine_ha_data_detached() const {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
-  return rli ? rli->unflag_detached_engine_ha_data() : false;
+  return rli ? rli->is_engine_ha_data_detached() : false;
 }
 
 bool THD::is_current_stmt_binlog_disabled() const {
@@ -2916,17 +2932,6 @@ bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
 void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key) {
   bool unused_arg;
   ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
-}
-
-void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
-  DBUG_TRACE;
-  if (hton->replace_native_transaction_in_thd) {
-    /* restore the saved original engine transaction's link with thd */
-    void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
-
-    hton->replace_native_transaction_in_thd(thd, *trx_backup, nullptr);
-    *trx_backup = nullptr;
-  }
 }
 
 /**
@@ -3123,6 +3128,7 @@ void THD::set_time() {
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
+  PSI_THREAD_CALL(set_thread_start_time_usec)(query_start_in_usecs());
 #endif
 }
 

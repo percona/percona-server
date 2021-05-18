@@ -734,9 +734,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     if (my_b_printf(&log_file,
                     "# Schema: %s  Last_errno: %u  Killed: %u\n"
                     "# Query_time: %s  Lock_time: %s"
-                    "  Rows_sent: %llu  Rows_examined: %llu  "
-                    "Rows_affected: %llu\n"
-                    "# Bytes_sent: %lu",
+                    "  Rows_sent: %llu  Rows_examined: %llu"
+                    "  Rows_affected: %llu  Bytes_sent: %lu\n",
                     (thd->db().str ? thd->db().str : ""), thd->last_errno,
                     (uint)thd->killed, query_time_buff, lock_time_buff,
                     (ulonglong)thd->get_sent_row_count(),
@@ -821,13 +820,11 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 
   if (thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_PLAN))
     if (my_b_printf(&log_file,
-                    "  Tmp_tables: %lu  Tmp_disk_tables: %lu  "
-                    "Tmp_table_sizes: %llu",
+                    "# Tmp_tables: %lu  Tmp_disk_tables: %lu"
+                    "  Tmp_table_sizes: %llu\n",
                     thd->tmp_tables_used, thd->tmp_tables_disk_used,
                     thd->tmp_tables_size) == (uint)-1)
       goto err;
-
-  if (my_b_write(&log_file, (const uchar *)"\n", 1)) goto err;
 
   if (opt_log_slow_sp_statements == 1 && thd->sp_runtime_ctx &&
       my_b_printf(&log_file, "# Stored_routine: %s\n",
@@ -2084,17 +2081,6 @@ void flush_error_log_messages() {
   log_sink_buffer_flush(LOG_BUFFER_PROCESS_AND_DISCARD);
 }
 
-/**
-  Set up basic error logging.
-
-  Since we're initializing various locks here, we must call this late enough
-  so this is clean, but early enough so it still happens while we're running
-  single-threaded -- this specifically also means we must call it before we
-  start plug-ins / storage engines / external components!
-
-  @retval true   an error occurred
-  @retval false  basic error logging is now available in multi-threaded mode
-*/
 bool init_error_log() {
   DBUG_ASSERT(!error_log_initialized);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
@@ -2195,16 +2181,6 @@ bool reopen_error_log() {
   return result;
 }
 
-/**
-  helper for log writers: log to file
-  This is a helper for use by log writers that wish to emit to stderr/file.
-  Automatically appends a "\n", so the caller needn't.
-  Does its own locking.
-
-  @param           buffer               data to write
-  @param           length               length of the data
-  @retval          int                  number of added fields, if any
-*/
 void log_write_errstream(const char *buffer, size_t length) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("buffer: %s", buffer));

@@ -3412,6 +3412,12 @@ int Partition_base::extra(enum ha_extra_function operation) {
     case HA_EXTRA_NO_READCHECK: {
       break;
     }
+    /* Category 4), only used by temporary tables */
+    case HA_EXTRA_RESET_STATE: {
+      DBUG_RETURN(loop_extra(operation));
+      break;
+    }
+
     case HA_EXTRA_IGNORE_NO_KEY:
     case HA_EXTRA_NO_IGNORE_NO_KEY: {
       /*

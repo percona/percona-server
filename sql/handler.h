@@ -50,6 +50,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -60,6 +61,7 @@
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
 #include "mysql_com.h"
+#include "nullable.h"          // Nullable
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/init_mode.h"
@@ -796,6 +798,12 @@ constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
 */
 constexpr const uint64_t HA_CREATE_USED_READ_ONLY{1ULL << 34};
 
+/**
+  These flags convey that the options AUTOEXTEND_SIZE has been
+  specified in the CREATE TABLE statement
+*/
+constexpr const uint64_t HA_CREATE_USED_AUTOEXTEND_SIZE{1ULL << 35};
+
 /*
   End of bits used in used_fields
 */
@@ -867,12 +875,13 @@ class st_alter_tablespace {
   ulonglong undo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
-  ulonglong autoextend_size = 0;                 // No autoextension as default
+  Mysql::Nullable<ulonglong> autoextend_size;    // No autoextension as default
   ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
+  const char *encryption = nullptr;
   bool explicit_encryption{false};
   KeyringEncryptionKeyIdInfo encryption_key_id;
 
@@ -2846,6 +2855,16 @@ struct HA_CREATE_INFO {
   LEX_CSTRING engine_attribute = NULL_CSTR;
   LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
+  ulonglong m_implicit_tablespace_autoextend_size{0};
+
+  bool m_implicit_tablespace_autoextend_size_change{true};
+
+  /**
+    Contains the actual user table which is being altered. If the system tables
+    are being altered, then this will be empty.
+  */
+  std::string actual_user_table_name{};
+
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
     This function separates code from mysql_prepare_alter_table() to be
@@ -2859,7 +2878,7 @@ struct HA_CREATE_INFO {
   */
 
   void init_create_options_from_share(const TABLE_SHARE *share,
-                                      uint used_fields);
+                                      uint64_t used_fields);
   Item *zip_dict_name{nullptr};
 };
 
@@ -3103,6 +3122,9 @@ class Alter_inplace_info {
 
   // Suspend check constraint.
   static const HA_ALTER_FLAGS SUSPEND_CHECK_CONSTRAINT = 1ULL << 48;
+
+  // Alter column visibility.
+  static const HA_ALTER_FLAGS ALTER_COLUMN_VISIBILITY = 1ULL << 49;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -4429,9 +4451,11 @@ class handler {
   /**
     For MyRocks, secondary initialization that happens after frm is parsed into
     field information from within open_binary_frm. MyRocks uses this secondary
-    init phase to analyze the key and field definitions to determine if it can
-    expose the HA_PRIMARY_KEY_IN_READ_INDEX flag on the table as it only
-    supports that behavior for certain types of key combinations.
+    init phase to analyze the key and field definitions to determine if
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is available for the table as it only
+    supports that behavior for certain types of key combinations. The
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default till this method
+    invocation and can be disabled here in case it isn't supported.
     Return values: false success, true failure.
   */
   virtual bool init_with_fields() { return false; }
@@ -5190,9 +5214,8 @@ class handler {
                                 uint actual_key_parts) noexcept;
   bool is_using_full_unique_key(uint active_index, key_part_map keypart_map,
                                 enum ha_rkey_function find_flag) const noexcept;
-  bool is_using_prohibited_gap_locks(TABLE *table,
-                                     bool using_full_primary_key) const
-      noexcept;
+  bool is_using_prohibited_gap_locks(
+      TABLE *table, bool using_full_primary_key) const noexcept;
 
   /**
     Notify storage engine about imminent index read with key length.

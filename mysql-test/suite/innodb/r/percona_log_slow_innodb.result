@@ -12,13 +12,11 @@ SUM(a)
 [log_stop.inc] percona.slow_extended.innodb_0
 [log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Bytes_sent: \d+.*$
+[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Query_time: \d+\.\d+  Lock_time: \d+\.\d+  Rows_sent: \d+  Rows_examined: \d+  Rows_affected: \d+  Bytes_sent: \d+$
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
 [log_grep.inc] lines:   1
-[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
+[log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_0 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
@@ -49,13 +47,11 @@ SELECT 5;
 [log_stop.inc] percona.slow_extended.innodb_2
 [log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Bytes_sent: \d+.*$
+[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Query_time: \d+\.\d+  Lock_time: \d+\.\d+  Rows_sent: \d+  Rows_examined: \d+  Rows_affected: \d+  Bytes_sent: \d+$
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
+[log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_2 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
@@ -92,13 +88,11 @@ UNLOCK TABLES;
 [log_stop.inc] percona.slow_extended.innodb_3
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Bytes_sent: \d+.*$
+[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Query_time: \d+\.\d+  Lock_time: \d+\.\d+  Rows_sent: \d+  Rows_examined: \d+  Rows_affected: \d+  Bytes_sent: \d+$
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
 [log_grep.inc] lines:   1
-[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
+[log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_3 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0
@@ -134,13 +128,11 @@ COMMIT;
 [log_stop.inc] percona.slow_extended.innodb_4
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Bytes_sent: \d+.*$
+[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Query_time: \d+\.\d+  Lock_time: \d+\.\d+  Rows_sent: \d+  Rows_examined: \d+  Rows_affected: \d+  Bytes_sent: \d+$
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# InnoDB_trx_id: [0-9a-fA-F]+$
 [log_grep.inc] lines:   1
-[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
+[log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)$
 [log_grep.inc] lines:   0

@@ -18,7 +18,7 @@ Audit Log plugin produces the log of following events:
   ``NoAudit`` when logging finished. Audit record also includes server version
   and command-line arguments.
 
-  Example of the Audit event: :: 
+  Example of the Audit event: ::
 
    <AUDIT_RECORD
    "NAME"="Audit"
@@ -36,7 +36,7 @@ Audit Log plugin produces the log of following events:
   ``IP``. ``STATUS`` will be ``0`` for successful logins and non-zero for failed
   logins.
 
-  Example of the Disconnect event: :: 
+  Example of the Disconnect event: ::
 
    <AUDIT_RECORD
    "NAME"="Quit"
@@ -61,7 +61,7 @@ Audit Log plugin produces the log of following events:
   ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this
   event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
 
-  Example of the Query event: :: 
+  Example of the Query event: ::
 
    <AUDIT_RECORD
    "NAME"="Query"
@@ -83,19 +83,19 @@ Installation
 Audit Log plugin is shipped with |Percona Server|, but it is not installed by
 default. To enable the plugin you must run the following command:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 
 You can check if the plugin is loaded correctly by running:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SHOW PLUGINS;
 
 Audit log should be listed in the output:
-    
-.. code-block:: guess
+
+.. code-block:: mysql
 
    +--------------------------------+----------+--------------------+--------------+---------+
    | Name                           | Status   | Type               | Library      | License |
@@ -113,11 +113,6 @@ log record properties as XML attributes and the latter as XML tags. Information
 logged is the same in all four formats. The log format choice is controlled by
 :variable:`audit_log_format` variable.
 
-.. .. note::
-.. 
-..    The ``JSON`` format is fully compatible with that provided by
-..    MySQL 8.0. Enterprise Edition.
-.. 
 
 Example of the ``OLD`` format: ::
 
@@ -135,7 +130,7 @@ Example of the ``OLD`` format: ::
   "IP"=""
  />
 
-Example of the ``NEW`` format: :: 
+Example of the ``NEW`` format: ::
 
  <AUDIT_RECORD>
   <NAME>Quit</NAME>
@@ -156,7 +151,7 @@ Example of the ``JSON`` format: ::
 
  {"audit_record":{"name":"Query","record":"4707_2014-08-27T10:43:52","timestamp":"2014-08-27T10:44:19 UTC","command_class":"show_databases","connection_id":"37","status":0,"sqltext":"show databases","user":"root[root] @ localhost []","host":"localhost","os_user":"","ip":""}}
 
-Example of the ``CSV`` format: :: 
+Example of the ``CSV`` format: ::
 
  "Query","49284_2014-08-27T10:47:11","2014-08-27T10:47:23 UTC","show_databases","37",0,"show databases","root[root] @ localhost []","localhost","",""
 
@@ -169,7 +164,7 @@ To stream the audit log to syslog you'll need to set :variable:`audit_log_handle
 
 .. note::
 
-   Variables: :variable:`audit_log_strategy`, :variable:`audit_log_buffer_size`, :variable:`audit_log_rotate_on_size`, :variable:`audit_log_rotations` have effect only with ``FILE`` handler. 
+   Variables: :variable:`audit_log_strategy`, :variable:`audit_log_buffer_size`, :variable:`audit_log_rotate_on_size`, :variable:`audit_log_rotations` have effect only with ``FILE`` handler.
 
 .. _filtering_by_user:
 
@@ -181,7 +176,7 @@ The filtering by user feature adds two new global variables:
 :variable:`audit_log_exclude_accounts` to specify which user accounts should be
 included or excluded from audit logging.
 
-.. warning:: 
+.. warning::
 
    Only one of these variables can contain a list of users to be either
    included or excluded, while the other needs to be ``NULL``. If one of the
@@ -197,9 +192,9 @@ included or excluded from audit logging.
 Example
 -------
 
-Following example shows adding users who will be monitored: 
+Following example shows adding users who will be monitored:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_include_accounts = 'user1@localhost,root@localhost';
    Query OK, 0 rows affected (0.00 sec)
@@ -207,7 +202,7 @@ Following example shows adding users who will be monitored:
 If you you try to add users to both include and exclude lists server will show
 you the following error:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_exclude_accounts = 'user1@localhost,root@localhost';
    ERROR 1231 (42000): Variable 'audit_log_exclude_accounts' can't be set to the value of 'user1@localhost,root@localhost'
@@ -215,7 +210,7 @@ you the following error:
 To switch from filtering by included user list to the excluded one or back,
 first set the currently active filtering variable to ``NULL``:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_include_accounts = NULL;
    Query OK, 0 rows affected (0.00 sec)
@@ -228,13 +223,13 @@ first set the currently active filtering variable to ``NULL``:
 
    mysql> SET GLOBAL audit_log_exclude_accounts = '''user''@''host''';
    Query OK, 0 rows affected (0.00 sec)
-  
+
    mysql> SET GLOBAL audit_log_exclude_accounts = '\'user\'@\'host\'';
    Query OK, 0 rows affected (0.00 sec)
 
 To see what users are currently in the on the list you can run:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SELECT @@audit_log_exclude_accounts;
    +------------------------------+
@@ -247,7 +242,7 @@ To see what users are currently in the on the list you can run:
 Account names from :table:`mysql.user` table are the one that are logged in the
 audit log. For example when you create a user:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> CREATE USER 'user1'@'%' IDENTIFIED BY '111';
    Query OK, 0 rows affected (0.00 sec)
@@ -273,7 +268,7 @@ This is what you'll see when ``user1`` connected from ``localhost``:
 
 To exclude ``user1`` from logging in |Percona Server| 8.0 you must set:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SET GLOBAL audit_log_exclude_accounts = 'user1@%';
 
@@ -290,14 +285,14 @@ The filtering by SQL command type adds two new global variables:
 :variable:`audit_log_exclude_commands` to specify which command types should be
 included or excluded from audit logging.
 
-.. warning:: 
+.. warning::
 
    Only one of these variables can contain a list of command types to be
    either included or excluded, while the other needs to be ``NULL``. If one of
    the variables is set to be not ``NULL`` (contains a list of command types),
    the attempt to set another one will fail. Empty string means an empty list.
 
-.. note:: 
+.. note::
 
    If both :variable:`audit_log_exclude_commands` and
    :variable:`audit_log_include_commands` are ``NULL`` all commands will be
@@ -308,7 +303,7 @@ Example
 
 The available command types can be listed by running:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SELECT name FROM performance_schema.setup_instruments WHERE name LIKE "statement/sql/%" ORDER BY name;
    +------------------------------------------+
@@ -338,13 +333,13 @@ The available command types can be listed by running:
 
 You can add commands to the include filter by running:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_include_commands= 'set_option,create_db';
 
 If you now create a database:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> CREATE DATABASE world;
 
@@ -370,7 +365,7 @@ You'll see it the audit log:
 To switch command type filtering type from included type list to excluded one
 or back, first reset the currently-active list to ``NULL``:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_include_commands = NULL;
    Query OK, 0 rows affected (0.00 sec)
@@ -394,7 +389,7 @@ The filtering by an SQL database is implemented via two global variables:
 :variable:`audit_log_exclude_databases` to specify which databases should be
 included or excluded from audit logging.
 
-.. warning:: 
+.. warning::
 
    Only one of these variables can contain a list of databases to be either
    included or excluded, while the other needs to be ``NULL``. If one of the
@@ -408,7 +403,7 @@ If query is accessing only databases listed in
 :variable:`audit_log_exclude_databases`, the query will not be logged.
 ``CREATE TABLE`` statements are logged unconditionally.
 
-.. note:: 
+.. note::
 
    Changes of :variable:`audit_log_include_databases` and
    :variable:`audit_log_exclude_databases` do not apply to existing server
@@ -419,18 +414,18 @@ Example
 
 To add databases to be monitored you should run:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_include_databases = 'test,mysql,db1';
    Query OK, 0 rows affected (0.00 sec)
 
-   mysql> SET GLOBAL audit_log_include_databases= 'db1,```db3"`';
+   mysql> SET GLOBAL audit_log_include_databases= 'db1','db3';
    Query OK, 0 rows affected (0.00 sec)
 
 If you you try to add databases to both include and exclude lists server will
 show you the following error:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_exclude_databases = 'test,mysql,db1';
    ERROR 1231 (42000): Variable 'audit_log_exclude_databases can't be set to the value of 'test,mysql,db1'
@@ -438,7 +433,7 @@ show you the following error:
 To switch from filtering by included database list to the excluded one or back,
 first set the currently active filtering variable to ``NULL``:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    mysql> SET GLOBAL audit_log_include_databases = NULL;
    Query OK, 0 rows affected (0.00 sec)
@@ -470,8 +465,8 @@ This variable has effect only when :variable:`audit_log_handler` is set to ``FIL
 .. variable:: audit_log_file
 
    :cli: Yes
-   :scope: Global
    :dyn: No
+   :scope: Global
    :vartype: String
    :default: audit.log
 
@@ -539,7 +534,7 @@ comma separated list of commands. If this variable is set, then
 
    :cli: Yes
    :scope: Global
-   :dyn: No 
+   :dyn: No
    :vartype: String
    :default: OLD
    :allowed values: ``OLD``, ``NEW``, ``CSV``, ``JSON``
@@ -591,7 +586,7 @@ comma separated list of commands. If this variable is set, then
 
     :cli: Yes
     :scope: Global
-    :dyn: Yes 
+    :dyn: Yes
     :vartype: String
     :default: ALL
     :allowed values: ``ALL``, ``LOGINS``, ``QUERIES``, ``NONE``
@@ -608,7 +603,7 @@ are:
 
     :cli: Yes
     :scope: Global
-    :dyn: No 
+    :dyn: No
     :vartype: Numeric
     :default: 0 (don't rotate the log file)
 
@@ -617,14 +612,14 @@ this size the log will be rotated. The rotated log files will be present in the
 same same directory as the current log file. A sequence number will be appended
 to the log file name upon rotation. This variable has effect only when
 :variable:`audit_log_handler` is set to ``FILE``.
- 
+
 .. variable:: audit_log_rotations
 
     :cli: Yes
     :scope: Global
-    :dyn: No 
+    :dyn: No
     :vartype: Numeric
-    :default: 0 
+    :default: 0
 
 This variable is used to specify how many log files should be kept when
 :variable:`audit_log_rotate_on_size` variable is set to non-zero value. This
@@ -634,7 +629,7 @@ variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
     :cli: Yes
     :scope: Global
-    :dyn: No 
+    :dyn: No
     :vartype: String
     :default: FILE
     :allowed values: ``FILE``, ``SYSLOG``
@@ -648,7 +643,7 @@ will be written to syslog.
 
     :cli: Yes
     :scope: Global
-    :dyn: No 
+    :dyn: No
     :vartype: String
     :default: percona-audit
 
@@ -657,10 +652,10 @@ has the same meaning as the appropriate parameter described in the `syslog(3)
 manual <http://linux.die.net/man/3/syslog>`_.
 
 .. variable:: audit_log_syslog_facility
-   
+
     :cli: Yes
     :scope: Global
-    :dyn: No 
+    :dyn: No
     :vartype: String
     :default: LOG_USER
 
@@ -672,7 +667,7 @@ variable has the same meaning as the appropriate parameter described in the
 
     :cli: Yes
     :scope: Global
-    :dyn: No 
+    :dyn: No
     :vartype: String
     :default: LOG_INFO
 
@@ -700,4 +695,3 @@ Version Specific Information
 
   * :rn:`8.0.15-6`
     :variable:`Audit_log_buffer_size_overflow` variable implemented
-

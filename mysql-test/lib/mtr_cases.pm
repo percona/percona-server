@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@ use My::Test;
 
 use mtr_match;
 use mtr_report;
+use My::Constants;
 
 require "mtr_misc.pl";
 
@@ -71,7 +72,7 @@ our $defaults_extra_file;
 our $defaults_file;
 our $do_test;
 our $enable_disabled;
-our $opt_with_ndbcluster_only;
+our $with_ndbcluster_only;
 our $print_testcases;
 our $quick_collect;
 our $skip_rpl;
@@ -982,6 +983,7 @@ sub optimize_cases {
           grep { $_ eq lc $binlog_format } @{ $tinfo->{'binlog_formats'} };
         if (!$supported) {
           $tinfo->{'skip'} = 1;
+          $tinfo->{'skip_reason'} = MTR_SKIP_BY_FRAMEWORK;
           $tinfo->{'comment'} =
             "Doesn't support --binlog-format='$binlog_format'";
         }
@@ -1246,8 +1248,9 @@ sub collect_one_test_case {
   my $master_sh = "$testdir/$tname-master.sh";
   if (-f $master_sh) {
     if (IS_WIN32PERL) {
-      $tinfo->{'skip'}    = 1;
-      $tinfo->{'comment'} = "No tests with sh scripts on Windows";
+      $tinfo->{'skip'}        = 1;
+      $tinfo->{'skip_reason'} = MTR_SKIP_BY_FRAMEWORK;
+      $tinfo->{'comment'}     = "No tests with sh scripts on Windows";
       return $tinfo;
     } else {
       $tinfo->{'master_sh'} = $master_sh;
@@ -1258,8 +1261,9 @@ sub collect_one_test_case {
   my $slave_sh = "$testdir/$tname-slave.sh";
   if (-f $slave_sh) {
     if (IS_WIN32PERL) {
-      $tinfo->{'skip'}    = 1;
-      $tinfo->{'comment'} = "No tests with sh scripts on Windows";
+      $tinfo->{'skip'}        = 1;
+      $tinfo->{'skip_reason'} = MTR_SKIP_BY_FRAMEWORK;
+      $tinfo->{'comment'}     = "No tests with sh scripts on Windows";
       return $tinfo;
     } else {
       $tinfo->{'slave_sh'} = $slave_sh;
@@ -1351,7 +1355,7 @@ sub collect_one_test_case {
     }
   } else {
     # This is not a ndb test
-    if ($opt_with_ndbcluster_only) {
+    if ($with_ndbcluster_only) {
       # Only the ndb test should be run, all other should be skipped
       skip_test($tinfo, "Only ndbcluster tests");
       return $tinfo;

@@ -852,8 +852,7 @@ enum mysql_trx_stat_type {
   @param[in]    value   the value of statistics
 */
 void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
-                            enum mysql_trx_stat_type type,
-                            unsigned long long value);
+                            enum mysql_trx_stat_type type, uint64_t value);
 
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 
@@ -994,6 +993,10 @@ void thd_kill(unsigned long id);
   @return ft_query_extra_word_chars value
 */
 int thd_get_ft_query_extra_word_chars(void);
+
+typedef bool (*ssl_reload_callback_t)(void *);
+bool register_ssl_reload_callback(ssl_reload_callback_t);
+bool deregister_ssl_reload_callback(ssl_reload_callback_t);
 
 #ifdef __cplusplus
 }

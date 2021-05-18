@@ -344,7 +344,7 @@ jobs:
         '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
       )
 
-      if [ "$CC" == "clang-5.0" ]; then
+      if [[ "$CC" =~ clang-(5.0|6.0|7|8)$ ]]; then
         COMPILE_OPT+=(
           '-DCMAKE_C_FLAGS=-isystem /usr/include/c++/9 -isystem /usr/include'
           '-DCMAKE_CXX_FLAGS=-isystem /usr/include/c++/9 -isystem /usr/include'

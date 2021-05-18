@@ -24,7 +24,7 @@ The data at rest encryption uses a two-tier architecture with the following comp
    * - Master key
      - The Master key is used to encrypt or decrypt the tablespace keys.
    * - Tablespace key for each tablespace
-     - The tablespace key encrypts the data pages and is written in the tablespace header. Rebuild the table to change the tablespace key.
+     - The tablespace key encrypts the data pages and is written in the tablespace header.
 
 When the server must access the data, the master key decrypts the tablespace key, the tablespace is decrypted and available for read or write operations.
 
@@ -223,7 +223,13 @@ To enable encryption to an existing tablespace, add the ``ENCRYPTION`` option to
 
     mysql> CREATE TABLE myexample ENCRYPTION='Y';
 
-You must add the ``ENCRYPTION`` option to ``ALTER TABLE`` to change the table encryption state. Without the ``ENCRYPTION`` option, an encrypted table remains encrypted or an unencrypted table remains unencrypted.
+You must add the ``ENCRYPTION`` option to `ALTER TABLE <https://dev.mysql.com/doc/refman/5.7/en/alter-table.html>`__ to change the table encryption state. Without the ``ENCRYPTION`` option, an encrypted table remains encrypted or an unencrypted table remains unencrypted.
+
+To change the tablespace key, run the `optimize table <https://dev.mysql.com/doc/refman/5.7/en/optimize-table.html>`__ command.
+
+.. sourcecode:: mysql
+
+    mysql> optimize table t1;
 
 Encrypting a General Tablespace
 -------------------------------------------
@@ -271,8 +277,8 @@ encryption to `N`.
 
 .. note::
 
-    The ``ALTER TABLE`` statment modifies the current encryption mode only if
-    the ``ENCRYPTION`` clause is explictily added.
+    The ``ALTER TABLE`` statement modifies the current encryption mode only if
+    the ``ENCRYPTION`` clause is explicitly added.
     
 .. rubric:: System Variables
 
@@ -286,6 +292,9 @@ encryption to `N`.
    :default: ``OFF``
 
 :Availability: This variable is **Experimental** quality.
+
+.. note:: You cannot change the tablespace key for tables in a general tablespace.
+
 
 Encrypting Binary Logs
 -----------------------

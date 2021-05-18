@@ -281,3 +281,7 @@ and collation for all databases::
    percona/percona-server:8.0 \
    --character-set-server=utf8 \
    --collation-server=utf8_general_ci
+
+.. seealso::
+
+    `Docker Hub MySQL <https://hub.docker.com/_/mysql>`__

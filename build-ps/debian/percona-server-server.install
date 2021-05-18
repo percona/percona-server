@@ -132,6 +132,8 @@ usr/lib/mysql/plugin/binlog_utils_udf.so
 usr/lib/mysql/plugin/test_udf_wrappers.so
 usr/lib/mysql/plugin/debug/binlog_utils_udf.so
 usr/lib/mysql/plugin/debug/test_udf_wrappers.so
+usr/lib/mysql/plugin/procfs.so
+usr/lib/mysql/plugin/debug/procfs.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/mysql-log-rotate

@@ -9,7 +9,9 @@ Vault <https://www.hashicorp.com/products/vault/data-protection>`__.
 
 .. important::
 
-  The ``keyring_vault`` plugin works with kv secrets engine version 1.
+  The ``keyring_vault`` plugin works with `KV Secrets Engine - Version 1 <https://www.vaultproject.io/docs/secrets/kv/kv-v1.html>`__ and
+  `KV Secrets Engine - Version 2 <https://www.vaultproject.io/docs/secrets/kv/kv-v2>`__
+
 
 .. seealso::
 
@@ -17,9 +19,6 @@ Vault <https://www.hashicorp.com/products/vault/data-protection>`__.
 
   Installing Vault
   https://www.vaultproject.io/docs/install/index.html
-
-  KV Secrets Engine - Version 1
-  https://www.vaultproject.io/docs/secrets/kv/kv-v1.html
 
   Production Hardening
   https://learn.hashicorp.com/vault/operations/production-hardening

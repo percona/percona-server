@@ -126,7 +126,6 @@ Management Improvements
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
-   management/data_at_rest_encryption
    management/ssl-improvement
    management/utility_user
    management/ps-admin

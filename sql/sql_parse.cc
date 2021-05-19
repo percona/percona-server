@@ -2009,6 +2009,7 @@ done:
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
+  thd->reset_query_for_display();
 
   /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
   thd->reset_rewritten_query();
@@ -5822,6 +5823,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
       found_semicolon= parser_state->m_lip.found_semicolon;
     }
 
+    DEBUG_SYNC_C("sql_parse_before_rewrite");
+
     if (!err)
     {
       /*
@@ -5877,6 +5880,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
         }
       }
     }
+
+    DEBUG_SYNC_C("sql_parse_after_rewrite");
 
     if (!err)
     {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
@@ -167,13 +167,13 @@ lsn_t	recv_max_page_lsn;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-#ifndef	DBUG_OFF
+#ifndef	NDEBUG
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
 const char*
 get_mlog_string(mlog_id_t type);
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /* prototypes */
 
@@ -3785,7 +3785,7 @@ recv_group_scan_log_recs(
 	bool		last_phase)
 {
 	DBUG_ENTER("recv_group_scan_log_recs");
-	DBUG_ASSERT(!last_phase || recv_sys->mlog_checkpoint_lsn > 0);
+	assert(!last_phase || recv_sys->mlog_checkpoint_lsn > 0);
 
 	mutex_enter(&recv_sys->mutex);
 	recv_sys->len = 0;
@@ -4632,7 +4632,7 @@ recv_dblwr_t::decrypt_sys_dblwr_pages()
 	}
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
@@ -4807,7 +4807,7 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_TRUNCATE:
 		return("MLOG_TRUNCATE");
 	}
-	DBUG_ASSERT(0);
+	assert(0);
 	return(NULL);
 }
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */

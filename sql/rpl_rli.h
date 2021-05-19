@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ public:
   */
   inline bool belongs_to_client()
   {
-    DBUG_ASSERT(info_thd);
+    assert(info_thd);
     return !info_thd->slave_thread;
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
@@ -310,7 +310,7 @@ public:
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     global_sid_lock->assert_some_lock();
-    DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
+    assert(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
     gtid_set._add_gtid(sidno, gno);
   }
@@ -540,7 +540,7 @@ public:
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var, TABLE **conv_table_var) const
   {
-    DBUG_ASSERT(tabledef_var && conv_table_var);
+    assert(tabledef_var && conv_table_var);
     for (TABLE_LIST *ptr= tables_to_lock ; ptr != NULL ; ptr= ptr->next_global)
       if (ptr->table == table_arg)
       {
@@ -826,7 +826,7 @@ public:
   {
     bool ret= (slave_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || !workers.empty());
+    assert(!ret || !workers.empty());
 
     return ret;
   }
@@ -1017,7 +1017,7 @@ public:
   inline ulonglong get_group_master_log_pos() { return m_group_master_log_pos; }
   inline void set_group_master_log_name(const char *log_file_name)
   {
-    DBUG_ASSERT(!info_thd ||
+    assert(!info_thd ||
                 info_thd->backup_binlog_lock.is_protection_acquired());
 
     strmake(m_group_master_log_name, log_file_name,
@@ -1025,7 +1025,7 @@ public:
   }
   inline void set_group_master_log_pos(ulonglong log_pos)
   {
-    DBUG_ASSERT(!info_thd ||
+    assert(!info_thd ||
                 info_thd->backup_binlog_lock.is_protection_acquired());
     m_group_master_log_pos= log_pos;
   }

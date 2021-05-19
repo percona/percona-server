@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,10 +182,9 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
     report_function= sql_print_information;
     break;
   default:
-    DBUG_ASSERT(0);                            // should not come here
-    // don't crash production builds, just do nothing
+    assert(0);                            // should not come here
     mysql_mutex_unlock(&err_lock);
-    return;
+    return;          // don't crash production builds, just do nothing
   }
   curr_buff= pbuff;
   if (prefix_msg)

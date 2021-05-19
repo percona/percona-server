@@ -39,10 +39,10 @@ INSERT INTO t1 (val) VALUES ('Sydney'), ('Melbourne'), ('Brisbane'), ('Perth'), 
 #ALTER TABLE t1 ADD COLUMN is_capital char(1) NOT NULL DEFAULT 'N' AFTER val;
 #SHOW CREATE TABLE t1;
 
+--echo The string should not be found, since it's encrypted.
 LET $MYSQLD_DATADIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLD_DATADIR/test/t1.ibd;
 let SEARCH_PATTERN=Sydney;
-# The string should not be found, since it's encrypted.
 --source include/search_pattern.inc
 
 # Cleanup

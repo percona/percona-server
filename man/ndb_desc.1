@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_desc\fR
+.\"     Title: ndb_desc
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 03/25/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_DESC" "1" "03/25/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -368,7 +368,7 @@ ALTER TABLESPACE ts_1
 .\}
 .PP
 (For more information on the statements just shown and the objects created by them, see
-Section\ \&20.5.10.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
+Section\ \&21.5.10.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
 Section\ \&13.1.15, \(lqCREATE LOGFILE GROUP Statement\(rq, and
 Section\ \&13.1.19, \(lqCREATE TABLESPACE Statement\(rq\&.)
 .PP
@@ -480,7 +480,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&20.29.\ \&Command\-line options for the ndb_desc program
+.B Table\ \&21.29.\ \&Command\-line options used with the program ndb_desc
 .TS
 allbox tab(:);
 lB lB lB.
@@ -522,7 +522,7 @@ Include partition information for BLOB tables in output. Requires that
               the -p option also be used
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -545,7 +545,7 @@ T}:T{
 Name of database containing table
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -557,7 +557,7 @@ Include partition-to-data-node mappings in output. Requires that the -p
               option also be used
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -568,7 +568,7 @@ T}:T{
 Display information about partitions
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -579,7 +579,7 @@ T}:T{
 Number of times to retry the connection (once per second)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -591,7 +591,7 @@ Specify the table in which to find an index. When this option is used,
               -p and -n have no effect and are ignored
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -602,7 +602,7 @@ T}:T{
 Use unqualified table names
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 .TE
 .sp 1
@@ -742,7 +742,7 @@ In NDB 7\&.5\&.3 and later, table indexes listed in the output are ordered by ID
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -6412,8 +6412,8 @@ String *Item_sum_collect::val_str(String *str) {
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
       std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
           current_thd->dd_client());
-  dd::Spatial_reference_system *srs =
-      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+  std::unique_ptr<dd::Spatial_reference_system> srs(
+      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr);
   if (m_geometrycollection.get() == nullptr) {
     null_value = true;
     return error_str();
@@ -6422,13 +6422,13 @@ String *Item_sum_collect::val_str(String *str) {
   if (has_with_distinct()) {
     narrowerCollection = narrowest_multigeometry(filtergeometries(
         std::unique_ptr<gis::Geometrycollection>(m_geometrycollection->clone()),
-        srs));
+        srs.get()));
   } else {
     narrowerCollection =
         gis::narrowest_multigeometry(std::unique_ptr<gis::Geometrycollection>(
             m_geometrycollection->clone()));
   }
-  gis::write_geometry(srs, *narrowerCollection, str);
+  gis::write_geometry(srs.get(), *narrowerCollection, str);
   return str;
 }
 
@@ -6443,8 +6443,8 @@ void Item_sum_collect::store_result_field() {
     std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
         std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
             current_thd->dd_client());
-    dd::Spatial_reference_system *srs =
-        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+    std::unique_ptr<dd::Spatial_reference_system> srs(
+        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr);
 
     std::unique_ptr<gis::Geometrycollection> narrowerCollection;
     narrowerCollection =
@@ -6452,7 +6452,7 @@ void Item_sum_collect::store_result_field() {
             m_geometrycollection->clone()));
 
     String str;
-    gis::write_geometry(srs, *narrowerCollection, &str);
+    gis::write_geometry(srs.get(), *narrowerCollection, &str);
     Field_geom *multipoint_field = down_cast<Field_geom *>(result_field);
     auto storeRes =
         multipoint_field->store(str.ptr(), str.length(), str.charset());

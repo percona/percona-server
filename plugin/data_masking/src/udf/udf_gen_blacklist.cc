@@ -22,7 +22,7 @@
 extern "C" {
   bool gen_blacklist_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
   void gen_blacklist_deinit(UDF_INIT *initid);
-  char *gen_blacklist(UDF_INIT *, UDF_ARGS *args, char *result,
+  char *gen_blacklist(UDF_INIT *initid, UDF_ARGS *args, char *,
                       unsigned long *length, char *is_null, char *);
 }
 
@@ -56,7 +56,7 @@ bool gen_blacklist_init(UDF_INIT *initid, UDF_ARGS *args,
 void gen_blacklist_deinit(UDF_INIT *initid) {
   DBUG_ENTER("gen_blacklist_deinit");
 
-  if (initid->ptr) free(initid->ptr);
+  if (initid->ptr) delete[] (initid->ptr);
 
   DBUG_VOID_RETURN;
 }
@@ -104,15 +104,16 @@ static std::string _gen_blacklist(const char *str, const char *dictionary_name,
   return res;
 }
 
-char *gen_blacklist(UDF_INIT *, UDF_ARGS *args, char *result,
+char *gen_blacklist(UDF_INIT *initid, UDF_ARGS *args, char *,
                     unsigned long *length, char *is_null, char *) {
   DBUG_ENTER("gen_blacklist");
 
   std::string res = _gen_blacklist(args->args[0], args->args[1], args->args[2]);
   *length = res.size();
   if (!(*is_null = (*length == 0))) {
-    strcpy(result, res.c_str());
+    initid->ptr = new char[*length + 1];
+    strcpy(initid->ptr, res.c_str());
   }
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(initid->ptr);
 }

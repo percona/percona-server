@@ -88,7 +88,7 @@ static char *gen_dictionary(UDF_INIT *initid, UDF_ARGS *args, char *,
   std::string res = _gen_dictionary(args->args[0]);
   *length = res.size();
   if (!(*is_null = (*length == 0))) {
-    initid->ptr = new char[*length * 1];
+    initid->ptr = new char[*length + 1];
     strcpy(initid->ptr, res.c_str());
   }
 

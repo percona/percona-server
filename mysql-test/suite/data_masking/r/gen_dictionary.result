@@ -1,0 +1,12 @@
+#
+# Plugin Data Masking: gen_dictionary
+#
+SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
+gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities')
+Dictionary load success
+SELECT gen_dictionary('us_cities');
+gen_dictionary('us_cities')
+CITY
+SELECT gen_dictionary_drop('us_cities');
+gen_dictionary_drop('us_cities')
+Dictionary removed

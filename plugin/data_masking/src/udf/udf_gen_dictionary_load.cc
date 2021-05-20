@@ -159,8 +159,11 @@ static char *gen_dictionary_load(UDF_INIT *, UDF_ARGS *args, char *result,
   DBUG_ENTER("gen_dictionary_load");
 
   std::string res = _gen_dictionary_load(args->args[0], args->args[1]);
-  *length = res.size();
-  strcpy(result, res.c_str());
+  assert(res.size() < *length);
+
+  *length = std::min<unsigned long>(res.size(), *length - 1);
+  strncpy(result, res.c_str(), *length);
+  result[*length] = '\0';
 
   DBUG_RETURN(result);
 }

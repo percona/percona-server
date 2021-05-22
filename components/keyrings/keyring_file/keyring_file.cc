@@ -43,6 +43,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /* Keyring_writer_service_impl */
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_definition.h>
 
+#include <mysql/components/services/psi_memory.h>
+
 /* clang-format off */
 /**
   @page PAGE_COMPONENT_KEYRING_FILE component_keyring_file
@@ -291,10 +293,13 @@ PROVIDES_SERVICE(component_keyring_file, keyring_aes),
     PROVIDES_SERVICE(component_keyring_file, log_builtins_string),
     END_COMPONENT_PROVIDES();
 
+REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
+
 /** List of dependencies */
 BEGIN_COMPONENT_REQUIRES(component_keyring_file)
 REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
-    REQUIRES_SERVICE(log_builtins_string), END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(log_builtins_string), REQUIRES_PSI_MEMORY_SERVICE,
+    END_COMPONENT_REQUIRES();
 
 /** Component description */
 BEGIN_COMPONENT_METADATA(component_keyring_file)

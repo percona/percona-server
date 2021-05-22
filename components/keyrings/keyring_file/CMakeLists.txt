@@ -34,7 +34,10 @@ ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="component_keyring_file")
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
+
 
 SET(KEYRING_FILE_SOURCE
   # Encryption handling
@@ -83,3 +86,9 @@ MYSQL_ADD_COMPONENT(keyring_file
 )
 
 DOWNGRADE_STRINGOP_WARNINGS(component_keyring_file)
+
+IF(APPLE)
+  SET_TARGET_PROPERTIES(component_keyring_file PROPERTIES
+    LINK_FLAGS "-undefined dynamic_lookup")
+ENDIF()
+

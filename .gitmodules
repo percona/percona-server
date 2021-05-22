@@ -16,3 +16,6 @@
 [submodule "extra/libzbd"]
 	path = extra/libzbd
 	url = https://github.com/westerndigitalcorporation/libzbd.git
+[submodule "extra/libkmip"]
+	path = extra/libkmip
+	url = https://github.com/Percona-Lab/libkmip.git

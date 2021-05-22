@@ -23,6 +23,8 @@
 
 INCLUDE_DIRECTORIES (${GMOCK_INCLUDE_DIRS})
 
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="component_keyring_gunit")
+
 # Add tests here
 SET(KEYRING_COMPONENT_COMMON_TESTS
   cache
@@ -63,7 +65,9 @@ MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
   ADD_TEST merge_component_keyring_common_tests
   EXCLUDE_FROM_GCOV
   LINK_LIBRARIES
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
+  ${KEYRING_COMPONENT_LIBS}
+  gunit_large
+  server_unittest_library
  )
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})

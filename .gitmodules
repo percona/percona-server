@@ -4,3 +4,6 @@
 [submodule "extra/coredumper"]
 	path = extra/coredumper
 	url = https://github.com/Percona-Lab/coredumper.git
+[submodule "extra/libkmip"]
+	path = extra/libkmip
+	url = https://github.com/Percona-Lab/libkmip.git

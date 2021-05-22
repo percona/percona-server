@@ -44,7 +44,7 @@ class Config_reader {
 
     @param [in] config_file_path Full path to configuration file
   */
-  explicit Config_reader(std::string config_file_path);
+  inline explicit Config_reader(std::string config_file_path);
 
   /**
     Get an element value from parent element or top level of JSON document.
@@ -169,3 +169,5 @@ class Config_reader {
 }  // namespace keyring_common::config
 
 #endif  // !CONFIG_READER_INCLUDED
+
+#include "config_reader.cc"

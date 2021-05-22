@@ -102,7 +102,8 @@ bool Json_writer::add_element(const meta::Metadata &metadata,
 
   /* Add data */
   std::string hex_data(data.data().size() * 2, '\0');
-  (void)hex_string(hex_data.data(), data.data().c_str(), data.data().size());
+  (void)hex_string(hex_data.data(), data.data().decode().c_str(),
+                   data.data().size());
   hex_data.shrink_to_fit();
   element_member.SetString(hex_data.c_str(),
                            static_cast<rapidjson::SizeType>(hex_data.size()),

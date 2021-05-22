@@ -8,8 +8,10 @@
 --echo # Tests for AES key type
 --source keyring_udf_aes_test.inc
 
+--if (!$skip_secret_tests) {
 --echo # Tests for SECRET key type
 --source keyring_udf_secret_test.inc
+-- }
 
 --echo # ----------------------------------------------------------------------
 

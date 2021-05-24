@@ -86,7 +86,12 @@ ENDIF()
 
 IF (HAVE_SSE42)
   MESSAGE(STATUS "MyRocks: SSE42 support found")
-  add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
+  IF (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    # Suppress the '#error "AES/PCLMUL instructions not enabled"' bug in gcc-4.8.x or lower at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56298
+    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2 -mpclmul") # use Fast_CRC32
+  ELSE()
+    add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-msse4.2") # use Fast_CRC32
+  ENDIF()
   IF (HAVE_PCLMUL)
     add_compile_flags(${ROCKSDB_ROOT}/util/crc32c.cc COMPILE_FLAGS "-mpclmul") # use crc32c_3way instead of Fast_CRC32
   ENDIF()

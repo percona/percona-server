@@ -13,6 +13,8 @@
 # Taking backup of global manifest file for MySQL server
 # Enable undo log encryption, should report error in server log, since keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = ON;
+Warnings:
+Warning	7014	InnoDB: Undo log can't be encrypted if the keyring is not loaded.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Start the DB server with undo log encryption disabled and keyring loaded. It should success.

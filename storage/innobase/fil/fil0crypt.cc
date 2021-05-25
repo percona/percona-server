@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0crypt.h"
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"  // IB_LOG_
+#include "keyring_operations_helper.h"
 #include "log0recv.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
@@ -4034,8 +4035,8 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
 
   std::string key_name = get_key_name(server_uuid);
 
-  if (my_key_fetch(key_name.c_str(), &key_type, nullptr,
-                   reinterpret_cast<void **>(&rkey), &klen) ||
+  if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
+                                     &key_type) != 1 ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     /* There is no key yet, we'll try to generate one */
     my_free(rkey);
@@ -4091,8 +4092,8 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
   byte *rkey = nullptr;
 
   std::string redo_key_with_ver{get_key_name(uuid, version)};
-  if (my_key_fetch(redo_key_with_ver.c_str(), &key_type, nullptr,
-                   reinterpret_cast<void **>(&rkey), &klen) ||
+  if (innobase::encryption::read_key(redo_key_with_ver.c_str(), &rkey, &klen,
+                                     &key_type) != 1 ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     my_free(rkey);
     my_free(key_type);
@@ -4138,7 +4139,8 @@ void redo_log_keys::get_key_name(std::ostringstream &oss, const char *uuid) {
 redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   std::string key_name = get_key_name(server_uuid);
 
-  if (my_key_generate(key_name.c_str(), "AES", nullptr, Encryption::KEY_LEN)) {
+  if (!innobase::encryption::generate_key(key_name.c_str(), "AES",
+                                          Encryption::KEY_LEN)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN,
@@ -4151,8 +4153,8 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   byte *rkey = nullptr;
   size_t klen = 0;
 
-  if (my_key_fetch(key_name.c_str(), &redo_key_type, nullptr,
-                   reinterpret_cast<void **>(&rkey), &klen)) {
+  if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
+                                     &redo_key_type) != 1) {
     ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_FETCH_KEY);
@@ -4207,8 +4209,11 @@ redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   byte *default_rkey = nullptr;
   size_t default_klen = 0;
 
-  if (my_key_fetch(default_key_name.c_str(), &default_redo_key_type, nullptr,
-                   reinterpret_cast<void **>(&default_rkey), &default_klen)) {
+  auto ret =
+      innobase::encryption::read_key(default_key_name.c_str(), &default_rkey,
+                                     &default_klen, &default_redo_key_type);
+
+  if (ret == -1) {
     ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
     if (thd != nullptr) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN,
@@ -4233,8 +4238,9 @@ redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   // with illegal version - percona_redo:0.
   Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
 
-  if (my_key_store(default_key_name.c_str(), "AES", nullptr, m_keys[0].key,
-                   Encryption::KEY_LEN)) {
+  if (!innobase::encryption::store_key(default_key_name.c_str(),
+                                       reinterpret_cast<byte *>(m_keys[0].key),
+                                       Encryption::KEY_LEN, "AES")) {
     return nullptr;
   }
 

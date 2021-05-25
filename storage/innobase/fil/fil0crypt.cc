@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0crypt.h"
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"  // IB_LOG_
+#include "keyring_operations_helper.h"
 #include "log0recv.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"

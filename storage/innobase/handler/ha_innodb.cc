@@ -5800,37 +5800,6 @@ static int innodb_init(void *p) {
   innobase_hton->upgrade_get_compression_dict_data =
       dd_upgrade_get_compression_dict_data;
 
-  if (srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING &&
-      !Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
-          FIL_DEFAULT_ENCRYPTION_KEY, server_uuid)) {
-    sql_print_error(
-        "InnoDB: cannot enable encryption, innodb_encrypt_tables is set to "
-        "value different than OFF, but "
-        "keyring plugin is not available");
-    return innodb_init_abort();
-  }
-
-  // We are starting encryption threads, we must lock the keyring plugins
-  if (srv_n_fil_crypt_threads_requested > 0) {
-    uint number_of_keyring_locked = lock_keyrings(nullptr);
-
-    if (number_of_keyring_locked == 0) {
-      sql_print_error(
-          "InnoDB: cannot enable encryption threads, "
-          "keyring plugin is not available");
-
-      return innodb_init_abort();
-    }
-    if (Encryption::is_keyring_alive() == false) {
-      sql_print_error(
-          "InnoDB: keyring plugin is installed but it seems it was not "
-          "properly initialized. Cannot enable encryption threads.");
-      unlock_keyrings(nullptr);
-
-      return innodb_init_abort();
-    }
-  }
-
   static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
   os_file_set_umask(my_umask);
@@ -5935,6 +5904,37 @@ static int innodb_init(void *p) {
   /* Initialize component service handles */
   if (innobase::component_services::intitialize_service_handles() == false) {
     return innodb_init_abort();
+  }
+
+  if (srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING &&
+      !Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
+          FIL_DEFAULT_ENCRYPTION_KEY, server_uuid)) {
+    sql_print_error(
+        "InnoDB: cannot enable encryption, innodb_encrypt_tables is set to "
+        "value different than OFF, but "
+        "keyring plugin is not available");
+    return innodb_init_abort();
+  }
+
+  // We are starting encryption threads, we must lock the keyring plugins
+  if (srv_n_fil_crypt_threads_requested > 0) {
+    uint number_of_keyring_locked = lock_keyrings(nullptr);
+
+    if (number_of_keyring_locked == 0) {
+      sql_print_error(
+          "InnoDB: cannot enable encryption threads, "
+          "keyring plugin is not available");
+
+      return innodb_init_abort();
+    }
+    if (Encryption::is_keyring_alive() == false) {
+      sql_print_error(
+          "InnoDB: keyring plugin is installed but it seems it was not "
+          "properly initialized. Cannot enable encryption threads.");
+      unlock_keyrings(nullptr);
+
+      return innodb_init_abort();
+    }
   }
 
   if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {

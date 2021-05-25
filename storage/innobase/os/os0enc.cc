@@ -184,6 +184,46 @@ void remove_key(const char *key_id) {
   (void)keyring_writer_service->remove(key_id, nullptr);
 }
 
+/**
+  Store a key into a keyring
+
+  @param [in] key_id     Key identifier
+  @param [in] key        Key value
+  @param [in] key_length Length of the key
+  @param [in] key_type   Type of the key
+
+  @returns status of key storing
+    @retval true  Success
+    @retval fales Error
+*/
+bool store_key(const char *key_id, const unsigned char *key, size_t key_length,
+               const char *key_type) {
+  if (keyring_writer_service->store(key_id, nullptr, key, key_length,
+                                    key_type)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+  Read key from a keyring
+
+  @param [in]  key_id     Key identifier
+  @param [out] key        Key value
+  @param [out] key_length Length of the key
+  @param [out] key_type   Type of the key
+
+  @returns status of key reading
+    @retval -1 Keyring error
+    @retval 0  Key absent
+    @retval 1  Key present. Check output buffers.
+*/
+int read_key(const char *key_id, unsigned char **key, size_t *key_length,
+             char **key_type) {
+  return keyring_operations_helper::read_secret(
+      innobase::encryption::keyring_reader_service, key_id, nullptr, key,
+      key_length, key_type, PSI_INSTRUMENT_ME);
+}
 #else
 
 bool init_keyring_services(SERVICE_TYPE(registry) *) { return false; }
@@ -306,7 +346,6 @@ void Encryption::create_tablespace_key(byte **tablespace_key, uint key_id,
   char *key_type = nullptr;
   size_t key_len;
   char key_name[MASTER_KEY_NAME_MAX_LEN];
-  int ret;
 
   // Newly created tablespace keys should always have uuid equal to server_uuid.
   // There are situations when server_uuid is not available - like when parsing
@@ -317,9 +356,7 @@ void Encryption::create_tablespace_key(byte **tablespace_key, uint key_id,
   fill_key_name(key_name, key_id, uuid);
 
   /* We call key ring API to generate tablespace key here. */
-  ret = my_key_generate(key_name, "AES", nullptr, KEY_LEN);
-
-  if (ret) {
+  if (!innobase::encryption::generate_key(key_name, "AES", KEY_LEN)) {
     ib::error() << "Encryption can't generate tablespace key : " << key_name;
     *tablespace_key = nullptr;
     return;
@@ -327,19 +364,18 @@ void Encryption::create_tablespace_key(byte **tablespace_key, uint key_id,
 
   byte *system_tablespace_key = nullptr;
   /* We call key ring API to get tablespace key here. */
-  ret =
-      my_key_fetch(key_name, &key_type, nullptr,
-                   reinterpret_cast<void **>(&system_tablespace_key), &key_len);
+  auto ret = keyring_operations_helper::read_secret(
+      innobase::encryption::keyring_reader_service, key_name, nullptr,
+      &system_tablespace_key, &key_len, &key_type, PSI_INSTRUMENT_ME);
 
-  if (ret || system_tablespace_key == nullptr) {
+  my_free(key_type);
+
+  if (ret != 1 || system_tablespace_key == nullptr) {
     ib::error() << "Encryption can't find tablespace key " << key_name
-                << " please check"
-                   " that the keyring plugin is loaded.";
+                << " please check that the keyring is loaded.";
     *tablespace_key = nullptr;
-    my_free(key_type);
     return;
   }
-  my_free(key_type);
 
   uint tablespace_key_version = 0;
   size_t tablespace_key_data_length = 0;
@@ -360,17 +396,18 @@ void Encryption::create_tablespace_key(byte **tablespace_key, uint key_id,
 void Encryption::get_keyring_key(const char *key_name, byte **key,
                                  size_t *key_len) {
 #ifndef UNIV_INNOCHECKSUM
-  int ret;
   char *key_type = nullptr;
-  /* We call key ring API to get master key here. */
-  ret = my_key_fetch(key_name, &key_type, nullptr,
-                     reinterpret_cast<void **>(key), key_len);
 
-  if (key_type) {
+  /* We call keyring API to get master key here. */
+  auto ret = keyring_operations_helper::read_secret(
+                 innobase::encryption::keyring_reader_service, key_name,
+                 nullptr, key, key_len, &key_type, PSI_INSTRUMENT_ME) > -1;
+
+  if (key_type != nullptr) {
     my_free(key_type);
   }
 
-  if (ret) {
+  if (ret != 1) {
     *key = nullptr;
   }
 #endif
@@ -389,8 +426,7 @@ bool Encryption::get_tablespace_key(uint key_id, const char *uuid,
 
   if (*tablespace_key == nullptr) {
     ib::error() << "Encryption can't find tablespace key_id = " << key_id
-                << ", please check"
-                << " the keyring plugin is loaded.";
+                << ", please check the keyring is loaded.";
     result = false;
   }
 
@@ -505,10 +541,8 @@ bool Encryption::is_keyring_alive() {
     return true;
   }
 
-  int ret =
-      my_key_generate(percona_keyring_test_key_name, "AES", nullptr, KEY_LEN);
-
-  return (ret == 0) ? true : false;
+  return innobase::encryption::generate_key(percona_keyring_test_key_name,
+                                            "AES", KEY_LEN);
 }
 
 bool Encryption::can_page_be_keyring_encrypted(ulint page_type) {

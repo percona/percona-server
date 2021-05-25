@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <utility>
 
-#include <mysql/service_mysql_keyring.h>
+#include "keyring_operations_helper.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "mutex_lock.h"
@@ -193,8 +193,10 @@ bool Rotate_percona_system_key::rotate() {
   // First check that system key exists.
   char *key_type = nullptr;
   size_t key_len;
-  void *key = nullptr;
-  if (my_key_fetch(key_id_with_uuid.c_str(), &key_type, NULL, &key, &key_len) ||
+  unsigned char *key = nullptr;
+  if (keyring_operations_helper::read_secret(
+          srv_keyring_reader, key_id_with_uuid.c_str(), nullptr, &key, &key_len,
+          &key_type, PSI_INSTRUMENT_ME) != 1 ||
       nullptr == key) {
     if (nullptr != key) {
       my_free(key);
@@ -208,10 +210,12 @@ bool Rotate_percona_system_key::rotate() {
   assert(memcmp(key_type, "AES", 3) == 0);
   my_free(key_type);
   my_free(key);
-  key = key_type = nullptr;
+  key = nullptr;
+  key_type = nullptr;
 
   // rotate the key
-  if (my_key_generate(key_id_with_uuid.c_str(), "AES", NULL, key_length)) {
+  if (srv_keyring_generator->generate(key_id_with_uuid.c_str(), nullptr, "AES",
+                                      key_length)) {
     my_error(ER_SYSTEM_KEY_ROTATION_CANT_GENERATE_NEW_VERSION, MYF(0),
              system_key_id);
     return true;

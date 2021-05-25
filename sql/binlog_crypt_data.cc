@@ -22,8 +22,10 @@
 #include "mysql/service_mysql_alloc.h"
 #ifdef MYSQL_SERVER
 #include <sstream>
+#include "keyring_operations_helper.h"
 #include "log.h"
-#include "mysql/service_mysql_keyring.h"
+#include "mysqld_error.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 #include "system_key.h"
 #endif
 
@@ -79,12 +81,22 @@ bool Binlog_crypt_data::load_latest_binlog_key() {
 
   DBUG_EXECUTE_IF("binlog_encryption_error_on_key_fetch", { return true; });
 
-  if (my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
-                   reinterpret_cast<void **>(&system_key), &system_key_len) ||
+  auto retval = keyring_operations_helper::read_secret(
+      srv_keyring_reader, PERCONA_BINLOG_KEY_NAME, nullptr, &system_key,
+      &system_key_len, &system_key_type, PSI_INSTRUMENT_ME);
+  if (retval == -1) {
+    my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
+             "load_latest_binlog_key");
+    return true;
+  }
+
+  if (retval != 1 &&
       (system_key == nullptr &&
-       (my_key_generate(PERCONA_BINLOG_KEY_NAME, "AES", nullptr, 16) ||
-        my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
-                     reinterpret_cast<void **>(&system_key), &system_key_len) ||
+       (srv_keyring_generator->generate(PERCONA_BINLOG_KEY_NAME, nullptr, "AES",
+                                        16) ||
+        keyring_operations_helper::read_secret(
+            srv_keyring_reader, PERCONA_BINLOG_KEY_NAME, nullptr, &system_key,
+            &system_key_len, &system_key_type, PSI_INSTRUMENT_ME) != 1 ||
         system_key == nullptr)))
     return true;
 
@@ -118,10 +130,15 @@ bool Binlog_crypt_data::init(uint sch [[maybe_unused]],
   char *key_type = nullptr;
   std::ostringstream percona_binlog_with_ver_ss;
   percona_binlog_with_ver_ss << PERCONA_BINLOG_KEY_NAME << ':' << kv;
-  if (my_key_fetch(percona_binlog_with_ver_ss.str().c_str(), &key_type, nullptr,
-                   reinterpret_cast<void **>(&key), &key_length) ||
-      key == nullptr)
+  auto retval = keyring_operations_helper::read_secret(
+      srv_keyring_reader, percona_binlog_with_ver_ss.str().c_str(), nullptr,
+      &key, &key_length, &key_type, PSI_INSTRUMENT_ME);
+  if (retval == -1) {
+    my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "init");
     return true;
+  }
+
+  if (retval != 1 || key == nullptr) return true;
   assert(strncmp(key_type, "AES", 3) == 0);
   my_free(key_type);
 

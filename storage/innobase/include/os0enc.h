@@ -43,6 +43,14 @@ namespace encryption {
 bool init_keyring_services(SERVICE_TYPE(registry) * reg_srv);
 
 void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv);
+
+bool generate_key(const char *key_id, const char *key_type, size_t key_length);
+void remove_key(const char *key_id);
+bool store_key(const char *key_id, const unsigned char *key, size_t key_length,
+               const char *key_type);
+int read_key(const char *key_id, unsigned char **key, size_t *key_length,
+             char **key_type);
+
 }  // namespace encryption
 }  // namespace innobase
 

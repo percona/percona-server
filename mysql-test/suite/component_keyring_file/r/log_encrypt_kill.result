@@ -7,7 +7,7 @@
 # Taking backup of global manifest file for MySQL server
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-0
+OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SET GLOBAL innodb_undo_log_encrypt = 1;
 SELECT status_key, status_value FROM
@@ -31,7 +31,7 @@ Pattern "Can\'t set redo log tablespace to be encrypted" found
 # Starting server with keyring plugin
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-0
+OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt
@@ -50,7 +50,7 @@ Component_status	Active
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-0
+OFF
 SET GLOBAL innodb_undo_log_encrypt = 0;
 SELECT @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt

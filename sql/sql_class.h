@@ -593,6 +593,7 @@ typedef struct system_variables
 
   my_bool sysdate_is_now;
   my_bool binlog_rows_query_log_events;
+  my_bool binlog_ddl_query_log_events;
 
 #ifndef DBUG_OFF
   ulonglong query_exec_time;

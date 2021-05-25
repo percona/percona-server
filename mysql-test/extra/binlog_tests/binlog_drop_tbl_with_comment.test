@@ -1,0 +1,24 @@
+#
+# PS-7526: Unexpected quoting and dropping of comments in DROP TABLE commands
+#
+
+CREATE DATABASE test7526;
+
+USE test7526;
+
+/* comment1 */ CREATE TABLE t (a VARCHAR(100));
+/* comment1 */ DROP TABLE t;
+
+SET binlog_ddl_query_log_events = ON;
+
+/* comment1 */ CREATE TABLE t (a VARCHAR(100));
+/* comment1 */ DROP TABLE t;
+
+SET binlog_ddl_query_log_events = OFF;
+
+/* comment1 */ CREATE TABLE t (a VARCHAR(100));
+/* comment1 */ DROP TABLE t;
+
+DROP DATABASE test7526;
+
+source include/show_binlog_events.inc;

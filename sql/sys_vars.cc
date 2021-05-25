@@ -1232,6 +1232,12 @@ static Sys_var_mybool Sys_binlog_rows_query(
        SESSION_VAR(binlog_rows_query_log_events),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static Sys_var_mybool Sys_binlog_ddl_query(
+       "binlog_ddl_query_log_events",
+       "Allow writing of DDl_query_log events into binary log.",
+       SESSION_VAR(binlog_ddl_query_log_events),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_mybool Sys_binlog_order_commits(
        "binlog_order_commits",
        "Issue internal commit calls in the same order as transactions are"

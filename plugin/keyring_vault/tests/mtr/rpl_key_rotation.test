@@ -51,6 +51,8 @@ eval SET @@global.keyring_vault_config='$conf_file2';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$conf_file1';
 
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 100;
+
 --echo
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 

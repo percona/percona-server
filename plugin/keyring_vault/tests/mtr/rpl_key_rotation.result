@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault2.conf';
 [On Master]
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault1.conf';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 100;
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;

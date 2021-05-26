@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -230,6 +230,7 @@ enum latch_level_t {
 	SYNC_BUF_BLOCK,
 	SYNC_BUF_PAGE_HASH,
 	SYNC_BUF_LRU_LIST,
+	SYNC_BUF_CHUNKS,
 
 	SYNC_POOL,
 	SYNC_POOL_MANAGER,
@@ -318,6 +319,7 @@ enum latch_id_t {
 	LATCH_ID_NONE = 0,
 	LATCH_ID_AUTOINC,
 	LATCH_ID_BUF_BLOCK_MUTEX,
+	LATCH_ID_BUF_POOL_CHUNKS,
 	LATCH_ID_BUF_POOL_LRU_LIST,
 	LATCH_ID_BUF_POOL_FREE_LIST,
 	LATCH_ID_BUF_POOL_ZIP_FREE,

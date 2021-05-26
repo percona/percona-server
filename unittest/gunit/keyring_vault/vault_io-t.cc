@@ -1,664 +1,872 @@
-#include <my_global.h>
-#include <gtest/gtest.h>
+/* Copyright (c) 2018, 2021 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
 #include <fstream>
-#include <boost/scope_exit.hpp>
-#include "mock_logger.h"
-#include "vault_io.h"
-#include "incorrect_vault_key.h"
-#include <string.h>
+#include <stdexcept>
+#include <string>
+
+#include <my_global.h>
+
+#include <boost/scoped_ptr.hpp>
+#include <boost/optional.hpp>
+#include <boost/preprocessor/stringize.hpp>
+
 #include <curl/curl.h>
+
+#include <gtest/gtest.h>
+
 #include "generate_credential_file.h"
-#include "uuid.h"
-#include "vault_mount.h"
-#include "test_utils.h"
 #include "i_keys_container.h"
+#include "incorrect_vault_key.h"
+#include "mock_logger.h"
+#include "vault_base64.h"
+#include "vault_curl.h"
+#include "vault_environment.h"
+#include "vault_io.h"
+#include "vault_mount.h"
+#include "vault_parser_composer.h"
+#include "vault_test_base.h"
 
 boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
-#if defined(HAVE_PSI_INTERFACE)
-namespace keyring
+extern "C" int my_plugin_log_message(MYSQL_PLUGIN *, enum plugin_log_level,
+                                     const char *, ...)
 {
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
+  return 0;
+}
+
+#if defined(HAVE_PSI_INTERFACE)
+namespace keyring {
+PSI_memory_key key_memory_KEYRING= PSI_NOT_INSTRUMENTED;
 }
 #endif
 
-namespace keyring__vault_io_unittest
+namespace keyring__vault_io_unittest {
+using namespace keyring;
+
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
+using ::testing::StrEq;
+using ::testing::_;
+
+class Mock_vault_curl : public IVault_curl {
+ public:
+  MOCK_METHOD1(init, bool(const Vault_credentials &vault_credentials));
+  MOCK_METHOD1(list_keys, bool(Secure_string *response));
+  MOCK_METHOD2(write_key,
+               bool(const Vault_key &key, Secure_string *response));
+  MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
+  MOCK_METHOD2(delete_key,
+               bool(const Vault_key &key, Secure_string *response));
+  MOCK_METHOD1(set_timeout, void(uint timeout));
+  MOCK_CONST_METHOD0(get_resolved_secret_mount_point_version,
+                     Vault_version_type());
+};
+
+class Mock_vault_parser_composer : public IVault_parser_composer {
+ public:
+  MOCK_METHOD2(parse_keys,
+               bool(const Secure_string &payload, Vault_keys_list *keys));
+  MOCK_METHOD3(parse_key_data, bool(const Secure_string &payload, IKey *key,
+                                    Vault_version_type vault_version));
+  MOCK_METHOD2(parse_key_signature, bool(const Secure_string &key_signature,
+                                         KeyParameters *key_parameters));
+  MOCK_METHOD2(parse_errors,
+               bool(const Secure_string &payload, Secure_string *errors));
+  MOCK_METHOD4(parse_mount_point_config,
+               bool(const Secure_string &config_payload,
+                    std::size_t &max_versions, bool &cas_required,
+                    Optional_secure_string &delete_version_after));
+
+  MOCK_METHOD4(compose_write_key_postdata,
+               bool(const Vault_key &    key,
+                    const Secure_string &encoded_key_data,
+                    Vault_version_type   vault_version,
+                    Secure_string &      postdata));
+};
+
+class Vault_io_test : public Vault_test_base {
+ public:
+  virtual ~Vault_io_test() {}
+
+ protected:
+  Vault_curl *create_vault_curl(IVault_parser_composer *parser) const
+  {
+    return new Vault_curl(get_logger(), parser, 0);
+  }
+  Mock_vault_curl *create_mock_vault_curl() const
+  {
+    return new Mock_vault_curl;
+  }
+  Vault_parser_composer *create_vault_parser_composer() const
+  {
+    return new Vault_parser_composer(get_logger());
+  }
+  Mock_vault_parser_composer *create_mock_vault_parser_composer() const
+  {
+    return new Mock_vault_parser_composer;
+  }
+};
+
+TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile)
 {
-  using namespace keyring;
+  std::string credential_file_name=
+      Vault_environment::get_instance()->get_non_existing_conf_file_name();
+  IVault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
+  remove(credential_file_name.c_str());
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL, StrEq("Could not open credentials file '" +
+                                        credential_file_name + "'.")));
+  EXPECT_TRUE(vault_io.init(&credential_file_name));
 
-  using ::testing::Return;
-  using ::testing::StrEq;
-  using ::testing::_;
-  using ::testing::SetArgPointee;
+  remove(credential_file_name.c_str());
+}
 
-  static std::string uuid = generate_uuid();
-  static std::string key_1 = (uuid + "key1");
-  static std::string key_2 = (uuid + "key2");
-  static const char *key_1_id = key_1.c_str();
-  static const char *key_2_id = key_2.c_str();
-  std::string credential_file_url = "./keyring_vault.conf";
-  ILogger *logger;
+TEST_F(Vault_io_test, InitWithInvalidToken)
+{
+  std::string conf_with_invalid_token=
+      Vault_environment::get_instance()->get_invalid_conf_file_name();
+  ASSERT_FALSE(generate_credential_file(
+      conf_with_invalid_token, "ut_tests_non_existing",
+      mount_point_version_v1, credentials_validity_invalid_token));
 
-  class Vault_io_test : public ::testing::Test
-  {
-  protected:
-    virtual void SetUp()
-    {
-      vault_curl = new Vault_curl(logger, 0);
-      vault_parser = new Vault_parser(logger);
-    }
+  IVault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
+  EXPECT_FALSE(vault_io.init(&conf_with_invalid_token));
 
-  protected:
-    IVault_curl *vault_curl;
-    IVault_parser *vault_parser;
-  };
-
-  TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile)
-  {
-    std::string credential_file_name("./some_funny_name");
-    Vault_io vault_io(logger, vault_curl, vault_parser);
-    remove(credential_file_name.c_str());
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("File './some_funny_name' not found (Errcode: 2 - No such file or directory)")));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not open file with credentials.")));
-    EXPECT_TRUE(vault_io.init(&credential_file_name));
-
-    remove(credential_file_name.c_str());
-  }
-
-  TEST_F(Vault_io_test, InitWithInvalidToken)
-  {
-    std::string conf_with_invalid_token("./invalid_token.conf");
-    ASSERT_FALSE(generate_credential_file(conf_with_invalid_token, WITH_INVALID_TOKEN));
-
-    Vault_io vault_io(logger, vault_curl, vault_parser);
-    EXPECT_FALSE(vault_io.init(&conf_with_invalid_token));
-
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
       log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault. "
-          "Vault has returned the following error(s): [\"permission denied\"]")));
-    ISerialized_object *serialized_keys= NULL;
-    EXPECT_TRUE(vault_io.get_serialized_object(&serialized_keys));
-  }
+                                "Vault has returned the following error(s): "
+                                "permission denied")));
+  ISerialized_object *serialized_keys= NULL;
+  EXPECT_TRUE(vault_io.get_serialized_object(&serialized_keys));
 
-  TEST_F(Vault_io_test, GetSerializedObjectWithTwoKeys)
-  {
-    Vault_io vault_io(logger, vault_curl, vault_parser);
+  remove(conf_with_invalid_token.c_str());
+}
 
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+TEST_F(Vault_io_test, GetSerializedObjectWithTwoKeys)
+{
+  Vault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
 
-    // First add two keys into Vault
-    Vault_key key1(key_1_id, "AES", "Arczi", "Artur", 5);
-    EXPECT_TRUE(*key1.get_key_signature() == get_key_signature(uuid,"key1","Arczi"));
-    key1.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key1));
-    Vault_key key2(key_2_id, "AES", "Kamil", "Kami", 4);
-    EXPECT_TRUE(*key2.get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    key2.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key2));
-    // *****
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    // Now fetch two keys with separate Vault_io
-    ISerialized_object *serialized_keys= NULL;
-    EXPECT_FALSE(vault_io.get_serialized_object(&serialized_keys));
-    IKey *key1_loaded= NULL;
-    ASSERT_TRUE(serialized_keys != NULL);
-    EXPECT_TRUE(serialized_keys->has_next_key());
-    serialized_keys->get_next_key(&key1_loaded);
-    EXPECT_TRUE(*key1_loaded->get_key_signature() == get_key_signature(uuid,"key1","Arczi") ||
-                *key1_loaded->get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    IKey *key2_loaded= NULL;
-    delete key1_loaded;
-    EXPECT_TRUE(serialized_keys->has_next_key());
-    serialized_keys->get_next_key(&key2_loaded);
-    EXPECT_TRUE(*key2_loaded->get_key_signature() == get_key_signature(uuid,"key2","Kamil") ||
-                *key2_loaded->get_key_signature() == get_key_signature(uuid,"key1","Arczi"));
-    delete key2_loaded;
-    EXPECT_FALSE(serialized_keys->has_next_key());
-    delete serialized_keys;
+  // First add two keys into Vault
+  Vault_key key1(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                 "Arczi", "Artur", 5);
+  EXPECT_TRUE(
+      *key1.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key1", "Arczi"));
+  key1.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key1));
+  Vault_key key2(Vault_environment::get_instance()->get_key2_id_raw(), "AES",
+                 "Kamil", "Kami", 4);
+  EXPECT_TRUE(
+      *key2.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key2", "Kamil"));
+  key2.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key2));
+  // *****
 
-    // Now remove the keys
-    Vault_key key1_to_remove(key1);
-    key1_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key1_to_remove));
-    Vault_key key2_to_remove(key2);
-    key2_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key2_to_remove));
-  }
+  // Now fetch two keys with separate Vault_io
+  ISerialized_object *serialized_keys= NULL;
+  EXPECT_FALSE(vault_io.get_serialized_object(&serialized_keys));
+  IKey *key1_loaded= NULL;
+  ASSERT_TRUE(serialized_keys != NULL);
+  EXPECT_TRUE(serialized_keys->has_next_key());
+  serialized_keys->get_next_key(&key1_loaded);
+  EXPECT_TRUE(*key1_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key1", "Arczi") ||
+              *key1_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key2", "Kamil"));
+  IKey *key2_loaded= NULL;
+  delete key1_loaded;
+  EXPECT_TRUE(serialized_keys->has_next_key());
+  serialized_keys->get_next_key(&key2_loaded);
+  EXPECT_TRUE(*key2_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key2", "Kamil") ||
+              *key2_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key1", "Arczi"));
+  delete key2_loaded;
+  EXPECT_FALSE(serialized_keys->has_next_key());
+  delete serialized_keys;
 
-  TEST_F(Vault_io_test, GetSerializedObjectWithTwoKeysWithDifferentVaultIO)
-  {
-    Vault_io vault_io_for_storing(logger, vault_curl, vault_parser);
+  // Now remove the keys
+  Vault_key key1_to_remove(key1);
+  key1_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key1_to_remove));
+  Vault_key key2_to_remove(key2);
+  key2_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key2_to_remove));
+}
 
-    EXPECT_FALSE(vault_io_for_storing.init(&credential_file_url));
+TEST_F(Vault_io_test, GetSerializedObjectWithTwoKeysWithDifferentVaultIO)
+{
+  Vault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io_for_storing(get_logger(), create_vault_curl(parser),
+                                parser);
 
-    // First add two keys into Vault
-    Vault_key key1(key_1_id, "AES", "Robert", "Robi", 4);
-    EXPECT_TRUE(*key1.get_key_signature() == get_key_signature(uuid,"key1","Robert"));
-    key1.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1));
-    Vault_key key2(key_2_id, "AES", "Kamil", "Kami", 4);
-    EXPECT_TRUE(*key2.get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    key2.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2));
-    // *****
+  EXPECT_FALSE(vault_io_for_storing.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    // Now fetch two keys with separate Vault_io
-    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
-    Vault_parser *vault_parser2 = new Vault_parser(logger);
-    Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
-    EXPECT_FALSE(vault_io_for_fetching.init(&credential_file_url));
+  // First add two keys into Vault
+  Vault_key key1(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                 "Robert", "Robi", 4);
+  EXPECT_TRUE(
+      *key1.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key1", "Robert"));
+  key1.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1));
+  Vault_key key2(Vault_environment::get_instance()->get_key2_id_raw(), "AES",
+                 "Kamil", "Kami", 4);
+  EXPECT_TRUE(
+      *key2.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key2", "Kamil"));
+  key2.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2));
+  // *****
 
-    ISerialized_object *serialized_keys= NULL;
-    EXPECT_FALSE(vault_io_for_fetching.get_serialized_object(&serialized_keys));
-    IKey *key1_loaded= NULL;
-    ASSERT_TRUE(serialized_keys != NULL);
-    EXPECT_TRUE(serialized_keys->has_next_key());
-    serialized_keys->get_next_key(&key1_loaded);
-    EXPECT_TRUE(*key1_loaded->get_key_signature() == get_key_signature(uuid,"key1","Robert") ||
-                *key1_loaded->get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    IKey *key2_loaded= NULL;
-    delete key1_loaded;
-    EXPECT_TRUE(serialized_keys->has_next_key());
-    serialized_keys->get_next_key(&key2_loaded);
-    EXPECT_TRUE(*key2_loaded->get_key_signature() == get_key_signature(uuid,"key2","Kamil") ||
-                *key2_loaded->get_key_signature() == get_key_signature(uuid,"key1","Robert"));
-    delete key2_loaded;
-    EXPECT_FALSE(serialized_keys->has_next_key());
-    delete serialized_keys;
+  // Now fetch two keys with separate Vault_io
+  Vault_parser_composer *vault_parser2=
+      new Vault_parser_composer(get_logger());
+  Vault_curl *vault_curl2= new Vault_curl(get_logger(), vault_parser2, 0);
+  Vault_io    vault_io_for_fetching(get_logger(), vault_curl2, vault_parser2);
+  EXPECT_FALSE(vault_io_for_fetching.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    // Now remove the keys
-    Vault_key key1_to_remove(key1);
-    key1_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1_to_remove));
-    Vault_key key2_to_remove(key2);
-    key2_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2_to_remove));
-  } 
-  TEST_F(Vault_io_test, InitWithIncorrectKeyInVault)
-  {
-    Vault_io vault_io_for_storing(logger, vault_curl, vault_parser);
+  ISerialized_object *serialized_keys= NULL;
+  EXPECT_FALSE(vault_io_for_fetching.get_serialized_object(&serialized_keys));
+  IKey *key1_loaded= NULL;
+  ASSERT_TRUE(serialized_keys != NULL);
+  EXPECT_TRUE(serialized_keys->has_next_key());
+  serialized_keys->get_next_key(&key1_loaded);
+  EXPECT_TRUE(*key1_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key1", "Robert") ||
+              *key1_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key2", "Kamil"));
+  IKey *key2_loaded= NULL;
+  delete key1_loaded;
+  EXPECT_TRUE(serialized_keys->has_next_key());
+  serialized_keys->get_next_key(&key2_loaded);
+  EXPECT_TRUE(*key2_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key2", "Kamil") ||
+              *key2_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key1", "Robert"));
+  delete key2_loaded;
+  EXPECT_FALSE(serialized_keys->has_next_key());
+  delete serialized_keys;
 
-    EXPECT_FALSE(vault_io_for_storing.init(&credential_file_url));
+  // Now remove the keys
+  Vault_key key1_to_remove(key1);
+  key1_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1_to_remove));
+  Vault_key key2_to_remove(key2);
+  key2_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2_to_remove));
+}
+TEST_F(Vault_io_test, InitWithIncorrectKeyInVault)
+{
+  Vault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io_for_storing(get_logger(), create_vault_curl(parser),
+                                parser);
 
-    // First add two keys into Vault
-    Vault_key key1(key_1_id, "AES", "Robert", "Robi", 4);
-    EXPECT_TRUE(*key1.get_key_signature() == get_key_signature(uuid,"key1","Robert"));
-    key1.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1));
-    Vault_key key2(key_2_id, "AES", "Kamil", "Kami", 4);
-    EXPECT_TRUE(*key2.get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    key2.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2));
-    Incorrect_vault_key incorrect_key("key3","RSA","Artur", "Arczi", 5);
-    incorrect_key.set_key_operation(STORE_KEY);
-    incorrect_key.add_to_key_id_length = 14;
-    // make sure signature is incorrect
-    EXPECT_STREQ(incorrect_key.get_key_signature()->c_str(), "18_key35_Artur");
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&incorrect_key));
-    // *****
+  EXPECT_FALSE(vault_io_for_storing.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    // Now fetch two keys with separate Vault_io - incorrect key should have been ignored
-    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
-    Vault_parser *vault_parser2 = new Vault_parser(logger);
-    Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
+  // First add two keys into Vault
+  Vault_key key1(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                 "Robert", "Robi", 4);
+  EXPECT_TRUE(
+      *key1.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key1", "Robert"));
+  key1.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1));
+  Vault_key key2(Vault_environment::get_instance()->get_key2_id_raw(), "AES",
+                 "Kamil", "Kami", 4);
+  EXPECT_TRUE(
+      *key2.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key2", "Kamil"));
+  key2.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2));
+  Incorrect_vault_key incorrect_key("key3", "RSA", "Artur", "Arczi", 5);
+  incorrect_key.set_key_operation(STORE_KEY);
+  incorrect_key.add_to_key_id_length= 14;
+  // make sure signature is incorrect
+  EXPECT_STREQ(incorrect_key.get_key_signature()->c_str(), "18_key35_Artur");
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&incorrect_key));
+  // *****
 
-   EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_WARNING_LEVEL, StrEq("Could not parse key's signature, skipping the key.")));
+  // Now fetch two keys with separate Vault_io - incorrect key should have been ignored
+  Vault_parser_composer *vault_parser2=
+      new Vault_parser_composer(get_logger());
+  Vault_curl *vault_curl2= new Vault_curl(get_logger(), vault_parser2, 0);
+  Vault_io    vault_io_for_fetching(get_logger(), vault_curl2, vault_parser2);
 
-    EXPECT_FALSE(vault_io_for_fetching.init(&credential_file_url));
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
+      log(MY_WARNING_LEVEL,
+          StrEq("Could not parse key's signature, skipping the key.")));
 
-    ISerialized_object *serialized_keys= NULL;
-    EXPECT_FALSE(vault_io_for_fetching.get_serialized_object(&serialized_keys));
-    IKey *key1_loaded= NULL;
-    ASSERT_TRUE(serialized_keys != NULL);
-    EXPECT_TRUE(serialized_keys->has_next_key());
-    serialized_keys->get_next_key(&key1_loaded);
-    EXPECT_TRUE(*key1_loaded->get_key_signature() == get_key_signature(uuid,"key1","Robert") ||
-                *key1_loaded->get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    IKey *key2_loaded= NULL;
-    delete key1_loaded;
-    EXPECT_TRUE(serialized_keys->has_next_key());
-    serialized_keys->get_next_key(&key2_loaded);
-    EXPECT_TRUE(*key2_loaded->get_key_signature() == get_key_signature(uuid,"key2","Kamil") ||
-                *key2_loaded->get_key_signature() == get_key_signature(uuid,"key1","Robert"));
-    delete key2_loaded;
-    EXPECT_FALSE(serialized_keys->has_next_key());
-    delete serialized_keys;
+  EXPECT_FALSE(vault_io_for_fetching.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    // Now remove the keys
-    Vault_key key1_to_remove(key1);
-    key1_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1_to_remove));
-    Vault_key key2_to_remove(key2);
-    key2_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2_to_remove));
-    Incorrect_vault_key incorrect_key_to_remove(incorrect_key);
-    incorrect_key_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&incorrect_key_to_remove));
-  }
+  ISerialized_object *serialized_keys= NULL;
+  EXPECT_FALSE(vault_io_for_fetching.get_serialized_object(&serialized_keys));
+  IKey *key1_loaded= NULL;
+  ASSERT_TRUE(serialized_keys != NULL);
+  EXPECT_TRUE(serialized_keys->has_next_key());
+  serialized_keys->get_next_key(&key1_loaded);
+  EXPECT_TRUE(*key1_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key1", "Robert") ||
+              *key1_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key2", "Kamil"));
+  IKey *key2_loaded= NULL;
+  delete key1_loaded;
+  EXPECT_TRUE(serialized_keys->has_next_key());
+  serialized_keys->get_next_key(&key2_loaded);
+  EXPECT_TRUE(*key2_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key2", "Kamil") ||
+              *key2_loaded->get_key_signature() ==
+                  Vault_environment::get_instance()->get_key_signature(
+                      "key1", "Robert"));
+  delete key2_loaded;
+  EXPECT_FALSE(serialized_keys->has_next_key());
+  delete serialized_keys;
 
-  TEST_F(Vault_io_test, RetrieveKeyTypeAndValue)
-  {
-    Vault_io vault_io(logger, vault_curl, vault_parser);
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  // Now remove the keys
+  Vault_key key1_to_remove(key1);
+  key1_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key1_to_remove));
+  Vault_key key2_to_remove(key2);
+  key2_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io_for_storing.flush_to_storage(&key2_to_remove));
+  Incorrect_vault_key incorrect_key_to_remove(incorrect_key);
+  incorrect_key_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(
+      vault_io_for_storing.flush_to_storage(&incorrect_key_to_remove));
+}
 
-    Vault_key key_to_store(key_1_id, "AES", "rob", "Robi", 4);
-    key_to_store.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
+TEST_F(Vault_io_test, RetrieveKeyTypeAndValue)
+{
+  Vault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    Vault_key key(key_1_id, NULL, "rob", NULL, 0);
-    EXPECT_FALSE(vault_io.retrieve_key_type_and_data(&key));
-    EXPECT_TRUE(*key.get_key_signature() == get_key_signature(uuid,"key1","rob"));
-    ASSERT_TRUE(memcmp(key.get_key_data(), "Robi", key.get_key_data_size()) == 0);
-    EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  Vault_key key_to_store(Vault_environment::get_instance()->get_key1_id_raw(),
+                         "AES", "rob", "Robi", 4);
+  key_to_store.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
 
-    Vault_key key_to_remove(key_1_id, NULL, "rob", NULL, 0);
-    key_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
-  }
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), NULL,
+                "rob", NULL, 0);
+  EXPECT_FALSE(vault_io.retrieve_key_type_and_data(&key));
+  EXPECT_TRUE(
+      *key.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key1", "rob"));
+  ASSERT_TRUE(memcmp(key.get_key_data(), "Robi", key.get_key_data_size()) ==
+              0);
+  EXPECT_STREQ("AES", key.get_key_type()->c_str());
 
-  TEST_F(Vault_io_test, FlushAndRemoveSingleKey)
-  {
-    Vault_io vault_io(logger, vault_curl, vault_parser);
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
-    Vault_key key(key_1_id, "AES", "rob", "Robi", 4);
-    key.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key));
-    Vault_key key_to_remove(key);
-    key_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
-  }
+  Vault_key key_to_remove(
+      Vault_environment::get_instance()->get_key1_id_raw(), NULL, "rob", NULL,
+      0);
+  key_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
+}
 
-  TEST_F(Vault_io_test, FlushKeyRetrieveDeleteInit)
-  {
-    Vault_io vault_io(logger, vault_curl, vault_parser);
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
-    Vault_key key(key_1_id, "AES", "rob", "Robi", 4);
-    key.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key));
-    Vault_key key1_id(key_1_id, NULL, "rob", NULL, 0);
-    EXPECT_FALSE(vault_io.retrieve_key_type_and_data(&key1_id));
-    EXPECT_TRUE(*key1_id.get_key_signature() == get_key_signature(uuid,"key1","rob"));
-    ASSERT_TRUE(memcmp(key1_id.get_key_data(), "Robi", key1_id.get_key_data_size()) == 0);
-    EXPECT_STREQ("AES", key1_id.get_key_type()->c_str());
+TEST_F(Vault_io_test, FlushAndRemoveSingleKey)
+{
+  Vault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                "rob", "Robi", 4);
+  key.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key));
+  Vault_key key_to_remove(key);
+  key_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
+}
 
-    Vault_key key_to_remove(key);
-    key_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
+TEST_F(Vault_io_test, FlushKeyRetrieveDeleteInit)
+{
+  Vault_parser_composer *parser= create_vault_parser_composer();
+  Vault_io vault_io(get_logger(), create_vault_curl(parser), parser);
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                "rob", "Robi", 4);
+  key.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key));
+  Vault_key key1_id(Vault_environment::get_instance()->get_key1_id_raw(),
+                    NULL, "rob", NULL, 0);
+  EXPECT_FALSE(vault_io.retrieve_key_type_and_data(&key1_id));
+  EXPECT_TRUE(
+      *key1_id.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key1", "rob"));
+  ASSERT_TRUE(memcmp(key1_id.get_key_data(), "Robi",
+                     key1_id.get_key_data_size()) == 0);
+  EXPECT_STREQ("AES", key1_id.get_key_type()->c_str());
 
-    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
-    Vault_parser *vault_parser2 = new Vault_parser(logger);
-    Vault_io vault_io2(logger, vault_curl2, vault_parser2);
-    EXPECT_FALSE(vault_io2.init(&credential_file_url));
-    ISerialized_object *serialized_keys= NULL;
-    EXPECT_FALSE(vault_io2.get_serialized_object(&serialized_keys));
-    ASSERT_TRUE(serialized_keys == NULL); // no keys
-  }
+  Vault_key key_to_remove(key);
+  key_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
 
-  class Mock_vault_curl : public IVault_curl
-  {
-  public:
-    MOCK_METHOD1(init, bool(const Vault_credentials &vault_credentials));
-    MOCK_METHOD1(list_keys, bool(Secure_string *response));
-    MOCK_METHOD2(write_key, bool(const Vault_key &key, Secure_string *response));
-    MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
-    MOCK_METHOD2(delete_key, bool(const Vault_key &key, Secure_string *response));
-    MOCK_METHOD1(set_timeout, void(uint timeout));
-  };
+  Vault_parser_composer *vault_parser2=
+      new Vault_parser_composer(get_logger());
+  Vault_curl *vault_curl2= new Vault_curl(get_logger(), vault_parser2, 0);
+  Vault_io    vault_io2(get_logger(), vault_curl2, vault_parser2);
+  EXPECT_FALSE(vault_io2.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
+  ISerialized_object *serialized_keys= NULL;
+  EXPECT_FALSE(vault_io2.get_serialized_object(&serialized_keys));
+  ASSERT_TRUE(serialized_keys == NULL);  // no keys
+}
 
-  TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(true)); // init unsuccessful
-    EXPECT_TRUE(vault_io.init(&credential_file_url));
-  }
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(true));  // init unsuccessful
+  EXPECT_TRUE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
+}
 
-  TEST_F(Vault_io_test, ErrorFromVaultCurlOnListKeys)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorFromVaultCurlOnListKeys)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    ISerialized_object *serialized_object;
+  ISerialized_object *serialized_object;
 
-    EXPECT_CALL(*mock_curl, list_keys(_))
-      .WillOnce(Return(true)); // failed to list keys
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault.")));
+  EXPECT_CALL(*mock_curl, list_keys(_))
+      .WillOnce(Return(true));  // failed to list keys
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL,
+                  StrEq("Could not retrieve list of keys from Vault.")));
 
-    EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-    EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object*>(NULL));
-  }
+  EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
+  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(NULL));
+}
 
-  TEST_F(Vault_io_test, ErrorsFromVaultInVaultsResponseOnListKeys)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorsFromVaultInVaultsResponseOnListKeys)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    ISerialized_object *serialized_object;
-    Secure_string vault_response("{ errors: [\"list is broken\"] }"); 
+  ISerialized_object *serialized_object;
+  Secure_string       vault_response("{ \"errors\": [\"list is broken\"] }");
 
-    EXPECT_CALL(*mock_curl, list_keys(_))
+  EXPECT_CALL(*mock_curl, list_keys(_))
       .WillOnce(DoAll(SetArgPointee<0>(vault_response), Return(true)));
-      
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault. Vault has returned the following error(s): [\"list is broken\"]")));
 
-    EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-    EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object*>(NULL));
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
+      log(MY_ERROR_LEVEL,
+          StrEq("Could not retrieve list of keys from Vault. Vault has "
+                "returned the following error(s): list is broken")));
 
-    vault_response = "{errors: [\"list is broken\", \"and some other error\"]}"; 
+  EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
+  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(NULL));
 
-    EXPECT_CALL(*mock_curl, list_keys(_))
+  vault_response=
+      "{\"errors\": [\"list is broken\", \"and some other error\"]}";
+
+  EXPECT_CALL(*mock_curl, list_keys(_))
       .WillOnce(DoAll(SetArgPointee<0>(vault_response), Return(true)));
-      
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault. Vault has returned the following error(s): [\"list is broken\", \"and some other error\"]")));
 
-    EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-    EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object*>(NULL));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL,
+                  StrEq("Could not retrieve list of keys from Vault. Vault "
+                        "has returned the following error(s): list is "
+                        "broken\nand some other error")));
 
-    vault_response = "{ errors: [\"list is broken\",\n\"and some other error\"\n] }"; 
+  EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
+  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(NULL));
 
-    EXPECT_CALL(*mock_curl, list_keys(_))
+  vault_response=
+      "{ \"errors\": [\"list is broken\",\n\"and yet another error\"\n] }";
+
+  EXPECT_CALL(*mock_curl, list_keys(_))
       .WillOnce(DoAll(SetArgPointee<0>(vault_response), Return(true)));
-      
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault. Vault has returned the following error(s): [\"list is broken\",\"and some other error\"]")));
 
-    EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-    EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object*>(NULL));
-  }
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL,
+                  StrEq("Could not retrieve list of keys from Vault. Vault "
+                        "has returned the following error(s): list is "
+                        "broken\nand yet another error")));
 
-  TEST_F(Vault_io_test, ErrorsFromVaultCurlOnReadKey)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+  EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
+  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(NULL));
+}
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+TEST_F(Vault_io_test, ErrorsFromVaultCurlOnReadKey)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    IKey *key = NULL;
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    EXPECT_CALL(*mock_curl, read_key(_, _))
-      .WillOnce(Return(true));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault.")));
-    EXPECT_TRUE(vault_io.retrieve_key_type_and_data(key));
-  }
+  IKey *key= NULL;
 
-  TEST_F(Vault_io_test, ErrorsFromVaultInVaultsCurlResponseOnReadKey)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+  EXPECT_CALL(*mock_curl, read_key(_, _)).WillOnce(Return(true));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault.")));
+  EXPECT_TRUE(vault_io.retrieve_key_type_and_data(key));
+}
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+TEST_F(Vault_io_test, ErrorsFromVaultInVaultsCurlResponseOnReadKey)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    IKey *key = NULL;
-    Secure_string vault_response("{ errors: [\"Cannot read this stuff\"] }"); 
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    EXPECT_CALL(*mock_curl, read_key(_, _))
+  IKey *        key= NULL;
+  Secure_string vault_response(
+      "{ \"errors\": [\"Cannot read this stuff\"] }");
+
+  EXPECT_CALL(*mock_curl, read_key(_, _))
       .WillOnce(DoAll(SetArgPointee<1>(vault_response), Return(true)));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault. Vault has returned the following error(s):"
-                                " [\"Cannot read this stuff\"]")));
-    EXPECT_TRUE(vault_io.retrieve_key_type_and_data(key));
-  }
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
+      log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault. Vault has "
+                                "returned the following error(s):"
+                                " Cannot read this stuff")));
+  EXPECT_TRUE(vault_io.retrieve_key_type_and_data(key));
+}
 
-  TEST_F(Vault_io_test, ErrorsFromVaultCurlOnDeleteKey)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorsFromVaultCurlOnDeleteKey)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    Vault_key key(key_1_id, "AES", "Arczi", "Artur", 5);
-    key.set_key_operation(REMOVE_KEY);
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                "Arczi", "Artur", 5);
+  key.set_key_operation(REMOVE_KEY);
 
-    EXPECT_CALL(*mock_curl, delete_key(_,_))
-      .WillOnce(Return(true));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not delete key from Vault.")));
-    EXPECT_TRUE(vault_io.flush_to_storage(&key));
-  }
+  EXPECT_CALL(*mock_curl, delete_key(_, _)).WillOnce(Return(true));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL, StrEq("Could not delete key from Vault.")));
+  EXPECT_TRUE(vault_io.flush_to_storage(&key));
+}
 
-  TEST_F(Vault_io_test, ErrorsFromVaultInVaultsCurlResponseOnDeleteKey)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorsFromVaultInVaultsCurlResponseOnDeleteKey)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    Vault_key key(key_1_id, "AES", "Arczi", "Artur", 5);
-    key.set_key_operation(REMOVE_KEY);
-    Secure_string vault_response("{ errors: [\"Cannot delete this stuff\"] }"); 
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                "Arczi", "Artur", 5);
+  key.set_key_operation(REMOVE_KEY);
+  Secure_string vault_response(
+      "{ \"errors\": [\"Cannot delete this stuff\"] }");
 
-    EXPECT_CALL(*mock_curl, delete_key(_, _))
+  EXPECT_CALL(*mock_curl, delete_key(_, _))
       .WillOnce(DoAll(SetArgPointee<1>(vault_response), Return(false)));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not delete key from Vault. Vault has returned the following error(s):"
-                                " [\"Cannot delete this stuff\"]")));
-    EXPECT_TRUE(vault_io.flush_to_storage(&key));
-  }
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
+      log(MY_ERROR_LEVEL, StrEq("Could not delete key from Vault. Vault "
+                                "has returned the following error(s):"
+                                " Cannot delete this stuff")));
+  EXPECT_TRUE(vault_io.flush_to_storage(&key));
+}
 
-  TEST_F(Vault_io_test, ErrorsFromVaultCurlOnWriteKey)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorsFromVaultCurlOnWriteKey)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    Vault_key key(key_1_id, "AES", "Arczi", "Artur", 5);
-    key.set_key_operation(STORE_KEY);
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                "Arczi", "Artur", 5);
+  key.set_key_operation(STORE_KEY);
 
-    EXPECT_CALL(*mock_curl, write_key(_,_))
-      .WillOnce(Return(true));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not write key to Vault.")));
-    EXPECT_TRUE(vault_io.flush_to_storage(&key));
-  }
+  EXPECT_CALL(*mock_curl, write_key(_, _)).WillOnce(Return(true));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL, StrEq("Could not write key to Vault.")));
+  EXPECT_TRUE(vault_io.flush_to_storage(&key));
+}
 
-  TEST_F(Vault_io_test, ErrorsFromVaultInVaultsCurlResponseOnWriteKey)
-  {
-    delete vault_curl;
-    Mock_vault_curl *mock_curl = new Mock_vault_curl();
-    Vault_io vault_io(logger, mock_curl, vault_parser);
+TEST_F(Vault_io_test, ErrorsFromVaultInVaultsCurlResponseOnWriteKey)
+{
+  Mock_vault_curl *mock_curl= create_mock_vault_curl();
+  Vault_io vault_io(get_logger(), mock_curl, create_vault_parser_composer());
 
-    EXPECT_CALL(*mock_curl, init(_))
-      .WillOnce(Return(false)); // init successful
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_CALL(*mock_curl, init(_))
+      .WillOnce(Return(false));  // init successful
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    Vault_key key(key_1_id, "AES", "Arczi", "Artur", 5);
-    key.set_key_operation(STORE_KEY);
-    Secure_string vault_response("{ errors: [\"Cannot write this stuff\"] }"); 
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                "Arczi", "Artur", 5);
+  key.set_key_operation(STORE_KEY);
+  Secure_string vault_response(
+      "{ \"errors\": [\"Cannot write this stuff\"] }");
 
-    EXPECT_CALL(*mock_curl, write_key(_, _))
+  EXPECT_CALL(*mock_curl, write_key(_, _))
       .WillOnce(DoAll(SetArgPointee<1>(vault_response), Return(false)));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not write key to Vault. Vault has returned the following error(s):"
-                                " [\"Cannot write this stuff\"]")));
-    EXPECT_TRUE(vault_io.flush_to_storage(&key));
-  }
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
+      log(MY_ERROR_LEVEL, StrEq("Could not write key to Vault. Vault has "
+                                "returned the following error(s):"
+                                " Cannot write this stuff")));
+  EXPECT_TRUE(vault_io.flush_to_storage(&key));
+}
 
-  class Mock_vault_parser : public IVault_parser
-  {
-  public:
-    MOCK_METHOD2(parse_keys, bool(const Secure_string &payload, Vault_keys_list *keys));
-    MOCK_METHOD2(parse_key_data, bool(const Secure_string &payload, IKey *key));
-    MOCK_METHOD2(parse_key_signature, bool(const Secure_string &key_signature, KeyParameters *key_parameters));
-    MOCK_METHOD2(parse_errors, bool(const Secure_string &payload, Secure_string *errors));
-  };
+TEST_F(Vault_io_test, ErrorFromParseKeysOnGetSerializedObject)
+{
+  Vault_parser_composer       real_parser(get_logger());
+  Mock_vault_parser_composer *mock_vault_parser=
+      create_mock_vault_parser_composer();
+  Vault_curl *  real_vault_curl= create_vault_curl(mock_vault_parser);
+  Secure_string postdata1, postdata2;
+  Secure_string encoded_key_data1, encoded_key_data2;
+  Vault_io      vault_io(get_logger(), real_vault_curl, mock_vault_parser);
 
-  TEST_F(Vault_io_test, ErrorFromParseKeysOnGetSerializedObject)
-  {
-    delete vault_parser;
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-    Mock_vault_parser *mock_vault_parser = new Mock_vault_parser;
-    Vault_io vault_io(logger, vault_curl, mock_vault_parser);
+  // First add two keys into Vault
+  Vault_key key1(Vault_environment::get_instance()->get_key1_id_raw(), "AES",
+                 "Arczi", "Artur", 5);
+  Vault_key key2(Vault_environment::get_instance()->get_key2_id_raw(), "AES",
+                 "Kamil", "Kami", 4);
 
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  EXPECT_FALSE(Vault_base64::encode(
+      reinterpret_cast<const char *>(key1.get_key_data()),
+      key1.get_key_data_size(), &encoded_key_data1,
+      Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(real_parser.compose_write_key_postdata(
+      key1, encoded_key_data1,
+      real_vault_curl->get_resolved_secret_mount_point_version(), postdata1));
+  EXPECT_FALSE(Vault_base64::encode(
+      reinterpret_cast<const char *>(key2.get_key_data()),
+      key2.get_key_data_size(), &encoded_key_data2,
+      Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(real_parser.compose_write_key_postdata(
+      key2, encoded_key_data2,
+      real_vault_curl->get_resolved_secret_mount_point_version(), postdata2));
 
-    // First add two keys into Vault
-    Vault_key key1(key_1_id, "AES", "Arczi", "Artur", 5);
-    EXPECT_TRUE(*key1.get_key_signature() == get_key_signature(uuid,"key1","Arczi"));
-    key1.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key1));
-    Vault_key key2(key_2_id, "AES", "Kamil", "Kami", 4);
-    EXPECT_TRUE(*key2.get_key_signature() == get_key_signature(uuid,"key2","Kamil"));
-    key2.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key2));
-    // *****
+  EXPECT_CALL(*mock_vault_parser, compose_write_key_postdata(_, _, _, _))
+      .WillOnce(DoAll(SetArgReferee<3>(postdata1), Return(false)))
+      .WillOnce(DoAll(SetArgReferee<3>(postdata2), Return(false)));
 
-    EXPECT_CALL(*mock_vault_parser, parse_keys(_, _))
+  EXPECT_TRUE(
+      *key1.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key1", "Arczi"));
+  key1.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key1));
+
+  EXPECT_TRUE(
+      *key2.get_key_signature() ==
+      Vault_environment::get_instance()->get_key_signature("key2", "Kamil"));
+  key2.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key2));
+  // *****
+
+  EXPECT_CALL(*mock_vault_parser, parse_keys(_, _)).WillOnce(Return(true));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL,
+                  StrEq("Could not retrieve list of keys from Vault.")));
+
+  ISerialized_object *serialized_keys= NULL;
+  EXPECT_TRUE(vault_io.get_serialized_object(&serialized_keys));
+
+  ASSERT_TRUE(serialized_keys == NULL);
+
+  // Now remove the keys
+  Vault_key key1_to_remove(key1);
+  key1_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key1_to_remove));
+  Vault_key key2_to_remove(key2);
+  key2_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key2_to_remove));
+}
+
+TEST_F(Vault_io_test, ErrorFromParseKeyDataOnRetrieveKeyTypeAndValue)
+{
+  Vault_parser_composer       real_parser(get_logger());
+  Mock_vault_parser_composer *mock_vault_parser=
+      create_mock_vault_parser_composer();
+  Vault_curl *  real_vault_curl= create_vault_curl(mock_vault_parser);
+  Secure_string postdata;
+  Secure_string encoded_key_data;
+
+  Vault_io vault_io(get_logger(), real_vault_curl, mock_vault_parser);
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
+
+  Vault_key key_to_store(Vault_environment::get_instance()->get_key1_id_raw(),
+                         "AES", "rob", "Robi", 4);
+
+  EXPECT_FALSE(Vault_base64::encode(
+      reinterpret_cast<const char *>(key_to_store.get_key_data()),
+      key_to_store.get_key_data_size(), &encoded_key_data,
+      Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(real_parser.compose_write_key_postdata(
+      key_to_store, encoded_key_data,
+      real_vault_curl->get_resolved_secret_mount_point_version(), postdata));
+
+  EXPECT_CALL(*mock_vault_parser, compose_write_key_postdata(_, _, _, _))
+      .WillOnce(DoAll(SetArgReferee<3>(postdata), Return(false)));
+
+  key_to_store.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
+
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), NULL,
+                "rob", NULL, 0);
+  EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key, Vault_version_v1))
       .WillOnce(Return(true));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault.")));
+  EXPECT_CALL(*mock_vault_parser, parse_errors(_, _)).WillOnce(Return(false));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(get_logger())),
+              log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault.")));
+  EXPECT_TRUE(vault_io.retrieve_key_type_and_data(&key));
 
-    ISerialized_object *serialized_keys= NULL;
-    EXPECT_TRUE(vault_io.get_serialized_object(&serialized_keys));
+  Vault_key key_to_remove(
+      Vault_environment::get_instance()->get_key1_id_raw(), NULL, "rob", NULL,
+      0);
+  key_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
+}
 
-    ASSERT_TRUE(serialized_keys == NULL);
+TEST_F(Vault_io_test,
+       ErrorFromParseKeyDataAndParseErrorsOnRetrieveKeyTypeAndValue)
+{
+  Vault_parser_composer       real_parser(get_logger());
+  Mock_vault_parser_composer *mock_vault_parser=
+      create_mock_vault_parser_composer();
+  Vault_curl *  real_vault_curl= create_vault_curl(mock_vault_parser);
+  Secure_string postdata;
+  Secure_string encoded_key_data;
 
-    // Now remove the keys
-    Vault_key key1_to_remove(key1);
-    key1_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key1_to_remove));
-    Vault_key key2_to_remove(key2);
-    key2_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key2_to_remove));
-  }
+  Vault_io vault_io(get_logger(), real_vault_curl, mock_vault_parser);
+  EXPECT_FALSE(vault_io.init(
+      &Vault_environment::get_instance()->get_default_conf_file_name()));
 
-  TEST_F(Vault_io_test, ErrorFromParseKeyDataOnRetrieveKeyTypeAndValue)
-  {
-    delete vault_parser;
-    Mock_vault_parser *mock_vault_parser = new Mock_vault_parser;
-    Vault_io vault_io(logger, vault_curl, mock_vault_parser);
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+  Vault_key key_to_store(Vault_environment::get_instance()->get_key1_id_raw(),
+                         "AES", "rob", "Robi", 4);
 
-    Vault_key key_to_store(key_1_id, "AES", "rob", "Robi", 4);
-    key_to_store.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
+  EXPECT_FALSE(Vault_base64::encode(
+      reinterpret_cast<const char *>(key_to_store.get_key_data()),
+      key_to_store.get_key_data_size(), &encoded_key_data,
+      Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(real_parser.compose_write_key_postdata(
+      key_to_store, encoded_key_data,
+      real_vault_curl->get_resolved_secret_mount_point_version(), postdata));
 
-    Vault_key key(key_1_id, NULL, "rob", NULL, 0);
-    EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key))
+  EXPECT_CALL(*mock_vault_parser, compose_write_key_postdata(_, _, _, _))
+      .WillOnce(DoAll(SetArgReferee<3>(postdata), Return(false)));
+
+  key_to_store.set_key_operation(STORE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
+
+  Vault_key key(Vault_environment::get_instance()->get_key1_id_raw(), NULL,
+                "rob", NULL, 0);
+  EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key, Vault_version_v1))
       .WillOnce(Return(true));
-    EXPECT_CALL(*mock_vault_parser, parse_errors(_, _))
-      .WillOnce(Return(false));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault.")));
-    EXPECT_TRUE(vault_io.retrieve_key_type_and_data(&key));
+  EXPECT_CALL(*mock_vault_parser, parse_errors(_, _)).WillOnce(Return(true));
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(get_logger())),
+      log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault. Error "
+                                "while parsing error messages")));
+  EXPECT_TRUE(vault_io.retrieve_key_type_and_data(&key));
 
-    Vault_key key_to_remove(key_1_id, NULL, "rob", NULL, 0);
-    key_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
-  }
+  Vault_key key_to_remove(
+      Vault_environment::get_instance()->get_key1_id_raw(), NULL, "rob", NULL,
+      0);
+  key_to_remove.set_key_operation(REMOVE_KEY);
+  EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
+}
+}  // namespace keyring__vault_io_unittest
 
-  TEST_F(Vault_io_test, ErrorFromParseKeyDataAndParseErrorsOnRetrieveKeyTypeAndValue)
-  {
-    delete vault_parser;
-    Mock_vault_parser *mock_vault_parser = new Mock_vault_parser;
-    Vault_io vault_io(logger, vault_curl, mock_vault_parser);
-    EXPECT_FALSE(vault_io.init(&credential_file_url));
+#define TRAP_TEST_CASE_NAME WARNINGVault_io_test_trap
+#define TRAP_TEST_NAME OnlyThisTestIsRunWhenVaultEnvironmentVariablesAreNotSet
+#define TRAP_TEST_FULL_NAME               \
+  BOOST_PP_STRINGIZE(TRAP_TEST_CASE_NAME) \
+  "." BOOST_PP_STRINGIZE(TRAP_TEST_NAME)
 
-    Vault_key key_to_store(key_1_id, "AES", "rob", "Robi", 4);
-    key_to_store.set_key_operation(STORE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_store));
+namespace keyring__vault_io_unittest {
+GTEST_TEST(TRAP_TEST_CASE_NAME, TRAP_TEST_NAME) { GTEST_SUCCEED(); }
+}  // namespace keyring__vault_io_unittest
 
-    Vault_key key(key_1_id, NULL, "rob", NULL, 0);
-    EXPECT_CALL(*mock_vault_parser, parse_key_data(_, &key))
-      .WillOnce(Return(true));
-    EXPECT_CALL(*mock_vault_parser, parse_errors(_, _))
-      .WillOnce(Return(true));
-    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not read key from Vault. Error while parsing error messages")));
-    EXPECT_TRUE(vault_io.retrieve_key_type_and_data(&key));
-
-    Vault_key key_to_remove(key_1_id, NULL, "rob", NULL, 0);
-    key_to_remove.set_key_operation(REMOVE_KEY);
-    EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
-  }
-} // namespace keyring__file_io_unittest
-
-int main(int argc, char **argv) {
-
+int main(int argc, char **argv)
+{
   ::testing::InitGoogleTest(&argc, argv);
-  MY_INIT(argv[0]);
-  my_testing::setup_server_for_unit_tests();
-  curl_global_init(CURL_GLOBAL_DEFAULT);
+  ::testing::InitGoogleMock(&argc, argv);
+  if (is_vault_environment_configured())
+  {
+    if (!::testing::GTEST_FLAG(filter).empty())
+      ::testing::GTEST_FLAG(filter)+= ':';
+    ::testing::GTEST_FLAG(filter)+= '-';
+    ::testing::GTEST_FLAG(filter)+= TRAP_TEST_FULL_NAME;
+    ::testing::AddGlobalTestEnvironment(Vault_environment::create_instance());
+  }
+  else
+    ::testing::GTEST_FLAG(filter)= TRAP_TEST_FULL_NAME;
 
-  //create unique secret mount point for this test suite
-  CURL *curl = curl_easy_init();
-  if (curl == NULL)
-  {
-    std::cout << "Could not initialize CURL session" << std::endl;
-    curl_global_cleanup();
-    return 1; 
-  }
-  BOOST_SCOPE_EXIT(&curl)
-  {
-    curl_easy_cleanup(curl);
-    curl_global_cleanup();
-  } BOOST_SCOPE_EXIT_END
-  
-  keyring__vault_io_unittest::logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(curl, keyring__vault_io_unittest::logger);
-  std::string mount_point_path= "cicd/" + keyring__vault_io_unittest::uuid;
-  if (generate_credential_file(
-          keyring__vault_io_unittest::credential_file_url, CORRECT,
-          mount_point_path))
-  {
-    std::cout << "Could not generate credential file" << std::endl;
-    return 2; 
-  }
-  if (vault_mount.init(&keyring__vault_io_unittest::credential_file_url,
-                       &mount_point_path))
-  {
-    std::cout << "Could not initialized Vault_mount" << std::endl;
-    return 3;
-  }
-  if (vault_mount.mount_secret_backend())
-  {
-    std::cout << "Could not mount secret backend" << std::endl;
-    return 4;
-  }
-  int ret= RUN_ALL_TESTS();
-  
-  //remove unique secret mount point
-  if (vault_mount.unmount_secret_backend())
-  {
-    std::cout << "Could not unmount secret backend" << std::endl;
-  }
-  delete keyring__vault_io_unittest::logger;
-  my_testing::teardown_server_for_unit_tests();
-
-  return ret;
+  return RUN_ALL_TESTS();
 }

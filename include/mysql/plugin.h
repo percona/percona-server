@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -673,7 +673,7 @@ enum mysql_trx_stat_type
 */
 void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
                             enum mysql_trx_stat_type type,
-                            unsigned long long       value);
+                            uint64_t value);
 
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 

@@ -68,6 +68,7 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 include/start_slave_sql.inc
 CALL mtr.add_suppression("Consider raising the value of the slave_transaction_retries variable");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+CALL mtr.add_suppression("Worker 2 failed executing transaction .* Deadlock found when trying to get lock");
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

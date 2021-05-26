@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <mysql/plugin_keyring.h>
 #include <keys_container.h>
 #include "mock_logger.h"
+#include "mock_serialized_object.h"
+#include "mock_serializer.h"
 #include <fstream>
 #include "i_serialized_object.h"
 #include "buffered_file_io.h"
@@ -1100,27 +1102,15 @@ namespace keyring__keys_container_unittest
   class Mock_keyring_io : public IKeyring_io
   {
   public:
-    MOCK_METHOD1(init, my_bool(std::string *keyring_filename));
-    MOCK_METHOD1(flush_to_backup, my_bool(ISerialized_object *serialized_object));
-    MOCK_METHOD1(flush_to_storage, my_bool(ISerialized_object *serialized_object));
-    MOCK_METHOD0(get_serializer, ISerializer*());
-    MOCK_METHOD1(get_serialized_object, my_bool(ISerialized_object **serialized_object));
-    MOCK_METHOD0(has_next_serialized_object, my_bool());
-  };
-
-  class Mock_serialized_object : public ISerialized_object
-  {
-  public:
-    MOCK_METHOD1(get_next_key, my_bool(IKey **key));
-    MOCK_METHOD0(has_next_key, my_bool());
-    MOCK_METHOD0(get_key_operation, Key_operation());
-    MOCK_METHOD1(set_key_operation, void(Key_operation));
-  };
-
-  class Mock_serializer : public ISerializer
-  {
-  public:
-    MOCK_METHOD3(serialize, ISerialized_object*(HASH*, IKey*, Key_operation));
+   MOCK_METHOD1(init, my_bool(const std::string *keyring_filename));
+   MOCK_METHOD1(flush_to_backup,
+                my_bool(ISerialized_object *serialized_object));
+   MOCK_METHOD1(flush_to_storage,
+                my_bool(ISerialized_object *serialized_object));
+   MOCK_METHOD0(get_serializer, ISerializer *());
+   MOCK_METHOD1(get_serialized_object,
+                my_bool(ISerialized_object **serialized_object));
+   MOCK_METHOD0(has_next_serialized_object, my_bool());
   };
 
   class Keys_container_with_mocked_io_test : public ::testing::Test

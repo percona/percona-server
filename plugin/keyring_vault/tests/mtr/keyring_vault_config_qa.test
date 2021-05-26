@@ -2,9 +2,37 @@
 
 --source include/have_keyring_vault_plugin.inc
 --source include/not_embedded.inc
---source include/not_repeat.inc
 
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+--source parse_combination.inc
+
+--let $conf_file1 = $MYSQLTEST_VARDIR/keyring_vault1.conf
+--let $conf_file2 = $MYSQLTEST_VARDIR/keyring_vault2.conf
+--let $conf_invalid = $MYSQLTEST_VARDIR/keyring_vault_invalid_token.conf
+
+--let $mount_point_service_op = CREATE
+
+--let $vault_conf_file = $conf_file1
+--let $vault_conf_mount_point_suffix = _1
+--source generate_conf_file.inc
+--source mount_point_service.inc
+
+--let $vault_conf_file = $conf_file2
+--let $vault_conf_mount_point_suffix = _2
+--source generate_conf_file.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --source mount_point_service.inc
+}
+
+--let $vault_conf_file = $conf_invalid
+--let $vault_conf_mount_point_suffix = _3
+--let $vault_conf_token = aabbccddeeffeegghhiijjkk
+--source generate_conf_file.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not read secret_mount_point from the configuration file.'");
 call mtr.add_suppression("\\[Error\\] Function 'keyring_vault' already exists");
 call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
@@ -13,18 +41,12 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported:.* Connection timed out");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault.");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' not found");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not identify credentials file size.'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Can't seek in file '/'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
-
---source generate_default_mount_conf_files.inc
---source is_vault_server_up.inc
-
-# Create mount points
---let MOUNT_POINT_SERVICE_OP=CREATE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source mount_point_service.inc
+call mtr.add_suppression("\\[Warning\\] Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Auto-detected mount point version is not the same as specified in 'secret_mount_point_version'\\.");
+--enable_query_log
 
 # Installing keyring plugin.
 --replace_regex /\.dll/.so/
@@ -34,7 +56,7 @@ query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 --echo
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
+eval SET @@global.keyring_vault_config='$conf_file1';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 # Creating table with encryption.
@@ -42,7 +64,7 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 # Setting keyring_vault_config value to file.
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
+eval SET @@global.keyring_vault_config='$conf_file2';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 
@@ -66,10 +88,10 @@ eval SET @@local.keyring_vault_config='$MYSQL_TMP_DIR/new_keyring_vault_config';
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@global.keyring_vault_config='$KEYRING_INVALID_TOKEN_CONF_FILE';
+eval SET @@global.keyring_vault_config='$conf_invalid';
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
+eval SET @@global.keyring_vault_config='$conf_file1';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 
@@ -88,9 +110,27 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 # Cleanup
 DROP TABLE t1;
 
+# Restart is required here for --repeat=N runs because without it when MK is
+# created and stored in the keyring during the first run it will be inaccessible
+# during the second as keyring storage is reset
+--source include/restart_mysqld.inc
+
 # Delete mount points
---let MOUNT_POINT_SERVICE_OP=DELETE
---let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--let $vault_conf_token =
+--let $mount_point_service_op = DELETE
+
+--let $vault_conf_mount_point_suffix = _1
 --source mount_point_service.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --let $vault_conf_mount_point_suffix = _2
+  --source mount_point_service.inc
+}
+
 --echo
 --echo #End:
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2
+--remove_file $conf_invalid

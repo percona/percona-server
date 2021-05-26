@@ -53,7 +53,7 @@ You can install Percona yum repository by running the following command as a
 
    .. code-block:: bash
 
-      $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-56-5.6.42-rel84.2.el7.noarch.rpm
+      $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-57-5.7.31-rel84.2.el7.noarch.rpm
 
 2. Testing the repository
 
@@ -68,14 +68,14 @@ You can install Percona yum repository by running the following command as a
    .. code-block:: bash
 
      ...
-     Percona-Server-57-debuginfo.x86_64      5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-client-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-devel-57.x86_64          5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-server-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-shared-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-shared-compat-57.x86_64  5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-test-57.x86_64           5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-tokudb-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
+     Percona-Server-57-debuginfo.x86_64      5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-client-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-devel-57.x86_64          5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-server-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-shared-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-shared-compat-57.x86_64  5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-test-57.x86_64           5.7.31-34.1.el7                 @percona-release-x86_64
+     Percona-Server-tokudb-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
      ...
 
      .. note:: 
@@ -109,17 +109,17 @@ Percona offers pre-release builds from our testing repository. To subscribe to t
 Installing |Percona Server| using downloaded rpm packages
 =========================================================
 
-1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-3 release packages for *CentOS* 7:
+1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.31-34 release packages for *CentOS* 7:
 
    .. code-block:: bash
  
-     $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/redhat/7/x86_64/Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
+     $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.31-34/binary/redhat/7/x86_64/Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages:
 
    .. code-block:: bash
 
-     $ tar xvf Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
+     $ tar xvf Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
     
    After you unpack the bundle you should see the following packages:  
 
@@ -127,25 +127,32 @@ Installing |Percona Server| using downloaded rpm packages
 
      $ ls *.rpm
 
-     Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-devel-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-server-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-shared-compat-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-test-57-5.7.10-3.1.el7.x86_64.rpm
-     Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm
+     Percona-Server-57-debuginfo-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-client-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-devel-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-rocksdb-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-server-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-shared-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-shared-compat-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-test-57-5.7.31-34.1.el7.x86_64.rpm
+     Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm
 
 
 3. Now you can install |Percona Server| 5.7 by running:
 
    .. code-block:: bash
 
-     rpm -ivh Percona-Server-server-57-5.7.10-3.1.el7.x86_64.rpm \
-     Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm \
-     Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
+     rpm -ivh Percona-Server-server-57-5.7.31-34.1.el7.x86_64.rpm \
+     Percona-Server-client-57-5.7.31-34.1.el7.x86_64.rpm \
+     Percona-Server-shared-57-5.7.31-34.1.el7.x86_64.rpm
 
-This will install only packages required to run the |Percona Server| 5.7. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by adding the ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command above. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+This will install only packages required to run the |Percona Server| 5.7.
+
+Optionally, you can install either the :ref:`TokuDB <tokudb_intro>` storage engine, adding ``Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm``  or the :ref:`MyRocks <myrocks_intro>` storage engine, adding ``Percona-Server-rocksdb-57-5.7.31-34.1.el7.x86_64.rpm`` to the install command.
+
+You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+
+You can find more information on how to install and enable the |MyRocks| storage engine in the :ref:`myrocks_install` guide.
 
 To install all the packages (for debugging, testing, etc.) you should run:
 

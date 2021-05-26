@@ -180,7 +180,7 @@ eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLU
 --echo #-----------------------------------------------------------------------
 --echo # Test 1 : Restart with same keyring option , all tables accesible
 --echo # restart with --early-plugin-load 
---let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_parameters="$keyring1_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
@@ -188,7 +188,7 @@ eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLU
 --echo # init tables
 call tde_db.init_setup();
 --echo # restart with same --early-plugin-load and keyring_file_data option
---let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_parameters="$keyring1_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 # All tables accessible
@@ -266,7 +266,7 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_
 --echo # accessible but rest are.
 --echo # restart with --early-plugin-load to load initial data
 
---let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_parameters="$keyring1_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
@@ -329,7 +329,7 @@ DROP DATABASE tde_db;
 --echo # Initial setup
 --echo # Starting server with keyring plugin 
 
---let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_parameters="$keyring1_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
@@ -531,14 +531,14 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo # And creation of new encrypt,non encrypt table is also posible
 #------------------------------------------------------------------------------
 --echo # restart with --early-plugin-load to load initial data
---let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_parameters="$keyring1_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
 --echo # restart with with different keyring_file_data file
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
+--let $restart_parameters="$keyring2_restart_param"
 --let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 

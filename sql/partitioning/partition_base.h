@@ -57,6 +57,7 @@ class Partition_base : public handler,
 
  private:
   virtual handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc)= 0;
+  virtual Table_flags default_table_flags() const= 0;
 
  private:
   /* Data for the partition handler */

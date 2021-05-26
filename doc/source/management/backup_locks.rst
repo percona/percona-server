@@ -77,6 +77,8 @@ Option :option:`lock-for-backup` is mutually exclusive with :option:`lock-all-ta
 
 If the backup locks feature is not supported by the target server, but :option:`lock-for-backup` is specified on the command line, ``mysqldump`` aborts with an error.
 
+|Percona XtraBackup| provides the `--backup-locks <https://www.percona.com/doc/percona-xtrabackup/2.4/innobackupex/innobackupex_option_reference.html#cmdoption-innobackupex-backup-locks>`_ option. If you disable this option, ``Flush Table with Read Lock`` is used on the backup stage.
+
 Version Specific Information
 ============================
 

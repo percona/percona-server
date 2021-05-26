@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -292,6 +292,17 @@ innobase_get_at_most_n_mbchars(
 				number of CHARACTERS n in the prefix) */
 	ulint data_len,		/*!< in: length of the string in bytes */
 	const char* str);	/*!< in: character string */
+
+/** Checks sys_vars and determines if allocator should mark
+large memory segments with MADV_DONTDUMP
+@return true if @@global.core_file AND
+NOT @@global.innodb_buffer_pool_in_core_file */
+bool innobase_should_madvise_buf_pool();
+
+/** Make sure that core file will not be generated, as generating a core file
+might violate our promise to not dump buffer pool data, and/or might dump not
+the expected memory pages due to failure in using madvise */
+void innobase_disable_core_dump();
 
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.

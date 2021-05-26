@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,14 @@ row_purge_step(
 /* Purge node structure */
 
 struct purge_node_t{
+	/** Info required to purge a record */
+	struct rec_t{
+		trx_undo_rec_t*	undo_rec;	/*!< Record to purge */
+		roll_ptr_t	roll_ptr;		/*!< File pointer to UNDO record */
+	};
+
+	typedef std::vector<rec_t, mem_heap_allocator<rec_t> > Recs;
+
 	que_common_t	common;	/*!< node type: QUE_NODE_PURGE */
 	/*----------------------*/
 	/* Local storage for this graph node */
@@ -123,6 +131,7 @@ struct purge_node_t{
 				clustered index record */
 	ibool		done;	/* Debug flag */
 	trx_id_t	trx_id;	/*!< trx id for this purging record */
+	Recs*		recs;	/*!< Undo recs to purge */
 
 #ifdef UNIV_DEBUG
 	/***********************************************************//**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3319,7 +3319,7 @@ row_sel_store_mysql_rec(
 	}
 
 	if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
-		mem_heap_empty(prebuilt->compress_heap);
+		row_mysql_prebuilt_free_compress_heap(prebuilt);
 
 	if (clust_templ_for_sec) {
 		/* Store all clustered index column of

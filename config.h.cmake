@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -166,6 +166,7 @@
 #cmakedefine HAVE_SIGEV_THREAD_ID 1
 #cmakedefine HAVE_SIGEV_PORT 1
 #cmakedefine HAVE_LOG2 1
+#cmakedefine HAVE_MADV_DONTDUMP 1
 
 #cmakedefine HAVE_ISINF 1
 

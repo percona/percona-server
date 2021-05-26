@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,7 @@ SET(SQL_SHARED_SOURCES
   keycaches.cc
   lock.cc
   locking_service.cc
+  locks/shared_spin_lock.cc
   log.cc
   event_crypt.cc
   mdl.cc
@@ -362,7 +363,7 @@ ENDIF()
 # Segfault in boost::geometry code at high optimization levels
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
-  IF(CMAKEBT MATCHES "^REL")
+  IF(CMAKEBT MATCHES "REL")
     ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
   ENDIF()
 ENDIF()
@@ -404,6 +405,14 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     ../sql-common/client_authentication.cc
     COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
+ENDIF()
+
+# Suppress warnings for gcc-11 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-bounds FILES spatial.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES spatial.cc)
+  # a false positive with a bison-generated file (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
@@ -462,6 +471,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   sql_list.cc 
   ../sql-common/sql_string.cc
   thr_malloc.cc
+  locks/shared_spin_lock.cc
   )
 
 ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})

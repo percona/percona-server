@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -13428,7 +13428,7 @@ static void test_bug9520()
 
   if (!opt_silent)
     printf("Fetched %d rows\n", row_count);
-  DBUG_ASSERT(row_count == 3);
+  assert(row_count == 3);
 
   mysql_stmt_close(stmt);
 
@@ -18146,9 +18146,9 @@ static void test_bug40365(void)
     if (!opt_silent)
       fprintf(stdout, "\ntime[%d]: %02d-%02d-%02d ",
               i, tm[i].year, tm[i].month, tm[i].day);
-      DIE_UNLESS(tm[i].year == 0);
-      DIE_UNLESS(tm[i].month == 0);
-      DIE_UNLESS(tm[i].day == 0);
+    DIE_UNLESS(tm[i].year == 0);
+    DIE_UNLESS(tm[i].month == 0);
+    DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
   rc= mysql_commit(mysql);
@@ -18881,7 +18881,7 @@ static void test_bug49972()
 
     rc= mysql_stmt_fetch(stmt);
     rc= mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -18909,7 +18909,7 @@ static void test_bug49972()
 
     rc= mysql_stmt_fetch(stmt);
     rc= mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);

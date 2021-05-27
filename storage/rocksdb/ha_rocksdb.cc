@@ -8029,6 +8029,16 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
   int rc = 0;
   uint pk_size;
 
+  // Due to MRR, now an index-only scan have pushed index condition.
+  // (If it does, we follow non-index only code path here, except that
+  //  we don't fetch the row).
+  bool have_icp = (pushed_idx_cond && pushed_idx_cond_keyno == active_index);
+  if (have_icp) {
+    if (kd.m_is_reverse_cf) move_forward = !move_forward;
+    rc = find_icp_matching_index_rec(move_forward, buf);
+    if (rc) return (rc);
+  }
+
   /* Get the key columns and primary key value */
   const rocksdb::Slice &rkey = m_scan_it->key();
   const rocksdb::Slice &value = m_scan_it->value();

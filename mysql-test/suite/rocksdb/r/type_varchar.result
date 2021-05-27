@@ -839,3 +839,12 @@ select t_vers from t1 where t_vers = '7.6';
 t_vers
 7.6 
 drop table t1;
+# PS-7722: Multiple-Column Index using Column Prefix Key Parts fails with Index Condition Pushdown in MyRocks
+CREATE TABLE t1 (
+f1 varchar(255) CHARSET utf8mb4 COLLATE utf8mb4_general_ci,
+f2 date,
+KEY idx (f2, f1(200))
+) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES ('63bab075', '2021-05-20');
+include/assert.inc [query should return an empty set]
+DROP TABLE t1;

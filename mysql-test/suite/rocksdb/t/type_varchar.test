@@ -101,3 +101,15 @@ create table t1(
 insert into t1 values ('7.6 ');
 select t_vers from t1 where t_vers = '7.6';
 drop table t1;
+
+--echo # PS-7722: Multiple-Column Index using Column Prefix Key Parts fails with Index Condition Pushdown in MyRocks
+CREATE TABLE t1 (
+  f1 varchar(255) CHARSET utf8mb4 COLLATE utf8mb4_general_ci,
+  f2 date,
+  KEY idx (f2, f1(200))
+) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES ('63bab075', '2021-05-20');
+--let $assert_text = query should return an empty set
+--let $assert_cond = [SELECT COUNT(*) FROM t1 WHERE f1 = \'63bab075\' AND f2 < \'2021-05-19\'] = 0
+--source include/assert.inc
+DROP TABLE t1;

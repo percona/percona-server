@@ -374,7 +374,7 @@ install_deps() {
             yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
             yum -y install re2-devel redhat-lsb-core lz4-static
-            source /opt/rh/devtoolset-10/enable
+            source /opt/rh/devtoolset-8/enable
         else
 	    yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
@@ -382,6 +382,12 @@ install_deps() {
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
 	    yum -y install rpcgen re2-devel libtirpc-devel
 	    yum -y install zstd libzstd libzstd-devel
+        fi
+        if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8" ]; then
+            yum -y install devtoolset-10
+            source /opt/rh/devtoolset-10/enable
+        else
+            source /opt/rh/devtoolset-8/enable
         fi
         if [ "x$RHEL" = "x6" ]; then
             rm -f /usr/bin/cmake
@@ -643,19 +649,19 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     #
     mv *.src.rpm rpmbuild/SRPMS
-    if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8"]; then
-        source /opt/rh/devtoolset-10/enable
-    else
+    if [ "x${RHEL}" = "x6" ]; then
         source /opt/rh/devtoolset-8/enable
+    else
+        source /opt/rh/devtoolset-10/enable
     fi
     build_mecab_lib
     build_mecab_dict
 
     cd ${WORKDIR}
-    if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8"]; then
-        source /opt/rh/devtoolset-10/enable
-    else
+    if [ "x${RHEL}" = "x6" ]; then
         source /opt/rh/devtoolset-8/enable
+    else
+        source /opt/rh/devtoolset-10/enable
     fi
     #
     if [ ${ARCH} = x86_64 ]; then
@@ -816,10 +822,10 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
-      if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8"]; then
-          source /opt/rh/devtoolset-10/enable
-      else
+      if [ "x${RHEL}" = "x6" ]; then
           source /opt/rh/devtoolset-8/enable
+      else
+          source /opt/rh/devtoolset-10/enable
       fi
     fi
     #

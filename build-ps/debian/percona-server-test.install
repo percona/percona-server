@@ -3,6 +3,7 @@ usr/bin/mysql_client_test
 usr/bin/mysqltest
 usr/bin/mysqltest_safe_process
 usr/bin/mysqlxtest
+usr/bin/mysql_keyring_encryption_test
 # plugins
 usr/lib/mysql/plugin/auth_test_plugin.so
 usr/lib/mysql/plugin/component_example_component1.so

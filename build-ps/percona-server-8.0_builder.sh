@@ -352,10 +352,16 @@ install_deps() {
 	    yum -y install rpcgen re2-devel libtirpc-devel
 	    yum -y install zstd libzstd libzstd-devel
         fi
-        if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8" ]; then
+        if [ "x${RHEL}" = "x8" ]; then
+            yum -y install centos-release-stream
+            yum -y install git gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-annobin
+            source /opt/rh/gcc-toolset-10/enable
+        fi
+        if [ "x${RHEL}" = "x7" ]; then
             yum -y install devtoolset-10
             source /opt/rh/devtoolset-10/enable
-        else
+        fi
+	 if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
         fi
         if [ "x$RHEL" = "x6" ]; then
@@ -616,8 +622,12 @@ build_rpm(){
     mv *.src.rpm rpmbuild/SRPMS
     if [ "x${RHEL}" = "x6" ]; then
         source /opt/rh/devtoolset-8/enable
-    else
+    fi
+    if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-10/enable
+    fi
+    if [ "x${RHEL}" = "x8" ]; then
+        source /opt/rh/gcc-toolset-10/enable
     fi
     build_mecab_lib
     build_mecab_dict
@@ -625,8 +635,12 @@ build_rpm(){
     cd ${WORKDIR}
     if [ "x${RHEL}" = "x6" ]; then
         source /opt/rh/devtoolset-8/enable
-    else
+    fi
+    if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-10/enable
+    fi
+    if [ "x${RHEL}" = "x8" ]; then
+        source /opt/rh/gcc-toolset-10/enable
     fi
     #
     if [ ${ARCH} = x86_64 ]; then
@@ -783,8 +797,12 @@ build_tarball(){
       RHEL=$(rpm --eval %rhel)
       if [ "x${RHEL}" = "x6" ]; then
           source /opt/rh/devtoolset-8/enable
-      else
+      fi
+      if [ "x${RHEL}" = "x7" ]; then
           source /opt/rh/devtoolset-10/enable
+      fi
+      if [ "x${RHEL}" = "x8" ]; then
+          source /opt/rh/gcc-toolset-10/enable
       fi
     fi
     #

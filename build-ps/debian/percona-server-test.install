@@ -3,6 +3,7 @@ usr/bin/mysql_client_test
 usr/bin/mysqltest
 usr/bin/mysqltest_safe_process
 usr/bin/mysqlxtest
+usr/bin/mysql_keyring_encryption_test
 # plugins
 usr/lib/mysql/plugin/auth_test_plugin.so
 usr/lib/mysql/plugin/component_example_component1.so
@@ -58,6 +59,7 @@ usr/lib/mysql/plugin/libtest_sql_lock.so
 usr/lib/mysql/plugin/libtest_sql_processlist.so
 usr/lib/mysql/plugin/libtest_sql_replication.so
 usr/lib/mysql/plugin/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/libtest_sql_sleep_is_connected.so
 usr/lib/mysql/plugin/libtest_sql_stmt.so
 usr/lib/mysql/plugin/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/libtest_sql_stored_procedures_functions.so
@@ -135,6 +137,7 @@ usr/lib/mysql/plugin/debug/libtest_sql_lock.so
 usr/lib/mysql/plugin/debug/libtest_sql_processlist.so
 usr/lib/mysql/plugin/debug/libtest_sql_replication.so
 usr/lib/mysql/plugin/debug/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/debug/libtest_sql_sleep_is_connected.so
 usr/lib/mysql/plugin/debug/libtest_sql_stmt.so
 usr/lib/mysql/plugin/debug/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so

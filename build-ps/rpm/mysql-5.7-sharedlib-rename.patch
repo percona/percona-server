@@ -8,14 +8,14 @@
 +TARGET_LINK_LIBRARIES(client_base mysqlclient)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
-@@ -39,13 +39,13 @@
-   mysql.cc
+@@ -42,13 +42,13 @@ MYSQL_ADD_EXECUTABLE(mysql
    pattern_matcher.cc
    readline.cc
+   client_query_attributes.cc
 -  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
 +  LINK_LIBRARIES mysqlclient client_base ${MY_READLINE_LIBRARY}
    )
- 
+
  IF(NOT WITHOUT_SERVER)
    MYSQL_ADD_EXECUTABLE(mysql_upgrade
      upgrade/program.cc
@@ -23,8 +23,8 @@
 +    LINK_LIBRARIES mysqlclient client_base
      )
  ENDIF()
- 
-@@ -68,24 +68,24 @@
+
+@@ -74,24 +74,24 @@ MYSQL_ADD_EXECUTABLE(mysqltest
    COMPONENT Test
    DEPENDENCIES GenError GenClientError
    ENABLE_EXPORTS
@@ -52,19 +52,19 @@
 -  LINK_LIBRARIES perconaserverclient
 +  LINK_LIBRARIES mysqlclient
    )
- MYSQL_ADD_EXECUTABLE(mysqlbinlog
-   mysqlbinlog.cc
-@@ -109,7 +109,7 @@
-   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
- 
-   DEPENDENCIES GenError
--  LINK_LIBRARIES perconaserverclient client_base binlogevents_static
-+  LINK_LIBRARIES mysqlclient client_base binlogevents_static
+
+ OPTION(WITH_JSON_BINLOG_LIBRARY
+@@ -223,7 +223,7 @@ SET(MYSQLBINLOG_SOURCES
+ SET(MYSQLBINLOG_LIBRARIES
+   binlogevents_static
+   client_base
+-  perconaserverclient
++  mysqlclient
    )
- 
- TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
-@@ -117,19 +117,19 @@
- 
+
+ IF(WITH_JSON_BINLOG_LIBRARY)
+@@ -256,19 +256,19 @@ TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
+
  MYSQL_ADD_EXECUTABLE(mysqladmin
    mysqladmin.cc
 -  LINK_LIBRARIES perconaserverclient
@@ -87,6 +87,17 @@
    )
  MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup
    logger.cc
+--- client/migrate_keyring/CMakeLists.txt
++++ client/migrate_keyring/CMakeLists.txt
+@@ -40,7 +40,7 @@ SET(MIGRATE_KEYRING_LIBRARIES
+   ${CMAKE_DL_LIBS}
+   minchassis
+   mysys
+-  perconaserverclient
++  mysqlclient
+   client_base
+   ${SSL_LIBRARIES}
+ )
 --- include/mysql.h	2018-08-18 03:30:11.721480261 -0400
 +++ include/mysql.h	2018-08-18 03:30:11.727980360 -0400
 @@ -28,7 +28,7 @@
@@ -392,21 +403,23 @@
      mysqlgcs
      )
  ENDFOREACH()
---- unittest/gunit/xplugin/CMakeLists.txt	2018-08-22 02:34:45.000000000 -0400
-+++ unittest/gunit/xplugin/CMakeLists.txt 	2018-08-22 02:55:10.561454824 -0400
-@@ -164,7 +164,7 @@
-   ${GCOV_LDFLAGS}
-   ${MYSQLX_CLIENT_LIB}
-   mysqlx
+--- unittest/gunit/xplugin/xcl/CMakeLists.txt
++++ unittest/gunit/xplugin/xcl/CMakeLists.txt
+@@ -77,7 +77,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
+   ${MYSQLX_PROTOCOL_FULL_LIB}
+   ${PROTOBUF_LIBRARY}
+   ${LZ4_LIBRARY}
 -  perconaserverclient
 +  mysqlclient
    gtest
    gmock
  )
-@@ -225,7 +225,7 @@
-   ${MYSQLX_PROTOCOL_FULL_LIB}
-   ${PROTOBUF_LIBRARY}
-   ${LZ4_LIBRARY}
+--- unittest/gunit/xplugin/xpl/CMakeLists.txt
++++ unittest/gunit/xplugin/xpl/CMakeLists.txt
+@@ -115,7 +115,7 @@ TARGET_LINK_LIBRARIES(${XPL_UNIT_TESTS}
+   ${GCOV_LDFLAGS}
+   ${MYSQLX_CLIENT_LIB}
+   mysqlx
 -  perconaserverclient
 +  mysqlclient
    gtest

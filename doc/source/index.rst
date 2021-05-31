@@ -118,7 +118,6 @@ Security Improvements
   security/selinux
   security/apparmor
   security/data-at-rest-encryption
-  security/vault
   security/using-keyring-plugin
   security/rotating-master-key
   security/encrypting-tables
@@ -133,6 +132,7 @@ Security Improvements
   security/verifying-encryption
   security/ssl-improvement
   security/data-masking
+  
 
 Diagnostics Improvements
 ================================================================================
@@ -197,6 +197,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   release-notes/release-notes_index
    upstream-bug-fixes
    ps-variables
    development
@@ -204,7 +205,6 @@ Reference
    index_info_schema_tables
    faq
    copyright
-   release-notes/release-notes_index
    glossary
 
 * :ref:`genindex`

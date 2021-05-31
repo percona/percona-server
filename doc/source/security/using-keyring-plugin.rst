@@ -1,8 +1,32 @@
 .. _using-keyring-plugin:
 
 =======================================================
-Using the Keyring Plugin
+Using the Keyring Component or Keyring Plugins
 =======================================================
+
+.. rubric:: About the Hashicorp Vault
+
+
+
+The ``keyring_vault`` plugin can store the encryption keys inside the `HashiCorp
+Vault <https://www.hashicorp.com/products/vault/data-protection>`__.
+
+.. important::
+
+  The ``keyring_vault`` plugin works with `KV Secrets Engine - Version 1 <https://www.vaultproject.io/docs/secrets/kv/kv-v1.html>`__ or the
+  `KV Secrets Engine - Version 2 <https://www.vaultproject.io/docs/secrets/kv/kv-v2>`__
+
+.. seealso::
+
+  HashiCorp Documentation:
+
+  Installing Vault
+  https://www.vaultproject.io/docs/install/index.html
+
+  Production Hardening
+  https://learn.hashicorp.com/vault/operations/production-hardening
+
+.. rubric:: Keyring options
 
 |Percona Server| may use either of the following plugins:
 
@@ -14,6 +38,7 @@ Using the Keyring Plugin
 .. note::
 
     The ``keyring_file`` plugin should not be used for regulatory compliance.
+
 
 To install the plugin, follow the `installing and uninstalling plugins
 <https://dev.mysql.com/doc/refman/8.0/en/plugin-loading.html>`__ instructions.
@@ -29,8 +54,8 @@ option to enable keyrings.
     Only one keyring plugin should be enabled at a time. Enabling multiple
     keyring plugins is not supported and may result in data loss.
 
-We recommend the plugin should be loaded in the configuration file to facilitate
-recovery for encrypted tables. Also, the redo log and the undo log encryption cannot
+We recommend that you load the plugin in the configuration file to facilitate
+recovery for encrypted tables. Also, the redo log encryption and the undo log encryption cannot
 be used without ``--early-plugin-load``. The normal plugin load happens too late
 in startup.
 
@@ -42,7 +67,7 @@ in startup.
 
 To use the keyring_vault, you can add this option to your configuration file:
 
-.. code-block:: guess
+.. code-block:: bash
 
     [mysqld]
     early-plugin-load="keyring_vault=keyring_vault.so"
@@ -51,6 +76,7 @@ To use the keyring_vault, you can add this option to your configuration file:
     The keyring_vault extension, ".so" and the file location for the vault
     configuration should be changed to match your operating system's extension
     and operating system location.
+
 
 
 You could also run the following command which loads the keyring_file plugin:
@@ -224,35 +250,74 @@ must enable the ``keyring_udf`` plugin:
 
 You must also create keyring encryption user-defined functions.
 
+.. _keyring-component:
+
+Using the keyring_file component
+----------------------------------------
+
+See `keyring component installation <https://dev.mysql.com/doc/refman/8.0/en/keyring-component-installation.html>`__ for information on installing the component.
+ 
+.. warning::
+
+  The ``keyring_file`` component should not be used for regulatory compliance. 
+
+See `Using the keyring_file component ≤https://dev.mysql.com/doc/refman/8.0/en/keyring-file-component.html>`__ for information.
+
 System Variables
 --------------------
 
-.. variable:: keyring_vault_config
+.. sv_keyring_vault_config:
 
-    :cli: ``--keyring-vault-config``
-    :dyn: Yes
-    :scope: Global
-    :vartype: Text
-    :default:
+keyring_vault_config
+^^^^^^^^^^^^^^^^^^^^^^
 
-This variable is used to define the location of the `keyring_vault_plugin`
+`keyring_vault_config` - defines the location of the `keyring_vault_plugin`
 configuration file.
 
-.. variable:: keyring_vault_timeout
+OPTIONS
 
-  :cli: ``--keyring-vault-timeout``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Numeric
-  :default: ``15``
+.. list-table::
+    :widths: 20 30
+    :header-rows: 1
 
-Set the duration in seconds for the Vault server connection timeout. The
-default value is ``15``. The allowed range is from ``0`` to ``86400``. The
-timeout can be also disabled to wait an infinite amount of time by setting
-this variable to ``0``.
+    * - Option
+      - Description
+    * - Command line
+      - ``--keyring-vault-config``
+    * - Dynamic
+      - Yes
+    * - Scope
+      - Global
+    * - Variable Type
+      - Text
+    * - Default
+      - 
+
+
+.. _keyring_vault_timeout:
+
+keyring_vault_timeout
+^^^^^^^^^^^^^^^^^^^^^^
+
+`keyring_vault_timeout` - Set the duration in seconds for the Vault server connection timeout. The default value is ``15``. The allowed range is from ``0`` to ``86400``. To wait an infinite amount of time set the variable to ``0``.
+
+.. list-table::
+    :widths: 20 30
+    :header-rows: 1
+
+    * - Option
+      - Description
+    * - Command line
+      - ``--keyring-vault-timeout``
+    * - Dynamic
+      - Yes
+    * - Scope
+      - Global
+    * - Variable Type
+      - Numeric
+    * - Default
+      - ``15``
 
 .. seealso::
 
-    :ref:`vault`
-
-    :ref:`rotating-master-key`
+    :doc:`rotating-master-key`

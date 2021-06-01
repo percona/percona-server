@@ -71,12 +71,15 @@ set debug_sync = "now signal mark_cf_dropped_done_after_delete_table";
 
 --connection conn1
 reap;
-show tables;
 
 set @@global.debug = @old_debug;
 
 # in case "Rdb_drop_index_thread::run" is waiting for "ready_to_drop_cf"
 set debug_sync = "now signal ready_to_drop_cf";
+
+show tables;
+
+set debug_sync = 'RESET';
 
 --connection default
 --disconnect conn1

@@ -257,6 +257,15 @@ class ha_rocksdb : public my_core::handler {
   rocksdb::PinnableSlice m_retrieved_record;
 
   /*
+    For INSERT ON DUPLICATE KEY UPDATE, we store the duplicate record during
+    write_row here so that we don't have to re-read in the following
+    index_read.
+
+    See also m_insert_with_update.
+  */
+  rocksdb::PinnableSlice m_dup_key_retrieved_record;
+
+  /*
     In case blob indexes are covering, then this buffer will be used
     to store the unpacked blob values temporarily.
     Alocation of m_blob_buffer_start will be done as part of reset_blob_buffer()
@@ -299,10 +308,9 @@ class ha_rocksdb : public my_core::handler {
 
 #ifndef DBUG_OFF
   /*
-    Last retrieved record (for duplicate PK) or index tuple (for duplicate
-    unique SK). Used for sanity checking.
+    Index tuple (for duplicate PK/unique SK). Used for sanity checking.
   */
-  String m_dup_key_retrieved_record;
+  String m_dup_key_tuple;
 #endif
 
   /**
@@ -476,6 +484,8 @@ class ha_rocksdb : public my_core::handler {
   }
 
   bool init_with_fields() override;
+
+  static bool allow_unsafe_alter() noexcept;
 
   static ulong index_flags(bool &pk_can_be_decoded,
                            const TABLE_SHARE *table_share, uint inx, uint part,
@@ -770,14 +780,14 @@ class ha_rocksdb : public my_core::handler {
   int get_pk_for_update(struct update_row_info *const row_info);
   int check_and_lock_unique_pk(const uint key_id,
                                const struct update_row_info &row_info,
-                               bool *const found)
+                               bool *const found, const bool skip_unique_check)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_and_lock_sk(const uint key_id,
                         const struct update_row_info &row_info,
-                        bool *const found)
+                        bool *const found, const bool skip_unique_check)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_uniqueness_and_lock(const struct update_row_info &row_info,
-                                bool pk_changed)
+                                bool pk_changed, const bool skip_unique_check)
       MY_ATTRIBUTE((__warn_unused_result__));
   bool over_bulk_load_threshold(int *err)
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -904,6 +914,7 @@ class ha_rocksdb : public my_core::handler {
 
     /* Free blob data */
     m_retrieved_record.Reset();
+    m_dup_key_retrieved_record.Reset();
     release_blob_buffer();
     DBUG_RETURN(HA_EXIT_SUCCESS);
   }
@@ -922,7 +933,12 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   int create_table(const std::string &table_name,
                    const std::string &actual_user_table_name,
-                   const TABLE *table_arg, ulonglong auto_increment_value);
+                   const TABLE *table_arg, ulonglong auto_increment_value,
+                   dd::Table *table_def);
+  int truncate_table(Rdb_tbl_def *tbl_def,
+                     const std::string &actual_user_table_name,
+                     const TABLE *table_arg, ulonglong auto_increment_value,
+                     dd::Table *table_def);
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
       MY_ATTRIBUTE((__warn_unused_result__));

@@ -360,7 +360,7 @@ INSERT INTO b (
 (8, '2004-09-18', '10:50:38.059966', '2008-09-27
 00:34:58.026613', 'v');
 
---replace_column 10 #
+--replace_column 10 # 11 #
 EXPLAIN SELECT col_INT_key FROM b;
 --sorted_result
 SELECT col_INT_key FROM b;

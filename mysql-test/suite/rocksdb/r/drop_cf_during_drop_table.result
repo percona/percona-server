@@ -49,7 +49,8 @@ set debug_sync = "now wait_for drop_cf_done";
 select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key';
 CF_NAME	STAT_TYPE	VALUE
 set debug_sync = "now signal mark_cf_dropped_done_after_delete_table";
-show tables;
-Tables_in_test
 set @@global.debug = @old_debug;
 set debug_sync = "now signal ready_to_drop_cf";
+show tables;
+Tables_in_test
+set debug_sync = 'RESET';

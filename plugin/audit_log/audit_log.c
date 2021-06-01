@@ -621,8 +621,8 @@ char *audit_log_general_record(char *buf, size_t buflen,
                        "\"ip\":\"%s\","
                        "\"db\":\"%s\"}}\n",
 
-                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
-                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
+                     ("\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
+                      "\"%s\",\"%s\",\"%s\",\"%s\"\n") };
 
   query_length= my_charset_utf8mb4_general_ci.mbmaxlen *
                 event->general_query.length;
@@ -754,8 +754,8 @@ char *audit_log_connection_record(char *buf, size_t buflen,
                        "\"ip\":\"%s\","
                        "\"db\":\"%s\"}}\n",
 
-                     "\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\",\"%s\","
-                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
+                     ("\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\",\"%s\","
+                      "\"%s\",\"%s\",\"%s\",\"%s\"\n") };
 
   user= escape_string(event->user.str, event->user.length,
                       endptr, endbuf - endptr, &endptr, NULL);

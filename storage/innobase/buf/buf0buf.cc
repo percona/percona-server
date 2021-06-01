@@ -5413,6 +5413,11 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
   of outstanding write requests. */
   --buf_pool->n_flush[flush_type];
 
+  if (buf_pool->n_flush[flush_type] == 0 &&
+      buf_pool->init_flush[flush_type] == FALSE) {
+    os_event_set(buf_pool->no_flush[flush_type]);
+  }
+
   mutex_exit(&buf_pool->flush_state_mutex);
 
   /* Free the page. This can fail, if some other thread start to free this stale

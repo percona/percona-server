@@ -734,6 +734,7 @@ static bool rocksdb_enable_insert_with_update_caching = true;
 static unsigned long long rocksdb_max_compaction_history = 0;
 static bool rocksdb_skip_locks_if_skip_unique_check = false;
 static bool rocksdb_alter_column_default_inplace = false;
+static bool rocksdb_instant_ddl = false;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -2345,6 +2346,10 @@ static MYSQL_THDVAR_ULONGLONG(
     nullptr, nullptr,
     /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
+static MYSQL_SYSVAR_BOOL(instant_ddl, rocksdb_instant_ddl, PLUGIN_VAR_RQCMDARG,
+                         "Allow instant ddl during alter table", nullptr,
+                         nullptr, false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
@@ -2538,6 +2543,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(skip_locks_if_skip_unique_check),
     MYSQL_SYSVAR(alter_column_default_inplace),
     MYSQL_SYSVAR(partial_index_sort_max_mem),
+    MYSQL_SYSVAR(instant_ddl),
     nullptr};
 
 static int rocksdb_compact_column_family(THD *const thd,
@@ -12838,10 +12844,56 @@ enum icp_result ha_rocksdb::check_index_cond() const {
   return pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
 }
 
+/** Operations for altering a table that RocksDB does not care about */
+static const Alter_inplace_info::HA_ALTER_FLAGS ROCKSDB_INPLACE_IGNORE =
+    Alter_inplace_info::ALTER_COLUMN_DEFAULT |
+    Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT |
+    Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE |
+    Alter_inplace_info::ALTER_RENAME | Alter_inplace_info::CHANGE_INDEX_OPTION |
+    Alter_inplace_info::ADD_CHECK_CONSTRAINT |
+    Alter_inplace_info::DROP_CHECK_CONSTRAINT |
+    Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT;
+
+/*
+    Checks if instant alter is supported for a given operation.
+*/
+ha_rocksdb::Instant_Type ha_rocksdb::rocksdb_support_instant(
+    my_core::Alter_inplace_info *const ha_alter_info MY_ATTRIBUTE((unused)),
+    const TABLE *old_table MY_ATTRIBUTE((unused)),
+    const TABLE *altered_table MY_ATTRIBUTE((unused))) const {
+  if (rocksdb_instant_ddl) {
+    return Instant_Type::INSTANT_IMPOSSIBLE;
+  }
+
+  if (!(ha_alter_info->handler_flags & ~ROCKSDB_INPLACE_IGNORE)) {
+    /* after adding support, return (Instant_Type::INSTANT_NO_CHANGE) */
+    return (Instant_Type::INSTANT_IMPOSSIBLE);
+  }
+
+  Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
+      ha_alter_info->handler_flags & ~ROCKSDB_INPLACE_IGNORE;
+
+  /* If it's only adding and(or) dropping virtual columns */
+  if (!(alter_inplace_flags & ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+                                Alter_inplace_info::DROP_VIRTUAL_COLUMN))) {
+    /* after enable, return (Instant_Type::INSTANT_VIRTUAL_ONLY); */
+    return (Instant_Type::INSTANT_IMPOSSIBLE);
+  }
+
+  /* If it's an ADD COLUMN without changing existing column orders */
+  if (alter_inplace_flags == Alter_inplace_info::ADD_STORED_BASE_COLUMN) {
+    /* after add col instant support, return Instant_Type::INSTANT_ADD_COLUMN
+     * */
+    return (Instant_Type::INSTANT_IMPOSSIBLE);
+  }
+
+  // by default, impossible to do instant ddl
+  return (Instant_Type::INSTANT_IMPOSSIBLE);
+}
+
 /*
   Checks if inplace alter is supported for a given operation.
 */
-
 my_core::enum_alter_inplace_result ha_rocksdb::check_if_supported_inplace_alter(
     TABLE *altered_table, my_core::Alter_inplace_info *ha_alter_info) {
   DBUG_ENTER_FUNC();
@@ -12853,6 +12905,34 @@ my_core::enum_alter_inplace_result ha_rocksdb::check_if_supported_inplace_alter(
       ha_alter_info->alter_info->flags == Alter_info::ALTER_INDEX_VISIBILITY &&
       ha_alter_info->create_info->used_fields == 0) {
     DBUG_RETURN(my_core::HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+  }
+
+  /* check instant ddl type */
+  Instant_Type instant_type =
+      rocksdb_support_instant(ha_alter_info, this->table, altered_table);
+
+  /* by default, impossible to do intant ddl */
+  ha_alter_info->handler_trivial_ctx =
+      static_cast<uint8>(Instant_Type::INSTANT_IMPOSSIBLE);
+
+  switch (instant_type) {
+    case Instant_Type::INSTANT_IMPOSSIBLE:
+      break;
+    case Instant_Type::INSTANT_ADD_COLUMN:
+      if (ha_alter_info->alter_info->requested_algorithm ==
+          Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
+        /* Still fall back to INPLACE since the behaviour is different */
+        break;
+      } else if (ha_alter_info->error_if_not_empty) {
+        /* In this case, it can't be instant because the table
+        may not be empty. Have to fall back to INPLACE */
+        break;
+      }
+      [[fallthrough]];
+    case Instant_Type::INSTANT_NO_CHANGE:
+    case Instant_Type::INSTANT_VIRTUAL_ONLY:
+      ha_alter_info->handler_trivial_ctx = static_cast<uint8>(instant_type);
+      DBUG_RETURN(HA_ALTER_INPLACE_INSTANT);
   }
 
   if (ha_alter_info->handler_flags &

@@ -34,12 +34,13 @@
 #include <vector>
 
 /* MySQL header files */
-#include "m_ctype.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
 #include "my_stacktrace.h"
 #include "myisampack.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_pool_priv.h"
+#include "strings/m_ctype_internals.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/field.h"
 #include "sql/key.h"

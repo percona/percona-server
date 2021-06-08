@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
 
@@ -51,7 +51,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
   my_off_t offset;
   uchar *in_buff_pos;
   DBUG_ENTER("_mi_read_cache");
-  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
+  assert(!(info->myflags & MY_ENCRYPT));
 
   if (pos < info->pos_in_file)
   {

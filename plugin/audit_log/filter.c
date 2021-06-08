@@ -78,7 +78,7 @@ static
 void account_init(account *acc, const char *user, size_t user_length,
                                 const char *host, size_t host_length)
 {
-  DBUG_ASSERT(user_length + host_length + 2 <= sizeof(acc->name));
+  assert(user_length + host_length + 2 <= sizeof(acc->name));
 
   memcpy(acc->name, user, user_length);
   memcpy(acc->name + user_length + 1, host, host_length);
@@ -120,7 +120,7 @@ uchar *account_get_key(const account *acc, size_t *length,
 static
 void database_init(database *db, const char *name, size_t length)
 {
-  DBUG_ASSERT(length + 1 <= sizeof(db->name));
+  assert(length + 1 <= sizeof(db->name));
 
   memcpy(db->name, name, length);
   db->name[length]= 0;
@@ -159,7 +159,7 @@ uchar *database_get_key(const database *db, size_t *length,
 static
 void command_init(command *cmd, const char *name, size_t length)
 {
-  DBUG_ASSERT(length + 1 <= sizeof(cmd->name));
+  assert(length + 1 <= sizeof(cmd->name));
 
   memcpy(cmd->name, name, length);
   cmd->name[length]= 0;

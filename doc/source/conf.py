@@ -265,8 +265,7 @@ htmlhelp_basename = 'PerconaServer57doc'
 
 latex_documents = [
   ('index', 'PerconaServer-5.7.tex', u'Percona Server for MySQL Documentation',
-  u'Percona LLC and/or it's afiliates 2009-2021', 'manual'
-  ),
+   u'Percona LLC and/or its affiliates 2009-2021', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -819,11 +819,11 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
   // are in use.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
-                                                           TDC_RT_REMOVE_ALL,
-                                                           &share_1),
-                            ".*Assertion.*is_empty.*");
+                                                              TDC_RT_REMOVE_ALL,
+                                                              &share_1),
+                               ".*Assertion.*is_empty.*");
 #endif
 
   table_cache_1->release_table(thd_1, table_1);
@@ -853,11 +853,11 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   // There should be assert failure since we are trying
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
-                                                           TDC_RT_REMOVE_NOT_OWN,
-                                                           &share_1),
-                            ".*Assertion.*0.*");
+                                                              TDC_RT_REMOVE_NOT_OWN,
+                                                              &share_1),
+                               ".*Assertion.*0.*");
 #endif
 
   table_cache_2->release_table(thd_2, table_4);

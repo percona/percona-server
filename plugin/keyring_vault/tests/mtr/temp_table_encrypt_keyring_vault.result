@@ -1,6 +1,3 @@
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
-call mtr.add_suppression("Plugin keyring_vault reported");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;

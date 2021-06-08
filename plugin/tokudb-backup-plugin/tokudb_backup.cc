@@ -910,12 +910,15 @@ private:
             return NULL;
         }
 
+        // N.B. item is deleted by the framework
         Item_func_get_system_var* item =
             new Item_func_get_system_var(var,
                                          OPT_GLOBAL,
                                          &component_name,
                                          NULL,
                                          0);
+        item->fix_length_and_dec();  // Required to populate item::var
+
         String scratch;
         String* str = item->val_str(&scratch);
         if (str) {

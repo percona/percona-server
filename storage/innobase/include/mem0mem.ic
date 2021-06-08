@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -597,6 +597,8 @@ mem_strdupl(
 	ulint		len)	/*!< in: length of str, in bytes */
 {
 	char*	s = static_cast<char*>(ut_malloc_nokey(len + 1));
+	if (!s) return NULL;
+
 	s[len] = 0;
 	if (len > 0) {
 		memcpy(s, str, len);

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +206,7 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_encryption,rpl_encryption,encry
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb_rpl,rocksdb_sys_vars,rocksdb_stress,"
-  ."keyring_vault,audit_null,percona-pam-for-mysql,data_masking";
+  ."audit_null,percona-pam-for-mysql,data_masking";
 
 my $opt_suites;
 
@@ -422,10 +422,11 @@ sub is_core_dump {
   my $core_path= shift;
   my $core_name= basename($core_path);
   # Name beginning with core, not ending in .gz, .c, nor .log, not belonging to
-  # Boost, or ending with .dmp on Windows
-  return (($core_name =~ /^core/ and $core_name !~ /\.gz$|\.c$|\.log$/
-           and $core_path !~ /\/boost_/)
-          or (IS_WINDOWS and $core_name =~ /\.dmp$/));
+  # Boost, not belonging to a coredumper related files or ending with .dmp on
+  # Windows
+  return (($core_name =~ /^core/ && $core_name !~ /\.gz$|\.c$|\.log$/
+           && $core_path !~ /\/boost_/ && $core_path !~ /\/coredumper/)
+          || (IS_WINDOWS && $core_name =~ /\.dmp$/));
 }
 
 sub main {
@@ -879,8 +880,10 @@ sub run_test_server ($$$) {
 	      # Test has failed, force is off
 	      push(@$completed, $result);
 	      return $completed unless $result->{'dont_kill_server'};
-	      # Prevent kill of server, to get valgrind report
-	      print $sock "BYE\n";
+          # Prevent kill of server, to get shutdown/valgrind report from the
+          # worker, BYE should be sent to the worker for complete exit once
+          # report is received.
+          print $sock "GETREPORTS\n";
 	      next;
 	    }
 	    elsif ($opt_max_test_fail > 0 and
@@ -950,9 +953,14 @@ sub run_test_server ($$$) {
 	  add_total_times($line);
 	}
 	elsif ($line eq 'SHUTDOWN_REPORT') {
-      # Mysqld detected crash during shutdown
+      # Shutdown/valgrind report received
       $shutdown_report = 1;
       push(@$completed, My::Test::read_test($sock));
+
+      # Shutdown worker
+      print $sock "BYE\n";
+      $sock->shutdown(SHUT_WR);
+      next;
 	}
 	else {
 	  mtr_error("Unknown response: '$line' from client");
@@ -1039,9 +1047,9 @@ sub run_test_server ($$$) {
 	  $num_ndb_tests++ if ($next->{ndb_test});
 	}
 	else {
-	  # No more test, tell child to exit
-	  #mtr_report("Saying BYE to child");
-	  print $sock "BYE\n";
+      # No more test, get shutdown/valgrind reports from the worker, BYE
+      # should be sent to the worker for complete exit once report is received.
+      print $sock "GETREPORTS\n";
 	}
       }
     }
@@ -1107,6 +1115,8 @@ sub run_worker ($) {
 
   mark_time_used('init');
 
+  my $exit_code = 0;
+
   while (my $line= <$server>){
     chomp($line);
     if ($line eq 'TESTCASE'){
@@ -1132,36 +1142,37 @@ sub run_worker ($) {
       $test->write_test($server, 'TESTRESULT');
       mark_time_used('restart');
     }
-    elsif ($line eq 'BYE'){
-      mtr_report("Server said BYE");
-      my $found_err = 0;
-      my $valgrind_report_text = '';
-
+    elsif ($line eq 'GETREPORTS'){
       stop_all_servers($opt_shutdown_timeout);
-
-      if ($opt_valgrind || $opt_sanitize) {
-        $valgrind_report_text = valgrind_exit_reports();
-      }
-
-      if ($shutdown_report || $valgrind_report_text) {
-        my $test = My::Test->new(
-          name => 'shutdown_report',
-          comment => $shutdown_report_text,
-          valgrind_comment => $valgrind_report_text,
-        );
-        $test->write_test($server, "SHUTDOWN_REPORT");
-        $found_err = 1;
-      }
-
       mark_time_used('restart');
 
       if ( $opt_gprof ) {
         gprof_collect(find_mysqld($basedir), keys %gprof_dirs);
       }
 
+      my $valgrind_report_text = '';
+      if ($opt_valgrind || $opt_sanitize) {
+        $valgrind_report_text = valgrind_exit_reports();
+      }
+
+      if ($shutdown_report || $valgrind_report_text) {
+        $exit_code = 1;
+      }
+
+      # Send reports as the last message from the worker
+      my $test = My::Test->new(
+        name => 'shutdown_report',
+        comment => $shutdown_report_text ? $shutdown_report_text : '',
+        valgrind_comment => $valgrind_report_text ? $valgrind_report_text : '',
+      );
       mark_time_used('admin');
+
       print_times_used($server, $thread_num);
-      exit($found_err);
+      $test->write_test($server, "SHUTDOWN_REPORT");
+    }
+    elsif ($line eq 'BYE') {
+      mtr_report("Server said BYE");
+      exit($exit_code);
     }
     else {
       mtr_error("Could not understand server, '$line'");

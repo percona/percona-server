@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ public:
   {
   }
 
-  my_bool init(std::string *keyring_filename);
+  my_bool init(const std::string *keyring_filename);
 
   my_bool flush_to_backup(ISerialized_object *serialized_object);
   my_bool flush_to_storage(ISerialized_object *serialized_object);

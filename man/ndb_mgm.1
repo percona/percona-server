@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_mgm\fR
+.\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 03/25/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_MGM" "1" "03/25/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -76,7 +76,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&20.25.\ \&Command\-line options for the ndb_mgm program
+.B Table\ \&21.25.\ \&Command\-line options used with the program ndb_mgm
 .TS
 allbox tab(:);
 lB lB lB.
@@ -92,6 +92,17 @@ lB l l
 lB l l.
 T{
 .PP
+\fB--execute=name\fR,
+.PP
+\fB \fR\fB-e\fR\fB \fR
+T}:T{
+Execute command and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
+T}
+T{
+.PP
 \fB--try-reconnect=#\fR,
 .PP
 \fB \fR\fB-t\fR\fB \fR
@@ -100,18 +111,7 @@ Set number of times to retry connection before giving up; synonym for
               --connect-retries
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
-T}
-T{
-.PP
-\fB--execute=name\fR,
-.PP
-\fB \fR\fB-e\fR\fB \fR
-T}:T{
-Execute command and exit
-T}:T{
-.PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 .TE
 .sp 1
@@ -306,11 +306,11 @@ This option is deprecated and subject to removal in a future release\&. Use
 Additional information about using
 \fBndb_mgm\fR
 can be found in
-Section\ \&20.5.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
+Section\ \&21.5.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

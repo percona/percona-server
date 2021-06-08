@@ -44,7 +44,7 @@ SELECT @@innodb_file_per_table;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -67,7 +67,7 @@ INSERT INTO tde_db.t1 VALUES(9, "jjjjj");
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,ib_crash_during_rotation_for_encryption";
 # Execute the statement that causes the crash
 CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -93,7 +93,7 @@ SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t2;
 
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,ib_crash_during_create_for_encryption";
 # Execute the statement that causes the crash
 --error 2013
@@ -112,7 +112,7 @@ SELECT * FROM tde_db.t2;
 
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 FLUSH TABLE tde_db.t1 FOR EXPORT;
 --copy_file $MYSQLD_DATADIR/tde_db/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
 --copy_file $MYSQLD_DATADIR/tde_db/t1.cfp $MYSQLD_DATADIR/t1.cfp_back

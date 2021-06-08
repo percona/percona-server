@@ -17,7 +17,7 @@ SET DEBUG_SYNC='now WAIT_FOR mutex_locked';
 SET DEBUG_SYNC='before_query_cache_mutex SIGNAL try_lock_mutex';
 SELECT "try_lock_mutex_query" as action;
 SET DEBUG_SYNC='now WAIT_FOR try_lock_mutex';
-SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='SELECT "try_lock_mutex_query" as action';
+try_mutex_lock_conn must be waiting for the mutex
 state
 Waiting on query cache mutex
 Warnings:

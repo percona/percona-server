@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndbd\fR
+.\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 03/25/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDBD" "8" "03/25/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&20.22.\ \&Command\-line options for the ndbd program
+.B Table\ \&21.22.\ \&Command\-line options used with the program ndbd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -84,7 +84,7 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -94,7 +94,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -104,7 +104,7 @@ Set the number of times to retry a connection before giving up; 0 means
               1 attempt only (and no retries)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -114,7 +114,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -125,7 +125,7 @@ T}:T{
 Start ndbd as daemon (default); override with --nodaemon
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -135,7 +135,7 @@ Run ndbd in foreground, provided for debugging purposes (implies
               --nodaemon)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -145,7 +145,7 @@ Perform initial start of ndbd, including file system cleanup; consult
               documentation before using this option
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -154,7 +154,7 @@ T}:T{
 Perform partial initial start (requires --nowait-nodes)
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -164,7 +164,7 @@ Used to install data node process as Windows service; does not apply on
               other platforms
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -184,7 +184,7 @@ T}:T{
 Do not start ndbd as daemon; provided for testing purposes
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -196,7 +196,7 @@ Do not start ndbd immediately; ndbd waits for command to start from
               ndb_mgm
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -206,7 +206,7 @@ Do not wait for these data nodes to start (takes comma-separated list of
               node IDs); requires --ndb-nodeid
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -216,7 +216,7 @@ Used to remove data node process that was previously installed as
               Windows service; does not apply on other platforms
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -227,7 +227,7 @@ T}:T{
 Write extra debugging information to node log
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 .TE
 .sp 1
@@ -685,7 +685,7 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 NDB Cluster Disk Data files (see
-Section\ \&20.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&21.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .RE
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -970,7 +970,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&20.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&21.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1249,10 +1249,10 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&20.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
 Options Common to NDB Cluster Programs(1), describes other command\-line options which can be used with
 \fBndbd\fR\&. For information about data node configuration parameters, see
-Section\ \&20.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
+Section\ \&21.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1276,11 +1276,11 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 5\&.7 in a production setting\&. See
-Section\ \&20.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
+Section\ \&21.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

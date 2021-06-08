@@ -7,6 +7,9 @@
 --echo #           foreign data dictionary confusion
 --echo #
 
+set @default_table_open_cache = @@table_open_cache;
+set global table_open_cache = 2000;
+
 CREATE DATABASE XY;
 USE XY;
 
@@ -55,6 +58,7 @@ eval SELECT * FROM XY.T_$tcs LIMIT 1;
 --enable_result_log
 DROP DATABASE XY;
 USE TEST;
+set global table_open_cache = @default_table_open_cache;
 
 --echo #
 --echo # Bug55222 Mysqldump table names case bug in REFERENCES clause

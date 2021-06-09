@@ -6100,6 +6100,12 @@ class handler {
     @param    create_info         Create info from ALTER TABLE.
   */
 
+  /*
+    This function allows the storage engine to adust the create_info before
+    it is stored in the data dictionary.
+    This can be used for example to modify the create statement based on a
+    storage engine specific setting.
+  */
   virtual void update_create_info(HA_CREATE_INFO *create_info
                                   [[maybe_unused]]) {}
   virtual int assign_to_keycache(THD *, HA_CHECK_OPT *) {

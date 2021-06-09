@@ -6391,9 +6391,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
       Where as for non transactional rli repository the positions are flushed
       only on successful commit.
      */
-     if (!rli_ptr->is_transactional() && !already_logged_transaction)
+    if (!rli_ptr->is_transactional() && !already_logged_transaction)
       rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_NO_OPTION);
- }
+  }
 err:
   // This is Bug#24588741 fix:
   if (rli_ptr->is_group_master_log_pos_invalid)

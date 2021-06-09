@@ -7067,8 +7067,9 @@ int init_common_variables() {
     get corrupted if accesses with names of different case.
   */
   DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
-  lower_case_file_system = test_if_case_insensitive(mysql_real_data_home);
-  if (!lower_case_table_names && lower_case_file_system == 1) {
+  lower_case_file_system =
+      (test_if_case_insensitive(mysql_real_data_home) == 1);
+  if (!lower_case_table_names && lower_case_file_system) {
     if (lower_case_table_names_used) {
       LogErr(ERROR_LEVEL, ER_LOWER_CASE_TABLE_NAMES_CS_DD_ON_CI_FS_UNSUPPORTED);
       return 1;
@@ -7077,15 +7078,10 @@ int init_common_variables() {
              mysql_real_data_home);
       lower_case_table_names = 2;
     }
-  } else if (lower_case_table_names == 2 &&
-             !(lower_case_file_system =
-                   (test_if_case_insensitive(mysql_real_data_home) == 1))) {
+  } else if (lower_case_table_names == 2 && !lower_case_file_system) {
     LogErr(WARNING_LEVEL, ER_LOWER_CASE_TABLE_NAMES_USING_0,
            mysql_real_data_home);
     lower_case_table_names = 0;
-  } else {
-    lower_case_file_system =
-        (test_if_case_insensitive(mysql_real_data_home) == 1);
   }
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */

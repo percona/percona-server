@@ -64,7 +64,8 @@ class CapabilityHanderTlsTestSuite : public Test {
 
   StrictMock<mock::Vio> mock_connection;
   StrictMock<mock::Client> mock_client;
-  std::shared_ptr<mock::Ssl_context> mock_ssl_context;
+  std::shared_ptr<mock::Ssl_context> mock_ssl_context =
+      std::make_shared<mock::Ssl_context>();
   StrictMock<mock::Server> mock_server;
 
   Capability_tls sut;

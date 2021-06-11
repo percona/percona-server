@@ -40,7 +40,12 @@ Example of the Disconnect event: ::
   "DB"=""
   />
 
-* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values are retrieved from the ``com_status_vars`` array in the :file:`sql/mysqld.cc` file in a MySQL source distribution. Examples include ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` field for this event include ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
+* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc..
+
+.. note::
+    The ``statement/sql/%``  populates the audit log command_class field, for example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE "statement/sql/%"`` query.
+    
+    The %statement/com%`` entry populates the audit log command_class field as lowercase text, for example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE '%statement/com%'`` query.  If you run a 'Ping' command, then the command_class field is 'ping', and for 'Init DB', the command_class field is 'init db'.
 
 Example of the Query event: :: 
 

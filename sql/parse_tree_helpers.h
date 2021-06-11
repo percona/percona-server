@@ -204,4 +204,12 @@ bool set_trigger_new_row(Parse_context *pc,
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);
 
+inline bool is_identifier(const char *str, const char *ident) {
+  return !my_strcasecmp(system_charset_info, str, ident);
+}
+
+inline bool is_identifier(const LEX_STRING &str, const char *ident) {
+  return is_identifier(str.str, ident);
+}
+
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

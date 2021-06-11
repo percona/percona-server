@@ -301,6 +301,7 @@ SET(TESTS
   timespec
   my_alloc
   pump_object_filter
+  my_rcu_lock
   )
  
 IF (UNIX)

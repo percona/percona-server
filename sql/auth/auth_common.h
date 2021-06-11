@@ -798,6 +798,7 @@ typedef enum ssl_artifacts_status
 
 #if defined(HAVE_OPENSSL)
 extern my_bool opt_auto_generate_certs;
-bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
+                             char **ssl_ca, char **ssl_key, char **ssl_cert);
 #endif /* HAVE_OPENSSL */
 #endif /* AUTH_COMMON_INCLUDED */

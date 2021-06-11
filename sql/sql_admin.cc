@@ -43,6 +43,7 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#include "ssl_acceptor_context.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -1338,6 +1339,42 @@ bool Sql_cmd_shutdown::execute(THD *thd)
   DBUG_RETURN(res);
 }
 
+class Alter_instance_reload_tls : public Alter_instance {
+ public:
+  explicit Alter_instance_reload_tls(THD *thd, bool force = false)
+      : Alter_instance(thd), force_(force) {}
+
+  bool execute() {
+    Security_context *sctx = m_thd->security_context();
+    if (!sctx->check_access(SUPER_ACL)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "CONNECTION_ADMIN");
+      return true;
+    }
+
+    bool res = false;
+    enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
+    SslAcceptorContext::singleton_flush(&error, force_);
+    if (error != SSL_INITERR_NOERROR) {
+      const char *error_text = sslGetErrString(error);
+      if (force_) {
+        push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                            ER_SSL_LIBRARY_ERROR,
+                            ER_THD(m_thd, ER_SSL_LIBRARY_ERROR), error_text);
+        sql_print_warning("Failed to set up SSL because of the following SSL library error: %s", sslGetErrString(error));
+      } else {
+        my_error(ER_SSL_LIBRARY_ERROR, MYF(0), error_text);
+        res = true;
+      }
+    }
+
+    if (!res) my_ok(m_thd);
+    return res;
+  }
+  ~Alter_instance_reload_tls() {}
+
+ protected:
+  bool force_;
+};
 
 bool Sql_cmd_alter_instance::execute(THD *thd)
 {
@@ -1347,6 +1384,12 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
   {
     case ROTATE_INNODB_MASTER_KEY:
       alter_instance= new Rotate_innodb_master_key(thd);
+      break;
+    case ALTER_INSTANCE_RELOAD_TLS:
+      alter_instance = new Alter_instance_reload_tls(thd, true);
+      break;
+    case ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR:
+      alter_instance = new Alter_instance_reload_tls(thd);
       break;
     default:
       assert(false);

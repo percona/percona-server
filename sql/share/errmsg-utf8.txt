@@ -7906,7 +7906,36 @@ ER_CF_DROPPED
 
 ER_CANT_DROP_CF
   eng "Cannot drop Column family ('%s') because it is in use or does not exist."
-
 #
 # End of MyRocks specific messages
+#
+
+#
+# Start of Yandex patches error messages
+#
+
+start-error-number 13000
+
+ER_SSL_LIBRARY_ERROR
+  eng "Failed to set up SSL because of the following SSL library error: %s"
+
+ER_SSL_TRYING_DATADIR_DEFAULTS
+  eng "Found %s, %s and %s in data directory. Trying to enable SSL support using them."
+
+ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED
+  eng "The SSL library function %s failed. This is typically caused by the SSL library already being used. As a result the SSL memory allocation will not be instrumented."
+
+ER_CANT_OPEN_CA
+  eng "Error opening CA certificate file"
+
+ER_FAILED_TO_ALLOCATE_SSL_BIO
+  eng "Error allocating SSL BIO."
+
+ER_CA_SELF_SIGNED
+  eng "CA certificate %s is self signed."
+
+ER_CANT_ACCESS_CAPATH
+  eng "Error accessing directory pointed by --ssl-capath"
+#
+# End of Yandex patches error messages
 #

@@ -1,7 +1,4 @@
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
-call mtr.add_suppression("Plugin keyring_vault reported");
-SET @@global.keyring_vault_config="MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf";
+SET @@global.keyring_vault_config = 'MYSQLTEST_VARDIR/keyring_vault1.conf';
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 DROP TABLE t1;
 # restart:<hidden args>

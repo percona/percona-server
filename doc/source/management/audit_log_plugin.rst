@@ -47,7 +47,6 @@ Example of the Disconnect event: ::
     
     The %statement/com%`` entry populates the audit log command_class field as lowercase text, for example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE '%statement/com%'`` query.  If you run a 'Ping' command, then the command_class field is 'ping', and for 'Init DB', the command_class field is 'init db'.
 
-
 Example of the Query event: :: 
 
  <AUDIT_RECORD

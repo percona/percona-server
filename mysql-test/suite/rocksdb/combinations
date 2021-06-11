@@ -12,3 +12,8 @@ mtr-tests-list = add_index_inplace,add_index_inplace_crash,autoinc_crash_safe_pa
 mtr-result-dir = r-native-partitioning
 loose-rocksdb_write_policy=write_committed
 loose-rocksdb-enable-native-partition=on
+
+[write_unprepared]
+loose-rocksdb-enable-native-partition=off
+loose-rocksdb_write_policy=write_unprepared
+loose-rocksdb_write_batch_flush_threshold=1

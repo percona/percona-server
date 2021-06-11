@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_drop_index\fR
+.\"     Title: ndb_drop_index
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 03/25/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_DROP_INDEX\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_DROP_INDEX" "1" "03/25/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -67,7 +67,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&20.30.\ \&Command\-line options for the ndb_drop_index program
+.B Table\ \&21.30.\ \&Command\-line options used with the program ndb_drop_index
 .TS
 allbox tab(:);
 lB lB lB.
@@ -89,7 +89,7 @@ T}:T{
 Name of database in which table is found
 T}:T{
 .PP
-(Supported in all MySQL 5.7 based releases)
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 .TE
 .sp 1
@@ -122,7 +122,7 @@ Enter password: *******
 Reading table information for completion of table and column names
 You can turn off this feature to get a quicker startup with \-A
 Welcome to the MySQL monitor\&.  Commands end with ; or \eg\&.
-Your MySQL connection id is 7 to server version: 5\&.7\&.32\-ndb\-7\&.5\&.20
+Your MySQL connection id is 7 to server version: 5\&.7\&.33\-ndb\-7\&.5\&.22
 Type \*(Aqhelp;\*(Aq or \*(Aq\eh\*(Aq for help\&. Type \*(Aq\ec\*(Aq to clear the buffer\&.
 mysql> \fBSHOW TABLES;\fR
 +\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
@@ -149,11 +149,11 @@ option for making the table available to MySQL again is to drop the table and re
 or the
 \fBndb_drop_table\fR
 utility (see
-\fBndb_drop_table\fR(1)) to drop the table\&.
+ndb_drop_table(1)) to drop the table\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

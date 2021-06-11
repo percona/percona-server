@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
 
       /* Check whether we have any variable size records past key data */
       fixed_data_length= create_info->fixed_data_size;
-      DBUG_ASSERT(i == create_info->fixed_key_fieldnr);
+      assert(i == create_info->fixed_key_fieldnr);
       for (; i < create_info->columns; i++)
       {
         HP_COLUMNDEF *column= create_info->columndef + i;

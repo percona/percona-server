@@ -1,3 +1,8 @@
-In order to run those test you first need to export MYSQL_TEST_DIR variable first and it needs to point to mysql-test directory.
-Something like this:
-export MYSQL_TEST_DIR=/home/rob/mysql-test
+In order to run these tests you first need to export the following environment variables
+MTR_VAULT_ADDRESS=http://127.0.0.1:8200
+MTR_VAULT_ADMIN_TOKEN=<admin_token>
+MTR_VAULT_PLUGIN_TOKEN=<plugin_token>
+MTR_VAULT_VERSION=1|2
+
+In addition, when 'MTR_VAULT_ADDRESS' is 'https://', 'MTR_VAULT_CA' can also be defined.
+MTR_VAULT_CA=/path/ca/certificate.pem

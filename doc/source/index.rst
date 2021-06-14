@@ -56,6 +56,7 @@ Performance Improvements
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
    performance/prefix_index_queries_optimization
    performance/query_limit_records
+   performance/jemalloc-profiling
 
 Flexibility Improvements
 ================================================================================

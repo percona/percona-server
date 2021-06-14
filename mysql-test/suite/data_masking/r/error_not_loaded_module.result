@@ -1,3 +1,3 @@
 CREATE FUNCTION gen_blacklist RETURNS STRING SONAME 'data_masking.so';
 select gen_blacklist();
-ERROR HY000: Can't initialize function 'gen_blacklist'; This function requires data_masking plugin which is not installed. Please instal
+ERROR HY000: Can't initialize function 'gen_blacklist'; It requires the data_masking plugin installed. Please, install it and try again.

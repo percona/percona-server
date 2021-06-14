@@ -80,8 +80,7 @@ bool data_masking_validate_status(char *msg, size_t msg_len) {
   if (!data_masking_init) {
     strncpy(
         msg,
-        "This function requires data_masking plugin which is not installed."
-        " Please install keyring_udf plugin and try again.",
+        "It requires the data_masking plugin installed. Please, install it and try again.",
         msg_len - 1);
     msg[msg_len - 1]= '\0';
   }

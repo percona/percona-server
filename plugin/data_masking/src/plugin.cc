@@ -75,15 +75,14 @@ mysql_declare_plugin(data_masking){
     0,                               // flags
 } mysql_declare_plugin_end;
 
-// Returns true and populates the msg with an error if the module has not been initialized
-bool data_masking_validate_status(char *msg, size_t msg_len) {
+// Returns false and populates the msg with an error if the module has not been initialized
+bool data_masking_is_inited(char *msg, size_t msg_len) {
   if (!data_masking_init) {
-    strncpy(
+    std::snprintf(
         msg,
-        "It requires the data_masking plugin installed. Please, install it and try again.",
-        msg_len - 1);
-    msg[msg_len - 1]= '\0';
+        msg_len,
+        "It requires the data_masking plugin installed. Please, install it and try again.");
   }
 
-  return !data_masking_init;
+  return data_masking_init;
 }

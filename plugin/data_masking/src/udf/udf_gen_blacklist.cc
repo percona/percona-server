@@ -31,7 +31,7 @@ my_bool gen_blacklist_init(UDF_INIT *initid, UDF_ARGS *args,
                         char *message) {
   DBUG_ENTER("gen_blacklist_init");
 
-  if (data_masking_validate_status(message, MYSQL_ERRMSG_SIZE)) {
+  if (!data_masking_is_inited(message, MYSQL_ERRMSG_SIZE)) {
     DBUG_RETURN(true);
   }
 

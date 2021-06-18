@@ -36,7 +36,7 @@ New Features
 ================================================================================
 
 - The server part of MyRocks cross-engine consistent physical backups has been
-  implemented by introducing :variable:`rocksdb_disable_file_deletions` and 
+  implemented by introducing :variable:`rocksdb_disable_file_deletions` and
   :variable:`rocksdb_create_temporary_checkpoint` session variables. These
   variables are intended to be used by backup tools. Prolonged use or
   other misuse can have serious side effects to the server instance.
@@ -48,12 +48,12 @@ New Features
   implemented to track when an :ref:`audit_log_plugin` entry was either
   dropped or written directly to the file due to its size being bigger
   than :variable:`audit_log_buffer_size` variable.
-  
+
 
 Bugs Fixed
 ================================================================================
 
-- TokuDB and MyRocks native partitioning handler objects were allocated from a 
+- TokuDB and MyRocks native partitioning handler objects were allocated from a
   wrong memory allocator. Memory was released only on shutdown and concurrent
   access to global memory allocator caused memory corruptions and therefore
   crashes. Bug fixed :psbug:`5508`.
@@ -64,7 +64,7 @@ Bugs Fixed
 - upgrade from |Percona Server| 5.7.24 to :rn:`8.0.13-3` wasn't working with
   encrypted undo tablespaces. Bug fixed :psbug:`5223`.
 
-- :ref:`keyring_vault_plugin` couldn't be initialized on *Ubuntu Cosmic 17.10*.
+- `keyring_vault_plugin` couldn't be initialized on *Ubuntu Cosmic 17.10*.
   Bug fixed :psbug:`5453`.
 
 - rotated key encryption did not register ``encryption_key_id`` as a valid
@@ -94,15 +94,15 @@ Bugs Fixed
 - :ref:`changed_page_tracking` was missing pages changed by the in-place DDL.
   Bug fixed :psbug:`5447`.
 
-- ``innodb_system`` tablespace information was missing from the 
+- ``innodb_system`` tablespace information was missing from the
   :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
   Bug fixed :psbug:`5473`.
 
-- undo log tablespace encryption status is now available through 
+- undo log tablespace encryption status is now available through
   :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
   Bug fixed :psbug:`5485` (upstream :mysqlbug:`94665`).
 
-- enabling temporay tablespace encryption didn't mark the 
+- enabling temporay tablespace encryption didn't mark the
   ``innodb_temporary`` tablespace with the encryption flag. Bug fixed
   :psbug:`5490`.
 
@@ -112,16 +112,15 @@ Bugs Fixed
 - fixed intermittent shutdown crashes that were happening if :ref:`threadpool`
   was enabled. Bug fixed :psbug:`5510`.
 
-- compression dictionary ``INFORMATION_SCHEMA`` views were missing when 
-  :term:`datadir` was upgraded from 8.0.13 to 8.0.15. Bug fixed :psbug:`5529`.
+- compression dictionary ``INFORMATION_SCHEMA`` views were missing when `datadir` was upgraded from 8.0.13 to 8.0.15. Bug fixed :psbug:`5529`.
 
 - :variable:`innodb_encrypt_tables` variable accepted ``FORCE`` option only
-  as a string. Bug fixed :psbug:`5538`. 
+  as a string. Bug fixed :psbug:`5538`.
 
 - ``ibd2sdi`` utility was missing in Debian/Ubuntu packages. Bug fixed
   :psbug:`5549`.
 
-- Docker image is now ignoring password that is set in the configuration 
+- Docker image is now ignoring password that is set in the configuration
   file when first initializing. Bug fixed :psbug:`5573`.
 
 - long running ``ALTER TABLE ADD INDEX`` could cause a ``semaphore wait > 600``

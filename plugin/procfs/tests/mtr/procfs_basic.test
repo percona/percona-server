@@ -1,0 +1,32 @@
+--source include/count_sessions.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+GRANT ACCESS_PROCFS ON *.* TO 'mysqltest_1'@'localhost';
+
+--connect (conn1,localhost,mysqltest_1,,)
+
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+
+--connection default
+
+UNINSTALL PLUGIN procfs;
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+--exec echo "/proc/version" > $MYSQLD_DATADIR/procfs.cnf
+
+--connection conn1
+
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+
+--connection default
+--disconnect conn1
+
+UNINSTALL PLUGIN procfs;
+remove_file $MYSQLD_DATADIR/procfs.cnf;
+
+DROP USER mysqltest_1@localhost;
+
+--source include/wait_until_count_sessions.inc

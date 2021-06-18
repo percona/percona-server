@@ -1,0 +1,14 @@
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+GRANT ACCESS_PROCFS ON *.* TO 'mysqltest_1'@'localhost';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+COUNT(*)
+1
+UNINSTALL PLUGIN procfs;
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+COUNT(*)
+1
+UNINSTALL PLUGIN procfs;
+DROP USER mysqltest_1@localhost;

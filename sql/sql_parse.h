@@ -128,6 +128,8 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 extern uint sql_command_flags[];
 extern const LEX_CSTRING command_name[];
 
+size_t get_command_name_len(void);
+
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);

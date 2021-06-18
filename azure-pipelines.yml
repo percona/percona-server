@@ -153,17 +153,31 @@ jobs:
         BuildType: Debug
 
       # gcc-5 and newer compilers
-      Ubuntu Bionic gcc-10 Release:
+      Ubuntu Bionic gcc-11 Release:
         imageName: 'ubuntu-18.04'
         Compiler: gcc
-        CompilerVer: 10
+        CompilerVer: 11
         BuildType: RelWithDebInfo
 
-      Ubuntu Bionic gcc-10 Debug:
+      Ubuntu Bionic gcc-11 Debug:
         imageName: 'ubuntu-18.04'
         Compiler: gcc
-        CompilerVer: 10
+        CompilerVer: 11
         BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic gcc-10 Release:
+          imageName: 'ubuntu-18.04'
+          Compiler: gcc
+          CompilerVer: 10
+          BuildType: RelWithDebInfo
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Bionic gcc-10 Debug:
+          imageName: 'ubuntu-18.04'
+          Compiler: gcc
+          CompilerVer: 10
+          BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Bionic gcc-9 Release:
@@ -330,7 +344,7 @@ jobs:
         '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
       )
 
-      if [ "$CC" == "clang-5.0" ]; then
+      if [[ "$CC" =~ clang-(5.0|6.0|7|8)$ ]]; then
         COMPILE_OPT+=(
           '-DCMAKE_C_FLAGS=-isystem /usr/include/c++/9 -isystem /usr/include'
           '-DCMAKE_CXX_FLAGS=-isystem /usr/include/c++/9 -isystem /usr/include'
@@ -346,6 +360,7 @@ jobs:
         -DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_BIN
         -DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_BIN
         -DWITH_KEYRING_VAULT=ON
+        -DWITH_KEYRING_VAULT_TEST=ON
         -DWITH_PAM=ON
       "
 

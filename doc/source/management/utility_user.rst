@@ -16,7 +16,7 @@ This user has a mixed and special scope of abilities and protection:
 
   * Utility user doesn't have the ability create, modify, delete or see any schemas or data not specified (except for information_schema).
 
-  * Utility user may modify all visible, non read-only system variables (see :ref:`expanded_option_modifiers` functionality).
+  * Utility user may modify all visible, non read-only system variables (see `expanded_option_modifiers` functionality).
 
   * Utility user may see, create, modify and delete other system users only if given access to the mysql schema.
 

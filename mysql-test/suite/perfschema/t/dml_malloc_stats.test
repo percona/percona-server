@@ -1,0 +1,34 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/have_perfschema.inc
+
+--disable_result_log
+select * from performance_schema.malloc_stats limit 1;
+
+select * from performance_schema.malloc_stats
+  where type='small';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.malloc_stats
+  set type='FOO', nmalloc='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.malloc_stats
+  set type='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.malloc_stats
+  where type like "huge";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.malloc_stats;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.malloc_stats READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.malloc_stats WRITE;
+UNLOCK TABLES;
+

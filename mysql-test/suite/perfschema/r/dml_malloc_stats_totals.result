@@ -1,0 +1,20 @@
+select * from performance_schema.malloc_stats_totals limit 1;
+select * from performance_schema.malloc_stats_totals
+where allocated=0;
+insert into performance_schema.malloc_stats_totals
+set allocated=0;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'malloc_stats_totals'
+update performance_schema.malloc_stats_totals
+set allocated=0;
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'malloc_stats_totals'
+delete from performance_schema.malloc_stats_totals
+where allocated=0;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'malloc_stats_totals'
+delete from performance_schema.malloc_stats_totals;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'malloc_stats_totals'
+LOCK TABLES performance_schema.malloc_stats_totals READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'malloc_stats_totals'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.malloc_stats_totals WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'malloc_stats_totals'
+UNLOCK TABLES;

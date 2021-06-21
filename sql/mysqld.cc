@@ -1437,6 +1437,7 @@ bool log_bin_supplied = false;
 
 time_t server_start_time, flush_status_time;
 
+
 char server_uuid[UUID_LENGTH + 1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];

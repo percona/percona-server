@@ -1,0 +1,2 @@
+--debug="d,redirect_message_to_buffered_error_log"
+--buffered_error_log-size=2048

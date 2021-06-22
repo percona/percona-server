@@ -1,0 +1,26 @@
+SET @start_value = @@global.buffered_error_log_size;
+SELECT @start_value;
+
+
+SET @@global.buffered_error_log_size = 420;
+SELECT @@global.buffered_error_log_size;
+SET @@global.buffered_error_log_size = 0;
+SELECT @@global.buffered_error_log_size;
+
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.buffered_error_log_size = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.buffered_error_log_size;
+
+# No error, truncation
+SET @@global.buffered_error_log_size = -10;
+SELECT @@global.buffered_error_log_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.buffered_error_log_size = "/foo/bar.txt";
+SELECT @@global.buffered_error_log_size;
+
+SET @@global.buffered_error_log_size = @start_value;
+SELECT @@global.buffered_error_log_size;
+

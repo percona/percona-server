@@ -759,6 +759,7 @@ MySQL clients support the protocol:
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "mysys/buffered_error_log.h"
 #include "mysys/build_id.h"
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
@@ -811,12 +812,12 @@ MySQL clients support the protocol:
 #include "sql/persisted_variable.h"              // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
-#include "sql/sql_profile.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"    // range_optimizer_init
 #include "sql/replication.h"                        // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
+#include "sql/sql_profile.h"
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
@@ -6397,6 +6398,8 @@ static void init_icu_data_directory() {
 #endif  // MYSQL_ICU_DATADIR
 
 static int init_server_components() {
+  buffered_error_log.resize(buffered_error_log_size * 1024);
+
   DBUG_TRACE;
   /*
     We need to call each of these following functions to ensure that

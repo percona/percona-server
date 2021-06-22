@@ -1,0 +1,19 @@
+SET @start_value = @@global.buffered_error_log_filename;
+SELECT @start_value;
+
+
+SET @@global.buffered_error_log_filename = "/tmp/bar.txt";
+SELECT @@global.buffered_error_log_filename;
+SET @@global.buffered_error_log_filename = '';
+SELECT @@global.buffered_error_log_filename;
+
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.buffered_error_log_filename = OFF;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.buffered_error_log_filename;
+
+
+SET @@global.buffered_error_log_filename = @start_value;
+SELECT @@global.buffered_error_log_filename;
+

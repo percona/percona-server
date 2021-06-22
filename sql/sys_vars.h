@@ -3092,4 +3092,6 @@ void update_temptable_max_ram_default();
 void update_parser_max_mem_size();
 void update_optimizer_switch();
 
+extern std::size_t buffered_error_log_size;
+
 #endif /* SYS_VARS_H_INCLUDED */

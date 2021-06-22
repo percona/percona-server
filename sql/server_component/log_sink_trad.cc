@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_sink_trad.h"
 #include "log_sink_perfschema.h"  // log_sink_pfs_event
 #include "my_systime.h"           // my_micro_time()
+#include "mysys/buffered_error_log.h"
 #include "sql/log.h"  // log_write_errstream(), log_prio_from_label()
 
 extern int log_item_inconsistent(log_item *li);
@@ -342,8 +343,23 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
         output_buffer->type = LOG_ITEM_RET_BUFFER;
       }
 
+      bool log_to_buffered_error_log = false;
+      bool log_only_to_buffered_error_log = false;
+
+      // Add product specific buffered_error_log logic based on subsys & prio
+      // here
+      DBUG_EXECUTE_IF("redirect_message_to_buffered_error_log", {
+        log_to_buffered_error_log = true;
+        // also log to the normal log for MTR
+      });
+
+      if (log_to_buffered_error_log) {
+        buffered_error_log.log(buff_line, len);
+      }
+
       // write log-event to log-file
-      log_write_errstream(buff_line, len);
+      if (!log_only_to_buffered_error_log || !buffered_error_log.is_enabled())
+        log_write_errstream(buff_line, len);
     }
   }
 

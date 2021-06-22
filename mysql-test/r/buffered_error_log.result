@@ -1,0 +1,5 @@
+call mtr.add_suppression("Attempting backtrace. You can use the following information to");
+Sending kill signal 11 to mysqld ...
+# restart:
+Testing that buffered_error_log log contains something logged
+# restart:

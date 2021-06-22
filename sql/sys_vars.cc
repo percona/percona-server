@@ -53,6 +53,7 @@
 #include <limits>
 
 #include "include/compression.h"
+#include "mysys/buffered_error_log.h"
 
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -5991,6 +5992,18 @@ static bool check_log_path(sys_var *self, THD *, set_var *var) {
   return false;
 }
 
+static bool check_log_path_allow_empty(sys_var *self, THD *thd, set_var *var) {
+  if (!var->value) return false;
+
+  if (!var->save_result.string_value.str) return false;
+
+  if (strlen(var->save_result.string_value.str) == 0) return false;
+
+  if (!check_log_path(self, thd, var)) return false;
+
+  return true;
+}
+
 static bool fix_general_log_file(sys_var *, THD *, enum_var_type) {
   bool res;
 
@@ -7970,6 +7983,26 @@ static Sys_var_enum Sys_terminology_use_previous(
     terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
+
+std::size_t buffered_error_log_size;
+
+static bool buffered_error_log_size_update(sys_var *, THD *, enum_var_type) {
+  buffered_error_log.resize(buffered_error_log_size * 1024);
+  return false;
+}
+
+static Sys_var_charptr Sys_var_buffered_error_log_filename(
+    "buffered_error_log_filename", "Filename of the buffered error log",
+    GLOBAL_VAR(buffered_error_log_filename), CMD_LINE(REQUIRED_ARG),
+    IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_log_path_allow_empty));
+
+static Sys_var_ulonglong Sys_var_buffered_error_log_size(
+    "buffered_error_log_size", "Size of the buffered error log (kB)",
+    GLOBAL_VAR(buffered_error_log_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULLONG_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(buffered_error_log_size_update));
 
 #ifndef NDEBUG
     Debug_shutdown_actions Debug_shutdown_actions::instance;

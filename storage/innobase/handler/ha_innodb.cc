@@ -1047,6 +1047,17 @@ free_share(
 /*=======*/
 	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
 
+
+/************************************************************************/ /**
+Calls free_share and assign NULL to share. */
+static void
+free_share_and_nullify(
+    INNOBASE_SHARE **share) /*!< in/own: table share to free */
+{
+	free_share(*share);
+	*share = NULL;
+}
+
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
 @return	0 or error number */
@@ -5949,7 +5960,7 @@ ha_innobase::open(
 
 		if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
 			  srv_pass_corrupt_table <= 1)) {
-			free_share(share);
+			free_share_and_nullify(&share);
 			dict_table_close(ib_table, FALSE, FALSE);
 
 			DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -5974,7 +5985,7 @@ ha_innobase::open(
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */
 		ib_table->corrupted = true;
-		free_share(share);
+		free_share_and_nullify(&share);
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
@@ -5982,7 +5993,7 @@ ha_innobase::open(
 
 	if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
 			  srv_pass_corrupt_table <= 1)) {
-		free_share(share);
+		free_share_and_nullify(&share);
 		my_free(upd_buf);
 		upd_buf = NULL;
 		upd_buf_size = 0;
@@ -6049,7 +6060,7 @@ ha_innobase::open(
 
 					if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
 						  srv_pass_corrupt_table <= 1)) {
-						free_share(share);
+						free_share_and_nullify(&share);
 						dict_table_close(ib_table, FALSE, FALSE);
 
 						DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -6137,7 +6148,7 @@ table_opened:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		free_share(share);
+		free_share_and_nullify(&share);
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE, FALSE);
@@ -6365,7 +6376,7 @@ ha_innobase::close()
 	/* No-op in XtraDB */
 	innobase_release_temporary_latches(ht, thd);
 
-	free_share(share);
+	free_share_and_nullify(&share);
 
 	row_prebuilt_free(prebuilt, FALSE);
 
@@ -14431,6 +14442,10 @@ free_share(
 /*=======*/
 	INNOBASE_SHARE*	share)	/*!< in/own: table share to free */
 {
+	if (!share) {
+		return;
+	}
+
 	mysql_mutex_lock(&innobase_share_mutex);
 
 #ifdef UNIV_DEBUG

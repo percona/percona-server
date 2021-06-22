@@ -7031,7 +7031,7 @@ ha_innobase::open(
 				  m_share->ib_table->is_corrupt &&
 				  srv_pass_corrupt_table <= 1)) {
 			free_share(m_share);
-
+			dict_table_close(ib_table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 		}
 	}
@@ -7066,6 +7066,7 @@ ha_innobase::open(
 			  srv_pass_corrupt_table <= 1)) {
 
 		free_share(m_share);
+		dict_table_close(ib_table, FALSE, FALSE);
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 	}
 

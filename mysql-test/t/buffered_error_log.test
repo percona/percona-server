@@ -1,0 +1,25 @@
+call mtr.add_suppression("Attempting backtrace. You can use the following information to");
+
+--source include/not_asan.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--disable_query_log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/buffered_error_log.err
+--eval SET GLOBAL buffered_error_log_filename="$SEARCH_FILE"
+--enable_query_log
+
+# Send a kill -11 to mysqld, should cause a buffered_error_log log
+--let $_kill_signal = 11
+--source include/send_kill_to_mysqld.inc
+
+--let $restart_parameters=restart:
+--source include/start_mysqld.inc
+
+--echo Testing that buffered_error_log log contains something logged
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN=Server socket created on IP
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=restart:
+--source include/start_mysqld.inc

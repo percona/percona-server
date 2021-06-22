@@ -3077,4 +3077,6 @@ class Sys_var_errors_set : public sys_var {
   }
 };
 
+extern std::size_t buffered_error_log_size;
+
 #endif /* SYS_VARS_H_INCLUDED */

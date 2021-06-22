@@ -309,6 +309,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES integer_digits-t.cc)
 ENDIF()
 
+# Avoid 'requires dynamic R_X86_64_PC32 reloc' linker error for dd_sdi-t.cc
+# when built with ASAN
+IF(WITH_ASAN)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-fPIC FILES dd_sdi-t.cc)
+ENDIF()
+
 # Warnings about missing PGO profile data are not useful for unit tests.
 DISABLE_MISSING_PROFILE_WARNING()
 

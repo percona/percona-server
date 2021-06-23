@@ -77,12 +77,12 @@ class IB_thread {
 */
 std::string to_string(std::thread::id thread_id, bool hex_value = false);
 
-#ifdef UNIV_LINUX
+#ifdef _WIN32
+using os_tid_t = int;
+#else
 /** An alias for pid_t on Linux, where setpriority() accepts thread id
 of this type and not pthread_t */
 using os_tid_t = pid_t;
-#else
-using os_tid_t = std::thread::id;
 #endif
 
 /** A class to allow any trivially copyable object to be XOR'ed. Trivially

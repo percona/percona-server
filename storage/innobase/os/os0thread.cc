@@ -124,10 +124,16 @@ returns tid.  On other systems currently returns os_thread_get_curr_id().
 
 @return	current thread identifier */
 os_tid_t os_thread_get_tid() noexcept {
-#ifdef UNIV_LINUX
-  return ((os_tid_t)syscall(SYS_gettid));
+#if defined(HAVE_PTHREAD_THREADID_NP)   // macOS
+  uint64_t tid64;
+  pthread_threadid_np(nullptr, &tid64);
+  return (os_tid_t)tid64;
+#elif defined(HAVE_SYS_GETTID)  // Linux
+  return (os_tid_t)syscall(SYS_gettid);
+#elif defined(_WIN32)
+  return GetCurrentThreadId();
 #else
-  return (os_thread_get_curr_id());
+  return pthread_self();
 #endif
 }
 

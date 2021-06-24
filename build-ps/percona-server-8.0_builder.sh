@@ -357,6 +357,7 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        yum -y update
         add_percona_yum_repo
         yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
         percona-release enable tools testing
@@ -382,6 +383,7 @@ install_deps() {
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
 	    yum -y install rpcgen re2-devel libtirpc-devel
 	    yum -y install zstd libzstd libzstd-devel
+	    yum -y install cmake
         fi
         if [ "x${RHEL}" = "x8" ]; then
             yum -y install centos-release-stream

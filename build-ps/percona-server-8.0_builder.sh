@@ -637,6 +637,8 @@ build_rpm(){
     cd ${WORKDIR}
     if [ "x${RHEL}" = "x6" ]; then
         source /opt/rh/devtoolset-8/enable
+        mv /usr/bin/strip /usr/bin/strip_back
+        ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
     fi
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-10/enable
@@ -650,6 +652,12 @@ build_rpm(){
     else
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_rocksdb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
+
+    if [ $RHEL = 6 ]; then
+        rm -f /usr/bin/strip
+        mv /usr/bin/strip_back /usr/bin/strip
+    fi
+
     return_code=$?
     if [ $return_code != 0 ]; then
         exit $return_code

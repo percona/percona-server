@@ -46,14 +46,14 @@ Additional features unique to |TokuDB| include:
 - Hot column addition, deletion, expansion, and rename - |TokuDB| tables support
   insertions, deletions and queries without down-time when an alter table adds,
   deletes, expands, or renames columns
-- On-line Backup 
+- On-line Backup
 
 .. note::
 
-   The |TokuDB| storage engine does not support the |sql.no-wait| and
-   |sql.skip-locked| modifiers introduced in the |InnoDB| storage
+   The |TokuDB| storage engine does not support the ``nowait`` and
+   ``skip locked`` modifiers introduced in the |InnoDB| storage
    engine with |MySQL| 8.0.
-  
+
 For more information on installing and using |TokuDB| click on the following
 links:
 
@@ -167,4 +167,3 @@ Progress Tracking
 
 Fast Recovery
    |TokuDB| supports very fast recovery, typically less than a minute.
-

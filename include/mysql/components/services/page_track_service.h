@@ -27,7 +27,7 @@
 #include <mysql/components/service.h>
 #include <functional>
 
-#include <stddef.h>
+#include <stddef.h>  // size_t
 #include <stdint.h>
 
 #ifdef __cplusplus

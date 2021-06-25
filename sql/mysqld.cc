@@ -789,6 +789,7 @@ MySQL clients support the protocol:
 #include "sql/persisted_variable.h"              // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
+#include "sql/sql_profile.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
 #include "sql/replication.h"                        // thd_enter_cond
@@ -6409,7 +6410,8 @@ static int init_server_components() {
     init_optimizer_cost_module(true);
 
     bool st;
-    if (opt_initialize || dd_upgrade_was_initiated)
+    if (opt_initialize || dd_upgrade_was_initiated ||
+        opt_upgrade_mode == UPGRADE_FORCE)
       st = dd::performance_schema::init_pfs_tables(
           dd::enum_dd_init_type::DD_INITIALIZE);
     else
@@ -7030,6 +7032,9 @@ int mysqld_main(int argc, char **argv)
   //  Init error log subsystem. This does not actually open the log yet.
   if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
   heo_error = handle_early_options();
+
+  opt_jemalloc_detected = jemalloc_detected();
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
 
   init_sql_statement_names();
   sys_var_init();

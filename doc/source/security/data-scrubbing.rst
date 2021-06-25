@@ -16,17 +16,13 @@ The data is not immediately removed from disk storage. When a new row is inserte
 
 Using Data Scrubbing, you have two options to remove the data and reclaim the space:
 
-.. tabularcolumns:: |p{5cm}|p{11cm}|
-
-.. list-table::
-   :header-rows: 1
-
-    * - Name
-      - When data is removed
-    * - Immediate
-      - The data is removed immediately, independent of key rotation or background threads.
-    * - Background
-      - The moment when the scrubbing occurs can be unpredictable.
++---------------------+------------------------------------------------------------------------------------+
+| How data is removed | Descriptions                                                                       |
++=====================+====================================================================================+
+| Immediate           | The data is removed immediately, independent of key rotation or background threads |
++---------------------+------------------------------------------------------------------------------------+
+| Background          | The moment when the data is removed can be unpredictable                           |
++---------------------+------------------------------------------------------------------------------------+
 
 Once enabled, data scrubbing works automatically on each tablespace.
 

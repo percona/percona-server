@@ -16,10 +16,12 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
    * `Spatial indexes <https://dev.mysql.com/doc/refman/8.0/en/using-spatial-indexes.html>`_
    * `Fulltext indexes <https://dev.mysql.com/doc/refman/8.0/en/innodb-fulltext-index.html>`_
    * `Gap locks <https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks>`_
-   * `Generated Columns <https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html>`_
    * `Group Replication <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_
    * `Partial Update of LOB in InnoDB <https://mysqlserverteam.com/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/>`_
     
+
+As of |Percona Server| version 8.0.23-14, `Generated Columns <https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html>`_ and index are supported. Generated columns are not supported in versions earlier than 8.0.23-14.
+
 You should also consider the following:
 
 * :file:`*_bin` (e.g. ``latin1_bin``) or binary collation should be used
@@ -95,8 +97,7 @@ You should also consider the following:
   error. MyRocks key encoding and comparison does not account for this
   character set attribute.
 
-*  In version 8.0.13-3 and later, MyRocks does not support
-   `explicit DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
+*  As of |Percona Server| version 8.0.23-14, MyRocks supports `explicit DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__. From version 8.0.13-3 to version 8.0.22-13, MyRocks did not support these expressions.
 
 * |Percona Server| 8.0.16 does not support encryption for the MyRocks
   storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.

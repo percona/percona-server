@@ -29,7 +29,7 @@ Moving TokuDB data files to a location outside of the default MySQL datadir
 |TokuDB| uses the location specified by the :variable:`tokudb_data_dir`
 variable for all of its data files. If the :variable:`tokudb_data_dir` variable
 is not explicitly set, |TokuDB| will use the location specified by the servers
-:term:`datadir` for these files.
+`datadir` for these files.
 
 The |TokuDB| data files are protected from concurrent process access by the
 ``__tokudb_lock_dont_delete_me_data`` file that is located in the same
@@ -63,7 +63,7 @@ variable for all of its temporary files. If :variable:`tokudb_tmp_dir` variable
 is not explicitly set, |TokuDB| will use the location specified by the
 :variable:`tokudb_data_dir` variable. If the :variable:`tokudb_data_dir`
 variable is also not explicitly set, |TokuDB| will use the location specified
-by the servers :term:`datadir` for these files.
+by the servers `datadir` for these files.
 
 |TokuDB| temporary files are protected from concurrent process access by the
 ``__tokudb_lock_dont_delete_me_temp`` file that is located in the same
@@ -96,7 +96,7 @@ Moving TokuDB recovery log files to a location outside of the default MySQL data
 |TokuDB| will use the location specified by the :variable:`tokudb_log_dir`
 variable for all of its recovery log files. If the :variable:`tokudb_log_dir`
 variable is not explicitly set, |TokuDB| will use the location specified by the
-servers :term:`datadir` for these files.
+servers `datadir` for these files.
 
 The |TokuDB| recovery log files are protected from concurrent process access by
 the ``__tokudb_lock_dont_delete_me_logs`` file that is located in the same
@@ -154,10 +154,10 @@ addresses this issue.
 
 When :variable:`tokudb_dir_per_db` variable is enabled (``ON`` by default),
 all new tables and indices will be placed within their corresponding database
-directory within the :file:`tokudb_data_dir` or server :term:`datadir`.
+directory within the :file:`tokudb_data_dir` or server `datadir`.
 
 If you have :variable:`tokudb_data_dir` variable set to something other than
-the server :term:`datadir`, |TokuDB| will create a directory matching the name
+the server `datadir`, |TokuDB| will create a directory matching the name
 of the database, but upon dropping of the database, this directory will remain
 behind.
 
@@ -189,7 +189,7 @@ directory with a few steps:
   move is not a simple directory move on the same volume but a physical copy
   across volumes. This can take quite some time and prevent access to the table
   being moved during the copy.
-  
+
 System Variables
 ================
 
@@ -201,7 +201,7 @@ System Variables
      :dyn: Yes
      :vartype: String
 
-This variable is used to send commands to edit |TokuDB| directory files. 
+This variable is used to send commands to edit |TokuDB| directory files.
 
 .. warning::
 
@@ -228,7 +228,7 @@ This variable contains the error string of the last executed command by using
 the :variable:`tokudb_dir_cmd` variable.
 
 
-.. 
+..
   .. _editing_tokudb_files_with_tokudb_dir_cmd:
 
   Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
@@ -283,4 +283,3 @@ the :variable:`tokudb_dir_cmd` variable.
     | ./world/City-main            | ./_world_sql_340a_39_main_12_1_1d_B_0.tokudb            |
     | ./world/City-status          | ./_world_sql_340a_39_status_f_1_1d.tokudb               |
     +------------------------------+---------------------------------------------------------+
-

@@ -13,7 +13,7 @@ The following is a summary of the more relevant changes in the 8.0 series. It is
 strongly recommended that you read the following guides as they contain the list
 of incompatible changes that could cause automatic upgrade to fail:
 
-- :ref:`changed_in_8.0`
+- `changed_in_8.0`
 - `Upgrading MySQL <http://dev.mysql.com/doc/refman/8.0/en/upgrading.html>`_
 - `Upgrading from MySQL 5.7 to 8.0 <http://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html>`_
 - `Upgrade Paths <https://dev.mysql.com/doc/refman/8.0/en/upgrade-paths.html>`_

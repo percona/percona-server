@@ -3341,7 +3341,18 @@ bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
 
           built_query.add_table(table);
 
-          if (built_query.write_bin_log()) goto err_with_rollback;
+          if (thd->variables.binlog_ddl_skip_rewrite ||
+              thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+              thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER ||
+              thd->is_binlog_applier()) {
+            if (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                              false)) {
+              goto err_with_rollback;
+            }
+
+          } else {
+            if (built_query.write_bin_log()) goto err_with_rollback;
+          }
         }
 
         if (drop_ctx.has_no_gtid_single_table_group() ||
@@ -3502,7 +3513,18 @@ bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
 
       thd->thread_specific_used = true;
 
-      if (built_query.write_bin_log()) goto err_with_rollback;
+      if (thd->variables.binlog_ddl_skip_rewrite ||
+          thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+          thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER ||
+          thd->is_binlog_applier()) {
+        if (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                          drop_ctx.has_base_atomic_tables())) {
+          goto err_with_rollback;
+        }
+
+      } else {
+        if (built_query.write_bin_log()) goto err_with_rollback;
+      }
 
       if (drop_ctx.has_no_gtid_single_table_group() ||
           drop_ctx.has_gtid_single_table_group()) {

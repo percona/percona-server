@@ -1,0 +1,5 @@
+# This is a wrapper for binlog_drop_tbl_with_comment.test so that the same
+# test case can be used for both statement and row based logging
+
+-- source include/have_binlog_format_row.inc
+-- source extra/binlog_tests/binlog_drop_tbl_with_comment.test

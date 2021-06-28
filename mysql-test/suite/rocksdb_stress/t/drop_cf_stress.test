@@ -22,7 +22,10 @@ call mtr.add_suppression("Could not get index information for Index Number");
 --let $drop_cf_weight = 9
 --let $manual_compaction_weight = 1
 
-connect (conn1,localhost,root,,);
+CREATE USER 'drop_cf_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+GRANT ALL ON *.* TO 'drop_cf_test'@'localhost';
+
+connect (conn1,localhost,drop_cf_test,,);
 --connection conn1
 
 --let $local_host = 127.0.0.1
@@ -64,7 +67,7 @@ let $exec =
   python $MYSQL_TEST_DIR/suite/rocksdb_stress/t/drop_cf_stress.py
   -L $MYSQL_TMP_DIR/drop_cf_stress.log -H $local_host
   -P $MASTER_MYPORT
-  -w $num_workers -r $num_requests -v
+  -w $num_workers -r $num_requests -v -u drop_cf_test
   --ct-weight $create_table_weight --dt-weight $drop_table_weight
   --ai-weight $add_index_weight --di-weight $drop_index_weight
   --dc-weight $drop_cf_weight --mc-weight $manual_compaction_weight;
@@ -75,3 +78,4 @@ exec $exec;
 
 DROP TABLE tables;
 DROP TABLE cfs;
+DROP USER 'drop_cf_test'@'localhost';

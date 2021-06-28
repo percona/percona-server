@@ -1,0 +1,108 @@
+SET @session_start_value = @@session.binlog_ddl_skip_rewrite;
+SELECT @session_start_value;
+@session_start_value
+0
+SET @global_start_value = @@GLOBAL.binlog_ddl_skip_rewrite;
+SELECT @global_start_value;
+@global_start_value
+0
+SET @@session.binlog_ddl_skip_rewrite = 0;
+SET @@session.binlog_ddl_skip_rewrite = DEFAULT;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@session.binlog_ddl_skip_rewrite = 1;
+SET @@session.binlog_ddl_skip_rewrite = DEFAULT;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@GLOBAL.binlog_ddl_skip_rewrite = 0;
+SET @@GLOBAL.binlog_ddl_skip_rewrite = DEFAULT;
+SELECT @@GLOBAL.binlog_ddl_skip_rewrite;
+@@GLOBAL.binlog_ddl_skip_rewrite
+0
+SET @@GLOBAL.binlog_ddl_skip_rewrite = 1;
+SET @@GLOBAL.binlog_ddl_skip_rewrite = DEFAULT;
+SELECT @@GLOBAL.binlog_ddl_skip_rewrite;
+@@GLOBAL.binlog_ddl_skip_rewrite
+0
+SET binlog_ddl_skip_rewrite = 1;
+SELECT @@binlog_ddl_skip_rewrite;
+@@binlog_ddl_skip_rewrite
+1
+SELECT session.binlog_ddl_skip_rewrite;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.binlog_ddl_skip_rewrite;
+ERROR 42S02: Unknown table 'local' in field list
+SET session binlog_ddl_skip_rewrite = 0;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@session.binlog_ddl_skip_rewrite = 0;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@session.binlog_ddl_skip_rewrite = 1;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+1
+SET @@session.binlog_ddl_skip_rewrite = -1;
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of '-1'
+SET @@session.binlog_ddl_skip_rewrite = 2;
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of '2'
+SET @@session.binlog_ddl_skip_rewrite = "T";
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of 'T'
+SET @@session.binlog_ddl_skip_rewrite = "Y";
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of 'Y'
+SET @@session.binlog_ddl_skip_rewrite = TRÜE;
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of 'TRÜE'
+SET @@session.binlog_ddl_skip_rewrite = ÕN;
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of 'ÕN'
+SET @@session.binlog_ddl_skip_rewrite = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.binlog_ddl_skip_rewrite = ÓFF;
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of 'ÓFF'
+SET @@session.binlog_ddl_skip_rewrite = '¹';
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of '¹'
+SET @@session.binlog_ddl_skip_rewrite = NO;
+ERROR 42000: Variable 'binlog_ddl_skip_rewrite' can't be set to the value of 'NO'
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_ddl_skip_rewrite';
+count(VARIABLE_VALUE)
+1
+SELECT IF(@@session.binlog_ddl_skip_rewrite, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='binlog_ddl_skip_rewrite';
+IF(@@session.binlog_ddl_skip_rewrite, "ON", "OFF") = VARIABLE_VALUE
+1
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+1
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='binlog_ddl_skip_rewrite';
+VARIABLE_VALUE
+ON
+SET @@session.binlog_ddl_skip_rewrite = OFF;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@session.binlog_ddl_skip_rewrite = ON;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+1
+SET @@session.binlog_ddl_skip_rewrite = TRUE;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+1
+SET @@session.binlog_ddl_skip_rewrite = FALSE;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@session.binlog_ddl_skip_rewrite = @session_start_value;
+SELECT @@session.binlog_ddl_skip_rewrite;
+@@session.binlog_ddl_skip_rewrite
+0
+SET @@GLOBAL.binlog_ddl_skip_rewrite = @global_start_value;
+SELECT @@GLOBAL.binlog_ddl_skip_rewrite;
+@@GLOBAL.binlog_ddl_skip_rewrite
+0

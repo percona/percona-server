@@ -6,13 +6,16 @@
 --connection master
 --let $master_host = 127.0.0.1
 
+CREATE USER 'rocksdb_stress_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+GRANT ALL ON *.* TO 'rocksdb_stress_test'@'localhost';
+
 let $exec =
   python $MYSQL_TEST_DIR/suite/rocksdb_stress/t/load_generator.py
   -L $MYSQL_TMP_DIR/load_generator.log -H $master_host -t $table
   -P $MASTER_MYPORT -n $num_records -m $max_records
   -l $num_loaders -c $num_checkers -r $num_requests
   -E $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  -D $reap_delay;
+  -D $reap_delay -u rocksdb_stress_test;
 
 exec $exec;
 
@@ -38,6 +41,7 @@ if ($not_same)
 
 # Cleanup
 --connection master
+DROP USER 'rocksdb_stress_test'@'localhost';
 --let $cleanup = DROP TABLE $table
 eval $cleanup;
 

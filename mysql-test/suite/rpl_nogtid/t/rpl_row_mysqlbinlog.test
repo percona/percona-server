@@ -144,7 +144,7 @@ connection master;
 --disable_query_log ONCE
 select "--- Test 1 Load from Dump binlog file --" as "";
 
---exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
+--exec $MYSQL -c -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
 
 --disable_query_log ONCE
 select "--- Test 1 Check Load Results --" as "";

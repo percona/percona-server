@@ -22,15 +22,15 @@ VARIABLE_NAME LIKE '%rpl%' OR
 VARIABLE_NAME LIKE '%semi_sync%' OR
 VARIABLE_NAME LIKE '%slave%' OR
 VARIABLE_NAME LIKE '%source%') AND
-(VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
+(VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 108 variables in the table.]
+include/assert.inc [Expect 112 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
 SET PERSIST binlog_checksum = @@GLOBAL.binlog_checksum;
+SET PERSIST binlog_ddl_skip_rewrite = @@GLOBAL.binlog_ddl_skip_rewrite;
 SET PERSIST binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
 SET PERSIST binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST binlog_error_action = @@GLOBAL.binlog_error_action;
@@ -74,6 +74,8 @@ SET PERSIST gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a read only variable
 SET PERSIST gtid_purged = @@GLOBAL.gtid_purged;
 ERROR HY000: Variable 'gtid_purged' is a non persistent variable
+SET PERSIST have_backup_safe_binlog_info = @@GLOBAL.have_backup_safe_binlog_info;
+ERROR HY000: Variable 'have_backup_safe_binlog_info' is a read only variable
 SET PERSIST init_replica = @@GLOBAL.init_replica;
 SET PERSIST init_slave = @@GLOBAL.init_slave;
 Warnings:
@@ -241,22 +243,23 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 86 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 88 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 86 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 86 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 86 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 88 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 88 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc [Expect 88 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
 #    settings are removed.
 RESET PERSIST IF EXISTS binlog_cache_size;
 RESET PERSIST IF EXISTS binlog_checksum;
+RESET PERSIST IF EXISTS binlog_ddl_skip_rewrite;
 RESET PERSIST IF EXISTS binlog_direct_non_transactional_updates;
 RESET PERSIST IF EXISTS binlog_encryption;
 RESET PERSIST IF EXISTS binlog_error_action;
@@ -301,6 +304,9 @@ Warning	3615	Variable gtid_owned does not exist in persisted config file
 RESET PERSIST IF EXISTS gtid_purged;
 Warnings:
 Warning	3615	Variable gtid_purged does not exist in persisted config file
+RESET PERSIST IF EXISTS have_backup_safe_binlog_info;
+Warnings:
+Warning	3615	Variable have_backup_safe_binlog_info does not exist in persisted config file
 RESET PERSIST IF EXISTS init_replica;
 RESET PERSIST IF EXISTS init_slave;
 Warnings:

@@ -1693,6 +1693,12 @@ static Sys_var_bool Sys_binlog_rows_query(
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_session_admin));
 
+static Sys_var_bool Sys_binlog_skip_rewrite(
+    "binlog_ddl_skip_rewrite",
+    "Without server rewrite, DDL queries will be logged with comments.",
+    SESSION_VAR(binlog_ddl_skip_rewrite), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin));
+
 static Sys_var_bool Sys_binlog_order_commits(
     "binlog_order_commits",
     "Issue internal commit calls in the same order as transactions are"

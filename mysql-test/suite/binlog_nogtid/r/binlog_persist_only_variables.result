@@ -22,15 +22,14 @@ VARIABLE_NAME LIKE '%rpl%' OR
 VARIABLE_NAME LIKE '%semi_sync%' OR
 VARIABLE_NAME LIKE '%slave%' OR
 VARIABLE_NAME LIKE '%source%') AND
-(VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
+(VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
 INSERT INTO non_persisted VALUES
 ('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
 ('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
-('relay_log_index'), ('replica_load_tmpdir'),
-('slave_load_tmpdir');
+('relay_log_index'), ('replica_load_tmpdir'), ('slave_load_tmpdir'),
+('have_backup_safe_binlog_info');
 CREATE TABLE aliases (
 name VARCHAR(100) PRIMARY KEY
 );
@@ -47,11 +46,12 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 108 variables in the table.]
+include/assert.inc [Expect 112 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
 SET PERSIST_ONLY binlog_checksum = @@GLOBAL.binlog_checksum;
+SET PERSIST_ONLY binlog_ddl_skip_rewrite = @@GLOBAL.binlog_ddl_skip_rewrite;
 SET PERSIST_ONLY binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
 SET PERSIST_ONLY binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
@@ -91,6 +91,8 @@ SET PERSIST_ONLY gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
 SET PERSIST_ONLY gtid_purged = @@GLOBAL.gtid_purged;
 ERROR HY000: Variable 'gtid_purged' is a non persistent variable
+SET PERSIST_ONLY have_backup_safe_binlog_info = @@GLOBAL.have_backup_safe_binlog_info;
+ERROR HY000: Variable 'have_backup_safe_binlog_info' is a non persistent read only variable
 SET PERSIST_ONLY init_replica = @@GLOBAL.init_replica;
 SET PERSIST_ONLY init_slave = @@GLOBAL.init_slave;
 Warnings:
@@ -263,22 +265,23 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 97 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 100 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 97 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 97 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 97 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 100 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 100 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 100 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
 #    are removed.
 RESET PERSIST binlog_cache_size;
 RESET PERSIST binlog_checksum;
+RESET PERSIST binlog_ddl_skip_rewrite;
 RESET PERSIST binlog_direct_non_transactional_updates;
 RESET PERSIST binlog_encryption;
 RESET PERSIST binlog_error_action;
@@ -312,6 +315,8 @@ RESET PERSIST gtid_owned;
 ERROR HY000: Variable gtid_owned does not exist in persisted config file
 RESET PERSIST gtid_purged;
 ERROR HY000: Variable gtid_purged does not exist in persisted config file
+RESET PERSIST have_backup_safe_binlog_info;
+ERROR HY000: Variable have_backup_safe_binlog_info does not exist in persisted config file
 RESET PERSIST init_replica;
 RESET PERSIST log_bin;
 ERROR HY000: Variable log_bin does not exist in persisted config file

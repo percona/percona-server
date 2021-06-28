@@ -1,0 +1,99 @@
+#
+# PS-7526: Unexpected quoting and dropping of comments in DROP TABLE commands
+#
+
+RESET BINARY LOGS AND GTIDS;
+CREATE DATABASE test7526;
+
+USE test7526;
+
+/* comment1 */ CREATE TABLE t (a VARCHAR(100));
+/* comment1 */ DROP TABLE t;
+
+CREATE TABLE t2 (a VARCHAR(100));
+DROP TABLE t2 /* comment at end */;
+
+CREATE TABLE t (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+/* comment at start */ DROP TABLE t /* comment at end */;
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+/* comment at start */ DROP TABLE t1 /*!80017 */ /* comment at end */;
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+
+/* comment at start */ DROP TABLE t1 /*!80017 ,t2*/ /* comment at end */;
+
+SET binlog_ddl_skip_rewrite = ON;
+
+/* comment1 */ CREATE TABLE t (a VARCHAR(100));
+/* comment1 */ DROP TABLE t;
+
+CREATE TABLE t2 (a VARCHAR(100));
+DROP TABLE t2 /* comment at end */;
+
+CREATE TABLE t (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+/* comment at start */ DROP TABLE t /* comment at end */;
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+/* comment at start */ DROP TABLE t1 /*!80017 */ /* comment at end */;
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+
+CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY)
+PARTITION BY KEY (a)
+PARTITIONS 2;
+
+--error ER_DROP_MULTI_TABLE
+/* comment at start */ DROP TABLE t1 /*!80017 ,t2*/ /* comment at end */;
+
+SET binlog_ddl_skip_rewrite = OFF;
+
+DROP TABLE t1,t2;
+
+/* comment1 */ CREATE TABLE t (a VARCHAR(100));
+/* comment1 */ DROP TABLE t;
+
+CREATE TABLE t2 (a VARCHAR(100));
+DROP TABLE t2 /* comment at end */;
+
+SET binlog_ddl_skip_rewrite = ON;
+
+CREATE TABLE t (a INT);
+CREATE TABLE t1 (a INT);
+
+--error ER_DROP_MULTI_TABLE
+DROP TABLE t,t1;
+
+SET binlog_ddl_skip_rewrite = OFF;
+
+DROP TABLE t,t1;
+
+DROP DATABASE test7526;
+
+SET binlog_ddl_skip_rewrite = ON;
+
+/* comment start */ CREATE DATABASE test7526 /* comment end */;
+/* comment start */ DROP DATABASE test7526 /* comment end */;
+
+SET binlog_ddl_skip_rewrite = OFF;
+
+/* comment start */ CREATE DATABASE test7526 /* comment end */;
+/* comment start */ DROP DATABASE test7526 /* comment end */;
+
+--source include/rpl/deprecated/show_binlog_events.inc

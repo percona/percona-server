@@ -637,8 +637,8 @@ build_rpm(){
     cd ${WORKDIR}
     if [ "x${RHEL}" = "x6" ]; then
         source /opt/rh/devtoolset-8/enable
-        mv /usr/bin/strip /usr/bin/strip_back
-        ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
+        sudo mv /usr/bin/strip /usr/bin/strip_back
+        sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
     fi
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-10/enable
@@ -654,8 +654,8 @@ build_rpm(){
     fi
 
     if [ $RHEL = 6 ]; then
-        rm -f /usr/bin/strip
-        mv /usr/bin/strip_back /usr/bin/strip
+        sudo rm -f /usr/bin/strip
+        sudo mv /usr/bin/strip_back /usr/bin/strip
     fi
 
     return_code=$?

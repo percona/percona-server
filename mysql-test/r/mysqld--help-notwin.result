@@ -100,6 +100,9 @@ The following options may be given as the first argument:
  Type of BINLOG_CHECKSUM_ALG. Include checksum for log
  events in the binary log. Possible values are NONE and
  CRC32; default is CRC32.
+ --binlog-ddl-skip-rewrite 
+ Without server rewrite, DDL queries will be logged with
+ comments.
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -1586,6 +1589,7 @@ big-tables FALSE
 bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
+binlog-ddl-skip-rewrite FALSE
 binlog-direct-non-transactional-updates FALSE
 binlog-encryption FALSE
 binlog-error-action ABORT_SERVER

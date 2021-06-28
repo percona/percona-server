@@ -9651,6 +9651,9 @@ ER_ENCRYPTION_KEY_ID_VALUE_OUT_OF_RANGE
 ER_WRAPPED_UDF_EXCEPTION
   eng "Wrapped UDF exception in function '%-.192s'; %-.80s"
 
+ER_DROP_MULTI_TABLE
+  eng "Multi table drop is not supported when '%s' option is enabled"
+
 #
 # End of Percona Server 8.0 client messages
 #

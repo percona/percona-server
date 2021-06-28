@@ -339,6 +339,7 @@ struct System_variables {
 
   bool sysdate_is_now;
   bool binlog_rows_query_log_events;
+  bool binlog_ddl_skip_rewrite;
 
 #ifndef NDEBUG
   ulonglong query_exec_time;

@@ -307,7 +307,7 @@ create table t5 (f text character set cp932);
 --character_set utf8mb3
 --execw $MYSQL --default-character-set=utf8mb3 test -e "insert into t4 values(_utf8mb3'ã‚½')"
 --character_set cp932
---execw $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ƒ\');"
+--execw $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ï¿½\');"
 --character_set latin1
 let $MYSQLD_DATADIR= `select @@datadir;`;
 flush logs;

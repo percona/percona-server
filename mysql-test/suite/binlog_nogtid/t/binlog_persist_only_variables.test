@@ -52,8 +52,7 @@ INSERT INTO rplvars (varname, varvalue)
         VARIABLE_NAME LIKE '%semi_sync%' OR
         VARIABLE_NAME LIKE '%slave%' OR
         VARIABLE_NAME LIKE '%source%') AND
-       (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-        'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
+       (VARIABLE_NAME NOT LIKE 'innodb%')
        ORDER BY VARIABLE_NAME;
 --enable_warnings
 --let $countvars= `SELECT COUNT(*) FROM rplvars;`
@@ -62,8 +61,8 @@ CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
 INSERT INTO non_persisted VALUES
   ('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
   ('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
-  ('relay_log_index'), ('replica_load_tmpdir'),
-  ('slave_load_tmpdir');
+  ('relay_log_index'), ('replica_load_tmpdir'), ('slave_load_tmpdir'),
+  ('have_backup_safe_binlog_info');
 
 CREATE TABLE aliases (
   name VARCHAR(100) PRIMARY KEY
@@ -84,7 +83,7 @@ INSERT INTO aliases(name) VALUES
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
---let $expected = 108
+--let $expected = 112
 --let $assert_text = Expect $expected variables in the table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
@@ -104,7 +103,7 @@ while ( $varid <= $countvars )
   --eval SET PERSIST_ONLY $varname = @@GLOBAL.$varname
 
   #  TODO: Remove/update this once Bug#27322592 is FIXED.
-  if (`SELECT '$varname' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_replica_statements', 'log_statements_unsafe_for_binlog', 'source_verify_checksum', 'replica_allow_batching', 'replica_compressed_protocol', 'replica_preserve_commit_order', 'replica_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_source_enabled', 'rpl_semi_sync_source_wait_no_replica', 'rpl_semi_sync_replica_enabled', 'binlog_gtid_simple_recovery', 'log_replica_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
+  if (`SELECT '$varname' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'binlog_skip_flush_commands', 'encrypt_binlog', 'log_bin_trust_function_creators', 'log_slow_replica_statements', 'log_statements_unsafe_for_binlog', 'source_verify_checksum', 'replica_allow_batching', 'replica_compressed_protocol', 'replica_preserve_commit_order', 'replica_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_source_enabled', 'rpl_semi_sync_source_wait_no_replica', 'rpl_semi_sync_replica_enabled', 'binlog_gtid_simple_recovery', 'log_replica_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
   {
     --disable_query_log
       --eval SELECT varvalue INTO @varvalue FROM rplvars WHERE id=$varid
@@ -116,7 +115,7 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $expected = 97
+--let $expected = 100
 --let $assert_text = Expect $expected persisted variables in persisted_variables table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc

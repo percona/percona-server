@@ -488,6 +488,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_skip_locks_if_skip_unique_check`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_sst_mgr_rate_bytes_per_sec`
      - Yes
      - No
@@ -556,10 +560,18 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_trace_queries`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_trace_sst_api`
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_track_and_verify_wals_in_manifest`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_unsafe_for_binlog`
      - Yes
      - Yes
@@ -2277,7 +2289,6 @@ with a specific cache size without changing the real block cache.
   :scope: Global, Session
   :vartype: Boolean
   :default: ``OFF``
-
 Specifies whether bloom filters should be skipped on reads.
 Disabled by default (bloom filters are not skipped).
 
@@ -2292,6 +2303,17 @@ Disabled by default (bloom filters are not skipped).
 
 Specifies whether to skip caching data on read requests.
 Disabled by default (caching is not skipped).
+
+.. variable:: rocksdb_skip_locks_if_skip_unique_check
+
+  :version 5.7.35-38: Implemented
+  :cli: ``--rocksdb-skip-locks-if-skip-unique-check``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: OFF
+
+Skips row locking when unique checks are disabled.
 
 .. variable:: rocksdb_sst_mgr_rate_bytes_per_sec
 
@@ -2508,6 +2530,21 @@ are positive integers. The block accesses are saved to
 the ``rocksdb_datadir/block_cache_traces/trace_file_name``.
 The default value is ``""``, an empty string.
 
+.. variable:: rocksdb_trace_queries
+
+  :version 5.7.35-38: Implemented
+  :cli: ``--rocksdb-trace-queries``
+  :dyn: Yes
+  :scope: Global
+  :vartype: String
+  :default: ""
+
+Trace option string. The format is sampling_frequency:max_trace_file_size:trace_file_name. The sampling_frequency value and max_trace_file_size value are positive integers. The queries are saved to the rocksdb_datadir/queries_traces/trace_file_name.
+
+The file size unit is measured in bytes.
+
+The sampling frequency specifies that one request is sampled from ``sampling_frequency`` requests. If the request is ``1``, all the requests are traced. If the request is ``5``, then for every five requests, one request is traced.
+
 .. variable:: rocksdb_trace_sst_api
 
   :version 5.7.19-17: Implemented
@@ -2520,6 +2557,23 @@ The default value is ``""``, an empty string.
 Specifies whether to generate trace output in the log
 for each call to ``SstFileWriter``.
 Disabled by default.
+
+.. variable:: rocksdb_track_and_verify_wals_in_manifest
+
+  :version 5.7.35-38: Implemented
+  :cli: ``--rocksdb-track-and-verify-wals-in-manifest``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+DBOptions::track_and_verify_wals_in_manifest for RocksDB
+
+If true, the log numbers and sizes of the synced WALs are tracked in Manifest, then, during a DB recovery, if a synced WAL is missing from the disk, or the size of the WAL does not match the recorded size in Manifest, an error is reported adn the recovery is aborted. 
+
+.. note::
+
+    This option does not work with a secondary instance.
 
 .. variable:: rocksdb_two_write_queues
 

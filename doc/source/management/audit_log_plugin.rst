@@ -13,69 +13,60 @@ implementation is alternative to the `MySQL Enterprise Audit Log Plugin
 
 Audit Log plugin produces the log of following events:
 
-* **Audit** - Audit event indicates that audit logging started or
-  finished. ``NAME`` field will be ``Audit`` when logging started and
-  ``NoAudit`` when logging finished. Audit record also includes server version
-  and command-line arguments.
+* **Audit** - Audit event indicates that audit logging started or finished. ``NAME`` field will be ``Audit`` when logging started and ``NoAudit`` when logging finished. Audit record also includes server version and command-line arguments.
 
-  Example of the Audit event: ::
+Example of the Audit event: :: 
 
-   <AUDIT_RECORD
-   "NAME"="Audit"
-   "RECORD"="1_2014-04-29T09:29:40"
-   "TIMESTAMP"="2014-04-29T09:29:40 UTC"
-   "MYSQL_VERSION"="5.6.17-65.0-655.trusty"
-   "STARTUP_OPTIONS"="--basedir=/usr --datadir=/var/lib/mysql --plugin-dir=/usr/lib/mysql/plugin --user=mysql --log-error=/var/log/mysql/error.log --pid-file=/var/run/mysqld/mysqld.pid --socket=/var/run/mysqld/mysqld.sock --port=3306"
-   "OS_VERSION"="x86_64-debian-linux-gnu",
-   />
+ <AUDIT_RECORD
+  "NAME"="Audit"
+  "RECORD"="1_2014-04-29T09:29:40"
+  "TIMESTAMP"="2014-04-29T09:29:40 UTC"
+  "MYSQL_VERSION"="5.6.17-65.0-655.trusty"
+  "STARTUP_OPTIONS"="--basedir=/usr --datadir=/var/lib/mysql --plugin-dir=/usr/lib/mysql/plugin --user=mysql --log-error=/var/log/mysql/error.log --pid-file=/var/run/mysqld/mysqld.pid --socket=/var/run/mysqld/mysqld.sock --port=3306"
+  "OS_VERSION"="x86_64-debian-linux-gnu",
+  />
 
-* **Connect**/**Disconnect** - Connect record event will have ``NAME`` field
-  ``Connect`` when user logged in or login failed, or ``Quit`` when connection
-  is closed. Additional fields for this event are ``CONNECTION_ID``, ``STATUS``,
-  ``USER``, ``PRIV_USER``, ``OS_LOGIN``, ``PROXY_USER``, ``HOST``, and
-  ``IP``. ``STATUS`` will be ``0`` for successful logins and non-zero for failed
-  logins.
+* **Connect**/**Disconnect** - Connect record event will have ``NAME`` field ``Connect`` when user logged in or login failed, or ``Quit`` when connection is closed. Additional fields for this event are ``CONNECTION_ID``, ``STATUS``, ``USER``, ``PRIV_USER``, ``OS_LOGIN``, ``PROXY_USER``, ``HOST``, and ``IP``. ``STATUS`` will be  ``0`` for successful logins and non-zero for failed logins.
 
-  Example of the Disconnect event: ::
+Example of the Disconnect event: :: 
 
-   <AUDIT_RECORD
-   "NAME"="Quit"
-   "RECORD"="24_2014-04-29T09:29:40"
-   "TIMESTAMP"="2014-04-29T10:20:13 UTC"
-   "CONNECTION_ID"="49"
-   "STATUS"="0"
-   "USER"=""
-   "PRIV_USER"=""
-   "OS_LOGIN"=""
-   "PROXY_USER"=""
-   "HOST"=""
-   "IP"=""
-   "DB"=""
-   />
+ <AUDIT_RECORD
+  "NAME"="Quit"
+  "RECORD"="24_2014-04-29T09:29:40"
+  "TIMESTAMP"="2014-04-29T10:20:13 UTC"
+  "CONNECTION_ID"="49"
+  "STATUS"="0"
+  "USER"=""
+  "PRIV_USER"=""
+  "OS_LOGIN"=""
+  "PROXY_USER"=""
+  "HOST"=""
+  "IP"=""
+  "DB"=""
+  />
 
-* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values
-  come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in
-  a MySQL source distribution. Examples are ``select``, ``alter_table``,
-  ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when
-  non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``,
-  ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this
-  event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
+* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc..
 
-  Example of the Query event: ::
+.. note::
+    The ``statement/sql/%``  populates the audit log command_class field. For example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE "statement/sql/%"`` query.
+    
+    The %statement/com%`` entry populates the audit log command_class field as lowercase text. For example, the ``SELECT name FROM performance_schema.setup_instruments WHERE name LIKE '%statement/com%'`` query. If you run a 'ping' command, then the command_class field is 'ping', and for 'Init DB', the command_class field is 'init db'.
 
-   <AUDIT_RECORD
-   "NAME"="Query"
-   "RECORD"="23_2014-04-29T09:29:40"
-   "TIMESTAMP"="2014-04-29T10:20:10 UTC"
-   "COMMAND_CLASS"="select"
-   "CONNECTION_ID"="49"
-   "STATUS"="0"
-   "SQLTEXT"="SELECT * from mysql.user"
-   "USER"="root[root] @ localhost []"
-   "HOST"="localhost"
-   "OS_USER"=""
-   "IP"=""
-   />
+Example of the Query event: :: 
+
+ <AUDIT_RECORD
+  "NAME"="Query"
+  "RECORD"="23_2014-04-29T09:29:40"
+  "TIMESTAMP"="2014-04-29T10:20:10 UTC"
+  "COMMAND_CLASS"="select"
+  "CONNECTION_ID"="49"
+  "STATUS"="0"
+  "SQLTEXT"="SELECT * from mysql.user"
+  "USER"="root[root] @ localhost []"
+  "HOST"="localhost"
+  "OS_USER"=""
+  "IP"=""
+  />
 
 Installation
 ============

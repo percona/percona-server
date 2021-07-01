@@ -112,6 +112,7 @@ const std::string DEFAULT_CF_NAME("default");
 const std::string DEFAULT_SYSTEM_CF_NAME("__system__");
 const std::string PER_INDEX_CF_NAME("$per_index_cf");
 const std::string DEFAULT_SK_CF_NAME("default_sk");
+const std::string TRUNCATE_TABLE_PREFIX("#truncate_tmp#");
 
 static std::vector<std::string> rdb_tables_to_recalc;
 
@@ -524,6 +525,10 @@ static void rocksdb_set_wal_bytes_per_sync(THD *thd,
 static int rocksdb_validate_set_block_cache_size(
     THD *thd, struct st_mysql_sys_var *const var, void *var_ptr,
     struct st_mysql_value *value);
+static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
+                           struct st_mysql_sys_var *const var, void *const save,
+                           struct st_mysql_value *const value,
+                           bool trace_block_cache_access = true);
 static int rocksdb_validate_max_bottom_pri_background_compactions(
     THD *thd MY_ATTRIBUTE((__unused__)),
     struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
@@ -577,6 +582,7 @@ static uint32_t rocksdb_force_compute_memtable_stats_cachetime =
 static my_bool rocksdb_debug_optimizer_no_zero_cardinality = TRUE;
 static uint32_t rocksdb_wal_recovery_mode =
     static_cast<uint32_t>(rocksdb::WALRecoveryMode::kPointInTimeRecovery);
+static my_bool rocksdb_track_and_verify_wals_in_manifest = TRUE;
 static uint32_t rocksdb_stats_level = 0;
 static uint32_t rocksdb_access_hint_on_compaction_start =
     rocksdb::Options::AccessHint::NORMAL;
@@ -584,6 +590,7 @@ static char *rocksdb_compact_cf_name = nullptr;
 static char *rocksdb_delete_cf_name = nullptr;
 static char *rocksdb_checkpoint_name = nullptr;
 static char *rocksdb_block_cache_trace_options_str = nullptr;
+static char *rocksdb_trace_options_str = nullptr;
 static my_bool rocksdb_signal_drop_index_thread = FALSE;
 static my_bool rocksdb_strict_collation_check = TRUE;
 static my_bool rocksdb_ignore_unknown_options = TRUE;
@@ -642,7 +649,7 @@ static uint32_t rocksdb_debug_manual_compaction_delay = 0;
 static uint32_t rocksdb_max_manual_compactions = 0;
 static my_bool rocksdb_rollback_on_timeout = FALSE;
 static my_bool rocksdb_enable_insert_with_update_caching = TRUE;
-
+static my_bool rocksdb_skip_locks_if_skip_unique_check = FALSE;
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
 std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
@@ -657,12 +664,34 @@ static int rocksdb_trace_block_cache_access(
     THD *const thd MY_ATTRIBUTE((__unused__)),
     struct st_mysql_sys_var *const var, void *const save,
     struct st_mysql_value *const value) {
+  return rocksdb_tracing(thd, var, save, value,
+                         /* trace_block_cache_accecss = */ true);
+}
+
+static int rocksdb_trace_queries(THD *const thd MY_ATTRIBUTE((__unused__)),
+                                 struct st_mysql_sys_var *const var,
+                                 void *const save,
+                                 struct st_mysql_value *const value) {
+  return rocksdb_tracing(thd, var, save, value,
+                         /* trace_block_cache_accecss = */ false);
+}
+
+static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
+                           struct st_mysql_sys_var *const var, void *const save,
+                           struct st_mysql_value *const value,
+                           bool trace_block_cache_access) {
+  std::string trace_folder =
+      trace_block_cache_access ? "/block_cache_traces" : "/queries_traces";
   char buf[FN_REFLEN];
   int len = sizeof(buf);
-  const char *const trace_opt_str_raw = value->val_str(value, buf, &len);
+
+  const char * trace_opt_str_raw;
+  if ((trace_opt_str_raw = value->val_str(value, buf, &len)))
+    trace_opt_str_raw = thd->strmake(trace_opt_str_raw, len);
+  
   *static_cast<const char **>(save) = trace_opt_str_raw;
   if (trace_opt_str_raw == nullptr) {
-    return HA_EXIT_SUCCESS;
+    return HA_EXIT_FAILURE;
   }
 
   rocksdb::Status s;
@@ -672,10 +701,12 @@ static int rocksdb_trace_block_cache_access(
   int rc __attribute__((__unused__));
   std::string trace_opt_str(trace_opt_str_raw);
   if (trace_opt_str.empty()) {
-    // End tracing block cache accesses.
+    // End tracing block cache accesses or queries.
     // NO_LINT_DEBUG
-    sql_print_information("RocksDB: Stop tracing block cache accesses.\n");
-    s = rdb->EndBlockCacheTrace();
+    sql_print_information(
+        "RocksDB: Stop tracing block cache accesses or queries.\n");
+    s = trace_block_cache_access ? rdb->EndBlockCacheTrace() : rdb->EndTrace();
+
     if (!s.ok()) {
       rc = ha_rocksdb::rdb_error_to_mysql(s);
       return HA_EXIT_FAILURE;
@@ -683,7 +714,7 @@ static int rocksdb_trace_block_cache_access(
     return HA_EXIT_SUCCESS;
   }
 
-  // Start tracing block cache accesses.
+  // Start tracing block cache accesses or queries.
   std::stringstream ss(trace_opt_str);
   std::vector<std::string> trace_opts_strs;
   while (ss.good()) {
@@ -704,9 +735,9 @@ static int rocksdb_trace_block_cache_access(
         "RocksDB: Failed to parse trace option string: %s. The correct "
         "format is sampling_frequency:max_trace_file_size:trace_file_name. "
         "sampling_frequency and max_trace_file_size are positive integers. "
-        "The block accesses are saved to the "
-        "rocksdb_datadir/block_cache_traces/trace_file_name.\n",
-        trace_opt_str.c_str());
+        "The block accesses or quries are saved to the "
+        "rocksdb_datadir%s/trace_file_name.\n",
+        trace_opt_str.c_str(), trace_folder.c_str());
     return HA_EXIT_FAILURE;
   }
   const std::string &trace_file_name = trace_opts_strs[2];
@@ -718,8 +749,7 @@ static int rocksdb_trace_block_cache_access(
         trace_opt_str.c_str());
     return HA_EXIT_FAILURE;
   }
-  const std::string trace_dir =
-      std::string(rocksdb_datadir) + "/block_cache_traces";
+  const std::string trace_dir = std::string(rocksdb_datadir) + trace_folder;
   s = rdb->GetEnv()->CreateDirIfMissing(trace_dir);
   if (!s.ok()) {
     // NO_LINT_DEBUG
@@ -749,14 +779,19 @@ static int rocksdb_trace_block_cache_access(
     rc = ha_rocksdb::rdb_error_to_mysql(s);
     return HA_EXIT_FAILURE;
   }
-  s = rdb->StartBlockCacheTrace(trace_opt, std::move(trace_writer));
+  if (trace_block_cache_access) {
+    s = rdb->StartBlockCacheTrace(trace_opt, std::move(trace_writer));
+  } else {
+    s = rdb->StartTrace(trace_opt, std::move(trace_writer));
+  }
   if (!s.ok()) {
     rc = ha_rocksdb::rdb_error_to_mysql(s);
     return HA_EXIT_FAILURE;
   }
   // NO_LINT_DEBUG
   sql_print_information(
-      "RocksDB: Start tracing block cache accesses. Sampling frequency: %lu, "
+      "RocksDB: Start tracing block cache accesses or queries. Sampling "
+      "frequency: %lu, "
       "Maximum trace file size: %lu, Trace file path %s.\n",
       trace_opt.sampling_frequency, trace_opt.max_trace_file_size,
       trace_file_path.c_str());
@@ -1271,6 +1306,13 @@ static MYSQL_SYSVAR_UINT(
     /* default */ (uint)rocksdb::WALRecoveryMode::kPointInTimeRecovery,
     /* min */ (uint)rocksdb::WALRecoveryMode::kTolerateCorruptedTailRecords,
     /* max */ (uint)rocksdb::WALRecoveryMode::kSkipAnyCorruptedRecords, 0);
+
+static MYSQL_SYSVAR_BOOL(
+    track_and_verify_wals_in_manifest,
+    *reinterpret_cast<my_bool *>(&rocksdb_track_and_verify_wals_in_manifest),
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "DBOptions::track_and_verify_wals_in_manifest for RocksDB", nullptr,
+    nullptr, true);
 
 static MYSQL_SYSVAR_UINT(
     stats_level, rocksdb_stats_level, PLUGIN_VAR_RQCMDARG,
@@ -2092,6 +2134,22 @@ static MYSQL_SYSVAR_STR(
     "rocksdb_datadir/block_cache_traces/trace_file_name.",
     rocksdb_trace_block_cache_access, nullptr, "");
 
+static MYSQL_SYSVAR_STR(
+    trace_queries, rocksdb_trace_options_str,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+    "Trace option string. The format is "
+    "sampling_frequency:max_trace_file_size:trace_file_name. "
+    "sampling_frequency and max_trace_file_size are positive integers. The "
+    "queries are saved to the "
+    "rocksdb_datadir/queries_traces/trace_file_name.",
+    rocksdb_trace_queries, nullptr, "");
+
+static MYSQL_SYSVAR_BOOL(skip_locks_if_skip_unique_check,
+                         rocksdb_skip_locks_if_skip_unique_check,
+                         PLUGIN_VAR_RQCMDARG,
+                         "Skip row locking when unique checks are disabled.",
+                         nullptr, nullptr, FALSE);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
@@ -2171,6 +2229,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_thread_tracking),
     MYSQL_SYSVAR(perf_context_level),
     MYSQL_SYSVAR(wal_recovery_mode),
+    MYSQL_SYSVAR(track_and_verify_wals_in_manifest),
     MYSQL_SYSVAR(stats_level),
     MYSQL_SYSVAR(access_hint_on_compaction_start),
     MYSQL_SYSVAR(new_table_reader_for_compaction_inputs),
@@ -2269,6 +2328,9 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(enable_insert_with_update_caching),
     MYSQL_SYSVAR(trace_block_cache_access),
+    MYSQL_SYSVAR(trace_queries),
+
+    MYSQL_SYSVAR(skip_locks_if_skip_unique_check),
     nullptr};
 
 static rocksdb::WriteOptions rdb_get_rocksdb_write_options(
@@ -4755,6 +4817,38 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
 static uint rocksdb_partition_flags() { return (HA_CANNOT_PARTITION_FK); }
 
+/* Clean up tables leftover from truncation */
+void rocksdb_truncation_table_cleanup(void) {
+  /* Scan for tables that have the truncation prefix */
+  struct Rdb_truncate_tbls : public Rdb_tables_scanner {
+   public:
+    std::vector<Rdb_tbl_def *> m_tbl_list;
+    int add_table(Rdb_tbl_def *tdef) override {
+      assert(tdef != nullptr);
+      if (tdef->base_tablename().find(TRUNCATE_TABLE_PREFIX) !=
+          std::string::npos) {
+        m_tbl_list.push_back(tdef);
+      }
+      return HA_EXIT_SUCCESS;
+    }
+  } collector;
+  ddl_manager.scan_for_tables(&collector);
+
+  /*
+    For now, delete any table found. It's possible to rename them back,
+    but there's a risk the rename can potentially lead to other inconsistencies.
+    Removing the old table (which is being truncated anyway) seems to be the
+    safest solution.
+  */
+  ha_rocksdb table(rocksdb_hton, nullptr);
+  for (Rdb_tbl_def *tbl_def : collector.m_tbl_list) {
+    // NO_LINT_DEBUG
+    sql_print_warning("MyRocks: Removing truncated leftover table %s",
+                      tbl_def->full_tablename().c_str());
+    table.delete_table(tbl_def);
+  }
+}
+
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
@@ -4895,6 +4989,9 @@ static int rocksdb_init_func(void *const p) {
 
   rocksdb_db_options->wal_recovery_mode =
       static_cast<rocksdb::WALRecoveryMode>(rocksdb_wal_recovery_mode);
+
+  rocksdb_db_options->track_and_verify_wals_in_manifest =
+      rocksdb_track_and_verify_wals_in_manifest;
 
   rocksdb_db_options->access_hint_on_compaction_start =
       static_cast<rocksdb::Options::AccessHint>(
@@ -5283,6 +5380,9 @@ static int rocksdb_init_func(void *const p) {
 
   // succeeded, set the init status flag
   rdb_get_hton_init_state()->set_initialized(true);
+
+  // Remove tables that may have been leftover during truncation
+  rocksdb_truncation_table_cleanup();
 
   // NO_LINT_DEBUG
   sql_print_information(
@@ -6581,6 +6681,13 @@ int ha_rocksdb::create_key_defs(
   assert(table_arg != nullptr);
   assert(table_arg->s != nullptr);
 
+  DBUG_EXECUTE_IF("rocksdb_truncate_failure", {
+    my_error(ER_INTERNAL_ERROR, MYF(0), "Simulated truncation failure.");
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  });
+
+  DBUG_EXECUTE_IF("rocksdb_truncate_failure_crash", DBUG_SUICIDE(););
+
   /*
     These need to be one greater than MAX_INDEXES since the user can create
     MAX_INDEXES secondary keys and no primary key which would cause us
@@ -6692,10 +6799,17 @@ int ha_rocksdb::create_cfs(
     The first loop checks the index parameters and creates
     column families if necessary.
   */
+  THD *const thd = my_core::thd_get_current_thd();
   for (uint i = 0; i < tbl_def_arg->m_key_count; i++) {
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;
 
+    /*
+      Skip collation checks on truncation since we might be recreating the
+      table that had unsupported collations and we don't want to fail the
+      truncation.
+    */
     if (rocksdb_strict_collation_check &&
+        thd->lex->sql_command != SQLCOM_TRUNCATE &&
         !is_hidden_pk(i, table_arg, tbl_def_arg) &&
         tbl_def_arg->base_tablename().find(tmp_file_prefix) != 0) {
       for (uint part = 0; part < table_arg->key_info[i].actual_key_parts;
@@ -7118,6 +7232,10 @@ int ha_rocksdb::create_key_def(const TABLE *const table_arg, const uint i,
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
+bool rdb_is_tablename_normalized(const std::string &tablename) {
+  return tablename.size() < 2 || (tablename[0] != '.' && tablename[1] != '/');
+}
+
 int rdb_normalize_tablename(const std::string &tablename,
                             std::string *const strbuf) {
   assert(strbuf != nullptr);
@@ -7134,6 +7252,21 @@ int rdb_normalize_tablename(const std::string &tablename,
   }
 
   *strbuf = tablename.substr(2, pos - 2) + "." + tablename.substr(pos + 1);
+
+  return HA_EXIT_SUCCESS;
+}
+
+int rdb_make_canonical_tablename(const std::string &tablename,
+    std::string *const strbuf) {
+  assert(strbuf != nullptr);
+
+  size_t pos = tablename.find_first_of('.');
+  if (pos == std::string::npos) {
+    assert(0);
+    return HA_ERR_ROCKSDB_INVALID_TABLE;
+  }
+
+  *strbuf = "./" + tablename.substr(0, pos) + "/" + tablename.substr(pos + 1);
 
   return HA_EXIT_SUCCESS;
 }
@@ -7241,6 +7374,35 @@ int rdb_split_normalized_tablename(const std::string &fullname,
   }
 
   return HA_EXIT_SUCCESS;
+}
+
+/*
+  Generates the normalized tablename using as many of the given arguments as
+  possible. Any of the three arguments to <db>.<table>#P#<partition> can be
+  null/empty, but return string will only ever be of the form
+  <db>
+  <db>.<table>
+  <db>.<table>#P#<partition>
+  <table>
+  <table>#P#<partition>
+*/
+void rdb_gen_normalized_tablename(const std::string *db,
+                                  const std::string *table,
+                                  const std::string *partition,
+                                  std::string *fullname) {
+  if (!fullname) return;
+  fullname->clear();
+  if (db && db->length() > 0) *fullname += *db;
+
+  /* If table was not passed in, the partition will be ignored too */
+  if (!table || table->length() == 0) return;
+
+  if (fullname->length() > 0) *fullname += ".";
+  *fullname += *table;
+
+  if (partition && partition->length() > 0) {
+    *fullname += std::string(RDB_PARTITION_STR) + *partition;
+  }
 }
 
 /*
@@ -7422,13 +7584,11 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
   }
 
   // Check whether Data Dictionary contain information
-  Rdb_tbl_def *tbl = ddl_manager.find(str);
-  if (tbl != nullptr) {
+  Rdb_tbl_def *old_tbl = ddl_manager.find(str);
+  if (old_tbl != nullptr) {
     if (thd->lex->sql_command == SQLCOM_TRUNCATE) {
-      err = delete_table(tbl);
-      if (err != HA_EXIT_SUCCESS) {
-        DBUG_RETURN(err);
-      }
+      DBUG_RETURN(truncate_table(old_tbl, table_arg,
+                                 create_info->auto_increment_value));
     } else {
       my_error(ER_METADATA_INCONSISTENCY, MYF(0), str.c_str(), name);
       DBUG_RETURN(HA_ERR_ROCKSDB_CORRUPT_DATA);
@@ -7436,6 +7596,107 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
   }
 
   DBUG_RETURN(create_table(str, table_arg, create_info->auto_increment_value));
+}
+
+/*
+  Fast truncates a table by renaming the old table, creating a new one and
+  restoring or deleting the old table based on the results from creation.
+
+  @param tbl_def               IN      MyRocks's table structure
+  @param table_arg             IN      sql table
+  @param auto_increment_value  IN      specified table's auto increment value
+
+  @return
+    HA_EXIT_SUCCESS  OK
+    other            HA_ERR error code (can be SE-specific)
+*/
+int ha_rocksdb::truncate_table(Rdb_tbl_def *tbl_def_arg, const TABLE *table_arg,
+                               ulonglong auto_increment_value) {
+  DBUG_ENTER_FUNC();
+
+  /*
+    Fast table truncation involves deleting the table and then recreating
+    it. However, it is possible recreating the table fails. In this case, a
+    table inconsistency might result between SQL and MyRocks where MyRocks is
+    missing a table. Since table creation involves modifying keys with the
+    original table name, renaming the original table first, and then renaming
+    it back in case of creation failure can help restore the pre-truncation
+    state.
+
+    If the server were to crash during truncation, the system will end up with
+    an inconsistency. Future changes for atomic ddl will resolve this. For now,
+    if there are any truncation renamed tables found during startup, MyRocks
+    will automatically remove them.
+  */
+  std::string orig_tablename = tbl_def_arg->full_tablename();
+  std::string dbname, tblname, partition;
+
+  /*
+    Rename the table in the data dictionary. Since this thread should be
+    holding the MDL for this tablename, it is safe to perform these renames
+    should be locked via MDL, no other process thread be able to access this
+    table.
+  */
+  int err = rdb_split_normalized_tablename(orig_tablename, &dbname, &tblname,
+                                           &partition);
+  assert(err == 0);
+  if (err != HA_EXIT_SUCCESS) DBUG_RETURN(err);
+  tblname = std::string(TRUNCATE_TABLE_PREFIX) + tblname;
+
+  std::string tmp_tablename;
+  rdb_gen_normalized_tablename(&dbname, &tblname, &partition, &tmp_tablename);
+
+  err = rename_table(orig_tablename.c_str(), tmp_tablename.c_str());
+  if (err != HA_EXIT_SUCCESS) DBUG_RETURN(err);
+
+  /*
+    Attempt to create the table. If this succeeds, then drop the old table.
+    Otherwise, try to restore it.
+  */
+  err = create_table(orig_tablename, table_arg, auto_increment_value);
+  bool should_remove_old_table = true;
+
+  /* Restore the old table being truncated if creating the new table failed */
+  if (err != HA_EXIT_SUCCESS) {
+    int rename_err =
+        rename_table(tmp_tablename.c_str(), orig_tablename.c_str());
+
+    /*
+      If the rename also fails, we are out of options, but at least try to drop
+      the old table contents.
+    */
+    if (rename_err == HA_EXIT_SUCCESS) {
+      should_remove_old_table = false;
+    } else {
+      // NO_LINT_DEBUG
+      sql_print_error(
+          "MyRocks: Failure during truncation of table %s "
+          "being renamed from %s",
+          orig_tablename.c_str(), tmp_tablename.c_str());
+      err = rename_err;
+    }
+  }
+
+  /*
+    Since the table was successfully truncated or the name restore failed, no
+    error should be returned at this point from trying to delete the old
+    table. If the delete_table fails, log it instead.
+  */
+  Rdb_tbl_def *old_tbl_def = ddl_manager.find(tmp_tablename);
+  if (should_remove_old_table && old_tbl_def) {
+    m_tbl_def = old_tbl_def;
+    if (delete_table(old_tbl_def) != HA_EXIT_SUCCESS) {
+      // NO_LINT_DEBUG
+      sql_print_error(
+          "Failure when trying to drop table %s during "
+          "truncation of table %s",
+          tmp_tablename.c_str(), orig_tablename.c_str());
+    }
+  }
+
+  /* Update the local m_tbl_def reference */
+  m_tbl_def = ddl_manager.find(orig_tablename);
+  DBUG_RETURN(err);
 }
 
 /**
@@ -9223,11 +9484,14 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
 */
 int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
                                          const struct update_row_info &row_info,
-                                         bool *const found) {
+                                         bool *const found,
+                                         const bool skip_unique_check) {
   assert(found != nullptr);
 
   assert(row_info.old_pk_slice.size() == 0 ||
               row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0);
+
+  const bool ignore_pk_unique_check = skip_unique_check;
 
   /*
     Perform a read to determine if a duplicate entry exists. For primary
@@ -9248,14 +9512,15 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
     2) T1 Get(empty) -> T1 Put(insert, not committed yet) -> T2 Get(empty)
        -> T2 Put(insert, blocked) -> T1 commit -> T2 commit(overwrite)
   */
-  const rocksdb::Status s = get_for_update(
-      row_info.tx, *m_pk_descr, row_info.new_pk_slice, &m_retrieved_record);
+  const rocksdb::Status s =
+      get_for_update(row_info.tx, *m_pk_descr, row_info.new_pk_slice,
+                     ignore_pk_unique_check ? nullptr : &m_retrieved_record);
   if (!s.ok() && !s.IsNotFound()) {
     return row_info.tx->set_status_error(table->in_use, s,
                                          *m_key_descr_arr[key_id], m_tbl_def);
   }
 
-  bool key_found = !s.IsNotFound();
+  bool key_found = ignore_pk_unique_check ? false : !s.IsNotFound();
 
   /*
     If the pk key has ttl, we may need to pretend the row wasn't
@@ -9300,7 +9565,8 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
 */
 int ha_rocksdb::check_and_lock_sk(const uint key_id,
                                   const struct update_row_info &row_info,
-                                  bool *const found) {
+                                  bool *const found,
+                                  const bool skip_unique_check) {
   assert(found != nullptr);
   *found = false;
 
@@ -9455,7 +9721,8 @@ int ha_rocksdb::check_and_lock_sk(const uint key_id,
     other            HA_ERR error code (can be SE-specific)
 */
 int ha_rocksdb::check_uniqueness_and_lock(
-    const struct update_row_info &row_info, bool pk_changed) {
+    const struct update_row_info &row_info, bool pk_changed,
+    bool skip_unique_check) {
   /*
     Go through each index and determine if the index has uniqueness
     requirements. If it does, then try to obtain a row lock on the new values.
@@ -9471,11 +9738,12 @@ int ha_rocksdb::check_uniqueness_and_lock(
         found = false;
         rc = HA_EXIT_SUCCESS;
       } else {
-        rc = check_and_lock_unique_pk(key_id, row_info, &found);
+        rc = check_and_lock_unique_pk(key_id, row_info, &found,
+                                      skip_unique_check);
         DEBUG_SYNC(ha_thd(), "rocksdb.after_unique_pk_check");
       }
     } else {
-      rc = check_and_lock_sk(key_id, row_info, &found);
+      rc = check_and_lock_sk(key_id, row_info, &found, skip_unique_check);
       DEBUG_SYNC(ha_thd(), "rocksdb.after_unique_sk_check");
     }
 
@@ -9896,12 +10164,15 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
     pk_changed = row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0;
   }
 
-  if (!skip_unique_check) {
+  // Case: We skip both unique checks and rows locks only when bulk load is
+  // enabled or if rocksdb_skip_locks_if_skip_unique_check is ON
+  if (!THDVAR(table->in_use, bulk_load) &&
+      (!rocksdb_skip_locks_if_skip_unique_check || !skip_unique_check)) {
     /*
       Check to see if we are going to have failures because of unique
       keys.  Also lock the appropriate key values.
     */
-    rc = check_uniqueness_and_lock(row_info, pk_changed);
+    rc = check_uniqueness_and_lock(row_info, pk_changed, skip_unique_check);
     if (rc != HA_EXIT_SUCCESS) {
       DBUG_RETURN(rc);
     }
@@ -10306,6 +10577,8 @@ int ha_rocksdb::index_end() {
 }
 
 /**
+  Called by the partition manager for truncating tables.
+
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
@@ -10315,19 +10588,10 @@ int ha_rocksdb::truncate() {
 
   assert(m_tbl_def != nullptr);
 
-  // Save table name to use later
-  std::string table_name = m_tbl_def->full_tablename();
-
-  // Delete current table
-  int err = delete_table(m_tbl_def);
-  if (err != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(err);
-  }
-
   // Reset auto_increment_value to 1 if auto-increment feature is enabled
   // By default, the starting valid value for auto_increment_value is 1
-  DBUG_RETURN(create_table(
-      table_name, table,
+  DBUG_RETURN(truncate_table(
+      m_tbl_def, table,
       table->found_next_number_field ? 1 : 0 /* auto_increment_value */));
 }
 
@@ -11380,10 +11644,15 @@ int ha_rocksdb::rename_non_partitioned_table(const char *const from,
   std::string to_str;
   std::string from_db;
   std::string to_db;
+  int rc;
 
-  int rc = rdb_normalize_tablename(from, &from_str);
-  if (rc != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(rc);
+  if (rdb_is_tablename_normalized(from)) {
+    from_str = from;
+  } else {
+    rc = rdb_normalize_tablename(from, &from_str);
+    if (rc != HA_EXIT_SUCCESS) {
+      DBUG_RETURN(rc);
+    }
   }
 
   rc = rdb_split_normalized_tablename(from_str, &from_db);
@@ -11391,9 +11660,13 @@ int ha_rocksdb::rename_non_partitioned_table(const char *const from,
     DBUG_RETURN(rc);
   }
 
-  rc = rdb_normalize_tablename(to, &to_str);
-  if (rc != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(rc);
+  if (rdb_is_tablename_normalized(to)) {
+    to_str = to;
+  } else {
+    rc = rdb_normalize_tablename(to, &to_str);
+    if (rc != HA_EXIT_SUCCESS) {
+      DBUG_RETURN(rc);
+    }
   }
 
   rc = rdb_split_normalized_tablename(to_str, &to_db);
@@ -11432,11 +11705,35 @@ int ha_rocksdb::rename_non_partitioned_table(const char *const from,
 int ha_rocksdb::rename_table(const char *const from, const char *const to) {
   assert(from);
   assert(to);
+
+  const char* from2 = from;
+  const char* to2 = to;
+  std::string from_canon, to_canon;
+  int rc;
+
+  if (rdb_is_tablename_normalized(from)) {
+    rc = rdb_make_canonical_tablename(from, &from_canon);
+    if (rc != HA_EXIT_SUCCESS) {
+      return rc;
+    }
+
+    from2 = from_canon.c_str();
+  }
+
+  if (rdb_is_tablename_normalized(to)) {
+    rc = rdb_make_canonical_tablename(to, &to_canon);
+    if (rc != HA_EXIT_SUCCESS) {
+      return rc;
+    }
+    to2 = to_canon.c_str();
+  }
+
   std::string partition_info_str;
-  if (!native_part::get_part_str_for_table(from, partition_info_str))
+  if (!native_part::get_part_str_for_table(from2, partition_info_str))
     return HA_ERR_TABLE_CORRUPT;
-  if (partition_info_str.empty()) return rename_non_partitioned_table(from, to);
-  return rename_partitioned_table(from, to, partition_info_str);
+
+  if (partition_info_str.empty()) return rename_non_partitioned_table(from2, to2);
+  return rename_partitioned_table(from2, to2, partition_info_str);
 }
 
 /**

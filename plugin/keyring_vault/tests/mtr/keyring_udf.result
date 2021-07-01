@@ -1,9 +1,3 @@
-call mtr.add_suppression("Error while fetching key: key_id cannot be empty");
-call mtr.add_suppression("Error while removing key: key_id cannot be empty");
-call mtr.add_suppression("Error while generating key: invalid key_type");
-call mtr.add_suppression("Error while generating key: key_id cannot be empty");
-call mtr.add_suppression("Error while storing key: invalid key_type");
-call mtr.add_suppression("Error while storing key: key_id cannot be empty");
 # Check what happens when we have not yet loaded keyring_udf or keyring_vault
 create function keyring_key_store returns integer soname 'keyring_udf.so';
 create function keyring_key_fetch returns string soname 'keyring_udf.so';
@@ -85,7 +79,7 @@ select keyring_key_store('key_id','AES',"0123456789012345");
 keyring_key_store('key_id','AES',"0123456789012345")
 1
 # Check if checking keyring_vault configuration file works fine
-SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault2.conf';
+SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault2.conf';
 select keyring_key_generate('key_id','AES',16);
 keyring_key_generate('key_id','AES',16)
 1
@@ -93,7 +87,7 @@ select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 16
-SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf';
+SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault1.conf';
 select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);
 LENGTH(@x)
@@ -101,7 +95,7 @@ LENGTH(@x)
 select keyring_key_remove('key_id');
 keyring_key_remove('key_id')
 1
-SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault2.conf';
+SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault2.conf';
 select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);
 LENGTH(@x)

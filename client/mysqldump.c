@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ static char  *opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static char  *start_sql_file= NULL, *finish_sql_file= NULL;
 #endif
 static char **defaults_argv= 0;
@@ -321,7 +321,7 @@ static struct my_option my_long_options[] =
    "Dump several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names. 'USE db_name;' will be included in the output.",
    &opt_databases, &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
@@ -573,7 +573,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	{"start-sql-file", OPT_START_SQL_FILE, "Execute SQL statements from the file"
     " at the mysqldump start. Each line has to contain one statement terminated"
     " with a semicolon. Line length limit is 1023 characters.",
@@ -1039,14 +1039,14 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
         fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
         exit(1);
       }
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       {
         size_t size_for_sql_mode= 0;
         const char **ptr;
         for (ptr= compatible_mode_names; *ptr; ptr++)
           size_for_sql_mode+= strlen(*ptr);
         size_for_sql_mode+= sizeof(compatible_mode_names)-1;
-        DBUG_ASSERT(sizeof(compatible_mode_normal_str)>=size_for_sql_mode);
+        assert(sizeof(compatible_mode_normal_str)>=size_for_sql_mode);
       }
 #endif
       mode= opt_compatible_mode;
@@ -2053,7 +2053,7 @@ static char *unquote_name(const char *opt_quoted_name, char *buff)
     return (char*)opt_quoted_name;
   if (*opt_quoted_name != qtype)
   {
-    DBUG_ASSERT(strchr(opt_quoted_name, qtype) == 0);
+    assert(strchr(opt_quoted_name, qtype) == 0);
     return (char*)opt_quoted_name;
   }
 
@@ -2067,7 +2067,7 @@ static char *unquote_name(const char *opt_quoted_name, char *buff)
         *to++= qtype;
       else
       {
-        DBUG_ASSERT(*opt_quoted_name == '\0');
+        assert(*opt_quoted_name == '\0');
       }
     }
     else
@@ -2218,7 +2218,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg,
   while (attribute_name != NullS)
   {
     attribute_value= va_arg(arg_list, char *);
-    DBUG_ASSERT(attribute_value != NullS);
+    assert(attribute_value != NullS);
 
     fputc(' ', xml_file);
     fputs(attribute_name, xml_file);    
@@ -3056,7 +3056,7 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
   const char *from, *to;
   uint idnum;
 
-  DBUG_ASSERT(type != KEY_TYPE_NONE);
+  assert(type != KEY_TYPE_NONE);
 
   if (autoinc_column == NULL)
     return FALSE;
@@ -3208,7 +3208,7 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
       */
       if (type != KEY_TYPE_NONE && has_autoinc)
       {
-          DBUG_ASSERT(autoinc_column != NULL);
+          assert(autoinc_column != NULL);
 
           my_free(autoinc_column);
           autoinc_column= NULL;
@@ -3233,7 +3233,7 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
 
         if (*end == '`' && end > ptr + 1)
         {
-          DBUG_ASSERT(autoinc_column == NULL);
+          assert(autoinc_column == NULL);
 
           autoinc_column_len= end - ptr - 1;
           autoinc_column= my_strndup(PSI_NOT_INSTRUMENTED, ptr + 1,
@@ -3289,7 +3289,7 @@ static void skip_compressed_columns(char *create_str, LIST **dictionaries)
   while ((prefix_ptr= strstr(ptr, prefix)) != 0)
   {
     suffix_ptr= strstr(prefix_ptr + prefix_length, suffix);
-    DBUG_ASSERT(suffix_ptr != 0);
+    assert(suffix_ptr != 0);
     if (!opt_compressed_columns_with_dictionaries)
     {
       if (!opt_compressed_columns)
@@ -3321,7 +3321,7 @@ static void skip_compressed_columns(char *create_str, LIST **dictionaries)
 
         dictionary_keyword_ptr= strstr(prefix_ptr + prefix_length,
                                        dictionary_keyword);
-        DBUG_ASSERT(dictionary_keyword_ptr < suffix_ptr);
+        assert(dictionary_keyword_ptr < suffix_ptr);
         dictionary_name_length= suffix_ptr -
           (dictionary_keyword_ptr + dictionary_keyword_length);
 
@@ -3442,7 +3442,7 @@ static void print_optional_create_compression_dictionary(FILE* sql_file,
       DBUG_VOID_RETURN;
     }
     lengths= mysql_fetch_lengths(result);
-    DBUG_ASSERT(lengths != 0);
+    assert(lengths != 0);
 
     quoted_dictionary_name= quote_name(dictionary_name, quoted_buff, 0);
 
@@ -4559,8 +4559,8 @@ static void dump_skipped_keys(const char *table)
     }
   }
 
-  DBUG_ASSERT(skipped_keys_list == NULL);
-  DBUG_ASSERT(alter_constraints_list == NULL);
+  assert(skipped_keys_list == NULL);
+  assert(alter_constraints_list == NULL);
 }
 
 
@@ -4899,9 +4899,9 @@ static void dump_table(char *table, char *db)
                   extended_row.length+= mysql_hex_string(extended_row.str +
                                                          extended_row.length,
                                                          row[i], length);
-                  DBUG_ASSERT(extended_row.length+1 <= extended_row.max_length);
+                  assert(extended_row.length+1 <= extended_row.max_length);
                   /* mysql_hex_string() already terminated string by '\0' */
-                  DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
+                  assert(extended_row.str[extended_row.length] == '\0');
                 }
                 else
                 {
@@ -5506,7 +5506,7 @@ static int dump_all_databases()
       db_cnt++;
     }
   }
-  DBUG_ASSERT(mysql_db_found);
+  assert(mysql_db_found);
   memset(database_list, 0, sizeof(*database_list));
   my_free(database_list);
 
@@ -5948,7 +5948,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
   DBUG_ENTER("get_actual_table_name");
 
   /* Check memory for quote_for_like() */
-  DBUG_ASSERT(2*sizeof(old_table_name) < sizeof(show_name_buff));
+  assert(2*sizeof(old_table_name) < sizeof(show_name_buff));
   my_snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
               quote_for_like(old_table_name, show_name_buff));
 
@@ -6548,7 +6548,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   DBUG_ENTER("check_if_ignore_table");
 
   /* Check memory for quote_for_like() */
-  DBUG_ASSERT(2*sizeof(table_name) < sizeof(show_name_buff));
+  assert(2*sizeof(table_name) < sizeof(show_name_buff));
   my_snprintf(buff, sizeof(buff), "show table status like %s",
               quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(mysql, &res, buff))
@@ -7251,7 +7251,7 @@ static my_bool server_supports_backup_locks(void)
   @retval  1 failure
            0 success
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SQL_STATEMENT_MAX_LEN 1024  // 1023 chars for statement + trailing 0
 static int execute_sql_file(const char *sql_file)
 {
@@ -7312,7 +7312,7 @@ static int execute_sql_file(const char *sql_file)
   fclose(file);
   return 0;
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 int main(int argc, char **argv)
 {
@@ -7356,7 +7356,7 @@ int main(int argc, char **argv)
     exit(EX_MYSQLERR);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (execute_sql_file(start_sql_file))
     goto err;
 #endif
@@ -7579,7 +7579,7 @@ int main(int argc, char **argv)
     server.
   */
 err:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   execute_sql_file(finish_sql_file);
 #endif
 

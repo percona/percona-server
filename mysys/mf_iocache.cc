@@ -387,11 +387,6 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
   info->error = 0;
   init_functions(info);
 
-  if (info->m_encryptor != nullptr)
-    info->m_encryptor->set_stream_offset(seek_offset);
-  if (info->m_decryptor != nullptr)
-    info->m_decryptor->set_stream_offset(seek_offset);
-
   if (DBUG_EVALUATE_IF("fault_injection_reinit_io_cache", true, false))
     return true;
   return false;

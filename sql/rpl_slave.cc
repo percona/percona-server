@@ -6516,11 +6516,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
   /* TODO:
      to turn the least occupied selection in terms of jobs pieces
   */
-  for (Slave_worker **it = rli->workers.begin(); it != rli->workers.begin();
-       ++it) {
-    Slave_worker *w_i = *it;
-    rli->least_occupied_workers[w_i->id] = w_i->jobs.len;
-  };
+  for (size_t i = 0; i < rli->get_worker_count(); i++) {
+    Slave_worker *w_i = rli->workers[i];
+    rli->least_occupied_workers[i] = std::make_pair(w_i->jobs.len, i);
+  }
   std::sort(rli->least_occupied_workers.begin(),
             rli->least_occupied_workers.end());
 
@@ -6642,7 +6641,7 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
   // Least occupied inited with zero
   {
     ulong jobs_len = w->jobs.len;
-    rli->least_occupied_workers.push_back(jobs_len);
+    rli->least_occupied_workers.push_back(std::make_pair(jobs_len, i));
   }
 err:
   if (error && w) {

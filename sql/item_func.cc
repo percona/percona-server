@@ -1072,6 +1072,8 @@ bool contains_function_of_type(Item *item, Item_func::Functype type) {
                         when the value of the expression itself is consumed
                         (GROUP BY/ORDER BY), as opposed to the expression only
                         being used for an index lookup inside a predicate.
+                        When set, JSON_UNQUOTE() and CAST() wrappers on the
+                        GC expression are not skipped while matching.
 
   @returns
     item new Item_field for matched GC
@@ -1116,41 +1118,29 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
        {Item_func::COLLATE_FUNC, Item_func::TYPECAST_FUNC,
         Item_func::JSON_UNQUOTE_FUNC}) {
     /*
-      Unlike the other functions skipped here, JSON_UNQUOTE() changes the value
-      and not only its representation for comparison purposes:
-      JSON_EXTRACT(j,'$.a') evaluates to '"a"' whereas
-      JSON_UNQUOTE(JSON_EXTRACT(j,'$.a')) evaluates to 'a'. Skipping it is only
-      sound when the GC replaces the expression inside a predicate which is
-      evaluated through an index lookup. When the value of the expression
-      itself is consumed, as in GROUP BY/ORDER BY, such substitution changes
-      the query result (PS-9768).
+      JSON_UNQUOTE() and CAST() can change the value of the expression, not
+      only its representation for comparison purposes:
+      - JSON_EXTRACT(j,'$.a') evaluates to '"a"' whereas
+        JSON_UNQUOTE(JSON_EXTRACT(j,'$.a')) evaluates to 'a'.
+      - CAST(j->>'$.n' AS UNSIGNED) turns the distinct strings '1' and '01'
+        into the same integer; CAST(.. AS CHAR(n)) can truncate.
 
-      TYPECAST and COLLATE are still stripped even when require_same_value is
-      true. That is an intentional residual gap, not a claim that every CAST is
-      value-preserving:
+      Skipping those wrappers is only sound when the GC replaces the
+      expression inside a predicate evaluated through an index lookup. When
+      the value of the expression itself is consumed, as in GROUP BY/ORDER
+      BY, such substitution changes the query result (PS-9768).
 
-      - COLLATE mismatches for ORDER/GROUP BY are rejected separately in
-        substitute_gc() by comparing the expression's collation to the GC
-        field's charset.
-      - Multi-valued CAST(.. AS .. ARRAY) fields are excluded from the
-        ORDER/GROUP BY candidate list in substitute_gc().
-      - A scalar CAST can still change the value while keeping a matching
-        collation or a non-string result type when the analysed expression
-        is itself a function (bare fields are not candidates for ORDER/GROUP
-        BY substitution; @see Item::can_be_substituted_for_gc()), e.g.
-          INDEX ((CAST(j->>'$.n' AS UNSIGNED))) + GROUP BY j->>'$.n'
-          INDEX (((CAST(j->>'$.a' AS CHAR(1) CHARSET utf8mb4))
-                  COLLATE utf8mb4_bin)) + GROUP BY j->>'$.a'
-        Refusing to strip TYPECAST_FUNC when require_same_value is set would
-        close that (GROUP BY on the exact CAST() expression would keep
-        matching, because the wrapper is only skipped when the analysed
-        expression lacks it). The known PS-9768 wrong-results cases are
-        covered without that change, so TYPECAST stripping is left as-is
-        for now rather than widening the behavioural delta further.
-        Regression coverage for the residual behaviour is in percona.ps9768
-        cases 10 and 11.
+      COLLATE is still stripped when require_same_value is true: it does not
+      change the value bytes, and ORDER/GROUP BY collation mismatches are
+      rejected separately in substitute_gc() by comparing the expression's
+      collation to the GC field's charset. Multi-valued CAST(.. AS .. ARRAY)
+      fields are excluded from the ORDER/GROUP BY candidate list there as
+      well. Exact GROUP BY/ORDER BY on the CAST() expression keeps matching,
+      because the wrapper is only skipped when the analysed expression lacks
+      it.
     */
-    if (require_same_value && functype == Item_func::JSON_UNQUOTE_FUNC)
+    if (require_same_value && (functype == Item_func::JSON_UNQUOTE_FUNC ||
+                               functype == Item_func::TYPECAST_FUNC))
       continue;
     if (is_function_of_type(expr, functype) &&
         !is_function_of_type(func, functype)) {

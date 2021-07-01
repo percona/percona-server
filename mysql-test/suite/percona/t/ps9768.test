@@ -226,14 +226,11 @@ SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
   FROM information_schema.OPTIMIZER_TRACE;
 
 --echo #
---echo # Case 10: residual gap — TYPECAST is still stripped under
---echo #          require_same_value, so a functional index CAST(.. AS UNSIGNED)
---echo #          replaces GROUP BY on the inner expression and merges '1' and
---echo #          '01'. If require_same_value also refused TYPECAST_FUNC, the
---echo #          GROUP BY below would not be rewritten (substituted=0) and the
---echo #          three distinct strings would remain three groups, matching
---echo #          IGNORE INDEX FOR GROUP BY. Exact CAST() GROUP BY and WHERE
---echo #          pushdown must keep working either way.
+--echo # Case 10: require_same_value also refuses to strip TYPECAST, so a
+--echo #          functional index CAST(.. AS UNSIGNED) must not replace
+--echo #          GROUP BY on the inner expression. '1' and '01' stay two
+--echo #          groups, matching IGNORE INDEX FOR GROUP BY. Exact CAST()
+--echo #          GROUP BY and WHERE pushdown must keep working.
 --echo #
 CREATE TABLE t8 (
   data2 json,
@@ -246,7 +243,7 @@ INSERT INTO t8 VALUES
 
 --sorted_result
 SELECT data2->>'$.n' AS c, count(*) AS `*` FROM t8 GROUP BY data2->>'$.n';
---echo # Expect 1 today (TYPECAST stripped). Would be 0 if TYPECAST were gated.
+--echo # Expect 0: TYPECAST on the index expression is not skipped
 SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
   FROM information_schema.OPTIMIZER_TRACE;
 
@@ -257,7 +254,7 @@ SELECT data2->>'$.n' AS c, count(*) AS `*` FROM t8
 --sorted_result
 SELECT CAST(data2->>'$.n' AS UNSIGNED) AS c, count(*) AS `*` FROM t8
   GROUP BY CAST(data2->>'$.n' AS UNSIGNED);
---echo # Expect 1 either way: exact CAST match
+--echo # Expect 1: exact CAST match is still substituted
 SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
   FROM information_schema.OPTIMIZER_TRACE;
 
@@ -268,12 +265,9 @@ SELECT TRACE LIKE '%as unsigned%' AS where_substituted
   FROM information_schema.OPTIMIZER_TRACE;
 
 --echo #
---echo # Case 11: residual gap — same TYPECAST stripping with a length-
---echo #          changing CAST and a matching collation. 'aa' and 'ab' are
---echo #          merged into one group today. Gating TYPECAST under
---echo #          require_same_value would leave three groups. Non-strict
---echo #          sql_mode is required so truncated functional-index values
---echo #          can be stored.
+--echo # Case 11: same for a length-changing CAST with a matching collation.
+--echo #          'aa' and 'ab' must remain two groups. Non-strict sql_mode is
+--echo #          required so truncated functional-index values can be stored.
 --echo #
 SET @old_sql_mode= @@sql_mode;
 SET sql_mode='';
@@ -291,7 +285,7 @@ SET sql_mode= @old_sql_mode;
 --sorted_result
 SELECT data2->>'$.a' AS c, count(*) AS `*` FROM t9 GROUP BY data2->>'$.a';
 --enable_warnings
---echo # Expect 1 today (TYPECAST stripped). Would be 0 if TYPECAST were gated.
+--echo # Expect 0: TYPECAST on the index expression is not skipped
 SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
   FROM information_schema.OPTIMIZER_TRACE;
 
@@ -305,7 +299,7 @@ SELECT CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin AS c,
        count(*) AS `*` FROM t9
   GROUP BY CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin;
 --enable_warnings
---echo # Expect 1 either way: exact CAST/COLLATE match
+--echo # Expect 1: exact CAST/COLLATE match is still substituted
 SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
   FROM information_schema.OPTIMIZER_TRACE;
 

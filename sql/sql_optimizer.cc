@@ -1229,10 +1229,9 @@ bool JOIN::push_to_engines() {
     the hidden part of all_fields list.
     Unlike for the WHERE condition, substitutions here must preserve the
     value of the expression, since that value is consumed by the executor
-    and not merely used to look up rows in an index. JSON_UNQUOTE() and
-    multi-valued indexes are therefore excluded, and string GCs must match
-    the expression's collation. Scalar CAST() wrappers are still eligible;
-    see get_gc_for_expr() for the residual gap and the rationale.
+    and not merely used to look up rows in an index. JSON_UNQUOTE(),
+    CAST(), and multi-valued indexes are therefore excluded, and string
+    GCs must match the expression's collation. @see get_gc_for_expr()
 
   @param thd         thread handle
   @param query_block  the current select
@@ -1320,11 +1319,6 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
         (@see substitute_gc_expression()), the value of an ORDER/GROUP BY
         expression is consumed by the executor, so require the collations to
         match for every string GC.
-
-        This does not cover value changes from a scalar CAST on the GC
-        (truncation or numeric conversion) when collations still match; that
-        residual gap is documented in get_gc_for_expr() and covered by
-        percona.ps9768 cases 10 and 11.
       */
       if (gc->result_type() == STRING_RESULT &&
           gc->match_collation_to_optimize_range() &&

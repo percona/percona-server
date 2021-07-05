@@ -19,6 +19,7 @@ ERROR 42000: Variable 'rocksdb_trace_block_cache_access' can't be set to the val
 set global rocksdb_trace_block_cache_access=1.1;
 ERROR 42000: Incorrect argument type to variable 'rocksdb_trace_block_cache_access'
 set global rocksdb_trace_block_cache_access=NULL;
+ERROR 42000: Variable 'rocksdb_trace_block_cache_access' can't be set to the value of 'NULL'
 set global rocksdb_trace_block_cache_access='1:1024';
 ERROR 42000: Variable 'rocksdb_trace_block_cache_access' can't be set to the value of '1:1024'
 set global rocksdb_trace_block_cache_access='1:';

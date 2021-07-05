@@ -1,0 +1,4 @@
+[log_grep.inc] file: mysqld-slow.log pattern: , Time:
+[log_grep.inc] lines:   1
+[log_grep.inc] file: mysqld.log pattern: , Time:
+[log_grep.inc] lines:   1

@@ -306,6 +306,29 @@ fi
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
     )
     fi
+    # Build zenfs
+    if [[ ${WITH_ZENFS} == "ON" ]]; then
+        if [[ -f $INSTALLDIR/zenfs ]]; then
+            echo "ZenFS utils is built"
+        else
+            SOURCEDIR=${WORKDIR_ABS}/rocksdb-source
+            INSTALL_ROOT=${WORKDIR_ABS}/rocksdb-root
+            BUILD_ROOT=${WORKDIR_ABS}/rocksdb-build
+
+            mkdir ${WORKDIR_ABS}/rocksdb-root ${WORKDIR_ABS}/rocksdb-build
+
+            pushd $SOURCEDIR
+            CC=clang-12 CXX=clang++-12 make DISABLE_WARNING_AS_ERROR=1 PREFIX=${INSTALL_ROOT}/usr OBJ_DIR=${BUILD_ROOT} ROCKSDB_PLUGINS=zenfs -j$(nproc) install-static
+            popd
+
+            pushd $SOURCEDIR/plugin/zenfs/util
+            PKG_CONFIG_PATH=$INSTALL_ROOT/usr/lib/pkgconfig make CC=clang-12 CXX=clang++-12 -j$(nproc)
+            popd
+
+            cp $SOURCEDIR/plugin/zenfs/util/zenfs $INSTALLDIR/
+            rm -rf $INSTALL_ROOT $BUILD_ROOT $SOURCEDIR
+        fi
+    fi
 )
 
 (
@@ -450,34 +473,10 @@ fi
 
 # Package the archive
 (
-    function build_and_place_zenfs_utils {
-        if [[ -f $INSTALLDIR/zenfs ]]; then
-            echo "ZenFS utils is built"
-        else
-            SOURCEDIR=${WORKDIR_ABS}/rocksdb-source
-            INSTALL_ROOT=${WORKDIR_ABS}/rocksdb-root
-            BUILD_ROOT=${WORKDIR_ABS}/rocksdb-build
-
-            mkdir ${WORKDIR_ABS}/rocksdb-root ${WORKDIR_ABS}/rocksdb-build
-
-            pushd $SOURCEDIR
-            CC=clang-12 CXX=clang++-12 make DISABLE_WARNING_AS_ERROR=1 PREFIX=${INSTALL_ROOT}/usr OBJ_DIR=${BUILD_ROOT} ROCKSDB_PLUGINS=zenfs -j$(nproc) install-static
-            popd
-
-            pushd $SOURCEDIR/plugin/zenfs/util
-            PKG_CONFIG_PATH=$INSTALL_ROOT/usr/lib/pkgconfig make CC=clang-12 CXX=clang++-12 -j$(nproc)
-            popd
-
-            cp $SOURCEDIR/plugin/zenfs/util/zenfs $INSTALLDIR/
-            rm -rf $INSTALL_ROOT $BUILD_ROOT $SOURCEDIR
-        fi
-    }
-
     cd "$INSTALLDIR/usr/local/"
     #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     if [[ ${WITH_ZENFS} == "ON" ]]; then
-        build_and_place_zenfs_utils
         install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL/bin
     fi
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
@@ -486,7 +485,6 @@ fi
         cd "$INSTALLDIR/usr/local/minimal/"
         find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
         if [[ ${WITH_ZENFS} == "ON" ]]; then
-            build_and_place_zenfs_utils
             install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL-minimal/bin
         fi
         $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal

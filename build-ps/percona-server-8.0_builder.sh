@@ -309,12 +309,12 @@ enable_zenfs() {
     git clone https://github.com/westerndigitalcorporation/zenfs.git storage/rocksdb/rocksdb_plugins/zenfs
     if [[ $mode == "tarball" ]]; then
         rm build-ps/build-binary.sh
-        curl https://raw.githubusercontent.com/Sudokamikaze/percona-server/PS-7764/build-ps/build-binary.sh --output build-ps/build-binary.sh
+        curl https://raw.githubusercontent.com/percona/percona-server/8.0/build-ps/build-binary.sh --output build-ps/build-binary.sh
         chmod +x build-ps/build-binary.sh
         git clone --recursive https://github.com/percona-ysorokin/rocksdb.git -b percona_wdc $WORKDIR/TARGET/rocksdb-source
     elif [[ $mode == "debian" ]]; then
         mkdir builddir
-        curl https://raw.githubusercontent.com/Sudokamikaze/percona-server/PS-7764/build-ps/debian/rules_zenfs --output debian/rules_zenfs
+        curl https://raw.githubusercontent.com/percona/percona-server/8.0/build-ps/debian/rules_zenfs --output debian/rules_zenfs
         echo "usr/bin/zenfs" >> debian/percona-server-rocksdb.install
         mv debian/rules_zenfs debian/rules
 

@@ -1,0 +1,16 @@
+#
+# Checking that file creation timestamp is present in slow query log and
+# generic log files header.
+#
+
+--let log_file = mysqld-slow.log
+--let log_file_full_path = `SELECT Variable_value FROM performance_schema.global_variables WHERE Variable_name = 'slow_query_log_file';`
+
+--let grep_pattern = , Time:
+--source include/log_grep.inc
+
+--let log_file = mysqld.log
+--let log_file_full_path = `SELECT Variable_value FROM performance_schema.global_variables WHERE Variable_name = 'general_log_file';`
+
+--let grep_pattern = , Time:
+--source include/log_grep.inc

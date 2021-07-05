@@ -47,6 +47,7 @@
 #include "my_sys.h"
 #include "mysql/thread_pool_priv.h"
 #include "mysys_err.h"
+#include "scope_guard.h"
 #include "sql/debug_sync.h"
 #include "sql/json_dom.h"
 #include "sql/mysqld.h"
@@ -62,6 +63,7 @@
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/compaction_job_stats.h"
 #include "rocksdb/env.h"
+#include "rocksdb/env/composite_env_wrapper.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/persistent_cache.h"
 #include "rocksdb/rate_limiter.h"
@@ -70,6 +72,7 @@
 #include "rocksdb/trace_reader_writer.h"
 #include "rocksdb/utilities/checkpoint.h"
 #include "rocksdb/utilities/convenience.h"
+#include "rocksdb/utilities/fault_injection_fs.h"
 #include "rocksdb/utilities/memory_util.h"
 #include "rocksdb/utilities/sim_cache.h"
 #include "rocksdb/utilities/write_batch_with_index.h"
@@ -89,6 +92,13 @@
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_psi.h"
 #include "./rdb_threads.h"
+
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
+#include "my_rapidjson_size_t.h"
+#endif
+#include <rapidjson/document.h>
 
 #ifdef FB_HAVE_WSENV
 #include "./ObjectFactory.h"
@@ -120,14 +130,22 @@ static Rdb_exec_time st_rdb_exec_time;
 /**
   Updates row counters based on the table type and operation type.
 */
-void ha_rocksdb::update_row_stats(const operation_type &type) {
+void ha_rocksdb::update_row_stats(const operation_type &type, ulonglong count) {
   DBUG_ASSERT(type < ROWS_MAX);
   // Find if we are modifying system databases.
   if (table->s && m_tbl_def->m_is_mysql_system_table) {
-    global_stats.system_rows[type].inc();
+    global_stats.system_rows[type].add(count);
   } else {
-    global_stats.rows[type].inc();
+    global_stats.rows[type].add(count);
   }
+}
+
+void ha_rocksdb::update_row_read(ulonglong count) {
+  update_row_stats(ROWS_READ, count);
+}
+
+void ha_rocksdb::inc_covered_sk_lookup() {
+  global_stats.covered_secondary_key_lookups.inc();
 }
 
 void dbug_dump_database(rocksdb::DB *db);
@@ -194,6 +212,8 @@ static const char *rdb_get_error_messages(int error);
 
 static void rocksdb_flush_all_memtables() {
   const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
+
+  if (!cf_manager.is_initialized()) return;
 
   // RocksDB will fail the flush if the CF is deleted,
   // but here we don't handle return status
@@ -365,6 +385,10 @@ static void rocksdb_disable_file_deletions_update(
 static void rocksdb_max_compaction_history_update(
     my_core::THD *const thd, my_core::SYS_VAR *const /* unused */,
     void *const var_ptr, const void *const save);
+
+static bool parse_fault_injection_params(bool *retryable,
+                                         uint32_t *failure_ratio,
+                                         std::vector<rocksdb::FileType> *types);
 
 static void rocksdb_force_flush_memtable_now_stub(
     THD *const thd MY_ATTRIBUTE((__unused__)),
@@ -651,6 +675,7 @@ static uint32_t rocksdb_table_stats_sampling_pct =
 static uint32_t rocksdb_table_stats_recalc_threshold_pct = 10;
 static unsigned long long rocksdb_table_stats_recalc_threshold_count = 100ul;
 static bool rocksdb_table_stats_use_table_scan = 0;
+static char *opt_rocksdb_fault_injection_options = nullptr;
 static int32_t rocksdb_table_stats_background_thread_nice_value =
     THREAD_PRIO_MAX;
 static unsigned long long rocksdb_table_stats_max_num_rows_scanned = 0ul;
@@ -1443,6 +1468,12 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_STR(wsenv_path, rocksdb_wsenv_path,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                         "Path for RocksDB WSEnv", nullptr, nullptr, "");
+
+static MYSQL_SYSVAR_STR(fault_injection_options,
+                        opt_rocksdb_fault_injection_options,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                        "Fault injection options for running rocksdb tests",
+                        nullptr, nullptr, nullptr);
 
 static MYSQL_SYSVAR_ULONG(
     delete_obsolete_files_period_micros,
@@ -2286,6 +2317,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(persistent_cache_path),
     MYSQL_SYSVAR(persistent_cache_size_mb),
     MYSQL_SYSVAR(wsenv_path),
+    MYSQL_SYSVAR(fault_injection_options),
     MYSQL_SYSVAR(delete_obsolete_files_period_micros),
     MYSQL_SYSVAR(max_background_jobs),
     MYSQL_SYSVAR(max_background_flushes),
@@ -4236,7 +4268,8 @@ static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
   DBUG_ASSERT(xid != nullptr);
   DBUG_ASSERT(commit_latency_stats != nullptr);
 
-  rocksdb::StopWatchNano timer(rocksdb::Env::Default(), true);
+  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  rocksdb::StopWatchNano timer(clock, true);
 
   const auto name = rdb_xid_to_string(*xid);
   DBUG_ASSERT(!name.empty());
@@ -4353,7 +4386,8 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(commit_latency_stats != nullptr);
 
-  rocksdb::StopWatchNano timer(rocksdb::Env::Default(), true);
+  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  rocksdb::StopWatchNano timer(clock, true);
 
   /* note: h->external_lock(F_UNLCK) is called after this function is called) */
   Rdb_transaction *tx = get_tx_from_thd(thd);
@@ -5049,6 +5083,54 @@ static bool rocksdb_rollback_to_savepoint_can_release_mdl(
   return true;
 }
 
+static void rocksdb_get_stats(ha_statistics *stats, Rdb_tbl_def *tbl_def) {
+  stats->records = 0;
+  stats->index_file_length = 0ul;
+  stats->data_file_length = 0ul;
+  stats->mean_rec_length = 0;
+
+  for (uint i = 0; i < tbl_def->m_key_count; i++) {
+    auto key_def = tbl_def->m_key_descr_arr[i];
+    if (key_def->is_primary_key()) {
+      stats->data_file_length = key_def->m_stats.m_actual_disk_size;
+      stats->records = key_def->m_stats.m_rows;
+    } else {
+      stats->index_file_length += key_def->m_stats.m_actual_disk_size;
+    }
+  }
+}
+
+/*
+  This is called for INFORMATION_SCHEMA.TABLES
+*/
+static bool rocksdb_get_table_statistics(
+    const char *db_name, const char *table_name,
+    dd::Object_id /*se_private_id*/,
+    const dd::Properties & /*ts_se_private_data*/,
+    const dd::Properties & /*tbl_se_private_data*/, uint /*stat_flags*/,
+    ha_statistics *stats) {
+  std::string fullname = db_name;
+  fullname.append(".");
+  fullname.append(table_name);
+
+  // We are called from within metadata lock MDL_EXPLICIT, so it should be
+  // safe to access Rdb_tbl_def here
+  auto tbl_def = ddl_manager.find(fullname);
+  if (!tbl_def) {
+    // Table is missing due to a possible race condition
+    my_error(HA_ERR_NO_SUCH_TABLE, MYF(0), "Table is missing");
+    return true;
+  }
+
+  int ret = ha_rocksdb::update_stats(stats, tbl_def);
+  if (ret != HA_EXIT_SUCCESS) {
+    my_error(ret, MYF(0), "Failed to update table stats");
+    return true;
+  }
+
+  return false;
+}
+
 static rocksdb::Status check_rocksdb_options_compatibility(
     const char *const dbpath, const rocksdb::Options &main_opts,
     const std::vector<rocksdb::ColumnFamilyDescriptor> &cf_descr) {
@@ -5223,6 +5305,35 @@ static int rocksdb_init_internal(void *const p) {
   }
 #endif
 
+  if (opt_rocksdb_fault_injection_options != nullptr &&
+      *opt_rocksdb_fault_injection_options != '\0') {
+    bool retryable = false;
+    uint32_t failure_ratio = 0;
+    std::vector<rocksdb::FileType> types;
+    if (parse_fault_injection_params(&retryable, &failure_ratio, &types)) {
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+
+    auto fs = std::make_shared<rocksdb::FaultInjectionTestFS>(
+        rocksdb_db_options->env->GetFileSystem());
+
+    rocksdb::IOStatus error_msg = rocksdb::IOStatus::IOError("IO Error");
+    error_msg.SetRetryable(retryable);
+
+    uint32_t seed = rand();
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Initializing fault injection with params (retry=%d, "
+                    "failure_ratio=%d, seed=%d)",
+                    retryable, failure_ratio, seed);
+    fs->SetRandomWriteError(seed, failure_ratio, error_msg, types);
+    fs->EnableWriteErrorInjection();
+
+    static auto fault_env_guard =
+        std::make_shared<rocksdb::CompositeEnvWrapper>(rocksdb_db_options->env,
+                                                       fs);
+    rocksdb_db_options->env = fault_env_guard.get();
+  }
+
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
   static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
 
@@ -5289,6 +5400,7 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_hton->savepoint_rollback = rocksdb_rollback_to_savepoint;
   rocksdb_hton->savepoint_rollback_can_release_mdl =
       rocksdb_rollback_to_savepoint_can_release_mdl;
+  rocksdb_hton->get_table_statistics = rocksdb_get_table_statistics;
   rocksdb_hton->flush_logs = rocksdb_flush_wal;
 
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
@@ -5612,6 +5724,8 @@ static int rocksdb_init_internal(void *const p) {
   DBUG_EXECUTE_IF("rocksdb_init_failure_open_db", {
     // Simulate opening TransactionDB failure
     status = rocksdb::Status::Corruption();
+    // fix a memory leak caused by not calling cf_manager.init()
+    for (auto cfh_ptr : cf_handles) delete (cfh_ptr);
   });
 
   if (!status.ok()) {
@@ -5926,16 +6040,6 @@ static int rocksdb_shutdown(bool minimalShutdown) {
   return error;
 }
 
-static int rocksdb_init_func(void *const p) {
-  int ret = rocksdb_init_internal(p);
-  if (ret) {
-    // Ideally we should call rocksdb_done_func but we are not quite
-    // there yet so this only cleans up the safe ones
-    rocksdb_shutdown(/* minimalShutdown = */ true);
-  }
-  return ret;
-}
-
 /*
   Storage Engine deinitialization function, invoked when plugin is unloaded.
 */
@@ -5946,6 +6050,14 @@ static int rocksdb_done_func(void *const p MY_ATTRIBUTE((__unused__))) {
   int error = rocksdb_shutdown(/* minimalShutdown = */ false);
 
   DBUG_RETURN(error);
+}
+
+static int rocksdb_init_func(void *const p) {
+  int ret = rocksdb_init_internal(p);
+  if (ret) {
+    rocksdb_done_func(p);
+  }
+  return ret;
 }
 
 static inline void rocksdb_smart_seek(bool seek_backward,
@@ -6376,7 +6488,6 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_pk_descr(nullptr),
       m_key_descr_arr(nullptr),
       m_pk_can_be_decoded(true),
-      m_pk_tuple(nullptr),
       m_pk_packed_tuple(nullptr),
       m_sk_packed_tuple(nullptr),
       m_end_key_packed_tuple(nullptr),
@@ -6388,14 +6499,14 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_pack_buffer(nullptr),
       m_lock_rows(RDB_LOCK_NONE),
       m_keyread_only(false),
+      m_iteration_only(false),
       m_insert_with_update(false),
-      m_dup_key_found(false)
+      m_dup_key_found(false),
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-      ,
       m_in_rpl_delete_rows(false),
-      m_in_rpl_update_rows(false)
+      m_in_rpl_update_rows(false),
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-{
+      m_need_build_decoder(false) {
 }
 
 ha_rocksdb::~ha_rocksdb() {
@@ -6620,37 +6731,17 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
                                   bool alloc_alter_buffers) {
   DBUG_ENTER_FUNC();
 
-  DBUG_ASSERT(m_pk_tuple == nullptr);
   DBUG_ASSERT(tbl_def_arg != nullptr);
 
   std::shared_ptr<Rdb_key_def> *const kd_arr = tbl_def_arg->m_key_descr_arr;
 
-  uint key_len = 0;
   uint max_packed_sk_len = 0;
   uint pack_key_len = 0;
 
   m_pk_descr = kd_arr[pk_index(table_arg, tbl_def_arg)];
-  if (has_hidden_pk(table_arg)) {
-    m_pk_key_parts = 1;
-  } else {
-    m_pk_key_parts =
-        table->key_info[table->s->primary_key].user_defined_key_parts;
-    key_len = table->key_info[table->s->primary_key].key_length;
-  }
 
   // move this into get_table_handler() ??
   m_pk_descr->setup(table_arg, tbl_def_arg);
-
-#ifdef HAVE_PSI_INTERFACE
-  m_pk_tuple =
-      static_cast<uchar *>(my_malloc(rdb_handler_memory_key, key_len, MYF(0)));
-#else
-  m_pk_tuple =
-      static_cast<uchar *>(my_malloc(PSI_NOT_INSTRUMENTED, key_len, MYF(0)));
-#endif
-  if (m_pk_tuple == nullptr) {
-    goto error;
-  }
 
   pack_key_len = m_pk_descr->max_storage_fmt_length();
 #ifdef HAVE_PSI_INTERFACE
@@ -6745,9 +6836,6 @@ error:
 }
 
 void ha_rocksdb::free_key_buffers() {
-  my_free(m_pk_tuple);
-  m_pk_tuple = nullptr;
-
   my_free(m_pk_packed_tuple);
   m_pk_packed_tuple = nullptr;
 
@@ -7813,6 +7901,7 @@ int ha_rocksdb::create_table(const std::string &table_name,
 
   m_key_descr_arr = new std::shared_ptr<Rdb_key_def>[n_keys];
   m_tbl_def->m_key_count = n_keys;
+  m_tbl_def->m_pk_index = table_arg->s->primary_key;
   m_tbl_def->m_key_descr_arr = m_key_descr_arr;
 
   err = create_key_defs(table_arg, m_tbl_def, actual_user_table_name);
@@ -7978,8 +8067,7 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
 */
 int ha_rocksdb::truncate_table(Rdb_tbl_def *tbl_def_arg,
                                const std::string &actual_user_table_name,
-                               const TABLE *table_arg,
-                               ulonglong auto_increment_value,
+                               TABLE *table_arg, ulonglong auto_increment_value,
                                dd::Table *table_def) {
   DBUG_ENTER_FUNC();
 
@@ -8065,6 +8153,7 @@ int ha_rocksdb::truncate_table(Rdb_tbl_def *tbl_def_arg,
 
   /* Update the local m_tbl_def reference */
   m_tbl_def = ddl_manager.find(orig_tablename);
+  m_converter.reset(new Rdb_converter(ha_thd(), m_tbl_def, table_arg));
   DBUG_RETURN(err);
 }
 
@@ -8095,7 +8184,6 @@ bool ha_rocksdb::check_keyread_allowed(bool &pk_can_be_decoded,
 
 int ha_rocksdb::read_key_exact(const Rdb_key_def &kd,
                                rocksdb::Iterator *const iter,
-                               const bool /* unused */,
                                const rocksdb::Slice &key_slice,
                                const int64_t ttl_filter_ts) {
   DBUG_ASSERT(iter != nullptr);
@@ -8209,8 +8297,7 @@ int ha_rocksdb::position_to_correct_key(
 
   switch (find_flag) {
     case HA_READ_KEY_EXACT:
-      rc = read_key_exact(kd, m_scan_it, full_key_match, key_slice,
-                          ttl_filter_ts);
+      rc = read_key_exact(kd, m_scan_it, key_slice, ttl_filter_ts);
       break;
     case HA_READ_BEFORE_KEY:
       *move_forward = false;
@@ -8277,8 +8364,7 @@ int ha_rocksdb::calc_eq_cond_len(const Rdb_key_def &kd,
                                  const enum ha_rkey_function &find_flag,
                                  const rocksdb::Slice &slice,
                                  const int bytes_changed_by_succ,
-                                 const key_range *const end_key,
-                                 uint *const end_key_packed_size) {
+                                 const key_range *const end_key) {
   if (find_flag == HA_READ_KEY_EXACT) return slice.size();
 
   if (find_flag == HA_READ_PREFIX_LAST) {
@@ -8291,7 +8377,8 @@ int ha_rocksdb::calc_eq_cond_len(const Rdb_key_def &kd,
   }
 
   if (end_key) {
-    *end_key_packed_size =
+    uint end_key_packed_size = 0;
+    end_key_packed_size =
         kd.pack_index_tuple(table, m_pack_buffer, m_end_key_packed_tuple,
                             end_key->key, end_key->keypart_map);
 
@@ -8305,7 +8392,7 @@ int ha_rocksdb::calc_eq_cond_len(const Rdb_key_def &kd,
        WHERE id1 = 'AAA' and id2 < 3; => eq_cond_len=13 (varchar used 9 bytes)
     */
     rocksdb::Slice end_slice(reinterpret_cast<char *>(m_end_key_packed_tuple),
-                             *end_key_packed_size);
+                             end_key_packed_size);
     return slice.difference_offset(end_slice);
   }
 
@@ -8368,8 +8455,9 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
 #endif  // !defined(DBUG_OFF)
   DBUG_EXECUTE_IF("dbug.rocksdb.HA_EXTRA_KEYREAD", { m_keyread_only = true; });
 
-  bool covered_lookup = (m_keyread_only && kd.can_cover_lookup()) ||
-                        kd.covers_lookup(&value, &m_lookup_bitmap);
+  bool covered_lookup =
+      (m_keyread_only && kd.can_cover_lookup()) ||
+      kd.covers_lookup(&value, m_converter->get_lookup_bitmap());
 
 #if !defined(DBUG_OFF)
   m_keyread_only = save_keyread_only;
@@ -8383,7 +8471,7 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
     } else {
       rc = kd.unpack_record(table, buf, &rkey, &value,
                             m_converter->get_verify_row_debug_checksums());
-      global_stats.covered_secondary_key_lookups.inc();
+      inc_covered_sk_lookup();
     }
   } else {
     if (kd.m_is_reverse_cf) move_forward = !move_forward;
@@ -8482,6 +8570,11 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
 
     /* Check if we've ran out of records of this index */
     if (m_key_descr_arr[keyno]->covers_key(key)) {
+      if (m_iteration_only) {
+        table->set_found_row();
+        return 0;
+      }
+
       int rc = 0;
 
       // TODO: We could here check if we have ran out of range we're scanning
@@ -8497,12 +8590,13 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
       rocksdb::Slice value = m_scan_it->value();
       bool covered_lookup =
           (m_keyread_only && m_key_descr_arr[keyno]->can_cover_lookup()) ||
-          m_key_descr_arr[keyno]->covers_lookup(&value, &m_lookup_bitmap);
+          m_key_descr_arr[keyno]->covers_lookup(
+              &value, m_converter->get_lookup_bitmap());
       if (covered_lookup && m_lock_rows == RDB_LOCK_NONE) {
         rc = m_key_descr_arr[keyno]->unpack_record(
             table, buf, &key, &value,
             m_converter->get_verify_row_debug_checksums());
-        global_stats.covered_secondary_key_lookups.inc();
+        inc_covered_sk_lookup();
       } else {
         DEBUG_SYNC(ha_thd(), "rocksdb_concurrent_delete_sk");
         rc = get_row_by_rowid(buf, m_pk_packed_tuple, size);
@@ -8518,58 +8612,16 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
 }
 
 /*
-  ha_rocksdb::read_range_first overrides handler::read_range_first.
-  The only difference from handler::read_range_first is that
-  ha_rocksdb::read_range_first passes end_key to
-  ha_rocksdb::index_read_map_impl function.
+   See storage/rocksdb/rocksdb-range-access.txt for description of how MySQL
+   index navigation commands are converted into RocksDB lookup commands.
 
-  @return
-    HA_EXIT_SUCCESS  OK
-    other            HA_ERR error code (can be SE-specific)
-*/
-int ha_rocksdb::read_range_first(const key_range *const start_key,
-                                 const key_range *const end_key,
-                                 bool eq_range_arg, bool sorted) {
-  DBUG_ENTER_FUNC();
+   MyRocks needs to decide whether prefix bloom filter can be used or not.
+   To decide to use prefix bloom filter or not, calculating equal condition
+   length is needed. On equal lookups (find_flag == HA_READ_KEY_EXACT), equal
+   condition length is the same as rocksdb::Slice.size() of the start key.
+   On range scan, equal condition length is MIN(start_key, end_key) of the
+   rocksdb::Slice expression, where end_key is taken from end_range.
 
-  int result;
-
-  eq_range = eq_range_arg;
-  set_end_range(end_key, RANGE_SCAN_ASC);
-
-  range_key_part = table->key_info[active_index].key_part;
-
-  if (!start_key)  // Read first record
-    result = ha_index_first(table->record[0]);
-  else {
-    if (is_using_prohibited_gap_locks(
-            table,
-            is_using_full_unique_key(active_index, start_key->keypart_map,
-                                     start_key->flag))) {
-      DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
-    }
-
-    result =
-        index_read_map_impl(table->record[0], start_key->key,
-                            start_key->keypart_map, start_key->flag, end_key);
-  }
-  if (result) {
-    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) ? HA_ERR_END_OF_FILE : result);
-  }
-
-  if (compare_key(end_range) <= 0) {
-    DBUG_RETURN(HA_EXIT_SUCCESS);
-  } else {
-    /*
-      The last read row does not fall in the range. So request
-      storage engine to release row lock if possible.
-    */
-    unlock_row();
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
-}
-
-/**
    @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
@@ -8579,31 +8631,7 @@ int ha_rocksdb::index_read_map(uchar *const buf, const uchar *const key,
                                enum ha_rkey_function find_flag) {
   DBUG_ENTER_FUNC();
 
-  DBUG_RETURN(index_read_map_impl(buf, key, keypart_map, find_flag, nullptr));
-}
-
-/*
-   See storage/rocksdb/rocksdb-range-access.txt for description of how MySQL
-   index navigation commands are converted into RocksDB lookup commands.
-
-   This function takes end_key as an argument, and it is set on range scan.
-   MyRocks needs to decide whether prefix bloom filter can be used or not.
-   To decide to use prefix bloom filter or not, calculating equal condition
-   length
-   is needed. On equal lookups (find_flag == HA_READ_KEY_EXACT), equal
-   condition length is the same as rocksdb::Slice.size() of the start key.
-   On range scan, equal condition length is MIN(start_key, end_key) of the
-   rocksdb::Slice expression.
-
-   @return
-    HA_EXIT_SUCCESS  OK
-    other            HA_ERR error code (can be SE-specific)
-*/
-int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
-                                    key_part_map keypart_map,
-                                    enum ha_rkey_function find_flag,
-                                    const key_range *end_key) {
-  DBUG_ENTER_FUNC();
+  check_build_decoder();
 
   int rc = 0;
 
@@ -8618,8 +8646,6 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
   const Rdb_key_def &kd = *m_key_descr_arr[active_index];
   const uint actual_key_parts = kd.get_key_parts();
   bool using_full_key = is_using_full_key(keypart_map, actual_key_parts);
-
-  if (!end_key) end_key = end_range;
 
   /* By default, we don't need the retrieved records to match the prefix */
   m_sk_match_prefix = nullptr;
@@ -8707,10 +8733,8 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
   rocksdb::Slice slice(reinterpret_cast<const char *>(m_sk_packed_tuple),
                        packed_size);
 
-  uint end_key_packed_size = 0;
   const uint eq_cond_len =
-      calc_eq_cond_len(kd, find_flag, slice, bytes_changed_by_succ, end_key,
-                       &end_key_packed_size);
+      calc_eq_cond_len(kd, find_flag, slice, bytes_changed_by_succ, end_range);
 
   bool use_all_keys = false;
   if (find_flag == HA_READ_KEY_EXACT &&
@@ -9185,6 +9209,22 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
   DBUG_RETURN(rc);
 }
 
+int ha_rocksdb::records(ha_rows *num_rows) {
+  m_iteration_only = true;
+  auto iteration_guard =
+      create_scope_guard([this]() { m_iteration_only = false; });
+  int count = handler::records(num_rows);
+  return count;
+}
+
+int ha_rocksdb::records_from_index(ha_rows *num_rows, uint index) {
+  m_iteration_only = true;
+  auto iteration_guard =
+      create_scope_guard([this]() { m_iteration_only = false; });
+  int count = handler::records_from_index(num_rows, index);
+  return count;
+}
+
 /**
   @return
     HA_EXIT_SUCCESS  OK
@@ -9192,6 +9232,8 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
 */
 int ha_rocksdb::index_next(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  check_build_decoder();
 
   bool moves_forward = true;
   ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -9212,6 +9254,8 @@ int ha_rocksdb::index_next(uchar *const buf) {
 */
 int ha_rocksdb::index_prev(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  check_build_decoder();
 
   bool moves_forward = false;
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
@@ -9275,6 +9319,8 @@ int ha_rocksdb::index_next_with_direction(uchar *const buf, bool move_forward) {
 int ha_rocksdb::index_first(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
+  check_build_decoder();
+
   m_sk_match_prefix = nullptr;
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   int rc = m_key_descr_arr[active_index]->m_is_reverse_cf
@@ -9292,6 +9338,8 @@ int ha_rocksdb::index_first(uchar *const buf) {
 */
 int ha_rocksdb::index_last(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  check_build_decoder();
 
   m_sk_match_prefix = nullptr;
   ha_statistic_increment(&System_status_var::ha_read_last_count);
@@ -10023,8 +10071,8 @@ int ha_rocksdb::check_and_lock_sk(
   */
   DBUG_ASSERT(row_info.tx->has_snapshot() &&
               row_info.tx->m_snapshot_timestamp != 0);
-  *found = !read_key_exact(kd, iter, all_parts_used, new_slice,
-                           row_info.tx->m_snapshot_timestamp);
+  *found =
+      !read_key_exact(kd, iter, new_slice, row_info.tx->m_snapshot_timestamp);
 
   int rc = HA_EXIT_SUCCESS;
 
@@ -10697,16 +10745,15 @@ void ha_rocksdb::setup_iterator_for_rnd_scan() {
 int ha_rocksdb::rnd_init(bool scan) {
   DBUG_ENTER_FUNC();
 
+  m_need_build_decoder = true;
+  active_index = table->s->primary_key;
+
   THD *thd = ha_thd();
   if (thd && thd->killed) {
     DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
   }
 
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
-
-  // when this table is being updated, decode all fields
-  m_converter->setup_field_decoders(table->read_set,
-                                    m_lock_rows == RDB_LOCK_WRITE);
 
   if (scan) {
     m_rnd_scan_is_new_snapshot = !tx->has_snapshot();
@@ -10730,6 +10777,8 @@ int ha_rocksdb::rnd_init(bool scan) {
 */
 int ha_rocksdb::rnd_next(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  check_build_decoder();
 
   int rc;
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
@@ -10758,7 +10807,7 @@ int ha_rocksdb::rnd_next(uchar *const buf) {
 int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
   DBUG_ENTER_FUNC();
 
-  int rc;
+  int rc = 0;
   THD *thd = ha_thd();
 
   if (!m_scan_it || !is_valid(m_scan_it)) {
@@ -10799,6 +10848,11 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
     const rocksdb::Slice key = m_scan_it->key();
     if (!m_pk_descr->covers_key(key)) {
       rc = HA_ERR_END_OF_FILE;
+      break;
+    }
+
+    if (m_iteration_only) {
+      table->set_found_row();
       break;
     }
 
@@ -10863,9 +10917,24 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
 int ha_rocksdb::rnd_end() {
   DBUG_ENTER_FUNC();
 
+  m_need_build_decoder = false;
+
   release_scan_iterator();
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
+}
+
+void ha_rocksdb::build_decoder() {
+  m_converter->setup_field_decoders(table->read_set, active_index,
+                                    m_keyread_only,
+                                    m_lock_rows == RDB_LOCK_WRITE);
+}
+
+void ha_rocksdb::check_build_decoder() {
+  if (m_need_build_decoder) {
+    build_decoder();
+    m_need_build_decoder = false;
+  }
 }
 
 /**
@@ -10876,6 +10945,9 @@ int ha_rocksdb::rnd_end() {
 int ha_rocksdb::index_init(uint idx, bool sorted) {
   DBUG_ENTER_FUNC();
 
+  m_need_build_decoder = true;
+  active_index = idx;
+
   THD *thd = ha_thd();
   if (thd && thd->killed) {
     DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
@@ -10884,20 +10956,10 @@ int ha_rocksdb::index_init(uint idx, bool sorted) {
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
   DBUG_ASSERT(tx != nullptr);
 
-  // when this table is being updated, decode all fields
-  m_converter->setup_field_decoders(table->read_set,
-                                    m_lock_rows == RDB_LOCK_WRITE);
-
-  if (!m_keyread_only) {
-    m_key_descr_arr[idx]->get_lookup_bitmap(table, &m_lookup_bitmap);
-  }
-
   // If m_lock_rows is not RDB_LOCK_NONE then we will be doing a get_for_update
   // when accessing the index, so don't acquire the snapshot right away.
   // Otherwise acquire the snapshot immediately.
   tx->acquire_snapshot(m_lock_rows == RDB_LOCK_NONE);
-
-  active_index = idx;
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -10909,9 +10971,9 @@ int ha_rocksdb::index_init(uint idx, bool sorted) {
 int ha_rocksdb::index_end() {
   DBUG_ENTER_FUNC();
 
-  release_scan_iterator();
+  m_need_build_decoder = false;
 
-  bitmap_free(&m_lookup_bitmap);
+  release_scan_iterator();
 
   active_index = MAX_KEY;
   in_range_check_pushed_down = false;
@@ -11041,51 +11103,86 @@ rocksdb::Status ha_rocksdb::delete_or_singledelete(
   return tx->delete_key(column_family, key, assume_tracked);
 }
 
-void ha_rocksdb::update_stats(void) {
-  DBUG_ENTER_FUNC();
-
-  stats.records = 0;
-  stats.index_file_length = 0ul;
-  stats.data_file_length = 0ul;
-  stats.mean_rec_length = 0;
-
-  for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
-    if (is_pk(i, table, m_tbl_def)) {
-      stats.data_file_length = m_pk_descr->m_stats.m_actual_disk_size;
-      stats.records = m_pk_descr->m_stats.m_rows;
-    } else {
-      stats.index_file_length += m_key_descr_arr[i]->m_stats.m_actual_disk_size;
-    }
-  }
-
-  DBUG_VOID_RETURN;
-}
-
-int ha_rocksdb::adjust_handler_stats_table_scan() {
+int ha_rocksdb::adjust_handler_stats_table_scan(ha_statistics *ha_stats,
+                                                Rdb_tbl_def *tbl_def) {
   DBUG_ENTER_FUNC();
 
   bool should_recalc_stats = false;
-  if (static_cast<longlong>(stats.data_file_length) < 0) {
-    stats.data_file_length = 0;
+  if (static_cast<longlong>(ha_stats->data_file_length) < 0) {
+    ha_stats->data_file_length = 0;
     should_recalc_stats = true;
   }
 
-  if (static_cast<longlong>(stats.index_file_length) < 0) {
-    stats.index_file_length = 0;
+  if (static_cast<longlong>(ha_stats->index_file_length) < 0) {
+    ha_stats->index_file_length = 0;
     should_recalc_stats = true;
   }
 
-  if (static_cast<longlong>(stats.records) < 0) {
-    stats.records = 1;
+  if (static_cast<longlong>(ha_stats->records) < 0) {
+    ha_stats->records = 1;
     should_recalc_stats = true;
   }
 
   if (should_recalc_stats) {
     // If any of the stats is corrupt, add the table to the index stats
     // recalc queue.
-    rdb_is_thread.add_index_stats_request(m_tbl_def->full_tablename());
+    rdb_is_thread.add_index_stats_request(tbl_def->full_tablename());
   }
   DBUG_RETURN(HA_EXIT_SUCCESS);
+}
+
+int ha_rocksdb::update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def) {
+  /*
+    Test only to simulate corrupted stats
+  */
+  DBUG_EXECUTE_IF("myrocks_simulate_negative_stats", {
+    auto pk_def = tbl_def->get_pk_def();
+    pk_def->m_stats.m_actual_disk_size = -pk_def->m_stats.m_actual_disk_size;
+  });
+
+  rocksdb_get_stats(ha_stats, tbl_def);
+  if (rocksdb_table_stats_use_table_scan) {
+    int ret = adjust_handler_stats_table_scan(ha_stats, tbl_def);
+    if (ret != HA_EXIT_SUCCESS) {
+      return ret;
+    }
+  } else {
+    int ret = adjust_handler_stats_sst_and_memtable(ha_stats, tbl_def);
+    if (ret != HA_EXIT_SUCCESS) {
+      return ret;
+    }
+  }
+
+  if (rocksdb_debug_optimizer_n_rows > 0) {
+    ha_stats->records = rocksdb_debug_optimizer_n_rows;
+  }
+
+  if (ha_stats->records != 0) {
+    ha_stats->mean_rec_length = ha_stats->data_file_length / ha_stats->records;
+  }
+
+  // HA_STATUS_TIME - we always update it as it's cheap
+  ha_stats->update_time = tbl_def->m_update_time;
+
+  // HA_STATUS_AUTO - we always update it as it's cheap
+  // Because we haven't opened the table yet, we need to load auto incr
+  // value here. Note we won't know if the table actually has auto incr
+  // without opening the table, so there is a corner case it'll end up
+  // being NULL if the table has just been created and haven't been
+  // opened yet - InnoDB has the same issue
+  if (tbl_def->m_auto_incr_val == 0) {
+    // Unfortunately in this case we don't know if we actually have auto
+    // increment without opening the table, so we'd have to load the value
+    // always even if the table doesn't have auto increment
+    if (!dict_manager.get_auto_incr_val(tbl_def->get_autoincr_gl_index_id(),
+                                        &ha_stats->auto_increment_value)) {
+      ha_stats->auto_increment_value = 0;
+    }
+  } else {
+    ha_stats->auto_increment_value = tbl_def->m_auto_incr_val;
+  }
+
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -11099,32 +11196,9 @@ int ha_rocksdb::info(uint flag) {
   if (!table) DBUG_RETURN(HA_EXIT_FAILURE);
 
   if (flag & HA_STATUS_VARIABLE) {
-    /*
-      Test only to simulate corrupted stats
-    */
-    DBUG_EXECUTE_IF("myrocks_simulate_negative_stats",
-                    m_pk_descr->m_stats.m_actual_disk_size =
-                        -m_pk_descr->m_stats.m_actual_disk_size;);
-
-    update_stats();
-    if (rocksdb_table_stats_use_table_scan) {
-      int ret = adjust_handler_stats_table_scan();
-      if (ret != HA_EXIT_SUCCESS) {
-        return ret;
-      }
-    } else {
-      int ret = adjust_handler_stats_sst_and_memtable();
-      if (ret != HA_EXIT_SUCCESS) {
-        return ret;
-      }
-    }
-
-    if (rocksdb_debug_optimizer_n_rows > 0) {
-      stats.records = rocksdb_debug_optimizer_n_rows;
-    }
-
-    if (stats.records != 0) {
-      stats.mean_rec_length = stats.data_file_length / stats.records;
+    int ret = update_stats(&stats, m_tbl_def);
+    if (ret != HA_EXIT_SUCCESS) {
+      return ret;
     }
   }
 
@@ -11196,7 +11270,6 @@ int ha_rocksdb::info(uint flag) {
       uniqueness violation.
     */
     errkey = m_dupp_errkey;
-    dup_ref = m_pk_tuple;  // TODO(?): this should store packed PK.
   }
 
   if (flag & HA_STATUS_AUTO) {
@@ -11248,6 +11321,8 @@ void ha_rocksdb::position(const uchar *const record) {
 */
 int ha_rocksdb::rnd_pos(uchar *const buf, uchar *const pos) {
   DBUG_ENTER_FUNC();
+
+  check_build_decoder();
 
   int rc;
   size_t len;
@@ -11590,8 +11665,8 @@ static rocksdb::Range get_range(const Rdb_key_def &kd,
   return get_range(kd.get_index_number(), buf, offset1, offset2);
 }
 
-rocksdb::Range get_range(const Rdb_key_def &kd,
-                         uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2]) {
+rocksdb::Range ha_rocksdb::get_range(
+    const Rdb_key_def &kd, uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2]) {
   if (kd.m_is_reverse_cf) {
     return myrocks::get_range(kd, buf, 1, 0);
   } else {
@@ -11601,7 +11676,7 @@ rocksdb::Range get_range(const Rdb_key_def &kd,
 
 rocksdb::Range ha_rocksdb::get_range(
     const int i, uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2]) const {
-  return myrocks::get_range(*m_key_descr_arr[i], buf);
+  return get_range(*m_key_descr_arr[i], buf);
 }
 
 /*
@@ -12228,7 +12303,7 @@ static int calculate_cardinality_table_scan(
     Rdb_index_stats &stat = (*stats)[kd->get_gl_index_id()];
 
     uchar r_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2];
-    auto r = myrocks::get_range(*kd, r_buf);
+    auto r = ha_rocksdb::get_range(*kd, r_buf);
     uint64_t memtableCount;
     uint64_t memtableSize;
     rdb->GetApproximateMemTableStats(kd->get_cf(), r, &memtableCount,
@@ -12367,7 +12442,7 @@ static int read_stats_from_ssts(
   uchar *bufp = buf.data();
   for (const auto &it : to_recalc) {
     auto &kd = it.second;
-    ranges[kd->get_cf()].push_back(myrocks::get_range(*kd, bufp));
+    ranges[kd->get_cf()].push_back(ha_rocksdb::get_range(*kd, bufp));
     bufp += 2 * Rdb_key_def::INDEX_NUMBER_SIZE;
   }
 
@@ -12543,48 +12618,48 @@ int ha_rocksdb::analyze(THD *const thd, HA_CHECK_OPT *const check_opt) {
   DBUG_RETURN(HA_ADMIN_OK);
 }
 
-int ha_rocksdb::adjust_handler_stats_sst_and_memtable() {
+int ha_rocksdb::adjust_handler_stats_sst_and_memtable(ha_statistics *ha_stats,
+                                                      Rdb_tbl_def *tbl_def) {
   DBUG_ENTER_FUNC();
 
   /*
     If any stats are negative due to bad cached stats, re-run analyze table
     and re-retrieve the stats.
   */
-  if (static_cast<longlong>(stats.data_file_length) < 0 ||
-      static_cast<longlong>(stats.index_file_length) < 0 ||
-      static_cast<longlong>(stats.records) < 0) {
-    if (calculate_stats_for_table(m_tbl_def->full_tablename(),
-                                  SCAN_TYPE_NONE)) {
+  if (static_cast<longlong>(ha_stats->data_file_length) < 0 ||
+      static_cast<longlong>(ha_stats->index_file_length) < 0 ||
+      static_cast<longlong>(ha_stats->records) < 0) {
+    if (calculate_stats_for_table(tbl_def->full_tablename(), SCAN_TYPE_NONE)) {
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
 
-    update_stats();
+    rocksdb_get_stats(ha_stats, tbl_def);
   }
 
   // if number of records is hardcoded, we do not want to force computation
   // of memtable cardinalities
-  if (stats.records == 0 || (rocksdb_force_compute_memtable_stats &&
-                             rocksdb_debug_optimizer_n_rows == 0)) {
+  if (ha_stats->records == 0 || (rocksdb_force_compute_memtable_stats &&
+                                 rocksdb_debug_optimizer_n_rows == 0)) {
     // First, compute SST files stats
     uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2];
-    auto r = get_range(pk_index(table, m_tbl_def), buf);
+    std::shared_ptr<Rdb_key_def> pk_def = tbl_def->get_pk_def();
+    auto r = ha_rocksdb::get_range(*pk_def, buf);
     uint64_t sz = 0;
 
     uint8_t include_flags = rocksdb::DB::INCLUDE_FILES;
 
     // recompute SST files stats only if records count is 0
-    if (stats.records == 0) {
-      rdb->GetApproximateSizes(m_pk_descr->get_cf(), &r, 1, &sz, include_flags);
-      stats.records += sz / ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE;
-      stats.data_file_length += sz;
+    if (ha_stats->records == 0) {
+      rdb->GetApproximateSizes(pk_def->get_cf(), &r, 1, &sz, include_flags);
+      ha_stats->records += sz / ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE;
+      ha_stats->data_file_length += sz;
     }
 
     // Second, compute memtable stats. This call is expensive, so cache
     // values computed for some time.
     uint64_t cachetime = rocksdb_force_compute_memtable_stats_cachetime;
     uint64_t time = (cachetime == 0) ? 0 : my_micro_time();
-    if (cachetime == 0 ||
-        time > m_table_handler->m_mtcache_last_update + cachetime) {
+    if (cachetime == 0 || time > tbl_def->m_mtcache_last_update + cachetime) {
       uint64_t memtableCount;
       uint64_t memtableSize;
 
@@ -12593,26 +12668,26 @@ int ha_rocksdb::adjust_handler_stats_sst_and_memtable() {
       // it also can return 0 for quite a large tables which means that
       // cardinality for memtable only indxes will be reported as 0
 
-      rdb->GetApproximateMemTableStats(m_pk_descr->get_cf(), r, &memtableCount,
+      rdb->GetApproximateMemTableStats(pk_def->get_cf(), r, &memtableCount,
                                        &memtableSize);
 
       // Atomically update all of these fields at the same time
       if (cachetime > 0) {
-        if (m_table_handler->m_mtcache_lock.fetch_add(
-                1, std::memory_order_acquire) == 0) {
-          m_table_handler->m_mtcache_count = memtableCount;
-          m_table_handler->m_mtcache_size = memtableSize;
-          m_table_handler->m_mtcache_last_update = time;
+        if (tbl_def->m_mtcache_lock.fetch_add(1, std::memory_order_acquire) ==
+            0) {
+          tbl_def->m_mtcache_count = memtableCount;
+          tbl_def->m_mtcache_size = memtableSize;
+          tbl_def->m_mtcache_last_update = time;
         }
-        m_table_handler->m_mtcache_lock.fetch_sub(1, std::memory_order_release);
+        tbl_def->m_mtcache_lock.fetch_sub(1, std::memory_order_release);
       }
 
-      stats.records += memtableCount;
-      stats.data_file_length += memtableSize;
+      ha_stats->records += memtableCount;
+      ha_stats->data_file_length += memtableSize;
     } else {
       // Cached data is still valid, so use it instead
-      stats.records += m_table_handler->m_mtcache_count;
-      stats.data_file_length += m_table_handler->m_mtcache_size;
+      ha_stats->records += tbl_def->m_mtcache_count;
+      ha_stats->data_file_length += tbl_def->m_mtcache_size;
     }
   }
 
@@ -12952,6 +13027,7 @@ bool ha_rocksdb::prepare_inplace_alter_table(
     new_tdef = new Rdb_tbl_def(m_tbl_def->full_tablename());
     new_tdef->m_key_descr_arr = new_key_descr;
     new_tdef->m_key_count = new_n_keys;
+    new_tdef->m_pk_index = altered_table->s->primary_key;
     new_tdef->m_auto_incr_val =
         m_tbl_def->m_auto_incr_val.load(std::memory_order_relaxed);
     new_tdef->m_hidden_pk_val =
@@ -13075,45 +13151,82 @@ bool ha_rocksdb::inplace_alter_table(
   DBUG_ASSERT(ha_alter_info != nullptr);
   DBUG_ASSERT(ha_alter_info->handler_ctx != nullptr);
 
+  bool res = HA_EXIT_SUCCESS;
   Rdb_inplace_alter_ctx *const ctx =
       static_cast<Rdb_inplace_alter_ctx *>(ha_alter_info->handler_ctx);
 
-  if (ha_alter_info->handler_flags &
-      (my_core::Alter_inplace_info::ADD_INDEX |
-       my_core::Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-    /*
-      Buffers need to be set up again to account for new, possibly longer
-      secondary keys.
-    */
-    free_key_buffers();
+  if (!(ha_alter_info->handler_flags &
+        (my_core::Alter_inplace_info::ADD_INDEX |
+         my_core::Alter_inplace_info::ADD_UNIQUE_INDEX))) {
+    DBUG_RETURN(res);
+  }
 
-    DBUG_ASSERT(ctx != nullptr);
+  /*
+    Buffers need to be set up again to account for new, possibly longer
+    secondary keys.
+  */
+  free_key_buffers();
 
-    /*
-      If adding unique index, allocate special buffers for duplicate checking.
-    */
-    int err;
-    if ((err = alloc_key_buffers(
-             altered_table, ctx->m_new_tdef,
-             ha_alter_info->handler_flags &
-                 my_core::Alter_inplace_info::ADD_UNIQUE_INDEX))) {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      DBUG_RETURN(err);
-    }
+  DBUG_ASSERT(ctx != nullptr);
 
-    /* Populate all new secondary keys by scanning the primary key. */
-    if ((err = inplace_populate_sk(altered_table, ctx->m_added_indexes))) {
-      my_error(ER_SK_POPULATE_DURING_ALTER, MYF(0));
-      DBUG_RETURN(HA_EXIT_FAILURE);
-    }
+  /*
+    If adding unique index, allocate special buffers for duplicate checking.
+  */
+  int err;
+  if ((err = alloc_key_buffers(
+           altered_table, ctx->m_new_tdef,
+           ha_alter_info->handler_flags &
+               my_core::Alter_inplace_info::ADD_UNIQUE_INDEX))) {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    res = HA_EXIT_FAILURE;
+    goto end;
+  }
+
+  /* Populate all new secondary keys by scanning the primary key. */
+  if ((err = inplace_populate_sk(altered_table, ctx->m_added_indexes))) {
+    my_error(ER_SK_POPULATE_DURING_ALTER, MYF(0));
+    res = HA_EXIT_FAILURE;
+    goto end;
   }
 
   DBUG_EXECUTE_IF("myrocks_simulate_index_create_rollback", {
     dbug_create_err_inplace_alter();
-    DBUG_RETURN(HA_EXIT_FAILURE);
+    res = HA_EXIT_FAILURE;
   };);
 
-  DBUG_RETURN(HA_EXIT_SUCCESS);
+end:
+  // During inplace_populate_sk, we may perform duplicate key checking which
+  // involves calling unpack_record. However, blobs end up being unpacked
+  // using the buffer in altered_table->file, instead of the current handler
+  // object. This handler does not get cleaned up as it was never
+  // opened, so we end up leaking that buffer. To fix, we call free_key_buffers
+  // here.
+  //
+  // In the partitioned case, the altered_table->file is not only unopened, but
+  // also unintialized, but we only unpack on duplicate key errors, and the
+  // error is not possible on partitioned tables because indexes must include
+  // the partitioning key which must include the primary key.
+  //
+  // A better solution would be to pass in the blob buffer from the correct
+  // handler explicitly into the unpack functions, so that
+  // Rdb_key_def::unpack_record does not need to derive it from the TABLE
+  // object, since the Rdb_key_def class are generally unaware of handler
+  // classes anyway.
+  if (err == ER_DUP_ENTRY) {
+    DBUG_ASSERT(ha_alter_info->group_commit_ctx == nullptr);
+    reinterpret_cast<ha_rocksdb *>(altered_table->file)->free_key_buffers();
+  }
+
+  // Try to reallocate key buffers from the old schema.
+  //
+  // A better fix may to save the original buffers to avoid needing to
+  // reallocate here.
+  if (res == HA_EXIT_FAILURE) {
+    free_key_buffers();
+    err = alloc_key_buffers(table, m_tbl_def);
+  }
+
+  DBUG_RETURN(res);
 }
 
 int ha_rocksdb::fill_virtual_columns() {
@@ -13265,7 +13378,8 @@ int ha_rocksdb::inplace_populate_sk(
       keys.
     */
     const uint pk = pk_index(table, m_tbl_def);
-    ha_index_init(pk, true);
+    res = ha_index_init(pk, true);
+    if (res) DBUG_RETURN(res);
 
     /* Scan each record in the primary key in order */
     for (res = index_first(table->record[0]); res == 0;
@@ -15603,6 +15717,78 @@ void Rdb_compaction_stats::record_end(rocksdb::CompactionJobInfo info) {
   DBUG_ASSERT(record.end_timestamp != static_cast<time_t>(-1));
   record.info = std::move(info);
   m_history.emplace_back(std::move(record));
+}
+
+static bool parse_fault_injection_file_type(const std::string &type_str,
+                                            rocksdb::FileType *type) {
+  if (type_str == "kWalFile") {
+    *type = rocksdb::FileType::kWalFile;
+    return false;
+  } else if (type_str == "kTableFile") {
+    *type = rocksdb::FileType::kTableFile;
+    return false;
+  } else if (type_str == "kDescriptorFile") {
+    *type = rocksdb::FileType::kDescriptorFile;
+    return false;
+  }
+  return true;
+}
+
+static bool parse_fault_injection_params(
+    bool *retryable, uint32_t *failure_ratio,
+    std::vector<rocksdb::FileType> *types) {
+  rapidjson::Document doc;
+  rapidjson::ParseResult ok = doc.Parse(opt_rocksdb_fault_injection_options);
+  if (!ok) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Parse error (errcode=%d offset=%lu)  "
+                    "rocksdb_fault_injection_options=%s",
+                    ok.Code(), ok.Offset(),
+                    opt_rocksdb_fault_injection_options);
+    return true;
+  }
+
+  auto retry_it = doc.FindMember("retry");
+  auto fr_it = doc.FindMember("failure_ratio");
+  auto ft_it = doc.FindMember("filetypes");
+
+  if (retry_it == doc.MemberEnd() || fr_it == doc.MemberEnd() ||
+      ft_it == doc.MemberEnd()) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "rocksdb_fault_injection_options=%s schema not valid",
+                    opt_rocksdb_fault_injection_options);
+    return true;
+  }
+
+  if (!retry_it->value.IsBool() || !fr_it->value.IsInt() ||
+      !ft_it->value.IsArray()) {
+    // NO_LINT_DEBUG
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0,
+        "rocksdb_fault_injection_options=%s schema not valid (wrong "
+        "types)",
+        opt_rocksdb_fault_injection_options);
+    return true;
+  }
+
+  *retryable = retry_it->value.GetBool();
+  *failure_ratio = fr_it->value.GetInt();
+  for (rapidjson::SizeType i = 0; i < ft_it->value.Size(); i++) {
+    rocksdb::FileType type;
+    if (!ft_it->value[i].IsString() ||
+        parse_fault_injection_file_type(ft_it->value[i].GetString(), &type)) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Wrong filetype = %s to  "
+                      "rocksdb_fault_injection_options=%s",
+                      ft_it->value[i].IsString() ? ft_it->value[i].GetString()
+                                                 : "(wrong type)",
+                      opt_rocksdb_fault_injection_options);
+      return true;
+    }
+    types->push_back(type);
+  }
+
+  return false;
 }
 
 }  // namespace myrocks

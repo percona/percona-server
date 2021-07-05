@@ -559,18 +559,22 @@ bool File_query_log::open() {
     goto err;
 
   {
+    char log_creation_time[iso8601_size];
+    make_iso8601_timestamp(log_creation_time, my_micro_time(),
+                           iso8601_sysvar_logtimestamps);
+
     char *end;
     const size_t len =
         snprintf(buff, sizeof(buff),
-                 "%s, Version: %s (%s). "
+                 "%s, Version: %s (%s), Time: %s. "
 #if defined(_WIN32)
                  "started with:\nTCP Port: %d, Named Pipe: %s\n",
                  my_progname, server_version, MYSQL_COMPILATION_COMMENT_SERVER,
-                 mysqld_port, mysqld_unix_port
+                 log_creation_time, mysqld_port, mysqld_unix_port
 #else
                  "started with:\nTcp port: %d  Unix socket: %s\n",
                  my_progname, server_version, MYSQL_COMPILATION_COMMENT_SERVER,
-                 mysqld_port, mysqld_unix_port
+                 log_creation_time, mysqld_port, mysqld_unix_port
 #endif
         );
     end =

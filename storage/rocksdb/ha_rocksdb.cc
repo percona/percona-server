@@ -612,7 +612,7 @@ static bool rocksdb_debug_optimizer_no_zero_cardinality = true;
 static uint32_t rocksdb_debug_cardinality_multiplier = 0;
 static uint32_t rocksdb_wal_recovery_mode =
     static_cast<uint32_t>(rocksdb::WALRecoveryMode::kPointInTimeRecovery);
-static bool rocksdb_track_and_verify_wals_in_manifest = false;
+static bool rocksdb_track_and_verify_wals_in_manifest = true;
 static uint32_t rocksdb_stats_level = 0;
 static uint32_t rocksdb_access_hint_on_compaction_start =
     rocksdb::Options::AccessHint::NORMAL;
@@ -713,10 +713,14 @@ static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
                            bool trace_block_cache_access) {
   char buf[FN_REFLEN];
   int len = sizeof(buf);
-  const char *const trace_opt_str_raw = value->val_str(value, buf, &len);
+
+  const char *trace_opt_str_raw;
+  if ((trace_opt_str_raw = value->val_str(value, buf, &len)))
+    trace_opt_str_raw = thd->strmake(trace_opt_str_raw, len);
+
   *static_cast<const char **>(save) = trace_opt_str_raw;
   if (trace_opt_str_raw == nullptr) {
-    return HA_EXIT_SUCCESS;
+    return HA_EXIT_FAILURE;
   }
 
   std::string trace_folder =

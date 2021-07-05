@@ -1,0 +1,1 @@
+--log-output=FILE --general-log=1 --slow-query-log=1

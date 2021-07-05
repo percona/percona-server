@@ -20,6 +20,7 @@ ERROR 42000: Variable 'rocksdb_trace_queries' can't be set to the value of '1:10
 set global rocksdb_trace_queries=1.1;
 ERROR 42000: Incorrect argument type to variable 'rocksdb_trace_queries'
 set global rocksdb_trace_queries=NULL;
+ERROR 42000: Variable 'rocksdb_trace_queries' can't be set to the value of 'NULL'
 set global rocksdb_trace_queries='1:1024';
 ERROR 42000: Variable 'rocksdb_trace_queries' can't be set to the value of '1:1024'
 set global rocksdb_trace_queries='1:';

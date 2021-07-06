@@ -11678,6 +11678,9 @@ ER_KEYRING_COMPONENT_NO_CONFIG
 ER_KEYRING_COMPONENT_CONFIG_PARSE_FAILED
   eng "Keyring configuration JSON parse error: %s (%lu)"
 
+ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
+  eng "Could not add event rule '%s' to --replica-enable-event. %s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

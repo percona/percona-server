@@ -797,6 +797,7 @@ MySQL clients support the protocol:
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
+#include "sql/rpl_event_ctx.h"  // Rpl_event_ctx
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"  // Gtid_table_persistor
@@ -8835,6 +8836,17 @@ struct my_option my_long_options[] = {
      "to replicate-do-db.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"replica-enable-event", OPT_REPLICA_ENABLE_EVENT,
+     "Tells the replication applier thread to enable the events that match "
+     "the specified wildcard pattern without setting it as SLAVESIDE_DISABLED. "
+     "To specify more than one event, use the directive multiple times, once "
+     "for each event. This will work for cross-database events. Example: "
+     "replica-enable-event=foo%.bar% will enable the events in all "
+     "databases on replica server that start with 'foo' and whose event names "
+     "start with 'bar'. It is recommended to use this feature only for "
+     "read-only events to avoid data inconsistency.",
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"replicate-ignore-db", OPT_REPLICATE_IGNORE_DB,
      "Tells the slave thread to not replicate to the specified database. To "
      "specify more than one database to ignore, use the directive multiple "
@@ -10314,6 +10326,15 @@ bool mysqld_get_one_option(int optid,
       }
       log_bin_supplied = true;
       break;
+    case (int)OPT_REPLICA_ENABLE_EVENT: {
+      std::ostringstream message{};
+      if (Rpl_event_ctx::get_instance().process_argument(argument, message)) {
+        LogErr(ERROR_LEVEL, ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED,
+               argument, message.str().c_str());
+        return true;
+      }
+      break;
+    }
     case (int)OPT_REPLICATE_IGNORE_DB: {
       if (is_rpl_global_filter_setting(argument)) {
         rpl_global_filter.add_ignore_db(argument);

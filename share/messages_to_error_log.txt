@@ -11377,6 +11377,9 @@ ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DOUBLEWRITE_PATH
 ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DBLWR_ENCRYPT
   eng "Setting Percona-specific INNODB_PARALLEL_DBLWR_ENCRYPT is deprecated and has no effect."
 
+ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
+  eng "Could not add event rule '%s' to --replica-enable-event. %s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

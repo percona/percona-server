@@ -1147,6 +1147,17 @@ The following options may be given as the first argument:
  transaction processed
  --relay-log-space-limit=# 
  Maximum space to use for all relay logs
+ --replica-enable-event=name 
+ Tells the replication applier thread to enable the events
+ that match the specified wildcard pattern without setting
+ it as SLAVESIDE_DISABLED. To specify more than one event,
+ use the directive multiple times, once for each event.
+ This will work for cross-database events. Example:
+ replica-enable-event=foo%.bar% will enable the events in
+ all databases on replica server that start with 'foo' and
+ whose event names start with 'bar'. It is recommended to
+ use this feature only for read-only events to avoid data
+ inconsistency.
  --replicate-do-db=name 
  Tells the slave thread to restrict replication to the
  specified database. To specify more than one database,

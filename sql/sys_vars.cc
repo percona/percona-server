@@ -125,8 +125,8 @@
 #include "sql/sp_head.h"          // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_lex.h"
-#include "sql/sql_locale.h"     // my_locale_by_number
-#include "sql/sql_parse.h"      // killall_non_super_threads
+#include "sql/sql_locale.h"  // my_locale_by_number
+#include "sql/sql_parse.h"   // killall_non_super_threads
 #include "sql/sql_profile.h"
 #include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
@@ -6710,6 +6710,11 @@ static Sys_var_gtid_executed Sys_gtid_executed(
     "The global variable contains the set of GTIDs in the "
     "binary log. The session variable contains the set of GTIDs "
     "in the current, ongoing transaction.");
+
+static Sys_var_replica_enable_event Sys_replica_enable_event(
+    "replica_enable_event",
+    "The global variable contains the list of patterns set to "
+    "--replica-enable-event.");
 
 static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
   DBUG_TRACE;

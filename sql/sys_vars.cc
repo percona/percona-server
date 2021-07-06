@@ -6997,6 +6997,11 @@ static Sys_var_gtid_executed Sys_gtid_executed(
     "binary log. The session variable contains the set of GTIDs "
     "in the current, ongoing transaction.");
 
+static Sys_var_replica_enable_event Sys_replica_enable_event(
+    "replica_enable_event",
+    "The global variable contains the list of patterns set to "
+    "--replica-enable-event.");
+
 static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
   DBUG_TRACE;
 

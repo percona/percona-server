@@ -1115,6 +1115,7 @@ SET (RPL_REPLICA_SRCS
   rpl_async_conn_failover_reset_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
+  rpl_event_ctx.cc
   rpl_info.cc
   rpl_info_dummy.cc
   rpl_info_factory.cc

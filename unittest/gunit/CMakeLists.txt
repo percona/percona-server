@@ -445,6 +445,17 @@ MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
   LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sqlgunitlib
 )
 
+ADD_LIBRARY(rpl_event_ctx_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/rpl_event_ctx.cc
+)
+TARGET_LINK_LIBRARIES(rpl_event_ctx_lib ext::zlib)
+
+MYSQL_ADD_EXECUTABLE(rpl_event_ctx-t rpl_event_ctx-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_event_ctx
+  LINK_LIBRARIES rpl_event_ctx_lib gunit_small
+)
+
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(components/mysql_server)

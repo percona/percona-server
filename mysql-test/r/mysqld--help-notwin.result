@@ -1201,6 +1201,17 @@ The following options may be given as the first argument:
  maximum number of milliseconds between updates.
  --replica-compressed-protocol 
  Use compression in the source/replica protocol.
+ --replica-enable-event=name 
+ Tells the replication applier thread to enable the events
+ that match the specified wildcard pattern without setting
+ it as REPLICA_SIDE_DISABLED. To specify more than one
+ event, use the directive multiple times, once for each
+ event. This will work for cross-database events. Example:
+ replica-enable-event=foo%.bar% will enable the events in
+ all databases on replica server that start with 'foo' and
+ whose event names start with 'bar'. It is recommended to
+ use this feature only for read-only events to avoid data
+ inconsistency.
  --replica-exec-mode=name 
  Modes for how replication events should be executed.
  Legal values are STRICT (default) and IDEMPOTENT. In

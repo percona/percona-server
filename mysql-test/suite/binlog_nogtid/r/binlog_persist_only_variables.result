@@ -29,7 +29,7 @@ INSERT INTO non_persisted VALUES
 ('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
 ('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
 ('relay_log_index'), ('replica_load_tmpdir'), ('slave_load_tmpdir'),
-('have_backup_safe_binlog_info');
+('have_backup_safe_binlog_info'), ('replica_enable_event');
 CREATE TABLE aliases (
 name VARCHAR(100) PRIMARY KEY
 );
@@ -46,7 +46,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 112 variables in the table.]
+include/assert.inc [Expect 113 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -147,6 +147,8 @@ SET PERSIST_ONLY replica_allow_batching = @@GLOBAL.replica_allow_batching;
 SET PERSIST_ONLY replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
 SET PERSIST_ONLY replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
 SET PERSIST_ONLY replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
+SET PERSIST_ONLY replica_enable_event = @@GLOBAL.replica_enable_event;
+ERROR HY000: Variable 'replica_enable_event' is a non persistent read only variable
 SET PERSIST_ONLY replica_exec_mode = @@GLOBAL.replica_exec_mode;
 SET PERSIST_ONLY replica_load_tmpdir = @@GLOBAL.replica_load_tmpdir;
 ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variable
@@ -345,6 +347,8 @@ RESET PERSIST replica_allow_batching;
 RESET PERSIST replica_checkpoint_group;
 RESET PERSIST replica_checkpoint_period;
 RESET PERSIST replica_compressed_protocol;
+RESET PERSIST replica_enable_event;
+ERROR HY000: Variable replica_enable_event does not exist in persisted config file
 RESET PERSIST replica_exec_mode;
 RESET PERSIST replica_load_tmpdir;
 ERROR HY000: Variable replica_load_tmpdir does not exist in persisted config file

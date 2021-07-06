@@ -81,16 +81,16 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DROCKSDB_DISABLE_MARCH_NATIVE=1 \
 		-DFORCE_INSOURCE_BUILD=1 \
 		-DWITH_SYSTEM_LIBS=ON \
-                -DWITH_PROTOBUF=bundled \
-                -DWITH_RAPIDJSON=bundled \
-                -DWITH_ICU=bundled \
-                -DWITH_ZSTD=bundled \
+		-DWITH_PROTOBUF=bundled \
+		-DWITH_RAPIDJSON=bundled \
+		-DWITH_ICU=bundled \
+		-DWITH_ZSTD=bundled \
 		-DWITH_ZLIB=bundled \
-                -DWITH_LZ4=bundled \
-                -DWITH_EDITLINE=bundled \
-                -DWITH_LIBEVENT=bundled \
-                -DWITH_NUMA=ON \
-                -DWITH_LDAP=system \
+		-DWITH_LZ4=bundled \
+		-DWITH_EDITLINE=bundled \
+		-DWITH_LIBEVENT=bundled \
+		-DWITH_NUMA=ON \
+		-DWITH_LDAP=system \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..
 endif
 
@@ -126,16 +126,16 @@ endif
 		-DROCKSDB_DISABLE_AVX2=1 \
 		-DROCKSDB_DISABLE_MARCH_NATIVE=1 \
 		-DWITH_SYSTEM_LIBS=ON \
-                -DWITH_PROTOBUF=bundled \
-                -DWITH_RAPIDJSON=bundled \
-                -DWITH_ICU=bundled \
-                -DWITH_ZSTD=bundled \
-                -DWITH_LZ4=bundled \
+		-DWITH_PROTOBUF=bundled \
+		-DWITH_RAPIDJSON=bundled \
+		-DWITH_ICU=bundled \
+		-DWITH_ZSTD=bundled \
+		-DWITH_LZ4=bundled \
 		-DWITH_ZLIB=bundled \
-                -DWITH_EDITLINE=bundled \
-                -DWITH_LIBEVENT=bundled \
-                -DWITH_NUMA=ON \
-                -DWITH_LDAP=system \
+		-DWITH_EDITLINE=bundled \
+		-DWITH_LIBEVENT=bundled \
+		-DWITH_NUMA=ON \
+		-DWITH_LDAP=system \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
 
 	touch $@
@@ -197,8 +197,8 @@ override_dh_installinit:
 	@echo "RULES.$@"
 #	dh_apparmor -ppercona-server-server --profile-name=usr.sbin.mysqld
 #	dh_apparmor -ppercona-mysql-router --profile-name=usr.bin.mysqlrouter
-	if [ "$(DISTRELEASE)" != "precise" -a "$(DISTRELEASE)" != "trusty" -a "$(DISTRELEASE)" != "wheezy" ]; then dh_systemd_enable --name=mysql; dh_systemd_enable --no-enable --name=mysql@; fi
+	dh_systemd_enable --name=mysql; dh_systemd_enable --no-enable --name=mysql@
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysqlrouter -- defaults 19 21
-	if [ "$(DISTRELEASE)" != "precise" -a "$(DISTRELEASE)" != "trusty" -a "$(DISTRELEASE)" != "wheezy" ]; then dh_systemd_start --restart-after-upgrade; fi
+	dh_systemd_start --restart-after-upgrade
 	touch $@

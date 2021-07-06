@@ -1,0 +1,148 @@
+############## mysql-test/t/replica_enable_event_basic.test ####################
+#                                                                              #
+# Variable Name: replica_enable_event                                          #
+# Scope: Global                                                                #
+# Access Type: Static / Readonly                                               #
+# Data Type: string                                                            #
+# Default Value: <empty>                                                       #
+#                                                                              #
+# Creation Date: 22/07/2021                                                    #
+#                                                                              #
+#                                                                              #
+# Description: Test Case for static readonly variable replica_enable_event     #
+#              that checks the behavior of this variable in the following ways #
+#              * Value Check                                                   #
+#              * Scope Check                                                   #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF replica_enable_event TESTS               #
+########################################################################
+
+####################################################################
+#   Displaying the default value                                   #
+####################################################################
+SELECT @@GLOBAL.replica_enable_event;
+
+SELECT VARIABLE_VALUE = "" FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.replica_enable_event);
+--echo 1 Expected
+
+####################################################################
+#   Check if value can be set                                      #
+####################################################################
+
+--error ER_PARSE_ERROR
+SET @@GLOBAL.replica_enable_event = OF;
+--echo Expected error 'Syntax error'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = 1;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = "some_value";
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = 1.1;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = -1;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = "T";
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = "Y";
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = TRÜE;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = ÕN;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = ÓFF;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = '¹';
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = NO;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.replica_enable_event = OFF;
+--echo Expected error 'Read only variable'
+
+#####################################################################
+# Check if the value in GLOBAL table matches value in the variable  #
+#####################################################################
+
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+--echo Empty output expected
+
+SELECT COUNT(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+--echo 1 Expected
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL prints the same value   #
+################################################################################
+SELECT @@replica_enable_event = @@GLOBAL.replica_enable_event;
+--echo 1 Expected
+
+################################################################################
+#   Check if replica_enable_event can be accessed with and without @@ sign     #
+################################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.replica_enable_event);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.replica_enable_event);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.replica_enable_event);
+--echo 1 Expected
+
+###################################################################################
+#   Check if replica_enable_event shows the value when started with a valid value #
+###################################################################################
+--let $restart_parameters = restart: --replica-enable-event=db%.event%
+--source include/restart_mysqld.inc
+
+SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+SELECT VARIABLE_VALUE = "db%.event%" FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+--echo 1 Expected
+
+# Restart with default value
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+# Variable value should be empty after a restart with default value.
+SELECT VARIABLE_VALUE = "" FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+--echo 1 Expected
+
+############################################################
+#        END OF replica_enable_event TESTS                 #
+############################################################

@@ -1,0 +1,91 @@
+SELECT @@GLOBAL.replica_enable_event;
+@@GLOBAL.replica_enable_event
+
+SELECT VARIABLE_VALUE = "" FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+VARIABLE_VALUE = ""
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.replica_enable_event);
+COUNT(@@GLOBAL.replica_enable_event)
+1
+1 Expected
+SET @@GLOBAL.replica_enable_event = OF;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+Expected error 'Syntax error'
+SET @@GLOBAL.replica_enable_event = 1;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = "some_value";
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = 1.1;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = -1;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = "T";
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = "Y";
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = TRÜE;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = ÕN;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = ÓFF;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = '¹';
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = NO;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = ON;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.replica_enable_event = OFF;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
+Expected error 'Read only variable'
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_enable_event	
+Empty output expected
+SELECT COUNT(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+SELECT @@replica_enable_event = @@GLOBAL.replica_enable_event;
+@@replica_enable_event = @@GLOBAL.replica_enable_event
+1
+1 Expected
+SELECT COUNT(@@local.replica_enable_event);
+ERROR HY000: Variable 'replica_enable_event' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.replica_enable_event);
+ERROR HY000: Variable 'replica_enable_event' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.replica_enable_event);
+COUNT(@@GLOBAL.replica_enable_event)
+1
+1 Expected
+# restart: --replica-enable-event=db%.event%
+SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
+Variable_name	Value
+replica_enable_event	db%.event%
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_enable_event	db%.event%
+SELECT VARIABLE_VALUE = "db%.event%" FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+VARIABLE_VALUE = "db%.event%"
+1
+1 Expected
+# restart:
+SELECT VARIABLE_VALUE = "" FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'replica_enable_event';
+VARIABLE_VALUE = ""
+1
+1 Expected

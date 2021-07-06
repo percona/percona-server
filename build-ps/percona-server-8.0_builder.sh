@@ -8,24 +8,25 @@ usage () {
     cat <<EOF
 Usage: $0 [OPTIONS]
     The following options may be given :
-        --builddir=DIR      Absolute path to the dir where all actions will be performed
-        --get_sources       Source will be downloaded from github
-        --build_src_rpm     If it is 1 src rpm will be built
-        --build_source_deb  If it is 1 source deb package will be built
-        --build_rpm         If it is 1 rpm will be built
-        --build_deb         If it is 1 deb will be built
-        --build_tarball     If it is 1 tarball will be built
-        --with_ssl          If it is 1 tarball will also include ssl libs
-        --install_deps      Install build dependencies(root previlages are required)
-        --branch            Branch for build
-        --repo              Repo for build
-        --perconaft_repo    PerconaFT repo
-        --perconaft_branch  Branch for PerconaFT
-        --tokubackup_repo   TokuBackup repo
-        --tokubackup_branch Btanch for TokuBackup
-        --rpm_release       RPM version( default = 1)
-        --deb_release       DEB version( default = 1)
-        --debug             Build debug tarball
+        --builddir=DIR              Absolute path to the dir where all actions will be performed
+        --get_sources               Source will be downloaded from github
+        --build_src_rpm             If it is 1 src rpm will be built
+        --build_source_deb          If it is 1 source deb package will be built
+        --build_rpm                 If it is 1 rpm will be built
+        --build_deb                 If it is 1 deb will be built
+        --build_tarball             If it is 1 tarball will be built
+        --with_ssl                  If it is 1 tarball will also include ssl libs
+        --install_deps              Install build dependencies(root previlages are required)
+        --branch                    Branch for build
+        --repo                      Repo for build
+	--build_tokudb_tokubackup   If it is 1 tokudb and tokudback packages will be build (default = 0)
+	--perconaft_repo            PerconaFT repo (The TokuDB storage has no longer supported since 8.0.28)
+        --perconaft_branch          Branch for PerconaFT
+	--tokubackup_repo           TokuBackup repo (The TokuDB storage has no longer supported since 8.0.28)
+        --tokubackup_branch         Branch for TokuBackup
+        --rpm_release               RPM version( default = 1)
+        --deb_release               DEB version( default = 1)
+        --debug                     Build debug tarball
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -246,6 +247,7 @@ get_sources(){
         cd Percona-TokuBackup
         git checkout ${TOKUBACKUP_BRANCH}
         cd ${WORKDIR}/percona-server
+
     fi
     #
     git submodule update
@@ -278,6 +280,7 @@ get_sources(){
     sed -i "s:@@PERCONA_VERSION@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/percona-server.spec
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/percona-server.spec
     sed -i "s:@@RPM_RELEASE@@:${RPM_RELEASE}:g" build-ps/percona-server.spec
+
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 
@@ -393,7 +396,7 @@ install_deps() {
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
-        if [ x"${DIST}" = xfocal ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -404,14 +407,15 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute ]; then
             apt-get -y install libeatmydata1
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute  ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
         fi
+        apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
         cd /usr/local
@@ -712,7 +716,7 @@ build_deb(){
     cd ${DIRNAME}
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -843,7 +847,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.22-13"
+BRANCH="release-8.0.26-16"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -851,9 +855,9 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=22
-MYSQL_VERSION_EXTRA=-13
-PRODUCT_FULL=Percona-Server-8.0.22
+MYSQL_VERSION_PATCH=26
+MYSQL_VERSION_EXTRA=-16
+PRODUCT_FULL=Percona-Server-8.0.26
 PERCONAFT_BRANCH=Percona-Server-8.0.22-13
 TOKUBACKUP_BRANCH=Percona-Server-8.0.22-13
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

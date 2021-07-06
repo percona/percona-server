@@ -39,6 +39,7 @@
 #include "sql/item.h"
 #include "sql/item_timefunc.h"  // get_interval_value
 #include "sql/mysqld.h"         // server_id
+#include "sql/rpl_event_ctx.h"  // Rpl_event_ctx
 #include "sql/sp_head.h"        // sp_name
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
@@ -529,9 +530,17 @@ void Event_parse_data::check_originator_id(THD *thd) {
   if ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL) ||
       (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) ||
       (thd->system_thread == SYSTEM_THREAD_SLAVE_IO)) {
-    DBUG_PRINT("info", ("Invoked object status set to REPLICA_SIDE_DISABLED."));
-    if ((status == Event_parse_data::ENABLED) ||
+    /*
+       Check if the event needs to remain enabled as per
+       --replica-enable-event option.
+    */
+    bool event_needs_reenable =
+        Rpl_event_ctx::get_instance().event_needs_reenable(to_string(dbname),
+                                                           to_string(name));
+    if ((status == Event_parse_data::ENABLED && !event_needs_reenable) ||
         (status == Event_parse_data::DISABLED)) {
+      DBUG_PRINT(
+          "info", ("Invoked object status set to REPLICA_SIDE_DISABLED."));
       status = Event_parse_data::REPLICA_SIDE_DISABLED;
       status_changed = true;
     }

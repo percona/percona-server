@@ -1,0 +1,211 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE test1;
+USE test;
+CREATE TABLE t1(
+id INT PRIMARY KEY AUTO_INCREMENT,
+time TIMESTAMP
+);
+include/sync_slave_sql_with_master.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --replica-enable-event=test%.ev%]
+include/start_slave.inc
+SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
+Variable_name	Value
+replica_enable_event	test%.ev%
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'Replica_enable_event';
+VARIABLE_VALUE
+test%.ev%
+SET @hex_expected= HEX("test%.ev%");
+SELECT HEX(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'Replica_enable_event' INTO @hex_value;
+include/assert.inc [Assert that perfschema query reports the list contents in the expected format.]
+
+################################################################################
+# TR-1: When an event is created as ENABLED on source, it shall remain
+#       ENABLED on replica as well.
+################################################################################
+[connection master]
+CREATE EVENT test.ev1 ON SCHEDULE EVERY 1 SECOND
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+INSERT INTO test.t1(time) VALUES(NOW());
+END |
+CREATE EVENT test.ev2 ON SCHEDULE EVERY 5 SECOND
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+DELETE FROM test.t1;
+END |
+CREATE EVENT test.tev1 ON SCHEDULE EVERY 2 SECOND
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+INSERT INTO test.t1(time) VALUES(NOW());
+END |
+CREATE EVENT test1.ev1 ON SCHEDULE EVERY 10 SECOND
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+SELECT 1;
+END |
+CREATE EVENT test1.tev1 ON SCHEDULE EVERY 10 SECOND
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+INSERT INTO test.t1(time) VALUES(NOW());
+END |
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that there are 3 events in ENABLED state.]
+include/assert.inc [Assert that there are 2 events in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.]
+
+################################################################################
+# TR-2: When an event is created as DISABLED it shall remain DISABLED on
+#       replica as well.
+################################################################################
+[connection master]
+CREATE DATABASE test2;
+CREATE EVENT test2.ev1 ON SCHEDULE EVERY 10 SECOND
+DISABLE
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+SELECT 1;
+END |
+CREATE EVENT test2.ev2 ON SCHEDULE EVERY 10 SECOND
+DISABLE ON REPLICA
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+SELECT 1;
+END |
+CREATE EVENT test2.tev1 ON SCHEDULE EVERY 10 SECOND
+DISABLE
+DO
+BEGIN
+SET SQL_LOG_BIN = 0;
+SELECT 1;
+END |
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that the event 'test2.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test2.ev2' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test2.tev1' is in REPLICA_SIDE_DISABLED state.]
+[connection master]
+DROP DATABASE test2;
+include/sync_slave_sql_with_master.inc
+
+################################################################################
+# TR-3: If an event in ENABLED state is ALTERed as DISABLED on source,
+#       then it shall become DISABLED on replica as well.
+################################################################################
+[connection master]
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+[connection slave]
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+[connection master]
+ALTER EVENT test.ev1 DISABLE;
+ALTER EVENT test.ev2 DISABLE ON REPLICA;
+include/assert.inc [Assert that the event 'test.ev1' is in DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+
+################################################################################
+# TR-4: If an event in ENABLED state is ALTERed and if it remains
+#       ENABLED on source, then it shall remain ENABLED on replica as well.
+################################################################################
+include/assert.inc [Assert that there is in only one event in ENABLED state.]
+include/assert.inc [Assert that the only one running event is 'test1.ev1']
+[connection master]
+ALTER EVENT test1.ev1 ENABLE;
+include/assert.inc [Assert that the only one running event is 'test1.ev1']
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that there is in only one event in ENABLED state.]
+include/assert.inc [Assert that the only one running event is 'test1.ev1']
+
+################################################################################
+# TR-5: If an event in DISABLED state is ALTERed and if it remains
+#       DISABLED on source then, shall remain DISABLED on replica as
+#       well.
+################################################################################
+[connection master]
+include/assert.inc [Assert that the event 'test.ev1' is in DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
+[connection slave]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
+[connection master]
+ALTER EVENT test.ev1 DISABLE ON REPLICA;
+ALTER EVENT test.ev2 DISABLE;
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in DISABLED state.]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
+
+################################################################################
+# TR-6: If an event in DISABLED state is ALTERed to ENABLED state on the
+#       source server, then it shall become ENABLED on replica as well.
+################################################################################
+[connection master]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in DISABLED state.]
+[connection slave]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
+[connection master]
+ALTER EVENT test.ev1 ENABLE;
+ALTER EVENT test.ev2 ENABLE;
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that there are 3 events in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+[connection master]
+include/assert.inc [Assert that there are 5 events.]
+include/assert.inc [Assert that all 5 events are in ENABLED state.]
+[connection slave]
+include/assert.inc [Assert that there are 3 events in ENABLED state.]
+include/assert.inc [Assert that there are 2 events in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/rpl_restart_server.inc [server_number=2]
+SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
+Variable_name	Value
+replica_enable_event	
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'Replica_enable_event';
+VARIABLE_VALUE
+
+include/assert.inc [Assert that there are 3 events in ENABLED state.]
+include/assert.inc [Assert that there are 2 events in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
+include/assert.inc [Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/start_slave.inc
+[connection master]
+DROP DATABASE test1;
+DROP DATABASE test;
+CREATE DATABASE test;
+include/rpl_end.inc

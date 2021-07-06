@@ -1,0 +1,593 @@
+# === Purpose ===
+#
+# This test verifies that the state of the events that match with the pattern
+# stored in the --replcate-enable-event are retained on replica server when a
+# event was created/altered on the source server.
+#
+# === Requirements ===
+#
+# TR-1: When an event is created as ENABLED on source, it shall remain ENABLED
+#       on replica as well.
+# TR-2: When an event is created as DISABLED it shall remain DISABLED on
+#       replica as well.
+# TR-3: If an event in ENABLED state is ALTERed as DISABLED on source, then it
+#       shall become DISABLED on replica as well.
+# TR-4: If an event in ENABLED state is ALTERed and if it remains ENABLED on
+#       source, then it shall remain ENABLED on replica as well.
+# TR-5: If an event in DISABLED state is ALTERed and if it remains DISABLED on
+#       source then, shall remain DISABLED on replica as well.
+# TR-6: If an event in DISABLED state is ALTERed to ENABLED state on the source
+#       server, then it shall become ENABLED on replica as well.
+#
+# === References ===
+#
+# PS-6002: Create/alter event state to keep enabled on replicas
+
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+CREATE DATABASE test1;
+
+USE test;
+CREATE TABLE t1(
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  time TIMESTAMP
+);
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+
+###############################
+# Test with pattern test%.ev% #
+###############################
+# Restart the replica server with --replica-enable-event=test%.ev%
+# and start the applier thread.
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --replica-enable-event=test%.ev%
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
+
+# Verify that the values assigned to --replica-enable-event are observable
+# through SHOW GLOBAL VARIABLES command.
+#
+# Due to the way the MTR processes the escape characters, we cannot perform
+# validation in MTR using
+#
+# --let $result= SELECT VALRIABLE_VALUE = "\"test%.ev%\"" ...
+# --let $assert_cond = $result = 1
+# --source include/assert.inc
+#
+# So, we instead use HEX() functionality on the server side to validate the
+# assumption.
+SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'Replica_enable_event';
+
+SET @hex_expected= HEX("test%.ev%");
+SELECT HEX(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'Replica_enable_event' INTO @hex_value;
+--let $assert_text= Assert that perfschema query reports the list contents in the expected format.
+--let $assert_cond= `SELECT @hex_expected = @hex_value`
+--source include/assert.inc
+
+
+--echo
+--echo ################################################################################
+--echo # TR-1: When an event is created as ENABLED on source, it shall remain
+--echo #       ENABLED on replica as well.
+--echo ################################################################################
+--source include/rpl/connection_source.inc
+--delimiter |
+
+# 1. 'test.ev1' matches the pattern 'test%.ev%', we expect this event to be
+#    enabled on replica server.
+CREATE EVENT test.ev1 ON SCHEDULE EVERY 1 SECOND
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    INSERT INTO test.t1(time) VALUES(NOW());
+  END |
+
+# 2. 'test.ev2' matches the pattern 'test%.ev%', we expect this event to be
+#     enabled on replica server.
+CREATE EVENT test.ev2 ON SCHEDULE EVERY 5 SECOND
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    DELETE FROM test.t1;
+  END |
+
+# 3. 'test.tev1' doesn't match the pattern 'test%.ev%', we expect this event to
+#    remain disabled on replica server.
+CREATE EVENT test.tev1 ON SCHEDULE EVERY 2 SECOND
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    INSERT INTO test.t1(time) VALUES(NOW());
+  END |
+
+# 4. 'test1.ev1' matches the pattern 'test%.ev%', we expect this event to be
+#    enabled on replica server.
+CREATE EVENT test1.ev1 ON SCHEDULE EVERY 10 SECOND
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    SELECT 1;
+  END |
+
+# 5. 'test1.tev1' doesn't match the pattern 'test%.ev%', we expect this event
+#    to remain disabled on replica server.
+CREATE EVENT test1.tev1 ON SCHEDULE EVERY 10 SECOND
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    INSERT INTO test.t1(time) VALUES(NOW());
+  END |
+
+--delimiter ;
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+
+########################################
+# TR-1 Validation:
+#
+# At this point we expect 3 events (test.ev1, test.ev2, test1.ev1) to be
+# running on replica server and 2 events (test.tev1, test1.tev1) in
+# REPLICA_SIDE_DISABLED state.
+########################################
+
+--let $assert_text= Assert that there are 3 events in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that there are 2 events in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 2 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='REPLICA_SIDE_DISABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+
+
+
+--echo
+--echo ################################################################################
+--echo # TR-2: When an event is created as DISABLED it shall remain DISABLED on
+--echo #       replica as well.
+--echo ################################################################################
+--source include/rpl/connection_source.inc
+CREATE DATABASE test2;
+
+# 6. 'test2.ev1' matches the pattern 'test%.ev%'. Since we created it as
+#    disabled, we expect this event to remain DISABLED on replica server as
+#    well.
+--delimiter |
+CREATE EVENT test2.ev1 ON SCHEDULE EVERY 10 SECOND
+DISABLE
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    SELECT 1;
+  END |
+
+# 7. 'test2.ev2' matches the pattern 'test%.ev%'. Since we created it as
+#    disabled on replica, we expect this event to remain DISABLED on replica
+#    server as well.
+CREATE EVENT test2.ev2 ON SCHEDULE EVERY 10 SECOND
+DISABLE ON REPLICA
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    SELECT 1;
+  END |
+
+# 8. 'test2.tev1' doesn't match the pattern 'test%.ev%', we expect this event
+#    to remain disabled on replica server.
+CREATE EVENT test2.tev1 ON SCHEDULE EVERY 10 SECOND
+DISABLE
+DO
+  BEGIN
+    SET SQL_LOG_BIN = 0;
+    SELECT 1;
+  END |
+
+--delimiter ;
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+
+########################################
+# TR-2 Validation:
+#
+# At this point we expect all 3 events (test2.ev1, test2.ev2, test2.tev1) to be
+# having REPLICA_SIDE_DISABLED state.
+########################################
+
+--let $assert_text= Assert that the event 'test2.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test2' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test2.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test2' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test2.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test2' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+
+# TR-2 cleanup
+--source include/rpl/connection_source.inc
+DROP DATABASE test2;
+--source include/rpl/sync_to_replica.inc
+
+
+
+--echo
+--echo ################################################################################
+--echo # TR-3: If an event in ENABLED state is ALTERed as DISABLED on source,
+--echo #       then it shall become DISABLED on replica as well.
+--echo ################################################################################
+
+# Assert that the events (test.ev1, test.ev2, test1.ev1) are in ENABLED state on both source server and replica server.
+--source include/rpl/connection_source.inc
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--source include/rpl/connection_replica.inc
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+# Disable the events test.ev1 and test.ev2 on source server.
+# Test with both 'DISABLE' and 'DISABLE ON REPLICA' clauses.
+--source include/rpl/connection_source.inc
+ALTER EVENT test.ev1 DISABLE;
+ALTER EVENT test.ev2 DISABLE ON REPLICA;
+
+########################################
+# TR-3 Validation:
+#
+# Assert that the events (test.ev1, test.ev2) are in DISABLED state on source
+# server and REPLICA_SIDE_DISABLED on replica server, and the event (test1.ev1) in
+# still in ENABLED state on both source server and on replica server.
+########################################
+--let $assert_text= Assert that the event 'test.ev1' is in DISABLED state.
+--let $assert_cond= `SELECT STATUS='DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+
+
+--echo
+--echo ################################################################################
+--echo # TR-4: If an event in ENABLED state is ALTERed and if it remains
+--echo #       ENABLED on source, then it shall remain ENABLED on replica as well.
+--echo ################################################################################
+
+# Now we expect event (test1.ev1) to be the only event running on replica
+# server.
+--let $assert_text= Assert that there is in only one event in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the only one running event is 'test1.ev1'
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+# Alter the event 'test1.ev1' as ENABLED on source server.
+--source include/rpl/connection_source.inc
+ALTER EVENT test1.ev1 ENABLE;
+
+########################################
+# TR-4 Validation:
+#
+# Assert that the event (test1.ev1) still remains as ENABLED on both source and
+# replica servers.
+########################################
+--let $assert_text= Assert that the only one running event is 'test1.ev1'
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+
+# Now the assumption that event (test1.ev1) to be the only event running on
+# replica server still holds good.
+--let $assert_text= Assert that there is in only one event in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the only one running event is 'test1.ev1'
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+
+
+--echo
+--echo ################################################################################
+--echo # TR-5: If an event in DISABLED state is ALTERed and if it remains
+--echo #       DISABLED on source then, shall remain DISABLED on replica as
+--echo #       well.
+--echo ################################################################################
+
+# Assert that the event (test.ev1) is DISABLED, (test.ev2) is
+# REPLICA_SIDE_DISABLED on source server, and both events are REPLICA_SIDE_DISABLED
+# on replica server.
+--source include/rpl/connection_source.inc
+--let $assert_text= Assert that the event 'test.ev1' is in DISABLED state.
+--let $assert_cond= `SELECT STATUS='DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--source include/rpl/connection_replica.inc
+--let $assert_text= Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+# Alter the DISABLED/REPLICA_SIDE_DISABLED events to remain as DISABLED on the
+# source server.
+#
+# Let us alter test.ev1 to DISABLE ON REPLICA and test.ev2 to
+# DISABLE.
+--source include/rpl/connection_source.inc
+ALTER EVENT test.ev1 DISABLE ON REPLICA;
+ALTER EVENT test.ev2 DISABLE;
+
+########################################
+# TR-5 Validation:
+#
+# Assert that the event (test.ev1) is REPLICA_SIDE_DISABLED, (test.ev2) is
+# DISABLED on source server, and both events are REPLICA_SIDE_DISABLED
+# on replica server.
+########################################
+
+--let $assert_text= Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in DISABLED state.
+--let $assert_cond= `SELECT STATUS='DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+
+
+--echo
+--echo ################################################################################
+--echo # TR-6: If an event in DISABLED state is ALTERed to ENABLED state on the
+--echo #       source server, then it shall become ENABLED on replica as well.
+--echo ################################################################################
+
+# Assert that the event (test.ev1) is DISABLED, (test.ev2) is
+# REPLICA_SIDE_DISABLED on source server, and both events are REPLICA_SIDE_DISABLED
+# on replica server.
+--source include/rpl/connection_source.inc
+--let $assert_text= Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in DISABLED state.
+--let $assert_cond= `SELECT STATUS='DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--source include/rpl/connection_replica.inc
+--let $assert_text= Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+# Alter the DISABLED/REPLICA_SIDE_DISABLED event to ENABLED on source server.
+--source include/rpl/connection_source.inc
+ALTER EVENT test.ev1 ENABLE;
+ALTER EVENT test.ev2 ENABLE;
+
+########################################
+# TR-6 Validation:
+#
+# Assert that the events (test.ev1, test.ev2 and test1.ev1) become ENABLED on
+# both source and replica servers.
+########################################
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+# Sync the replica server with the source server
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= Assert that there are 3 events in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+################################################################################
+# Final Validation:
+#
+# On source server:
+# At this point we expect all 5 events (test.ev1, test.ev2, test.ev1,
+# test1.ev1, test1.ev2) to be running on source server.
+#
+# On replica server:
+# At this point we expect 3 events (test.ev1, test.ev2, test1.ev1) to be
+# running on replica server and 2 events (test.tev1, test1.tev1) in
+# REPLICA_SIDE_DISABLED state.
+################################################################################
+
+# Validation on source
+--source include/rpl/connection_source.inc
+--let $assert_text= Assert that there are 5 events.
+--let $assert_cond= `SELECT COUNT(*) = 5 FROM INFORMATION_SCHEMA.EVENTS`
+--source include/assert.inc
+
+--let $assert_text= Assert that all 5 events are in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 5 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+# Validation on replica
+--source include/rpl/connection_replica.inc
+--let $assert_text= Assert that there are 3 events in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that there are 2 events in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 2 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='REPLICA_SIDE_DISABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+
+# Assert that previous state is retained when the server is restarted with
+# default values.
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=
+--source include/rpl/restart_server.inc
+
+SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'Replica_enable_event';
+
+--let $assert_text= Assert that there are 3 events in ENABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='ENABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that there are 2 events in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT COUNT(*) = 2 FROM INFORMATION_SCHEMA.EVENTS WHERE STATUS='REPLICA_SIDE_DISABLED'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.ev2' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='ev2'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.ev1' is in ENABLED state.
+--let $assert_cond= `SELECT STATUS='ENABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='ev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+
+--let $assert_text= Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.
+--let $assert_cond= `SELECT STATUS='REPLICA_SIDE_DISABLED' FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='test1' AND EVENT_NAME='tev1'`
+--source include/assert.inc
+--source include/rpl/start_replica.inc
+
+#
+# Cleanup - Drop all databases and recreate 'test' database
+#
+--source include/rpl/connection_source.inc
+DROP DATABASE test1;
+DROP DATABASE test;
+CREATE DATABASE test;
+
+--source include/rpl/deinit.inc

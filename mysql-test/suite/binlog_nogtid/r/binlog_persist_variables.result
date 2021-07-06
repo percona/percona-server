@@ -25,7 +25,7 @@ VARIABLE_NAME LIKE '%source%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 112 variables in the table.]
+include/assert.inc [Expect 113 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -127,6 +127,8 @@ SET PERSIST replica_allow_batching = @@GLOBAL.replica_allow_batching;
 SET PERSIST replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
 SET PERSIST replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
 SET PERSIST replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
+SET PERSIST replica_enable_event = @@GLOBAL.replica_enable_event;
+ERROR HY000: Variable 'replica_enable_event' is a read only variable
 SET PERSIST replica_exec_mode = @@GLOBAL.replica_exec_mode;
 SET PERSIST replica_load_tmpdir = @@GLOBAL.replica_load_tmpdir;
 ERROR HY000: Variable 'replica_load_tmpdir' is a read only variable
@@ -357,6 +359,9 @@ RESET PERSIST IF EXISTS replica_allow_batching;
 RESET PERSIST IF EXISTS replica_checkpoint_group;
 RESET PERSIST IF EXISTS replica_checkpoint_period;
 RESET PERSIST IF EXISTS replica_compressed_protocol;
+RESET PERSIST IF EXISTS replica_enable_event;
+Warnings:
+Warning	3615	Variable replica_enable_event does not exist in persisted config file
 RESET PERSIST IF EXISTS replica_exec_mode;
 RESET PERSIST IF EXISTS replica_load_tmpdir;
 Warnings:

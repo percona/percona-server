@@ -41,7 +41,17 @@ let $wait_condition = select count(*) = 0
 --source include/wait_condition.inc
 --enable_query_log
 
---exec bash suite/rocksdb/t/sst_count_rows.sh $MYSQLTEST_VARDIR $MYSQL_SST_DUMP $no_more_deletes $no_more_rows
+--source parse_rocksdb_fs_uri.inc
+if ($rocksdb_zenfs_disabled)
+{
+   --exec bash suite/rocksdb/t/sst_count_rows.sh $MYSQLTEST_VARDIR $MYSQL_SST_DUMP $no_more_deletes $no_more_rows
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --file_exists $MYSQL_ZENFS
+
+  --exec bash suite/rocksdb/t/sst_count_rows.sh $MYSQL_TMP_DIR/zenfs_backup $MYSQL_SST_DUMP $no_more_deletes $no_more_rows $MYSQL_ZENFS $extracted_zenfs_device
+}
 eval SET GLOBAL rocksdb_compaction_sequential_deletes= $save_rocksdb_compaction_sequential_deletes;
 eval SET GLOBAL rocksdb_compaction_sequential_deletes_file_size= $save_rocksdb_compaction_sequential_deletes_file_size;
 eval SET GLOBAL rocksdb_compaction_sequential_deletes_window= $save_rocksdb_compaction_sequential_deletes_window;

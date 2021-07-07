@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,16 +28,15 @@
 #include "keyring_key.h"
 #include "i_keyring_io.h"
 #include "logger.h"
-#include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 #include "i_keys_container.h"
 #include "keyring_memory.h"
 #include "i_system_keys_container.h"
 
 #include <vector>
 
-namespace keyring {
-
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+
+namespace keyring {
 
 class Keys_container : public IKeys_container
 {

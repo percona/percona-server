@@ -1880,15 +1880,43 @@ bool log_slow_applicable(THD *thd)
   if (unlikely(thd->in_sub_stmt))
     DBUG_RETURN(false);                         // Don't set time for sub stmt
 
+  /*
+    Do not log administrative statements unless the appropriate option is
+    set.
+  */
+  if (!thd->enable_slow_log || !opt_slow_log)
+    DBUG_RETURN(false);
+
+  /* Collect query exec time as the first step. */
+  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+
+  /*
+    Copy all needed global variables into a session one before doing all checks.
+
+    Low long_query_time value most likely means user is debugging stuff and even
+    though some thread's queries are not supposed to be logged b/c of the rate
+    limit, if one of them takes long enough (>= 1 second) it will be sensible
+    to make an exception and write to slow log anyway.
+  */
+  system_variables const &g= global_system_variables;
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
+                         &g.log_slow_filter);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
+                         &g.log_slow_rate_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
+                         &g.log_slow_verbosity);
+  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME,
+                         &g.long_query_time);
+  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+                         &g.min_examined_row_limit);
+
   /* Follow the slow log filter configuration. */
   if (thd->variables.log_slow_filter != 0 &&
       (!(thd->variables.log_slow_filter & thd->query_plan_flags) ||
        ((thd->variables.log_slow_filter & (1UL << SLOG_F_QC_NO)) &&
         (thd->query_plan_flags & QPLAN_QC))))
     DBUG_RETURN(false);
-
-  ulonglong end_utime_of_query= thd->current_utime();
-  ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
 
   /*
     Don't log the CALL statement if slow statements logging
@@ -1917,25 +1945,6 @@ bool log_slow_applicable(THD *thd)
     }
   }
 
-  /*
-    Low long_query_time value most likely means user is debugging stuff and even
-    though some thread's queries are not supposed to be logged b/c of the rate
-    limit, if one of them takes long enough (>= 1 second) it will be sensible
-    to make an exception and write to slow log anyway.
-  */
-
-  system_variables const &g= global_system_variables;
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
-                         &g.log_slow_filter);
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
-                         &g.log_slow_rate_limit);
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
-                         &g.log_slow_verbosity);
-  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME,
-                         &g.long_query_time);
-  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
-                         &g.min_examined_row_limit);
-
   if (opt_slow_query_log_rate_type == SLOG_RT_QUERY
       && thd->variables.log_slow_rate_limit
       && my_rnd(&thd->slog_rand) * ((double)thd->variables.log_slow_rate_limit)
@@ -1954,27 +1963,21 @@ bool log_slow_applicable(THD *thd)
     DBUG_RETURN(false);
   }
 
-  /*
-    Do not log administrative statements unless the appropriate option is
-    set.
-  */
-  if (thd->enable_slow_log && opt_slow_log)
-  {
-    bool warn_no_index= ((thd->server_status &
-                          (SERVER_QUERY_NO_INDEX_USED |
-                           SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-                         opt_log_queries_not_using_indexes &&
-                         !(sql_command_flags[thd->lex->sql_command] &
-                           CF_STATUS_COMMAND));
-    bool log_this_query=  ((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-                           warn_no_index) &&
-                          (thd->get_examined_row_count() >=
-                           thd->variables.min_examined_row_limit);
-    bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
+  bool warn_no_index= ((thd->server_status &
+                        (SERVER_QUERY_NO_INDEX_USED |
+                         SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+                       opt_log_queries_not_using_indexes &&
+                       !(sql_command_flags[thd->lex->sql_command] &
+                         CF_STATUS_COMMAND));
+  bool log_this_query=  ((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
+                         warn_no_index) &&
+                        (thd->get_examined_row_count() >=
+                         thd->variables.min_examined_row_limit);
+  bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
 
-    if (!suppress_logging && log_this_query)
-      DBUG_RETURN(true);
-  }
+  if (!suppress_logging && log_this_query)
+    DBUG_RETURN(true);
+
   DBUG_RETURN(false);
 }
 

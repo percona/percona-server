@@ -1,0 +1,6 @@
+etc/init.d
+etc/mysql/conf.d
+etc/apparmor.d
+etc/apparmor.d/local
+usr/lib/mysql
+usr/lib/mysql/plugin

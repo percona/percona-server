@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# Scripts to run by Percona Server systemd service
+#
+# Needed argument: pre
+#
+# pre mode  :  try to perform sanity check for configuration, log, data
+
+# Include helper functions
+. /usr/share/mysql/mysql-helpers
+
+fix_thp_setting() {
+        THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2 | tail -n 1)
+        if [ ! -z "${THP_SETTING}" ]; then
+                # Set whatever option is specified in config file
+                echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+                echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+        fi
+}
+
+my_which () {
+    save_ifs="${IFS-UNSET}"
+    IFS=:
+    ret=0
+    for file
+    do
+        for dir in $PATH
+        do
+        if [ -f "$dir/$file" ]
+        then
+            echo "$dir/$file"
+            continue 2
+        fi
+        done
+
+        ret=1  #signal an error
+        break
+    done
+
+    if [ "$save_ifs" = UNSET ]
+    then
+        unset IFS
+    else
+        IFS="$save_ifs"
+    fi
+    return $ret  # Success
+}
+
+fix_flush_caches() {
+    flush_caches=$(my_print_defaults mysqld_safe | grep flush_caches | cut -d= -f2 | tail -n 1)
+    if [ ! -z ${flush_caches} ]; then
+        if [ ${flush_caches} = 1 ]; then
+            if [ ! $(my_which sync) ]; then
+                echo "sync command not found, required for --flush-caches"
+                exit 1
+            # Flush file system buffers.
+            else
+                sync
+                ret=$?
+                if [ $ret -ne 0 ]; then
+                    # Huh, the sync() function is always successful...
+                    echo "sync failed, check if sync is properly installed"
+                fi
+            fi
+
+            # Locate sysctl, ensure it exists.
+            if [ ! $(my_which sysctl) ]; then
+                echo "sysctl command not found, required for --flush-caches"
+                exit 1
+            # Purge page cache, dentries and inodes.
+            else
+                sysctl -q -w vm.drop_caches=3
+                ret=$?
+                if [ $ret -ne 0 ]; then
+                    echo "sysctl failed, check the error message for details"
+                    exit 1
+                fi
+            fi
+        fi
+    fi
+}
+
+sanity () {
+# Make sure database and required directories exist
+        verify_ready $1
+        verify_database $1
+
+
+        if [ ! -r /etc/mysql/my.cnf ]; then
+                echo "Percona Server configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
+                exit 1
+        fi
+
+        # Needed because of TokuDB
+        fix_thp_setting
+	fix_flush_caches
+}
+
+case $1 in
+        "pre")  sanity $2 ;;
+esac

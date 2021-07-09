@@ -225,7 +225,6 @@ extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
     sha256_password_proxy_users;
 extern bool opt_userstat, opt_thread_statistics;
-extern bool opt_log_slow_slave_statements;
 extern ulonglong opt_slow_query_log_use_global_control;
 extern ulong opt_slow_query_log_rate_type;
 #ifdef _WIN32

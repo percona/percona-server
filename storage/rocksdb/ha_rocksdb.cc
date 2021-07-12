@@ -736,14 +736,8 @@ static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
                            struct SYS_VAR *const var, void *const save,
                            struct st_mysql_value *const value,
                            bool trace_block_cache_access) {
-  char buf[FN_REFLEN];
-  int len = sizeof(buf);
-
-  const char *trace_opt_str_raw;
-  if ((trace_opt_str_raw = value->val_str(value, buf, &len)))
-    trace_opt_str_raw = thd->strmake(trace_opt_str_raw, len);
-
-  *static_cast<const char **>(save) = trace_opt_str_raw;
+  int len = 0;
+  const char *const trace_opt_str_raw = value->val_str(value, nullptr, &len);
   if (trace_opt_str_raw == nullptr) {
     return HA_EXIT_FAILURE;
   }
@@ -766,6 +760,7 @@ static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
       rc = ha_rocksdb::rdb_error_to_mysql(s);
       return HA_EXIT_FAILURE;
     }
+    *static_cast<const char **>(save) = trace_opt_str_raw;
     return HA_EXIT_SUCCESS;
   }
 
@@ -849,7 +844,8 @@ static int rocksdb_tracing(THD *const thd MY_ATTRIBUTE((__unused__)),
       "Maximum trace file size: %lu, Trace file path %s.\n",
       trace_opt.sampling_frequency, trace_opt.max_trace_file_size,
       trace_file_path.c_str());
-
+  // Save the trace option.
+  *static_cast<const char **>(save) = trace_opt_str_raw;
   return HA_EXIT_SUCCESS;
 }
 
@@ -1057,6 +1053,13 @@ static MYSQL_SYSVAR_BOOL(enable_bulk_load_api, rocksdb_enable_bulk_load_api,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                          "Enables using SstFileWriter for bulk loading",
                          nullptr, nullptr, rocksdb_enable_bulk_load_api);
+
+static MYSQL_SYSVAR_BOOL(
+    enable_pipelined_write,
+    *reinterpret_cast<bool *>(&rocksdb_db_options->enable_pipelined_write),
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "DBOptions::enable_pipelined_write for RocksDB", nullptr, nullptr,
+    rocksdb_db_options->enable_pipelined_write);
 
 static MYSQL_SYSVAR_BOOL(enable_remove_orphaned_dropped_cfs,
                          rocksdb_enable_remove_orphaned_dropped_cfs,
@@ -2290,6 +2293,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(bulk_load_size),
     MYSQL_SYSVAR(merge_buf_size),
     MYSQL_SYSVAR(enable_bulk_load_api),
+    MYSQL_SYSVAR(enable_pipelined_write),
     MYSQL_SYSVAR(enable_remove_orphaned_dropped_cfs),
     MYSQL_SYSVAR(tmpdir),
     MYSQL_SYSVAR(merge_combine_read_size),

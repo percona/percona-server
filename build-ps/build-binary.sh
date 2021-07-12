@@ -311,22 +311,22 @@ fi
         if [[ -f $INSTALLDIR/zenfs ]]; then
             echo "ZenFS utils is built"
         else
-            SOURCEDIR=${WORKDIR_ABS}/rocksdb-source
             INSTALL_ROOT=${WORKDIR_ABS}/rocksdb-root
             BUILD_ROOT=${WORKDIR_ABS}/rocksdb-build
 
             mkdir ${WORKDIR_ABS}/rocksdb-root ${WORKDIR_ABS}/rocksdb-build
+            ln -s $SOURCEDIR/storage/rocksdb/rocksdb_plugins/zenfs/ $SOURCEDIR/storage/rocksdb/rocksdb/plugin/
 
-            pushd $SOURCEDIR
+            pushd $SOURCEDIR/storage/rocksdb/rocksdb/
             CC=clang-12 CXX=clang++-12 make DISABLE_WARNING_AS_ERROR=1 PREFIX=${INSTALL_ROOT}/usr OBJ_DIR=${BUILD_ROOT} ROCKSDB_PLUGINS=zenfs -j$(nproc) install-static
             popd
 
-            pushd $SOURCEDIR/plugin/zenfs/util
+            pushd $SOURCEDIR/storage/rocksdb/rocksdb/plugin/zenfs/util
             PKG_CONFIG_PATH=$INSTALL_ROOT/usr/lib/pkgconfig make CC=clang-12 CXX=clang++-12 -j$(nproc)
             popd
 
-            cp $SOURCEDIR/plugin/zenfs/util/zenfs $INSTALLDIR/
-            rm -rf $INSTALL_ROOT $BUILD_ROOT $SOURCEDIR
+            cp $SOURCEDIR/storage/rocksdb/rocksdb/plugin/zenfs/util/zenfs $INSTALLDIR/
+            rm -rf $INSTALL_ROOT $BUILD_ROOT
         fi
     fi
 )

@@ -162,7 +162,8 @@ endif
 	touch $@
 
 	cd $(builddir); \
-	cd rocksdb-source; \
+	mkdir storage/rocksdb/rocksdb/plugin/; ln -s storage/rocksdb/rocksdb_plugins/zenfs/ storage/rocksdb/rocksdb/plugin/; \
+	cd storage/rocksdb/rocksdb/; \
 	CC=clang-12 CXX=clang++-12 make -j$(NCPU) DISABLE_WARNING_AS_ERROR=1 PREFIX=$(CURDIR)/rocksdb-root/usr OBJ_DIR=$(CURDIR)/rocksdb-build ROCKSDB_PLUGINS=zenfs install-static; \
 	cd plugin/zenfs/util; \
 	PKG_CONFIG_PATH=$(CURDIR)/rocksdb-root/usr/lib/pkgconfig CC=clang-12 CXX=clang++-12 make -j$(NCPU) 

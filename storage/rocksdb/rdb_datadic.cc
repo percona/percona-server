@@ -2381,6 +2381,8 @@ int Rdb_key_def::unpack_integer(
       to[length - 1] =
           static_cast<char>(sign_byte ^ 128);  // Reverse the sign bit.
     }
+
+    /* Parameterized length should enable loop unrolling */
     for (int i = 0, j = length - 1; i < length - 1; ++i, --j) to[i] = from[j];
   }
 #endif

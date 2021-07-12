@@ -302,6 +302,7 @@ Rdb_converter::Rdb_converter(const THD *thd, const Rdb_tbl_def *tbl_def,
   m_row_checksums_checked = 0;
   m_null_bytes = nullptr;
   setup_field_encoders();
+  m_lookup_bitmap = {nullptr, 0, 0, nullptr, nullptr};
 }
 
 Rdb_converter::~Rdb_converter() {

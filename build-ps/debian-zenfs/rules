@@ -162,7 +162,7 @@ endif
 	touch $@
 
 	cd $(builddir); \
-	mkdir storage/rocksdb/rocksdb/plugin/; ln -s storage/rocksdb/rocksdb_plugins/zenfs/ storage/rocksdb/rocksdb/plugin/; \
+	mkdir storage/rocksdb/rocksdb/plugin/; ln -s $(CURDIR)/storage/rocksdb/rocksdb_plugins/zenfs/ $(CURDIR)/storage/rocksdb/rocksdb/plugin/; \
 	cd storage/rocksdb/rocksdb/; \
 	CC=clang-12 CXX=clang++-12 make -j$(NCPU) DISABLE_WARNING_AS_ERROR=1 PREFIX=$(CURDIR)/rocksdb-root/usr OBJ_DIR=$(CURDIR)/rocksdb-build ROCKSDB_PLUGINS=zenfs install-static; \
 	cd plugin/zenfs/util; \
@@ -201,8 +201,7 @@ override_dh_auto_install:
 	# install AppArmor profile for Percona Server
 	install -d $(TMP)/etc/apparmor.d
 	install -d $(TMP)/etc/apparmor.d/local
-
-	install -m 0755 $(builddir)/rocksdb-source/plugin/zenfs/util/zenfs $(TMP)/usr/bin/zenfs
+	install -m 0755 $(builddir)/storage/rocksdb/rocksdb/plugin/zenfs/util/zenfs $(TMP)/usr/bin/zenfs
 
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg-zenfs

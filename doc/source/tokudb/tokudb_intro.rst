@@ -4,12 +4,11 @@
 TokuDB Introduction
 ================================================================================
 
-:Availability: |TokuDB| is deprecated in the 8.0 series and will be supported
-               through the 8.0 series until further notice. This storage engine
-               will not be included in the next major release of |Percona
-               Server|. We recommend MyRocks as a long-term migration path.
+:Availability: The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0 and will be disabled in upcoming 8.0 versions. 
+    
+    We recommend migrating to the MyRocks Storage Engine. 
 
-.. Percona TokuBackup is very limited in 8.0, and the fixes to bring it up to speed have been deferred
+    For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
 
 |TokuDB| is a highly scalable, zero-maintenance downtime MySQL storage engine
 that delivers indexing-based query acceleration, improved replication

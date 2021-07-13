@@ -311,7 +311,7 @@ enable_zenfs() {
         rm build-ps/build-binary.sh
         curl https://raw.githubusercontent.com/percona/percona-server/8.0/build-ps/build-binary.sh --output build-ps/build-binary.sh
         chmod +x build-ps/build-binary.sh
-        git clone --recursive https://github.com/percona-ysorokin/rocksdb.git -b percona_wdc $WORKDIR/TARGET/rocksdb-source
+        mkdir -p storage/rocksdb/rocksdb/plugin/
     elif [[ $mode == "debian" ]]; then
         mkdir builddir
         rm -rf debian
@@ -320,7 +320,6 @@ enable_zenfs() {
         sed -i "s:@@PERCONA_VERSION_EXTRA@@:${MYSQL_VERSION_EXTRA#-}:g" debian/rules
         sed -i "s:@@REVISION@@:${REVISION}:g" debian/rules
         sed -i "s:@@TOKUDB_BACKUP_VERSION@@:${TOKUDB_VERSION}:g" debian/rules
-        git clone --recursive https://github.com/percona-ysorokin/rocksdb.git -b percona_wdc builddir/rocksdb-source
     fi
     return
 }

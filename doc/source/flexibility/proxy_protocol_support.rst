@@ -4,17 +4,16 @@
  Support for PROXY protocol
 ============================
 
-The proxy protocol allows an intermediate proxying server speaking proxy protocol (ie. HAProxy) between the server and the ultimate client (i.e. mysql client etc) to provide the source client address to the server, which normally would only see the proxying server address instead.
 
-As the proxy protocol amounts to spoofing the client address, it is disabled by default, and can be enabled on per-host or per-network basis for the trusted source addresses where trusted proxy servers are known to run. Unproxied connections are not allowed from these source addresses.
+The proxy server provides the benefits of load balancing, and security. Proxy protocol adds a header with connection information to the client's connection to the destination. Use the proxy protocol to pass the client IP address to a destination, which, normally, would only see the proxy server's address.
+
+You can enable the protocol on a per-host or a per-network basis for the trusted source addresses, where trusted proxy servers are known. You should specify from which network the destination expects the proxy headers. The `proxy_protocol_networks` should be set to the proxy address or a dedicated network range. The protocol is supported for TCP over IPv4 and IPv6 connections only. UNIX socket connections can not use the proxy protocol and do not fall under the effect of `proxy-protocol-networks`='*'. As a special exception, it is forbidden for the proxy protocol IP address to be ``127.0.0.1`` or ``::1``.
+
+Connections that do not use the proxy server are not allowed from the proxy-dedicated range. When the `proxy_protocol_networks` is enabled, the client communicates first. When a connection does not use the protocol, the server communicates first with an Initial Handshake packet and the client responds. If `proxy_protocol_networks` is enabled, a dedicated client address cannot connect to the destination without the proxy header. This connection stalls with no response and no error.
 
 .. note:: 
 
-   You need to ensure proper firewall ACL's in place when this feature is enabled. 
-
-Proxying is supported for TCP over IPv4 and IPv6 connections only. UNIX socket connections can not be proxied and do not fall under the effect of proxy-protocol-networks='*'.
-
-As a special exception, it is forbidden for the proxied IP address to be ``127.0.0.1`` or ``::1``.
+   You need to ensure proper firewall Access Control Lists in place when this feature is enabled. 
 
 Version Specific Information
 ============================
@@ -33,7 +32,15 @@ System Variables
   :dyn: No
   :default: ``(empty string)``
 
-This variable is a global-only, read-only variable, which is either a ``*`` (to enable proxying globally, a non-recommended setting), or a list of comma-separated IPv4 and IPv6 network and host addresses, for which proxying is enabled. Network addresses are specified in CIDR notation, i.e. ``192.168.0.0/24``. To prevent source host spoofing, the setting of this variable must be as restrictive as possible to include only trusted proxy hosts.
+This variable is a global-only, read-only variable. The available values are:
+
+* Empty string, which is the default
+
+* List of comma-separated IPv4 network and host addresses, or IPv6 network and host addresses. Network addresses are specified in CIDR notation, i.e. ``192.168.0.0/24``.
+
+* An ``*`` (asterisk) allows the proxy headers from any account. This setting is not recommended because this setting may compromise security.
+
+To prevent source host spoofing, the setting of this variable must be as restrictive as possible to include only trusted proxy hosts.
 
 Related Reading
 ===============

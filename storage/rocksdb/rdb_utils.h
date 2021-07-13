@@ -72,7 +72,7 @@ namespace myrocks {
   The intent behind a SHIP_ASSERT() macro is to have a mechanism for validating
   invariants in retail builds. Traditionally assertions (such as macros defined
   in <cassert>) are evaluated for performance reasons only in debug builds and
-  become NOOP in retail builds when DBUG_OFF is defined.
+  become NOOP in retail builds when NDEBUG is defined.
 
   This macro is intended to validate the invariants which are critical for
   making sure that data corruption and data loss won't take place. Proper
@@ -97,17 +97,17 @@ namespace myrocks {
   If a is true, then b must be true.
   If a is false, then the value is b does not matter.
 */
-#ifndef DBUG_ASSERT_IMP
-#define DBUG_ASSERT_IMP(a, b) DBUG_ASSERT(!(a) || (b))
+#ifndef assert_IMP
+#define assert_IMP(a, b) assert(!(a) || (b))
 #endif
 
 /*
   Assert a if and only if b.
   a and b must be both true or both false.
 */
-#ifndef DBUG_ASSERT_IFF
-#define DBUG_ASSERT_IFF(a, b) \
-  DBUG_ASSERT(static_cast<bool>(a) == static_cast<bool>(b))
+#ifndef assert_IFF
+#define assert_IFF(a, b) \
+  assert(static_cast<bool>(a) == static_cast<bool>(b))
 #endif
 
 /*
@@ -158,7 +158,7 @@ const constexpr size_t RDB_MAX_HEXDUMP_LEN = 1000;
 */
 
 inline uchar *rdb_mysql_str_to_uchar_str(my_core::String *str) {
-  DBUG_ASSERT(str != nullptr);
+  assert(str != nullptr);
   return reinterpret_cast<uchar *>(str->c_ptr());
 }
 
@@ -185,7 +185,7 @@ constexpr int rdb_convert_sec_to_ms(int sec) {
 */
 
 inline const uchar *rdb_slice_to_uchar_ptr(const rocksdb::Slice *item) {
-  DBUG_ASSERT(item != nullptr);
+  assert(item != nullptr);
   return reinterpret_cast<const uchar *>(item->data());
 }
 

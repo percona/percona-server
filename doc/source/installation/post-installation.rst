@@ -25,6 +25,8 @@ After you have installed |Percona Server|, you may need to do the following:
      - Verify the server returns information
    * - Enable time zone recognition
      - Populate the time zone tables
+   * - Exclude Buffer Pool Pages from core files
+     - Reduce the size of the core files by excluding the buffer pool
 
 Initializing the Data Directory
 -------------------------------
@@ -217,6 +219,30 @@ The example assumes you are running the command with the ``root`` account. You m
 .. code-block:: bash
 
     $ mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p rootpassword
+
+.. _exclude-buffer:
+
+Excluding Buffer Pool Pages from Core files
+--------------------------------------------
+
+Implemented in |Percona Server| 5.7.33-36, you can use the `innodb_buffer_pool_in__core_file <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_buffer_pool_in_core_file>`_ to reduce the size of the core file. 
+
+Buffer pools can produce large core files because the buffer pool is located in main memory. If the main memory is dumped to a core file, the buffer pool increases the size of the dump. 
+
+Having a large core file can have the following issues:
+
+* Requires more time to write
+
+* Consume disk space
+
+* Reading the file 
+
+To exclude the buffer pool, run the following command at startup or use a ``SET`` statement:
+
+.. sourcecode:: mysql
+
+    mysqld> SET GLOBAL innodb_buffer_pool_in__core_file=OFF;
+
 
 
 

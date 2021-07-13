@@ -34,7 +34,7 @@ public:
 
   void enable_encryption(Binlog_crypt_data* crypto)
   {
-    DBUG_ASSERT(crypto != NULL);
+    assert(crypto != NULL);
     this->crypto = crypto;
   }
 

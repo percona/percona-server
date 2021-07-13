@@ -1,13 +1,13 @@
-.. _8.0.25-15.1:
+.. _8.0.25-15:
 
 ================================================================================
-*Percona Server for MySQL* 8.0.25-15.1
+*Percona Server for MySQL* 8.0.25-15
 ================================================================================
 
 :Date: July 13, 2021
 :Installation: `Installing Percona Server for MySQL <https://www.percona.com/doc/percona-server/8.0/installation.html>`_
 
-`Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 8.0.25-15.1
+`Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 8.0.25-15
 includes all the features and bug fixes available in the
 `MySQL 8.0.24 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-24.html>`__ and
 the

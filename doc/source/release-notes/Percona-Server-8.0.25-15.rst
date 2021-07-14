@@ -51,7 +51,7 @@ Bugs Fixed
 * :jirabug:`PS-7657`: A server exit caused with an update query on a partition table with a compressed column
 * :jirabug:`PS-7557`: Mysql server version 8.0.22-13 executing the Data Masking plugin causes a server exit (Thanks to user Alfonso Luciano for reporting this issue).
 * :jirabug:`PS-1116`: LP #1719506: Audit plugin reports "command_class=error" for server-side prepared statements.
-* :jirabug:`PS-7742`: Enabling binary log encryption breaks basic replication setup on Percona Server.
+
 
 Known issues
 ==========================================================================

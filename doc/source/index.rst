@@ -57,6 +57,8 @@ Performance Improvements
    performance/prefix_index_queries_optimization
    performance/query_limit_records
    performance/jemalloc-profiling
+   performance/procfs-plugin
+
 
 Flexibility Improvements
 ================================================================================
@@ -198,6 +200,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   release-notes/release-notes_index
    upstream-bug-fixes
    ps-variables
    development
@@ -205,7 +208,6 @@ Reference
    index_info_schema_tables
    faq
    copyright
-   release-notes/release-notes_index
    glossary
 
 * :ref:`genindex`

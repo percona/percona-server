@@ -1,0 +1,10 @@
+usr/bin/mysql_config
+usr/bin/mysql_config_editor
+usr/include/mysql/*
+usr/lib/*/libperconaserverclient.a
+usr/lib/*/libperconaserverclient.so
+usr/lib/*/libmysqlservices.a
+usr/share/aclocal/mysql.m4
+# manpages
+usr/share/man/man1/mysql_config.1
+usr/share/man/man1/mysql_config_editor.1

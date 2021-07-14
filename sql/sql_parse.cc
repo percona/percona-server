@@ -256,6 +256,10 @@ const LEX_CSTRING command_name[] = {
     {STRING_WITH_LEN("Error")}  // Last command number
 };
 
+size_t get_command_name_len(void) {
+  return sizeof(command_name) / sizeof(command_name[0]);
+}
+
 bool command_satisfy_acl_cache_requirement(unsigned command) {
   if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
       skip_grant_tables() == true)

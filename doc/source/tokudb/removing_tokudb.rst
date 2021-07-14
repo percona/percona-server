@@ -4,21 +4,46 @@
  Removing TokuDB storage engine
 ================================
 
+
+Migrating the data to MyRocks
+------------------------------
+
+To migrate data use the `mysqldump <https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html>`__ client utility or the tools in the `MySQL Workbench <https://dev.mysql.com/downloads/workbench/>`__ to dump and restore the database.
+
+We recommended migrating to the `MyRocks` storage engine. Follow these steps to migrate the data:
+
+1. Use mysqldump to backup the TokuDB database into a single file.
+
+2. Create a MyRocks instance with MyRocks tables with no data.
+
+3. Replace the references to `TokuDB` with `MyRocks`.
+
+4. Enable the following variable: `rocksdb_bulk_load`. This variable also enables `rocksdb_commit_in_the_middle`. 
+
+5. Import the data into the MyRocks database.
+
+Follow the :ref:`remove-plugins` steps.
+
+Migrating from TokuDB to InnoDB
+---------------------------------
+
 In case you want remove the TokuDB storage engine from |Percona Server| without
 causing any errors following is the recommended procedure:
 
 Change the tables from TokuDB to InnoDB
 ---------------------------------------
 
-If you still need the data in the TokuDB tables you'll need to alter the tables
+If you still need the data in the TokuDB tables you must alter the tables
 to other supported storage engine i.e., |InnoDB|: :mysql:`ALTER TABLE City
 ENGINE=InnoDB;`
 
 .. note:: 
 
-   In case you remove the TokuDB storage engine before you've changed your
-   tables to other supported storage engine you won't be able to access that
-   data without re-installing the TokuDB storage engine.
+   Do not remove the TokuDB storage engine before you've changed your
+   tables to the other supported storage engine. Otherwise, you will not be able to access that
+   data without reinstalling the TokuDB storage engine.
+
+.. _remove-plugins:
 
 Removing the plugins
 --------------------

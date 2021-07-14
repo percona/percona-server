@@ -26,7 +26,7 @@ namespace keyring {
 
 class Vault_keys_container_ex : public Vault_keys_container {
  public:
-  Vault_keys_container_ex(ILogger *logger) : Vault_keys_container(logger) {}
+  Vault_keys_container_ex(ILogger *logger_) : Vault_keys_container(logger_) {}
 
   void remove_all_keys() {
     std::for_each(

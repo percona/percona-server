@@ -110,6 +110,7 @@ ProcessInfo * ProcessInfo::forNodeId(Uint16 nodeId)
   ProcessInfo * self = new ProcessInfo();
   self->node_id = nodeId;   // do not copy node id
   strncpy(self->process_name, process->process_name, ProcessNameLength);
+  self->process_name[ProcessNameLength - 1] = '\0';
   self->process_id = process->process_id;
   self->angel_process_id = process->angel_process_id;
   /* Do not copy any of the fields that will be set from set_service_uri() */

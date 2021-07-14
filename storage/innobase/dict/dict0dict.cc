@@ -1728,6 +1728,7 @@ dberr_t dict_table_rename_in_cache(
       in old_name_cs_filename */
 
       strncpy(old_name_cs_filename, old_name, sizeof(old_name_cs_filename));
+      old_name_cs_filename[sizeof(old_name_cs_filename) - 1] = '\0';
       if (strstr(old_name, TEMP_TABLE_PATH_PREFIX) == nullptr) {
         innobase_convert_to_system_charset(
             strchr(old_name_cs_filename, '/') + 1, strchr(old_name, '/') + 1,
@@ -1745,10 +1746,12 @@ dberr_t dict_table_rename_in_cache(
           /* Old name already in
           my_charset_filename */
           strncpy(old_name_cs_filename, old_name, sizeof(old_name_cs_filename));
+          old_name_cs_filename[sizeof(old_name_cs_filename) - 1] = '\0';
         }
       }
 
       strncpy(fkid, foreign->id, MAX_TABLE_NAME_LEN);
+      fkid[MAX_TABLE_NAME_LEN] = '\0';
 
       if (strstr(fkid, TEMP_TABLE_PATH_PREFIX) == nullptr) {
         innobase_convert_to_filename_charset(strchr(fkid, '/') + 1,
@@ -1778,6 +1781,7 @@ dberr_t dict_table_rename_in_cache(
 
         /* Convert the table name to UTF-8 */
         strncpy(table_name, table->name.m_name, MAX_TABLE_NAME_LEN);
+        table_name[MAX_TABLE_NAME_LEN] = '\0';
         innobase_convert_to_system_charset(strchr(table_name, '/') + 1,
                                            strchr(table->name.m_name, '/') + 1,
                                            MAX_TABLE_NAME_LEN, &errors);
@@ -1788,6 +1792,7 @@ dberr_t dict_table_rename_in_cache(
           UTF-8. This means that the table name
           is already in UTF-8 (#mysql#50). */
           strncpy(table_name, table->name.m_name, MAX_TABLE_NAME_LEN);
+          table_name[MAX_TABLE_NAME_LEN] = '\0';
         }
 
         /* Replace the prefix 'databasename/tablename'

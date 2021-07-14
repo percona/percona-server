@@ -3871,9 +3871,10 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
     /* It's safe to pass space_name in tablename charset because
     filename is already in filename charset. */
-    dberr_t err = fil_ibd_open(
-        validate || is_enc_in_progress, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-        space_name, nullptr, filename, false, false, keyring_encryption_info);
+    dberr_t err =
+        fil_ibd_open(validate || is_enc_in_progress, FIL_TYPE_TABLESPACE,
+                     space_id, fsp_flags, space_name, nullptr, filename, false,
+                     false, keyring_encryption_info);
 
     switch (err) {
       case DB_SUCCESS: {
@@ -4485,10 +4486,12 @@ error_exit:
   return (ret);
 }
 
-bool innobase_fix_default_table_encryption(ulong encryption_option, bool is_server_starting) {
+bool innobase_fix_default_table_encryption(ulong encryption_option,
+                                           bool is_server_starting) {
   if (!srv_read_only_mode) {
     return fil_crypt_set_encrypt_tables(
-        static_cast<enum_default_table_encryption>(encryption_option), is_server_starting);
+        static_cast<enum_default_table_encryption>(encryption_option),
+        is_server_starting);
   }
   return false;
 }
@@ -13712,6 +13715,7 @@ int create_table_info_t::parse_table_name(const char *name) {
       m_flags &= ~DICT_TF_MASK_DATA_DIR;
     } else {
       strncpy(m_remote_path, m_create_info->data_file_name, FN_REFLEN - 1);
+      m_remote_path[FN_REFLEN - 1] = '\0';
     }
   }
 
@@ -13725,6 +13729,7 @@ int create_table_info_t::parse_table_name(const char *name) {
   So it only needs to be copied now. */
   if (m_use_shared_space) {
     strncpy(m_tablespace, m_create_info->tablespace, NAME_LEN - 1);
+    m_tablespace[NAME_LEN - 1] = '\0';
   }
 
   return 0;

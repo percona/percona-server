@@ -196,7 +196,8 @@ int table_host_cache::make_row(Host_entry *entry, row_host_cache *row) {
   strcpy(row->m_ip, entry->ip_key);
   row->m_hostname_length = entry->m_hostname_length;
   if (row->m_hostname_length > 0) {
-    strncpy(row->m_hostname, entry->m_hostname, row->m_hostname_length);
+    DBUG_ASSERT(row->m_hostname_length <= sizeof(row->m_hostname));
+    strncpy(row->m_hostname, entry->m_hostname, sizeof(row->m_hostname));
   }
   row->m_host_validated = entry->m_host_validated;
   row->m_sum_connect_errors = entry->m_errors.m_connect;

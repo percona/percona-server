@@ -85,6 +85,9 @@ PFS_prepared_stmt *create_prepared_stmt(
     pfs->m_identity = identity;
     /* Set query text if available, else it will be set later. */
     if (sqltext_length > 0) {
+      if (sqltext_length > sizeof(pfs->m_sqltext)) {
+        sqltext_length = sizeof(pfs->m_sqltext);
+      }
       strncpy(pfs->m_sqltext, sqltext, sqltext_length);
     }
 
@@ -92,8 +95,8 @@ PFS_prepared_stmt *create_prepared_stmt(
 
     if (stmt_name != nullptr) {
       pfs->m_stmt_name_length = stmt_name_length;
-      if (pfs->m_stmt_name_length > PS_NAME_LENGTH) {
-        pfs->m_stmt_name_length = PS_NAME_LENGTH;
+      if (pfs->m_stmt_name_length > sizeof(pfs->m_stmt_name)) {
+        pfs->m_stmt_name_length = sizeof(pfs->m_stmt_name);
       }
       strncpy(pfs->m_stmt_name, stmt_name, pfs->m_stmt_name_length);
     } else {
@@ -106,12 +109,21 @@ PFS_prepared_stmt *create_prepared_stmt(
     /* If this statement prepare is called from a SP. */
     if (pfs_program) {
       pfs->m_owner_object_type = pfs_program->m_type;
-      strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name,
-              pfs_program->m_schema_name_length);
+
       pfs->m_owner_object_schema_length = pfs_program->m_schema_name_length;
-      strncpy(pfs->m_owner_object_name, pfs_program->m_object_name,
-              pfs_program->m_object_name_length);
+      if (pfs->m_owner_object_schema_length >
+          sizeof(pfs->m_owner_object_schema)) {
+        pfs->m_owner_object_schema_length = sizeof(pfs->m_owner_object_schema);
+      }
+      strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name,
+              pfs->m_owner_object_schema_length);
+
       pfs->m_owner_object_name_length = pfs_program->m_object_name_length;
+      if (pfs->m_owner_object_name_length > sizeof(pfs->m_owner_object_name)) {
+        pfs->m_owner_object_name_length = sizeof(pfs->m_owner_object_name);
+      }
+      strncpy(pfs->m_owner_object_name, pfs_program->m_object_name,
+              pfs->m_owner_object_name_length);
     } else {
       pfs->m_owner_object_type = NO_OBJECT_TYPE;
       pfs->m_owner_object_schema_length = 0;

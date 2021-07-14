@@ -2706,7 +2706,7 @@ static int not_in_history(const char *line) {
 #if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
- static int fake_magic_space(const char *, int)
+static int fake_magic_space(const char *, int)
 #endif
 {
   rl_insert(1, ' ');
@@ -4391,6 +4391,7 @@ static int com_query_attributes(String *buffer MY_ATTRIBUTE((unused)),
     if (!param || !*param) break;
 
     strncpy(name, param, sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
     param = get_arg(param, true);
     if (!param || !*param) {
       return put_info("Usage: query_attributes name1 value1 name2 value2 ...",

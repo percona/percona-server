@@ -59,7 +59,9 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
 
     m_last_level= level;
     strncpy(m_last_category, pCategory, sizeof(m_last_category));
+    m_last_category[sizeof(m_last_category) - 1] = '\0';
     strncpy(m_last_message, pMsg, sizeof(m_last_message));
+    m_last_message[sizeof(m_last_message) - 1] = '\0';
   }
   else // repeated message
   {

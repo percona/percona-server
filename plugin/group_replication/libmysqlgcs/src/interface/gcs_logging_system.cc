@@ -195,6 +195,7 @@ inline void Gcs_async_buffer::produce_events(const char *message,
   char *buffer = entry.get_buffer();
   size_t size = std::min(entry.get_max_buffer_size(), message_size);
   strncpy(buffer, message, size);
+  buffer[size - 1] = '\0';
   entry.set_buffer_size(size);
   notify_entry(entry);
 }

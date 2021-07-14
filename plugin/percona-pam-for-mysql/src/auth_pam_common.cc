@@ -185,12 +185,14 @@ int auth_pam_generate_auth_string_hash(char *outbuf, unsigned int *buflen,
                                        const char *inbuf,
                                        unsigned int inbuflen) {
   /*
-    fail if buffer specified by server cannot be copied to output buffer
+    Check that the buffer from the plugin is large enough to contain
+    the buffer specifed by the server (+1 for null termination of the string).
+    Otherwise return an error.
   */
-  if (*buflen < inbuflen) return 1; /* error */
-  strncpy(outbuf, inbuf, inbuflen);
+  if (*buflen <= inbuflen) return 1;
+  strncpy(outbuf, inbuf, inbuflen + 1);
   *buflen = strlen(inbuf);
-  return 0; /* success */
+  return 0;
 }
 
 int auth_pam_validate_auth_string_hash(char *const buf __attribute__((unused)),

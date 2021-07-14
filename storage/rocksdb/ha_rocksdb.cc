@@ -141,10 +141,12 @@ static handler *rocksdb_create_handler(my_core::handlerton *hton,
                                        my_core::MEM_ROOT *mem_root);
 
 static rocksdb::CompactRangeOptions getCompactRangeOptions(
-    int concurrency = 0) {
+    int concurrency = 0,
+    rocksdb::BottommostLevelCompaction bottommost_level_compaction =
+        rocksdb::BottommostLevelCompaction::kForceOptimized) {
   rocksdb::CompactRangeOptions compact_range_options;
   compact_range_options.bottommost_level_compaction =
-      rocksdb::BottommostLevelCompaction::kForceOptimized;
+      bottommost_level_compaction;
   compact_range_options.exclusive_manual_compaction = false;
   if (concurrency > 0) {
     compact_range_options.max_subcompactions = concurrency;
@@ -847,6 +849,16 @@ static TYPELIB info_log_level_typelib = {
     array_elements(info_log_level_names) - 1, "info_log_level_typelib",
     info_log_level_names, nullptr};
 
+/* This enum needs to be kept up to date with rocksdb::BottommostLevelCompaction
+ */
+static const char *bottommost_level_compaction_names[] = {
+    "kSkip", "kIfHaveCompactionFilter", "kForce", "kForceOptimized", NullS};
+
+static TYPELIB bottommost_level_compaction_typelib = {
+    array_elements(bottommost_level_compaction_names) - 1,
+    "bottommost_level_compaction_typelib", bottommost_level_compaction_names,
+    nullptr};
+
 static void rocksdb_set_rocksdb_info_log_level(
     THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
     const void *const save) {
@@ -1199,6 +1211,15 @@ static MYSQL_THDVAR_INT(
     "How many rocksdb threads to run for manual compactions", nullptr, nullptr,
     /* default rocksdb.dboption max_subcompactions */ 0,
     /* min */ 0, /* max */ 128, 0);
+
+static MYSQL_THDVAR_ENUM(
+    manual_compaction_bottommost_level, PLUGIN_VAR_RQCMDARG,
+    "Option for bottommost level compaction during manual "
+    "compaction",
+    nullptr, nullptr,
+    /* default */
+    (ulong)rocksdb::BottommostLevelCompaction::kForceOptimized,
+    &bottommost_level_compaction_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     create_if_missing,
@@ -2339,6 +2360,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(debug_manual_compaction_delay),
     MYSQL_SYSVAR(max_manual_compactions),
     MYSQL_SYSVAR(manual_compaction_threads),
+    MYSQL_SYSVAR(manual_compaction_bottommost_level),
     MYSQL_SYSVAR(rollback_on_timeout),
 
     MYSQL_SYSVAR(enable_insert_with_update_caching),
@@ -2384,8 +2406,13 @@ static int rocksdb_compact_column_family(THD *const thd,
 
     auto cfh = cf_manager.get_cf(cf_name);
     if (cfh != nullptr && rdb != nullptr) {
+      rocksdb::BottommostLevelCompaction bottommost_level_compaction =
+          (rocksdb::BottommostLevelCompaction)THDVAR(
+              thd, manual_compaction_bottommost_level);
+
       int mc_id = rdb_mc_thread.request_manual_compaction(
-          cfh, nullptr, nullptr, THDVAR(thd, manual_compaction_threads));
+          cfh, nullptr, nullptr, THDVAR(thd, manual_compaction_threads),
+          bottommost_level_compaction);
       if (mc_id == -1) {
         my_error(ER_INTERNAL_ERROR, MYF(0),
                  "Can't schedule more manual compactions. "
@@ -3291,6 +3318,19 @@ class Rdb_transaction {
   }
 };
 
+#ifndef NDEBUG
+// simulate that RocksDB has reported corrupted data
+static void dbug_change_status_to_corrupted(rocksdb::Status *status) {
+  *status = rocksdb::Status::Corruption();
+}
+static void dbug_change_status_to_io_error(rocksdb::Status *status) {
+  *status = rocksdb::Status::IOError();
+}
+static void dbug_change_status_to_incomplete(rocksdb::Status *status) {
+  *status = rocksdb::Status::Incomplete();
+}
+#endif
+
 /*
   This is a rocksdb transaction. Its members represent the current transaction,
   which consists of:
@@ -3345,14 +3385,23 @@ class Rdb_transaction_impl : public Rdb_transaction {
     rocksdb::Status s;
 
     s = merge_auto_incr_map(m_rocksdb_tx->GetWriteBatch()->GetWriteBatch());
+#ifndef NDEBUG
+    DBUG_EXECUTE_IF("myrocks_prepare_io_error",
+                    dbug_change_status_to_io_error(&s););
+    DBUG_EXECUTE_IF("myrocks_prepare_incomplete",
+                    dbug_change_status_to_incomplete(&s););
+#endif
     if (!s.ok()) {
-      rdb_handle_io_error(s, RDB_IO_ERROR_TX_COMMIT);
+      std::string msg =
+          "RocksDB error on COMMIT (Prepare/merge): " + s.ToString();
+      my_error(ER_INTERNAL_ERROR, MYF(0), msg.c_str());
       return false;
     }
 
     s = m_rocksdb_tx->Prepare();
     if (!s.ok()) {
-      rdb_handle_io_error(s, RDB_IO_ERROR_TX_COMMIT);
+      std::string msg = "RocksDB error on COMMIT (Prepare): " + s.ToString();
+      my_error(ER_INTERNAL_ERROR, MYF(0), msg.c_str());
       return false;
     }
     return true;
@@ -3363,6 +3412,12 @@ class Rdb_transaction_impl : public Rdb_transaction {
     rocksdb::Status s;
 
     s = merge_auto_incr_map(m_rocksdb_tx->GetWriteBatch()->GetWriteBatch());
+#ifndef NDEBUG
+    DBUG_EXECUTE_IF("myrocks_commit_merge_io_error",
+                    dbug_change_status_to_io_error(&s););
+    DBUG_EXECUTE_IF("myrocks_commit_merge_incomplete",
+                    dbug_change_status_to_incomplete(&s););
+#endif
     if (!s.ok()) {
       rdb_handle_io_error(s, RDB_IO_ERROR_TX_COMMIT);
       res = true;
@@ -3371,6 +3426,12 @@ class Rdb_transaction_impl : public Rdb_transaction {
 
     release_snapshot();
     s = m_rocksdb_tx->Commit();
+#ifndef NDEBUG
+    DBUG_EXECUTE_IF("myrocks_commit_io_error",
+                    dbug_change_status_to_io_error(&s););
+    DBUG_EXECUTE_IF("myrocks_commit_incomplete",
+                    dbug_change_status_to_incomplete(&s););
+#endif
     if (!s.ok()) {
       rdb_handle_io_error(s, RDB_IO_ERROR_TX_COMMIT);
       res = true;
@@ -4039,7 +4100,8 @@ static int rocksdb_commit_by_xid(handlerton *const hton, XID *const xid) {
   assert(xid != nullptr);
   assert(commit_latency_stats != nullptr);
 
-  rocksdb::StopWatchNano timer(rocksdb::Env::Default(), true);
+  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  rocksdb::StopWatchNano timer(clock, true);
 
   const auto name = rdb_xid_to_string(*xid);
   assert(!name.empty());
@@ -4152,7 +4214,8 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
   assert(thd != nullptr);
   assert(commit_latency_stats != nullptr);
 
-  rocksdb::StopWatchNano timer(rocksdb::Env::Default(), true);
+  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  rocksdb::StopWatchNano timer(clock, true);
 
   /* note: h->external_lock(F_UNLCK) is called after this function is called) */
   Rdb_transaction *&tx = get_tx_from_thd(thd);
@@ -5558,13 +5621,6 @@ static inline void rocksdb_smart_next(bool seek_backward,
     iter->Next();
   }
 }
-
-#if !defined(NDEBUG)
-// simulate that RocksDB has reported corrupted data
-static void dbug_change_status_to_corrupted(rocksdb::Status *status) {
-  *status = rocksdb::Status::Corruption();
-}
-#endif
 
 // If the iterator is not valid it might be because of EOF but might be due
 // to IOError or corruption. The good practice is always check it.
@@ -11860,6 +11916,47 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
 
   const Rdb_key_def &kd = *m_key_descr_arr[inx];
 
+  auto disk_size = kd.m_stats.m_actual_disk_size;
+  if (disk_size == 0) disk_size = kd.m_stats.m_data_size;
+  auto rows = kd.m_stats.m_rows;
+  if (rows == 0 || disk_size == 0) {
+    rows = 1;
+    disk_size = ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE;
+  }
+  ulonglong total_size = 0;
+  ulonglong total_row = 0;
+  records_in_range_internal(inx, min_key, max_key, disk_size, rows, &total_size,
+                            &total_row);
+  ret = total_row;
+  /*
+    GetApproximateSizes() gives estimates so ret might exceed stats.records.
+    MySQL then decides to use full index scan rather than range scan, which
+    is not efficient for most cases.
+    To prevent this, changing estimated records slightly smaller than
+    stats.records.
+  */
+  if (ret >= stats.records) {
+    ret = stats.records * 0.99;
+  }
+
+  if (rocksdb_debug_optimizer_n_rows > 0) {
+    ret = rocksdb_debug_optimizer_n_rows;
+  } else if (ret == 0) {
+    ret = 1;
+  }
+
+  DBUG_RETURN(ret);
+}
+
+void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
+                                           key_range *const max_key,
+                                           int64 disk_size, int64 rows,
+                                           ulonglong *total_size,
+                                           ulonglong *row_count) {
+  DBUG_ENTER_FUNC();
+
+  const Rdb_key_def &kd = *m_key_descr_arr[inx];
+
   uint size1 = 0;
   if (min_key) {
     size1 = kd.pack_index_tuple(table, m_pack_buffer, m_sk_packed_tuple,
@@ -11894,49 +11991,26 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
   if (slice1.compare(slice2) >= 0) {
     // It's not possible to get slice2 > slice1
     assert(slice1.compare(slice2) == 0);
-    DBUG_RETURN(HA_EXIT_SUCCESS);
+    DBUG_VOID_RETURN;
   }
 
   rocksdb::Range r(kd.m_is_reverse_cf ? slice2 : slice1,
                    kd.m_is_reverse_cf ? slice1 : slice2);
 
   uint64_t sz = 0;
-  auto disk_size = kd.m_stats.m_actual_disk_size;
-  if (disk_size == 0) disk_size = kd.m_stats.m_data_size;
-  auto rows = kd.m_stats.m_rows;
-  if (rows == 0 || disk_size == 0) {
-    rows = 1;
-    disk_size = ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE;
-  }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   // Getting statistics, including from Memtables
   uint8_t include_flags = rocksdb::DB::INCLUDE_FILES;
   rdb->GetApproximateSizes(kd.get_cf(), &r, 1, &sz, include_flags);
-  ret = rows * ((double)sz / (double)disk_size);
+  *row_count = rows * ((double)sz / (double)disk_size);
+  *total_size = sz;
   uint64_t memTableCount;
   rdb->GetApproximateMemTableStats(kd.get_cf(), r, &memTableCount, &sz);
-  ret += memTableCount;
-
-  /*
-    GetApproximateSizes() gives estimates so ret might exceed stats.records.
-    MySQL then decides to use full index scan rather than range scan, which
-    is not efficient for most cases.
-    To prevent this, changing estimated records slightly smaller than
-    stats.records.
-  */
-  if (ret >= stats.records) {
-    ret = stats.records * 0.99;
-  }
-
-  if (rocksdb_debug_optimizer_n_rows > 0) {
-    ret = rocksdb_debug_optimizer_n_rows;
-  } else if (ret == 0) {
-    ret = 1;
-  }
-
-  DBUG_RETURN(ret);
+  *row_count += memTableCount;
+  *total_size += sz;
+  DBUG_VOID_RETURN;
 }
 
 void ha_rocksdb::update_create_info(HA_CREATE_INFO *const create_info) {
@@ -13041,7 +13115,8 @@ int ha_rocksdb::inplace_populate_sk(
       keys.
     */
     const uint pk = pk_index(table, m_tbl_def);
-    ha_index_init(pk, true);
+    res = ha_index_init(pk, true);
+    if (res) DBUG_RETURN(res);
 
     /* Scan each record in the primary key in order */
     for (res = index_first(table->record[0]); res == 0;
@@ -14200,8 +14275,9 @@ void Rdb_manual_compaction_thread::run() {
     // it is cancelled by CancelAllBackgroundWork, then status is
     // set to shutdownInProgress.
     const rocksdb::Status s =
-        rdb->CompactRange(getCompactRangeOptions(mcr.concurrency), mcr.cf.get(),
-                          mcr.start, mcr.limit);
+        rdb->CompactRange(getCompactRangeOptions(
+                              mcr.concurrency, mcr.bottommost_level_compaction),
+                          mcr.cf.get(), mcr.start, mcr.limit);
 
     rocksdb_manual_compactions_running--;
     if (s.ok()) {
@@ -14263,7 +14339,8 @@ void Rdb_manual_compaction_thread::clear_manual_compaction_request(
 
 int Rdb_manual_compaction_thread::request_manual_compaction(
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cf, rocksdb::Slice *start,
-    rocksdb::Slice *limit, int concurrency) {
+    rocksdb::Slice *limit, int concurrency,
+    rocksdb::BottommostLevelCompaction bottommost_level_compaction) {
   int mc_id = -1;
   RDB_MUTEX_LOCK_CHECK(m_mc_mutex);
   if (m_requests.size() >= rocksdb_max_manual_compactions) {
@@ -14277,6 +14354,7 @@ int Rdb_manual_compaction_thread::request_manual_compaction(
   mcr.start = start;
   mcr.limit = limit;
   mcr.concurrency = concurrency;
+  mcr.bottommost_level_compaction = bottommost_level_compaction;
   m_requests.insert(std::make_pair(mcr.mc_id, mcr));
   RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
   return mc_id;
@@ -14541,8 +14619,9 @@ void rdb_handle_io_error(const rocksdb::Status status,
     abort();
   } else if (!status.ok()) {
     switch (err_type) {
+      case RDB_IO_ERROR_TX_COMMIT:
       case RDB_IO_ERROR_DICT_COMMIT: {
-        rdb_log_status_error(status, "Failed to write to WAL (dictionary)");
+        rdb_log_status_error(status, "Failed to write to WAL (non kIOError)");
         /* NO_LINT_DEBUG */
         sql_print_error("MyRocks: aborting on WAL write error.");
         abort();

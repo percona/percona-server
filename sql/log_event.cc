@@ -4922,7 +4922,17 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
       thd->variables.option_bits &= ~OPTION_MASTER_SQL_ERROR;
 
-      thd->enable_slow_log = true;
+      /*
+        Resetting the enable_slow_log thd variable.
+
+        We need to reset it back to the opt_log_slow_slave_statements
+        value after the statement execution (and slow logging
+        is done). It might have changed if the statement was an
+        admin statement (in which case, down in dispatch_sql_command execution
+        thd->enable_slow_log is set to the value of
+        opt_log_slow_admin_statements).
+      */
+      thd->enable_slow_log = opt_log_slow_slave_statements;
     } else {
       /*
         The query got a really bad error on the master (thread killed etc),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,8 @@ class CapabilityHanderTlsTestSuite : public Test {
 
   StrictMock<mock::Vio> mock_connection;
   StrictMock<mock::Client> mock_client;
-  std::shared_ptr<mock::Ssl_context> mock_ssl_context;
+  std::shared_ptr<mock::Ssl_context> mock_ssl_context =
+      std::make_shared<mock::Ssl_context>();
   StrictMock<mock::Server> mock_server;
 
   Capability_tls sut;

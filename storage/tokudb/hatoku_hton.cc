@@ -590,7 +590,7 @@ static int tokudb_done_func(TOKUDB_UNUSED(void *p)) {
 static handler *tokudb_create_handler(handlerton *hton, TABLE_SHARE *table,
                                       bool partitioned, MEM_ROOT *mem_root) {
   if (partitioned) {
-    DBUG_ASSERT(partitioned);
+    assert(partitioned);
     ha_tokupart *file = new (mem_root) ha_tokupart(hton, table);
     if (file && file->init_partitioning(mem_root)) {
       destroy(file);

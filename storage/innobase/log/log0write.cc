@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -927,7 +927,7 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
     ready_lsn = log_buffer_ready_for_write_lsn(log);
   }
   if (ready_lsn < end_lsn) {
-    os_thread_yield();
+    std::this_thread::yield();
     ready_lsn = log_buffer_ready_for_write_lsn(log);
   }
   while (ready_lsn < end_lsn) {
@@ -967,12 +967,31 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
     return (Wait_stats{waits});
   }
 
-  lsn_t limit_lsn =
-      flush_to_disk ? log.flushed_to_disk_lsn.load(std::memory_order_acquire)
-                    : log.write_lsn.load(std::memory_order_relaxed);
-  if (limit_lsn >= end_lsn) {
-    log_writer_mutex_exit(log);
-    return (Wait_stats{waits});
+  /* write to ready_lsn */
+  lsn_t write_lsn = log.write_lsn.load(std::memory_order_relaxed);
+  for (uint64_t step = 0; write_lsn < ready_lsn; ++step) {
+    if (step % 1024 == 0) {
+      /* The first loop or just after std::this_thread::sleep_for(0) */
+      const lsn_t limit_lsn =
+          flush_to_disk
+              ? log.flushed_to_disk_lsn.load(std::memory_order_acquire)
+              : write_lsn;
+      if (limit_lsn >= end_lsn) {
+        log_writer_mutex_exit(log);
+        return (Wait_stats{waits});
+      }
+    }
+
+    log_writer_write_buffer(log, log_buffer_ready_for_write_lsn(log));
+
+    if ((step + 1) % 1024 == 0) {
+      /* approximate per srv_log_write_ahead_size * 1024 written. */
+      log_writer_mutex_exit(log);
+      std::this_thread::sleep_for(std::chrono::seconds(0));
+      log_writer_mutex_enter(log);
+    }
+
+    write_lsn = log.write_lsn.load(std::memory_order_relaxed);
   }
 
   /* If it is a write call we should just go ahead and do it
@@ -980,28 +999,21 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
   be. If we have to flush as well then we check if there is a
   pending flush and based on that we wait for it to finish
   before proceeding further. */
-  if (flush_to_disk && !os_event_is_set(log.old_flush_event)) {
-    const auto sig_count = log.current_flush_sig_count;
-    log_writer_mutex_exit(log);
-    ++waits;
-    os_event_wait_low(log.old_flush_event, sig_count);
-    /* Needs to confirm actual value,
-    because the log writer threads might be resumed. */
-    if (log.flushed_to_disk_lsn.load(std::memory_order_relaxed) < end_lsn) {
-      *interrupted = true;
-    }
-    return (Wait_stats{waits});
-  }
-
   if (flush_to_disk) {
-    log.current_flush_sig_count = os_event_reset(log.old_flush_event);
-  }
-
-  /* write to ready_lsn */
-  lsn_t write_lsn = log.write_lsn.load(std::memory_order_relaxed);
-  while (write_lsn < ready_lsn) {
-    log_writer_write_buffer(log, log_buffer_ready_for_write_lsn(log));
-    write_lsn = log.write_lsn.load(std::memory_order_relaxed);
+    if (!os_event_is_set(log.old_flush_event)) {
+      const auto sig_count = log.current_flush_sig_count;
+      log_writer_mutex_exit(log);
+      ++waits;
+      os_event_wait_low(log.old_flush_event, sig_count);
+      /* Needs to confirm actual value,
+      because the log writer threads might be resumed. */
+      if (log.flushed_to_disk_lsn.load(std::memory_order_relaxed) < end_lsn) {
+        *interrupted = true;
+      }
+      return (Wait_stats{waits});
+    } else {
+      log.current_flush_sig_count = os_event_reset(log.old_flush_event);
+    }
   }
 
   log_writer_mutex_exit(log);
@@ -1965,7 +1977,8 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
     log_request_checkpoint(log, false);
 
     count++;
-    os_thread_sleep(SLEEP_BETWEEN_RETRIES_IN_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SLEEP_BETWEEN_RETRIES_IN_US));
 
     MONITOR_INC(MONITOR_LOG_WRITER_ON_FREE_SPACE_WAITS);
 
@@ -2045,7 +2058,8 @@ static void log_writer_wait_on_archiver(log_t &log, lsn_t last_write_lsn,
     }
 
     count++;
-    os_thread_sleep(SLEEP_BETWEEN_RETRIES_IN_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SLEEP_BETWEEN_RETRIES_IN_US));
 
     MONITOR_INC(MONITOR_LOG_WRITER_ON_ARCHIVER_WAITS);
 
@@ -2118,7 +2132,8 @@ static void log_writer_wait_on_tracker(log_t &log, lsn_t last_write_lsn,
           << lsn_diff << " bytes, tracked LSN: " << tracked_lsn;
     }
     count++;
-    os_thread_sleep(SLEEP_BETWEEN_RETRIES_IN_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SLEEP_BETWEEN_RETRIES_IN_US));
 
     MONITOR_INC(MONITOR_LOG_WRITER_ON_TRACKER_WAITS);
 
@@ -2280,7 +2295,7 @@ void log_writer(log_t *log_ptr) {
 
         log_writer_mutex_exit(log);
 
-        os_thread_sleep(0);
+        std::this_thread::sleep_for(std::chrono::seconds(0));
 
         log_writer_mutex_enter(log);
       }
@@ -2414,8 +2429,6 @@ static void log_flush_low(log_t &log) {
     os_event_reset(log.flusher_event);
   }
 
-  log.last_flush_start_time = Log_clock::now();
-
   const lsn_t last_flush_lsn = log.flushed_to_disk_lsn.load();
 
   const lsn_t flush_up_to_lsn = log.write_lsn.load();
@@ -2424,6 +2437,8 @@ static void log_flush_low(log_t &log) {
     os_event_set(log.old_flush_event);
     return;
   }
+
+  log.last_flush_start_time = Log_clock::now();
 
   ut_a(flush_up_to_lsn > last_flush_lsn);
 
@@ -2526,7 +2541,7 @@ void log_flusher(log_t *log_ptr) {
         if (step % 1024 == 0) {
           log_flusher_mutex_exit(log);
 
-          os_thread_sleep(0);
+          std::this_thread::sleep_for(std::chrono::seconds(0));
 
           log_flusher_mutex_enter(log);
         }
@@ -2652,6 +2667,11 @@ void log_write_notifier(log_t *log_ptr) {
       log.write_notifier_resume_lsn.store(0, std::memory_order_release);
 
       log_write_notifier_mutex_enter(log);
+    } else if (UNIV_UNLIKELY(log.write_notifier_resume_lsn.load(
+                   std::memory_order_acquire)) != 0) {
+      /* There might be the case there has occurred an unset/set
+       * and log_resume_writer_threads is waiting for Ack */
+      log.write_notifier_resume_lsn.store(0, std::memory_order_release);
     }
 
     LOG_SYNC_POINT("log_write_notifier_before_check");
@@ -2717,7 +2737,7 @@ void log_write_notifier(log_t *log_ptr) {
     if (step % 1024 == 0) {
       log_write_notifier_mutex_exit(log);
 
-      os_thread_sleep(0);
+      std::this_thread::sleep_for(std::chrono::seconds(0));
 
       log_write_notifier_mutex_enter(log);
     }
@@ -2770,6 +2790,11 @@ void log_flush_notifier(log_t *log_ptr) {
       log.flush_notifier_resume_lsn.store(0, std::memory_order_release);
 
       log_flush_notifier_mutex_enter(log);
+    } else if (UNIV_UNLIKELY(log.flush_notifier_resume_lsn.load(
+                   std::memory_order_acquire)) != 0) {
+      /* There might be the case there has occurred an unset/set
+       * and log_resume_writer_threads is waiting for Ack */
+      log.flush_notifier_resume_lsn.store(0, std::memory_order_release);
     }
 
     LOG_SYNC_POINT("log_flush_notifier_before_check");
@@ -2835,7 +2860,7 @@ void log_flush_notifier(log_t *log_ptr) {
     if (step % 1024 == 0) {
       log_flush_notifier_mutex_exit(log);
 
-      os_thread_sleep(0);
+      std::this_thread::sleep_for(std::chrono::seconds(0));
 
       log_flush_notifier_mutex_enter(log);
     }
@@ -2909,8 +2934,7 @@ bool log_read_encryption() {
     /* Make sure the keyring is loaded. */
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
-      ib::error() << "Redo log was encrypted,"
-                  << " but keyring plugin is not loaded.";
+      ib::error() << "Redo log was encrypted, but keyring is not loaded.";
       return (false);
     }
     unsigned char *info_ptr =
@@ -2939,7 +2963,7 @@ bool log_read_encryption() {
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
       ib::error(ER_IB_MSG_1238) << "Redo log was encrypted,"
-                                << " but keyring plugin is not loaded.";
+                                << " but keyring is not loaded.";
       return (false);
     }
 
@@ -2993,8 +3017,8 @@ bool log_read_encryption() {
       return (true);
     } else {
       ut_free(log_block_buf_ptr);
-      ib::error() << "Can't set redo log tablespace"
-                  << " encryption metadata.";
+      ib::error(ER_IB_MSG_1241) << "Can't set redo log tablespace"
+                                << " encryption metadata.";
       return (false);
     }
   } else if (encryption_magic) {

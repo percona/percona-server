@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ int do_def_check(THD *thd, SYS_VAR *var, void *dest,
     case PLUGIN_VAR_DOUBLE:
       return check_func_double(thd, var, dest, value);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return 1;
   }
 }
@@ -216,7 +216,7 @@ SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
     case PLUGIN_VAR_DOUBLE:
       return SHOW_DOUBLE;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return SHOW_UNDEF;
   }
 }
@@ -228,8 +228,8 @@ SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
   has not yet been allocated in the current thread.
 */
 uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock) {
-  DBUG_ASSERT(offset >= 0);
-  DBUG_ASSERT((uint)offset <= global_system_variables.dynamic_variables_head);
+  assert(offset >= 0);
+  assert((uint)offset <= global_system_variables.dynamic_variables_head);
 
   if (!thd)
     return (uchar *)global_system_variables.dynamic_variables_ptr + offset;
@@ -318,7 +318,7 @@ bool sys_var_pluginvar::check_update_type(Item_result type) {
 }
 
 uchar *sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type) {
-  DBUG_ASSERT(thd || (type == OPT_GLOBAL) || (type == OPT_PERSIST));
+  assert(thd || (type == OPT_GLOBAL) || (type == OPT_PERSIST));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL) {
     /* scope of OPT_PERSIST is always GLOBAL */
     if (type == OPT_GLOBAL || type == OPT_PERSIST) thd = nullptr;
@@ -361,7 +361,7 @@ uchar *sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd,
 
 bool sys_var_pluginvar::do_check(THD *thd, set_var *var) {
   st_item_value_holder value;
-  DBUG_ASSERT(plugin_var->check);
+  assert(plugin_var->check);
 
   value.value_type = item_value_type;
   value.val_str = item_val_str;
@@ -378,9 +378,9 @@ bool sys_var_pluginvar::do_check(THD *thd, set_var *var) {
 
 bool sys_var_pluginvar::session_update(THD *thd, set_var *var) {
   bool rc = false;
-  DBUG_ASSERT(!is_readonly());
-  DBUG_ASSERT(plugin_var->flags & PLUGIN_VAR_THDLOCAL);
-  DBUG_ASSERT(thd == current_thd);
+  assert(!is_readonly());
+  assert(plugin_var->flags & PLUGIN_VAR_THDLOCAL);
+  assert(thd == current_thd);
 
   mysql_mutex_lock(&LOCK_global_system_variables);
   void *tgt = real_value_ptr(thd, var->type);
@@ -401,7 +401,7 @@ bool sys_var_pluginvar::session_update(THD *thd, set_var *var) {
 
 bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
   bool rc = false;
-  DBUG_ASSERT(!is_readonly());
+  assert(!is_readonly());
   mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
   void *tgt = real_value_ptr(thd, var->type);
@@ -458,7 +458,7 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
         src = &((thdvar_double_t *)plugin_var)->def_val;
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -544,8 +544,7 @@ ulonglong sys_var_pluginvar::get_max_value() {
 bool sys_var_pluginvar::on_check_pluginvar(sys_var *self MY_ATTRIBUTE((unused)),
                                            THD *, set_var *var) {
   /* This handler is installed only if NO_DEFAULT is specified */
-  DBUG_ASSERT(((sys_var_pluginvar *)self)->plugin_var->flags &
-              PLUGIN_VAR_NODEFAULT);
+  assert(((sys_var_pluginvar *)self)->plugin_var->flags & PLUGIN_VAR_NODEFAULT);
 
   return (!var->value);
 }
@@ -627,7 +626,7 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         my_fcvt(var->save_result.double_value, 6, def_val, nullptr);
         return;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 }
@@ -694,7 +693,7 @@ void sys_var_pluginvar::persist_only_to_string(THD *thd, set_var *var,
                        system_charset_info);
         return;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         return;
     }
   }
@@ -1043,7 +1042,7 @@ void plugin_opt_set_limits(struct my_option *options, const SYS_VAR *opt) {
           (intptr)pointer_cast<const thdvar_str_t *>(opt)->def_val;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   options->arg_type = REQUIRED_ARG;
   if (opt->flags & PLUGIN_VAR_NOCMDARG) options->arg_type = NO_ARG;
@@ -1084,7 +1083,7 @@ Item *sys_var_pluginvar::copy_value(THD *thd) {
     case PLUGIN_VAR_DOUBLE:
       return new Item_float(*(const double *)val_ptr, DECIMAL_NOT_SPECIFIED);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return (nullptr);
 }

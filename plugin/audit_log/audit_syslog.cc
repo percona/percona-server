@@ -64,7 +64,7 @@ static int audit_handler_syslog_write(audit_handler_t *handler, const char *buf,
                                       size_t len) {
   audit_handler_syslog_data_t *data =
       (audit_handler_syslog_data_t *)handler->data;
-  DBUG_ASSERT(data->struct_size == sizeof(audit_handler_syslog_data_t));
+  assert(data->struct_size == sizeof(audit_handler_syslog_data_t));
   syslog(data->priority, "%s", buf);
   return len;
 }

@@ -1,6 +1,6 @@
 # test temporary tables encryption
 
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring is loaded.");
 
 --let $MYSQL_DATA_DIR= `select @@datadir`
 

@@ -893,7 +893,7 @@ static int ha_tokudb_check_progress(void *extra,
 }
 
 static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
-  DBUG_ASSERT(thd->active_vio);
+  assert(thd->active_vio);
 
   char tablename[table->s->db.length + 1 + table->s->table_name.length + 1];
   snprintf(tablename, sizeof(tablename), "%.*s.%.*s", (int)table->s->db.length,

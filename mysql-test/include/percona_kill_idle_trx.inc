@@ -49,7 +49,7 @@ SELECT * FROM t1;
 --connection conn1
 
 --echo # Show that connection conn1 has been killed
---error CR_SERVER_GONE_ERROR
+--error ER_CLIENT_INTERACTION_TIMEOUT
 SELECT * FROM t1;
 
 --disconnect conn1

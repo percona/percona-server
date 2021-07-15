@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,10 @@
 
 #include "storage/perfschema/table_processlist.h"
 
+#include <assert.h>
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
@@ -142,7 +143,7 @@ int table_processlist::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_processlist_by_processlist_id);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
   m_opened_index = result;
   m_index = result;
@@ -326,7 +327,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -412,7 +413,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_rows_examined);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

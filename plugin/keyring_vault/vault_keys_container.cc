@@ -23,13 +23,13 @@ namespace keyring {
 bool Vault_keys_container::init(IKeyring_io *keyring_io_value,
                                 std::string keyring_storage_url_value) {
   vault_io = dynamic_cast<IVault_io *>(keyring_io_value);
-  DBUG_ASSERT(vault_io != nullptr);
+  assert(vault_io != nullptr);
   return Keys_container::init(keyring_io_value, keyring_storage_url_value);
 }
 
 IKey *Vault_keys_container::fetch_key(IKey *key) {
-  DBUG_ASSERT(key->get_key_data() == nullptr);
-  DBUG_ASSERT(key->get_key_type_as_string()->empty());
+  assert(key->get_key_data() == nullptr);
+  assert(key->get_key_type_as_string()->empty());
 
   IKey *fetched_key = get_key_from_hash(key);
 
@@ -44,7 +44,7 @@ IKey *Vault_keys_container::fetch_key(IKey *key) {
 }
 
 void Vault_keys_container::set_curl_timeout(uint timeout) {
-  DBUG_ASSERT(vault_io != nullptr);
+  assert(vault_io != nullptr);
   vault_io->set_curl_timeout(timeout);
 }
 

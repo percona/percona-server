@@ -18,7 +18,7 @@
 --source include/have_debug.inc
 
 --disable_query_log
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
 call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dictionary of InnoDB");
 call mtr.add_suppression("\\[Warning\\] .* Tablespace for table `tde_db`.`t1` is set as discarded");
@@ -28,7 +28,7 @@ call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table
 call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace [0-9]+");
 call mtr.add_suppression("\\[Warning\\] .* Cannot save statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("\\[ERROR\\] .* The table .* doesn't have a corresponding tablespace, it was discarded.");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption algorithm support missing:");
 call mtr.add_suppression("\\[Warning\\].* Encryption key missing: space_id=");
 call mtr.add_suppression("\\[Warning\\].* Decrypting a page in doublewrite file failed: space_id=");

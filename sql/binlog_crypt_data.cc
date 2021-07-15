@@ -22,8 +22,10 @@
 #include "mysql/service_mysql_alloc.h"
 #ifdef MYSQL_SERVER
 #include <sstream>
+#include "keyring_operations_helper.h"
 #include "log.h"
-#include "mysql/service_mysql_keyring.h"
+#include "mysqld_error.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 #include "system_key.h"
 #endif
 
@@ -50,7 +52,7 @@ Binlog_crypt_data::Binlog_crypt_data(const Binlog_crypt_data &b)
 
 void Binlog_crypt_data::free_key(uchar *&key, size_t &key_length) noexcept {
   if (key != nullptr) {
-    DBUG_ASSERT(key_length == 16);
+    assert(key_length == 16);
     memset_s(key, 512, 0, key_length);
     my_free(key);
     key = nullptr;
@@ -79,16 +81,26 @@ bool Binlog_crypt_data::load_latest_binlog_key() {
 
   DBUG_EXECUTE_IF("binlog_encryption_error_on_key_fetch", { return true; });
 
-  if (my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
-                   reinterpret_cast<void **>(&system_key), &system_key_len) ||
+  auto retval = keyring_operations_helper::read_secret(
+      srv_keyring_reader, PERCONA_BINLOG_KEY_NAME, nullptr, &system_key,
+      &system_key_len, &system_key_type, PSI_INSTRUMENT_ME);
+  if (retval == -1) {
+    my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
+             "load_latest_binlog_key");
+    return true;
+  }
+
+  if (retval != 1 &&
       (system_key == nullptr &&
-       (my_key_generate(PERCONA_BINLOG_KEY_NAME, "AES", nullptr, 16) ||
-        my_key_fetch(PERCONA_BINLOG_KEY_NAME, &system_key_type, nullptr,
-                     reinterpret_cast<void **>(&system_key), &system_key_len) ||
+       (srv_keyring_generator->generate(PERCONA_BINLOG_KEY_NAME, nullptr, "AES",
+                                        16) ||
+        keyring_operations_helper::read_secret(
+            srv_keyring_reader, PERCONA_BINLOG_KEY_NAME, nullptr, &system_key,
+            &system_key_len, &system_key_type, PSI_INSTRUMENT_ME) != 1 ||
         system_key == nullptr)))
     return true;
 
-  DBUG_ASSERT(strncmp(system_key_type, "AES", 3) == 0);
+  assert(strncmp(system_key_type, "AES", 3) == 0);
   my_free(system_key_type);
 
   error = (parse_system_key(system_key, system_key_len, &key_version, &key,
@@ -102,8 +114,8 @@ bool Binlog_crypt_data::init_with_loaded_key(
     uint sch, const uchar *nonce MY_ATTRIBUTE((unused))) noexcept {
   scheme = sch;
 #ifdef MYSQL_SERVER
-  DBUG_ASSERT(key != nullptr);
-  DBUG_ASSERT(nonce != nullptr);
+  assert(key != nullptr);
+  assert(nonce != nullptr);
   memcpy(this->nonce, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
 #endif
   enabled = true;
@@ -118,11 +130,16 @@ bool Binlog_crypt_data::init(uint sch MY_ATTRIBUTE((unused)),
   char *key_type = nullptr;
   std::ostringstream percona_binlog_with_ver_ss;
   percona_binlog_with_ver_ss << PERCONA_BINLOG_KEY_NAME << ':' << kv;
-  if (my_key_fetch(percona_binlog_with_ver_ss.str().c_str(), &key_type, nullptr,
-                   reinterpret_cast<void **>(&key), &key_length) ||
-      key == nullptr)
+  auto retval = keyring_operations_helper::read_secret(
+      srv_keyring_reader, percona_binlog_with_ver_ss.str().c_str(), nullptr,
+      &key, &key_length, &key_type, PSI_INSTRUMENT_ME);
+  if (retval == -1) {
+    my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "init");
     return true;
-  DBUG_ASSERT(strncmp(key_type, "AES", 3) == 0);
+  }
+
+  if (retval != 1 || key == nullptr) return true;
+  assert(strncmp(key_type, "AES", 3) == 0);
   my_free(key_type);
 
   if (init_with_loaded_key(sch, nonce)) {
@@ -134,8 +151,8 @@ bool Binlog_crypt_data::init(uint sch MY_ATTRIBUTE((unused)),
 }
 
 void Binlog_crypt_data::set_iv(uchar *iv, uint32 offs) const {
-  DBUG_ASSERT(key != nullptr);
-  DBUG_ASSERT(key_length == 16);
+  assert(key != nullptr);
+  assert(key_length == 16);
 
   uchar iv_plain[binary_log::Start_encryption_event::IV_LENGTH];
   memcpy(iv_plain, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);

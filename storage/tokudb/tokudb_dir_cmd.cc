@@ -50,10 +50,10 @@ static int MDL_and_TDC(THD *thd, const char *db, const char *table,
   table_arg.str = const_cast<char *>(table);
   table_arg.length = strlen(table);
   Table_ident table_ident(db_arg, table_arg);
-  thd->lex->select_lex->add_table_to_list(thd, &table_ident, NULL, 1, TL_UNLOCK,
-                                          MDL_EXCLUSIVE, 0, 0, 0);
+  thd->lex->query_block->add_table_to_list(thd, &table_ident, NULL, 1,
+                                           TL_UNLOCK, MDL_EXCLUSIVE, 0, 0, 0);
   /* The lock will be released at the end of mysq_execute_command() */
-  error = lock_table_names(thd, thd->lex->select_lex->table_list.first, NULL,
+  error = lock_table_names(thd, thd->lex->query_block->table_list.first, NULL,
                            thd->variables.lock_wait_timeout, 0);
   if (error) {
     if (cb.set_error)
@@ -195,7 +195,7 @@ cleanup:
 
 static void tokenize(const char *cmd_str,
                      std::vector<std::string> /*out*/ &tokens) {
-  DBUG_ASSERT(cmd_str);
+  assert(cmd_str);
 
   bool was_escape = false;
   const char *token_begin = cmd_str;
@@ -227,8 +227,8 @@ static void tokenize(const char *cmd_str,
 
 void process_dir_cmd(THD *thd, const char *cmd_str,
                      const dir_cmd_callbacks &cb) {
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(cmd_str);
+  assert(thd);
+  assert(cmd_str);
 
   std::vector<std::string> tokens;
   tokenize(cmd_str, tokens);

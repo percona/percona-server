@@ -49,7 +49,7 @@ static int write_callback(void *data, const char *buf, size_t len,
   audit_handler_t *handler = (audit_handler_t *)data;
   audit_handler_file_data_t *hdata = (audit_handler_file_data_t *)handler->data;
 
-  DBUG_ASSERT(hdata->struct_size == sizeof(audit_handler_file_data_t));
+  assert(hdata->struct_size == sizeof(audit_handler_file_data_t));
 
   return audit_handler_file_write_nobuf(hdata->logger, buf, len, state);
 }
@@ -111,13 +111,13 @@ static int audit_handler_file_write(audit_handler_t *handler, const char *buf,
   audit_handler_file_data_t *data = (audit_handler_file_data_t *)handler->data;
   int res;
 
-  DBUG_ASSERT(data->struct_size == sizeof(audit_handler_file_data_t));
+  assert(data->struct_size == sizeof(audit_handler_file_data_t));
 
   if (data->use_buffer) {
-    DBUG_ASSERT(data->buffer);
+    assert(data->buffer);
     res = audit_handler_file_write_buf(data->buffer, buf, len);
   } else {
-    DBUG_ASSERT(data->logger);
+    assert(data->logger);
     res = audit_handler_file_write_nobuf(data->logger, buf, len,
                                          log_record_state_t::COMPLETE);
 
@@ -134,7 +134,7 @@ static int audit_handler_file_flush(audit_handler_t *handler) noexcept {
   LOGGER_HANDLE *logger;
   int res;
 
-  DBUG_ASSERT(data->struct_size == sizeof(audit_handler_file_data_t));
+  assert(data->struct_size == sizeof(audit_handler_file_data_t));
 
   logger = data->logger;
 
@@ -152,7 +152,7 @@ static int audit_handler_file_close(audit_handler_t *handler) noexcept {
   int res;
   LOGGER_HANDLE *logger;
 
-  DBUG_ASSERT(data->struct_size == sizeof(audit_handler_file_data_t));
+  assert(data->struct_size == sizeof(audit_handler_file_data_t));
 
   logger = data->logger;
 

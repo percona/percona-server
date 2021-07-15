@@ -266,3 +266,4 @@ SET DEBUG_SYNC = RESET;
 --source include/assert.inc
 # Restart to release virtual memory
 --source include/restart_mysqld.inc
+

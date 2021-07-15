@@ -11813,6 +11813,47 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
 
   const Rdb_key_def &kd = *m_key_descr_arr[inx];
 
+  auto disk_size = kd.m_stats.m_actual_disk_size;
+  if (disk_size == 0) disk_size = kd.m_stats.m_data_size;
+  auto rows = kd.m_stats.m_rows;
+  if (rows == 0 || disk_size == 0) {
+    rows = 1;
+    disk_size = ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE;
+  }
+  ulonglong total_size = 0;
+  ulonglong total_row = 0;
+  records_in_range_internal(inx, min_key, max_key, disk_size, rows, &total_size,
+                            &total_row);
+  ret = total_row;
+  /*
+    GetApproximateSizes() gives estimates so ret might exceed stats.records.
+    MySQL then decides to use full index scan rather than range scan, which
+    is not efficient for most cases.
+    To prevent this, changing estimated records slightly smaller than
+    stats.records.
+  */
+  if (ret >= stats.records) {
+    ret = stats.records * 0.99;
+  }
+
+  if (rocksdb_debug_optimizer_n_rows > 0) {
+    ret = rocksdb_debug_optimizer_n_rows;
+  } else if (ret == 0) {
+    ret = 1;
+  }
+
+  DBUG_RETURN(ret);
+}
+
+void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
+                                           key_range *const max_key,
+                                           int64 disk_size, int64 rows,
+                                           ulonglong *total_size,
+                                           ulonglong *row_count) {
+  DBUG_ENTER_FUNC();
+
+  const Rdb_key_def &kd = *m_key_descr_arr[inx];
+
   uint size1 = 0;
   if (min_key) {
     size1 = kd.pack_index_tuple(table, m_pack_buffer, m_sk_packed_tuple,
@@ -11847,49 +11888,26 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
   if (slice1.compare(slice2) >= 0) {
     // It's not possible to get slice2 > slice1
     DBUG_ASSERT(!min_key || !max_key || slice1.compare(slice2) == 0);
-    DBUG_RETURN(HA_EXIT_SUCCESS);
+    DBUG_VOID_RETURN;
   }
 
   rocksdb::Range r(kd.m_is_reverse_cf ? slice2 : slice1,
                    kd.m_is_reverse_cf ? slice1 : slice2);
 
   uint64_t sz = 0;
-  auto disk_size = kd.m_stats.m_actual_disk_size;
-  if (disk_size == 0) disk_size = kd.m_stats.m_data_size;
-  auto rows = kd.m_stats.m_rows;
-  if (rows == 0 || disk_size == 0) {
-    rows = 1;
-    disk_size = ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE;
-  }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   // Getting statistics, including from Memtables
   uint8_t include_flags = rocksdb::DB::INCLUDE_FILES;
   rdb->GetApproximateSizes(kd.get_cf(), &r, 1, &sz, include_flags);
-  ret = rows * ((double)sz / (double)disk_size);
+  *row_count = rows * ((double)sz / (double)disk_size);
+  *total_size = sz;
   uint64_t memTableCount;
   rdb->GetApproximateMemTableStats(kd.get_cf(), r, &memTableCount, &sz);
-  ret += memTableCount;
-
-  /*
-    GetApproximateSizes() gives estimates so ret might exceed stats.records.
-    MySQL then decides to use full index scan rather than range scan, which
-    is not efficient for most cases.
-    To prevent this, changing estimated records slightly smaller than
-    stats.records.
-  */
-  if (ret >= stats.records) {
-    ret = stats.records * 0.99;
-  }
-
-  if (rocksdb_debug_optimizer_n_rows > 0) {
-    ret = rocksdb_debug_optimizer_n_rows;
-  } else if (ret == 0) {
-    ret = 1;
-  }
-
-  DBUG_RETURN(ret);
+  *row_count += memTableCount;
+  *total_size += sz;
+  DBUG_VOID_RETURN;
 }
 
 void ha_rocksdb::update_create_info(HA_CREATE_INFO *const create_info) {

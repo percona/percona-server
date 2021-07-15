@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -315,7 +315,7 @@ static void run_threads(TFunctor f, size_t n_threads) {
         [&f, &ready, &started](size_t thread_no) {
           ++ready;
           while (!started) {
-            os_thread_sleep(0);
+            std::this_thread::sleep_for(std::chrono::seconds(0));
           }
           f(thread_no);
         },
@@ -323,7 +323,7 @@ static void run_threads(TFunctor f, size_t n_threads) {
   }
 
   while (ready < n_threads) {
-    os_thread_sleep(0);
+    std::this_thread::sleep_for(std::chrono::seconds(0));
   }
   started = true;
 
@@ -632,9 +632,10 @@ for context switch. However that's good enough for now. */
 
     void sync() override {
       if (m_max_us == 0) {
-        os_thread_yield();
+        std::this_thread::yield();
       } else {
-        os_thread_sleep(ut_rnd_interval(m_min_us, m_max_us));
+        std::this_thread::sleep_for(
+            std::chrono::microseconds(ut_rnd_interval(m_min_us, m_max_us)));
       }
     }
 
@@ -717,7 +718,7 @@ void Log_background_disturber::run() {
 
     const auto sleep_time = ut_rnd_interval(0, 300 * 1000);
 
-    os_thread_sleep(sleep_time);
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
   }
 }
 

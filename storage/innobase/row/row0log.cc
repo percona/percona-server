@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -475,7 +475,7 @@ void row_log_online_op(
 
   if (mrec_size >= avail_size) {
     dberr_t err;
-    IORequest request(IORequest::WRITE);
+    IORequest request(IORequest::ROW_LOG | IORequest::WRITE);
     const os_offset_t byte_offset =
         (os_offset_t)log->tail.blocks * srv_sort_buf_size;
     byte *buf = log->tail.block;
@@ -594,7 +594,7 @@ static void row_log_table_close_func(
 
   if (size >= avail) {
     dberr_t err;
-    IORequest request(IORequest::WRITE);
+    IORequest request(IORequest::ROW_LOG | IORequest::WRITE);
     const os_offset_t byte_offset =
         (os_offset_t)log->tail.blocks * srv_sort_buf_size;
 
@@ -2940,7 +2940,8 @@ next_block:
       goto func_exit;
     }
 
-    IORequest request(IORequest::NO_ENCRYPTION | IORequest::READ);
+    IORequest request(
+        IORequest::READ | IORequest::ROW_LOG | IORequest::NO_ENCRYPTION);
 
     byte *buf = index->online_log->head.block;
 
@@ -3741,7 +3742,8 @@ next_block:
       goto func_exit;
     }
 
-    IORequest request(IORequest::NO_ENCRYPTION | IORequest::READ);
+    IORequest request(
+        IORequest::READ | IORequest::ROW_LOG | IORequest::NO_ENCRYPTION);
 
     byte *buf = index->online_log->head.block;
 

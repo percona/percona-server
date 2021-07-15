@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -143,7 +143,7 @@ enum enum_acl_lists {
 bool check_change_password(THD *thd, const char *host, const char *user,
                            bool retain_current_password) {
   Security_context *sctx;
-  DBUG_ASSERT(initialized);
+  assert(initialized);
   sctx = thd->security_context();
   if (!thd->slave_thread &&
       (strcmp(sctx->user().str, user) ||
@@ -282,7 +282,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) {
-    commit_and_close_mysql_tables(thd);
+    close_thread_tables(thd);
     return true;
   }
 
@@ -294,7 +294,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
     log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
     my_error(ER_CANNOT_USER, MYF(0), "SHOW CREATE USER",
              wrong_users.c_ptr_safe());
-    commit_and_close_mysql_tables(thd);
+    close_thread_tables(thd);
     return true;
   }
   /* fill in plugin, auth_str from acl_user */
@@ -446,7 +446,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
 
 err:
-  commit_and_close_mysql_tables(thd);
+  close_thread_tables(thd);
   lex->default_roles = old_default_roles;
   /* restore user resources, ssl and password expire attributes */
   lex->mqh = tmp_user_resource;
@@ -678,7 +678,7 @@ end:
     if (rc_end) {
       /* purecov: begin inspected */
       table->file->print_error(rc_end, MYF(ME_ERRORLOG));
-      DBUG_ASSERT(false);
+      assert(false);
       /* purecov: end */
     }
   }
@@ -801,7 +801,7 @@ end:
     if (rc_end) {
       /* purecov: begin inspected */
       table->file->print_error(rc_end, MYF(ME_ERRORLOG));
-      DBUG_ASSERT(false);
+      assert(false);
       /* purecov: end */
     }
   }
@@ -838,7 +838,7 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
     if (Str->uses_replace_clause) {
       int is_error = 0;
       Security_context *sctx = thd->security_context();
-      DBUG_ASSERT(sctx);
+      assert(sctx);
       // If trying to set password for other user
       if (strcmp(sctx->user().str, Str->user.str) ||
           my_strcasecmp(system_charset_info, sctx->priv_host().str,
@@ -1017,12 +1017,11 @@ bool set_and_validate_user_attributes(
   bool current_password_empty = false;
   bool new_password_empty = false;
 
-  DBUG_ASSERT(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
+  assert(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
 
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;
-  DBUG_ASSERT(assert_acl_cache_read_lock(thd) ||
-              assert_acl_cache_write_lock(thd));
+  assert(assert_acl_cache_read_lock(thd) || assert_acl_cache_write_lock(thd));
 
   if (history_check_done) *history_check_done = false;
   /* update plugin,auth str attributes */
@@ -1121,8 +1120,7 @@ bool set_and_validate_user_attributes(
         }
 
         if (Str->retain_current_password || Str->discard_old_password) {
-          DBUG_ASSERT(
-              !(Str->retain_current_password && Str->discard_old_password));
+          assert(!(Str->retain_current_password && Str->discard_old_password));
           what_to_set.m_what |= USER_ATTRIBUTES;
           if (Str->retain_current_password)
             what_to_set.m_user_attributes |=
@@ -1396,7 +1394,7 @@ bool set_and_validate_user_attributes(
       but we place an extra assert here to remind us about the complex
       interdependencies if mysql_create_user() is refactored.
     */
-    DBUG_ASSERT(!is_role);
+    assert(!is_role);
     if (auth->validate_authentication_string(const_cast<char *>(Str->auth.str),
                                              (unsigned)Str->auth.length)) {
       my_error(ER_PASSWORD_FORMAT, MYF(0));
@@ -1540,7 +1538,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
 
   DBUG_TRACE;
-  DBUG_ASSERT(lex_user && lex_user->host.str);
+  assert(lex_user && lex_user->host.str);
   DBUG_PRINT("enter", ("host: '%s'  user: '%s' current_password: '%s' \
                        new_password: '%s'",
                        lex_user->host.str, lex_user->user.str, current_password,
@@ -1585,7 +1583,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     return true;
   }
 
-    DBUG_ASSERT(acl_user->plugin.length != 0);
+    assert(acl_user->plugin.length != 0);
     is_role = acl_user->is_role;
 
     if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) return true;
@@ -1803,7 +1801,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     return match;
   };
 
-  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
+  assert(assert_acl_cache_write_lock(current_thd));
 
   switch (struct_no) {
     case USER_ACL:
@@ -2174,7 +2172,7 @@ bool check_set_user_id_priv(THD *thd, const LEX_USER *user_name,
       operation = "RENAME USER";
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   log_user(thd, &wrong_user, const_cast<LEX_USER *>(user_name), false);
   if (!(thd->security_context()
@@ -2215,7 +2213,7 @@ bool check_set_user_id_priv(THD *thd, const LEX_USER *user_name,
 */
 static bool check_orphaned_definers(THD *thd, List<LEX_USER> &list) {
   if (list.is_empty()) {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
   LEX_USER *user_name;
@@ -2465,7 +2463,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
               my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
               result = 1;
             } else {
-              DBUG_ASSERT(result == 0);
+              assert(result == 0);
               grant_role(acl_role, acl_user, false);
               Auth_id_ref from_user = create_authid_from(role);
               Auth_id_ref to_user = create_authid_from(tmp_user_name);
@@ -2528,8 +2526,8 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   /*
     If this is a slave thread we should never have generated random passwords
   */
-  DBUG_ASSERT(!thd->slave_thread ||
-              (thd->slave_thread && generated_passwords.size() == 0));
+  assert(!thd->slave_thread ||
+         (thd->slave_thread && generated_passwords.size() == 0));
   return result;
 }
 
@@ -2769,7 +2767,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         result = 1;
         continue;
       }
-      DBUG_ASSERT(user_to != nullptr); /* Syntax enforces pairs of users. */
+      assert(user_to != nullptr); /* Syntax enforces pairs of users. */
 
       /*
         If we are renaming to anonymous user, make sure no roles are granted.

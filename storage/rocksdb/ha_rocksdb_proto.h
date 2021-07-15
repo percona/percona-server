@@ -83,12 +83,12 @@ const rocksdb::BlockBasedTableOptions &rdb_get_table_options();
 bool rdb_is_table_scan_index_stats_calculation_enabled();
 bool rdb_is_ttl_enabled();
 bool rdb_is_ttl_read_filtering_enabled();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 int rdb_dbug_set_ttl_rec_ts();
 int rdb_dbug_set_ttl_snapshot_ts();
 int rdb_dbug_set_ttl_read_filter_ts();
 bool rdb_dbug_set_ttl_ignore_pk();
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
 /* Whether WSEnvironment is enabled */
 bool rdb_has_wsenv();

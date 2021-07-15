@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2020, Oracle and/or its affiliates.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 14
+#define PERCONA_INNODB_VERSION 15
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -197,7 +197,7 @@ command. */
 #define UNIV_DEBUG_VALGRIND
 #endif /* HAVE_VALGRIND */
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #undef UNIV_DEBUG
 #elif !defined UNIV_DEBUG
 #define UNIV_DEBUG

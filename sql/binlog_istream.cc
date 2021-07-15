@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ const char *Binlog_read_error::get_str() const {
              "correct keyring is loaded.";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
-      DBUG_ASSERT(0);
+      assert(0);
       return nullptr;
   }
 }
@@ -83,7 +83,7 @@ bool Binlog_encryption_istream::open(
     std::unique_ptr<Basic_seekable_istream> down_istream,
     Binlog_read_error *binlog_read_error) {
   DBUG_TRACE;
-  DBUG_ASSERT(down_istream != nullptr);
+  assert(down_istream != nullptr);
 
   m_down_istream = std::move(down_istream);
 

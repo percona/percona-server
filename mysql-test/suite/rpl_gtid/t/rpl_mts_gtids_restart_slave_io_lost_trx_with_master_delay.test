@@ -1,6 +1,6 @@
 # === Purpose ===
 #
-# This test verifies that the applier thread doesn't wait for MASTER_DELAY
+# This test verifies that the applier thread doesn't wait for SOURCE_DELAY
 # when the receiver thread is restarted in the middle of a transaction if the server
 # is configured with MTS and GTID autoposition.
 #
@@ -11,5 +11,5 @@
 --source include/have_debug.inc
 
 --let $using_mts=1
---let $master_delay_test=1
+--let $source_delay_test=1
 --source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test

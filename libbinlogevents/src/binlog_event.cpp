@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     res = !(computed == incoming);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (binary_log_debug::debug_checksum_test) return true;
 #endif
   return res;

@@ -70,7 +70,7 @@ class Worker_thread_context {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_thread *const psi_thread;
 #endif
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const my_thread_id thread_id;
 #endif
  public:
@@ -79,7 +79,7 @@ class Worker_thread_context {
 #ifdef HAVE_PSI_THREAD_INTERFACE
         psi_thread(PSI_THREAD_CALL(get_thread)())
 #endif
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         ,
         thread_id(my_thread_var_id())
 #endif
@@ -90,7 +90,7 @@ class Worker_thread_context {
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread)(psi_thread);
 #endif
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     set_my_thread_var_id(thread_id);
 #endif
     THR_MALLOC = nullptr;
@@ -101,7 +101,7 @@ class Worker_thread_context {
   Attach/associate the connection with the OS thread,
 */
 static bool thread_attach(THD *thd) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   set_my_thread_var_id(thd->thread_id());
 #endif
   thd->thread_stack = (char *)&thd;
@@ -126,11 +126,11 @@ static void threadpool_init_net_server_extension(THD *thd) {
 #ifdef HAVE_PSI_INTERFACE
   // socket_connection.cc:init_net_server_extension should have been called
   // already for us. We only need to overwrite the "before" callback
-  DBUG_ASSERT(thd->m_net_server_extension.m_user_data == thd);
+  assert(thd->m_net_server_extension.m_user_data == thd);
   thd->m_net_server_extension.m_before_header =
       threadpool_net_before_header_psi_noop;
 #else
-  DBUG_ASSERT(thd->get_protocol_classic()->get_net()->extension == NULL);
+  assert(thd->get_protocol_classic()->get_net()->extension == NULL);
 #endif
 }
 

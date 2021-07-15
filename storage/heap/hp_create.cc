@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
 
       /* Check whether we have any variable size records past key data */
       fixed_data_length = create_info->fixed_data_size;
-      DBUG_ASSERT(i == create_info->fixed_key_fieldnr);
+      assert(i == create_info->fixed_key_fieldnr);
       for (; i < create_info->columns; i++) {
         HP_COLUMNDEF *column = create_info->columndef + i;
         if ((column->type == MYSQL_TYPE_VARCHAR &&
@@ -259,8 +259,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
                   key_segs * sizeof(HA_KEYSEG) + alignof(HP_KEYDEF) - 1,
               MYF(MY_ZEROFILL))))
       goto err;
-    DBUG_ASSERT(reinterpret_cast<uintptr_t>(share) % alignof(decltype(share)) ==
-                0);
+    assert(reinterpret_cast<uintptr_t>(share) % alignof(decltype(share)) == 0);
     /*
       Max_records is used for estimating block sizes and for enforcement.
       Calculate the very maximum number of rows (if everything was one chunk)
@@ -275,9 +274,9 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
                        : max_rows_for_stated_memory);
 
     share->column_defs = (HP_COLUMNDEF *)(share + 1);
-    DBUG_ASSERT(reinterpret_cast<uintptr_t>(share->column_defs) %
-                    alignof(decltype(share->column_defs)) ==
-                0);
+    assert(reinterpret_cast<uintptr_t>(share->column_defs) %
+               alignof(decltype(share->column_defs)) ==
+           0);
     memcpy(share->column_defs, create_info->columndef,
            (size_t)(sizeof(create_info->columndef[0]) * create_info->columns));
 
@@ -287,9 +286,9 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     if (align_remainder)
       share->keydef = reinterpret_cast<HP_KEYDEF *>(
           keydef_ptr + alignof(decltype(share->keydef)) - align_remainder);
-    DBUG_ASSERT(reinterpret_cast<uintptr_t>(share->keydef) %
-                    alignof(decltype(share->keydef)) ==
-                0);
+    assert(reinterpret_cast<uintptr_t>(share->keydef) %
+               alignof(decltype(share->keydef)) ==
+           0);
     share->key_stat_version = 1;
     keyseg = (HA_KEYSEG *)(share->keydef + keys);
     init_block(&share->recordspace.block, chunk_length, min_records,

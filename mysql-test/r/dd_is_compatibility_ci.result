@@ -133,7 +133,7 @@ t1	CREATE TABLE `t1` (
   `TIME_MS` bigint NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
   `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 DROP TABLE t1;
 #########################################################
 # Issue WL#6599/HLS/6h): I_S schema/table name,

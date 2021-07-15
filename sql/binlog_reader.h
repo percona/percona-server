@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -428,10 +428,10 @@ class Basic_binlog_file_reader {
             down_cast<Format_description_log_event *>(ev);
         fdle = new_fdev;
         m_fde = *fdle;
-        DBUG_ASSERT(m_fde.footer()->checksum_alg ==
-                        binary_log::BINLOG_CHECKSUM_ALG_OFF ||
-                    m_fde.footer()->checksum_alg ==
-                        binary_log::BINLOG_CHECKSUM_ALG_CRC32);
+        assert(m_fde.footer()->checksum_alg ==
+                   binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+               m_fde.footer()->checksum_alg ==
+                   binary_log::BINLOG_CHECKSUM_ALG_CRC32);
       } else if (ev->get_type_code() ==
                      binary_log::START_5_7_ENCRYPTION_EVENT &&
                  m_data_istream.start_decryption(

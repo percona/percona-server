@@ -30,7 +30,7 @@ set persist_only innodb_redo_log_encrypt=1;
 ERROR HY000: Variable 'innodb_redo_log_encrypt' is a non persistent variable
 set global innodb_redo_log_encrypt=1;
 Warnings:
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring is not loaded.
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_redo_log_encrypt	OFF

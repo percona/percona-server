@@ -709,19 +709,23 @@ bool File_query_log::open()
     goto err;
 
   {
+    char log_creation_time[iso8601_size];
+    make_iso8601_timestamp(log_creation_time);
+
     char *end;
-    size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
+    size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s), Time: %s. "
 #ifdef EMBEDDED_LIBRARY
                         "embedded library\n",
-                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        log_creation_time
 #elif _WIN32
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
-                        mysqld_port, mysqld_unix_port
+                        log_creation_time, mysqld_port, mysqld_unix_port
 #else
                         "started with:\nTcp port: %d  Unix socket: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
-                        mysqld_port, mysqld_unix_port
+                        log_creation_time, mysqld_port, mysqld_unix_port
 #endif
                         );
     end= my_stpncpy(buff + len, "Time                 Id Command    Argument\n",

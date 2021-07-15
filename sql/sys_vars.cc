@@ -5545,7 +5545,9 @@ void init_slow_query_log_use_global_control()
 static Sys_var_set Sys_log_slow_verbosity(
         "log_slow_verbosity",
         "Choose how verbose the messages to your slow log will be. "
-        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_use_getrusage]",
+        "Multiple flags allowed in a comma-separated string. "
+        "[microtime, query_plan, innodb, profiling, profiling_use_getrusage, "
+        "minimal, standard, full]",
         SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
         log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),

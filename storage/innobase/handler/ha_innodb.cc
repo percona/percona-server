@@ -1320,7 +1320,7 @@ free_share(
 	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
 
 
-/* Calls free_share and assign NULL to share
+/** Calls free_share and assign NULL to share.
 @param[in,out]	share	table share to free */
 static void
 free_share_and_nullify(

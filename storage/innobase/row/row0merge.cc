@@ -3742,8 +3742,13 @@ dberr_t row_merge_build_indexes(
     struct TABLE *eval_table, row_prebuilt_t *prebuilt) {
   merge_file_t *merge_files;
   row_merge_block_t *block;
+<<<<<<< HEAD
   ut_new_pfx_t block_pfx;
   ut_new_pfx_t crypt_pfx;
+||||||| 98b2ccb470d
+  ut_new_pfx_t block_pfx;
+=======
+>>>>>>> mysql-8.0.26
   ulint i;
   ulint j;
   dberr_t error;
@@ -3769,7 +3774,13 @@ dberr_t row_merge_build_indexes(
 
   /* This will allocate "3 * srv_sort_buf_size" elements of type
   row_merge_block_t. The latter is defined as byte. */
+<<<<<<< HEAD
   block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx, false);
+||||||| 98b2ccb470d
+  block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx);
+=======
+  block = alloc.allocate_large(3 * srv_sort_buf_size);
+>>>>>>> mysql-8.0.26
 
   if (block == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -4026,7 +4037,7 @@ func_exit:
 
   ut_free(merge_files);
 
-  alloc.deallocate_large(block, &block_pfx);
+  alloc.deallocate_large(block);
 
   if (crypt_block) {
     alloc.deallocate_large(crypt_block, &crypt_pfx);

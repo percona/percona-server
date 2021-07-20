@@ -99,7 +99,7 @@ Index_impl::Index_impl(Table_impl *table)
       m_elements(),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
-Index_impl::~Index_impl() {}
+Index_impl::~Index_impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 

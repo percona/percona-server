@@ -4,9 +4,17 @@
 
 [mysqld.2]
 relay-log-recovery=1
+<<<<<<< HEAD
 slave-transaction-retries=0
 sync_master_info=1
 slave-parallel-workers=2
+||||||| 98b2ccb470d
+slave-transaction-retries=0
+sync_master_info=1
+=======
+replica-transaction-retries=0
+sync_source_info=1
+>>>>>>> mysql-8.0.26
 
 [mysqld.3]
 

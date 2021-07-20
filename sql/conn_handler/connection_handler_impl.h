@@ -91,8 +91,8 @@ class Per_thread_connection_handler : public Connection_handler {
   */
   static void modify_thread_cache_size(const ulong thread_cache_size);
 
-  Per_thread_connection_handler() {}
-  ~Per_thread_connection_handler() override {}
+  Per_thread_connection_handler() = default;
+  ~Per_thread_connection_handler() override = default;
 
  protected:
   bool add_connection(Channel_info *channel_info) override;
@@ -110,8 +110,8 @@ class One_thread_connection_handler : public Connection_handler {
       const One_thread_connection_handler &);
 
  public:
-  One_thread_connection_handler() {}
-  ~One_thread_connection_handler() override {}
+  One_thread_connection_handler() = default;
+  ~One_thread_connection_handler() override = default;
 
  protected:
   bool add_connection(Channel_info *channel_info) override;

@@ -147,6 +147,10 @@ char *srv_doublewrite_dir = NULL;
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
 char *srv_innodb_directories = nullptr;
 
+/** Number of threads spawned for initializing rollback segments
+in parallel */
+uint32_t srv_rseg_init_threads = 1;
+
 /** Undo tablespace directories.  This can be multiple paths
 separated by ';' and can also be absolute paths. */
 char *srv_undo_dir = nullptr;
@@ -435,6 +439,8 @@ const ulong srv_buf_pool_instances_default = 0;
 ulong srv_n_page_hash_locks = 16;
 /** Whether to validate InnoDB tablespace paths on startup */
 bool srv_validate_tablespace_paths = true;
+/** Use fdatasync() instead of fsync(). */
+bool srv_use_fdatasync = false;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong srv_LRU_scan_depth = 1024;
 /** Whether or not to flush neighbors of a block */
@@ -796,7 +802,7 @@ in a traditional Unix implementation. */
 struct srv_sys_t {
   ib_mutex_t tasks_mutex; /*!< variable protecting the
                           tasks queue */
-  UT_LIST_BASE_NODE_T(que_thr_t)
+  UT_LIST_BASE_NODE_T(que_thr_t, queue)
   tasks; /*!< task queue */
 
   ib_mutex_t mutex;    /*!< variable protecting the
@@ -1224,12 +1230,18 @@ static void srv_init(void) {
 
     buf_flush_tick_event = os_event_create();
 
+<<<<<<< HEAD
     UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 
     srv_checkpoint_completed_event = os_event_create();
 
     srv_redo_log_tracked_event = os_event_create();
     os_event_set(srv_redo_log_tracked_event);
+||||||| 98b2ccb470d
+    UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
+=======
+    UT_LIST_INIT(srv_sys->tasks);
+>>>>>>> mysql-8.0.26
   }
 
   srv_buf_resize_event = os_event_create();
@@ -1878,10 +1890,10 @@ void srv_export_innodb_status(void) {
 
   rw_lock_s_unlock(&purge_sys->latch);
 
-  mutex_enter(&trx_sys->mutex);
+  trx_sys_serialisation_mutex_enter();
   /* Maximum transaction number added to history list for purge. */
   trx_id_t max_trx_no = trx_sys->rw_max_trx_no;
-  mutex_exit(&trx_sys->mutex);
+  trx_sys_serialisation_mutex_exit();
 
   if (done_trx_no == 0 || max_trx_no < done_trx_no) {
     export_vars.innodb_purge_trx_id_age = 0;
@@ -2757,6 +2769,7 @@ static bool srv_master_do_shutdown_tasks(
   return (n_bytes_merged != 0);
 }
 
+<<<<<<< HEAD
 /** Set temporary tablespace to be encrypted if global variable
 innodb_temp_tablespace_encrypt is TRUE
 @param[in]	enable	true to enable encryption, false to disable
@@ -2879,6 +2892,67 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
       break;
   }
 
+||||||| 98b2ccb470d
+void undo_rotate_default_master_key() {
+  fil_space_t *space;
+
+  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
+    return;
+  }
+
+  /* If the undo log space is using default key, rotate
+  it. We need the server_uuid initialized, otherwise,
+  the keyname will not contains server uuid. */
+  if (Encryption::get_master_key_id() != 0 || srv_read_only_mode ||
+      strlen(server_uuid) == 0) {
+    return;
+  }
+
+  DBUG_EXECUTE_IF("skip_rotating_default_master_key", return;);
+
+  undo::spaces->s_lock();
+  for (auto undo_space : undo::spaces->m_spaces) {
+    ut_ad(fsp_is_undo_tablespace(undo_space->id()));
+
+    space = fil_space_get(undo_space->id());
+
+    if (space == nullptr || space->encryption_type == Encryption::NONE) {
+      continue;
+    }
+
+    byte encrypt_info[Encryption::INFO_SIZE];
+    mtr_t mtr;
+
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+    /* Make sure that there is enough reusable
+    space in the redo log files. */
+    log_free_check();
+
+    mtr_start(&mtr);
+
+    mtr_x_lock_space(space, &mtr);
+
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
+
+    if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
+      ib::error(ER_IB_MSG_1056, undo_space->space_name());
+    } else {
+      ib::info(ER_IB_MSG_1057, undo_space->space_name());
+    }
+    mtr_commit(&mtr);
+  }
+  undo::spaces->s_unlock();
+}
+
+/* Enable REDO tablespace encryption */
+bool srv_enable_redo_encryption(bool is_boot) {
+  /* Start to encrypt the redo log block from now on. */
+=======
+/* Enable REDO tablespace encryption */
+bool srv_enable_redo_encryption(bool is_boot) {
+  /* Start to encrypt the redo log block from now on. */
+>>>>>>> mysql-8.0.26
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;
@@ -3128,6 +3202,7 @@ static void srv_master_sleep(void) {
   srv_main_thread_op_info = "";
 }
 
+<<<<<<< HEAD
 /** Check redo and undo log encryption and rotate default master key. */
 static void srv_sys_check_set_encryption() {
   if (!srv_undo_log_encrypt) {
@@ -3166,6 +3241,63 @@ static void srv_sys_check_set_encryption() {
   mutex_exit(&undo::ddl_mutex);
 }
 
+||||||| 98b2ccb470d
+/** Check redo and undo log encryption and rotate default master key. */
+static void srv_sys_check_set_encryption() {
+  /* Rotate default master key for redo log encryption if it is set */
+  if (srv_redo_log_encrypt) {
+    fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
+    ut_a(space);
+
+    /* Encryption for redo tablespace must already have been set. This is
+    safeguard to encrypt it if not done earlier. */
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      ib::warn(ER_IB_MSG_1285, space->name, "srv_redo_log_encrypt");
+      srv_enable_redo_encryption(false);
+    }
+    redo_rotate_default_master_key();
+  }
+
+  if (!srv_undo_log_encrypt) {
+    return;
+  }
+
+  /* Rotate default master key for undo log encryption if it is set */
+  ut_ad(!undo::spaces->empty());
+
+  mutex_enter(&undo::ddl_mutex);
+
+  bool encrypt_undo = false;
+  undo::spaces->s_lock();
+  for (auto &undo_ts : undo::spaces->m_spaces) {
+    fil_space_t *space = fil_space_get(undo_ts->id());
+    ut_ad(space != nullptr);
+
+    /* Encryption for undo tablespace must already have been set. This is
+    safeguard to encrypt it if not done earlier. */
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      ib::warn(ER_IB_MSG_1285, space->name, "srv_undo_log_encrypt");
+      /* No need to loop further as srv_enable_undo_encryption() would
+      loop through all UNDO tablespaces and encrypt. */
+      encrypt_undo = true;
+      break;
+    }
+  }
+  undo::spaces->s_unlock();
+
+  if (encrypt_undo) {
+    ut_d(bool ret =) srv_enable_undo_encryption(false);
+    ut_ad(!ret);
+  }
+  undo_rotate_default_master_key();
+  mutex_exit(&undo::ddl_mutex);
+}
+
+=======
+>>>>>>> mysql-8.0.26
 /** Waits on event in provided slot.
 @param[in]   slot     slot reserved as SRV_MASTER */
 static void srv_master_wait(srv_slot_t *slot) {
@@ -3224,6 +3356,7 @@ static void srv_master_main_loop(srv_slot_t *slot) {
       srv_master_do_idle_tasks();
     }
 
+<<<<<<< HEAD
     /* Enable undo log encryption if it is set */
     undo_rotate_default_master_key();
 
@@ -3231,14 +3364,19 @@ static void srv_master_main_loop(srv_slot_t *slot) {
       continue;
     }
 
+||||||| 98b2ccb470d
+    /* Make sure that early encryption processing of UNDO/REDO log is done. */
+    if (!is_early_redo_undo_encryption_done()) {
+      continue;
+    }
+
+=======
+>>>>>>> mysql-8.0.26
     /* Let clone wait when redo/undo log encryption is set. If clone is already
     in progress we skip the check and come back later. */
     if (!clone_mark_wait()) {
       continue;
     }
-
-    /* Check encryption property for system tablespaces. */
-    srv_sys_check_set_encryption();
 
     /* Allow any blocking clone to progress. */
     clone_mark_free();
@@ -3351,6 +3489,10 @@ static bool srv_task_execute(void) {
 
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
+
+  if (UT_LIST_GET_LEN(srv_sys->tasks) == 0) {
+    return false;
+  }
 
   mutex_enter(&srv_sys->tasks_mutex);
 
@@ -3791,17 +3933,9 @@ void srv_que_task_enqueue_low(que_thr_t *thr) /*!< in: query thread */
 /** Get count of tasks in the queue.
  @return number of tasks in queue */
 ulint srv_get_task_queue_length(void) {
-  ulint n_tasks;
-
   ut_ad(!srv_read_only_mode);
 
-  mutex_enter(&srv_sys->tasks_mutex);
-
-  n_tasks = UT_LIST_GET_LEN(srv_sys->tasks);
-
-  mutex_exit(&srv_sys->tasks_mutex);
-
-  return (n_tasks);
+  return UT_LIST_GET_LEN(srv_sys->tasks);
 }
 
 /** Wakeup the purge threads. */

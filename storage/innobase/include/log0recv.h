@@ -235,8 +235,7 @@ size_t meb_heap_used();
 
 /** Returns true if recovery is currently running.
 @return recv_recovery_on */
-UNIV_INLINE
-bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
+static inline bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if the page is brand new (the next log record is init_file_page
 or no records to apply).
@@ -357,7 +356,7 @@ enum recv_addr_state {
 
 /** Hashed page file address struct */
 struct recv_addr_t {
-  using List = UT_LIST_BASE_NODE_T(recv_t);
+  using List = UT_LIST_BASE_NODE_T(recv_t, rec_list);
 
   /** recovery state of the page */
   recv_addr_state state;
@@ -387,11 +386,19 @@ class MetadataRecover {
       ut_allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
 
  public:
+<<<<<<< HEAD
   /** Default constructor
   @param[in]    read_only_      if set, the instance will only parse the log
                                 without applying any changes */
   explicit MetadataRecover(bool read_only_) UNIV_NOTHROW
       : read_only(read_only_) {}
+||||||| 98b2ccb470d
+  /** Default constructor */
+  MetadataRecover() UNIV_NOTHROW {}
+=======
+  /** Default constructor */
+  MetadataRecover() UNIV_NOTHROW = default;
+>>>>>>> mysql-8.0.26
 
   /** Destructor */
   ~MetadataRecover();
@@ -601,9 +608,6 @@ struct recv_sys_t {
 
   /** Possible incomplete last recovered log block */
   byte *last_block;
-
-  /** The nonaligned start address of the preceding buffer */
-  byte *last_block_buf_start;
 
   /** Buffer for parsing log records */
   byte *buf;

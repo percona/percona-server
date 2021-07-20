@@ -1,1 +1,7 @@
+<<<<<<< HEAD
 --slave-parallel-workers=2 --disable-log-bin --log-slave-updates=false
+||||||| 98b2ccb470d
+--disable-log-bin --log-slave-updates=false
+=======
+--disable-log-bin --log-replica-updates=false
+>>>>>>> mysql-8.0.26

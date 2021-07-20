@@ -1,1 +1,7 @@
+<<<<<<< HEAD
 --slave-transaction-retries=0 --sync-master-info=1 --relay-log-recovery=1 --binlog-checksum=NONE
+||||||| 98b2ccb470d
+--skip-core-file --slave-transaction-retries=0 --sync-master-info=1 --relay-log-recovery=1 --binlog-checksum=NONE
+=======
+--skip-core-file --replica-transaction-retries=0 --sync-source-info=1 --relay-log-recovery=1 --binlog-checksum=NONE
+>>>>>>> mysql-8.0.26

@@ -68,7 +68,21 @@ TEST_F(FatalSignalDeathTest, Segfault)
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
+<<<<<<< HEAD
   MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+||||||| a9b0c712de3
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+#elif defined(__SANITIZE_ADDRESS__)
+  /* gcc 4.8.1 with '-fsanitize=address -O1' */
+  /* Newer versions of ASAN give other error message, disable it */
+  // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+=======
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+#elif defined(HAVE_ASAN)
+  /* gcc 4.8.1 with '-fsanitize=address -O1' */
+  /* Newer versions of ASAN give other error message, disable it */
+  // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+>>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.

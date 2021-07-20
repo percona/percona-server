@@ -14904,7 +14904,13 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
       range_string and the string becomes too long. Printing very long
       range conditions normally doesn't make sense either.
      */
+<<<<<<< HEAD
     if (!append_to_trace && range_string && range_string->length() > 500)
+||||||| a9b0c712de3
+    if (!append_to_trace && range_string->length() > 500)
+=======
+    if (range_string != NULL && range_string->length() > 500)
+>>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
     {
       range_string->append(STRING_WITH_LEN("..."));
       break;
@@ -14942,7 +14948,13 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
       if (append_to_trace)
         range_trace->add_utf8(range_so_far->ptr(),
                               range_so_far->length());
+<<<<<<< HEAD
       else if (range_string)
+||||||| a9b0c712de3
+      else
+=======
+      else if (range_string != NULL)
+>>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
       {
         if (range_string->length() == 0)
           range_string->append(STRING_WITH_LEN("("));

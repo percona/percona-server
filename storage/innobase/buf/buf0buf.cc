@@ -2663,15 +2663,8 @@ buf_pool_resize_hash(
 {
 	hash_table_t*	new_hash_table;
 
-<<<<<<< HEAD
 	ut_ad(mutex_own(&buf_pool->zip_hash_mutex));
-	ut_ad(buf_pool->page_hash_old == NULL);
 
-||||||| a9b0c712de3
-	ut_ad(buf_pool->page_hash_old == NULL);
-
-=======
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 	/* recreate page_hash */
 	new_hash_table = ib_recreate(
 		buf_pool->page_hash, 2 * buf_pool->curr_size);
@@ -3178,23 +3171,7 @@ calc_buf_pool_size:
 		mutex_exit(&buf_pool->free_list_mutex);
 		mutex_exit(&buf_pool->zip_free_mutex);
 		hash_unlock_x_all(buf_pool->page_hash);
-<<<<<<< HEAD
 		mutex_exit(&buf_pool->LRU_list_mutex);
-
-		if (buf_pool->page_hash_old != NULL) {
-			hash_table_free(buf_pool->page_hash_old);
-			buf_pool->page_hash_old = NULL;
-		}
-||||||| a9b0c712de3
-		buf_pool_mutex_exit(buf_pool);
-
-		if (buf_pool->page_hash_old != NULL) {
-			hash_table_free(buf_pool->page_hash_old);
-			buf_pool->page_hash_old = NULL;
-		}
-=======
-		buf_pool_mutex_exit(buf_pool);
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 	}
 
 	UT_DELETE(chunk_map_old);

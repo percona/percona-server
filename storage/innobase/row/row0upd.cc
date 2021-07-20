@@ -2027,7 +2027,7 @@ row_upd_store_v_row(
 							node->row, col, index,
 							&heap, node->heap, NULL,
 							thd, mysql_table, NULL,
-							NULL, NULL);
+							NULL, NULL, prebuilt);
 						}
 					}
 				} else {

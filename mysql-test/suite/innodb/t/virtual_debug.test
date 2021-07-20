@@ -542,7 +542,7 @@ CONNECTION default;
 COMMIT;
 
 DROP TABLE t2;
-<<<<<<< HEAD
+
 --echo #
 --echo # Bug#26330279 - ASSERT ON ROW_PURGE_REMOVE_SEC_IF_POSS_LEAF| INNOBASE/ROW/ROW0PURGE.CC
 --echo #
@@ -561,9 +561,6 @@ SET GLOBAL innodb_purge_run_now=ON;
 --source include/wait_innodb_all_purged.inc
 
 DROP TABLE t1;
-
-||||||| a9b0c712de3
-=======
 
 --echo #
 --echo # Bug #30556595  FAILING ASSERTION: !CURSOR->INDEX->IS_COMMITTED()
@@ -681,4 +678,3 @@ connection default;
 delete from t limit 1;
 disconnect con1;
 DROP TABLE t;
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521

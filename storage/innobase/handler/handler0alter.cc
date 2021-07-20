@@ -5850,7 +5850,6 @@ check_if_ok_to_rename:
 		goto err_exit_no_heap;
 	}
 
-<<<<<<< HEAD
 	/* create_table_info_t::innobase_table_flags does not set encryption
 	flags. There are places where it is done afterwards, there are places
 	where it isn't done. We need to inspect all code paths and check if
@@ -5878,22 +5877,16 @@ check_if_ok_to_rename:
 		}
 	}
 
-	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
-||||||| a9b0c712de3
-	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
-=======
-
 	/* The copy algorithm uses the default row format while
 	in-place uses the current format. Find the limit for
 	the resulting format.*/
-	if (innobase_need_rebuild(ha_alter_info)) {
+	if (innobase_need_rebuild(ha_alter_info, table)) {
 		max_col_len =
 			DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
 	} else {
 		max_col_len =
 			DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(m_prebuilt->table->flags);
 	}
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 
 	/* Check each index's column length to make sure they do not
 	exceed limit */

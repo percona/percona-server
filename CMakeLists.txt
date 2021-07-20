@@ -173,7 +173,6 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
   SET(BUILD_IS_SINGLE_CONFIG FALSE)
 ENDIF()
 
-<<<<<<< HEAD
 INCLUDE(CTest)
 # Explicitly disabling BUILD_TESTING set by just included CTest, since other
 # code is not ready to handle BUILD_TESTING set. If you try to remove the
@@ -181,8 +180,6 @@ INCLUDE(CTest)
 # remove the hack.
 SET(BUILD_TESTING OFF)
 
-||||||| a9b0c712de3
-=======
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_COMPILER_IS_CLANG 1)
 ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -195,7 +192,6 @@ IF(MY_COMPILER_IS_CLANG OR MY_COMPILER_IS_GNU)
   SET(MY_COMPILER_IS_GNU_OR_CLANG 1)
 ENDIF()
 
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 # Maintainer mode is default on only for debug builds using GCC/G++
 IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
   IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)

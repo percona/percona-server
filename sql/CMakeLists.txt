@@ -395,29 +395,6 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
-<<<<<<< HEAD
-||||||| a9b0c712de3
-# gcc 7.2.0 complains:
-# boost/geometry/algorithms/detail/expand/indexed.hpp:81
-# *((void*)& box +24) may be used uninitialized
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    geometry_rtree.cc
-    COMPILE_FLAGS "-Wno-maybe-uninitialized")
-ENDIF()
-
-=======
-# gcc 7.2.0 complains:
-# boost/geometry/algorithms/detail/expand/indexed.hpp:81
-# *((void*)& box +24) may be used uninitialized
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    geometry_rtree.cc
-    COMPILE_FLAGS "-Wno-maybe-uninitialized")
-ENDIF()
-
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_COMPILE_FLAGS(
@@ -426,7 +403,6 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)

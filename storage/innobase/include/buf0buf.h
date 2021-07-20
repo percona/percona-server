@@ -2148,27 +2148,7 @@ struct buf_pool_t{
 					buf_page_in_file() == TRUE,
 					indexed by (space_id, offset).
 					page_hash is protected by an
-<<<<<<< HEAD
 					array of mutexes. */
-	hash_table_t*	page_hash_old;	/*!< old pointer to page_hash to be
-					freed after resizing buffer pool */
-||||||| a9b0c712de3
-					array of mutexes.
-					Changes in page_hash are protected
-					by buf_pool->mutex and the relevant
-					page_hash mutex. Lookups can happen
-					while holding the buf_pool->mutex or
-					the relevant page_hash mutex. */
-	hash_table_t*	page_hash_old;	/*!< old pointer to page_hash to be
-					freed after resizing buffer pool */
-=======
-					array of mutexes.
-					Changes in page_hash are protected
-					by buf_pool->mutex and the relevant
-					page_hash mutex. Lookups can happen
-					while holding the buf_pool->mutex or
-					the relevant page_hash mutex. */
->>>>>>> 6642ea3d6aec50398cda18a28fa64f7082f5f521
 	hash_table_t*	zip_hash;	/*!< hash table of buf_block_t blocks
 					whose frames are allocated to the
 					zip buddy system,

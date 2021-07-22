@@ -163,20 +163,19 @@ fi
 # Extract version from the VERSION file
 source "$SOURCEDIR/MYSQL_VERSION"
 MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
-PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-//')"
+PERCONA_SERVER_VERSION="${MYSQL_VERSION_EXTRA/-/}"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 TOKUDB_BACKUP_VERSION="${MYSQL_VERSION}${MYSQL_VERSION_EXTRA}"
 
 # Build information
+REVISION=""
 if test -e "$SOURCEDIR/Docs/INFO_SRC"
 then
     REVISION="$(cd "$SOURCEDIR"; grep '^commit: ' Docs/INFO_SRC |sed -e 's/commit: //')"
     REVISION=${REVISION::8}
-elif [ -n "$(which git)" -a -d "$SOURCEDIR/.git" ];
+elif [ -n "$(command -v git)" -a -d "$SOURCEDIR/.git" ];
 then
     REVISION="$(git rev-parse --short HEAD)"
-else
-    REVISION=""
 fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}${TARBALL_SUFFIX:-}"
@@ -218,7 +217,7 @@ fi
 #
 # Attempt to remove any optimisation flags from the debug build
 # BLD-238 - bug1408232
-if [ -n "$(which rpm)" ]; then
+if [ -n "$(command -v rpm)" ]; then
   export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
   if test "x$CMAKE_BUILD_TYPE" = "xDebug"
   then

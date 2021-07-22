@@ -37,14 +37,8 @@ include/sync_slave_sql_with_master.inc
 include/assert.inc ['There are 2 values in table t1']
 #
 # 5. Cleanup
-<<<<<<< HEAD
-SET @@GLOBAL.slave_checkpoint_period= SLAVE_CHECKPOINT_PERIOD;
-SET DEBUG_SYNC= 'RESET';
-||||||| 98b2ccb470d
-SET @@GLOBAL.slave_checkpoint_period= SLAVE_CHECKPOINT_PERIOD;
-=======
 SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
->>>>>>> mysql-8.0.26
+SET DEBUG_SYNC= 'RESET';
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

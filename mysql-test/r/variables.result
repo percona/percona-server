@@ -1806,14 +1806,10 @@ show variables like 'log_slow%';
 Variable_name	Value
 log_slow_admin_statements	OFF
 log_slow_extra	OFF
-<<<<<<< HEAD
 log_slow_filter	
 log_slow_rate_limit	1
 log_slow_rate_type	session
-||||||| 98b2ccb470d
-=======
 log_slow_replica_statements	OFF
->>>>>>> mysql-8.0.26
 log_slow_slave_statements	OFF
 log_slow_sp_statements	ON
 log_slow_verbosity	

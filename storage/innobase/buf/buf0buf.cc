@@ -872,41 +872,10 @@ bool buf_chunk_t::madvise_dont_dump() {
 
 /* Implementation of buf_pool_t's methods */
 
-<<<<<<< HEAD
-/** A wrapper for buf_pool_t::allocator.alocate_large which also advices the OS
-that this chunk should not be dumped to a core file if that was requested.
-Emits a warning to the log and disables @@global.core_file if advising was
-requested but could not be performed, but still return true as the allocation
-itself succeeded.
-@param[in]	mem_size  number of bytes to allocate
-@param[in,out]  chunk     mem and mem_pfx fields of this chunk will be updated
-                          to contain information about allocated memory region
-@param[in]      populate  virtual page prealloation
-@return true iff allocated successfully */
 bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk,
                                 bool populate) {
-||||||| 98b2ccb470d
-/** A wrapper for buf_pool_t::allocator.alocate_large which also advices the OS
-that this chunk should not be dumped to a core file if that was requested.
-Emits a warning to the log and disables @@global.core_file if advising was
-requested but could not be performed, but still return true as the allocation
-itself succeeded.
-@param[in]	mem_size  number of bytes to allocate
-@param[in,out]  chunk     mem and mem_pfx fields of this chunk will be updated
-                          to contain information about allocated memory region
-@return true iff allocated successfully */
-bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
-=======
-bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
->>>>>>> mysql-8.0.26
   ut_ad(mutex_own(&chunks_mutex));
-<<<<<<< HEAD
-  chunk->mem = allocator.allocate_large(mem_size, &chunk->mem_pfx, populate);
-||||||| 98b2ccb470d
-  chunk->mem = allocator.allocate_large(mem_size, &chunk->mem_pfx);
-=======
-  chunk->mem = allocator.allocate_large(mem_size);
->>>>>>> mysql-8.0.26
+  chunk->mem = allocator.allocate_large(mem_size, populate);
   if (chunk->mem == nullptr) {
     return false;
   }
@@ -2119,13 +2088,7 @@ static void buf_pool_resize() {
 
   buf_resize_status("Disabling adaptive hash index.");
 
-<<<<<<< HEAD
   rw_lock_s_lock(btr_search_latches[0]);
-||||||| 98b2ccb470d
-  btr_search_s_lock_all();
-=======
-  btr_search_s_lock_all(UT_LOCATION_HERE);
->>>>>>> mysql-8.0.26
   if (btr_search_enabled) {
     rw_lock_s_unlock(btr_search_latches[0]);
     btr_search_disabled = true;

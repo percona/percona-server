@@ -848,29 +848,15 @@ class ut_allocator {
   objects of type 'T' and trace the allocation.
   @param[in]	n_elements	number of elements
   @return pointer to the allocated memory or NULL */
-<<<<<<< HEAD
-  pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx,
-                         bool populate) {
-||||||| 98b2ccb470d
-  pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx) {
-=======
-  pointer allocate_large(size_type n_elements) {
->>>>>>> mysql-8.0.26
+  pointer allocate_large(size_type n_elements, bool populate) {
     if (n_elements == 0 || n_elements > max_size()) {
       return (nullptr);
     }
 
     ulint n_bytes = n_elements * sizeof(T) + CPU_PAGE_SIZE;
 
-<<<<<<< HEAD
-    pointer ptr =
-        reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes, populate));
-||||||| 98b2ccb470d
-    pointer ptr = reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes));
-=======
-    auto ptr = os_mem_alloc_large(&n_bytes);
+    auto ptr = os_mem_alloc_large(&n_bytes, populate);
     if (unlikely(!ptr)) return nullptr;
->>>>>>> mysql-8.0.26
 
 #ifdef UNIV_PFS_MEMORY
     ut_new_pfx_t *pfx = reinterpret_cast<ut_new_pfx_t *>(ptr);
@@ -1144,6 +1130,42 @@ same problems as the standard library malloc.
 
 #endif /* UNIV_PFS_MEMORY */
 
+inline void ut_free_func(byte *buf) { ut_free(buf); }
+
+using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
+
+inline ut_unique_ptr ut_make_unique_ptr_null() {
+  return ut_unique_ptr(nullptr, ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_nokey(const size_t size) {
+  return ut_unique_ptr(static_cast<byte *>(ut_malloc_nokey(size)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr(const size_t size,
+                                        PSI_memory_key memory_key) {
+  return ut_unique_ptr(static_cast<byte *>(ut_malloc(size, memory_key)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_zalloc(const size_t size,
+                                               PSI_memory_key memory_key) {
+  return ut_unique_ptr(static_cast<byte *>(ut_zalloc(size, memory_key)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey(const size_t size) {
+  return ut_unique_ptr(static_cast<byte *>(ut_zalloc_nokey(size)),
+                       ut_free_func);
+}
+
+inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey_no_fatal(
+    const size_t size) {
+  return ut_unique_ptr(static_cast<byte *>(ut_zalloc_nokey_nofatal(size)),
+                       ut_free_func);
+}
+
 namespace ut {
 
 /** Light-weight and type-safe wrapper around the PSI_memory_key
@@ -1191,47 +1213,6 @@ inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
     @return Pointer to the allocated storage. nullptr if dynamic storage
     allocation failed.
 
-<<<<<<< HEAD
-inline void ut_free_func(byte *buf) { ut_free(buf); }
-
-using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
-
-inline ut_unique_ptr ut_make_unique_ptr_null() {
-  return ut_unique_ptr(nullptr, ut_free_func);
-}
-
-inline ut_unique_ptr ut_make_unique_ptr_nokey(const size_t size) {
-  return ut_unique_ptr(static_cast<byte *>(ut_malloc_nokey(size)),
-                       ut_free_func);
-}
-
-inline ut_unique_ptr ut_make_unique_ptr(const size_t size,
-                                        PSI_memory_key memory_key) {
-  return ut_unique_ptr(static_cast<byte *>(ut_malloc(size, memory_key)),
-                       ut_free_func);
-}
-
-inline ut_unique_ptr ut_make_unique_ptr_zalloc(const size_t size,
-                                               PSI_memory_key memory_key) {
-  return ut_unique_ptr(static_cast<byte *>(ut_zalloc(size, memory_key)),
-                       ut_free_func);
-}
-
-inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey(const size_t size) {
-  return ut_unique_ptr(static_cast<byte *>(ut_zalloc_nokey(size)),
-                       ut_free_func);
-}
-
-inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey_no_fatal(
-    const size_t size) {
-  return ut_unique_ptr(static_cast<byte *>(ut_zalloc_nokey_nofatal(size)),
-                       ut_free_func);
-}
-
-namespace ut {
-||||||| 98b2ccb470d
-namespace ut {
-=======
     Example:
      int* x = static_cast<int*>(aligned_alloc_withkey(key, 10*sizeof(int), 64));
  */
@@ -1241,7 +1222,6 @@ inline void *aligned_alloc_withkey(PSI_memory_key_t key, std::size_t size,
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
   return aligned_alloc_impl::alloc<false>(size, alignment, key());
 }
->>>>>>> mysql-8.0.26
 
 /** Dynamically allocates storage of given size and at the address aligned to
     the requested alignment.

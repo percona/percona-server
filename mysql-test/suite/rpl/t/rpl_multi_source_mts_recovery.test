@@ -12,12 +12,6 @@
 --source include/have_slave_repository_type_table.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
-<<<<<<< HEAD
-||||||| 98b2ccb470d
---source include/have_slave_parallel_type_logical_clock.inc
-=======
---source include/have_replica_parallel_type_logical_clock.inc
->>>>>>> mysql-8.0.26
 
 --let $rpl_topology= 1->2
 --let $rpl_multi_source= 1

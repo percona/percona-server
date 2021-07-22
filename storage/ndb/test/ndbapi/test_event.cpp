@@ -30,13 +30,9 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
-<<<<<<< HEAD
+#include <NdbSleep.h>
 #include <TestNdbEventOperation.hpp>
 #include <UtilTransactions.hpp>
-||||||| 98b2ccb470d
-=======
-#include <NdbSleep.h>
->>>>>>> mysql-8.0.26
 #include <signaldata/DumpStateOrd.hpp>
 #include "../src/kernel/ndbd.hpp"
 
@@ -4700,7 +4696,6 @@ int runGetLogEventParsable(NDBT_Context *ctx, NDBT_Step *step) {
   struct ndb_logevent le_event;
   int statusMsges = 0, statusMsges2 = 0;
 
-<<<<<<< HEAD
   while (!ctx->isTestStopped()) {
     int r = ndb_logevent_get_next2(le_handle, &le_event, 2000);
     if (r > 0) {
@@ -4752,6 +4747,44 @@ int runGetLogEventParsable(NDBT_Context *ctx, NDBT_Step *step) {
                 << le_event.EventBufferStatus2.latest_buffered_epoch_h
                 << " reason " << reason << endl;
         } break;
+        case NDB_LE_EventBufferStatus3:
+        {
+          Uint64 usage = (Uint64)le_event.EventBufferStatus3.usage_h << 32;
+          usage |= le_event.EventBufferStatus3.usage_l;
+          Uint64 alloc = (Uint64)le_event.EventBufferStatus3.alloc_h << 32;
+          alloc |= le_event.EventBufferStatus3.alloc_l;
+          Uint64 max = (Uint64)le_event.EventBufferStatus3.max_h << 32;
+          max |= le_event.EventBufferStatus3.max_l;
+          Uint32 used_pct = 0;
+          if (alloc != 0)
+            used_pct = (Uint32)((usage*100)/alloc);
+          Uint32 allocd_pct = 0;
+          if (max != 0)
+            allocd_pct = (Uint32)((alloc*100)/max);
+
+          Uint32 ndb_ref = le_event.EventBufferStatus3.ndb_reference;
+          Uint32 reason = le_event.EventBufferStatus3.report_reason;
+          if (tardy_ndb_ref == ndb_ref && reason != 0)
+            statusMsges2++;
+
+          g_err << "Parsable str: Event buffer status3 "
+                << "(" << hex << ndb_ref << "): " << dec
+                << "used=" << usage << " bytes"
+                << "(" << used_pct << "%) "
+                << "alloc=" << alloc << " bytes";
+          if (max != 0)
+            g_err << "(" << allocd_pct << "%)";
+          g_err << " max=" << max << " bytes"
+                << " latest_consumed_epoch "
+                << le_event.EventBufferStatus3.latest_consumed_epoch_l
+                << "/" << le_event.EventBufferStatus3.latest_consumed_epoch_h
+                << " latest_buffered_epoch "
+                << le_event.EventBufferStatus3.latest_buffered_epoch_l
+                << "/" << le_event.EventBufferStatus3.latest_buffered_epoch_h
+                << " reason " << reason
+                << endl;
+        }
+          break;
         default:
           break;
       }
@@ -4760,215 +4793,6 @@ int runGetLogEventParsable(NDBT_Context *ctx, NDBT_Step *step) {
     } else {
       g_info << "ndb_logevent_get_next returned timeout" << endl;
     }
-||||||| 98b2ccb470d
-   while (!ctx->isTestStopped())
-   {
-     int r = ndb_logevent_get_next2(le_handle,
-                                   &le_event,
-                                   2000);
-     if(r>0)
-     {
-       switch(le_event.type)
-       {
-       case NDB_LE_EventBufferStatus:
-         {
-           statusMsges++;
-           Uint32 alloc = le_event.EventBufferStatus.alloc;
-           Uint32 max = le_event.EventBufferStatus.max;
-           Uint32 used = le_event.EventBufferStatus.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
-
-           g_err << "Parsable str: Event buffer status: ";
-           g_err << "used=" << le_event.EventBufferStatus.usage
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
-                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_l
-                 << "/" << le_event.EventBufferStatus.apply_gci_h
-                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_l
-                 << "/" << le_event.EventBufferStatus.latest_gci_h
-                 << endl;
-         }
-         break;
-       case NDB_LE_EventBufferStatus2:
-         {
-           Uint32 alloc = le_event.EventBufferStatus2.alloc;
-           Uint32 max = le_event.EventBufferStatus2.max;
-           Uint32 used = le_event.EventBufferStatus2.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
-
-           Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
-           Uint32 reason = le_event.EventBufferStatus2.report_reason;
-           if (tardy_ndb_ref == ndb_ref && reason != 0)
-             statusMsges2++;
-
-           g_err << "Parsable str: Event buffer status2 "
-                 << "(" << hex << ndb_ref << "): " << dec
-                 << "used=" << used
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
-                 << " latest_consumed_epoch "
-                 << le_event.EventBufferStatus2.latest_consumed_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_consumed_epoch_h
-                 << " latest_buffered_epoch "
-                 << le_event.EventBufferStatus2.latest_buffered_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_buffered_epoch_h
-                 << " reason " << reason
-                 << endl;
-         }
-         break;
-       default:
-         break;
-       }
-     }
-     else if (r<0)
-     {
-       g_err << "ERROR: ndb_logevent_get_next returned error: "
-             << r << endl;
-     }
-     else
-     {
-       g_info << "ndb_logevent_get_next returned timeout" << endl;
-     }
-=======
-   while (!ctx->isTestStopped())
-   {
-     int r = ndb_logevent_get_next2(le_handle,
-                                   &le_event,
-                                   2000);
-     if(r>0)
-     {
-       switch(le_event.type)
-       {
-       case NDB_LE_EventBufferStatus:
-         {
-           statusMsges++;
-           Uint32 alloc = le_event.EventBufferStatus.alloc;
-           Uint32 max = le_event.EventBufferStatus.max;
-           Uint32 used = le_event.EventBufferStatus.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
-
-           g_err << "Parsable str: Event buffer status: ";
-           g_err << "used=" << le_event.EventBufferStatus.usage
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
-                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_l
-                 << "/" << le_event.EventBufferStatus.apply_gci_h
-                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_l
-                 << "/" << le_event.EventBufferStatus.latest_gci_h
-                 << endl;
-         }
-         break;
-       case NDB_LE_EventBufferStatus2:
-         {
-           Uint32 alloc = le_event.EventBufferStatus2.alloc;
-           Uint32 max = le_event.EventBufferStatus2.max;
-           Uint32 used = le_event.EventBufferStatus2.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
-
-           Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
-           Uint32 reason = le_event.EventBufferStatus2.report_reason;
-           if (tardy_ndb_ref == ndb_ref && reason != 0)
-             statusMsges2++;
-
-           g_err << "Parsable str: Event buffer status2 "
-                 << "(" << hex << ndb_ref << "): " << dec
-                 << "used=" << used
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
-                 << " latest_consumed_epoch "
-                 << le_event.EventBufferStatus2.latest_consumed_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_consumed_epoch_h
-                 << " latest_buffered_epoch "
-                 << le_event.EventBufferStatus2.latest_buffered_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_buffered_epoch_h
-                 << " reason " << reason
-                 << endl;
-         }
-         break;
-       case NDB_LE_EventBufferStatus3:
-         {
-           Uint64 usage = (Uint64)le_event.EventBufferStatus3.usage_h << 32;
-           usage |= le_event.EventBufferStatus3.usage_l;
-           Uint64 alloc = (Uint64)le_event.EventBufferStatus3.alloc_h << 32;
-           alloc |= le_event.EventBufferStatus3.alloc_l;
-           Uint64 max = (Uint64)le_event.EventBufferStatus3.max_h << 32;
-           max |= le_event.EventBufferStatus3.max_l;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((usage*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((alloc*100)/max);
-
-           Uint32 ndb_ref = le_event.EventBufferStatus3.ndb_reference;
-           Uint32 reason = le_event.EventBufferStatus3.report_reason;
-           if (tardy_ndb_ref == ndb_ref && reason != 0)
-             statusMsges2++;
-
-           g_err << "Parsable str: Event buffer status3 "
-                 << "(" << hex << ndb_ref << "): " << dec
-                 << "used=" << usage << " bytes"
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc << " bytes";
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max << " bytes"
-                 << " latest_consumed_epoch "
-                 << le_event.EventBufferStatus3.latest_consumed_epoch_l
-                 << "/" << le_event.EventBufferStatus3.latest_consumed_epoch_h
-                 << " latest_buffered_epoch "
-                 << le_event.EventBufferStatus3.latest_buffered_epoch_l
-                 << "/" << le_event.EventBufferStatus3.latest_buffered_epoch_h
-                 << " reason " << reason
-                 << endl;
-         }
-         break;
-       default:
-         break;
-       }
-     }
-     else if (r<0)
-     {
-       g_err << "ERROR: ndb_logevent_get_next returned error: "
-             << r << endl;
-     }
-     else
-     {
-       g_info << "ndb_logevent_get_next returned timeout" << endl;
-     }
->>>>>>> mysql-8.0.26
   }
   ndb_mgm_destroy_logevent_handle(&le_handle);
 
@@ -5140,10 +4964,6 @@ int clearEmptySafeCounterPool(NDBT_Context *ctx, NDBT_Step *step) {
   return setEmptySafeCounterPool(false);
 }
 
-<<<<<<< HEAD
-||||||| 98b2ccb470d
-
-=======
 int setErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
 {
   DBUG_SET_INITIAL("+d,ndb_eventbuffer_high_usage");
@@ -5156,7 +4976,6 @@ int clearErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
->>>>>>> mysql-8.0.26
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation",
          "Verify that we can listen to Events"

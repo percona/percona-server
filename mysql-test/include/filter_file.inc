@@ -156,13 +156,7 @@ perl;
   {
     chomp;
     s/\015?\012?$//;
-<<<<<<< HEAD
-    if (!%column_names && $skip_column_names == 0)
-||||||| 98b2ccb470d
-    if (!%column_names)
-=======
-    if ($mask_columns && !%column_names)
->>>>>>> mysql-8.0.26
+    if ($mask_columns && !%column_names && $skip_column_names == 0)
     {
       my $n = 1;
       %column_names = map { $_ => $n++ } split(/\t/, $_);

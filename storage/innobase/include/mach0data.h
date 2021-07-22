@@ -123,16 +123,8 @@ static inline uint32_t mach_get_compressed_size(ulint n);
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-<<<<<<< HEAD
 MY_NODISCARD
-UNIV_INLINE
-ib_uint32_t mach_read_next_compressed(const byte **b);
-||||||| 98b2ccb470d
-UNIV_INLINE
-ib_uint32_t mach_read_next_compressed(const byte **b);
-=======
 static inline ib_uint32_t mach_read_next_compressed(const byte **b);
->>>>>>> mysql-8.0.26
 
 /** The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address.
@@ -183,16 +175,8 @@ static inline ulint mach_u64_write_compressed(byte *b, ib_uint64_t n);
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-<<<<<<< HEAD
 MY_NODISCARD
-UNIV_INLINE
-ib_uint64_t mach_u64_read_next_compressed(const byte **b);
-||||||| 98b2ccb470d
-UNIV_INLINE
-ib_uint64_t mach_u64_read_next_compressed(const byte **b);
-=======
 static inline ib_uint64_t mach_u64_read_next_compressed(const byte **b);
->>>>>>> mysql-8.0.26
 
 /** Writes a 64-bit integer in a compressed form (1..11 bytes).
 @param[in]	b	pointer to memory where to store

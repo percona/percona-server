@@ -178,41 +178,18 @@ ulint btr_height_get(dict_index_t *index, /*!< in: index tree */
 @param[in]	page_size	Page size
 @param[in]	mode		Latch mode
 @param[in]	file		File name
-@param[in]	line		Line where called */
-#ifdef UNIV_DEBUG
-/**
+@param[in]	line		Line where called
 @param[in]	index		Index tree, may be NULL if it is not an insert
-                                buffer tree */
-#endif /* UNIV_DEBUG */
-/**
+                    buffer tree
 @param[in,out]	mtr		Mini-transaction
 @return block */
-<<<<<<< HEAD
-UNIV_INLINE
-buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                const page_size_t &page_size, ulint mode,
-                                const char *file, ulint line,
-                                const dict_index_t *index, mtr_t *mtr);
-||||||| 98b2ccb470d
-UNIV_INLINE
-buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                const page_size_t &page_size, ulint mode,
-                                const char *file, ulint line,
-#ifdef UNIV_DEBUG
-                                const dict_index_t *index,
-#endif /* UNIV_DEBUG */
-                                mtr_t *mtr);
-=======
 static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                               const page_size_t &page_size,
                                               ulint mode, const char *file,
                                               ulint line,
-#ifdef UNIV_DEBUG
                                               const dict_index_t *index,
-#endif /* UNIV_DEBUG */
                                               mtr_t *mtr);
 #endif /* !UNIV_HOTBACKUP */
->>>>>>> mysql-8.0.26
 
 /** Gets a buffer page and declares its latching order level.
 @param page_id Tablespace/page identifier

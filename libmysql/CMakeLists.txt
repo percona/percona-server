@@ -273,24 +273,14 @@ ENDIF()
 # LDAP authentication SASL client plug-in
 ADD_SUBDIRECTORY(authentication_ldap)
 
-<<<<<<< HEAD
-# Merge several convenience libraries into one big perconaserverclient
-MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(perconaserverclient PRIVATE ${LIBS_TO_LINK})
-||||||| 98b2ccb470d
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
-=======
 # authentication kerberos client plug-in
 ADD_SUBDIRECTORY(authentication_kerberos)
 
 # Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
+MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
   COMPONENT Development
   LINK_LIBRARIES ${LIBS_TO_LINK}
   )
->>>>>>> mysql-8.0.26
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
@@ -323,11 +313,6 @@ IF(UNIX)
   ENDMACRO()
 ENDIF()
 
-<<<<<<< HEAD
-# Merge several convenience libraries into one big perconaserverclient
-||||||| 98b2ccb470d
-# Merge several convenience libraries into one big mysqlclient
-=======
 IF(UNIX)
   SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
   IF(NOT FREEBSD AND NOT APPLE)
@@ -340,8 +325,7 @@ IF(UNIX)
   SET(UNIX_SOVERSION   SOVERSION   "${SHARED_LIB_MAJOR_VERSION}")
 ENDIF()
 
-# Merge several convenience libraries into one big mysqlclient
->>>>>>> mysql-8.0.26
+# Merge several convenience libraries into one big perconaserverclient
 # and link them together into shared library.
 MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   EXPORTS
@@ -361,54 +345,6 @@ IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
 ENDIF()
 
 IF(UNIX)
-<<<<<<< HEAD
-  # libtool compatability
-  IF(FREEBSD OR APPLE)
-    SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-  ELSE()
-    SET(OS_SHARED_LIB_VERSION
-      "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-  ENDIF()
-  # Name of shared library is perconaserverclient on Unix
-  SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-    OUTPUT_NAME perconaserverclient 
-    VERSION "${OS_SHARED_LIB_VERSION}" 
-    SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-  CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-
-  IF(APPLE)
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES
-      MACOSX_RPATH ON 
-      )
-  ENDIF()
-
-  ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
-
-||||||| 98b2ccb470d
-  # libtool compatability
-  IF(FREEBSD OR APPLE)
-    SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-  ELSE()
-    SET(OS_SHARED_LIB_VERSION
-      "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-  ENDIF()
-  # Name of shared library is mysqlclient on Unix
-  SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-    OUTPUT_NAME mysqlclient 
-    VERSION "${OS_SHARED_LIB_VERSION}" 
-    SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-  CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-
-  IF(APPLE)
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES
-      MACOSX_RPATH ON 
-      )
-  ENDIF()
-
-  ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
-
-=======
->>>>>>> mysql-8.0.26
   IF(LINK_FLAG_Z_DEFS)
     MY_TARGET_LINK_OPTIONS(libmysql "LINKER:${LINK_FLAG_Z_DEFS}")
   ENDIF()

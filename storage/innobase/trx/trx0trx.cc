@@ -1224,7 +1224,7 @@ static void trx_assign_id_for_rw(trx_t *trx) {
   ut_ad(mutex_own(&trx_sys->mutex));
 
   trx->id =
-      trx->preallocated_id ? trx->preallocated_id : trx_sys_get_new_trx_id();
+      trx->preallocated_id ? trx->preallocated_id : trx_sys_allocate_trx_id();
 
   if (trx->preallocated_id) {
     // Maintain ordering in rw_trx_ids
@@ -1250,17 +1250,7 @@ void trx_assign_rseg_temp(trx_t *trx) {
   if (trx->id == 0) {
     trx_sys_mutex_enter();
 
-<<<<<<< HEAD
     trx_assign_id_for_rw(trx);
-||||||| 98b2ccb470d
-    trx->id = trx_sys_get_new_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
-=======
-    trx->id = trx_sys_allocate_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
->>>>>>> mysql-8.0.26
 
     trx_sys_mutex_exit();
 
@@ -1375,17 +1365,7 @@ static void trx_start_low(
 
     trx_sys_mutex_enter();
 
-<<<<<<< HEAD
     trx_assign_id_for_rw(trx);
-||||||| 98b2ccb470d
-    trx->id = trx_sys_get_new_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
-=======
-    trx->id = trx_sys_allocate_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
->>>>>>> mysql-8.0.26
 
     ut_ad(trx->rsegs.m_redo.rseg != nullptr || srv_read_only_mode ||
           srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
@@ -1413,19 +1393,8 @@ static void trx_start_low(
 
         ut_ad(!srv_read_only_mode);
 
-<<<<<<< HEAD
-        trx_assign_id_for_rw(trx);
-||||||| 98b2ccb470d
-        trx->id = trx_sys_get_new_trx_id();
-
-        trx_sys->rw_trx_ids.push_back(trx->id);
-=======
         trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
-
-        trx->id = trx_sys_allocate_trx_id();
->>>>>>> mysql-8.0.26
-
-        trx_sys->rw_trx_ids.push_back(trx->id);
+        trx_assign_id_for_rw(trx);
 
         trx_sys_mutex_exit();
 
@@ -3411,34 +3380,10 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
 
   trx_sys_mutex_enter();
 
-<<<<<<< HEAD
   trx_assign_id_for_rw(trx);
-||||||| 98b2ccb470d
-  ut_ad(trx->id == 0);
-  trx->id = trx_sys_get_new_trx_id();
-
-  trx_sys->rw_trx_ids.push_back(trx->id);
-=======
-  ut_ad(trx->id == 0);
-  trx->id = trx_sys_allocate_trx_id();
-
-  trx_sys->rw_trx_ids.push_back(trx->id);
->>>>>>> mysql-8.0.26
-
-<<<<<<< HEAD
-  trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
 
   /* So that we can see our own changes unless our view is a clone */
   if (MVCC::is_view_active(trx->read_view) && !trx->read_view->is_cloned()) {
-||||||| 98b2ccb470d
-  trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
-
-  /* So that we can see our own changes. */
-  if (MVCC::is_view_active(trx->read_view)) {
-=======
-  /* So that we can see our own changes. */
-  if (MVCC::is_view_active(trx->read_view)) {
->>>>>>> mysql-8.0.26
     MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
   }
   trx_add_to_rw_trx_list(trx);

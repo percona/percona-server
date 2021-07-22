@@ -29,39 +29,9 @@ Expect 1
 include/assert.inc [@@global.max_connections = @start_max_connections]
 include/restart_slave.inc
 include/assert.inc [@@global.max_connections = @start_max_connections + 1]
-<<<<<<< HEAD:mysql-test/suite/sys_vars/r/rpl_init_slave_func.result
-SET @@global.init_slave = "SET @a=5";
-include/restart_slave.inc
-SHOW VARIABLES LIKE 'init_slave';
-||||||| 98b2ccb470d:mysql-test/suite/sys_vars/r/rpl_init_slave_func.result
-SET @@global.init_slave = "SET @a=5";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-RESET MASTER;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_to_start.inc
-SHOW VARIABLES LIKE 'init_slave';
-=======
 SET @@global.init_replica = "SET @a=5";
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-RESET MASTER;
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_to_start.inc
+include/restart_slave.inc
 SHOW VARIABLES LIKE 'init_replica';
->>>>>>> mysql-8.0.26:mysql-test/suite/sys_vars/r/rpl_init_replica_func.result
 Variable_name	Value
 init_replica	SET @a=5
 SELECT @a;

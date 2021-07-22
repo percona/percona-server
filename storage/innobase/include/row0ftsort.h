@@ -126,17 +126,11 @@ struct fts_tokenize_ctx {
   ib_rbt_t *cached_stopword{nullptr}; /*!< in: stopword list */
   dfield_t sort_field[FTS_NUM_FIELDS_SORT];
   /*!< in: sort field */
-<<<<<<< HEAD
-  fts_token_list_t fts_token_list;
+  fts_token_list_t fts_token_list{};
   bool ignore_stopwords;
   /*!< in: true if token
   stopwords checking should be
   skipped */
-||||||| 98b2ccb470d
-  fts_token_list_t fts_token_list;
-=======
-  fts_token_list_t fts_token_list{};
->>>>>>> mysql-8.0.26
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;

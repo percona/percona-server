@@ -1331,20 +1331,10 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
 Ignore system and file-per-table tablespaces.
 If it is valid, add it to the file_system list.
 @param[in]	validate	true when the previous shutdown was not clean
-<<<<<<< HEAD
 @return first  - true if there is tablespace KEYRING v1 encrypted,
                  false if not.
         second - the highest space ID found. */
-UNIV_INLINE
-std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
-||||||| 98b2ccb470d
-@return the highest space ID found. */
-UNIV_INLINE
-space_id_t dict_check_sys_tablespaces(bool validate) {
-=======
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tablespaces(bool validate) {
->>>>>>> mysql-8.0.26
+static inline std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -1512,20 +1502,10 @@ already been added to the fil_system.  If it is valid, add it to the
 file_system list.  Perform extra validation on the table if recovery from
 the REDO log occurred.
 @param[in]	validate	Whether to do validation on the table.
-<<<<<<< HEAD
 @return first  - true if there is tablespace KEYRING v1 encrypted,
                  false if not.
         second - the highest space ID found. */
-UNIV_INLINE
-std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
-||||||| 98b2ccb470d
-@return the highest space ID found. */
-UNIV_INLINE
-space_id_t dict_check_sys_tables(bool validate) {
-=======
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tables(bool validate) {
->>>>>>> mysql-8.0.26
+static inline std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -3209,8 +3189,7 @@ bool dict_load_tablespaces_for_upgrade() {
   std::tie(has_keyring_v1_encrypted_table, std::ignore) =
       dict_check_sys_tables(false);
 
-<<<<<<< HEAD
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   return has_keyring_v1_encrypted_tablespace || has_keyring_v1_encrypted_table;
 }
@@ -3291,7 +3270,7 @@ static bool dict_load_table_id_on_index_id(space_index_t index_id,
 dict_table_t *dict_table_open_on_index_id(space_index_t index_id,
                                           bool dict_locked) {
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -3305,12 +3284,7 @@ dict_table_t *dict_table_open_on_index_id(space_index_t index_id,
   }
 
   if (!dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
   return table;
-||||||| 98b2ccb470d
-  mutex_exit(&dict_sys->mutex);
-=======
-  dict_sys_mutex_exit();
->>>>>>> mysql-8.0.26
 }

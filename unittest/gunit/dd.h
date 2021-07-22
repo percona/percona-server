@@ -82,7 +82,6 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
       : Base_mock_HANDLER(hton, share) {}
 
-<<<<<<< HEAD
   ~Mock_dd_HANDLER() override {}
 
   /* Real DD handlers use InnoDB which supports gap locks.
@@ -94,11 +93,6 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
    * Whithout this, above fix interferes with unit tests.
    */
   bool has_gap_locks() const noexcept override { return true; }
-||||||| 98b2ccb470d
-  virtual ~Mock_dd_HANDLER() {}
-=======
-  virtual ~Mock_dd_HANDLER() = default;
->>>>>>> mysql-8.0.26
 };
 
 /**

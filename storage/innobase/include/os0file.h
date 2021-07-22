@@ -1245,22 +1245,10 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-<<<<<<< HEAD
-UNIV_INLINE
-dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
+static inline dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
                               pfs_os_file_t file, void *buf, os_offset_t offset,
                               ulint n, trx_t *trx, const char *src_file,
                               uint src_line);
-||||||| 98b2ccb470d
-UNIV_INLINE
-dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
-                              pfs_os_file_t file, void *buf, os_offset_t offset,
-                              ulint n, const char *src_file, uint src_line);
-=======
-static inline dberr_t pfs_os_file_read_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    os_offset_t offset, ulint n, const char *src_file, uint src_line);
->>>>>>> mysql-8.0.26
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1276,22 +1264,10 @@ of page 0 of IBD file
 @param[in]	src_line	line where the func invoked
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
-<<<<<<< HEAD
-UNIV_INLINE
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
+static inline dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
                                          pfs_os_file_t file, void *buf, ulint n,
                                          const char *src_file, uint src_line,
                                          bool exit_on_err);
-||||||| 98b2ccb470d
-UNIV_INLINE
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                         pfs_os_file_t file, void *buf, ulint n,
-                                         const char *src_file, uint src_line);
-=======
-static inline dberr_t pfs_os_file_read_first_page_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    ulint n, const char *src_file, uint src_line);
->>>>>>> mysql-8.0.26
 
 /** copy data from one file to another file. Data is read/written
 at current file offset.
@@ -1375,26 +1351,11 @@ an asynchronous I/O operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
-<<<<<<< HEAD
-UNIV_INLINE
-dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
+static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
                         pfs_os_file_t file, void *buf, os_offset_t offset,
                         ulint n, bool read_only, fil_node_t *m1, void *m2,
                         space_id_t space_id, trx_t *trx, bool should_buffer,
                         const char *src_file, uint src_line);
-||||||| 98b2ccb470d
-UNIV_INLINE
-dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode, const char *name,
-                        pfs_os_file_t file, void *buf, os_offset_t offset,
-                        ulint n, bool read_only, fil_node_t *m1, void *m2,
-                        const char *src_file, uint src_line);
-=======
-static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
-                                      const char *name, pfs_os_file_t file,
-                                      void *buf, os_offset_t offset, ulint n,
-                                      bool read_only, fil_node_t *m1, void *m2,
-                                      const char *src_file, uint src_line);
->>>>>>> mysql-8.0.26
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
 this function!

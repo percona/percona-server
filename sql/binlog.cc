@@ -8176,28 +8176,14 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
   assert(opt_bin_log);
   /*
     The applier thread explicitly overrides the value of sql_log_bin
-<<<<<<< HEAD
-    with the value of log_slave_updates.
+    with the value of log_replica_updates.
     We may also end up here in some cases if we have a transaction with two
     active transactional storage engines, such as is the case if this is a
-    replication applier and log_slave_updates=0.
-||||||| 98b2ccb470d
-    with the value of log_slave_updates.
-=======
-    with the value of log_replica_updates.
->>>>>>> mysql-8.0.26
+    replication applier and log_replica_updates=0.
   */
-<<<<<<< HEAD
-  assert((thd->slave_thread ? opt_log_slave_updates
+  assert((thd->slave_thread ? opt_log_replica_updates
                             : thd->variables.sql_log_bin) ||
          total_ha_2pc > 1);
-||||||| 98b2ccb470d
-  assert(thd->slave_thread ? opt_log_slave_updates
-                           : thd->variables.sql_log_bin);
-=======
-  assert(thd->slave_thread ? opt_log_replica_updates
-                           : thd->variables.sql_log_bin);
->>>>>>> mysql-8.0.26
 
   /*
     Set HA_IGNORE_DURABILITY to not flush the prepared record of the

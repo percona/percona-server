@@ -23,14 +23,6 @@
 # ========
 #
 # Commit order deadlock occurs only when MTS + LOGICAL CLOCK are enabled.
-<<<<<<< HEAD:mysql-test/suite/rpl/t/rpl_mts_slave_preserve_commit_order_deadlock_error.test
-||||||| 98b2ccb470d:mysql-test/suite/rpl/t/rpl_mts_slave_preserve_commit_order_deadlock_error.test
---source include/only_mts_slave_parallel_type_logical_clock.inc
---source include/only_mts_slave_parallel_workers.inc
-=======
---source include/only_mts_replica_parallel_type_logical_clock.inc
---source include/only_mts_replica_parallel_workers.inc
->>>>>>> mysql-8.0.26:mysql-test/suite/rpl/t/rpl_mts_replica_preserve_commit_order_deadlock_error.test
 --source include/have_binlog_format_statement.inc
 --source include/have_debug.inc
 --source include/master-slave.inc

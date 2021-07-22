@@ -746,7 +746,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
       ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
                               << " successfully, encryption"
                               << " of this tablespace enabled.";
-<<<<<<< HEAD
+      m_encryption_master_key_id = e_key.m_master_key_id;
+
       if (recv_recovery_is_on() &&
           memcmp(m_encryption_key, m_encryption_iv, Encryption::KEY_LEN) == 0) {
         ut_free(m_encryption_key);
@@ -754,10 +755,6 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
         m_encryption_key = nullptr;
         m_encryption_iv = nullptr;
       }
-||||||| 98b2ccb470d
-=======
-      m_encryption_master_key_id = e_key.m_master_key_id;
->>>>>>> mysql-8.0.26
     }
   }
 

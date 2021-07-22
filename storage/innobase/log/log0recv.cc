@@ -4000,25 +4000,9 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 @return recovered persistent metadata or nullptr if aborting*/
 MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
                                                       bool aborting) {
-<<<<<<< HEAD
-||||||| 98b2ccb470d
-  /* Make sure that the recv_writer thread is done. This is
-  required because it grabs various mutexes and we want to
-  ensure that when we enable sync_order_checks there is no
-  mutex currently held by any thread. */
-  mutex_enter(&recv_sys->writer_mutex);
-
-=======
-  /* Make sure that the recv_writer thread is done. This is
-  required because it grabs various mutexes and we want to
-  ensure that when we enable sync_order_checks there is no
-  mutex currently held by any thread. */
-  mutex_enter(&recv_sys->writer_mutex);
-
   /* Restore state. */
   if (recv_sys->is_meb_recovery) dblwr::enabled = recv_sys->dblwr_state;
 
->>>>>>> mysql-8.0.26
   /* Free the resources of the recovery system */
   recv_recovery_on = false;
 

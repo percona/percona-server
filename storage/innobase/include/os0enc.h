@@ -229,17 +229,7 @@ class Encryption {
   }
 
   /** Copy constructor */
-<<<<<<< HEAD
-  Encryption(const Encryption &other) noexcept;
-||||||| 98b2ccb470d
-  Encryption(const Encryption &other) noexcept
-      : m_type(other.m_type),
-        m_key(other.m_key),
-        m_klen(other.m_klen),
-        m_iv(other.m_iv) {}
-=======
   Encryption(const Encryption &other) noexcept = default;
->>>>>>> mysql-8.0.26
 
   Encryption &operator=(const Encryption &other) noexcept {
     Encryption tmp(other);

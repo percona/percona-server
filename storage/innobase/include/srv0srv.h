@@ -955,13 +955,9 @@ extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 extern mysql_pfs_key_t parallel_read_thread_key;
-<<<<<<< HEAD
+extern mysql_pfs_key_t parallel_rseg_init_thread_key;
 extern mysql_pfs_key_t srv_log_tracking_thread_key;
 extern mysql_pfs_key_t log_scrub_thread_key;
-||||||| 98b2ccb470d
-=======
-extern mysql_pfs_key_t parallel_rseg_init_thread_key;
->>>>>>> mysql-8.0.26
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 

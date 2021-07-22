@@ -18,7 +18,7 @@
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // check_global_access

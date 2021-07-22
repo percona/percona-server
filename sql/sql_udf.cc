@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2021, Percona and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,8 +186,24 @@ void udf_init()
     DBUG_PRINT("info",("init udf record"));
     LEX_STRING name;
     name.str=get_field(&mem, table->field[0]);
+
+    // Check the name.str is NULL or not.
+    if (name.str == NULL)
+    {
+      sql_print_error("Invalid row in mysql.func table for column 'name'");
+      continue;
+    }
+
     name.length = (uint) strlen(name.str);
     char *dl_name= get_field(&mem, table->field[2]);
+
+    if (dl_name == NULL)
+    {
+      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
+                      name.str);
+      continue;
+    }
+
     bool new_dl=0;
     Item_udftype udftype=UDFTYPE_FUNCTION;
     if (table->s->fields >= 4)			// New func table

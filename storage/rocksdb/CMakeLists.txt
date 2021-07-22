@@ -179,9 +179,7 @@ IF(BUILD_BUNDLED_ZSTD)
 ENDIF()
 
 # add bundled compression code
-SET(ZSTD_SOURCES
-  ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
-)
+SET(ZSTD_SOURCES ${BUNDLED_LZ4_PATH}/xxhash.c)
 
 IF(DEFINED WITH_UBSAN)
   add_definitions(-DROCKSDB_UBSAN_RUN)

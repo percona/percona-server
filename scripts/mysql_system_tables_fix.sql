@@ -1455,17 +1455,13 @@ DROP PREPARE stmt;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
-<<<<<<< HEAD
+ALTER TABLE mysql.replication_group_member_actions TABLESPACE = mysql;
 
 SET @str="ALTER TABLE mysql.gtid_executed ENCRYPTION='Y'";
 SET @cmd = IF(STRCMP(@is_mysql_encrypted,'Y'), 'SET @dummy = 0', @str);
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
-||||||| 98b2ccb470d
-=======
-ALTER TABLE mysql.replication_group_member_actions TABLESPACE = mysql;
->>>>>>> mysql-8.0.26
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 
 SET @str="ALTER TABLE mysql.server_cost ENCRYPTION='Y'";

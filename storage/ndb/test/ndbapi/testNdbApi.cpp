@@ -2391,16 +2391,8 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
       trans->close();
 
       /* Now read back */
-<<<<<<< HEAD
-      memset(attrRowBuf, 0, sizeOfTabRec);
-
-||||||| 98b2ccb470d
-      memset(attrRowBuf, 0, sizeOfTabRec);
-      
-=======
       std::memset(attrRowBuf, 0, sizeOfTabRec);
-      
->>>>>>> mysql-8.0.26
+
       Uint32 pkVal= 0;
       memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
                                                 keyRowBuf,
@@ -2796,16 +2788,8 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     /* Check key and data read */
     CHECK(memcmp(ucPkPtr, readPkPtr, ucPkPtr[0]) == 0);
     CHECK(memcmp(ucDataPtr, readDataPtr, sizeof(int)) == 0);
-<<<<<<< HEAD
 
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-||||||| 98b2ccb470d
-    
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-=======
-    
     std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
->>>>>>> mysql-8.0.26
 
     /* Read with lower case */
     trans=pNdb->startTransaction();
@@ -2821,16 +2805,8 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     /* Check key and data read */
     CHECK(memcmp(ucPkPtr, readPkPtr, ucPkPtr[0]) == 0);
     CHECK(memcmp(ucDataPtr, readDataPtr, sizeof(int)) == 0);
-<<<<<<< HEAD
 
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-||||||| 98b2ccb470d
-    
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-=======
-    
     std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
->>>>>>> mysql-8.0.26
 
     /* Now update just the PK column to lower case */
     trans= pNdb->startTransaction();
@@ -2847,16 +2823,8 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     trans->close();
 
     /* Now check that we can read with the upper case key */
-<<<<<<< HEAD
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-
-||||||| 98b2ccb470d
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-    
-=======
     std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-    
->>>>>>> mysql-8.0.26
+
     trans=pNdb->startTransaction();
     CHECK(trans != 0);
     op= trans->readTuple(tabRec,
@@ -2872,16 +2840,8 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(lcDataPtr, readDataPtr, sizeof(int)) == 0);
 
     /* Now check that we can read with the lower case key */
-<<<<<<< HEAD
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-
-||||||| 98b2ccb470d
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-    
-=======
     std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-    
->>>>>>> mysql-8.0.26
+
     trans=pNdb->startTransaction();
     CHECK(trans != 0);
     op= trans->readTuple(tabRec,
@@ -3287,16 +3247,8 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
   restarter.insertErrorInAllNodes(8078);
 
   /* Wait a little longer */
-<<<<<<< HEAD
-  sleep(1);
-
-||||||| 98b2ccb470d
-  sleep(1);
-  
-=======
   NdbSleep_SecSleep(1);
-  
->>>>>>> mysql-8.0.26
+
   /* Now cause our connection to disconnect
    * This results in TC receiving an API_FAILREQ
    * If there's an issue with API_FAILREQ 'cleanly'

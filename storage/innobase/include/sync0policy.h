@@ -346,13 +346,7 @@ class AggregateMutexStatsPolicy
   }
 
   /** Destructor */
-<<<<<<< HEAD
-  ~AggregateMutexStatsPolicy() {}
-||||||| 98b2ccb470d
-  ~BlockMutexPolicy() {}
-=======
-  ~BlockMutexPolicy() = default;
->>>>>>> mysql-8.0.26
+  ~AggregateMutexStatsPolicy() = default;
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.

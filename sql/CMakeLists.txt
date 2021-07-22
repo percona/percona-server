@@ -902,16 +902,6 @@ IF(MY_COMPILER_IS_SUNPRO)
     COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
 ENDIF()
 
-<<<<<<< HEAD
-# segfault in boost geometry ....
-IF(SOLARIS AND MY_COMPILER_IS_GNU AND
-    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-  ADD_COMPILE_FLAGS(
-    ${SQL_GIS_SOURCES}
-    COMPILE_FLAGS "-O0"
-    )
-ENDIF()
-
 # Suppress warnings for gcc-11 or newer
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-mismatched-new-delete FILES sql_cursor.cc sql_prepare.cc)
@@ -919,18 +909,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
-||||||| 98b2ccb470d
-# segfault in boost geometry ....
-IF(SOLARIS AND MY_COMPILER_IS_GNU AND
-    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-  ADD_COMPILE_FLAGS(
-    ${SQL_GIS_SOURCES}
-    COMPILE_FLAGS "-O0"
-    )
-ENDIF()
-
-=======
->>>>>>> mysql-8.0.26
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)

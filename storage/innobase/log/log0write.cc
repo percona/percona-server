@@ -2945,7 +2945,7 @@ bool log_read_encryption() {
     existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
     /* Make sure the keyring is loaded. */
     if (!Encryption::check_keyring()) {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::error() << "Redo log was encrypted, but keyring is not loaded.";
       return (false);
     }
@@ -2981,8 +2981,8 @@ bool log_read_encryption() {
 
     Encryption_key e_key{key, iv};
     if (Encryption::decode_encryption_info(
-<<<<<<< HEAD
-            key, iv, log_block_buf + LOG_HEADER_CREATOR_END, true)) {
+            log_space_id, e_key, log_block_buf + LOG_HEADER_CREATOR_END,
+            true)) {
       encrypted_log = true;
       encryption_type = Encryption::AES;
     }
@@ -3017,7 +3017,7 @@ bool log_read_encryption() {
     space->encryption_redo_key_uuid.reset(
         new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
     if (space->encryption_redo_key_uuid.get() == nullptr) {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::error() << "Out of memory. Can't set redo log tablespace"
                   << " encryption metadata.";
       return (false);
@@ -3025,72 +3025,18 @@ bool log_read_encryption() {
     memcpy(space->encryption_redo_key_uuid.get(), uuid,
            Encryption::SERVER_UUID_LEN + 1);
     if (err == DB_SUCCESS) {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::info() << "Read redo log encryption"
                  << " metadata successful.";
       return (true);
-||||||| 98b2ccb470d
-            key, iv, log_block_buf + LOG_HEADER_CREATOR_END, true)) {
-      /* If redo log encryption is enabled, set the
-      space flag. Otherwise, we just fill the encryption
-      information to space object for decrypting old
-      redo log blocks. */
-      fsp_flags_set_encryption(space->flags);
-      err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-
-      if (err == DB_SUCCESS) {
-        ut_free(log_block_buf_ptr);
-        ib::info(ER_IB_MSG_1239) << "Read redo log encryption"
-                                 << " metadata successful.";
-        return (true);
-      } else {
-        ut_free(log_block_buf_ptr);
-        ib::error(ER_IB_MSG_1240) << "Can't set redo log tablespace"
-                                  << " encryption metadata.";
-        return (false);
-      }
-=======
-            log_space_id, e_key, log_block_buf + LOG_HEADER_CREATOR_END,
-            true)) {
-      /* If redo log encryption is enabled, set the
-      space flag. Otherwise, we just fill the encryption
-      information to space object for decrypting old
-      redo log blocks. */
-      fsp_flags_set_encryption(space->flags);
-      err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-
-      if (err == DB_SUCCESS) {
-        ut::aligned_free(log_block_buf);
-        ib::info(ER_IB_MSG_1239) << "Read redo log encryption"
-                                 << " metadata successful.";
-        return (true);
-      } else {
-        ut::aligned_free(log_block_buf);
-        ib::error(ER_IB_MSG_1240) << "Can't set redo log tablespace"
-                                  << " encryption metadata.";
-        return (false);
-      }
->>>>>>> mysql-8.0.26
     } else {
-<<<<<<< HEAD
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::error(ER_IB_MSG_1241) << "Can't set redo log tablespace"
                                 << " encryption metadata.";
-||||||| 98b2ccb470d
-      ut_free(log_block_buf_ptr);
-      ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
-                                   " information in log file header, please"
-                                   " check if keyring is loaded.";
-=======
-      ut::aligned_free(log_block_buf);
-      ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
-                                   " information in log file header, please"
-                                   " check if keyring is loaded.";
->>>>>>> mysql-8.0.26
       return (false);
     }
   } else if (encryption_magic) {
-    ut_free(log_block_buf_ptr);
+    ut::aligned_free(log_block_buf);
     ib::error() << "Cannot read the encryption"
                    " information in log file header, please"
                    " check if keyring plugin loaded and"
@@ -3148,7 +3094,6 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot,
     version = space->encryption_key_version;
   }
 
-<<<<<<< HEAD
   if (redo_log_encrypt == REDO_LOG_ENCRYPT_MK ||
       redo_log_encrypt == REDO_LOG_ENCRYPT_ON ||
       existing_redo_encryption_mode == REDO_LOG_ENCRYPT_MK) {
@@ -3156,7 +3101,7 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot,
     ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_RK);
     if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot,
                                          true)) {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       return (false);
     }
 
@@ -3167,20 +3112,11 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot,
     ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_MK);
     ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_MK);
     if (!log_file_header_fill_encryption(log_block_buf, version, iv)) {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       return (false);
     }
 
     existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
-||||||| 98b2ccb470d
-  if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot, true)) {
-    ut_free(log_block_buf_ptr);
-    return (false);
-=======
-  if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot, true)) {
-    ut::aligned_free(log_block_buf);
-    return (false);
->>>>>>> mysql-8.0.26
   }
 
   auto err = fil_redo_io(IORequestLogWrite, page_id, univ_page_size,
@@ -3205,7 +3141,6 @@ bool log_rotate_encryption() {
       static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt)));
 }
 
-<<<<<<< HEAD
 void log_check_new_key_version() {
   const space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
   fil_space_t *space = fil_space_get(log_space_id);
@@ -3264,27 +3199,6 @@ void log_rotate_default_key() {
   }
 }
 
-||||||| 98b2ccb470d
-void redo_rotate_default_master_key() {
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-
-  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
-    return;
-  }
-
-  /* If the redo log space is using default key, rotate it.
-  We also need the server_uuid initialized. */
-  if (space->encryption_type != Encryption::NONE &&
-      Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID &&
-      !srv_read_only_mode && strlen(server_uuid) > 0) {
-    ut_a(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    log_write_encryption(nullptr, nullptr, false);
-  }
-}
-
-=======
->>>>>>> mysql-8.0.26
 /** @} */
 
 uint srv_redo_log_key_version = 0;

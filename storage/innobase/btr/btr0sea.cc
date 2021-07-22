@@ -352,18 +352,12 @@ void btr_search_enable(bool need_dict_mutex) {
   Ignore it sliently.  */
   if (srv_buf_pool_old_size != srv_buf_pool_size) return;
 
-<<<<<<< HEAD
   if (need_dict_mutex) {
     mutex_enter(&dict_sys->mutex);
   }
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  btr_search_x_lock_all();
-||||||| 98b2ccb470d
-  btr_search_x_lock_all();
-=======
   btr_search_x_lock_all(UT_LOCATION_HERE);
->>>>>>> mysql-8.0.26
   btr_search_enabled = true;
 
   if (need_dict_mutex) {

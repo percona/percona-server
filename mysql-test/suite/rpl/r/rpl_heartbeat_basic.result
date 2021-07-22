@@ -79,16 +79,8 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 
-<<<<<<< HEAD
 *** CHANGE REPLICATION SOURCE statement only updates slave_heartbeat_period ***
-SET @@global.slave_net_timeout=20;
-||||||| 98b2ccb470d
-*** CHANGE MASTER statement only updates slave_heartbeat_period ***
-SET @@global.slave_net_timeout=20;
-=======
-*** CHANGE MASTER statement only updates slave_heartbeat_period ***
 SET @@global.replica_net_timeout=20;
->>>>>>> mysql-8.0.26
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

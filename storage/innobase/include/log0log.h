@@ -904,16 +904,9 @@ redo log file header.
 @return true if success. */
 bool log_rotate_encryption();
 
-<<<<<<< HEAD
 /* Checks if there is a new redo key when using keyring encryption. */
 void log_check_new_key_version();
 
-||||||| 98b2ccb470d
-/** Rotate default master key for redo log encryption. */
-void redo_rotate_default_master_key();
-
-=======
->>>>>>> mysql-8.0.26
 /** Computes lsn up to which sync flush should be done or returns 0
 if there is no need to execute sync flush now.
 @param[in,out]  log  redo log

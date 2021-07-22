@@ -203,12 +203,8 @@ mysql_pfs_key_t srv_log_tracking_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
-<<<<<<< HEAD
 mysql_pfs_key_t log_scrub_thread_key;
-||||||| 98b2ccb470d
-=======
 mysql_pfs_key_t parallel_rseg_init_thread_key;
->>>>>>> mysql-8.0.26
 #endif /* UNIV_PFS_THREAD */
 
 int unlock_keyrings(THD *thd);
@@ -761,38 +757,26 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
 
   /* Return if the encryption metadata is empty. */
   if (memcmp(first_page + offset, Encryption::KEY_MAGIC_V3,
-<<<<<<< HEAD
              Encryption::MAGIC_SIZE) != 0 &&
       /* PS 5.7 undo encryption upgrade */
       !(srv_is_upgrade_mode &&
         memcmp(first_page + offset, Encryption::KEY_MAGIC_V2,
                Encryption::MAGIC_SIZE) == 0) &&
       (crypt_data == nullptr || crypt_data->min_key_version == 0)) {
-    ut_free(first_page_buf);
-||||||| 98b2ccb470d
-             Encryption::MAGIC_SIZE) != 0) {
-    ut_free(first_page_buf);
-=======
-             Encryption::MAGIC_SIZE) != 0) {
     ut::aligned_free(first_page);
->>>>>>> mysql-8.0.26
     return (DB_SUCCESS);
   }
 
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
-<<<<<<< HEAD
+
+  Encryption_key e_key{key, iv};
+
   if (crypt_data) {
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::KEYRING, NULL,
                              crypt_data->iv);
-  } else if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
-||||||| 98b2ccb470d
-  if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
-=======
-  Encryption_key e_key{key, iv};
-  if (fsp_header_get_encryption_key(space->flags, e_key, first_page)) {
->>>>>>> mysql-8.0.26
+  } else if (fsp_header_get_encryption_key(space->flags, e_key, first_page)) {
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);
@@ -2906,12 +2890,11 @@ files_checked:
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
-<<<<<<< HEAD
-        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
         if (space == nullptr) {
           Keyring_encryption_info keyring_encryption_info;
           dberr_t error = fil_ibd_open(
-              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
               predefined_flags, dict_sys_t::s_dd_space_name,
               dict_sys_t::s_dd_space_file_name, true, false,
               keyring_encryption_info);
@@ -2921,28 +2904,6 @@ files_checked:
           }
         } else {
           fil_space_release(space);
-||||||| 98b2ccb470d
-      fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
-      if (space == nullptr) {
-        dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-                         predefined_flags, dict_sys_t::s_dd_space_name,
-                         dict_sys_t::s_dd_space_file_name, true, false);
-        if (error != DB_SUCCESS) {
-          ib::error(ER_IB_MSG_1142);
-          return (srv_init_abort(DB_ERROR));
-=======
-      fil_space_t *space =
-          fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
-      if (space == nullptr) {
-        dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
-                         predefined_flags, dict_sys_t::s_dd_space_name,
-                         dict_sys_t::s_dd_space_file_name, true, false);
-        if (error != DB_SUCCESS) {
-          ib::error(ER_IB_MSG_1142);
-          return (srv_init_abort(DB_ERROR));
->>>>>>> mysql-8.0.26
         }
 
       dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
@@ -3079,7 +3040,6 @@ files_checked:
       return (srv_init_abort(err));
     }
 
-<<<<<<< HEAD
     if (srv_undo_log_encrypt) {
       err = check_mk_and_keyring_encrypt_exclusion_for_undo(false, nullptr);
     }
@@ -3088,13 +3048,10 @@ files_checked:
       return (srv_init_abort(err));
     }
 
-||||||| 98b2ccb470d
-=======
     trx_purge_sys_mem_create();
 
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys is inited. */
->>>>>>> mysql-8.0.26
     purge_queue = trx_sys_init_at_db_start();
 
     if (srv_is_upgrade_mode) {

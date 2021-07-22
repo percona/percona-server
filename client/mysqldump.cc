@@ -370,7 +370,6 @@ static struct my_option my_long_options[] = {
      "Option automatically turns --lock-tables off.",
      &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
      MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
-<<<<<<< HEAD
     {"enable-compressed-columns", OPT_ENABLE_COMPRESSED_COLUMNS,
      "Enable compressed columns extensions.", &opt_compressed_columns,
      &opt_compressed_columns, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
@@ -381,14 +380,11 @@ static struct my_option my_long_options[] = {
      &opt_compressed_columns_with_dictionaries,
      &opt_compressed_columns_with_dictionaries, nullptr, GET_BOOL, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr},
-||||||| 98b2ccb470d
-=======
     {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED,
      "This option is deprecated and will be removed in a future version. "
      "Use dump-replica instead.",
      &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
      MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
->>>>>>> mysql-8.0.26
     {"events", 'E', "Dump events.", &opt_events, &opt_events, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"extended-insert", 'e',
@@ -1600,7 +1596,6 @@ static char *cover_definer_clause(char *stmt_str, size_t stmt_length,
 
   char *query_str = nullptr;
   char *query_ptr;
-  LEX_CSTRING comment = {STRING_WITH_LEN("*/ /*!")};
 
   if (!definer_begin) return nullptr;
 
@@ -1618,23 +1613,11 @@ static char *cover_definer_clause(char *stmt_str, size_t stmt_length,
   constexpr const char comment_str[] = "*/ /*!";
 
   query_ptr = my_stpncpy(query_str, stmt_str, definer_begin - stmt_str);
-<<<<<<< HEAD
-  query_ptr = my_stpncpy(query_ptr, comment.str, comment.length + 1);
-||||||| 98b2ccb470d
-  query_ptr = my_stpncpy(query_ptr, STRING_WITH_LEN("*/ /*!"));
-=======
   query_ptr = my_stpncpy(query_ptr, comment_str, sizeof(comment_str));
->>>>>>> mysql-8.0.26
   query_ptr =
       my_stpncpy(query_ptr, definer_version_str, definer_version_length);
   query_ptr = my_stpncpy(query_ptr, definer_begin, definer_end - definer_begin);
-<<<<<<< HEAD
-  query_ptr = my_stpncpy(query_ptr, comment.str, comment.length + 1);
-||||||| 98b2ccb470d
-  query_ptr = my_stpncpy(query_ptr, STRING_WITH_LEN("*/ /*!"));
-=======
   query_ptr = my_stpncpy(query_ptr, comment_str, sizeof(comment_str));
->>>>>>> mysql-8.0.26
   query_ptr = my_stpncpy(query_ptr, stmt_version_str, stmt_version_length);
   query_ptr = strxmov(query_ptr, definer_end, NullS);
   assert(query_ptr <= query_str + stmt_length + 23);
@@ -5749,7 +5732,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   return 0;
 } /* dump_selected_tables */
 
-<<<<<<< HEAD
 static int do_show_master_status(MYSQL *mysql_con,
                                  const bool consistent_binlog_pos) {
   char binlog_pos_file[FN_REFLEN];
@@ -5760,23 +5742,6 @@ static int do_show_master_status(MYSQL *mysql_con,
       return true;
     file = binlog_pos_file;
     offset = binlog_pos_offset;
-||||||| 98b2ccb470d
-static int do_show_master_status(MYSQL *mysql_con) {
-  MYSQL_ROW row;
-  MYSQL_RES *master;
-  const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_MASTER_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS")) {
-    return 1;
-=======
-static int do_show_master_status(MYSQL *mysql_con) {
-  MYSQL_ROW row;
-  MYSQL_RES *master;
-  const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS")) {
-    return 1;
->>>>>>> mysql-8.0.26
   } else {
     MYSQL_RES *master;
     if (mysql_query_with_error_report(mysql_con, &master,
@@ -5801,7 +5766,7 @@ static int do_show_master_status(MYSQL *mysql_con) {
   }
 
   const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_MASTER_DATA_COMMENTED_SQL) ? "-- " : "";
+      (opt_master_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
 
   /* SHOW MASTER STATUS reports file and position */
   print_comment(md_result_file, 0,

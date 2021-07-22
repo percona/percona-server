@@ -3764,16 +3764,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
-<<<<<<< HEAD
-    if (p.exists(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS]) &&
-        p.get(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS],
-              &is_enc_in_progress)) {
-      ++m_n_errors;
-      break;
-    }
-
-||||||| 98b2ccb470d
-=======
     /* Do not open a discovered tablespace that is currently discarded.
     It will be opened properly when it is imported. */
     dd_space_states dd_state = dd_tablespace_get_state_enum(&p, space_id);
@@ -3782,7 +3772,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
->>>>>>> mysql-8.0.26
+    if (p.exists(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS]) &&
+        p.get(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS],
+              &is_enc_in_progress)) {
+      ++m_n_errors;
+      break;
+    }
+
     /* Get the spacename for this tablespace from the DD. */
     if (dd_tablespace->files().size() != 1 &&
         strcmp(space_name, sys_space_name) != 0) {
@@ -6019,24 +6015,12 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
   // For upgrade from 5.7, create mysql.ibd
   create |= (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
-<<<<<<< HEAD
-  ret = create ? dd_create_hardcoded(dict_sys_t::s_space_id,
+  ret = create ? dd_create_hardcoded(dict_sys_t::s_dict_space_id,
                                      dict_sys_t::s_dd_space_file_name,
                                      dd_space_flags)
-               : dd_open_hardcoded(dict_sys_t::s_space_id,
+               : dd_open_hardcoded(dict_sys_t::s_dict_space_id,
                                    dict_sys_t::s_dd_space_file_name,
                                    dd_space_flags);
-||||||| 98b2ccb470d
-  ret = create ? dd_create_hardcoded(dict_sys_t::s_space_id,
-                                     dict_sys_t::s_dd_space_file_name)
-               : dd_open_hardcoded(dict_sys_t::s_space_id,
-                                   dict_sys_t::s_dd_space_file_name);
-=======
-  ret = create ? dd_create_hardcoded(dict_sys_t::s_dict_space_id,
-                                     dict_sys_t::s_dd_space_file_name)
-               : dd_open_hardcoded(dict_sys_t::s_dict_space_id,
-                                   dict_sys_t::s_dd_space_file_name);
->>>>>>> mysql-8.0.26
 
   /* Once hardcoded tablespace mysql is created or opened,
   prepare it along with innodb system tablespace for server.
@@ -6051,17 +6035,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     snprintf(se_private_data_innodb_system, len, fmt, TRX_SYS_SPACE,
              srv_sys_space.flags(), DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
-<<<<<<< HEAD
 
-    snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_space_id,
-             dd_space_flags, DD_SPACE_CURRENT_SRV_VERSION,
-||||||| 98b2ccb470d
-    snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_space_id,
-             predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
-=======
     snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_dict_space_id,
-             predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
->>>>>>> mysql-8.0.26
+             dd_space_flags, DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
 
     const char *dd_space_options = do_encrypt ? "encryption=y" : "";
@@ -7802,15 +7778,9 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
   if (ib_table == nullptr) {
-<<<<<<< HEAD
     DEBUG_SYNC_C("ha_innobase_open");
 
-    mutex_enter(&dict_sys->mutex);
-||||||| 98b2ccb470d
-    mutex_enter(&dict_sys->mutex);
-=======
     dict_sys_mutex_enter();
->>>>>>> mysql-8.0.26
     ib_table = dict_table_check_if_in_cache_low(norm_name);
     if (ib_table != nullptr) {
       if (ib_table->is_corrupted()) {
@@ -25294,7 +25264,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(interpreter_output),
 #endif /* UNIV_DEBUG */
     MYSQL_SYSVAR(parallel_read_threads),
-<<<<<<< HEAD
+    MYSQL_SYSVAR(segment_reserve_factor),
     MYSQL_SYSVAR(corrupt_table_action),
     MYSQL_SYSVAR(parallel_doublewrite_path),
     MYSQL_SYSVAR(parallel_dblwr_encrypt),
@@ -25315,10 +25285,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(scrub_log_speed),
     MYSQL_SYSVAR(records_in_range),
     MYSQL_SYSVAR(force_index_records_in_range),
-||||||| 98b2ccb470d
-=======
-    MYSQL_SYSVAR(segment_reserve_factor),
->>>>>>> mysql-8.0.26
     nullptr};
 
 mysql_declare_plugin(innobase){

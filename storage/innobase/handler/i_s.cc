@@ -6768,21 +6768,11 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(fields[INNODB_TABLESPACES_SPACE_VERSION]->store(space_version, true));
 
-<<<<<<< HEAD
   char *filepath = nullptr;
   if (!fsp_is_system_tablespace(space_id)) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
-||||||| 98b2ccb470d
-  mutex_enter(&dict_sys->mutex);
-  char *filepath = fil_space_get_first_path(space_id);
-  mutex_exit(&dict_sys->mutex);
-=======
-  dict_sys_mutex_enter();
-  char *filepath = fil_space_get_first_path(space_id);
-  dict_sys_mutex_exit();
->>>>>>> mysql-8.0.26
+    dict_sys_mutex_exit();
 
     if (filepath == nullptr) {
       filepath = Fil_path::make_ibd_from_table_name(name);

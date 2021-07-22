@@ -100,16 +100,8 @@ disable_warnings;
 UNINSTALL PLUGIN rpl_semi_sync_replica;
 
 connection master;
-<<<<<<< HEAD
 --source include/stop_dump_threads.inc
-UNINSTALL PLUGIN rpl_semi_sync_master;
-||||||| 98b2ccb470d
-source include/stop_dump_threads.inc;
-UNINSTALL PLUGIN rpl_semi_sync_master;
-=======
-source include/stop_dump_threads.inc;
 UNINSTALL PLUGIN rpl_semi_sync_source;
->>>>>>> mysql-8.0.26
 enable_warnings;
 
 connection slave;

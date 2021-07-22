@@ -1334,14 +1334,8 @@ uint replica_rows_last_search_algorithm_used;
 ulong mts_parallel_option;
 ulong binlog_cache_size = 0;
 ulonglong max_binlog_cache_size = 0;
-<<<<<<< HEAD
-ulong slave_max_allowed_packet = 0;
 ulong net_buffer_shrink_interval = 0;
-||||||| 98b2ccb470d
-ulong slave_max_allowed_packet = 0;
-=======
 ulong replica_max_allowed_packet = 0;
->>>>>>> mysql-8.0.26
 ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
 long opt_binlog_group_commit_sync_delay = 0;
@@ -2587,17 +2581,11 @@ static void clean_up(bool print_message) {
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
-<<<<<<< HEAD
   free_global_user_stats();
   free_global_client_stats();
   free_global_thread_stats();
   free_global_table_stats();
   free_global_index_stats();
-  end_slave_list();
-||||||| 98b2ccb470d
-  end_slave_list();
-=======
->>>>>>> mysql-8.0.26
   delete binlog_filter;
   rpl_channel_filters.clean_up();
   end_ssl();
@@ -9485,7 +9473,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
-<<<<<<< HEAD
 #ifdef HAVE_POOL_OF_THREADS
 static int show_threadpool_idle_threads(THD *thd MY_ATTRIBUTE((unused)),
                                         SHOW_VAR *var, char *buff) {
@@ -9496,12 +9483,7 @@ static int show_threadpool_idle_threads(THD *thd MY_ATTRIBUTE((unused)),
 }
 #endif
 
-static int show_slave_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
-||||||| 98b2ccb470d
-static int show_slave_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
-=======
 static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
->>>>>>> mysql-8.0.26
   var->type = SHOW_INT;
   var->value = buf;
   *((int *)buf) = atomic_replica_open_temp_tables;
@@ -10069,16 +10051,8 @@ static int mysql_init_variables() {
   mqh_used = false;
   cleanup_done = 0;
   server_id_supplied = false;
-<<<<<<< HEAD
   select_errors = ha_open_options = 0;
-  atomic_slave_open_temp_tables = 0;
-||||||| 98b2ccb470d
-  test_flags = select_errors = ha_open_options = 0;
-  atomic_slave_open_temp_tables = 0;
-=======
-  test_flags = select_errors = ha_open_options = 0;
   atomic_replica_open_temp_tables = 0;
->>>>>>> mysql-8.0.26
   opt_endinfo = using_udf_functions = false;
   opt_using_transactions = false;
   set_connection_events_loop_aborted(false);

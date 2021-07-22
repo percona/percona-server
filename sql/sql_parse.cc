@@ -256,13 +256,6 @@ const std::string Command_names::m_names[] = {
     "Error"  // Last command number
 };
 
-<<<<<<< HEAD
-size_t get_command_name_len(void) {
-  return sizeof(command_name) / sizeof(command_name[0]);
-}
-
-||||||| 98b2ccb470d
-=======
 const std::string &Command_names::translate(const System_variables &sysvars) {
   terminology_use_previous::enum_compatibility_version version =
       static_cast<terminology_use_previous::enum_compatibility_version>(
@@ -285,7 +278,10 @@ const std::string &Command_names::str_global(enum_server_command cmd) {
 
 const std::string Command_names::m_replace_str{"Register Slave"};
 
->>>>>>> mysql-8.0.26
+size_t get_command_name_len(void) {
+  return sizeof(command_name) / sizeof(command_name[0]);
+}
+
 bool command_satisfy_acl_cache_requirement(unsigned command) {
   if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
       skip_grant_tables() == true)

@@ -3913,17 +3913,6 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     return;
   }
 
-<<<<<<< HEAD
-  if (table->flags2 & DICT_TF2_DISCARDED) {
-    ib::warn(ER_IB_MSG_171)
-        << "Tablespace for table " << table->name << " is set as discarded.";
-    table->ibd_file_missing = true;
-||||||| 98b2ccb470d
-  if (table->flags2 & DICT_TF2_DISCARDED) {
-    ib::warn(ER_IB_MSG_171)
-        << "Tablespace for table " << table->name << " is set as discarded.";
-    table->ibd_file_missing = TRUE;
-=======
   if (dict_table_is_discarded(table)) {
     /* If doing an IMPORT, don't report this warning. This is expected */
     if (thd_tablespace_op(current_thd) != Alter_info::ALTER_IMPORT_TABLESPACE) {
@@ -3931,8 +3920,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
           << "Tablespace for table " << table->name << " is set as discarded.";
     }
 
-    table->ibd_file_missing = TRUE;
->>>>>>> mysql-8.0.26
+    table->ibd_file_missing = true;
     return;
   }
 

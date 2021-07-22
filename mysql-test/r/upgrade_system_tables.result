@@ -53,7 +53,6 @@ include/filter_file.inc
 ########################################################################
 
 # Compare fresh and upgraded tables
-<<<<<<< HEAD
 9c9
 < #	#	columns_priv	BASE TABLE	InnoDB	#	Dynamic	83	Column privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
 ---
@@ -122,13 +121,6 @@ include/filter_file.inc
 < #	#	user	BASE TABLE	InnoDB	#	Dynamic	83	Users and global privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
 ---
 > #	#	user	BASE TABLE	InnoDB	#	Dynamic	83	Users and global privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
-||||||| 98b2ccb470d
-20c20
-< #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
----
-> #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
-=======
->>>>>>> mysql-8.0.26
 
 # Compare fresh and upgraded columns
 

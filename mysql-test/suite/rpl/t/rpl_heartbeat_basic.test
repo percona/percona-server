@@ -121,16 +121,8 @@ RESET MASTER;
 
 --echo 
 
-<<<<<<< HEAD
-# Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
---echo *** CHANGE REPLICATION SOURCE statement only updates slave_heartbeat_period ***
-||||||| 98b2ccb470d
-# Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
---echo *** CHANGE MASTER statement only updates slave_heartbeat_period ***
-=======
 # Changing of replica_net_timeout shouldn't affect to current value of slave_heartbeat_period
---echo *** CHANGE MASTER statement only updates slave_heartbeat_period ***
->>>>>>> mysql-8.0.26
+--echo *** CHANGE REPLICATION SOURCE statement only updates slave_heartbeat_period ***
 --disable_warnings
 SET @@global.replica_net_timeout=20;
 --enable_warnings
@@ -537,13 +529,7 @@ let $status_col_comparsion= >;
 #eval CHANGE REPLICATION SOURCE TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
 
 # BUG#12403008 RPL_HEARTBEAT_BASIC FAILS SPORADICALLY ON PUSHBUILD
-<<<<<<< HEAD
-# SOURCE_HEARTBEAT_PERIOD had the default value (slave_net_timeout/2)
-||||||| 98b2ccb470d
-# MASTER_HEARTBEAT_PERIOD had the default value (slave_net_timeout/2)
-=======
-# MASTER_HEARTBEAT_PERIOD had the default value (replica_net_timeout/2)
->>>>>>> mysql-8.0.26
+# SOURCE_HEARTBEAT_PERIOD had the default value (replica_net_timeout/2)
 # so wait on "Heartbeat event received on master", that only waits for
 # 1 minute, sometimes timeout before heartbeat arrives.
 --replace_column 2 ####

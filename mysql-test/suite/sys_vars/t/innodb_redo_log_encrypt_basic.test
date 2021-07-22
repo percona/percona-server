@@ -58,14 +58,9 @@ set global innodb_redo_log_encrypt=NULL;
 set global innodb_redo_log_encrypt=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_redo_log_encrypt='foo';
-<<<<<<< HEAD
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_redo_log_encrypt=3;
 --error ER_WRONG_VALUE_FOR_VAR
-||||||| 98b2ccb470d
-=======
---error ER_WRONG_VALUE_FOR_VAR
->>>>>>> mysql-8.0.26
 set global innodb_redo_log_encrypt=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_redo_log_encrypt=1e1;

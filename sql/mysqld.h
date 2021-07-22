@@ -221,13 +221,7 @@ extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
-<<<<<<< HEAD
-extern bool opt_log_slow_slave_statements;
-||||||| 98b2ccb470d
-extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-=======
-extern bool opt_log_slow_admin_statements, opt_log_slow_replica_statements;
->>>>>>> mysql-8.0.26
+extern bool opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
@@ -296,15 +290,9 @@ extern char *my_admin_bind_addr_str;
 extern uint mysqld_admin_port;
 extern bool listen_admin_interface_in_separate_thread;
 extern char glob_hostname[HOSTNAME_LENGTH + 1];
-<<<<<<< HEAD
-extern char system_time_zone[30], *opt_init_file;
-extern char *my_proxy_protocol_networks;
-||||||| 98b2ccb470d
-extern char system_time_zone[30], *opt_init_file;
-=======
 extern char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
 extern char *opt_init_file;
->>>>>>> mysql-8.0.26
+extern char *my_proxy_protocol_networks;
 extern const char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH + 1];
 extern const char *server_uuid_ptr;

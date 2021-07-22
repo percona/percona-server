@@ -4279,7 +4279,7 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
     mysql_mutex_lock(&thd->LOCK_temporary_tables);
 
 #ifndef NDEBUG
-    const char *tmp_proc_info = thd->proc_info;
+    const char *tmp_proc_info = thd->proc_info();
     if (tmp_proc_info &&
         !strncmp(
             tmp_proc_info,

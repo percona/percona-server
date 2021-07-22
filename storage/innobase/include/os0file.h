@@ -898,9 +898,9 @@ bool os_file_set_nocache(int fd, const char *file_name,
 @param[in]	name		"open" or "create"; used in the diagnostic
 message
 @return true if operation is success and false */
-UNIV_INLINE
-bool os_file_set_nocache(pfs_os_file_t file, const char *file_name,
-                         const char *operation_name);
+static inline bool os_file_set_nocache(pfs_os_file_t file,
+                                       const char *file_name,
+                                       const char *operation_name);
 
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
@@ -1227,10 +1227,8 @@ Closes a file handle.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_close_no_error_handling_func(pfs_os_file_t file,
-                                              const char *src_file,
-                                              ulint src_line);
+static inline bool pfs_os_file_close_no_error_handling_func(
+    pfs_os_file_t file, const char *src_file, ulint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -1460,9 +1458,10 @@ Truncates a file at the specified position.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, ib_uint64_t new_len,
-                                 const char *src_file, ulint src_line);
+static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file,
+                                               ib_uint64_t new_len,
+                                               const char *src_file,
+                                               ulint src_line);
 
 #else /* UNIV_PFS_IO */
 

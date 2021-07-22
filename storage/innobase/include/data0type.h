@@ -494,8 +494,8 @@ depending on precise column type.
 @reval 0 if prtype does not include DATA_COMPRESSED flag
 @reval ZIP_COLUMN_HEADER_LENGTH if prtype includes DATA_COMPRESSED flag
 */
-UNIV_INLINE
-ulint prtype_get_compression_extra(ulint prtype); /*!< in: precise type */
+static inline ulint prtype_get_compression_extra(
+    ulint prtype); /*!< in: precise type */
 
 /* Structure for an SQL data type.
 If you add fields to this structure, be sure to initialize them everywhere.

@@ -55,26 +55,12 @@ if (!$restart_parameters)
 
 # We use --exec echo instead of simple "--echo" because
 # replace_result works on --exec
-<<<<<<< HEAD
-if (!$restart_hide_args)
-{
-  --exec echo "# $restart_parameters"
-}
-if ($restart_hide_args)
-{
-  --echo # restart:<hidden args>
-  let $restart_hide_args=;
-}
-||||||| 98b2ccb470d
---exec echo "# $restart_parameters"
-=======
 if (!$do_not_echo_parameters) {
   --exec echo "# $restart_parameters"
 }
 if ($do_not_echo_parameters) {
-  --exec echo "# restart"
+  --exec echo "# restart:<hidden args>"
 }
->>>>>>> mysql-8.0.26
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to

@@ -687,22 +687,14 @@ class Tablespace_dirs {
 #endif /* _WIN32 */
 
 class Fil_shard {
-<<<<<<< HEAD
-  using File_list = UT_LIST_BASE_NODE_T(fil_node_t);
-||||||| 98b2ccb470d
-  using File_list = UT_LIST_BASE_NODE_T(fil_node_t);
-  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t);
-=======
   using File_list = UT_LIST_BASE_NODE_T(fil_node_t, LRU);
-  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t, unflushed_spaces);
->>>>>>> mysql-8.0.26
   using Spaces = std::unordered_map<space_id_t, fil_space_t *>;
 
   using Names = std::unordered_map<const char *, fil_space_t *, Char_Ptr_Hash,
                                    Char_Ptr_Compare>;
 
  public:
-  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t);
+  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t, unflushed_spaces);
 
  public:
   /** Constructor
@@ -1261,10 +1253,6 @@ class Fil_shard {
                                   wait for IO to stop */
   static void wait_for_io_to_stop(const fil_space_t *space);
 
-  // list of spaces kept in this shard
-  Space_list m_space_list;
-  Space_list m_rotation_list;
-
  private:
   /** We keep log files and system tablespace files always open; this is
   important in preventing deadlocks in this module, as a page read
@@ -1401,6 +1389,11 @@ class Fil_shard {
   Fil_shard &operator=(const Fil_shard &) = delete;
 
   friend class Fil_system;
+
+ public:
+  // list of spaces kept in this shard
+  Space_list m_space_list;
+  Space_list m_rotation_list;
 };
 
 /** The tablespace memory cache; also the totality of logs (the log
@@ -2127,23 +2120,10 @@ Fil_shard::Fil_shard(size_t shard_id)
       m_names(),
       m_LRU(),
       m_unflushed_spaces(),
-      m_modification_counter() {
+      m_modification_counter(),
+      m_space_list(),
+      m_rotation_list() {
   mutex_create(LATCH_ID_FIL_SHARD, &m_mutex);
-<<<<<<< HEAD
-
-  UT_LIST_INIT(m_LRU, &fil_node_t::LRU);
-
-  UT_LIST_INIT(m_unflushed_spaces, &fil_space_t::unflushed_spaces);
-
-  UT_LIST_INIT(m_space_list, &fil_space_t::space_list);
-  UT_LIST_INIT(m_rotation_list, &fil_space_t::rotation_list);
-||||||| 98b2ccb470d
-
-  UT_LIST_INIT(m_LRU, &fil_node_t::LRU);
-
-  UT_LIST_INIT(m_unflushed_spaces, &fil_space_t::unflushed_spaces);
-=======
->>>>>>> mysql-8.0.26
 }
 
 /** Wait for an empty slot to reserve for opening a file.
@@ -6289,14 +6269,9 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     return validate_output.error;
   }
 
-<<<<<<< HEAD
   if (validate_output.keyring_encryption_info.page0_has_crypt_data)
     keyring_encryption_info = validate_output.keyring_encryption_info;
 
-  /* If the encrypted tablespace is already opened,
-||||||| 98b2ccb470d
-  /* If the encrypted tablespace is already opened,
-=======
   if (validate && !old_space && !for_import) {
     if (df.server_version() > DD_SPACE_CURRENT_SRV_VERSION) {
       ib::error(ER_IB_MSG_1272, ulong{DD_SPACE_CURRENT_SRV_VERSION},
@@ -6309,7 +6284,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   }
 
   /* We are done validating. If the tablespace is already open,
->>>>>>> mysql-8.0.26
   return success. */
   if (space != nullptr) {
     return DB_SUCCESS;
@@ -6377,15 +6351,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     if (err != DB_SUCCESS) {
       return DB_ERROR;
     }
-<<<<<<< HEAD
-  } else if (crypt_data) {
-    dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, nullptr,
-                                     crypt_data->iv);
-    if (err != DB_SUCCESS) {
-      return (DB_ERROR);
-    }
-||||||| 98b2ccb470d
-=======
 
     /* If tablespace is encrypted with default master key and server has already
     started, rotate it now. */
@@ -6398,7 +6363,12 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
       sid.push_back(space->id);
       fil_encryption_reencrypt(sid);
     }
->>>>>>> mysql-8.0.26
+  } else if (crypt_data) {
+    dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, nullptr,
+                                     crypt_data->iv);
+    if (err != DB_SUCCESS) {
+      return (DB_ERROR);
+    }
   }
 
   return DB_SUCCESS;
@@ -10345,7 +10315,10 @@ void Fil_system::encryption_reencrypt(
 
 size_t fil_encryption_rotate() { return (fil_system->encryption_rotate()); }
 
-<<<<<<< HEAD
+void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector) {
+  fil_system->encryption_reencrypt(sid_vector);
+}
+
 bool fil_encryption_rotate_global(const space_id_vec &space_ids) {
   for (space_id_t space_id : space_ids) {
     fil_space_t *space = fil_space_acquire(space_id);
@@ -10361,12 +10334,6 @@ bool fil_encryption_rotate_global(const space_id_vec &space_ids) {
   return (true);
 }
 
-||||||| 98b2ccb470d
-=======
-void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector) {
-  fil_system->encryption_reencrypt(sid_vector);
-}
->>>>>>> mysql-8.0.26
 #endif /* !UNIV_HOTBACKUP */
 
 /** Constructor

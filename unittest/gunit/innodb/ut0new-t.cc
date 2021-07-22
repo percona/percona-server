@@ -219,13 +219,7 @@ TEST(ut0new, edgecases) {
   void *ret;
   const void *null_ptr = nullptr;
 
-<<<<<<< HEAD
-  ret = alloc1.allocate_large(0, &pfx, false);
-||||||| 98b2ccb470d
-  ret = alloc1.allocate_large(0, &pfx);
-=======
-  ret = alloc1.allocate_large(0);
->>>>>>> mysql-8.0.26
+  ret = alloc1.allocate_large(0, false);
   EXPECT_EQ(null_ptr, ret);
 
 #ifdef UNIV_PFS_MEMORY

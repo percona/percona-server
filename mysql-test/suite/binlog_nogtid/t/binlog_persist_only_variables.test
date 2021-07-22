@@ -50,19 +50,9 @@ INSERT INTO rplvars (varname, varvalue)
         VARIABLE_NAME LIKE '%replica%' OR
         VARIABLE_NAME LIKE '%rpl%' OR
         VARIABLE_NAME LIKE '%semi_sync%' OR
-<<<<<<< HEAD
-        VARIABLE_NAME LIKE '%slave%') AND
-       (VARIABLE_NAME NOT LIKE 'innodb%')
-||||||| 98b2ccb470d
-        VARIABLE_NAME LIKE '%slave%') AND
-       (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-        'innodb_master_thread_disabled_debug'))
-=======
         VARIABLE_NAME LIKE '%slave%' OR
         VARIABLE_NAME LIKE '%source%') AND
-       (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-        'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
->>>>>>> mysql-8.0.26
+       (VARIABLE_NAME NOT LIKE 'innodb%')
        ORDER BY VARIABLE_NAME;
 --enable_warnings
 --let $countvars= `SELECT COUNT(*) FROM rplvars;`
@@ -93,19 +83,9 @@ INSERT INTO aliases(name) VALUES
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
-<<<<<<< HEAD
---let $expected=89
---let $assert_text= 'Expect $expected variables in the table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
-||||||| 98b2ccb470d
---let $expected=86
---let $assert_text= 'Expect $expected variables in the table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
-=======
---let $expected = 113
+--let $expected = 116
 --let $assert_text = Expect $expected variables in the table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
->>>>>>> mysql-8.0.26
 --source include/assert.inc
 
 --echo
@@ -116,26 +96,14 @@ while ( $varid <= $countvars )
   --let $varname= `SELECT varname FROM rplvars WHERE id=$varid`
 
   # Following variables are non persistent read only variables.
-<<<<<<< HEAD
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'have_backup_safe_binlog_info', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
-||||||| 98b2ccb470d
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
-=======
   if (`SELECT COUNT(*) FROM non_persisted WHERE name = '$varname'`)
->>>>>>> mysql-8.0.26
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }
   --eval SET PERSIST_ONLY $varname = @@GLOBAL.$varname
 
   #  TODO: Remove/update this once Bug#27322592 is FIXED.
-<<<<<<< HEAD
-  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'binlog_skip_flush_commands', 'encrypt_binlog', 'log_bin_trust_function_creators', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
-||||||| 98b2ccb470d
-  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
-=======
-  if (`SELECT '$varname' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_replica_statements', 'log_statements_unsafe_for_binlog', 'source_verify_checksum', 'replica_allow_batching', 'replica_compressed_protocol', 'replica_preserve_commit_order', 'replica_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_source_enabled', 'rpl_semi_sync_source_wait_no_replica', 'rpl_semi_sync_replica_enabled', 'binlog_gtid_simple_recovery', 'log_replica_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
->>>>>>> mysql-8.0.26
+  if (`SELECT '$varname' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'binlog_skip_flush_commands', 'encrypt_binlog', 'log_bin_trust_function_creators', 'log_slow_replica_statements', 'log_statements_unsafe_for_binlog', 'source_verify_checksum', 'replica_allow_batching', 'replica_compressed_protocol', 'replica_preserve_commit_order', 'replica_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_source_enabled', 'rpl_semi_sync_source_wait_no_replica', 'rpl_semi_sync_replica_enabled', 'binlog_gtid_simple_recovery', 'log_replica_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
   {
     --disable_query_log
       --eval SELECT varvalue INTO @varvalue FROM rplvars WHERE id=$varid
@@ -147,19 +115,9 @@ while ( $varid <= $countvars )
 }
 
 --echo
-<<<<<<< HEAD
---let $expected=77
---let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
-||||||| 98b2ccb470d
---let $expected=75
---let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
-=======
---let $expected = 101
+--let $expected = 103
 --let $assert_text = Expect $expected persisted variables in persisted_variables table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
->>>>>>> mysql-8.0.26
 --source include/assert.inc
 
 --echo
@@ -174,21 +132,11 @@ while ( $varid <= $countvars )
 --let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc
 
-<<<<<<< HEAD
---let $expected=76
---let $assert_text= 'Expect $expected persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $expected
-||||||| 98b2ccb470d
---let $expected=74
---let $assert_text= 'Expect $expected persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $expected
-=======
 # Due to the following bug, variable_source is wrong for
 # skip_slave_start/skip_replica_start:
 # BUG#32640588: SOURCE FOR SKIP_SLAVE_START DISPLAYED AS COMPILED WHEN IT IS PERSISTED
 --let $assert_text = Expect $expected persisted variables shown as PERSISTED in variables_info table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED" OR variable_name LIKE "skip_%_start", count, 1] = $expected
->>>>>>> mysql-8.0.26
 --source include/assert.inc
 
 --let $assert_text = Expect $expected persisted variables with matching persisted and global values.
@@ -205,13 +153,7 @@ while ( $varid <= $countvars )
 {
   --let $varname= `SELECT varname FROM rplvars WHERE id=$varid`
 
-<<<<<<< HEAD
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'have_backup_safe_binlog_info', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
-||||||| 98b2ccb470d
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
-=======
   if (!`SELECT COUNT(*) FROM aliases WHERE name = '$varname'`)
->>>>>>> mysql-8.0.26
   {
     if (`SELECT COUNT(*) FROM non_persisted WHERE name = '$varname'`)
     {

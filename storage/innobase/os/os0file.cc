@@ -6148,16 +6148,8 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
       request_size = size;
     }
 
-<<<<<<< HEAD
-    err = os_file_read_func(read_request, nullptr, src_file, buf_ptr,
-                            src_offset, request_size, nullptr);
-||||||| 98b2ccb470d
-    err = os_file_read_func(read_request, nullptr, src_file, buf_ptr,
-                            src_offset, request_size);
-=======
     err = os_file_read_func(read_request, nullptr, src_file, &buf, src_offset,
-                            request_size);
->>>>>>> mysql-8.0.26
+                            request_size, nullptr);
 
     if (err != DB_SUCCESS) {
       return (err);

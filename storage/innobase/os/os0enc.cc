@@ -263,7 +263,6 @@ uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 /** Current uuid of server instance */
 char Encryption::s_uuid[Encryption::SERVER_UUID_LEN + 1] = {0};
 
-<<<<<<< HEAD
 Encryption::Encryption(const Encryption &other) noexcept
     : m_type(other.m_type),
       m_key(other.m_key),
@@ -291,12 +290,9 @@ void Encryption::set_key_versions_cache(
   m_key_versions_cache = key_versions_cache;
 }
 
-||||||| 98b2ccb470d
-=======
 /** Tablespaces whose key needs to be reencrypted */
 std::vector<space_id_t> Encryption::s_tablespaces_to_reencrypt;
 
->>>>>>> mysql-8.0.26
 const char *Encryption::to_string(Type type) noexcept {
   switch (type) {
     case NONE:
@@ -813,49 +809,12 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
 
-<<<<<<< HEAD
-  /* Get master key from keyring. For bootstrap, we use a default
-  master key which master_key_id is 0. */
-  if (encrypt_key) {
-    if (is_boot || strlen(server_uuid) == 0) {
-      master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
-
-      ut_ad(KEY_LEN >= sizeof(DEFAULT_MASTER_KEY));
-||||||| 98b2ccb470d
-  /* Get master key from keyring. For bootstrap, we use a default
-  master key which master_key_id is 0. */
-  if (encrypt_key) {
-    if (is_boot
-#ifndef UNIV_HOTBACKUP
-        || (strlen(server_uuid) == 0)
-#endif
-    ) {
-      master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
-
-      ut_ad(KEY_LEN >= sizeof(DEFAULT_MASTER_KEY));
-=======
-#ifndef UNIV_HOTBACKUP
   /* Server uuid must have already been generated */
   ut_ad(strlen(server_uuid) > 0);
-#endif
->>>>>>> mysql-8.0.26
 
-<<<<<<< HEAD
-      strcpy(reinterpret_cast<char *>(master_key), DEFAULT_MASTER_KEY);
-      is_default_master_key = true;
-      default_master_key_used = is_default_master_key;
-    } else {
-      get_master_key(&master_key_id, &master_key);
-||||||| 98b2ccb470d
-      strcpy(reinterpret_cast<char *>(master_key), DEFAULT_MASTER_KEY);
-      is_default_master_key = true;
-    } else {
-      get_master_key(&master_key_id, &master_key);
-=======
   /* Get master key from keyring. */
   if (encrypt_key) {
     get_master_key(&master_key_id, &master_key);
->>>>>>> mysql-8.0.26
 
     if (master_key == nullptr) {
       return (false);
@@ -888,17 +847,13 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   memcpy(reinterpret_cast<char *>(ptr), s_uuid, sizeof(s_uuid));
   ptr += sizeof(s_uuid) - 1;
 
-<<<<<<< HEAD
   /* We should never write empty UUID. Only exemption is for
   tablespaces when InnoDB is initializing (like system, temp, etc).
   These tablespaces UUID will be fixed by handlerton API after server
   generates uuid */
   ut_ad(!srv_is_uuid_ready || strlen(s_uuid) != 0);
 
-||||||| 98b2ccb470d
-=======
   /* Write (and encrypt if needed) key and iv */
->>>>>>> mysql-8.0.26
   byte key_info[KEY_LEN * 2];
   memset(key_info, 0x0, sizeof(key_info));
   memcpy(key_info, key, KEY_LEN);
@@ -1033,19 +988,14 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
   return (ptr);
 }
 
-<<<<<<< HEAD
 /** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	key		key
-@param[in,out]	iv		iv
+@param[in,out]	space_id		space_id
+@param[in,out]	e_key		e_key
 @param[in]	encryption_info	encryption info
+@param[in]	decrypt_key	decrypt_key
 @return true if success */
-bool Encryption::decode_encryption_info(byte *key, byte *iv,
-||||||| 98b2ccb470d
-bool Encryption::decode_encryption_info(byte *key, byte *iv,
-=======
 bool Encryption::decode_encryption_info(space_id_t space_id,
                                         Encryption_key &e_key,
->>>>>>> mysql-8.0.26
                                         byte *encryption_info,
                                         bool decrypt_key) noexcept {
   byte *ptr = encryption_info;

@@ -1,7 +1,1 @@
-<<<<<<< HEAD
---slave-parallel-workers=2 --relay-log-info-repository=TABLE --master-info-repository=TABLE --slave_transaction_retries=0 --sync-master-info=1
-||||||| 98b2ccb470d
---relay-log-info-repository=TABLE --master-info-repository=TABLE --slave_transaction_retries=0 --sync-master-info=1
-=======
---relay-log-info-repository=TABLE --master-info-repository=TABLE --replica_transaction_retries=0 --sync-source-info=1
->>>>>>> mysql-8.0.26
+--slave-parallel-workers=2 --relay-log-info-repository=TABLE --master-info-repository=TABLE --replica_transaction_retries=0 --sync-source-info=1

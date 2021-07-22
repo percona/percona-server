@@ -6,27 +6,13 @@
 #
 # ==== Usage ====
 #
-<<<<<<< HEAD
-# --let $assert_text= Relay_Log_Pos must be between min_pos and max_pos
-# --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
-# [--let $extra_debug_info= some text]
-# [--let $extra_debug_eval= expression parsable by include/eval.inc]
-# [--let $rpl_debug= 1]
-# [--let $assert_debug= SHOW SLAVE STATUS]
-||||||| 98b2ccb470d
-# --let $assert_text= Relay_Log_Pos must be between min_pos and max_pos
-# --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
-# [--let $extra_debug_info= some text]
-# [--let $extra_debug_eval= expression parsable by include/eval.inc]
-# [--let $rpl_debug= 1]
-=======
 # --let $assert_text = Relay_Log_Pos must be between min_pos and max_pos
 # --let $assert_cond = [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
 # [--let $assert_escape = 1]
 # [--let $extra_debug_info = some text]
 # [--let $extra_debug_eval = expression parsable by include/eval.inc]
 # [--let $rpl_debug = 1]
->>>>>>> mysql-8.0.26
+# [--let $assert_debug = SHOW SLAVE STATUS]
 # --source include/assert.inc
 #
 # Parameters:
@@ -110,20 +96,14 @@ if (!$eval_result)
   --echo Assertion condition: '$assert_cond'
   --echo Assertion condition, interpolated: '$assert_cond_interp'
   --echo Assertion result: '$assert_result'
-<<<<<<< HEAD
   if ($assert_debug)
   {
     --echo Assertion debug statement:
     --eval $assert_debug
   }
-  --die Test assertion failed in assert.inc
-||||||| 98b2ccb470d
-  --die Test assertion failed in assert.inc
-=======
   if (!$assert_no_stop) {
     --die Test assertion failed in assert.inc
   }
->>>>>>> mysql-8.0.26
 }
 
 --let $include_filename= assert.inc [$assert_text]

@@ -123,7 +123,6 @@ class Object_table_impl : virtual public Object_table {
 
   void set_hidden(bool hidden) override { m_hidden = hidden; }
 
-<<<<<<< HEAD
   virtual bool is_target_encrypted() const override;
 
   virtual void unset_target_encrypted() const override;
@@ -132,12 +131,7 @@ class Object_table_impl : virtual public Object_table {
 
   virtual void set_actual_encrypted() const override;
 
-  ~Object_table_impl() override {}
-||||||| 98b2ccb470d
-  ~Object_table_impl() override {}
-=======
   ~Object_table_impl() override = default;
->>>>>>> mysql-8.0.26
 };
 
 ///////////////////////////////////////////////////////////////////////////

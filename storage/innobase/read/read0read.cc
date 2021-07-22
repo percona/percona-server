@@ -364,13 +364,9 @@ void MVCC::view_add(const ReadView *view) {
 Copy the transaction ids from the source vector */
 
 void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
-<<<<<<< HEAD
   ut_ad(!m_cloned);
-||||||| 98b2ccb470d
-=======
   ut_ad(trx_sys_mutex_own());
 
->>>>>>> mysql-8.0.26
   ulint size = trx_ids.size();
 
   if (m_creator_trx_id > 0) {
@@ -460,14 +456,8 @@ point in time are seen in the view.
 @param id		Creator transaction id */
 
 void ReadView::prepare(trx_id_t id) {
-<<<<<<< HEAD
   ut_ad(!m_cloned);
-  ut_ad(mutex_own(&trx_sys->mutex));
-||||||| 98b2ccb470d
-  ut_ad(mutex_own(&trx_sys->mutex));
-=======
   ut_ad(trx_sys_mutex_own());
->>>>>>> mysql-8.0.26
 
   m_creator_trx_id = id;
 
@@ -815,21 +805,6 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
     view = nullptr;
   }
 }
-<<<<<<< HEAD
-
-/**
-Set the view creator transaction id. Note: This shouldbe set only
-for views created by RW transactions.
-@param view		Set the creator trx id for this view
-@param id		Transaction id to set */
-
-void MVCC::set_view_creator_trx_id(ReadView *view, trx_id_t id) {
-  ut_ad(!view->is_cloned());
-  ut_ad(id > 0);
-  ut_ad(mutex_own(&trx_sys->mutex));
-
-  view->creator_trx_id(id);
-}
 
 i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
     i_s_xtradb_read_view_t *rv) {
@@ -851,19 +826,3 @@ i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
 
   return rv;
 }
-||||||| 98b2ccb470d
-
-/**
-Set the view creator transaction id. Note: This shouldbe set only
-for views created by RW transactions.
-@param view		Set the creator trx id for this view
-@param id		Transaction id to set */
-
-void MVCC::set_view_creator_trx_id(ReadView *view, trx_id_t id) {
-  ut_ad(id > 0);
-  ut_ad(mutex_own(&trx_sys->mutex));
-
-  view->creator_trx_id(id);
-}
-=======
->>>>>>> mysql-8.0.26

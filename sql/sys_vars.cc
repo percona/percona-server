@@ -2836,7 +2836,6 @@ static Sys_var_ulong Sys_max_allowed_packet(
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_max_allowed_packet));
 
-<<<<<<< HEAD
 static Sys_var_ulong Sys_net_buffer_shrink_interval(
     "net_buffer_shrink_interval",
     "Check and maybe shrink network buffer with given frequency(seconds). "
@@ -2847,24 +2846,11 @@ static Sys_var_ulong Sys_net_buffer_shrink_interval(
     VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
     NOT_IN_BINLOG);
 
-static Sys_var_ulong Sys_slave_max_allowed_packet(
-    "slave_max_allowed_packet",
-    "The maximum packet length to sent successfully from the master to "
-    "slave.",
-    GLOBAL_VAR(slave_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
-||||||| 98b2ccb470d
-static Sys_var_ulong Sys_slave_max_allowed_packet(
-    "slave_max_allowed_packet",
-    "The maximum packet length to sent successfully from the master to "
-    "slave.",
-    GLOBAL_VAR(slave_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
-=======
 static Sys_var_ulong Sys_replica_max_allowed_packet(
     "replica_max_allowed_packet",
     "The maximum size of packets sent from an upstream source server to this "
     "server.",
     GLOBAL_VAR(replica_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
->>>>>>> mysql-8.0.26
     VALID_RANGE(1024, MAX_MAX_ALLOWED_PACKET), DEFAULT(MAX_MAX_ALLOWED_PACKET),
     BLOCK_SIZE(1024));
 
@@ -6762,19 +6748,13 @@ static Sys_var_ulong Sys_sp_cache_size(
     GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
-<<<<<<< HEAD
 static Sys_var_bool Sys_encrypt_tmp_files(
     "encrypt_tmp_files",
     "Encrypt temporary files "
     "(created for filesort, Group Replication, etc)",
     READ_ONLY GLOBAL_VAR(encrypt_tmp_files), CMD_LINE(OPT_ARG), DEFAULT(false));
 
-static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var) {
-||||||| 98b2ccb470d
-static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var) {
-=======
 static bool check_pseudo_replica_mode(sys_var *self, THD *thd, set_var *var) {
->>>>>>> mysql-8.0.26
   if (check_session_admin_or_replication_applier(self, thd, var)) return true;
   if (check_outside_trx(self, thd, var)) return true;
   longlong previous_val = thd->variables.pseudo_replica_mode;
@@ -7810,7 +7790,6 @@ static Sys_var_bool Sys_skip_replica_start(
     READ_ONLY GLOBAL_VAR(opt_skip_replica_start), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
-<<<<<<< HEAD
 
 static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
     "tf_sequence_table_max_upper_bound",
@@ -7818,12 +7797,6 @@ static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
     "is allowed to generate.",
     GLOBAL_VAR(tf_sequence_table_max_upper_bound), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, ULLONG_MAX), DEFAULT(1048576), BLOCK_SIZE(1));
-
-#ifndef NDEBUG
-Debug_shutdown_actions Debug_shutdown_actions::instance;
-#endif
-||||||| 98b2ccb470d
-=======
 
 static Sys_var_deprecated_alias Sys_skip_slave_start("skip_slave_start",
                                                      Sys_skip_replica_start);
@@ -7848,4 +7821,7 @@ static Sys_var_enum Sys_terminology_use_previous(
     terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
->>>>>>> mysql-8.0.26
+
+#ifndef NDEBUG
+    Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif

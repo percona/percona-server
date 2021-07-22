@@ -603,7 +603,6 @@ The following options may be given as the first argument:
  administrative statements to the slow log if it is open.
  --log-slow-extra    Print more attributes to the slow query log file. Has no
  effect on logging to table.
-<<<<<<< HEAD
  --log-slow-filter=name 
  Log only the queries that followed certain execution
  plan. Multiple flags allowed in a comma-separated string.
@@ -619,16 +618,12 @@ The following options may be given as the first argument:
  query log. When you choose 'query' - every
  %log_slow_rate_limit query will be processed to slow
  query log. [session, query]
-||||||| 98b2ccb470d
-=======
  --log-slow-replica-statements 
  Log slow statements executed by the replication applier
  threads to the slow log if it is open.
->>>>>>> mysql-8.0.26
  --log-slow-slave-statements 
-<<<<<<< HEAD
- Log slow statements executed by slave thread to the slow
- log if it is open.
+ This option is deprecated. Use
+ log_slow_replica_statements instead.
  --log-slow-sp-statements[=name] 
  Choice between logging slow CALL statements, logging
  individual slow statements inside stored procedures or
@@ -640,13 +635,6 @@ The following options may be given as the first argument:
  Multiple flags allowed in a comma-separated string.
  [microtime, query_plan, innodb, profiling,
  profiling_use_getrusage, minimal, standard, full]
-||||||| 98b2ccb470d
- Log slow statements executed by slave thread to the slow
- log if it is open.
-=======
- This option is deprecated. Use
- log_slow_replica_statements instead.
->>>>>>> mysql-8.0.26
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
  based binary logging.
@@ -1585,12 +1573,9 @@ The following options may be given as the first argument:
  Use mmap files for temptables. This variable is
  deprecated and will be removed in a future release.
  (Defaults to on; use --skip-temptable-use-mmap to disable.)
-<<<<<<< HEAD
  --tf-sequence-table-max-upper-bound=# 
  Maximum number of records SEQUENCE_TABLE() table function
  is allowed to generate.
-||||||| 98b2ccb470d
-=======
  --terminology-use-previous=name 
  Make monitoring tables and statements use the identifiers
  that were in use before they were changed in a given
@@ -1606,7 +1591,6 @@ The following options may be given as the first argument:
  BEFORE_8_0_26 as default for the session option, and in
  addition the thread commands that were in use until
  8.0.25 are written to the slow query log.
->>>>>>> mysql-8.0.26
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1841,14 +1825,10 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-extra FALSE
-<<<<<<< HEAD
+log-slow-replica-statements FALSE
 log-slow-filter 
 log-slow-rate-limit 1
 log-slow-rate-type session
-||||||| 98b2ccb470d
-=======
-log-slow-replica-statements FALSE
->>>>>>> mysql-8.0.26
 log-slow-slave-statements FALSE
 log-slow-sp-statements ON
 log-slow-verbosity 
@@ -2101,12 +2081,8 @@ tc-heuristic-recover OFF
 temptable-max-mmap 1073741824
 temptable-max-ram 1073741824
 temptable-use-mmap TRUE
-<<<<<<< HEAD
-tf-sequence-table-max-upper-bound 1048576
-||||||| 98b2ccb470d
-=======
 terminology-use-previous NONE
->>>>>>> mysql-8.0.26
+tf-sequence-table-max-upper-bound 1048576
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144

@@ -6419,19 +6419,6 @@ String *Item_sum_collect::val_str(String *str) {
       if (add()) return error_str();
     }
   }
-<<<<<<< HEAD
-  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
-      std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
-          current_thd->dd_client());
-  std::unique_ptr<dd::Spatial_reference_system> srs(
-      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr);
-||||||| 98b2ccb470d
-  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
-      std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
-          current_thd->dd_client());
-  dd::Spatial_reference_system *srs =
-      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
-=======
   const dd::Spatial_reference_system *srs = nullptr;
   auto releaser = std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
       current_thd->dd_client());
@@ -6446,7 +6433,6 @@ String *Item_sum_collect::val_str(String *str) {
     }
   }
 
->>>>>>> mysql-8.0.26
   if (m_geometrycollection.get() == nullptr) {
     null_value = true;
     return error_str();
@@ -6455,13 +6441,13 @@ String *Item_sum_collect::val_str(String *str) {
   if (has_with_distinct()) {
     narrowerCollection = narrowest_multigeometry(filtergeometries(
         std::unique_ptr<gis::Geometrycollection>(m_geometrycollection->clone()),
-        srs.get()));
+        srs));
   } else {
     narrowerCollection =
         gis::narrowest_multigeometry(std::unique_ptr<gis::Geometrycollection>(
             m_geometrycollection->clone()));
   }
-  gis::write_geometry(srs.get(), *narrowerCollection, str);
+  gis::write_geometry(srs, *narrowerCollection, str);
   return str;
 }
 
@@ -6477,13 +6463,6 @@ void Item_sum_collect::store_result_field() {
     auto releaser =
         std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
             current_thd->dd_client());
-<<<<<<< HEAD
-    std::unique_ptr<dd::Spatial_reference_system> srs(
-        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr);
-||||||| 98b2ccb470d
-    dd::Spatial_reference_system *srs =
-        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
-=======
     if (srid.has_value() && srid.value() != 0) {
       if (Srs_fetcher(current_thd).acquire(srid.value(), &srs) ||
           srs == nullptr) {
@@ -6509,7 +6488,6 @@ void Item_sum_collect::store_result_field() {
         return;
       }
     }
->>>>>>> mysql-8.0.26
 
     std::unique_ptr<gis::Geometrycollection> narrowerCollection;
     narrowerCollection =
@@ -6517,7 +6495,7 @@ void Item_sum_collect::store_result_field() {
             m_geometrycollection->clone()));
 
     String str;
-    gis::write_geometry(srs.get(), *narrowerCollection, &str);
+    gis::write_geometry(srs, *narrowerCollection, &str);
     Field_geom *multipoint_field = down_cast<Field_geom *>(result_field);
     auto storeRes =
         multipoint_field->store(str.ptr(), str.length(), str.charset());

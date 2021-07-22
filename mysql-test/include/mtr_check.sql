@@ -182,16 +182,10 @@ BEGIN
   SELECT name, status FROM INFORMATION_SCHEMA.INNODB_METRICS
     ORDER BY name;
 
-<<<<<<< HEAD
   -- Dump all created compression dictionaries
   SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY DICT_NAME;
 
-  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
-||||||| 98b2ccb470d
-  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
-=======
   SHOW GLOBAL STATUS LIKE 'replica_open_temp_tables';
->>>>>>> mysql-8.0.26
 
   -- Check for number of active connections before & after the test run.
 

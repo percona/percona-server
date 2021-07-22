@@ -296,33 +296,6 @@ class Sys_var_integer : public sys_var {
   void session_save_default(THD *thd, set_var *var) override {
     var->save_result.ulonglong_value = static_cast<ulonglong>(
       *pointer_cast<const T *>(global_value_ptr(thd, nullptr)));
-<<<<<<< HEAD
-}
-void global_save_default(THD *, set_var *var) override {
-  var->save_result.ulonglong_value = option.def_value;
-}
-void saved_value_to_string(THD *, set_var *var, char *def_val) override {
-  if (SIGNED)
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, -10);
-  else
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
-}
-void persist_only_to_string(THD *, set_var *var, String *dest) override {
-  dest->set_int(static_cast<longlong>(var->save_result.ulonglong_value),
-                !SIGNED, system_charset_info);
-}
-||||||| 98b2ccb470d
-}
-void global_save_default(THD *, set_var *var) override {
-  var->save_result.ulonglong_value = option.def_value;
-}
-void saved_value_to_string(THD *, set_var *var, char *def_val) override {
-  if (SIGNED)
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, -10);
-  else
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
-}
-=======
   }
   void global_save_default(THD *, set_var *var) override {
     var->save_result.ulonglong_value = option.def_value;
@@ -335,7 +308,10 @@ void saved_value_to_string(THD *, set_var *var, char *def_val) override {
       longlong10_to_str((longlong)var->save_result.ulonglong_value,
                         def_val, 10);
   }
->>>>>>> mysql-8.0.26
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    dest->set_int(static_cast<longlong>(var->save_result.ulonglong_value),
+                  !SIGNED, system_charset_info);
+  }
 
  private:
   T *max_var_ptr() {

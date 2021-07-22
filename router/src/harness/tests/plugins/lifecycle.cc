@@ -196,13 +196,7 @@ void init_exit_strategies(const mysql_harness::ConfigSection *section) {
   // clang-format on
 
   // process configuration
-<<<<<<< HEAD
-  for (const std::string func : {"init", "start", "stop", "deinit"}) {
-||||||| 98b2ccb470d
-  for (const std::string &func : {"init", "start", "stop", "deinit"}) {
-=======
   for (const char *func : {"init", "start", "stop", "deinit"}) {
->>>>>>> mysql-8.0.26
     if (section->has(func)) {
       const std::string &line = section->get(func);
 
@@ -456,13 +450,7 @@ LIFECYCLE_API void lifecycle_init(int flags) {
     std::lock_guard<std::mutex> lock(g_strategies_mtx);
     g_strategies.clear();
 
-<<<<<<< HEAD
-    for (const std::string key : {"instance1", "instance2", "instance3"}) {
-||||||| 98b2ccb470d
-    for (const std::string &key : {"instance1", "instance2", "instance3"}) {
-=======
     for (const char *key : {"instance1", "instance2", "instance3"}) {
->>>>>>> mysql-8.0.26
       g_strategies[key].strategy_set = false;  // optimisation,
     }                                          // doesn't affect behavior
   }

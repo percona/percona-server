@@ -699,24 +699,15 @@ int PFS_column_row::make_row(const MDL_key *mdl) {
   static_assert(MDL_key::NAMESPACE_END == 19,
                 "Adjust performance schema when changing enum_mdl_namespace");
 
-<<<<<<< HEAD
-  /* Reset the row, it can be re-used */
+  bool with_schema = false;
+  bool with_object = false;
+  bool with_column = false;
+
   m_object_type = NO_OBJECT_TYPE;
   m_schema_name_length = 0;
   m_object_name_length = 0;
   m_column_name_length = 0;
 
-||||||| 98b2ccb470d
-=======
-  bool with_schema = false;
-  bool with_object = false;
-  bool with_column = false;
-
-  m_schema_name_length = 0;
-  m_object_name_length = 0;
-  m_column_name_length = 0;
-
->>>>>>> mysql-8.0.26
   switch (mdl->mdl_namespace()) {
     case MDL_key::GLOBAL:
       m_object_type = OBJECT_TYPE_GLOBAL;
@@ -727,9 +718,6 @@ int PFS_column_row::make_row(const MDL_key *mdl) {
       break;
     case MDL_key::BACKUP_TABLES:
       m_object_type = OBJECT_TYPE_BACKUP_TABLES;
-      m_schema_name_length = 0;
-      m_object_name_length = 0;
-      m_column_name_length = 0;
       break;
     case MDL_key::SCHEMA:
       m_object_type = OBJECT_TYPE_SCHEMA;

@@ -25627,7 +25627,6 @@
     "sdi_version": X,
     "dd_object_type": "Table",
     "dd_object": {
-<<<<<<< HEAD
         "name": "compression_dictionary",
         "mysql_version_id": X,
         "created": NNN,
@@ -26344,8 +26343,6 @@
     "sdi_version": X,
     "dd_object_type": "Table",
     "dd_object": {
-||||||| 98b2ccb470d
-=======
         "name": "replication_group_configuration_version",
         "mysql_version_id": X,
         "created": NNN,
@@ -26591,7 +26588,6 @@
     "sdi_version": X,
     "dd_object_type": "Table",
     "dd_object": {
->>>>>>> mysql-8.0.26
         "name": "component",
         "mysql_version_id": X,
         "created": NNN,

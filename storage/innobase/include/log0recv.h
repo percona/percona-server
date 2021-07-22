@@ -386,19 +386,11 @@ class MetadataRecover {
       ut_allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
 
  public:
-<<<<<<< HEAD
   /** Default constructor
   @param[in]    read_only_      if set, the instance will only parse the log
                                 without applying any changes */
   explicit MetadataRecover(bool read_only_) UNIV_NOTHROW
       : read_only(read_only_) {}
-||||||| 98b2ccb470d
-  /** Default constructor */
-  MetadataRecover() UNIV_NOTHROW {}
-=======
-  /** Default constructor */
-  MetadataRecover() UNIV_NOTHROW = default;
->>>>>>> mysql-8.0.26
 
   /** Destructor */
   ~MetadataRecover();

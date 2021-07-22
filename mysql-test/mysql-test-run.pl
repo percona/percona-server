@@ -1331,21 +1331,12 @@ sub run_test_server ($$$) {
             $running{ $next->key() } = $next;
             $num_ndb_tests++ if ($next->{ndb_test});
           } else {
-<<<<<<< HEAD
             # No more test, get shutdown/valgrind reports from the worker, BYE
             # should be sent to the worker for complete exit once report is
             # received.
             print $sock "GETREPORTS\n";
-||||||| 98b2ccb470d
-            # No more test, tell child to exit
-            print $sock "BYE\n";
-=======
-            # No more test, tell child to exit
-            print $sock "BYE\n";
-	    # Mark socket as unused, no more tests will be allocated
-	    $closed_sock{$sock} = 1;
-
->>>>>>> mysql-8.0.26
+	        # Mark socket as unused, no more tests will be allocated
+	        $closed_sock{$sock} = 1;
           }
         }
       }
@@ -1840,13 +1831,9 @@ sub command_line_setup {
     'fast'                  => \$opt_fast,
     'force-restart'         => \$opt_force_restart,
     'help|h'                => \$opt_usage,
-<<<<<<< HEAD
     'junit-output=s'        => \$opt_junit_output,
     'junit-package=s'       => \$opt_junit_package,
-||||||| 98b2ccb470d
-=======
     'keep-ndbfs'            => \$opt_keep_ndbfs,
->>>>>>> mysql-8.0.26
     'max-connections=i'     => \$opt_max_connections,
     'print-testcases'       => \&collect_option,
     'quiet'                 => \$opt_quiet,
@@ -7660,12 +7647,7 @@ sub run_ctest() {
   # the MTR tests.
   mtr_report("Running ctest parallel=$opt_parallel");
   $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
-<<<<<<< HEAD
-  my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_vs
-                   $ctest_memcheck 2>&1`;
-||||||| 98b2ccb470d
-  my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
-=======
+
   my $ctest_opts = "";
   if ($ndbcluster_only) {
     # Run only tests with label NDB
@@ -7675,8 +7657,8 @@ sub run_ctest() {
     # Skip tests with label NDB
     $ctest_opts .= "-LE " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
   }
-  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
->>>>>>> mysql-8.0.26
+  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs $ctest_memcheck 2>&1`;
+
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;

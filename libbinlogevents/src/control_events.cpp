@@ -79,7 +79,7 @@ Start_encryption_event::Start_encryption_event(
   if (unlikely(crypto_scheme != 1))
     READER_THROW("Unknown crypto scheme version");
 
-  READER_TRY_SET(key_version, read_and_letoh<uint32_t>);
+  READER_TRY_SET(key_version, read<uint32_t>);
   READER_TRY_CALL(memcpy<unsigned char *>, nonce, NONCE_LENGTH);
 
   READER_CATCH_ERROR;

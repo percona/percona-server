@@ -353,7 +353,7 @@ void btr_search_enable(bool need_dict_mutex) {
   if (srv_buf_pool_old_size != srv_buf_pool_size) return;
 
   if (need_dict_mutex) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -361,7 +361,7 @@ void btr_search_enable(bool need_dict_mutex) {
   btr_search_enabled = true;
 
   if (need_dict_mutex) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   btr_search_x_unlock_all();

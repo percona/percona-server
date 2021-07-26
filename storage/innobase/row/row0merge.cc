@@ -3604,7 +3604,7 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
   }
 
   /* Create B-tree */
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   dict_build_index_def(table, index, trx);
 
@@ -3613,7 +3613,7 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
 
   if (err != DB_SUCCESS) {
     trx->error_state = err;
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     return nullptr;
   }
 
@@ -3623,7 +3623,7 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
 
   err = dict_create_index_tree_in_mem(index, trx);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (err != DB_SUCCESS) {
     if ((index->type & DICT_FTS) && table->fts) {

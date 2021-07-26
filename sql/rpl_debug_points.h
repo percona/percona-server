@@ -150,7 +150,7 @@ void rpl_replica_debug_point(enum_rpl_replica_debug_point point_id,
     /* get_master_uuid */
     case DBUG_RPL_S_BEFORE_MASTER_UUID: {
       debug_point_string.assign(
-          "now signal in_get_master_version_and_clock "
+          "now signal in_get_source_version_and_clock "
           "wait_for signal.get_source_uuid");
       break;
     }
@@ -168,7 +168,7 @@ void rpl_replica_debug_point(enum_rpl_replica_debug_point point_id,
     /* get_master_version_and_clock */
     case DBUG_RPL_S_BEFORE_SERVER_ID: {
       debug_point_string.assign(
-          "now signal in_get_master_version_and_clock "
+          "now signal in_get_source_version_and_clock "
           "wait_for signal.get_server_id");
       break;
     }

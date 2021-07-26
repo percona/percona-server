@@ -12,7 +12,7 @@ include/stop_slave.inc
 SET @@global.debug= "+d,dbug.before_get_UNIX_TIMESTAMP";
 START REPLICA;
 slave is going to hang in get_master_version_and_clock
-SET DEBUG_SYNC= "NOW WAIT_FOR in_get_master_version_and_clock";
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
 include/rpl_stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_unix_timestamp';
@@ -25,7 +25,7 @@ include/stop_slave.inc
 SET @@global.debug= "+d,dbug.before_get_SERVER_ID";
 START REPLICA;
 slave is going to hang in get_master_version_and_clock
-SET DEBUG_SYNC= "NOW WAIT_FOR in_get_master_version_and_clock";
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
 include/rpl_stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
@@ -38,7 +38,7 @@ include/stop_slave.inc
 SET @@global.debug= "+d,dbug.before_get_SOURCE_UUID";
 START REPLICA;
 slave is going to hang in get_master_version_and_clock
-SET DEBUG_SYNC= "NOW WAIT_FOR in_get_master_version_and_clock";
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
 include/rpl_stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_source_uuid';

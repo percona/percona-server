@@ -1327,7 +1327,7 @@ bool show_binlogs(THD *thd) {
         mysql_file_close(file, MYF(0));
         if (encrypted_header_size == 0) {
           /* check for PS encrypted binlog */
-          Binlog_file_reader binlog_file_reader(opt_master_verify_checksum);
+          Binlog_file_reader binlog_file_reader(opt_source_verify_checksum);
           if (!binlog_file_reader.open(fname) &&
               binlog_file_reader.get_error_type() ==
                   Binlog_read_error::SUCCESS) {

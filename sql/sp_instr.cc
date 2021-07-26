@@ -923,10 +923,11 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     thd->send_statement_status();
   }
 
+  const std::string &cn = Command_names::str_notranslate(COM_QUERY);
   mysql_audit_notify(
       thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
       thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
-      command_name[COM_QUERY].str, command_name[COM_QUERY].length);
+      cn.c_str(), cn.length());
 
   if (!rc && unlikely(log_slow_applicable(thd, get_command()))) {
     /*

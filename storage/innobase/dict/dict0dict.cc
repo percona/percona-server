@@ -160,7 +160,7 @@ const char *dict_sys_t::s_file_per_table_name = "innodb_file_per_table";
 const char *dict_sys_t::s_default_undo_space_name_1 = "innodb_undo_001";
 const char *dict_sys_t::s_default_undo_space_name_2 = "innodb_undo_002";
 
-constexpr space_id_t dict_sys_t::s_space_id;
+constexpr space_id_t dict_sys_t::s_dict_space_id;
 
 /** the dictionary persisting structure */
 dict_persist_t *dict_persist = nullptr;
@@ -6167,7 +6167,7 @@ into Fil_system cache
 static std::tuple<bool, bool> get_mysql_ibd_page_0_from_buffer() {
   auto result = std::make_tuple(false, false);
 
-  fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+  fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
   if (space == nullptr) {
     return (result);
   }
@@ -6175,7 +6175,7 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_from_buffer() {
   const page_size_t page_size(space->flags);
   mtr_t mtr;
   mtr_start(&mtr);
-  buf_block_t *block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0),
+  buf_block_t *block = buf_page_get(page_id_t(dict_sys_t::s_dict_space_id, 0),
                                     univ_page_size, RW_X_LATCH, &mtr);
 
   if (block == nullptr) {

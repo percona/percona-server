@@ -197,7 +197,7 @@ SET GLOBAL debug= 'd,dbug.before_get_SOURCE_UUID';
 include/install_semisync_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-SET DEBUG_SYNC= 'now WAIT_FOR in_get_master_version_and_clock';
+SET DEBUG_SYNC= 'now WAIT_FOR in_get_source_version_and_clock';
 SET GLOBAL debug= @save_debug;
 SET DEBUG_SYNC= 'now SIGNAL signal.get_source_uuid';
 include/wait_for_slave_io_to_stop.inc

@@ -229,7 +229,7 @@ class Encryption {
   }
 
   /** Copy constructor */
-  Encryption(const Encryption &other) noexcept = default;
+  Encryption(const Encryption &other) noexcept;
 
   Encryption &operator=(const Encryption &other) noexcept {
     Encryption tmp(other);

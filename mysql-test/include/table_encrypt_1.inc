@@ -21,7 +21,7 @@ call mtr.add_suppression("\\[ERROR\\] .* Check keyring fail, please check the ke
 --enable_query_log
 
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -75,7 +75,7 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/kill_and_restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -126,7 +126,7 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -147,7 +147,7 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -179,7 +179,7 @@ SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
 --let $restart_parameters = $keyring_restart_param --innodb_strict_mode=OFF
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
@@ -225,5 +225,5 @@ DROP TABLE t1;
 
 # Restart with default innodb_strict_mode
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc

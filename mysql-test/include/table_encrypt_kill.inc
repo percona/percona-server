@@ -292,7 +292,7 @@ send call tde_db.read_t_encrypt();
 --connection default
 --echo # kill and restart the server
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --sleep 1
 --source include/kill_and_restart_mysqld.inc
 

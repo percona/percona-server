@@ -1532,7 +1532,7 @@ bool dd_upgrade_get_compression_dict_data(
     return (false);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   mem_heap_t *heap = mem_heap_create(1000);
   mtr_t mtr;
@@ -1554,7 +1554,7 @@ bool dd_upgrade_get_compression_dict_data(
                                         &name_len, &data, &data_len);
 
     mtr_commit(&mtr);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (!err_msg) {
       data_vector.push_back(std::make_pair(std::string(name, name_len),
@@ -1568,13 +1568,13 @@ bool dd_upgrade_get_compression_dict_data(
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     mtr_start(&mtr);
     rec = dict_getnext_system(&pcur, &mtr);
   }
 
   mtr_commit(&mtr);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return (false);

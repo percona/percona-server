@@ -3742,7 +3742,6 @@ dberr_t row_merge_build_indexes(
     struct TABLE *eval_table, row_prebuilt_t *prebuilt) {
   merge_file_t *merge_files;
   row_merge_block_t *block;
-  ut_new_pfx_t crypt_pfx;
   ulint i;
   ulint j;
   dberr_t error;
@@ -3780,7 +3779,7 @@ dberr_t row_merge_build_indexes(
 
   if (log_tmp_is_encrypted()) {
     crypt_block = static_cast<row_merge_block_t *>(
-        alloc.allocate_large(3 * srv_sort_buf_size, &crypt_pfx, false));
+        alloc.allocate_large(3 * srv_sort_buf_size, false));
 
     if (crypt_block == nullptr) {
       return DB_OUT_OF_MEMORY;
@@ -4028,7 +4027,7 @@ func_exit:
   alloc.deallocate_large(block);
 
   if (crypt_block) {
-    alloc.deallocate_large(crypt_block, &crypt_pfx);
+    alloc.deallocate_large(crypt_block);
   }
 
   DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);

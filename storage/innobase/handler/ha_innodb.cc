@@ -4765,7 +4765,7 @@ bool innobase_fix_tablespaces_empty_uuid() {
 
   space_ids.push_back(srv_sys_space.space_id());
   space_ids.push_back(srv_tmp_space.space_id());
-  space_ids.push_back(dict_sys_t::s_space_id);
+  space_ids.push_back(dict_sys_t::s_dict_space_id);
 
 #ifdef UNIV_DEBUG
   /* Currently all session temp tablespaces that use empty uuid

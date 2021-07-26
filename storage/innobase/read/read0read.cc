@@ -703,7 +703,7 @@ void ReadView::clone(ReadView *&result, trx_t *from_trx) const {
     // yet which the cloned view must see, if it assigned later
     if (!from_trx->preallocated_id) {
       // Preallocate a transaction id for the donor
-      from_trx_id = from_trx->preallocated_id = trx_sys_get_new_trx_id();
+      from_trx_id = from_trx->preallocated_id = trx_sys_allocate_trx_id();
     } else {
       // This transaction has already been cloned
       from_trx_id = from_trx->preallocated_id;

@@ -1,6 +1,6 @@
 # Restart the server with keyring loaded
 --let $restart_parameters="$keyring_restart_param"
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --source include/restart_mysqld.inc
 
 --source include/count_sessions.inc

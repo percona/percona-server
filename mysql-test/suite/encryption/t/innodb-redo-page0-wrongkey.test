@@ -77,7 +77,7 @@ let $cleanup= drop table t1;
 # thus we need to restart server with correct keyring file
 
 --echo # Restart mysqld
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
 --source include/start_mysqld.inc
 

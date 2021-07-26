@@ -219,7 +219,7 @@ using std::max;
 
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
-const std::string Command_names::m_names[] = {
+const std::array<const std::string, COM_END + 1> Command_names::m_names = {
     "Sleep",
     "Quit",
     "Init DB",
@@ -277,10 +277,6 @@ const std::string &Command_names::str_global(enum_server_command cmd) {
 }
 
 const std::string Command_names::m_replace_str{"Register Slave"};
-
-size_t get_command_name_len(void) {
-  return sizeof(command_name) / sizeof(command_name[0]);
-}
 
 bool command_satisfy_acl_cache_requirement(unsigned command) {
   if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&

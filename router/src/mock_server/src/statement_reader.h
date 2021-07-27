@@ -370,6 +370,10 @@ class StatementReaderBase {
 
   virtual void set_session_ssl_info(const SSL *ssl) = 0;
 
+  StatementReaderBase() = default;
+  StatementReaderBase(const StatementReaderBase &) = default;
+  StatementReaderBase &operator=(const StatementReaderBase &) noexcept = default;
+  StatementReaderBase &operator=(StatementReaderBase &&) noexcept = default;
   virtual ~StatementReaderBase() = default;
 };
 

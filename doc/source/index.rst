@@ -188,6 +188,7 @@ Percona MyRocks
    MyRocks Installation <myrocks/install>
    MyRocks Limitations <myrocks/limitations>
    MyRocks Differences <myrocks/differences>
+   MyRocks Information Schema Tables <myrocks/information-schema-tables>
    MyRocks Server Variables <myrocks/variables>
    MyRocks Status Variables <myrocks/status_variables>
    MyRocks Gap Locks Detection <myrocks/gap_locks_detection>

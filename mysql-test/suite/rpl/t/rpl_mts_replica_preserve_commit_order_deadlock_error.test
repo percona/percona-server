@@ -35,8 +35,8 @@ CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --source include/sync_slave_sql_with_master.inc
 
 # switched to slave connection
---source include/only_mts_slave_parallel_type_logical_clock.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/only_mts_replica_parallel_workers.inc
 
 --echo #
 --echo # 2. Initial setup on Slave.

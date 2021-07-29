@@ -33,7 +33,7 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 
 --source include/rpl_connection_master.inc
 --source extra/rpl_tests/rpl_parallel_load.test

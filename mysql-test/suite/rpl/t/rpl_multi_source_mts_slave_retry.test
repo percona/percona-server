@@ -36,7 +36,7 @@ CREATE TABLE t1( a int unique);
 --source include/sync_slave_sql_with_master.inc
 
 # connection was switched to slave
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 
 --echo # stop slave
 --source include/rpl_stop_slaves.inc

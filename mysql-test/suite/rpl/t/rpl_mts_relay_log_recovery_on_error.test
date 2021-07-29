@@ -42,8 +42,8 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
---source include/only_mts_slave_parallel_workers.inc
---source include/only_mts_slave_parallel_type_database.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_database.inc
 call mtr.add_suppression("Duplicate entry*");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Failed to initialize the master info structure");

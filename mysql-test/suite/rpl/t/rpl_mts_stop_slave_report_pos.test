@@ -41,7 +41,7 @@ INSERT INTO db2.t1 VALUES (40);
 --source include/sync_slave_sql_with_master.inc
 
 # connection was switched to slave
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 
 # Save the global variables that are being modified. Set bigger values for
 # replica_checkpoint_group/period so that no further checkpoints are done

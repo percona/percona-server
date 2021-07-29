@@ -185,10 +185,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 #include "ut0test.h"
 #include "xtradb_i_s.h"
+#include "univ.i"
 #else
 #include <typelib.h>
 #include "buf0types.h"
-#include "univ.i"
 #endif /* !UNIV_HOTBACKUP */
 
 #include "json_binary.h"
@@ -6996,7 +6996,7 @@ uint ha_innobase::max_supported_key_length() const {
     case 8192:
       return (1536);
     default:
-      return (3500);
+      return (INNODB_MAX_KEY_SIZE);
   }
 }
 

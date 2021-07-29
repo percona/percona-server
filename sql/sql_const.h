@@ -50,7 +50,7 @@
 #define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY MAX_INDEXES  /* Max used keys */
 #define MAX_REF_PARTS 16U    /* Max parts used as ref */
-#define MAX_KEY_LENGTH 3072U /* max possible key */
+#define MAX_KEY_LENGTH 49152U /* max possible key */
 #define MAX_REFLENGTH 8      /* Max length for record ref */
 
 #define MAX_MBWIDTH 3 /* Max multibyte sequence */

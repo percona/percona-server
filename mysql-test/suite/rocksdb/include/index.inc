@@ -123,7 +123,9 @@ DROP TABLE t1;
 # Test index prefix length limits.
 #
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
+set @orig_rocksdb_xlarge_prefix=@@global.rocksdb_xlarge_prefix;
 set @@global.rocksdb_large_prefix=0;
+set @@global.rocksdb_xlarge_prefix=0;
 
 CREATE TABLE t1 (
   a BLOB(1024),
@@ -138,6 +140,7 @@ CREATE TABLE t1 (
 ) ENGINE=ROCKSDB;
 
 set @@global.rocksdb_large_prefix=1;
+set @@global.rocksdb_xlarge_prefix=0;
 
 CREATE TABLE t1 (
   a BLOB(4096),
@@ -152,3 +155,19 @@ CREATE TABLE t1 (
 ) ENGINE=ROCKSDB;
 
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
+
+set @@global.rocksdb_xlarge_prefix=1;
+
+CREATE TABLE t1 (
+    a BLOB(4096),
+KEY (a(4000))
+) ENGINE=ROCKSDB;
+DROP TABLE t1;
+
+--error ER_TOO_LONG_KEY
+CREATE TABLE t1 (
+    a BLOB(65535),
+KEY (a(49153))
+) ENGINE=ROCKSDB;
+
+set @@global.rocksdb_xlarge_prefix=@orig_rocksdb_xlarge_prefix;

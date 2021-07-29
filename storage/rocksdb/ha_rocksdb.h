@@ -582,7 +582,7 @@ class ha_rocksdb : public my_core::handler {
   uint max_supported_key_length() const override {
     DBUG_ENTER_FUNC();
 
-    DBUG_RETURN(16 * 1024); /* just to return something*/
+    DBUG_RETURN(ROCKSDB_MAX_KEY_LENGTH);
   }
 
   /**

@@ -32,7 +32,7 @@ source include/master-slave.inc;
 
 # Since a part of slave SQL thread initialisation happens after Slave_SQL_Running
 # has been set to Yes, there is a race condition between initialisation above and
-# init_slave setting above. Synchronise by replicating some workload.
+# init_replica setting above. Synchronise by replicating some workload.
 CREATE TABLE t1(a INT);
 DROP TABLE t1;
 

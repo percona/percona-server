@@ -11,7 +11,7 @@
 --source include/rpl_restart_server.inc
 
 connection slave;
-SET @@global.init_slave = 'SET @a = 42';
+SET @@global.init_replica = 'SET @a = 42';
 
 --source include/start_slave.inc
 

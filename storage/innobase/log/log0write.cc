@@ -2679,11 +2679,6 @@ void log_write_notifier(log_t *log_ptr) {
       log.write_notifier_resume_lsn.store(0, std::memory_order_release);
 
       log_write_notifier_mutex_enter(log);
-    } else if (UNIV_UNLIKELY(log.write_notifier_resume_lsn.load(
-                   std::memory_order_acquire)) != 0) {
-      /* There might be the case there has occurred an unset/set
-       * and log_resume_writer_threads is waiting for Ack */
-      log.write_notifier_resume_lsn.store(0, std::memory_order_release);
     }
 
     LOG_SYNC_POINT("log_write_notifier_before_check");
@@ -2806,11 +2801,6 @@ void log_flush_notifier(log_t *log_ptr) {
       log.flush_notifier_resume_lsn.store(0, std::memory_order_release);
 
       log_flush_notifier_mutex_enter(log);
-    } else if (UNIV_UNLIKELY(log.flush_notifier_resume_lsn.load(
-                   std::memory_order_acquire)) != 0) {
-      /* There might be the case there has occurred an unset/set
-       * and log_resume_writer_threads is waiting for Ack */
-      log.flush_notifier_resume_lsn.store(0, std::memory_order_release);
     }
 
     LOG_SYNC_POINT("log_flush_notifier_before_check");

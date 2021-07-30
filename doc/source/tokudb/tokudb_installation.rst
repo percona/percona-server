@@ -63,7 +63,7 @@ the Transparent huge pages are enabled with: :bash:`cat /sys/kernel/mm/transpare
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: bash
 		   
       [always] madvise never
 
@@ -74,7 +74,7 @@ engine you'll get the following message in you :file:`error.log`: ::
  Transparent huge pages are enabled, according to /sys/kernel/mm/transparent_hugepage/enabled
 
 You can `disable
-<http://www.oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php#disabling-transparent-hugepages>`_
+<https://access.redhat.com/solutions/46111>`_
 transparent huge pages permanently by passing
 ``transparent_hugepage=never`` to the kernel in your bootloader
 (**NOTE**: For this change to take an effect you'll need to reboot
@@ -165,7 +165,7 @@ If the script returns no errors, |TokuDB| storage engine should be successfully 
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       ...
       | TokuDB | YES | Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology | YES | YES | YES |
@@ -194,7 +194,7 @@ active: :mysql:`SHOW ENGINES;`
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       ...
       | TokuDB | YES | Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology | YES | YES | YES |
@@ -204,7 +204,7 @@ To check if all the |TokuDB| plugins have been installed correctly you should ru
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       ...
       | TokuDB                        | ACTIVE   | STORAGE ENGINE     | ha_tokudb.so | GPL     |
@@ -224,7 +224,7 @@ TokuDB Version
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
   
       +------------------+
       | @@tokudb_version |

@@ -8,7 +8,7 @@ Percona Audit Log Plugin provides monitoring and logging of connection and query
 activity that were performed on specific server. Information about the activity
 is stored in a log file. This
 implementation is alternative to the `MySQL Enterprise Audit Log Plugin
-<dev.mysql.com/doc/refman/8.0/en/audit-log-plugin.html>`_
+<https://dev.mysql.com/doc/refman/8.0/en/audit-log.html>`_
 
 Audit logging documents the database usage. You can use the log for troubleshooting. 
 

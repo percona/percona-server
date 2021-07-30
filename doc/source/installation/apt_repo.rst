@@ -147,7 +147,7 @@ After you unpack the bundle you should see the following packages:
 
   .. admonition:: Output
 
-     .. code-block:: guess
+     .. code-block:: bash
 
         libperconaserverclient21-dev_8.0.13-3-1.stretch_amd64.deb
         libperconaserverclient21_8.0.13-3-1.stretch_amd64.deb

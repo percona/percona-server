@@ -361,6 +361,13 @@ class Double_write {
     return false;
   }
 
+  bool is_batch_running() noexcept {
+    std::atomic_thread_fence(std::memory_order_acquire);
+
+    auto res = m_batch_running.load(std::memory_order_acquire);
+    return res;
+  }
+
   /** Flush buffered pages to disk, clear the buffers.
   @param[in] flush_type           FLUSH LIST or LRU LIST flush.
   @return false if there was a write batch already in progress. */
@@ -427,6 +434,13 @@ class Double_write {
     }
 
     ut_a(len <= univ_page_size.physical());
+    auto midpoint = s_instances->size() / 2;
+    if (flush_type == BUF_FLUSH_LIST) {
+      ut_a(this->m_id >= midpoint);
+    }
+    if (flush_type == BUF_FLUSH_LRU) {
+      ut_a(this->m_id < midpoint);
+    }
 
     for (;;) {
       mutex_enter(&m_mutex);
@@ -783,20 +797,32 @@ class Batch_segment : public Segment {
   /** Called on page write completion.
   @return if batch ended. */
   bool write_complete() noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    ut_a(m_dblwr);
+    ut_a(m_dblwr->is_batch_running() == true);
     const auto n = m_written.fetch_add(1, std::memory_order_relaxed);
     return n + 1 == m_batch_size.load(std::memory_order_relaxed);
   }
 
   /** Reset the state. */
   void reset() noexcept {
+    ut_a(m_written.load(std::memory_order_relaxed) ==
+         m_batch_size.load(std::memory_order_relaxed));
+
     m_written.store(0, std::memory_order_relaxed);
     m_batch_size.store(0, std::memory_order_relaxed);
+    ut_a(m_written.load(std::memory_order_relaxed) == 0);
+    ut_a(m_batch_size.load(std::memory_order_relaxed) == 0);
   }
 
   /** Set the batch size.
   @param[in] size               Number of pages to write to disk. */
   void set_batch_size(uint32_t size) noexcept {
+    ut_a(m_dblwr != nullptr);
+    ut_a(m_dblwr->is_batch_running() == true);
+    ut_a(size != 0);
+    ut_a(m_batch_size.load(std::memory_order_relaxed) == 0);
     m_batch_size.store(size, std::memory_order_release);
+    ut_a(m_batch_size.load(std::memory_order_relaxed) == (int)size);
   }
 
   /** @return the batch size. */
@@ -807,6 +833,9 @@ class Batch_segment : public Segment {
   /** Note that the batch has started for the double write instance.
   @param[in] dblwr              Instance for which batch has started. */
   void start(Double_write *dblwr) noexcept {
+    ut_a(m_dblwr == nullptr);
+    ut_a(m_batch_size.load(std::memory_order_relaxed) == 0);
+    ut_a(m_written.load(std::memory_order_relaxed) == 0);
     m_dblwr = dblwr;
     m_dblwr->batch_started();
   }
@@ -1488,7 +1517,10 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
     std::this_thread::yield();
   }
 
+  // Batch cannot be running now. We are starting it right now
+  ut_a(is_batch_running() == false);
   batch_segment->start(this);
+  ut_a(is_batch_running() == true);
 
   batch_segment->write(m_buffer);
 

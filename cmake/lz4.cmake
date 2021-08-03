@@ -23,7 +23,7 @@
 # cmake -DWITH_LZ4=system|bundled
 # bundled is the default
 
-SET(LIBLZ4_VERSION_REQUIRED "1.7.1")
+SET(LIBLZ4_VERSION_REQUIRED "1.9.3")
 
 MACRO (CHECK_LZ4_VERSION)
   SET(PATH_TO_LZ4_H "${ARGV0}/lz4.h")

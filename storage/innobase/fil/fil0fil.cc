@@ -688,13 +688,13 @@ class Tablespace_dirs {
 
 class Fil_shard {
   using File_list = UT_LIST_BASE_NODE_T(fil_node_t, LRU);
+  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t, unflushed_spaces);
+  using Full_space_list = UT_LIST_BASE_NODE_T(fil_space_t, space_list);
+  using Rotation_list = UT_LIST_BASE_NODE_T(fil_space_t, rotation_list);
   using Spaces = std::unordered_map<space_id_t, fil_space_t *>;
 
   using Names = std::unordered_map<const char *, fil_space_t *, Char_Ptr_Hash,
                                    Char_Ptr_Compare>;
-
- public:
-  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t, unflushed_spaces);
 
  public:
   /** Constructor
@@ -1392,8 +1392,8 @@ class Fil_shard {
 
  public:
   // list of spaces kept in this shard
-  Space_list m_space_list;
-  Space_list m_rotation_list;
+  Full_space_list m_space_list;
+  Rotation_list m_rotation_list;
 };
 
 /** The tablespace memory cache; also the totality of logs (the log

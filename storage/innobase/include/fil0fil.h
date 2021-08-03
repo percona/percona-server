@@ -511,8 +511,10 @@ struct fil_space_t {
   // them acquiring any locks.
   std::atomic<bool> exclude_from_rotation;
 
-  UT_LIST_NODE_T(fil_space_t) space_list; /*!< list of all spaces */
-  UT_LIST_NODE_T(fil_space_t) rotation_list;
+  // List of all spaces
+  List_node space_list;
+  List_node rotation_list;
+
   /** whether this tablespace needs key rotation */
   bool is_in_rotation_list;
 

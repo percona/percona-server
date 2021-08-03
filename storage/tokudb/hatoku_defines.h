@@ -193,7 +193,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define tokudb_test(e) ((e) ? 1 : 0)
 
 inline const char *tokudb_thd_get_proc_info(const THD *thd) {
-  return thd->proc_info;
+  return thd->proc_info();
 }
 inline void tokudb_thd_set_proc_info(THD *thd, const char *proc_info) {
   thd_proc_info(thd, proc_info);

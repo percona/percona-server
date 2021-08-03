@@ -53,6 +53,9 @@ namespace {
     - None of the innodb_read_only, read_only, super_read_only
       or transactional_read_only is ON, OR
 
+    - Not in multi transaction mode.
+      i.e., not in START TRANSACTION or AUTOCOMMIT=0.
+
     - Table is not a partitioned table.
 
     - Table is not a performance schema table.
@@ -72,6 +75,7 @@ inline bool can_persist_I_S_dynamic_statistics(THD *thd,
   return (thd->variables.information_schema_stats_expiry &&
           !thd->variables.transaction_read_only && !super_read_only &&
           !thd->in_sub_stmt && !read_only && !partition_name &&
+          !thd->in_multi_stmt_transaction_mode() &&
           (strcmp(schema_name, "performance_schema") != 0));
 }
 
@@ -489,7 +493,9 @@ ulonglong Table_statistics::read_stat(
   handlerton *hton = nullptr;
   const bool hton_implements_get_statistics =
       (tmp_plugin && (hton = plugin_data<handlerton *>(tmp_plugin)) &&
-       hton->get_index_column_cardinality && hton->get_table_statistics);
+       (hton->get_index_column_cardinality ||
+        stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY) &&
+       hton->get_table_statistics);
 
   // Try to get statistics without opening the table.
   if (!partition_name && hton_implements_get_statistics)

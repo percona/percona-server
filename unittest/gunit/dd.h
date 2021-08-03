@@ -23,9 +23,6 @@
 #ifndef DD_INCLUDED
 #define DD_INCLUDED
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -133,7 +130,7 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
 
   Mock_dd_field_longlong() : Base_mock_field_longlong() {}
 
-  virtual ~Mock_dd_field_longlong() {}
+  virtual ~Mock_dd_field_longlong() = default;
 };
 
 /**
@@ -172,7 +169,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   Mock_dd_field_varstring(uint32 length, TABLE_SHARE *share)
       : Base_mock_field_varstring(length, share) {}
 
-  virtual ~Mock_dd_field_varstring() {}
+  virtual ~Mock_dd_field_varstring() = default;
 };
 
 /**

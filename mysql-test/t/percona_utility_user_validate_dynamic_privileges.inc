@@ -1,5 +1,5 @@
 --let $error_log_file = $MYSQLTEST_VARDIR/tmp/my_restart.err
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --let $restart_parameters = "restart:--log-error=$error_log_file --utility-user-dynamic-privileges='$utility_user_dynamic_privileges'"
 
 --source include/start_mysqld.inc
@@ -15,5 +15,5 @@
 
 --let $error_log_file =
 --let $restart_parameters =
---let $restart_hide_args = 
+--let $do_not_echo_parameters = 
 

@@ -149,3 +149,11 @@ Removed System variables
   which was an alias to the ``kill_idle_trx`` system variable
 - The `max_binlog_files <https://www.percona.com/doc/percona-server/5.7/flexibility/max_binlog_files.html#max_binlog_files>`_ system variable
 
+Deprecated Storage engine
+-----------------------------------------------------
+
+-  The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0 and will be disabled in upcoming 8.0 versions. 
+    
+    We recommend migrating to the MyRocks Storage Engine. 
+
+    For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.

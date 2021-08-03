@@ -18,7 +18,7 @@
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // check_global_access
@@ -433,7 +433,7 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd,
   if (sql_thread_started && !tokudb_backup_stop_slave_sql_thread(thd))
     return false;
 
-  while (atomic_slave_open_temp_tables.load() && n_attemts--) {
+  while (atomic_replica_open_temp_tables.load() && n_attemts--) {
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_begin");
     if (!tokudb_backup_start_slave_sql_thread(thd)) return false;
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_slave_started");
@@ -442,7 +442,7 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd,
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_end");
   }
 
-  if (!n_attemts && atomic_slave_open_temp_tables.load() &&
+  if (!n_attemts && atomic_replica_open_temp_tables.load() &&
       sql_thread_started &&
       !tokudb_backup_check_slave_sql_thread_running(thd) &&
       !tokudb_backup_start_slave_sql_thread(thd)) {

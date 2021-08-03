@@ -806,6 +806,7 @@ ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover_managed STATS_PERSISTENT=0;
+ALTER TABLE replication_group_member_actions STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -1454,6 +1455,7 @@ DROP PREPARE stmt;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
+ALTER TABLE mysql.replication_group_member_actions TABLESPACE = mysql;
 
 SET @str="ALTER TABLE mysql.gtid_executed ENCRYPTION='Y'";
 SET @cmd = IF(STRCMP(@is_mysql_encrypted,'Y'), 'SET @dummy = 0', @str);
@@ -1543,6 +1545,7 @@ ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover_managed ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_group_member_actions ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;

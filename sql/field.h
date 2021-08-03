@@ -257,7 +257,30 @@ enum type_conversion_status {
 #define my_charset_numeric my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC MY_REPERTOIRE_ASCII
 
-type_conversion_status field_conv(Field *to, const Field *from);
+/**
+  Check if one can copy from “from” to “to” with a simple memcpy(), with
+  pack_length() as the length. This is the case if the types of the two fields
+  are the same and we don't have special copying rules for the type
+  (e.g., blobs, which require allocation, or time functions that require
+  checking for special SQL modes).
+
+  You should never call this with to == from, as such copies are no-ops
+  and memcpy() has undefined behavior with overlapping memory areas.
+ */
+bool fields_are_memcpyable(const Field *to, const Field *from);
+
+/**
+  Copy the value in "from" (assumed to be non-NULL) to "to", doing any
+  required conversions in the process.
+
+  Note that you should only call this if fields_are_memcpyable() is false,
+  since it does an actual conversion on the slow path (and it is not properly
+  tested whether it gives the correct result in all cases if
+  fields_are_memcpyable() is true).
+
+  You should never call this with to == from, as they are no-ops.
+ */
+type_conversion_status field_conv_slow(Field *to, const Field *from);
 
 inline uint get_enum_pack_length(int elements) {
   return elements < 256 ? 1 : 2;
@@ -501,7 +524,7 @@ class Value_generator {
     expr_str.str = nullptr;
     expr_str.length = 0;
   }
-  ~Value_generator() {}
+  ~Value_generator() = default;
   enum_field_types get_real_type() const { return field_type; }
 
   void set_field_type(enum_field_types fld_type) { field_type = fld_type; }
@@ -866,7 +889,12 @@ class Field {
   Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
         uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg);
 
+#ifdef __SUNPRO_CC
+  // Several mock classes in unit tests need this.
+  virtual ~Field() {}
+#else
   virtual ~Field() = default;
+#endif
 
   void reset_warnings() { m_warnings_pushed = 0; }
 
@@ -3730,7 +3758,7 @@ class Field_blob : public Field_longstr {
     return get_length(row_offset);
   }
   uint32 get_length(ptrdiff_t row_offset = 0) const;
-  uint32 get_length(const uchar *ptr, uint packlength) const;
+  static uint32 get_length(const uchar *ptr, uint packlength);
   uint32 get_length(const uchar *ptr_arg) const;
   /** Get a const pointer to the BLOB data of this field. */
   const uchar *get_blob_data() const { return get_blob_data(ptr + packlength); }
@@ -3887,6 +3915,8 @@ class Field_blob : public Field_longstr {
  private:
   int do_save_field_metadata(uchar *first_byte) const override;
 };
+
+void store_blob_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
 
 class Field_geom final : public Field_blob {
  private:
@@ -4602,16 +4632,8 @@ class Send_field {
     Protocol_classic and descendants.
   */
   bool field;
-  Send_field() {}
+  Send_field() = default;
 };
-
-/**
-  Constitutes a mapping from columns of tables in the from clause to
-  aggregated columns. Typically, this means that they represent the mapping
-  between columns of temporary tables used for aggregation, but not
-  always. They are also used for aggregation that can be executed "on the
-  fly" without a temporary table.
-*/
 
 class Copy_field {
   /**
@@ -4625,18 +4647,16 @@ class Copy_field {
     is called with 'reverse' = true.
   */
   using Copy_func = void(Copy_field *, const Field *, Field *);
-  Copy_func *get_copy_func(bool save);
+  Copy_func *get_copy_func();
 
  public:
   String tmp;  // For items
 
   Copy_field() = default;
 
-  Copy_field(Field *to, Field *from, bool save) : Copy_field() {
-    set(to, from, save);
-  }
+  Copy_field(Field *to, Field *from) : Copy_field() { set(to, from); }
 
-  void set(Field *to, Field *from, bool save);  // Field to field
+  void set(Field *to, Field *from);  // Field to field
 
  private:
   void (*m_do_copy)(Copy_field *, const Field *, Field *);

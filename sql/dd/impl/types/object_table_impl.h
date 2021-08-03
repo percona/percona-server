@@ -131,7 +131,7 @@ class Object_table_impl : virtual public Object_table {
 
   virtual void set_actual_encrypted() const override;
 
-  ~Object_table_impl() override {}
+  ~Object_table_impl() override = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////

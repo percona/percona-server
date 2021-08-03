@@ -126,6 +126,8 @@ mysql_pfs_key_t lock_sys_table_mutex_key;
 mysql_pfs_key_t lock_sys_page_mutex_key;
 mysql_pfs_key_t lock_wait_mutex_key;
 mysql_pfs_key_t trx_sys_mutex_key;
+mysql_pfs_key_t trx_sys_shard_mutex_key;
+mysql_pfs_key_t trx_sys_serialisation_mutex_key;
 mysql_pfs_key_t srv_sys_mutex_key;
 mysql_pfs_key_t srv_threads_mutex_key;
 #ifndef PFS_SKIP_EVENT_MUTEX
@@ -277,8 +279,7 @@ void MutexMonitor::reset() {
 
   mutex_enter(&rw_lock_list_mutex);
 
-  for (rw_lock_t *rw_lock = UT_LIST_GET_FIRST(rw_lock_list); rw_lock != nullptr;
-       rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
+  for (auto rw_lock : rw_lock_list) {
     rw_lock->count_os_wait = 0;
   }
 

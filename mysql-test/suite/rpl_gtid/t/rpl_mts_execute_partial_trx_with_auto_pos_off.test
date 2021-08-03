@@ -21,7 +21,7 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=0;
 --source include/start_slave.inc

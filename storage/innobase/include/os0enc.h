@@ -56,6 +56,7 @@ int read_key(const char *key_id, unsigned char **key, size_t *key_length,
 
 // Forward declaration.
 class IORequest;
+struct Encryption_key;
 
 enum class Encryption_rotation : std::uint8_t {
   NO_ROTATION,
@@ -127,11 +128,11 @@ class Encryption {
   /** Encryption master key prifix */
   static constexpr char MASTER_KEY_PREFIX[] = "INNODBKey";
 
-  /** Default master key for bootstrap */
-  static constexpr char DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
-
   /** Encryption key length */
   static constexpr size_t KEY_LEN = 32;
+
+  /** Default master key for bootstrap */
+  static constexpr char DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
 
   /** Encryption magic bytes size */
   static constexpr size_t MAGIC_SIZE = 3;
@@ -183,6 +184,9 @@ class Encryption {
 
   /** Decryption in progress. */
   static constexpr size_t DECRYPT_IN_PROGRESS = 1 << 1;
+
+  /** Tablespaces whose key needs to be reencrypted */
+  static std::vector<space_id_t> s_tablespaces_to_reencrypt;
 
   /** Default constructor */
   Encryption() noexcept
@@ -415,12 +419,13 @@ class Encryption {
                                         byte **master_key) noexcept;
 
   /** Decoding the encryption info from the first page of a tablespace.
-  @param[in,out]  key             key
-  @param[in,out]  iv              iv
+  @param[in]      space_id        Tablespace id
+  @param[in,out]  e_key           key, iv
   @param[in]      encryption_info encryption info
   @param[in]      decrypt_key     decrypt key using master key
   @return true if success */
-  static bool decode_encryption_info(byte *key, byte *iv, byte *encryption_info,
+  static bool decode_encryption_info(space_id_t space_id, Encryption_key &e_key,
+                                     byte *encryption_info,
                                      bool decrypt_key) noexcept;
 
   /** Encrypt the redo log block.
@@ -633,4 +638,14 @@ class Encryption {
                             uint key_version);
 };
 
+struct Encryption_key {
+  /** Encrypt key */
+  byte *m_key;
+
+  /** Encrypt initial vector */
+  byte *m_iv;
+
+  /** Master key id */
+  uint32_t m_master_key_id{Encryption::DEFAULT_MASTER_KEY_ID};
+};
 #endif /* os0enc_h */

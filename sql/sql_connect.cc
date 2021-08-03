@@ -961,6 +961,16 @@ static int check_connection(THD *thd) {
   */
   thd->set_ssl(net->vio);
 
+  if (net->vio->ssl_arg) {
+    int version = SSL_version((SSL *)net->vio->ssl_arg);
+    if (version == TLS1_VERSION || version == TLS1_1_VERSION) {
+      Security_context *sctx = thd->security_context();
+      LogErr(WARNING_LEVEL, ER_DEPRECATED_TLS_VERSION_SESSION,
+             SSL_get_version((SSL *)net->vio->ssl_arg), sctx->priv_user().str,
+             sctx->priv_host().str, sctx->host_or_ip().str, sctx->user().str);
+    }
+  }
+
   return auth_rc;
 }
 
@@ -1099,7 +1109,7 @@ static void prepare_new_connection_state(THD *thd) {
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
 
-  thd->proc_info = nullptr;
+  thd->set_proc_info(nullptr);
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
 
@@ -1163,7 +1173,7 @@ static void prepare_new_connection_state(THD *thd) {
       return;
     }
 
-    thd->proc_info = nullptr;
+    thd->set_proc_info(nullptr);
     thd->init_query_mem_roots();
   }
 }

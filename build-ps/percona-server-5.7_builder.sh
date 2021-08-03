@@ -373,8 +373,9 @@ install_deps() {
       	apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget
-        wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
+        wget  https://repo.percona.com/apt/pool/testing/p/percona-release/percona-release_1.0-27.generic_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
+        percona-release enable percona testing
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
 	    until sudo apt-get update; do
@@ -393,7 +394,7 @@ install_deps() {
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
         apt-get -y install libcurl4-openssl-dev patchelf
-        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" ]; then
+        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster" -o "x${DIST}" = "xfocal" -o "x${DIST}" = "xbullseye" ]; then
             apt-get -y install libeatmydata1
         fi
     fi
@@ -697,9 +698,13 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
+    fi
+    if [ ${DEBIAN_VERSION} = bullseye ]; then
+        sed -i '28d' debian/control
+	sed -i 's|libcurl4-openssl-dev,|libcurl4-openssl-dev|' debian/control
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
@@ -709,7 +714,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -733,9 +738,14 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" ]; then
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare  /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare -Wno-error /' debian/rules
+    fi
+    if [ ${DEBIAN_VERSION} = "bullseye" ]; then
+        wget https://github.com/percona/percona-server/commit/0e6566d55899e5063211b8166b7d7834c217c3e4.patch
+	patch -p1 < 0e6566d55899e5063211b8166b7d7834c217c3e4.patch
+	rm 0e6566d55899e5063211b8166b7d7834c217c3e4.patch
     fi
     dpkg-buildpackage -rfakeroot -uc -us -b
 

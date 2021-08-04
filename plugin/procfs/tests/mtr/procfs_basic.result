@@ -21,5 +21,8 @@ COUNT(*)
 SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/net/dev';
 COUNT(*)
 1
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCFS WHERE FILE LIKE '/proc/irq/0/%';
+COUNT(*)
+7
 UNINSTALL PLUGIN procfs;
 DROP USER mysqltest_1@localhost;

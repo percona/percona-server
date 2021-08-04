@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
   access patterns in glob(7) style:  /sys/block/sd[a-z]/stat;/proc/version*
 
   The default value for procfs_files_spec is : /proc/cpuinfo;/proc/irq//;
-  /proc/loadavg/proc/net/dev;/proc/net/sockstat;/proc/net/sockstat_rhe4;
+  /proc/loadavg;/proc/net/dev;/proc/net/sockstat;/proc/net/sockstat_rhe4;
   /proc/net/tcpstat;/proc/self/net/netstat;/proc/self/stat;/proc/self/io;
   /proc/self/numa_maps/proc/softirqs;/proc/spl/kstat/zfs/arcstats;/proc/stat;
   /proc/sys/fs/file-nr;/proc/version;/proc/vmstat
@@ -118,7 +118,8 @@ static const constexpr ulong MAX_PATTERN_DEPTH = 10;
 static const char *DEFAULT_FILES_SPEC =
     "/proc/cpuinfo;"
     "/proc/irq/*/*;"
-    "/proc/loadavg/proc/net/dev;"
+    "/proc/loadavg;"
+    "/proc/net/dev;"
     "/proc/net/sockstat;"
     "/proc/net/sockstat_rhe4;"
     "/proc/net/tcpstat;"

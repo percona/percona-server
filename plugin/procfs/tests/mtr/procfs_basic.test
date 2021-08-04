@@ -26,6 +26,8 @@ SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
 
 SHOW STATUS LIKE 'procfs_access_violations';
 
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/loadavg';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/net/dev';
 
 --connection default
 --disconnect conn1

@@ -132,6 +132,10 @@ static const char *DEFAULT_FILES_SPEC =
     "/proc/sys/fs/file-nr;"
     "/proc/version;"
     "/proc/vmstat";
+static const constexpr char SYS_NAME[] = "/sys/";
+static const constexpr int SYS_NAME_LEN = sizeof(SYS_NAME) - 1;
+static const constexpr char PROC_NAME[] = "/proc/";
+static const constexpr int PROC_NAME_LEN = sizeof(PROC_NAME) - 1;
 
 static char *files_spec = nullptr;
 static char *buffer = nullptr;
@@ -250,11 +254,6 @@ static bool get_in_condition_argument(Item *cond,
 static void limited_glob_files(const std::string &path,
                                const std::string &pattern, int max_results,
                                std::vector<std::string> &files_found) {
-  static const constexpr char SYS_NAME[] = "/sys/";
-  static const constexpr int SYS_NAME_LEN = sizeof(SYS_NAME) - 1;
-  static const constexpr char PROC_NAME[] = "/proc/";
-  static const constexpr int PROC_NAME_LEN = sizeof(PROC_NAME) - 1;
-
   if (max_results <= 0) return;
 
   DIR *dir = opendir(path.c_str());
@@ -347,10 +346,16 @@ static void fill_files_list(std::vector<std::string> &files) {
   while (list) {
     std::string path;
     std::getline(list, path, ';');
-    if (path.rfind("/proc", 0) != 0 && path.rfind("/sys", 0) != 0) continue;
 
     if (path.find_first_of("*?[") == std::string::npos) {
-      files.push_back(path);
+      std::vector<char> real_file_path(PATH_MAX);
+
+      if (realpath(path.c_str(), real_file_path.data())) {
+        if (strncmp(SYS_NAME, real_file_path.data(), SYS_NAME_LEN) == 0 ||
+            strncmp(PROC_NAME, real_file_path.data(), PROC_NAME_LEN) == 0)
+          files.push_back(path);
+      }
+
       continue;
     }
 

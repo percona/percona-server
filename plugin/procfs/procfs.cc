@@ -251,9 +251,9 @@ static void limited_glob_files(const std::string &path,
                                const std::string &pattern, int max_results,
                                std::vector<std::string> &files_found) {
   static const constexpr char SYS_NAME[] = "/sys/";
-  static const constexpr int SYS_NAME_LEN = sizeof(SYS_NAME);
+  static const constexpr int SYS_NAME_LEN = sizeof(SYS_NAME) - 1;
   static const constexpr char PROC_NAME[] = "/proc/";
-  static const constexpr int PROC_NAME_LEN = sizeof(PROC_NAME);
+  static const constexpr int PROC_NAME_LEN = sizeof(PROC_NAME) - 1;
 
   if (max_results <= 0) return;
 
@@ -299,10 +299,7 @@ static void limited_glob(const std::string &query, int max_results,
   std::string::size_type first_sep_after_star =
       query.find_first_of("/", first_star);
 
-  if (last_sep_before_star == std::string::npos) {
-    path = std::string(".");
-    pattern = query;
-  } else if (first_sep_after_star == std::string::npos) {
+  if (first_sep_after_star == std::string::npos) {
     path = std::string(query.begin(), query.begin() + last_sep_before_star);
     pattern =
         std::string(query.begin() + last_sep_before_star + 1, query.end());

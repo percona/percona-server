@@ -30,7 +30,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex 
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
-  ${LZ4_INCLUDE_DIR}
 )
 INCLUDE_DIRECTORIES(SYSTEM
   ${BOOST_PATCHES_DIR}
@@ -280,7 +279,7 @@ SET(SQL_SOURCE
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
-  ../extra/lz4/xxhash.c
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
@@ -332,9 +331,14 @@ ENDIF()
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ADD_COMPILE_FLAGS(
-  ../extra/lz4/xxhash.c
-  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_ -I${BUNDLED_LZ4_PATH}
 )
+
+ADD_COMPILE_FLAGS(
+  rpl_write_set_handler.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)
@@ -389,6 +393,14 @@ IF(HAVE_MISLEADING_INDENTATION)
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc    
     COMPILE_FLAGS "-Wno-misleading-indentation")
+ENDIF()
+
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

@@ -29,7 +29,8 @@ INSERT INTO non_persisted VALUES
 ('gtid_executed'), ('gtid_owned'), ('log_bin'), ('log_bin_basename'),
 ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
 ('relay_log_index'), ('relay_log_info_file'), ('replica_load_tmpdir'),
-('slave_load_tmpdir'), ('log_bin_use_v1_row_events');
+('slave_load_tmpdir'), ('log_bin_use_v1_row_events'),
+('have_backup_safe_binlog_info');
 CREATE TABLE aliases (
 name VARCHAR(100) PRIMARY KEY
 );
@@ -86,9 +87,9 @@ SET PERSIST_ONLY gtid_mode = @@GLOBAL.gtid_mode;
 SET PERSIST_ONLY gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
 SET PERSIST_ONLY gtid_purged = @@GLOBAL.gtid_purged;
-SET PERSIST_ONLY init_replica = @@GLOBAL.init_replica;
 SET PERSIST_ONLY have_backup_safe_binlog_info = @@GLOBAL.have_backup_safe_binlog_info;
 ERROR HY000: Variable 'have_backup_safe_binlog_info' is a non persistent read only variable
+SET PERSIST_ONLY init_replica = @@GLOBAL.init_replica;
 SET PERSIST_ONLY init_slave = @@GLOBAL.init_slave;
 Warnings:
 Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.

@@ -22,7 +22,9 @@
 
 #include "storage/perfschema/terminology_use_previous.h"
 
+#include <functional>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -31,10 +33,20 @@
 #include "sql/sql_class.h"  // thd_get_current_thd_terminology_use_previous
 #include "storage/perfschema/pfs_instr_class.h"  // PFS_class_type
 
+// Add custom hash function to be used for class_map_t unordered_map
+// below to fix gcc-5 build as it lacks std::hash specialization for enums.
+struct EnumHash {
+  template <typename T>
+  std::size_t operator()(T t) const noexcept {
+    using type = typename std::underlying_type<T>::type;
+    return std::hash<type>{}(static_cast<type>(t));
+  }
+};
+
 // Map from strings to strings
 using str_map_t = std::unordered_map<std::string, const char *>;
 // Map from a "class type" to a str_map_t.
-using class_map_t = std::unordered_map<PFS_class_type, str_map_t>;
+using class_map_t = std::unordered_map<PFS_class_type, str_map_t, EnumHash>;
 // Map from a version to a class_map_t.
 using version_vector_t = std::vector<class_map_t>;
 

@@ -1,6 +1,10 @@
 # basic stress tests for myrocks, runs the load generator with periodic crashes
 --source include/have_rocksdb.inc
 
+--disable_query_log
+call mtr.add_suppression("Got error 522 when reading table");
+--enable_query_log
+
 SET @@session.default_storage_engine = ROCKSDB;
 
 # Don't test this under valgrind, memory leaks will occur

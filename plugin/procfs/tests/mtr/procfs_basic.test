@@ -24,6 +24,9 @@ INSTALL PLUGIN procfs SONAME 'procfs.so';
 
 SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
 
+SHOW STATUS LIKE 'procfs_access_violations';
+
+
 --connection default
 --disconnect conn1
 

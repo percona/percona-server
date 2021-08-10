@@ -12,5 +12,8 @@ INSTALL PLUGIN procfs SONAME 'procfs.so';
 SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
 COUNT(*)
 1
+SHOW STATUS LIKE 'procfs_access_violations';
+Variable_name	Value
+procfs_access_violations	0
 UNINSTALL PLUGIN procfs;
 DROP USER mysqltest_1@localhost;

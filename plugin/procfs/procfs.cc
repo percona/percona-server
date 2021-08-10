@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
   access patterns in glob(7) style:  /sys/block/sd[a-z]/stat;/proc/version*
 
   The default value for procfs_files_spec is : /proc/cpuinfo;/proc/irq//;
-  /proc/loadavg/proc/net/dev;/proc/net/sockstat;/proc/net/sockstat_rhe4;
+  /proc/loadavg;/proc/net/dev;/proc/net/sockstat;/proc/net/sockstat_rhe4;
   /proc/net/tcpstat;/proc/self/net/netstat;/proc/self/stat;/proc/self/io;
   /proc/self/numa_maps/proc/softirqs;/proc/spl/kstat/zfs/arcstats;/proc/stat;
   /proc/sys/fs/file-nr;/proc/version;/proc/vmstat
@@ -118,7 +118,8 @@ static const constexpr ulong MAX_PATTERN_DEPTH = 10;
 static const char *DEFAULT_FILES_SPEC =
     "/proc/cpuinfo;"
     "/proc/irq/*/*;"
-    "/proc/loadavg/proc/net/dev;"
+    "/proc/loadavg;"
+    "/proc/net/dev;"
     "/proc/net/sockstat;"
     "/proc/net/sockstat_rhe4;"
     "/proc/net/tcpstat;"
@@ -131,6 +132,10 @@ static const char *DEFAULT_FILES_SPEC =
     "/proc/sys/fs/file-nr;"
     "/proc/version;"
     "/proc/vmstat";
+static const constexpr char SYS_NAME[] = "/sys/";
+static const constexpr int SYS_NAME_LEN = sizeof(SYS_NAME) - 1;
+static const constexpr char PROC_NAME[] = "/proc/";
+static const constexpr int PROC_NAME_LEN = sizeof(PROC_NAME) - 1;
 
 static char *files_spec = nullptr;
 static char *buffer = nullptr;
@@ -161,7 +166,7 @@ static std::atomic<uint64_t> files_read(0);
 static std::atomic<uint64_t> bytes_read(0);
 
 static SHOW_VAR status_variables[] = {
-    {"procfs_access_violations", (char *)&queries, SHOW_LONGLONG,
+    {"procfs_access_violations", (char *)&access_violations, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
     {"procfs_queries", (char *)&queries, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"procfs_files_read", (char *)&files_read, SHOW_LONGLONG,
@@ -249,11 +254,6 @@ static bool get_in_condition_argument(Item *cond,
 static void limited_glob_files(const std::string &path,
                                const std::string &pattern, int max_results,
                                std::vector<std::string> &files_found) {
-  static const constexpr char SYS_NAME[] = "/sys/";
-  static const constexpr int SYS_NAME_LEN = sizeof(SYS_NAME);
-  static const constexpr char PROC_NAME[] = "/proc/";
-  static const constexpr int PROC_NAME_LEN = sizeof(PROC_NAME);
-
   if (max_results <= 0) return;
 
   DIR *dir = opendir(path.c_str());
@@ -298,10 +298,7 @@ static void limited_glob(const std::string &query, int max_results,
   std::string::size_type first_sep_after_star =
       query.find_first_of("/", first_star);
 
-  if (last_sep_before_star == std::string::npos) {
-    path = std::string(".");
-    pattern = query;
-  } else if (first_sep_after_star == std::string::npos) {
+  if (first_sep_after_star == std::string::npos) {
     path = std::string(query.begin(), query.begin() + last_sep_before_star);
     pattern =
         std::string(query.begin() + last_sep_before_star + 1, query.end());
@@ -349,10 +346,16 @@ static void fill_files_list(std::vector<std::string> &files) {
   while (list) {
     std::string path;
     std::getline(list, path, ';');
-    if (path.rfind("/proc", 0) != 0 && path.rfind("/sys", 0) != 0) continue;
 
     if (path.find_first_of("*?[") == std::string::npos) {
-      files.push_back(path);
+      std::vector<char> real_file_path(PATH_MAX);
+
+      if (realpath(path.c_str(), real_file_path.data())) {
+        if (strncmp(SYS_NAME, real_file_path.data(), SYS_NAME_LEN) == 0 ||
+            strncmp(PROC_NAME, real_file_path.data(), PROC_NAME_LEN) == 0)
+          files.push_back(path);
+      }
+
       continue;
     }
 

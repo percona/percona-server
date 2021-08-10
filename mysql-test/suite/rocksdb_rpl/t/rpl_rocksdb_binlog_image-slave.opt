@@ -1,1 +1,1 @@
---gtid_mode=ON --enforce_gtid_consistency --log_bin --log_slave_updates --binlog_row_image=minimal
+--gtid_mode=ON --enforce_gtid_consistency --log_bin --log_replica_updates --binlog_row_image=minimal

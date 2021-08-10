@@ -161,7 +161,7 @@ static std::atomic<uint64_t> files_read(0);
 static std::atomic<uint64_t> bytes_read(0);
 
 static SHOW_VAR status_variables[] = {
-    {"procfs_access_violations", (char *)&queries, SHOW_LONGLONG,
+    {"procfs_access_violations", (char *)&access_violations, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
     {"procfs_queries", (char *)&queries, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"procfs_files_read", (char *)&files_read, SHOW_LONGLONG,

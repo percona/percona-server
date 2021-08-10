@@ -24,6 +24,25 @@ INSTALL PLUGIN procfs SONAME 'procfs.so';
 
 SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
 
+SHOW STATUS LIKE 'procfs_access_violations';
+
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/loadavg';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/net/dev';
+
+
+# Contents of /proc/irq/0/ depend on machine architecture
+let $x86_64 = `select convert(@@version_compile_machine using latin1) IN ("x86_64")`;
+if ($x86_64)
+{
+  let $expected_irq_0_count = "7";
+}
+if (!$x86_64)
+{
+  let $expected_irq_0_count = "0";
+}
+--replace_result $expected_irq_0_count EXPECTED_IRQ_0_COUNT
+--eval SELECT COUNT(*) = $expected_irq_0_count FROM INFORMATION_SCHEMA.PROCFS WHERE FILE LIKE '/proc/irq/0/%';
+
 --connection default
 --disconnect conn1
 

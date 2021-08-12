@@ -4054,7 +4054,7 @@ SET PERSIST_ONLY sync_source_info = 123456;
 
 ==== R2.1. Server restart with both old and new name in file ====
 
-# restart
+# restart:<hidden args>
 include/assert_error_log.inc [server: 1, pattern: NONE]
 sysvar:
 - name=init_replica
@@ -4509,7 +4509,7 @@ include/assert.inc [sync_master_info should have value 123456 in the persist fil
 
 ==== R2.2. Server restart with only new name in file ====
 
-# restart
+# restart:<hidden args>
 include/assert_error_log.inc [server: 1, pattern: NONE]
 sysvar:
 - name=log_slow_replica_statements
@@ -5337,7 +5337,7 @@ include/assert.inc [sync_master_info should have value 123456 in the persist fil
 ==== R2.3. Server restart with only old name in file ====
 
 * R5.3: no deprecation warnings up till now
-# restart
+# restart:<hidden args>
 * R4.2: deprecation warnings when loading file containing only old names
 include/assert_error_log.inc [server: 1, pattern: 
 .*The variable init_slave has been renamed to init_replica, and the old name deprecated.*
@@ -6189,7 +6189,7 @@ include/assert.inc [sync_master_info should have value 123456 in the persist fil
 * Also checking R4.3 (deprecation warning for old name on command line)
 
 RESET PERSIST;
-# restart
+# restart:<hidden args>
 * R4.3: deprecation warnings when using old names on command line
 include/assert_error_log.inc [server: 1, pattern: 
 .*The syntax .init_slave. is deprecated and will be removed in a future release. Please use init_replica instead.
@@ -6628,7 +6628,7 @@ include/assert.inc [sync_master_info should not exist in the persist file]
 ==== R3.2. Server restart with only new names on command line ====
 
 RESET PERSIST;
-# restart
+# restart:<hidden args>
 include/assert_error_log.inc [server: 1, pattern: NONE]
 sysvar:
 - name=log_slow_replica_statements
@@ -7045,7 +7045,7 @@ include/assert.inc [sync_master_info should not exist in the persist file]
 * Also checking R4.3 (deprecation warning for old name on command line)
 
 RESET PERSIST;
-# restart
+# restart:<hidden args>
 * R4.3: deprecation warnings when using old names on command line
 include/assert_error_log.inc [server: 1, pattern: 
 .*The syntax .init_slave. is deprecated and will be removed in a future release. Please use init_replica instead.

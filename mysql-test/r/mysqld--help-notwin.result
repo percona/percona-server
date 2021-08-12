@@ -1573,9 +1573,6 @@ The following options may be given as the first argument:
  Use mmap files for temptables. This variable is
  deprecated and will be removed in a future release.
  (Defaults to on; use --skip-temptable-use-mmap to disable.)
- --tf-sequence-table-max-upper-bound=# 
- Maximum number of records SEQUENCE_TABLE() table function
- is allowed to generate.
  --terminology-use-previous=name 
  Make monitoring tables and statements use the identifiers
  that were in use before they were changed in a given
@@ -1591,6 +1588,9 @@ The following options may be given as the first argument:
  BEFORE_8_0_26 as default for the session option, and in
  addition the thread commands that were in use until
  8.0.25 are written to the slow query log.
+ --tf-sequence-table-max-upper-bound=# 
+ Maximum number of records SEQUENCE_TABLE() table function
+ is allowed to generate.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1825,10 +1825,10 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-extra FALSE
-log-slow-replica-statements FALSE
 log-slow-filter 
 log-slow-rate-limit 1
 log-slow-rate-type session
+log-slow-replica-statements FALSE
 log-slow-slave-statements FALSE
 log-slow-sp-statements ON
 log-slow-verbosity 

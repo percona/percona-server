@@ -440,7 +440,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
     log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
 
-    ut_ad(strlen(server_uuid) == 0);
+    ut_ad(strlen(server_uuid) != 0);
     redo_log_key *mkey =
         redo_log_key_mgr.fetch_or_generate_default_key(nullptr);
 

@@ -4198,19 +4198,6 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   return rk;
 }
 
-void redo_log_keys::unload_old_keys() noexcept {
-  if (m_keys.size() == 0) {
-    return;
-  }
-  redo_log_key *last = &(--m_keys.end())->second;
-  for (auto &item : m_keys) {
-    if (&item.second != last) {
-      item.second.present = false;
-      memset(item.second.key, 0, Encryption::KEY_LEN);
-    }
-  }
-}
-
 redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   ut_ad(m_keys.empty());
   std::string default_key_name{get_key_name("", 0)};

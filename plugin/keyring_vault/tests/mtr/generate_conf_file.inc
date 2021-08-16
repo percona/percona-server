@@ -11,6 +11,7 @@
 #   $vault_conf_address - optional Hashicorp Vault server URL, if not defined, taken from MTR_VAULT_ADDRESS environment variable
 #   $vault_conf_token - optional Hashicorp Vault server token, if not defined, taken from MTR_VAULT_PLUGIN_TOKEN environment variable
 #   $vault_conf_ca - optional path to Hashicorp Vault server CA certificate, if not defined, taken from MTR_VAULT_CA environment variable
+#   $skip_vault_conf_ca - do not fill in vault_conf_ca even in case it is provided in MTR_VAULT_CA environment variable
 
 --let EXPORTED_VAULT_CONF_FILE = $vault_conf_file
 --let EXPORTED_VAULT_CONF_MOUNT_POINT_UUID = $vault_conf_mount_point_uuid
@@ -32,6 +33,11 @@ if ($vault_conf_ca)
 {
   --let EXPORTED_VAULT_CONF_CA = $vault_conf_ca
 }
+--let EXPORTED_SKIP_VAULT_CONF_CA = 0
+if ($skip_vault_conf_ca)
+{
+  --let EXPORTED_SKIP_VAULT_CONF_CA = 1
+}
 
 --perl
   use strict;
@@ -52,6 +58,12 @@ if ($vault_conf_ca)
   if (!$imported_vault_conf_ca)
   {
     $imported_vault_conf_ca = $ENV{'MTR_VAULT_CA'};
+  }
+
+  my $imported_skip_vault_conf_ca = $ENV{EXPORTED_SKIP_VAULT_CONF_CA};
+  if ($imported_skip_vault_conf_ca)
+  {
+    $imported_vault_conf_ca = '';
   }
 
   my $imported_vault_conf_file = $ENV{'EXPORTED_VAULT_CONF_FILE'} or die("EXPORTED_VAULT_CONF_FILE not set\n");

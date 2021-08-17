@@ -118,6 +118,29 @@ about what else affects the writing of ``FLUSH`` commands to the binary log.
       |MySQL| Documentation: FLUSH Syntax
          https://dev.mysql.com/doc/refman/8.0/en/flush.html
 
+.. _ps.binlog_ddl_skip_rewrite:
+
+Maintaining Comments with DROP TABLE
+=====================================
+
+When you issue a ``DROP TABLE`` command, the binary log stores the command but removes comments and encloses the table name in quotation marks. If you require the binary log to maintain the comments and not add quotation marks, enable ``binlog_ddl_skip_rewrite``.
+
+.. variable:: binlog_ddl_skip_rewrite
+
+     :version 8.0.26-16: Introduced
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :default: OFF
+
+If the variable is enabled, single table ``DROP TABLE`` DDL statements are logged in the binary log with comments. Multi-table ``DROP TABLE`` DDL statements are not supported and return an error.
+
+.. sourcecode:: sql 
+
+  SET binlog_ddl_skip_rewrite = ON;
+  /*comment at start*/DROP TABLE t /*comment at end*/;
+
 .. _percona-server.binary-log.UDF:
 
 Binary Log User Defined Functions

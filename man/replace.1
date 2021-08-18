@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBreplace\fR
+.\"     Title: replace
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 06/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBREPLACE\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "REPLACE" "1" "06/07/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -64,8 +64,8 @@ in one of the following ways:
 .RS 4
 .\}
 .nf
-shell> \fBreplace \fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB [\fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB] \&.\&.\&. \-\- \fR\fB\fIfile_name\fR\fR\fB [\fR\fB\fIfile_name\fR\fR\fB] \&.\&.\&.\fR
-shell> \fBreplace \fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB [\fR\fB\fIfrom\fR\fR\fB \fR\fB\fIto\fR\fR\fB] \&.\&.\&. < \fR\fB\fIfile_name\fR\fR
+replace \fIfrom\fR \fIto\fR [\fIfrom\fR \fIto\fR] \&.\&.\&. \-\- \fIfile_name\fR [\fIfile_name\fR] \&.\&.\&.
+replace \fIfrom\fR \fIto\fR [\fIfrom\fR \fIto\fR] \&.\&.\&. < \fIfile_name\fR
 .fi
 .if n \{\
 .RE
@@ -102,7 +102,7 @@ file2:
 .RS 4
 .\}
 .nf
-shell> \fBreplace a b b a \-\- file1 file2 \&.\&.\&.\fR
+replace a b b a \-\- file1 file2 \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -179,7 +179,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

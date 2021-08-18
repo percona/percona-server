@@ -1,16 +1,35 @@
 --echo #
 --echo # Plugin Data Masking: gen_blacklist
 --echo #
+
 CREATE FUNCTION gen_blacklist RETURNS STRING SONAME 'data_masking.so';
 CREATE FUNCTION gen_dictionary_drop RETURNS STRING SONAME 'data_masking.so';
 CREATE FUNCTION gen_dictionary_load RETURNS STRING SONAME 'data_masking.so';
 
 SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
 SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
-SELECT gen_blacklist('Moscow', 'DE_Cities', 'US_Cities');
+SELECT gen_dictionary_load('../../std_data/data_masking/long_entries_cities.txt', 'long_entries_cities');
+
+--let $assert_text= Return the same string if it is not present in the source dict
+--let $city= `SELECT gen_blacklist('Moscow', 'DE_Cities', 'US_Cities')`
+--let $assert_cond= "$city" = "Moscow"
+--source include/assert.inc
+
+--let $assert_text= Return an entry of the dest dict if the string is present in the source dict
+--let $city= `SELECT gen_blacklist('Berlin', 'DE_Cities', 'US_Cities')`
+--let $assert_cond= "$city" = "Houston" OR "$city" = "Phoenix" OR "$city" = "El Paso" OR "$city" = "Detroit"
+--source include/assert.inc
+
+--let $assert_text= Long entries in the dest dict are not trimmed
+--let $city= `SELECT gen_blacklist('Berlin', 'DE_Cities', 'long_entries_cities')`
+--let $len= `SELECT length("$city")`
+--let $assert_cond= "$len" = 1582
+--source include/assert.inc
+
 SELECT gen_dictionary_drop('de_cities');
 SELECT gen_dictionary_drop('us_cities');
+SELECT gen_dictionary_drop('long_entries_cities');
 
+DROP FUNCTION gen_blacklist;
 DROP FUNCTION gen_dictionary_load;
 DROP FUNCTION gen_dictionary_drop;
-DROP FUNCTION gen_blacklist;

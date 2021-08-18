@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,14 +189,11 @@ private:
   Gcs_interface *gcs_interface;
 
   /** Is the member leaving*/
-  bool leave_coordination_leaving;
+  int32 leave_coordination_leaving;
   /** Did the member already left*/
-  bool leave_coordination_left;
-  /** Is finalize ongoing*/
-  bool finalize_ongoing;
+  int32 leave_coordination_left;
 
   Checkable_rwlock *gcs_operations_lock;
-  Checkable_rwlock *finalize_ongoing_lock;
 };
 
 #endif /* GCS_OPERATIONS_INCLUDE */

@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <forward_list>
 #include <list>
+#include <memory>
 #include <string>
 
 #include "client/client_priv.h"
@@ -5737,19 +5738,22 @@ static int do_show_master_status(MYSQL *mysql_con,
   char binlog_pos_file[FN_REFLEN];
   char binlog_pos_offset[LONGLONG_LEN + 1];
   char *file, *offset;
+  std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> master(
+      nullptr, mysql_free_result);
+
   if (consistent_binlog_pos) {
     if (!check_consistent_binlog_pos(binlog_pos_file, binlog_pos_offset))
       return true;
     file = binlog_pos_file;
     offset = binlog_pos_offset;
   } else {
-    MYSQL_RES *master;
-    if (mysql_query_with_error_report(mysql_con, &master,
+    MYSQL_RES *master_ptr;
+    if (mysql_query_with_error_report(mysql_con, &master_ptr,
                                       "SHOW MASTER STATUS")) {
       return 1;
     }
-    MYSQL_ROW row = mysql_fetch_row(master);
-    mysql_free_result(master);
+    master.reset(master_ptr);
+    MYSQL_ROW row = mysql_fetch_row(master.get());
     if (row && row[0] && row[1]) {
       file = row[0];
       offset = row[1];

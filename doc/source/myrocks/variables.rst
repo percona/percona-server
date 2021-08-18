@@ -60,6 +60,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_alter_column_default_inplace`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_base_background_compactions`
      - Yes
      - No
@@ -232,6 +236,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Local
+   * - :variable:`rocksdb_enable_pipelined_write`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
      - Yes
      - Yes
@@ -743,6 +751,16 @@ make sure that :variable:`rocksdb_use_direct_reads` is disabled.
 Specifies whether to allow the OS to map a data file into memory for writes.
 Disabled by default.
 
+.. variable:: rocksdb_alter_column_default_inplace
+
+  :version 5.7.35-38: Implemented
+  :cli: ``--rocksdb-alter-column-default-inplace`
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Allow inplace alter for alter column default operation.
 .. variable:: rocksdb_base_background_compactions
 
   :version 5.7.19-17: Implemented
@@ -815,7 +833,7 @@ Allowed range is from ``1`` to ``2147483647``.
 .. variable:: rocksdb_block_size
 
   :version 5.7.19-17: Implemented
-  :version 5.7.20-18: Minimum value has chaned from ``0`` to ``1024``
+  :version 5.7.20-18: Minimum value has changed from ``0`` to ``1024``
   :cli: ``--rocksdb-block-size``
   :dyn: No
   :scope: Global
@@ -1370,6 +1388,19 @@ failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.. variable:: rocksdb_
 Enables the rocksdb iterator upper bounds and lower bounds in read options.
 
 The default value is ``TRUE``.
+
+.. variable:: rocksdb_enable_pipelined_write
+
+    :version 5.7.35-38: Implemented
+    :cli: ``--rocksdb-enable-pipelined-write``
+    :dyn: No
+    :scope: Global
+    :vartype: Boolean
+    :default: ``OFF``
+
+DBOptions::enable_pipelined_write for RocksDB.
+
+If ``enable_pipelined_write`` is ``true``, a separate write thread is maintained for WAL write and memtable write. A write thread first enters the WAL writer queue and then the memtable writer queue. A pending thread on the WAL writer queue only waits for the previous WAL write operations but does not wait for memtable write operations. Enabling the feature may improve write throughput and reduce latency of the prepare phase of a two-phase commit.
 
 .. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
 

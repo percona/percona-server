@@ -10844,6 +10844,8 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       DBUG_RETURN(1);
+    // skip over the charset's 2 bytes
+    ptr += 2;
   }
 
   /* Convert database and user names to utf8 */
@@ -10886,12 +10888,14 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   char *client_plugin;
   if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)
   {
-    client_plugin= ptr + 2;
+    client_plugin= ptr;
     if (client_plugin >= end)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       DBUG_RETURN(1);
     }
+    // Skip over the client plugin
+    ptr += strlen(client_plugin) + 1;
   }
   else
   {
@@ -10909,6 +10913,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
       if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
+  }
+
+  if (ptr > end)
+  {
+    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    DBUG_RETURN (1);
   }
 
   size_t bytes_remaining_in_packet= end - ptr;

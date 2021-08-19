@@ -90,6 +90,10 @@ hash_item *do_item_alloc(struct default_engine *engine,
                          const int nbytes,
                          const void *cookie) {
     hash_item *it = NULL;
+    // Avoid potential underflows.
+    if (nbytes < 0)
+        return 0;
+
     size_t ntotal = sizeof(hash_item) + nkey + nbytes;
     if (engine->config.use_cas) {
         ntotal += sizeof(uint64_t);
@@ -131,6 +135,10 @@ hash_item *do_item_alloc(struct default_engine *engine,
                          const int nbytes,
                          const void *cookie) {
     hash_item *it = NULL;
+    // Avoid potential underflows.
+    if (nbytes < 0)
+        return 0;
+
     size_t ntotal = sizeof(hash_item) + nkey + nbytes;
     if (engine->config.use_cas) {
         ntotal += sizeof(uint64_t);

@@ -1,6 +1,7 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
 /* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2021, Percona and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +77,7 @@ public:
 
 protected:
   typedef bool (*on_check_function)(sys_var *self, THD *thd, set_var *var);
+  typedef bool (*pre_update_function)(sys_var *self, THD *thd, set_var *var);
   typedef bool (*on_update_function)(sys_var *self, THD *thd, enum_var_type type);
 
   int flags;            ///< or'ed flag_enum values
@@ -85,6 +87,11 @@ protected:
   PolyLock *guard;      ///< *second* lock that protects the variable
   ptrdiff_t offset;     ///< offset to the value from global_system_variables
   on_check_function on_check;
+  /**
+    Pointer to function to be invoked before updating system variable (but
+    after calling on_check hook), while we do not hold any locks yet.
+  */
+  pre_update_function pre_update;
   on_update_function on_update;
   const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem

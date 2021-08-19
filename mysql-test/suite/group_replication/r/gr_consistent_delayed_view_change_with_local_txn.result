@@ -77,6 +77,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 10. Signal to continue T1 and T2 on server2.
 [connection server2]
 SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################

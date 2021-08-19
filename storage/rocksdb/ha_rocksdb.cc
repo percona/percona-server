@@ -1017,7 +1017,8 @@ static TYPELIB index_type_typelib = {array_elements(index_type_names) - 1,
                                      nullptr};
 
 // TODO: 0 means don't wait at all, and we don't support it yet?
-static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(lock_wait_timeout,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                           "Number of seconds to wait for lock", nullptr,
                           nullptr, /*default*/ 1, /*min*/ 1,
                           /*max*/ RDB_MAX_LOCK_WAIT_SECONDS, 0);

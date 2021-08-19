@@ -1,4 +1,6 @@
 --source include/have_myisam.inc
+--source include/have_rocksdb.inc
+
 # Auxiliary SP which returns variable value before hint, with hint and after hint applying
 
 DELIMITER \\;
@@ -71,6 +73,13 @@ SET innodb_lock_wait_timeout=200;
 CALL test_hint("SET_VAR(innodb_lock_wait_timeout=600)", "innodb_lock_wait_timeout");
 SET innodb_lock_wait_timeout=default;
 
+--echo #################################################
+--echo # Test SET_VAR hint with RocksDB session variables
+--echo #################################################
+CALL test_hint("SET_VAR(rocksdb_lock_wait_timeout=800)", "rocksdb_lock_wait_timeout");
+SET rocksdb_lock_wait_timeout=200;
+CALL test_hint("SET_VAR(rocksdb_lock_wait_timeout=600)", "rocksdb_lock_wait_timeout");
+SET rocksdb_lock_wait_timeout=default;
 
 --echo #############################################
 --echo # Test SET_VAR hint ALTER TABLE innodb_tmpdir
@@ -114,6 +123,34 @@ COMMIT;
 SELECT /*+ SET_VAR(innodb_lock_wait_timeout="abc") */ * FROM t1 FOR UPDATE;
 DROP TABLE t1;
 
+# The RocksDB test below is slightly different than InnoDB.
+# Since there are no gap locks lock wait does not work with non-existent rows.
+--echo #############################################
+--echo # Test SET_VAR with rocksdb_lock_wait_timeout
+--echo #############################################
+
+CREATE TABLE t1(a INT PRIMARY KEY)ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES(1),(2),(3);
+
+BEGIN;
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+SET rocksdb_lock_wait_timeout=10000;
+SELECT @@rocksdb_lock_wait_timeout;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT /*+ SET_VAR(rocksdb_lock_wait_timeout=1) */ * FROM t1 WHERE a=1 FOR UPDATE;
+disconnect con1;
+
+connection default;
+COMMIT;
+
+--source include/wait_until_count_sessions.inc
+SELECT /*+ SET_VAR(rocksdb_lock_wait_timeout="abc") */ * FROM t1 WHERE a=1 FOR UPDATE;
+DROP TABLE t1;
+
 --echo ###########################################################
 --echo # Test SET_VAR hint with stored procedure (CALL statement)
 --echo ###########################################################
@@ -124,16 +161,17 @@ DELIMITER |;
                      @@myisam_repair_threads,
                      @@sort_buffer_size,
                      @@max_join_size,
-		     @@innodb_lock_wait_timeout;
+		             @@innodb_lock_wait_timeout,
+		             @@rocksdb_lock_wait_timeout;
               END|
 DELIMITER ;|
 
 --echo # check without hints
 CALL p1();
 --echo # check with hints
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) SET_VAR(rocksdb_lock_wait_timeout=99) */ p1();
 --echo # some with invalid values
-CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=a216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288b) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) SET_VAR(rocksdb_lock_wait_timeout=99) */ p1();
 DROP PROCEDURE p1;
 
 --echo ###########################################################
@@ -149,7 +187,9 @@ DELIMITER |;
 	      CALL test_hint("SET_VAR(sort_buffer_size=420000)", "sort_buffer_size");
 	      CALL test_hint("SET_VAR(max_join_size=200200200)", "max_join_size");
 	      CALL test_hint("SET_VAR(innodb_lock_wait_timeout=299)", "innodb_lock_wait_timeout");
+	      CALL test_hint("SET_VAR(rocksdb_lock_wait_timeout=299)", "rocksdb_lock_wait_timeout");
 	      CALL /*+ SET_VAR(innodb_lock_wait_timeout=499)*/ test_hint("SET_VAR(innodb_lock_wait_timeout=299)", "innodb_lock_wait_timeout");
+	      CALL /*+ SET_VAR(rocksdb_lock_wait_timeout=499)*/ test_hint("SET_VAR(rocksdb_lock_wait_timeout=299)", "rocksdb_lock_wait_timeout");
               END|
 DELIMITER ;|
 --echo
@@ -159,7 +199,7 @@ CALL p1();
 --echo
 --echo # test with hints to CALL statement
 --echo
-CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) */ p1();
+CALL /*+ SET_VAR(myisam_sort_buffer_size=16777216) SET_VAR(myisam_repair_threads=4) SET_VAR(sort_buffer_size=524288) SET_VAR(max_join_size=461461461) SET_VAR(innodb_lock_wait_timeout=99) SET_VAR(rocksdb_lock_wait_timeout=99) */ p1();
 DROP PROCEDURE p1;
 
 --echo #######################################

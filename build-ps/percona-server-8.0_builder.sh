@@ -271,6 +271,7 @@ get_sources(){
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
+    rsync -av storage/rocksdb/rocksdb_plugins/ ${PSDIR}/storage/rocksdb/rocksdb_plugins --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -306,15 +307,11 @@ enable_zenfs() {
     cp $CURDIR/source_tarball/percona-server-8.0.properties $WORKDIR
     source $WORKDIR/percona-server-8.0.properties
 
-    rm -rf storage/rocksdb/rocksdb_plugins/zenfs
-    git clone https://github.com/westerndigitalcorporation/zenfs.git storage/rocksdb/rocksdb_plugins/zenfs
     if [[ $mode == "tarball" ]]; then
         rm build-ps/build-binary.sh
-        curl https://raw.githubusercontent.com/percona/percona-server/8.0/build-ps/build-binary.sh --output build-ps/build-binary.sh
+        curl https://raw.githubusercontent.com/Sudokamikaze/percona-server/PS-7836-rework/build-ps/build-binary.sh --output build-ps/build-binary.sh
         chmod +x build-ps/build-binary.sh
-        mkdir -p storage/rocksdb/rocksdb/plugin/
     elif [[ $mode == "debian" ]]; then
-        mkdir builddir
         rm -rf debian
         mv build-ps/debian-zenfs debian
 
@@ -464,6 +461,15 @@ install_deps() {
         if [ x${DIST} = xhirsute ]; then
             apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
         fi
+        if [ x${DIST} = xfocal ]; then
+            apt-get -y install clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio
+            curl http://ua.archive.ubuntu.com/pool/universe/libz/libzbd/libzbd-dev_1.2.0-1_amd64.deb --output /tmp/libzbd-dev.deb
+            curl http://ua.archive.ubuntu.com/pool/universe/libz/libzbd/libzbd1_1.2.0-1_amd64.deb --output /tmp/libzbd1.deb
+            curl http://ua.archive.ubuntu.com/pool/universe/libz/libzbd/zbd-utils_1.2.0-1_amd64.deb --output /tmp/zbd-utils.deb
+            dpkg -i /tmp/libzbd-dev.deb /tmp/libzbd1.deb /tmp/zbd-utils.deb || true
+            apt-get install -fy
+            rm -f /tmp/libzbd-dev.deb /tmp/libzbd1.deb /tmp/zbd-utils.deb
+        fi  
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
         cd /usr/local

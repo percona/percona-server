@@ -110,7 +110,7 @@ do
         shift
         TARBALL_SUFFIX="-zenfs"
         WITH_ZENFS="ON"
-        ZENFS_EXTRA="-DROCKSDB_PLUGINS=zenfs"
+        ZENFS_EXTRA="-DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON"
         ;;
     -t | --tag )
         shift
@@ -306,29 +306,6 @@ fi
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
     )
     fi
-    # Build zenfs
-    if [[ ${WITH_ZENFS} == "ON" ]]; then
-        if [[ -f $INSTALLDIR/zenfs ]]; then
-            echo "ZenFS utils is built"
-        else
-            INSTALL_ROOT=${WORKDIR_ABS}/rocksdb-root
-            BUILD_ROOT=${WORKDIR_ABS}/rocksdb-build
-
-            mkdir ${WORKDIR_ABS}/rocksdb-root ${WORKDIR_ABS}/rocksdb-build
-            ln -s $SOURCEDIR/storage/rocksdb/rocksdb_plugins/zenfs/ $SOURCEDIR/storage/rocksdb/rocksdb/plugin/
-
-            pushd $SOURCEDIR/storage/rocksdb/rocksdb/
-            CC=clang-12 CXX=clang++-12 make DISABLE_WARNING_AS_ERROR=1 PREFIX=${INSTALL_ROOT}/usr OBJ_DIR=${BUILD_ROOT} ROCKSDB_PLUGINS=zenfs -j$(nproc) install-static
-            popd
-
-            pushd $SOURCEDIR/storage/rocksdb/rocksdb/plugin/zenfs/util
-            PKG_CONFIG_PATH=$INSTALL_ROOT/usr/lib/pkgconfig make CC=clang-12 CXX=clang++-12 -j$(nproc)
-            popd
-
-            cp $SOURCEDIR/storage/rocksdb/rocksdb/plugin/zenfs/util/zenfs $INSTALLDIR/
-            rm -rf $INSTALL_ROOT $BUILD_ROOT
-        fi
-    fi
 )
 
 (
@@ -476,17 +453,11 @@ fi
     cd "$INSTALLDIR/usr/local/"
     #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
-    if [[ ${WITH_ZENFS} == "ON" ]]; then
-        install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL/bin
-    fi
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
     if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
         cd "$INSTALLDIR/usr/local/minimal/"
         find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
-        if [[ ${WITH_ZENFS} == "ON" ]]; then
-            install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL-minimal/bin
-        fi
         $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
     fi
 )

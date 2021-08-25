@@ -1,0 +1,154 @@
+#
+# PS-7778  Wrongly handled definer for triggers when prepared statements are used
+#
+
+CREATE USER 'logger'@'%' IDENTIFIED BY '';
+CREATE USER 'user'@'%' IDENTIFIED BY '';
+
+CREATE DATABASE test1;
+USE test1;
+
+# A table that only 'logger' can access.
+CREATE TABLE logger_internal (data VARCHAR(100));
+INSERT INTO logger_internal SET data = 'secret';
+GRANT ALL PRIVILEGES ON logger_internal TO 'logger'@'%';
+
+# A table that nobody can access.
+CREATE TABLE forbidden_for_everyone (data VARCHAR(100));
+INSERT INTO forbidden_for_everyone SET data = '______';
+
+# A table 'logger' logs to.
+CREATE TABLE log (val VARCHAR(100));
+GRANT ALL PRIVILEGES ON log TO 'logger'@'%';
+
+--echo # -----------------------------------------------------------------------
+--echo # 1. Trigger SELECTs a table that 'user' can't access, but 'logger' can.
+--echo #
+
+CREATE TABLE data (val VARCHAR(100));
+INSERT INTO data (val) VALUES ('original-data');
+GRANT ALL PRIVILEGES ON data TO 'user'@'%';
+
+GRANT TRIGGER ON data TO 'logger'@'%';
+CREATE DEFINER = 'logger'@'%' TRIGGER trg
+  AFTER UPDATE ON data
+  FOR EACH ROW
+    INSERT INTO log (val)
+      (SELECT CONCAT('trg/1/', data) FROM logger_internal LIMIT 1);
+
+--connect (con_user, localhost, user, , )
+USE test1;
+
+UPDATE data SET val = 'new-data';
+PREPARE s FROM 'UPDATE data SET val = \'new-data\'';
+EXECUTE s;
+
+--echo # -----------------------------------------------------------------------
+--echo # 2. Trigger SELECTs something both 'user' and 'logger' cannot read.
+--echo #
+
+--connection default
+DROP TABLE data;
+CREATE TABLE data (val VARCHAR(100));
+INSERT INTO data (val) VALUES ('original-data');
+GRANT ALL PRIVILEGES ON data TO 'user'@'%';
+
+GRANT TRIGGER ON data TO 'logger'@'%';
+CREATE DEFINER = 'logger'@'%' TRIGGER trg
+  AFTER UPDATE ON data
+  FOR EACH ROW
+    INSERT INTO log (val)
+      (SELECT CONCAT('trg/2/', data) FROM forbidden_for_everyone LIMIT 1);
+
+--connection con_user
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE data SET val = 'new-data';
+PREPARE s FROM 'UPDATE data SET val = \'new-data\'';
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE s;
+
+--echo # -----------------------------------------------------------------------
+--echo # 3. Trigger uses OLD.val, but definer has no SELECT priviledge.
+--echo #
+
+--connection default
+DROP TABLE data;
+CREATE TABLE data (val VARCHAR(100));
+INSERT INTO data (val) VALUES ('original-data');
+GRANT ALL PRIVILEGES ON data TO 'user'@'%';
+
+GRANT TRIGGER ON data TO 'logger'@'%';  # No SELECT privilege.
+CREATE DEFINER = 'logger'@'%' TRIGGER trg
+  AFTER UPDATE ON data
+  FOR EACH ROW
+    INSERT INTO log (val) (SELECT CONCAT('trg/3/', OLD.val));
+
+--connection con_user
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE data SET val = 'new-data';
+PREPARE s FROM 'UPDATE data SET val = \'new-data\'';
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE s;
+
+--echo # -----------------------------------------------------------------------
+--echo # 4. Before-update trigger tries to set new value, but has no UPDATE privilege.
+--echo #
+
+--connection default
+DROP TABLE data;
+CREATE TABLE data (val VARCHAR(100));
+INSERT INTO data (val) VALUES ('original-data');
+GRANT ALL PRIVILEGES ON data TO 'user'@'%';
+
+GRANT TRIGGER ON data TO 'logger'@'%';  # No UPDATE privilege.
+CREATE DEFINER = 'logger'@'%' TRIGGER trg
+  BEFORE UPDATE ON data
+  FOR EACH ROW
+    SET NEW.val = 'str';
+
+--connection con_user
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE data SET val = 'new-data';
+PREPARE s FROM 'UPDATE data SET val = \'new-data\'';
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE s;
+
+--echo # -----------------------------------------------------------------------
+--echo # 5. Definer gets TRIGGER priviledge revoked after trigger definition.
+--echo #
+
+--connection default
+DROP TABLE data;
+CREATE TABLE data (val VARCHAR(100));
+INSERT INTO data (val) VALUES ('original-data');
+GRANT ALL PRIVILEGES ON data TO 'user'@'%';
+
+GRANT TRIGGER ON data TO 'logger'@'%';
+CREATE DEFINER = 'logger'@'%' TRIGGER trg
+  AFTER UPDATE ON data
+  FOR EACH ROW
+    INSERT INTO log (val)
+      (SELECT CONCAT('trg/5/', data) FROM logger_internal LIMIT 1);
+
+REVOKE TRIGGER ON data FROM 'logger'@'%';
+
+--connection con_user
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE data SET val = 'new-data';
+PREPARE s FROM 'UPDATE data SET val = \'new-data\'';
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE s;
+--echo # -----------------------------------------------------------------------
+
+--connection default
+--disconnect con_user
+
+SELECT * FROM log;
+
+DROP DATABASE test1;
+DROP USER user;
+DROP USER logger;

@@ -1,0 +1,3 @@
+call mtr.add_suppression(".*Plugin 'tokudb_backup' init function returned error.$");
+SET SESSION tokudb_backup_dir='BACKUP_DIR';
+ERROR HY000: Unknown system variable 'tokudb_backup_dir'

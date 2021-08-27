@@ -29,7 +29,7 @@ SELECT @@innodb_redo_log_encrypt;
 
 --source include/shutdown_mysqld.inc
 
---let NEW_CMD = $MYSQLD $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=$LOG_ENCRYPT_OTHER_TYPE >$MYSQLD_LOG 2>&1;
+--let NEW_CMD = $MYSQLD --no-defaults $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=$LOG_ENCRYPT_OTHER_TYPE >$MYSQLD_LOG 2>&1;
 --error 1
 --exec $NEW_CMD
 
@@ -51,7 +51,7 @@ INSERT INTO t1 VALUES(2, "ccccc");
 
 --source include/kill_mysqld.inc
 
---let NEW_CMD = $MYSQLD $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=$LOG_ENCRYPT_OTHER_TYPE >$MYSQLD_LOG 2>&1;
+--let NEW_CMD = $MYSQLD --no-defaults $extra_args $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR --innodb_redo_log_encrypt=$LOG_ENCRYPT_OTHER_TYPE >$MYSQLD_LOG 2>&1;
 --error 1
 --exec $NEW_CMD
 

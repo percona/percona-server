@@ -58,6 +58,8 @@ class Data {
 
   void set_data(const Sensitive_data data);
 
+  void set_version(uint data_version);
+
   virtual void set_data(const Data src);
 
   void set_type(Type type);

@@ -52,6 +52,25 @@ class Datacache final {
   ~Datacache() = default;
 
   /**
+    Find the newest known data ID version
+    @param [in]  data_id  Data ID
+    @param [out] version  Fetched data version.
+
+    @returns status of find operation
+      @retval true  Success. version contains the newest data version.
+      @retval false Failure. version may not contain a valid value.
+  */
+  bool find_data_version(const std::string &data_id, uint &version) const {
+    const auto it = key_version_map.find(data_id);
+    if (it != key_version_map.cend()) {
+      version = it->second;
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
     Retrieve an element from cache
     @param [in]  metadata Key to search data
     @param [out] data     Fetched data. Can be empty.
@@ -60,7 +79,7 @@ class Datacache final {
       @retval true  Success. data contains retrieved data.
       @retval false Failure. data may not contain a valid value.
   */
-  bool get(const meta::Metadata metadata, Data_extension &data) const {
+  bool get(const meta::Metadata &metadata, Data_extension &data) const {
     auto it = cache_.find(metadata);
     if (it == cache_.end()) return false;
     data = it->second;
@@ -76,9 +95,15 @@ class Datacache final {
       @retval true  Success
       @retval false Error. Element already exists in the cache.
   */
-  bool store(const meta::Metadata metadata, const Data_extension data) {
+  bool store(const meta::Metadata &metadata, const Data_extension &data) {
     bool ok = cache_.insert({metadata, data}).second;
-    if (ok) ++version_;
+    if (ok) {
+      ++version_;
+      // Store newest key version if supported
+      if (metadata.check_key_versioned()) {
+        key_version_map[metadata.key_id()] = metadata.key_version();
+      }
+    }
     return ok;
   }
 
@@ -90,7 +115,7 @@ class Datacache final {
       @retval true  Success. Data removed successfully.
       @retval false Failure. Either key is not present or removal failed.
   */
-  bool erase(const meta::Metadata metadata) {
+  bool erase(const meta::Metadata &metadata) {
     bool removed = cache_.erase(metadata) != 0;
     if (removed) ++version_;
     return removed;
@@ -130,6 +155,9 @@ class Datacache final {
   Cache<Data_extension> cache_;
   /** Cache version */
   size_t version_{0};
+
+  /** Map containing latest version for each key which supports versioning */
+  std::unordered_map<std::string, uint> key_version_map;
 };
 
 }  // namespace cache

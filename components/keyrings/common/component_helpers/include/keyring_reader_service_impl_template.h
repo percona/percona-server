@@ -76,7 +76,9 @@ bool init_reader_template(
       return false;
     }
 
-    Metadata metadata(data_id, auth_id);
+    auto data_version = Metadata::KEY_DEFAULT_VERSION;
+    keyring_operations.get_latest_data_version(data_id, data_version);
+    Metadata metadata(data_id, auth_id, data_version);
     if (keyring_operations.init_read_iterator(it, metadata) == true) {
       return false;
     }

@@ -4034,35 +4034,23 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   byte *rkey = nullptr;
 
   std::string key_name = get_key_name(server_uuid);
+  uint version = 0;
 
-  if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
-                                     &key_type) != 1 ||
+  if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen, &key_type,
+                                     &version) != 1 ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     /* There is no key yet, we'll try to generate one */
     my_free(rkey);
     return generate ? generate_and_store_new_key(thd) : nullptr;
   }
 
-  uint version = 0;
-  byte *rkey2 = nullptr;
-  size_t klen2 = 0;
-  const bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
-                    reinterpret_cast<uchar *>(NullS));
-  if (err) {
-    my_free(rkey);
-    my_free(rkey2);
-    my_free(key_type);
-    return nullptr;
-  }
-
-  ut_ad(klen2 == Encryption::KEY_LEN);
+  ut_ad(klen == Encryption::KEY_LEN);
 
   auto it = m_keys.find(version);
 
   if (it != m_keys.end() && it->second.present) {
-    ut_ad(memcmp(it->second.key, rkey2, Encryption::KEY_LEN) == 0);
+    ut_ad(memcmp(it->second.key, rkey, Encryption::KEY_LEN) == 0);
     my_free(rkey);
-    my_free(rkey2);
     my_free(key_type);
     return &it->second;
   }
@@ -4070,10 +4058,9 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
   rk->present = true;
-  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
+  memcpy(rk->key, rkey, Encryption::KEY_LEN);
 
   my_free(rkey);
-  my_free(rkey2);
   my_free(key_type);
 
   return rk;
@@ -4090,11 +4077,12 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
   size_t klen = 0;
   char *key_type = nullptr;
   byte *rkey = nullptr;
+  uint fetched_key_version = 0;
 
   std::string redo_key_with_ver{get_key_name(
       version != REDO_LOG_ENCRYPT_NO_VERSION ? uuid : "", version)};
   if (innobase::encryption::read_key(redo_key_with_ver.c_str(), &rkey, &klen,
-                                     &key_type) != 1 ||
+                                     &key_type, &fetched_key_version) != 1 ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     my_free(rkey);
     my_free(key_type);
@@ -4107,6 +4095,7 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
   }
 
   ut_ad(klen == Encryption::KEY_LEN);
+  ut_ad(version == fetched_key_version || fetched_key_version == 0);
 
   redo_log_key *rk = &m_keys[version];
   rk->version = version;
@@ -4153,9 +4142,10 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   char *redo_key_type = nullptr;
   byte *rkey = nullptr;
   size_t klen = 0;
+  uint key_version = 0;
 
   if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
-                                     &redo_key_type) != 1) {
+                                     &redo_key_type, &key_version) != 1) {
     ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_FETCH_KEY);
@@ -4166,34 +4156,15 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   }
 
   ut_ad(rkey != nullptr);
-  byte *rkey2 = nullptr;
-  size_t klen2 = 0;
-  uint version = 0;
+  ut_ad(klen == Encryption::KEY_LEN);
 
-  bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
-              reinterpret_cast<uchar *>(NullS));
-
-  ut_ad(klen2 == Encryption::KEY_LEN);
-
-  if (err) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_PARSE_KEY, rkey);
-    if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_PARSE_KEY,
-                  rkey);
-    }
-    my_free(redo_key_type);
-    my_free(rkey);
-    return nullptr;
-  }
-
-  redo_log_key *rk = &m_keys[version];
-  rk->version = version;
-  memcpy(rk->key, rkey2, Encryption::KEY_LEN);
+  redo_log_key *rk = &m_keys[key_version];
+  rk->version = key_version;
+  memcpy(rk->key, rkey, Encryption::KEY_LEN);
   rk->present = true;
 
   my_free(redo_key_type);
   my_free(rkey);
-  my_free(rkey2);
 
   return rk;
 }
@@ -4209,10 +4180,11 @@ redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   char *default_redo_key_type = nullptr;
   byte *default_rkey = nullptr;
   size_t default_klen = 0;
+  uint key_version = 0;
 
-  auto ret =
-      innobase::encryption::read_key(default_key_name.c_str(), &default_rkey,
-                                     &default_klen, &default_redo_key_type);
+  auto ret = innobase::encryption::read_key(
+      default_key_name.c_str(), &default_rkey, &default_klen,
+      &default_redo_key_type, &key_version);
 
   if (ret == -1) {
     ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);

@@ -92,8 +92,9 @@ bool Json_writer::add_element(const meta::Metadata &metadata,
 
   /* Add data id */
   element_member.SetString(
-      metadata.key_id().c_str(),
-      static_cast<rapidjson::SizeType>(metadata.key_id().length()), allocator);
+      metadata.versioned_key_id().c_str(),
+      static_cast<rapidjson::SizeType>(metadata.versioned_key_id().length()),
+      allocator);
   array_element.AddMember("data_id", element_member, allocator);
 
   /* Add data type */

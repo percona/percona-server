@@ -37,8 +37,12 @@ namespace meta {
 
 class Metadata final {
  public:
-  Metadata(const std::string key_id, const std::string owner_id);
-  Metadata(const char *key_id, const char *owner_id);
+  static const uint KEY_DEFAULT_VERSION = 0;
+
+  Metadata(const std::string key_id, const std::string owner_id,
+           uint key_version = KEY_DEFAULT_VERSION);
+  Metadata(const char *key_id, const char *owner_id,
+           uint key_version = KEY_DEFAULT_VERSION);
   Metadata();
 
   Metadata(const Metadata &src);
@@ -55,8 +59,17 @@ class Metadata final {
   /** Get key ID */
   const std::string key_id() const;
 
+  /** Get versioned key ID */
+  const std::string versioned_key_id() const;
+
   /** Get owner info */
   const std::string owner_id() const;
+
+  /** Get key version */
+  uint key_version() const;
+
+  /** Check if key supports versioning */
+  bool check_key_versioned() const;
 
   /** Validity of metadata object */
   bool valid() const;
@@ -65,7 +78,8 @@ class Metadata final {
 
   const std::string hash_key() const { return hash_key_; }
   bool operator==(const Metadata &other) const {
-    return key_id_ == other.key_id_ && owner_id_ == other.owner_id_;
+    return key_id_ == other.key_id_ && owner_id_ == other.owner_id_ &&
+           key_version_ == other.key_version_;
   }
   struct Hash {
     size_t operator()(const Metadata &metadata) const {
@@ -82,6 +96,8 @@ class Metadata final {
   std::string owner_id_;
   /** Hash key */
   std::string hash_key_;
+  /** Key version **/
+  uint key_version_;
   /** Validity of metadata */
   bool valid_{false};
 };

@@ -127,7 +127,10 @@ bool remove_template(
       return true;
     }
 
-    Metadata metadata(data_id, auth_id);
+    auto data_version = Metadata::KEY_DEFAULT_VERSION;
+    keyring_operations.get_latest_data_version(data_id, data_version);
+    Metadata metadata(data_id, auth_id, data_version);
+
     if (keyring_operations.erase(metadata) == true) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_REMOVE_FAILED, data_id,

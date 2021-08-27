@@ -49,7 +49,7 @@ void remove_key(const char *key_id);
 bool store_key(const char *key_id, const unsigned char *key, size_t key_length,
                const char *key_type);
 int read_key(const char *key_id, unsigned char **key, size_t *key_length,
-             char **key_type);
+             char **key_type, uint *key_version);
 
 }  // namespace encryption
 }  // namespace innobase

@@ -78,7 +78,11 @@ bool generate_template(
       return true;
     }
 
-    Metadata metadata(data_id, auth_id);
+    auto data_version = Metadata::KEY_DEFAULT_VERSION;
+    keyring_operations.get_latest_data_version(data_id, data_version);
+    ++data_version;  // rotate existing key to a new version
+
+    Metadata metadata(data_id, auth_id, data_version);
     if (keyring_operations.generate(metadata, data_type, data_size) == true) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_GENERATE_FAILED, data_id,

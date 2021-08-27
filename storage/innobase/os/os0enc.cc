@@ -222,10 +222,43 @@ bool store_key(const char *key_id, const unsigned char *key, size_t key_length,
     @retval 1  Key present. Check output buffers.
 */
 int read_key(const char *key_id, unsigned char **key, size_t *key_length,
-             char **key_type) {
-  return keyring_operations_helper::read_secret(
+             char **key_type, uint *key_version) {
+  auto ret_code = keyring_operations_helper::read_secret(
       innobase::encryption::keyring_reader_service, key_id, nullptr, key,
       key_length, key_type, PSI_INSTRUMENT_ME);
+
+  if (ret_code == 1) {
+    // Fetched key may contain key version added to it as a prefix followed
+    // by a colon. Extract this version from fetched key and return it in a
+    // separate parameter.
+    byte *key_parsed = nullptr;
+    size_t key_length_parsed = 0;
+    const bool err = (parse_system_key(*key, *key_length, key_version,
+                                       &key_parsed, &key_length_parsed) ==
+                      reinterpret_cast<uchar *>(NullS));
+
+    if (!err) {
+      ut_ad(key_length_parsed == Encryption::KEY_LEN);
+
+      if (*key_length != key_length_parsed) {
+        my_free(*key);
+        *key = (uchar *)(my_malloc(PSI_NOT_INSTRUMENTED,
+                                   sizeof(uchar) * key_length_parsed, MYF(0)));
+      }
+
+      if (*key == nullptr) {
+        my_free(key_parsed);
+        return -1;
+      }
+
+      memcpy(*key, key_parsed, key_length_parsed);
+      *key_length = key_length_parsed;
+    }
+
+    my_free(key_parsed);
+  }
+
+  return ret_code;
 }
 #else
 

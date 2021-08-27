@@ -508,6 +508,8 @@ class Keyring_operations {
   bool insert(const meta::Metadata &metadata, Data_extension secret_data) {
     /* valid_ = true implies cache is operational. Do not permit bulk insert */
     if (valid_ == true) return true;
+    if (metadata.check_key_versioned())
+      secret_data.set_version(metadata.key_version());
     if (!cache_data_) secret_data.set_data(data::Data{});
     return !cache_.store(metadata, secret_data);
   }
@@ -551,6 +553,8 @@ class Keyring_operations {
     Data_extension fetched_data;
     if (cache_.get(metadata, fetched_data)) return true;
     if ((*backend_).store(metadata, stored_data)) return true;
+    if (metadata.check_key_versioned())
+      stored_data.set_version(metadata.key_version());
     /*
       Note: We always cache metadata.
       So we always consult the operation's cache first
@@ -613,6 +617,8 @@ class Keyring_operations {
     if (!metadata.valid()) return true;
     if (cache_.get(metadata, generated_data)) return true;
     if ((*backend_).generate(metadata, generated_data, length)) return true;
+    if (metadata.check_key_versioned())
+      generated_data.set_version(metadata.key_version());
     if (!cache_data_) generated_data.set_data(data::Data{});
     if (!cache_.store(metadata, generated_data)) {
       /* Failed to cache the data, remove it from backend too */
@@ -620,6 +626,20 @@ class Keyring_operations {
       return true;
     }
     return false;
+  }
+
+  /**
+    Version API
+
+    @param [in] data_id
+    @param [out] version
+
+    @returns status of version lookup
+      @retval false Success - found stored latest version for key ID
+      @retval true  Failure
+  */
+  bool get_latest_data_version(const std::string &data_id, uint &version) {
+    return !cache_.find_data_version(data_id, version);
   }
 
   /**

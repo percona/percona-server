@@ -21,8 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <functional>
+#include <sstream>
+#include <string>
 
 #include "data.h"
+#include "my_inttypes.h"
 
 namespace keyring_common {
 namespace data {
@@ -80,6 +83,13 @@ void Data::set_data(const Sensitive_data data) {
 
 /** Set data */
 void Data::set_data(const Data src) { *this = src; }
+
+/** Set data version */
+void Data::set_version(const uint data_version) {
+  std::ostringstream versioned_data;
+  versioned_data << data_version << ':' << data();
+  set_data(versioned_data.str());
+}
 
 /** Set type */
 void Data::set_type(Type type) {

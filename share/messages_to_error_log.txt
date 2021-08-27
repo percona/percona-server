@@ -11486,8 +11486,8 @@ ER_REDO_ENCRYPTION_KEYRING
 ER_UNDO_NO_KEYRING
   eng "Undo log can't be encrypted if the keyring is not loaded."
 
-ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
-  eng "Couldn't fetch default percona_redo key. Please check if keyring is operational."
+ER_REDO_ENCRYPTION_CANT_FETCH_REDO_KEY
+  eng "Couldn't fetch percona_redo key. Please check if keyring is operational."
 
 ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION
   eng "Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading."

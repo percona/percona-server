@@ -22,25 +22,7 @@ EOF
 
 --let $test_error_log=$MYSQL_TMP_DIR/error_log.err
 
-# We crash before percona_redo:0 gets rotated to percona_redo-UUID:1 (it gets rotated when UUID becomes available)
-
---error 137
---exec $MYSQLD_CMD --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $PLUGIN_DIR_OPT --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY --debug=d,crash_before_redo_key_is_rotated
-
-# Here we check that server discovers that redo log was encrypted with percona_redo:0 (default encryption key for redo log file)
-# and is able to decrypt it.
-
---let $restart_parameters = "restart: $PLUGIN_DIR_OPT --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
---replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR
---source include/start_mysqld.inc
-
---source include/shutdown_mysqld.inc
-
-# We will now remove the redo log files and check that default percona_redo:0 key was reused and
-# it was rotated to already existing percona_redo-UUID:1 key (after SERVER_UUID became available).
-
---remove_file $MYSQLD_DATADIR1/ib_logfile0
---remove_file $MYSQLD_DATADIR1/ib_logfile1
+# Check that percona_redo-UUID:1 key is used after log files removal and server restart.
 
 --let $restart_parameters = "restart: $PLUGIN_DIR_OPT --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
 --replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -50,18 +32,18 @@ EOF
 
 --source include/shutdown_mysqld.inc
 
-# Check that default percona_redo key exists only in version 0
+# Check that there is no percona_redo keys without UUID
 
---let $percona_redo_default_key_name_v0=percona_redo:0
+--let $percona_redo_key_name_v0=percona_redo:0
 
---let SEARCH_PATTERN=$percona_redo_default_key_name_v0
---let ABORT_ON=NOT_FOUND
+--let SEARCH_PATTERN=$percona_redo_key_name_v0
+--let ABORT_ON=FOUND
 --let SEARCH_FILE=$KEYRING_FILE_PATH
 --source include/search_pattern_in_file.inc
 
---let $percona_redo_default_key_name_v1=percona_redo:1
+--let $percona_redo_key_name_v1=percona_redo:1
 
---let SEARCH_PATTERN=$percona_redo_default_key_name_v1
+--let SEARCH_PATTERN=$percona_redo_key_name_v1
 --let ABORT_ON=FOUND
 --source include/search_pattern_in_file.inc
 
@@ -79,23 +61,26 @@ EOF
 --let ABORT_ON=FOUND
 --source include/search_pattern_in_file.inc
 
-# First we rotate percona_redo-UUID key to version 2. After that we shutdown the server and remove redo log files.
-# Next we start the server with activated code assertion - to check that when server UUID becomes available,
-# the percona_redo-UUID:2 will be used instead of percona_redo default key.
+# Rotate percona_redo-UUID key to version 2.
 
 --let $restart_parameters = "restart: $PLUGIN_DIR_OPT --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
 --replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
---echo # Rotate percona_redo-UUID key to version 2.
 ALTER INSTANCE ROTATE REDO SYSTEM KEY;
 
 --source include/shutdown_mysqld.inc
 
+# Check that percona_redo-UUID:2 key exists
+
+--let SEARCH_PATTERN=$percona_key_name_v2
+--let ABORT_ON=NOT_FOUND
+--source include/search_pattern_in_file.inc
+
 --remove_file $MYSQLD_DATADIR1/ib_logfile0
 --remove_file $MYSQLD_DATADIR1/ib_logfile1
 
---let $restart_parameters = "restart: $PLUGIN_DIR_OPT --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY --debug=+d,assert_default_to_ver2_rotation"
+--let $restart_parameters = "restart: $PLUGIN_DIR_OPT --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$test_error_log --innodb_redo_log_encrypt=KEYRING_KEY"
 --replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 

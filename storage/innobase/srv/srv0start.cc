@@ -442,17 +442,15 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
     log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
 
     ut_ad(strlen(server_uuid) != 0);
-    redo_log_key *mkey =
-        redo_log_key_mgr.fetch_or_generate_default_key(nullptr);
+    redo_log_key *mkey = redo_log_key_mgr.load_latest_key(nullptr, true);
 
     if (mkey == nullptr) {
-      ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
+      ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_REDO_KEY);
       return (DB_ERROR);
     }
 
-    // default percona_redo should be of version 0, which is invalid - thus no
-    // version
-    ut_ad(mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
+    // percona_redo key should should have a version
+    ut_ad(mkey->version > 0);
 
     fsp_flags_set_encryption(log_space->flags);
     err = fil_set_encryption(log_space->id, alg,
@@ -463,12 +461,15 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
       return (DB_ERROR);
     }
     log_space->encryption_redo_key = mkey;
-    // We always store here REDO_LOG_ENCRYPT_NO_VERSION. For keyring encryption
-    // this is indication that default percona_redo key was used and should
-    // be rotated.
-    log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
-    // we do not have server_uuid yet
-    ut_ad(log_space->encryption_redo_key_uuid == nullptr);
+    log_space->encryption_key_version = mkey->version;
+
+    log_space->encryption_redo_key_uuid.reset(
+        new (std::nothrow) char[Encryption::SERVER_UUID_LEN + 1]);
+    if (log_space->encryption_redo_key_uuid == nullptr) {
+      ib::fatal(ER_IB_MSG_1244);
+    }
+    memcpy(log_space->encryption_redo_key_uuid.get(), server_uuid,
+           Encryption::SERVER_UUID_LEN + 1);
 
     ut_ad(err == DB_SUCCESS);
   }

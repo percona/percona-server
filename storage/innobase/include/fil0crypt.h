@@ -387,14 +387,6 @@ class redo_log_keys final {
   MY_NODISCARD
   redo_log_key *generate_and_store_new_key(THD *thd);
 
-  /** Fetch if exists default percona_redo key, in case it does not
-  exist - generate it in keyring. Should be used when server_uuid is not
-  yet available
-  @param[in] thd - connection thread
-  @return percona_redo default key */
-  MY_NODISCARD
-  redo_log_key *fetch_or_generate_default_key(THD *thd);
-
  private:
   /**
   Get KEYRING encryption redo key name

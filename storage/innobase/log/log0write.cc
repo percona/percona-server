@@ -3069,8 +3069,7 @@ static bool log_file_header_fill_encryption(byte *buf, ulint key_version,
 bool log_write_encryption(byte *key, byte *iv, bool is_boot,
                           redo_log_encrypt_enum redo_log_encrypt,
                           uint version) {
-  ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_MK ||
-        version == REDO_LOG_ENCRYPT_NO_VERSION);
+  ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_MK);
 
   const page_id_t page_id{dict_sys_t::s_log_space_first_id, 0};
   byte *log_block_buf = static_cast<byte *>(
@@ -3167,25 +3166,6 @@ void log_rotate_default_key() {
     ut_a(strlen(server_uuid) > 0);
 
     log_write_encryption(nullptr, nullptr, false, REDO_LOG_ENCRYPT_MK);
-  }
-
-  if (space->encryption_type != Encryption::NONE &&
-      space->encryption_key_version == REDO_LOG_ENCRYPT_NO_VERSION &&
-      !srv_read_only_mode && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-    ut_a(strlen(server_uuid) > 0);
-    /* This only happens when the server uuid was just generated, so we can
-     * save the key to the keyring */
-    redo_log_key *key = redo_log_key_mgr.load_latest_key(nullptr, true);
-    ut_ad(key->version != REDO_LOG_ENCRYPT_NO_VERSION);
-    space->encryption_key_version = key->version;
-    space->encryption_redo_key = key;
-    srv_redo_log_key_version = key->version;
-    DBUG_EXECUTE_IF("assert_default_to_ver2_rotation",
-                    ut_ad(srv_redo_log_key_version == 2););
-    // server uuid may not yet be written to redo log header - write it now
-    log_write_encryption(reinterpret_cast<uchar *>(key->key),
-                         space->encryption_iv, false, REDO_LOG_ENCRYPT_RK,
-                         key->version);
   }
 }
 

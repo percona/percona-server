@@ -4079,8 +4079,7 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
   byte *rkey = nullptr;
   uint fetched_key_version = 0;
 
-  std::string redo_key_with_ver{get_key_name(
-      version != REDO_LOG_ENCRYPT_NO_VERSION ? uuid : "", version)};
+  std::string redo_key_with_ver{get_key_name(uuid, version)};
   if (innobase::encryption::read_key(redo_key_with_ver.c_str(), &rkey, &klen,
                                      &key_type, &fetched_key_version) != 1 ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
@@ -4146,7 +4145,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
 
   if (innobase::encryption::read_key(key_name.c_str(), &rkey, &klen,
                                      &redo_key_type, &key_version) != 1) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
+    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_REDO_KEY);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_FETCH_KEY);
     }
@@ -4166,60 +4165,6 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   my_free(redo_key_type);
   my_free(rkey);
 
-  return rk;
-}
-
-redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
-  ut_ad(m_keys.empty());
-  std::string default_key_name{get_key_name("", 0)};
-  ut_ad(strlen(server_uuid) != 0);
-  ut_ad(default_key_name.length() == strlen("percona_redo:0") &&
-        memcmp(default_key_name.c_str(), "percona_redo:0",
-               default_key_name.length()) == 0);
-
-  char *default_redo_key_type = nullptr;
-  byte *default_rkey = nullptr;
-  size_t default_klen = 0;
-  uint key_version = 0;
-
-  auto ret = innobase::encryption::read_key(
-      default_key_name.c_str(), &default_rkey, &default_klen,
-      &default_redo_key_type, &key_version);
-
-  if (ret == -1) {
-    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
-    if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
-                  ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
-    }
-    my_free(default_redo_key_type);
-    my_free(default_rkey);
-    return nullptr;
-  }
-
-  if (default_rkey != nullptr) {
-    redo_log_key *rk = &m_keys[0];
-    rk->version = 0;
-    memcpy(rk->key, default_rkey, Encryption::KEY_LEN);
-    rk->present = true;
-    my_free(default_redo_key_type);
-    my_free(default_rkey);
-    return rk;
-  }
-
-  // we use store instead of generate because we want to store system key
-  // with illegal version - percona_redo:0.
-  Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
-
-  if (!innobase::encryption::store_key(default_key_name.c_str(),
-                                       reinterpret_cast<byte *>(m_keys[0].key),
-                                       Encryption::KEY_LEN, "AES")) {
-    return nullptr;
-  }
-
-  redo_log_key *rk = &m_keys[0];
-  rk->version = 0;
-  rk->present = true;
   return rk;
 }
 

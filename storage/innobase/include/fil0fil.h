@@ -55,8 +55,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0rkinfo.h"
 #include "keyring_encryption_key_info.h"
 
-#define REDO_LOG_ENCRYPT_NO_VERSION 0
-
 struct redo_log_key;
 
 /** Structure containing encryption specification */

@@ -313,12 +313,12 @@ Rdb_key_def::Rdb_key_def(
   rdb_netbuf_store_index(m_index_number_storage_form, m_index_number);
   m_total_index_flags_length =
       calculate_index_flag_offset(m_index_flags_bitmap, MAX_FLAG);
-  DBUG_ASSERT_IMP(m_index_type == INDEX_TYPE_SECONDARY &&
-                      m_kv_format_version <= SECONDARY_FORMAT_VERSION_UPDATE2,
-                  m_total_index_flags_length == 0);
-  DBUG_ASSERT_IMP(m_index_type == INDEX_TYPE_PRIMARY &&
-                      m_kv_format_version <= PRIMARY_FORMAT_VERSION_UPDATE2,
-                  m_total_index_flags_length == 0);
+  assert_IMP(m_index_type == INDEX_TYPE_SECONDARY &&
+                 m_kv_format_version <= SECONDARY_FORMAT_VERSION_UPDATE2,
+             m_total_index_flags_length == 0);
+  assert_IMP(m_index_type == INDEX_TYPE_PRIMARY &&
+                 m_kv_format_version <= PRIMARY_FORMAT_VERSION_UPDATE2,
+             m_total_index_flags_length == 0);
   assert(m_cf_handle);
 }
 
@@ -347,12 +347,12 @@ Rdb_key_def::Rdb_key_def(const Rdb_key_def &k)
   rdb_netbuf_store_index(m_index_number_storage_form, m_index_number);
   m_total_index_flags_length =
       calculate_index_flag_offset(m_index_flags_bitmap, MAX_FLAG);
-  DBUG_ASSERT_IMP(m_index_type == INDEX_TYPE_SECONDARY &&
-                      m_kv_format_version <= SECONDARY_FORMAT_VERSION_UPDATE2,
-                  m_total_index_flags_length == 0);
-  DBUG_ASSERT_IMP(m_index_type == INDEX_TYPE_PRIMARY &&
-                      m_kv_format_version <= PRIMARY_FORMAT_VERSION_UPDATE2,
-                  m_total_index_flags_length == 0);
+  assert_IMP(m_index_type == INDEX_TYPE_SECONDARY &&
+                 m_kv_format_version <= SECONDARY_FORMAT_VERSION_UPDATE2,
+             m_total_index_flags_length == 0);
+  assert_IMP(m_index_type == INDEX_TYPE_PRIMARY &&
+                 m_kv_format_version <= PRIMARY_FORMAT_VERSION_UPDATE2,
+             m_total_index_flags_length == 0);
   if (k.m_pack_info) {
     const size_t size = sizeof(Rdb_field_packing) * k.m_key_parts;
 #ifdef HAVE_PSI_INTERFACE
@@ -724,6 +724,8 @@ uint Rdb_key_def::extract_partial_index_info(
 
   std::string key_comment(table_arg->key_info[m_keyno].comment.str,
                           table_arg->key_info[m_keyno].comment.length);
+  std::string table_comment(table_arg->s->comment.str,
+                            table_arg->s->comment.length);
 
   bool per_part_match = false;
   std::string keyparts_str = Rdb_key_def::parse_comment_for_qualifier(
@@ -811,6 +813,17 @@ uint Rdb_key_def::extract_partial_index_info(
     }
     key_part_sk++;
     key_part_pk++;
+  }
+
+  bool ttl_duration_per_part_match_found;
+  std::string ttl_duration_str = Rdb_key_def::parse_comment_for_qualifier(
+      table_comment, table_arg, tbl_def_arg, &ttl_duration_per_part_match_found,
+      RDB_TTL_DURATION_QUALIFIER);
+
+  if (!ttl_duration_str.empty()) {
+    my_printf_error(ER_WRONG_ARGUMENTS, "Partial index cannot have TTL.",
+                    MYF(0));
+    return HA_EXIT_FAILURE;
   }
 
   return HA_EXIT_SUCCESS;
@@ -1336,8 +1349,8 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
   assert(packed_tuple != nullptr);
   // Checksums for PKs are made when record is packed.
   // We should never attempt to make checksum just from PK values
-  DBUG_ASSERT_IMP(should_store_row_debug_checksums,
-                  (m_index_type == INDEX_TYPE_SECONDARY));
+  assert_IMP(should_store_row_debug_checksums,
+             (m_index_type == INDEX_TYPE_SECONDARY));
 
   uchar *tuple = packed_tuple;
   size_t unpack_start_pos = size_t(-1);
@@ -2162,8 +2175,8 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
   // There is no checksuming data after unpack_info for primary keys, because
   // the layout there is different. The checksum is verified in
   // ha_rocksdb::convert_record_from_storage_format instead.
-  DBUG_ASSERT_IMP(!(m_index_type == INDEX_TYPE_SECONDARY),
-                  !verify_row_debug_checksums);
+  assert_IMP(!(m_index_type == INDEX_TYPE_SECONDARY),
+             !verify_row_debug_checksums);
 
   // Skip the index number
   if (unlikely(!reader.read(INDEX_NUMBER_SIZE))) {
@@ -3506,7 +3519,7 @@ int Rdb_key_def::unpack_unknown(Rdb_field_packing *const fpi,
     return UNPACK_FAILURE;
   }
 
-  DBUG_ASSERT_IMP(len > 0, unp_reader != nullptr);
+  assert_IMP(len > 0, unp_reader != nullptr);
 
   if ((ptr = (const uchar *)unp_reader->read(len))) {
     memcpy(dst, ptr, len);
@@ -4525,8 +4538,7 @@ bool Rdb_key_def::has_index_flag(uint32 index_flags, enum INDEX_FLAG flag) {
 uint32 Rdb_key_def::calculate_index_flag_offset(uint32 index_flags,
                                                 enum INDEX_FLAG flag,
                                                 uint *const length) {
-  DBUG_ASSERT_IMP(flag != MAX_FLAG,
-                  Rdb_key_def::has_index_flag(index_flags, flag));
+  assert_IMP(flag != MAX_FLAG, Rdb_key_def::has_index_flag(index_flags, flag));
 
   uint offset = 0;
   for (size_t bit = 0; bit < sizeof(index_flags) * CHAR_BIT; ++bit) {

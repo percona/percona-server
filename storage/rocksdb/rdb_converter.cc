@@ -735,7 +735,7 @@ int Rdb_converter::encode_value_slice(
   // Currently only primary key will store value slice
   assert(pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY ||
          pk_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
-  DBUG_ASSERT_IMP(m_maybe_unpack_info, pk_unpack_info);
+  assert_IMP(m_maybe_unpack_info, pk_unpack_info);
 
   bool has_ttl = pk_def->has_ttl();
   bool has_ttl_column = !pk_def->m_ttl_column.empty();

@@ -3,7 +3,7 @@
 # $file_exists_inverted - if non-zero, $file_exists_file_name must not exist
 #
 
---let $rocksdb_zenfs_disabled = `SELECT @@rocksdb_fs_uri IS NULL OR @@rocksdb_fs_uri = ''`
+--source parse_rocksdb_fs_uri.inc
 if ($rocksdb_zenfs_disabled)
 {
 
@@ -18,13 +18,7 @@ if (!$rocksdb_zenfs_disabled)
 {
   --file_exists $MYSQL_ZENFS
 
-  --let $zenfs_fs_uri_prefix = zenfs://dev:
   --let $zenfs_data_dir_prefix = ./.rocksdb
-  if (`SELECT LOCATE('$zenfs_fs_uri_prefix', @@rocksdb_fs_uri) != 1`)
-  {
-    --die @@rocksdb_fs_uri must start with '$zenfs_fs_uri_prefix' prefix
-  }
-  --let $extracted_zenfs_device = `SELECT RIGHT(@@rocksdb_fs_uri, LENGTH(@@rocksdb_fs_uri) - LENGTH('$zenfs_fs_uri_prefix'))`
 
   --let $extracted_zenfs_file_name = `SELECT SUBSTRING_INDEX('$file_exists_file_name', '/', -1)`
   --let $extracted_zenfs_path = `SELECT LEFT('$file_exists_file_name', LENGTH('$file_exists_file_name') - LENGTH('$extracted_zenfs_file_name') - 1)`

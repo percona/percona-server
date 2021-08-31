@@ -39,7 +39,7 @@ Installing |Percona Server| from Percona ``yum`` repository
 You can install Percona yum repository by running the following command as a
 ``root`` user or with sudo:
 
-      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+      yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
    .. admonition:: Output example
 
@@ -48,12 +48,6 @@ You can install Percona yum repository by running the following command as a
 	 Retrieving https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 	 Preparing...                ########################################### [100%]
          1:percona-release        ########################################### [100%]
-
-   To install |Percona Server| with SELinux policies, you also need the :program:`Percona-Server-selinux-*.noarch.rpm` package:
-
-   .. code-block:: bash
-
-      $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-57-5.7.31-rel84.2.el7.noarch.rpm
 
 2. Testing the repository
 
@@ -113,19 +107,19 @@ Installing |Percona Server| using downloaded rpm packages
 
    .. code-block:: bash
  
-     $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.31-34/binary/redhat/7/x86_64/Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
+     wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.31-34/binary/redhat/7/x86_64/Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages:
 
    .. code-block:: bash
 
-     $ tar xvf Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
+     tar xvf Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
     
    After you unpack the bundle you should see the following packages:  
 
    .. code-block:: bash
 
-     $ ls *.rpm
+     ls *.rpm
 
      Percona-Server-57-debuginfo-5.7.31-34.1.el7.x86_64.rpm
      Percona-Server-client-57-5.7.31-34.1.el7.x86_64.rpm
@@ -158,7 +152,7 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
 .. code-block:: bash
 
-   $ rpm -ivh *.rpm
+   rpm -ivh *.rpm
 
 .. note::
 

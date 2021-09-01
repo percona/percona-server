@@ -1221,17 +1221,20 @@ void trx_assign_rseg_durable(trx_t *trx) {
 /** Assign an id for this RW transaction and insert it into trx_sys->rw_trx_ids
 @param trx	transaction to assign an id for */
 static void trx_assign_id_for_rw(trx_t *trx) {
-  ut_ad(mutex_own(&trx_sys->mutex));
+  ut_ad(trx_sys_mutex_own());
 
   trx->id =
       trx->preallocated_id ? trx->preallocated_id : trx_sys_allocate_trx_id();
 
   if (trx->preallocated_id) {
-    // Maintain ordering in rw_trx_ids
-    trx_sys->rw_trx_ids.insert(
-        std::upper_bound(trx_sys->rw_trx_ids.begin(), trx_sys->rw_trx_ids.end(),
-                         trx->id),
-        trx->id);
+    // preallocated_id might not be received in ascending order,
+    // so we need to maintain ordering in rw_trx_ids and update min_active_trx_id
+    auto upper_bound_it = std::upper_bound(trx_sys->rw_trx_ids.begin(), trx_sys->rw_trx_ids.end(), trx->id);
+    auto insert_it = trx_sys->rw_trx_ids.insert(upper_bound_it, trx->id);
+    if (insert_it == trx_sys->rw_trx_ids.begin()) {
+      trx_sys->min_active_trx_id.store(trx->id);
+    }
+
   } else {
     // The id is known to be greatest
     trx_sys->rw_trx_ids.push_back(trx->id);

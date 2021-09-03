@@ -8,6 +8,8 @@ https://www.percona.com/software/percona-server/
 
 Documentation: https://www.percona.com/doc/percona-server/8.0
 
+Contributing Guide for Documentation: https://github.com/percona/percona-server/blob/8.0/doc/source/contributing.md
+
 Bug Tracker: https://jira.percona.com/projects/PS
 
 Sources: https://github.com/percona/percona-server

@@ -194,6 +194,7 @@ Percona MyRocks
    MyRocks Status Variables <myrocks/status_variables>
    MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
    MyRocks Data Loading <myrocks/data_loading>
+   MyRocks ZenFS <myrocks/zenfs>
 
 Reference
 ================================================================================

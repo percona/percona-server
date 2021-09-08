@@ -64,6 +64,7 @@
 #include "rocksdb/compaction_job_stats.h"
 #include "rocksdb/env.h"
 #include "rocksdb/env/composite_env_wrapper.h"
+#include "rocksdb/env_encryption.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/persistent_cache.h"
 #include "rocksdb/rate_limiter.h"
@@ -736,6 +737,7 @@ static bool rocksdb_enable_insert_with_update_caching = true;
 static unsigned long long rocksdb_max_compaction_history = 0;
 static bool rocksdb_skip_locks_if_skip_unique_check = false;
 static bool rocksdb_alter_column_default_inplace = false;
+static bool rocksdb_encryption = false;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -899,6 +901,7 @@ static std::unique_ptr<rocksdb::DBOptions> rdb_init_rocksdb_db_options(void) {
 
   o->two_write_queues = true;
   o->manual_wal_flush = true;
+
   return o;
 }
 
@@ -2351,6 +2354,14 @@ static MYSQL_THDVAR_ULONGLONG(
     nullptr, nullptr,
     /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
+static MYSQL_SYSVAR_BOOL(
+    encryption,
+    rocksdb_encryption,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "DBOptions::RocksDB encryption on/off", nullptr, nullptr,
+    false);
+
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
@@ -2544,6 +2555,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(skip_locks_if_skip_unique_check),
     MYSQL_SYSVAR(alter_column_default_inplace),
     MYSQL_SYSVAR(partial_index_sort_max_mem),
+    MYSQL_SYSVAR(encryption),
     nullptr};
 
 static int rocksdb_compact_column_family(THD *const thd,
@@ -5829,6 +5841,17 @@ static int rocksdb_init_internal(void *const p) {
   } else if (rocksdb_db_options->max_open_files == -2) {
     rocksdb_db_options->max_open_files = open_files_limit / 2;
   }
+
+  // encryption initialization
+  std::shared_ptr<rocksdb::EncryptionProvider> provider;
+  std::string config_string("CTRAES");
+  // KH: Config options have env inside. should be encrypted as well?
+  rocksdb::EncryptionProvider::CreateFromString(
+    rocksdb::ConfigOptions(), config_string,
+    &provider);
+
+  rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption);
+
 
   rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
                                            get_regex_flags());

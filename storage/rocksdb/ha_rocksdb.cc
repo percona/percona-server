@@ -5846,10 +5846,11 @@ static int rocksdb_init_internal(void *const p) {
   }
 
   // encryption initialization
-  std::unique_ptr<rocksdb::MasterKeyManager> mmm =
-    std::make_unique<KeyringMasterKeyManager>();
-  std::shared_ptr<rocksdb::EncryptionProvider> provider =
-    std::make_shared<rocksdb::CTRAesEncryptionProvider>(std::move(mmm));
+  auto uuid = rocksdb_db_options->env->GenerateUniqueId();
+  // unfortunately it has new line character at the end
+  uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
+  auto mmm = std::make_unique<KeyringMasterKeyManager>(uuid);
+  auto provider = std::make_shared<rocksdb::CTRAesEncryptionProvider>(std::move(mmm));
 
   rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
 

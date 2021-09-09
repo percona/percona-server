@@ -929,9 +929,10 @@ bool Sql_cmd_select::check_privileges(THD *thd) {
 
 bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
   // Check for all possible DML privileges
+  TABLE_LIST *first_not_own_table = lex->first_not_own_table();
 
-  for (TABLE_LIST *tr = lex->query_tables; tr != nullptr;
-       tr = tr->next_global) {
+  for (TABLE_LIST *tr = lex->query_tables;
+       tr != nullptr && tr != first_not_own_table; tr = tr->next_global) {
     if (tr->is_internal())  // No privilege check required for internal tables
       continue;
     // Calculated wanted privilege based on how table/view is used:

@@ -65,6 +65,9 @@
 #include "rocksdb/env.h"
 #include "rocksdb/env/composite_env_wrapper.h"
 #include "rocksdb/env_encryption.h"
+#include "rocksdb/env/env_encryption_ctr_aes.h"
+#include "rocksdb/env/master_key_manager.h"
+#include "./keyring_master_key_manager.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/persistent_cache.h"
 #include "rocksdb/rate_limiter.h"
@@ -5843,15 +5846,12 @@ static int rocksdb_init_internal(void *const p) {
   }
 
   // encryption initialization
-  std::shared_ptr<rocksdb::EncryptionProvider> provider;
-  std::string config_string("CTRAES");
-  // KH: Config options have env inside. should be encrypted as well?
-  rocksdb::EncryptionProvider::CreateFromString(
-    rocksdb::ConfigOptions(), config_string,
-    &provider);
+  std::unique_ptr<rocksdb::MasterKeyManager> mmm =
+    std::make_unique<KeyringMasterKeyManager>();
+  std::shared_ptr<rocksdb::EncryptionProvider> provider =
+    std::make_shared<rocksdb::CTRAesEncryptionProvider>(std::move(mmm));
 
-  rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption);
-
+  rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
 
   rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
                                            get_regex_flags());

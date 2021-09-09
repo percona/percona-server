@@ -267,6 +267,7 @@ SET(ROCKSDB_SOURCES
   rdb_utils.cc rdb_utils.h rdb_buff.h
   rdb_threads.cc rdb_threads.h
   ha_rockspart.cc ha_rockspart.h
+  keyring_master_key_manager.cc keyring_master_key_manager.h
 )
 
 IF(WITH_FB_TSAN)

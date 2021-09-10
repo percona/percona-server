@@ -1666,9 +1666,7 @@ Enabled by default.
   :default: ``TRUE``
 
 When enabled, this option allows index key prefixes longer than 767 bytes (up to
-3072 bytes). This option mirrors the `innodb_large_prefix
-<https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_large_prefix>`_
-The values for :variable:`rocksdb_large_prefix` should be the same between
+3072 bytes). The values for :variable:`rocksdb_large_prefix` should be the same between
 source and replica.
 
 .. note::

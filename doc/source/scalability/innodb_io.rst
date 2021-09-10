@@ -34,7 +34,7 @@ Status Variables
 
 The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity: 
 
-.. code-block:: guess 
+.. code-block:: mysql
 
    The max checkpoint age
    The current checkpoint age target

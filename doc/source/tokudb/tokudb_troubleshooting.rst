@@ -190,7 +190,7 @@ bit ``0`` set (decimal ``1``).
 
 Suppose that we create a table with a single column that is the primary key.
 
-.. code-block:: guess
+.. code-block:: mysql
 
  mysql> SHOW CREATE TABLE table;
 
@@ -212,7 +212,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       Query OK, 3 rows affected (0.00 sec)
       Records: 3  Duplicates: 0  Warnings: 0
@@ -223,7 +223,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -239,7 +239,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       Empty set (0.00 sec)
 
@@ -255,13 +255,13 @@ The insert gets blocked since there is a conflict on the primary key with value 
 
 The granted |TokuDB| locks are:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -275,7 +275,7 @@ The granted |TokuDB| locks are:
 
 The locks that are pending due to a conflict are:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
@@ -297,7 +297,7 @@ Eventually, the lock for client 2 times out, and we can retrieve a JSON document
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +---------------------------------------------------------------------------------------------------------------+
       | @@tokudb_last_lock_timeout                                                                                    |
@@ -317,7 +317,7 @@ Since transaction 62 was rolled back, all of the locks taken by it are released.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |

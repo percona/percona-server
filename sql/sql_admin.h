@@ -362,6 +362,7 @@ enum alter_instance_action_enum {
   ALTER_INSTANCE_ENABLE_INNODB_REDO,
   ALTER_INSTANCE_DISABLE_INNODB_REDO,
   RELOAD_KEYRING,
+  ROTATE_ROCKSDB_MASTER_KEY,
   LAST_ACTION /* Add new master key type before this */
 };
 

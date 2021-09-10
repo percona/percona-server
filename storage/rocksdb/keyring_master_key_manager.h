@@ -20,7 +20,8 @@ class KeyringMasterKeyManager : public rocksdb::MasterKeyManager {
         int GetMostRecentMasterKey(std::string *masterKey, uint32_t *masterKeyId) override;
         int GetMasterKey(uint32_t masterKeyId, const std::string &suuid, std::string *masterKey) override;
         int GetServerUuid(std::string *serverUuid) override;
-
+        virtual int GenerateNewMasterKey() override;
+        
         void RegisterMasterKeyId(uint32_t masterKeyId, const std::string& serverUuid) override;
     private:
         void InitKeyringServices();

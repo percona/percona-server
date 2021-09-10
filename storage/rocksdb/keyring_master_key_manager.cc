@@ -22,6 +22,10 @@ void KeyringMasterKeyManager::InitKeyringServices()
 {
   SERVICE_TYPE(registry) * reg_svc = mysql_plugin_registry_acquire();
 
+  if (reg_svc == nullptr) {
+    return;
+  }
+
   my_h_service h_keyring_reader_service = nullptr;
   my_h_service h_keyring_writer_service = nullptr;
   my_h_service h_keyring_generator_service = nullptr;
@@ -97,7 +101,6 @@ void KeyringMasterKeyManager::DeinitKeyringServices() {
   mysql_plugin_registry_release(reg_svc);
 }
 
-static constexpr size_t MASTER_KEY_NAME_MAX_LEN = 100;
 static constexpr uint32_t DEFAULT_MASTER_KEY_ID = 0;
 static constexpr char MASTER_KEY_PREFIX[] = "ROCKSDBKey";
 constexpr char rocksdb_key_type[] = "AES";
@@ -223,6 +226,21 @@ int KeyringMasterKeyManager::GetMasterKey(uint32_t masterKeyId, const std::strin
     std::string keyName = MASTER_KEY_PREFIX + std::string("-") + suuid + std::string("-") + std::to_string(masterKeyId);
 
     return ReadSecret(keyName, masterKey);
+}
+
+int KeyringMasterKeyManager::GenerateNewMasterKey() {
+    // todo: some synchronization would be nice...
+    uint32_t newMasterKeyId = newestMasterKeyId_+1;
+    std::string keyName = MASTER_KEY_PREFIX + std::string("-") + serverUuid_ + std::string("-") + std::to_string(newMasterKeyId);
+
+    /* We call keyring API to generate master key here. */
+    if (keyring_generator_service_->generate(keyName.c_str(), nullptr, rocksdb_key_type,
+                                          KEY_LEN) == true) {
+      return -1;
+    }
+    newestMasterKeyId_ = newMasterKeyId;
+
+    return 0;
 }
 
 void KeyringMasterKeyManager::RegisterMasterKeyId(uint32_t masterKeyId, const std::string& serverUuid) {

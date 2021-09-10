@@ -1821,6 +1821,9 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
     case RELOAD_KEYRING:
       alter_instance = new Reload_keyring(thd);
       break;
+    case ROTATE_ROCKSDB_MASTER_KEY:
+      alter_instance = new Rotate_rocksdb_master_key(thd);
+      break;
     default:
       assert(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");

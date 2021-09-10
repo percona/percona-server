@@ -132,6 +132,8 @@ static std::vector<std::string> rdb_tables_to_recalc;
 
 static Rdb_exec_time st_rdb_exec_time;
 
+static std::shared_ptr<KeyringMasterKeyManager> keyringMasterKeyManager;
+static std::shared_ptr<rocksdb::EncryptedFileSystem> encryptedFileSystem;
 /**
   Updates row counters based on the table type and operation type.
 */
@@ -4649,6 +4651,12 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
   DBUG_RETURN(false);
 }
 
+bool rocksdb_rotate_encryption_aster_key() {
+  keyringMasterKeyManager->GenerateNewMasterKey();
+  encryptedFileSystem->RotateEncryptionMasterKey(rocksdb_datadir);
+  return false;
+}
+
 /**
   For a slave, prepare() updates the slave_gtid_info table which tracks the
   replication progress.
@@ -5827,7 +5835,7 @@ static int rocksdb_init_internal(void *const p) {
       rocksdb_rollback_to_savepoint_can_release_mdl;
   rocksdb_hton->get_table_statistics = rocksdb_get_table_statistics;
   rocksdb_hton->flush_logs = rocksdb_flush_wal;
-
+  rocksdb_hton->rotate_encryption_master_key = rocksdb_rotate_encryption_aster_key; 
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE |
                         HTON_SUPPORTS_ONLINE_BACKUPS;
@@ -5849,10 +5857,18 @@ static int rocksdb_init_internal(void *const p) {
   auto uuid = rocksdb_db_options->env->GenerateUniqueId();
   // unfortunately it has new line character at the end
   uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
-  auto mmm = std::make_unique<KeyringMasterKeyManager>(uuid);
-  auto provider = std::make_shared<rocksdb::CTRAesEncryptionProvider>(std::move(mmm));
+  keyringMasterKeyManager = std::make_shared<KeyringMasterKeyManager>(uuid);
+  auto provider = std::make_shared<rocksdb::CTRAesEncryptionProvider>(keyringMasterKeyManager);
 
-  rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
+  encryptedFileSystem =
+    rocksdb::NewEncryptedFS2(rocksdb_db_options->env->GetFileSystem(),
+    provider);
+  encryptedFileSystem->Init(rocksdb_datadir);
+
+  // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
+  rocksdb_db_options->env = new rocksdb::CompositeEnvWrapper(
+      rocksdb_db_options->env,
+      encryptedFileSystem);
 
   rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
                                            get_regex_flags());

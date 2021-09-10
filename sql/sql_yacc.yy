@@ -16297,6 +16297,10 @@ alter_instance_action:
             {
               $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR, 0);
             }
+            else if (is_identifier($2, "ROCKSDB"))
+            {
+              $$= NEW_PTN PT_alter_instance(ROTATE_ROCKSDB_MASTER_KEY, EMPTY_CSTR, 0);
+            }
             else if (is_identifier($2, "BINLOG"))
             {
               $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR, 0);

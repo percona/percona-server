@@ -165,6 +165,77 @@ bool Rotate_innodb_master_key::execute() {
   return false;
 }
 
+/*
+  @brief
+  Executes master key rotation by calling SE api.
+
+  @returns false on success
+           true on error
+
+  In case of failure, appropriate error
+  is logged by function.
+*/
+// todo: this is actually the same as for innodb, only const storage_engine differs
+bool Rotate_rocksdb_master_key::execute() {
+  const LEX_CSTRING storage_engine = {STRING_WITH_LEN("rocksdb")};
+  plugin_ref se_plugin;
+  handlerton *hton;
+
+  if (check_security_context()) return true;
+
+  if ((se_plugin = ha_resolve_by_name(m_thd, &storage_engine, false))) {
+    hton = plugin_data<handlerton *>(se_plugin);
+  } else {
+    my_error(ER_MASTER_KEY_ROTATION_SE_UNAVAILABLE, MYF(0));
+    return true;
+  }
+
+  if (!hton->rotate_encryption_master_key) {
+    my_error(ER_MASTER_KEY_ROTATION_NOT_SUPPORTED_BY_SE, MYF(0));
+    return true;
+  }
+
+  /*
+    Acquire protection against GRL and check for concurrent change of read_only
+    value since encryption key rotation is not allowed in read_only/
+    super_read_only mode.
+  */
+  if (acquire_shared_global_read_lock(m_thd,
+                                      m_thd->variables.lock_wait_timeout)) {
+    // MDL subsystem has to set an error in Diagnostics Area
+    assert(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  if (acquire_backup_locks()) return true;
+
+  if (hton->rotate_encryption_master_key()) {
+    /* SE should have raised error */
+    assert(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  if (log_to_binlog()) {
+    /*
+      Though we failed to write to binlog,
+      there is no way we can undo this operation.
+      So, covert error to a warning and let user
+      know that something went wrong while trying
+      to make entry in binlog.
+    */
+    m_thd->clear_error();
+    m_thd->get_stmt_da()->reset_diagnostics_area();
+
+    push_warning(m_thd, Sql_condition::SL_WARNING,
+                 ER_MASTER_KEY_ROTATION_BINLOG_FAILED,
+                 ER_THD(m_thd, ER_MASTER_KEY_ROTATION_BINLOG_FAILED));
+  }
+
+  my_ok(m_thd);
+  return false;
+}
+
+
 bool Rotate_percona_system_key::rotate() {
   size_t key_length{0};
 

@@ -5570,11 +5570,10 @@ static int rocksdb_init_internal(void *const p) {
       soptions.use_direct_reads = true;
       check_status = env->NewSequentialFile(fname, &file, soptions);
     } else {
-      std::unique_ptr<rocksdb::WritableFile> file;
-      soptions.use_direct_writes = true;
-      check_status = env->NewWritableFile(fname, &file, soptions);
-      if (file != nullptr) {
-        file->Close();
+      {
+        std::unique_ptr<rocksdb::WritableFile> file;
+        soptions.use_direct_writes = true;
+        check_status = env->NewWritableFile(fname, &file, soptions);
       }
       env->DeleteFile(fname);
     }

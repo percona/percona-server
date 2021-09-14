@@ -1,11 +1,12 @@
 #include "./enc_env_encryption_myrocks.h"
-#include "env/composite_env_wrapper.h"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <iostream>
 #include <vector>
+#include "env/composite_env_wrapper.h"
 
+#include "file/filename.h"
 #include "monitoring/perf_context_imp.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/io_status.h"
@@ -14,7 +15,6 @@
 #include "util/coding.h"
 #include "util/random.h"
 #include "util/string_util.h"
-#include "file/filename.h"
 
 namespace myrocks {
 using namespace rocksdb;
@@ -31,11 +31,11 @@ namespace {
 // for easy changes tracking in the future.
 class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
  public:
-  const char* Name() const override { return "MyRocksEncryptedFS"; }
+  const char *Name() const override { return "MyRocksEncryptedFS"; }
   // Returns the raw encryption provider that should be used to write the input
   // encrypted file.  If there is no such provider, NotFound is returned.
-  IOStatus GetWritableProvider(const std::string& /*fname*/,
-                               EncryptionProvider** result) {
+  IOStatus GetWritableProvider(const std::string & /*fname*/,
+                               EncryptionProvider **result) {
     if (provider_) {
       *result = provider_.get();
       return IOStatus::OK();
@@ -47,8 +47,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
   // Returns the raw encryption provider that should be used to read the input
   // encrypted file.  If there is no such provider, NotFound is returned.
-  IOStatus GetReadableProvider(const std::string& /*fname*/,
-                               EncryptionProvider** result) {
+  IOStatus GetReadableProvider(const std::string & /*fname*/,
+                               EncryptionProvider **result) {
     if (provider_) {
       *result = provider_.get();
       return IOStatus::OK();
@@ -71,10 +71,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   // @return OK on success, non-OK on failure.
   template <class TypeFile>
   IOStatus CreateWritableCipherStream(
-      const std::string& fname, const std::unique_ptr<TypeFile>& underlying,
-      const FileOptions& options, size_t* prefix_length,
-      std::unique_ptr<BlockAccessCipherStream>* stream, IODebugContext* dbg) {
-    EncryptionProvider* provider = nullptr;
+      const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
+      const FileOptions &options, size_t *prefix_length,
+      std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
+    EncryptionProvider *provider = nullptr;
     *prefix_length = 0;
     IOStatus status = GetWritableProvider(fname, &provider);
     if (!status.ok()) {
@@ -108,11 +108,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   }
 
   template <class TypeFile>
-  IOStatus CreateWritableEncryptedFile(const std::string& fname,
-                                       std::unique_ptr<TypeFile>& underlying,
-                                       const FileOptions& options,
-                                       std::unique_ptr<TypeFile>* result,
-                                       IODebugContext* dbg) {
+  IOStatus CreateWritableEncryptedFile(const std::string &fname,
+                                       std::unique_ptr<TypeFile> &underlying,
+                                       const FileOptions &options,
+                                       std::unique_ptr<TypeFile> *result,
+                                       IODebugContext *dbg) {
     // Create cipher stream
     std::unique_ptr<BlockAccessCipherStream> stream;
     size_t prefix_length;
@@ -142,10 +142,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   // @return OK on success, non-OK on failure.
   template <class TypeFile>
   IOStatus CreateRandomWriteCipherStream(
-      const std::string& fname, const std::unique_ptr<TypeFile>& underlying,
-      const FileOptions& options, size_t* prefix_length,
-      std::unique_ptr<BlockAccessCipherStream>* stream, IODebugContext* dbg) {
-    EncryptionProvider* provider = nullptr;
+      const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
+      const FileOptions &options, size_t *prefix_length,
+      std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
+    EncryptionProvider *provider = nullptr;
     *prefix_length = 0;
     IOStatus io_s = GetWritableProvider(fname, &provider);
     if (!io_s.ok()) {
@@ -191,9 +191,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   // @return OK on success, non-OK on failure.
   template <class TypeFile>
   IOStatus CreateSequentialCipherStream(
-      const std::string& fname, const std::unique_ptr<TypeFile>& underlying,
-      const FileOptions& options, size_t* prefix_length,
-      std::unique_ptr<BlockAccessCipherStream>* stream, IODebugContext* dbg) {
+      const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
+      const FileOptions &options, size_t *prefix_length,
+      std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
     // Read prefix (if needed)
     AlignedBuffer buffer;
     Slice prefix;
@@ -226,9 +226,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   // @return OK on success, non-OK on failure.
   template <class TypeFile>
   IOStatus CreateRandomReadCipherStream(
-      const std::string& fname, const std::unique_ptr<TypeFile>& underlying,
-      const FileOptions& options, size_t* prefix_length,
-      std::unique_ptr<BlockAccessCipherStream>* stream, IODebugContext* dbg) {
+      const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
+      const FileOptions &options, size_t *prefix_length,
+      std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
     // Read prefix (if needed)
     AlignedBuffer buffer;
     Slice prefix;
@@ -249,27 +249,27 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   }
 
  public:
-  MyRocksEncryptedFileSystemImpl(const std::shared_ptr<FileSystem>& base,
-                          const std::shared_ptr<MyRocksEncryptionProvider>& provider,
-                          bool encryptNewFiles)
-      : MyRocksEncryptedFileSystem(base)
-      , provider_(provider)
-      , encrypt_new_files_(encryptNewFiles) {
-  }
+  MyRocksEncryptedFileSystemImpl(
+      const std::shared_ptr<FileSystem> &base,
+      const std::shared_ptr<MyRocksEncryptionProvider> &provider,
+      bool encryptNewFiles)
+      : MyRocksEncryptedFileSystem(base),
+        provider_(provider),
+        encrypt_new_files_(encryptNewFiles) {}
 
-  Status Init(const std::string dir) override
-  {
+  Status Init(const std::string dir) override {
     IOOptions io_opts;
     IODebugContext dbg;
     std::vector<std::string> files;
 
     if (!GetChildren(dir, io_opts, &files, &dbg).ok()) {
-      return Status::OK();  // if the directory does not exist there are no files
+      return Status::OK();  // if the directory does not exist there are no
+                            // files
     }
 
     uint64_t number = 0;
     FileType type = kInfoLogFile;
-    for (const std::string& file : files) {
+    for (const std::string &file : files) {
       if (!ParseFileName(file, &number, &type)) {
         continue;
       }
@@ -280,9 +280,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     return Status::OK();
   }
 
-
-  Status RotateFileMasterEncryptionKey(const std::string& fname){
-  rocksdb::EnvOptions soptions;
+  Status RotateFileMasterEncryptionKey(const std::string &fname) {
+    rocksdb::EnvOptions soptions;
     IODebugContext dbg;
 
     std::unique_ptr<FSRandomRWFile> underlying;
@@ -295,22 +294,22 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<char> buffer;
     buffer.reserve(provider_->GetPrefixLength());
     Slice prefix;
-    status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(), &prefix, buffer.data(),
-                   nullptr);
+    status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
+                              &prefix, buffer.data(), nullptr);
     if (!status.ok()) {
       return status;
     }
-    auto encrypted =
-      (encPrefix.compare(0, encPrefix.size(), prefix.data(), encPrefix.size()) == 0);
+    auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
+                                        encPrefix.size()) == 0);
 
     if (encrypted) {
-        provider_->ReencryptPrefix(prefix);
+      provider_->ReencryptPrefix(prefix);
 
-        // now store it back
-        if (status.ok()) {
-          // Write prefix
-          status = underlying->Write(0, prefix, IOOptions(), &dbg);
-        }
+      // now store it back
+      if (status.ok()) {
+        // Write prefix
+        status = underlying->Write(0, prefix, IOOptions(), &dbg);
+      }
     }
     return status_to_io_status(Status::OK());
   }
@@ -321,12 +320,13 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<std::string> files;
 
     if (!GetChildren(dir, io_opts, &files, &dbg).ok()) {
-      return Status::OK();  // if the directory does not exist there are no files
+      return Status::OK();  // if the directory does not exist there are no
+                            // files
     }
 
     uint64_t number = 0;
     FileType type = kInfoLogFile;
-    for (const std::string& file : files) {
+    for (const std::string &file : files) {
       if (!ParseFileName(file, &number, &type)) {
         continue;
       }
@@ -336,13 +336,13 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     return Status::OK();
   }
 
-  IOStatus FeedEncryptionProvider(const std::string& fname) {
+  IOStatus FeedEncryptionProvider(const std::string &fname) {
     rocksdb::EnvOptions soptions;
     IODebugContext dbg;
 
     std::unique_ptr<FSSequentialFile> underlying;
-    auto status =
-        FileSystemWrapper::NewSequentialFile(fname, soptions, &underlying, &dbg);
+    auto status = FileSystemWrapper::NewSequentialFile(fname, soptions,
+                                                       &underlying, &dbg);
     if (!status.ok()) {
       return status;
     }
@@ -350,24 +350,23 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<char> buffer;
     buffer.reserve(provider_->GetPrefixLength());
     Slice prefix;
-    status = underlying->Read(provider_->GetPrefixLength(), IOOptions(), &prefix, buffer.data(),
-                   nullptr);
+    status = underlying->Read(provider_->GetPrefixLength(), IOOptions(),
+                              &prefix, buffer.data(), nullptr);
     if (!status.ok()) {
       return status;
     }
-    auto encrypted =
-      (encPrefix.compare(0, encPrefix.size(), prefix.data(), encPrefix.size()) == 0);
+    auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
+                                        encPrefix.size()) == 0);
 
     if (encrypted) {
-        provider_->Feed(prefix);
+      provider_->Feed(prefix);
     }
 
     return status_to_io_status(Status::OK());
   }
 
-  IOStatus IsFileEncrypted(const std::string& fname,
-                           bool* result,
-                           IODebugContext* dbg) {
+  IOStatus IsFileEncrypted(const std::string &fname, bool *result,
+                           IODebugContext *dbg) {
     rocksdb::EnvOptions soptions;
     std::unique_ptr<FSSequentialFile> underlying;
     auto status =
@@ -379,27 +378,28 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<char> space;
     space.reserve(encPrefix.size());
     Slice fragment;
-    status = underlying->Read(encPrefix.size(), IOOptions(), &fragment, space.data(),
-                   nullptr);
+    status = underlying->Read(encPrefix.size(), IOOptions(), &fragment,
+                              space.data(), nullptr);
     if (!status.ok()) {
       return status;
     }
-    *result = (encPrefix.compare(0, encPrefix.size(), fragment.data(), fragment.size()) == 0);
+    *result = (encPrefix.compare(0, encPrefix.size(), fragment.data(),
+                                 fragment.size()) == 0);
 
     return status_to_io_status(Status::OK());
   }
 
-  Status AddCipher(const std::string& descriptor, const char* cipher,
+  Status AddCipher(const std::string &descriptor, const char *cipher,
                    size_t len, bool for_write) override {
     provider_->AddCipher(descriptor, cipher, len, for_write);
     return Status::OK();
   }
 
   // NewSequentialFile opens a file for sequential reading.
-  IOStatus NewSequentialFile(const std::string& fname,
-                             const FileOptions& options,
-                             std::unique_ptr<FSSequentialFile>* result,
-                             IODebugContext* dbg) override {
+  IOStatus NewSequentialFile(const std::string &fname,
+                             const FileOptions &options,
+                             std::unique_ptr<FSSequentialFile> *result,
+                             IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_reads) {
       return IOStatus::InvalidArgument();
@@ -424,9 +424,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     bool encrypted = false;
     IsFileEncrypted(fname, &encrypted, dbg);
-    if(!encrypted) {
-        result->reset(underlying.release());
-        return status;
+    if (!encrypted) {
+      result->reset(underlying.release());
+      return status;
     }
 
     // Create cipher stream
@@ -442,10 +442,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   }
 
   // NewRandomAccessFile opens a file for random read access.
-  IOStatus NewRandomAccessFile(const std::string& fname,
-                               const FileOptions& options,
-                               std::unique_ptr<FSRandomAccessFile>* result,
-                               IODebugContext* dbg) override {
+  IOStatus NewRandomAccessFile(const std::string &fname,
+                               const FileOptions &options,
+                               std::unique_ptr<FSRandomAccessFile> *result,
+                               IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_reads) {
       return IOStatus::InvalidArgument();
@@ -460,9 +460,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     bool encrypted = false;
     IsFileEncrypted(fname, &encrypted, dbg);
-    if(!encrypted) {
-        result->reset(underlying.release());
-        return status;
+    if (!encrypted) {
+      result->reset(underlying.release());
+      return status;
     }
 
     std::unique_ptr<BlockAccessCipherStream> stream;
@@ -481,9 +481,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   }
 
   // NewWritableFile opens a file for sequential writing.
-  IOStatus NewWritableFile(const std::string& fname, const FileOptions& options,
-                           std::unique_ptr<FSWritableFile>* result,
-                           IODebugContext* dbg) override {
+  IOStatus NewWritableFile(const std::string &fname, const FileOptions &options,
+                           std::unique_ptr<FSWritableFile> *result,
+                           IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_writes) {
       return IOStatus::InvalidArgument();
@@ -497,7 +497,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     }
 
     // file should not be encrypted
-    if(!encrypt_new_files_) {
+    if (!encrypt_new_files_) {
       result->reset(underlying.release());
       return status;
     }
@@ -512,10 +512,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   // returns non-OK.
   //
   // The returned file will only be accessed by one thread at a time.
-  IOStatus ReopenWritableFile(const std::string& fname,
-                              const FileOptions& options,
-                              std::unique_ptr<FSWritableFile>* result,
-                              IODebugContext* dbg) override {
+  IOStatus ReopenWritableFile(const std::string &fname,
+                              const FileOptions &options,
+                              std::unique_ptr<FSWritableFile> *result,
+                              IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_writes) {
       return IOStatus::InvalidArgument();
@@ -533,30 +533,31 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     // file exists and is not encrypted
     if (!isNewFile) {
-        bool encrypted = false;
-        IsFileEncrypted(fname, &encrypted, dbg);
-        if(!encrypted) {
-            result->reset(underlying.release());
-            return status;
-        }
+      bool encrypted = false;
+      IsFileEncrypted(fname, &encrypted, dbg);
+      if (!encrypted) {
+        result->reset(underlying.release());
+        return status;
+      }
     }
 
     // file does not exist and is not encrypted
-    if(isNewFile && !encrypt_new_files_) {
-            result->reset(underlying.release());
-            return status;
+    if (isNewFile && !encrypt_new_files_) {
+      result->reset(underlying.release());
+      return status;
     }
 
-    // here we go if we need to create encrypted file (new one, or wrap existing one)
+    // here we go if we need to create encrypted file (new one, or wrap existing
+    // one)
     return CreateWritableEncryptedFile(fname, underlying, options, result, dbg);
   }
 
   // Reuse an existing file by renaming it and opening it as writable.
-  IOStatus ReuseWritableFile(const std::string& fname,
-                             const std::string& old_fname,
-                             const FileOptions& options,
-                             std::unique_ptr<FSWritableFile>* result,
-                             IODebugContext* dbg) override {
+  IOStatus ReuseWritableFile(const std::string &fname,
+                             const std::string &old_fname,
+                             const FileOptions &options,
+                             std::unique_ptr<FSWritableFile> *result,
+                             IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_writes) {
       return IOStatus::InvalidArgument();
@@ -570,7 +571,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     }
 
     // file should not be encrypted
-    if(!encrypt_new_files_) {
+    if (!encrypt_new_files_) {
       result->reset(underlying.release());
       return status;
     }
@@ -583,9 +584,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   // *result and returns OK.  On failure returns non-OK.
   //
   // The returned file will only be accessed by one thread at a time.
-  IOStatus NewRandomRWFile(const std::string& fname, const FileOptions& options,
-                           std::unique_ptr<FSRandomRWFile>* result,
-                           IODebugContext* dbg) override {
+  IOStatus NewRandomRWFile(const std::string &fname, const FileOptions &options,
+                           std::unique_ptr<FSRandomRWFile> *result,
+                           IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_reads || options.use_mmap_writes) {
       return IOStatus::InvalidArgument();
@@ -603,18 +604,18 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     // file exists and is unencrypted
     if (!isNewFile) {
-        bool encrypted = false;
-        IsFileEncrypted(fname, &encrypted, dbg);
-        if(!encrypted) {
-            result->reset(underlying.release());
-            return status;
-        }
+      bool encrypted = false;
+      IsFileEncrypted(fname, &encrypted, dbg);
+      if (!encrypted) {
+        result->reset(underlying.release());
+        return status;
+      }
     }
 
     // file does not exist and it has to be not encrypted
-    if(isNewFile && !encrypt_new_files_) {
-            result->reset(underlying.release());
-            return status;
+    if (isNewFile && !encrypt_new_files_) {
+      result->reset(underlying.release());
+      return status;
     }
 
     // Here we go if the file is encrypted. The new one or existing one.
@@ -654,10 +655,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   //         have
   //                  permission to access "dir", or if "dir" is invalid.
   //         IOError if an IO Error was encountered
-  IOStatus GetChildrenFileAttributes(const std::string& dir,
-                                     const IOOptions& options,
-                                     std::vector<FileAttributes>* result,
-                                     IODebugContext* dbg) override {
+  IOStatus GetChildrenFileAttributes(const std::string &dir,
+                                     const IOOptions &options,
+                                     std::vector<FileAttributes> *result,
+                                     IODebugContext *dbg) override {
     auto status =
         FileSystemWrapper::GetChildrenFileAttributes(dir, options, result, dbg);
     if (!status.ok()) {
@@ -671,11 +672,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       // FileAttributes does not identify directories
       bool encrypted = false;
       IsFileEncrypted(it->name, &encrypted, dbg);
-      if(!encrypted) {
+      if (!encrypted) {
         continue;
       }
 
-      EncryptionProvider* provider;
+      EncryptionProvider *provider;
       status = GetReadableProvider(it->name, &provider);
       if (!status.ok()) {
         return status;
@@ -687,8 +688,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   }
 
   // Store the size of fname in *file_size.
-  IOStatus GetFileSize(const std::string& fname, const IOOptions& options,
-                       uint64_t* file_size, IODebugContext* dbg) override {
+  IOStatus GetFileSize(const std::string &fname, const IOOptions &options,
+                       uint64_t *file_size, IODebugContext *dbg) override {
     auto status =
         FileSystemWrapper::GetFileSize(fname, options, file_size, dbg);
     if (!status.ok() || !(*file_size)) {
@@ -697,11 +698,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     bool encrypted = false;
     IsFileEncrypted(fname, &encrypted, dbg);
-    if(!encrypted) {
-        return status;
+    if (!encrypted) {
+      return status;
     }
 
-    EncryptionProvider* provider;
+    EncryptionProvider *provider;
     status = GetReadableProvider(fname, &provider);
     if (provider != nullptr && status.ok()) {
       size_t prefixLength = provider->GetPrefixLength();
@@ -717,15 +718,14 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 };
 }  // namespace
 
-
 std::shared_ptr<MyRocksEncryptedFileSystem> NewEncryptedFS(
-    const std::shared_ptr<FileSystem>& base,
-    const std::shared_ptr<MyRocksEncryptionProvider>& provider,
-    bool encryptNewFiles, const std::string& dir) {
-    auto res = std::make_shared<MyRocksEncryptedFileSystemImpl>(base, provider, encryptNewFiles);
-    res->Init(dir);
-    return res;
+    const std::shared_ptr<FileSystem> &base,
+    const std::shared_ptr<MyRocksEncryptionProvider> &provider,
+    bool encryptNewFiles, const std::string &dir) {
+  auto res = std::make_shared<MyRocksEncryptedFileSystemImpl>(base, provider,
+                                                              encryptNewFiles);
+  res->Init(dir);
+  return res;
 }
 
-
-}  // namespace
+}  // namespace myrocks

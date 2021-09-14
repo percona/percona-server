@@ -22,8 +22,8 @@
 
 #include "./enc_stream_cipher.h"
 #include <algorithm>
-#include <memory>
 #include <cstring>
+#include <memory>
 
 #ifndef assert
 #define assert(x)
@@ -50,8 +50,6 @@ static inline void int8store(uchar *T, ulonglong A) {
   int4store(T + 4, def_temp2);
 }
 
-
-
 int Stream_cipher::get_header_size() { return m_header_size; }
 
 std::unique_ptr<Stream_cipher> Aes_ctr::get_encryptor() {
@@ -65,7 +63,8 @@ std::unique_ptr<Stream_cipher> Aes_ctr::get_decryptor() {
 }
 
 template <Cipher_type TYPE>
-bool Aes_ctr_cipher<TYPE>::open(const unsigned char* fileKey, const unsigned char* iv) {
+bool Aes_ctr_cipher<TYPE>::open(const unsigned char *fileKey,
+                                const unsigned char *iv) {
   m_header_size = 0;
 
   memcpy(m_file_key, fileKey, FILE_KEY_LENGTH);
@@ -96,7 +95,7 @@ bool Aes_ctr_cipher<TYPE>::set_stream_offset(uint64_t offset) {
 
   // check if we are already on this offset to avoid cipher reinitialization
   if (offset == m_streamOffset) {
-      return false;
+    return false;
   }
 
   deinit_cipher();
@@ -117,7 +116,6 @@ bool Aes_ctr_cipher<TYPE>::set_stream_offset(uint64_t offset) {
 
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::init_cipher(uint64_t offset) {
-
   uint64_t counter = offset / AES_BLOCK_SIZE;
 
   assert(m_ctx == nullptr);
@@ -156,7 +154,6 @@ void Aes_ctr_cipher<TYPE>::deinit_cipher() {
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
-
   if (TYPE == Cipher_type::DECRYPT) {
     /* It should never be called by a decrypt cipher */
     assert(0);
@@ -214,4 +211,4 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
 template class Aes_ctr_cipher<Cipher_type::ENCRYPT>;
 template class Aes_ctr_cipher<Cipher_type::DECRYPT>;
 
-}  // namespace
+}  // namespace myrocks

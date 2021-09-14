@@ -22,9 +22,9 @@
 
 #pragma once
 #include <openssl/evp.h>
+#include <rocksdb/rocksdb_namespace.h>
 #include <memory>
 #include <string>
-#include <rocksdb/rocksdb_namespace.h>
 
 namespace myrocks {
 /**
@@ -87,7 +87,7 @@ class Stream_cipher {
     @retval false Success.
     @retval true Error.
   */
-  virtual bool open(const unsigned char* fileKey, const unsigned char* iv) = 0;
+  virtual bool open(const unsigned char *fileKey, const unsigned char *iv) = 0;
 
   /** Close the cipher. */
   virtual void close() = 0;
@@ -195,7 +195,7 @@ class Aes_ctr_cipher : public Stream_cipher {
 
   ~Aes_ctr_cipher() override;
 
-  bool open(const unsigned char* fileKey, const unsigned char* iv) override;
+  bool open(const unsigned char *fileKey, const unsigned char *iv) override;
   void close() override;
   bool encrypt(unsigned char *dest, const unsigned char *src,
                int length) override;
@@ -231,5 +231,4 @@ class Aes_ctr_cipher : public Stream_cipher {
 typedef class Aes_ctr_cipher<Cipher_type::ENCRYPT> Aes_ctr_encryptor;
 typedef class Aes_ctr_cipher<Cipher_type::DECRYPT> Aes_ctr_decryptor;
 
-} // namespace
-
+}  // namespace myrocks

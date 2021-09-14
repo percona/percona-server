@@ -1,15 +1,29 @@
 #include "./enc_keyring_master_key_manager.h"
+#include "./rdb_mutex_wrapper.h"
+#include "./rdb_psi.h"
 #include <string>
 #include <memory>
+#include <mutex>
 #include "sql/mysqld.h"
 #include <scope_guard.h>
 
 namespace myrocks {
+// The implementation of KeyringMasterManager is based on the implementation
+// in InnoDB (os0enc.cc). That logic works fine, so no point in reinventing
+// the wheel.
+
+static std::once_flag master_key_mutex_init_once_flag;
+static Rds_mysql_mutex master_key_id_mutex_;
+
 
 KeyringMasterKeyManager::KeyringMasterKeyManager(const std::string& uuid)
 : oldestMasterKeyId_((uint32_t)-1)
 , newestMasterKeyId_(0)
 , seedUuid_(uuid) {
+  std::call_once(master_key_mutex_init_once_flag, [](){
+    master_key_id_mutex_.init(rdb_master_key_mutex_key, MY_MUTEX_INIT_FAST);
+  });
+
   InitKeyringServices();
 }
 
@@ -116,7 +130,7 @@ int KeyringMasterKeyManager::ReadSecret(const std::string& keyName, std::string*
   if (retval == true) return -1;
 
   /* Key absent */
-  if (reader_object == nullptr) return 0;
+  if (reader_object == nullptr) return -1;
 
   auto cleanup_guard = create_scope_guard([&] {
     if (reader_object != nullptr) (void)keyring_reader_service_->deinit(reader_object);
@@ -126,9 +140,9 @@ int KeyringMasterKeyManager::ReadSecret(const std::string& keyName, std::string*
   /* Fetch length */
   if (keyring_reader_service_->fetch_length(reader_object, &secret_length,
                                    &secret_type_length) == true)
-    return 0;
+    return -1;
 
-  if (secret_length == 0 || secret_type_length == 0) return 0;
+  if (secret_length == 0 || secret_type_length == 0) return -1;
 
   /* Allocate requried memory for key and secret_type */
   std::vector<unsigned char> secret_v;
@@ -141,22 +155,21 @@ int KeyringMasterKeyManager::ReadSecret(const std::string& keyName, std::string*
   if (keyring_reader_service_->fetch(reader_object, secret_v.data(), secret_length,
                             &secret_length, secret_type_v.data(), secret_type_length,
                             &secret_type_length) == true) {
-    return 0;
+    return -1;
   }
   secret->assign((char*)(secret_v.data()), secret_length);
 
-  return 1;
+  return 0;
 }
 
 int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey, uint32_t *masterKeyId) {
   std::string keyName;
-// todo:  extern ib_mutex_t master_key_id_mutex;
   int retval;
   bool key_id_locked = false;
 
   if (newestMasterKeyId_ == DEFAULT_MASTER_KEY_ID) {
     /* Take mutex as master_key_id is going to change. */
-//    mutex_enter(&master_key_id_mutex);
+    RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
     key_id_locked = true;
   }
 
@@ -167,7 +180,6 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey, uint
     /* If m_master_key is DEFAULT_MASTER_KEY_ID, it means there's
     no encrypted tablespace yet. Generate the first master key now and store
     it to keyring. */
-    // todo: server_uuid is initialized later :(
     serverUuid_ = seedUuid_;
 
     /* Prepare the server s_uuid. */
@@ -201,7 +213,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey, uint
   }
 
   if (key_id_locked) {
-//    mutex_exit(&master_key_id_mutex);
+    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
   }
 
 
@@ -214,7 +226,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey, uint
     *masterKey = "12345678901234567890123456789012";
     *masterKeyId = newestMasterKeyId_;
 #endif
-    return 0;
+    return retval;
 }
 
 int KeyringMasterKeyManager::GetServerUuid(std::string *serverUuid) {
@@ -229,17 +241,19 @@ int KeyringMasterKeyManager::GetMasterKey(uint32_t masterKeyId, const std::strin
 }
 
 int KeyringMasterKeyManager::GenerateNewMasterKey() {
-    // todo: some synchronization would be nice...
+    RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
     uint32_t newMasterKeyId = newestMasterKeyId_+1;
     std::string keyName = MASTER_KEY_PREFIX + std::string("-") + serverUuid_ + std::string("-") + std::to_string(newMasterKeyId);
 
     /* We call keyring API to generate master key here. */
     if (keyring_generator_service_->generate(keyName.c_str(), nullptr, rocksdb_key_type,
                                           KEY_LEN) == true) {
+      RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
       return -1;
     }
     newestMasterKeyId_ = newMasterKeyId;
 
+    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
     return 0;
 }
 

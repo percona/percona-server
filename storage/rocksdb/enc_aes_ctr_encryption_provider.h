@@ -1,8 +1,3 @@
-//  Copyright (c) 2016-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under both the GPLv2 (found in the
-//  COPYING file in the root directory) and Apache 2.0 License
-//  (found in the LICENSE.Apache file in the root directory).
-
 #pragma once
 
 #include "./enc_env_encryption_myrocks.h"
@@ -11,7 +6,6 @@ namespace myrocks {
 
 class MasterKeyManager;
 class CipherStreamFactory;
-
 
 class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
  private:

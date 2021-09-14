@@ -2,7 +2,6 @@
 
 #include <string>
 
-
 namespace myrocks {
 
 class MasterKeyManager {
@@ -17,6 +16,5 @@ class MasterKeyManager {
 
         virtual void RegisterMasterKeyId(uint32_t masterKeyId, const std::string& serverUuid);
 };
-
 
 }  // namespace

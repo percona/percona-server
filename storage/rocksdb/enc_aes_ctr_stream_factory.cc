@@ -7,16 +7,12 @@
 // with SSL backend
 
 // Right now server's keyring_encryption_service does not provide AES CRT mode.
-// We introducd this factory layer to be able to change the implementation
-// of encryptor/decryptor to the one using srver service, but for now
+// We introduce this factory layer to be able to change the implementation
+// of encryptor/decryptor to the one using server service, but for now
 // we will just use the implementation got from binlog cache encryption.
 
 namespace myrocks {
 
-// CTRCipherStream implements BlockAccessCipherStream using an
-// Counter operations mode.
-// See https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
-//
 class AesCtrCipherStream final : public rocksdb::BlockAccessCipherStream {
  private:
   std::unique_ptr<Stream_cipher> encryptor_;
@@ -113,18 +109,14 @@ rocksdb::Status AesCtrCipherStream::Decrypt(uint64_t fileOffset, char* data, siz
   return rocksdb::Status::OK();
 }
 
-void AesCtrCipherStream::AllocateScratch(std::string&)
-{
-
+void AesCtrCipherStream::AllocateScratch(std::string&) {
 }
 
-rocksdb::Status AesCtrCipherStream::EncryptBlock(uint64_t blockIndex, char* data, char* scratch)
-{
+rocksdb::Status AesCtrCipherStream::EncryptBlock(uint64_t blockIndex, char* data, char* scratch) {
   return rocksdb::Status::NotSupported();
 }
 
-rocksdb::Status AesCtrCipherStream::DecryptBlock(uint64_t blockIndex, char* data, char* scratch)
-{
+rocksdb::Status AesCtrCipherStream::DecryptBlock(uint64_t blockIndex, char* data, char* scratch) {
   return rocksdb::Status::NotSupported();
 }
 
@@ -138,7 +130,5 @@ std::unique_ptr<rocksdb::BlockAccessCipherStream>
   }
   return cipher;
 }
-
-
 
 }  // namespace

@@ -1,9 +1,3 @@
-//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under both the GPLv2 (found in the
-//  COPYING file in the root directory) and Apache 2.0 License
-//  (found in the LICENSE.Apache file in the root directory).
-
-
 #include "./enc_env_encryption_myrocks.h"
 #include "env/composite_env_wrapper.h"
 #include <algorithm>
@@ -12,8 +6,6 @@
 #include <iostream>
 #include <vector>
 
-//#include "env/composite_env_wrapper.h"
-//#include "env/env_encryption_ctr.h"
 #include "monitoring/perf_context_imp.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/io_status.h"
@@ -28,8 +20,15 @@ namespace myrocks {
 using namespace rocksdb;
 
 namespace {
-// EncryptedFileSystemImpl implements an FileSystemWrapper that adds encryption
-// to files stored on disk.
+// MyRocksEncryptedFileSystemImpl implements an FileSystemWrapper that adds
+// encryption to files stored on disk.
+// This implementation is heavily based on EncryptedFileSystemImpl from rocksdb
+// however, we need the logic to be a bit different + we need to add master
+// key encryption support. Morover EncryptedFileSystemImpl is private to RocksDB
+// so we have no chance to extend it whatsoever.
+// That's why we provide extended implementation in MyRocks layer.
+// However, let's keep it similar to rocksdb::EncryptedFileSystemImpl for now
+// for easy changes tracking in the future.
 class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
  public:
   const char* Name() const override { return "MyRocksEncryptedFS"; }

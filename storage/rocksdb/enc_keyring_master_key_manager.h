@@ -23,11 +23,11 @@ class KeyringMasterKeyManager : public MasterKeyManager {
         virtual int GenerateNewMasterKey() override;
 
         void RegisterMasterKeyId(uint32_t masterKeyId, const std::string& serverUuid) override;
+
     private:
         void InitKeyringServices();
         void DeinitKeyringServices();
         int ReadSecret(const std::string& keyName, std::string* secret);
-
 
         SERVICE_TYPE(keyring_reader_with_status) *keyring_reader_service_{nullptr};
         SERVICE_TYPE(keyring_writer) *keyring_writer_service_{nullptr};
@@ -36,9 +36,7 @@ class KeyringMasterKeyManager : public MasterKeyManager {
         uint32_t oldestMasterKeyId_;
         uint32_t newestMasterKeyId_;
         std::string serverUuid_;
-        std::string seedUuid_;
+        std::string seedUuid_;;
 };
-
-
 
 }  // namespace

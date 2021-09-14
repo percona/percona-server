@@ -9002,6 +9002,7 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
                          head->commit_error, YESNO(head->tx_commit_pending)));
   }
 
+  DEBUG_SYNC(thd, "process_commit_stage_queue_before_handle_gtid");
   /*
     Handle the GTID of the threads.
     gtid_executed table is kept updated even though transactions fail to be

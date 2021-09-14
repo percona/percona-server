@@ -41,6 +41,7 @@ innodb.innodb_bug14676111                         : BUG#18200831 The test has ne
 innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
 innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten
 innodb.slow_shutdown                              : Bug#31763837 mtr hits this debug assert post test run cleanup
+innodb.upgrade_fts_aux                            : Bug#7904 percona https://jira.percona.com/browse/PS-7904
 
 # innodb_fts suite test
 innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232

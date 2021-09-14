@@ -842,6 +842,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
+  inline mysql_mutex_t *get_sync_lock() { return &LOCK_sync; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
 

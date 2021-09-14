@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rocksdb/env/master_key_manager.h"
+#include "./master_key_manager.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/registry.h"
 
@@ -12,7 +12,7 @@
 
 namespace myrocks {
 
-class KeyringMasterKeyManager : public rocksdb::MasterKeyManager {
+class KeyringMasterKeyManager : public MasterKeyManager {
     public:
         KeyringMasterKeyManager(const std::string& uuid);
         ~KeyringMasterKeyManager() override;
@@ -21,7 +21,7 @@ class KeyringMasterKeyManager : public rocksdb::MasterKeyManager {
         int GetMasterKey(uint32_t masterKeyId, const std::string &suuid, std::string *masterKey) override;
         int GetServerUuid(std::string *serverUuid) override;
         virtual int GenerateNewMasterKey() override;
-        
+
         void RegisterMasterKeyId(uint32_t masterKeyId, const std::string& serverUuid) override;
     private:
         void InitKeyringServices();

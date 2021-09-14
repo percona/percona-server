@@ -8,8 +8,6 @@ class MasterKeyManager;
 class CipherStreamFactory;
 
 class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
- private:
-
  protected:
   // For optimal performance when using direct IO, the prefix length should be a
   // multiple of the page size. This size is to ensure the first real data byte
@@ -24,9 +22,9 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
                            std::unique_ptr<CipherStreamFactory> csf);
   ~AesCtrEncryptionProvider() override;
 
-  static const char* kCTRAesProviderName;
+  static const char *kCTRAesProviderName;
 
-  const char* Name() const override;
+  const char *Name() const override;
 
   // GetPrefixLength returns the length of the prefix that is added to every
   // file
@@ -37,31 +35,32 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
 
   // CreateNewPrefix initialized an allocated block of prefix memory
   // for a new file.
-  rocksdb::Status CreateNewPrefix(const std::string& fname, char* prefix,
-                         size_t prefixLength) const override;
+  rocksdb::Status CreateNewPrefix(const std::string &fname, char *prefix,
+                                  size_t prefixLength) const override;
 
-  rocksdb::Status ReencryptPrefix(rocksdb::Slice& prefix) const override;
+  rocksdb::Status ReencryptPrefix(rocksdb::Slice &prefix) const override;
 
   // CreateCipherStream creates a block access cipher stream for a file given
   // given name and options.
   rocksdb::Status CreateCipherStream(
-      const std::string& fname, const rocksdb::EnvOptions& options, rocksdb::Slice& prefix,
-      std::unique_ptr<rocksdb::BlockAccessCipherStream>* result) override;
+      const std::string &fname, const rocksdb::EnvOptions &options,
+      rocksdb::Slice &prefix,
+      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) override;
 
-  rocksdb::Status AddCipher(const std::string& descriptor, const char* /*cipher*/,
-                   size_t /*len*/, bool /*for_write*/) override;
+  rocksdb::Status AddCipher(const std::string &descriptor,
+                            const char * /*cipher*/, size_t /*len*/,
+                            bool /*for_write*/) override;
 
   std::string GetMarker() const override;
 
-  rocksdb::Status Feed(rocksdb::Slice& prefix) override;
+  rocksdb::Status Feed(rocksdb::Slice &prefix) override;
 
  protected:
   // CreateCipherStreamFromPrefix creates a block access cipher stream for a
   // file given
   // given name and options. The given prefix is already decrypted.
   virtual rocksdb::Status CreateCipherStreamFromPrefix(
-      const rocksdb::Slice& key, const rocksdb::Slice& iv,
-      std::unique_ptr<rocksdb::BlockAccessCipherStream>* result);
+      const rocksdb::Slice &key, const rocksdb::Slice &iv,
+      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result);
 };
-}  // namespace
-
+}  // namespace myrocks

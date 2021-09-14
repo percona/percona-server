@@ -94,13 +94,13 @@
 #include "./rdb_threads.h"
 
 /* encryption includes */
-#include "rocksdb/env_encryption.h"
-#include "rocksdb/env/composite_env_wrapper.h"
-#include "./enc_env_encryption_myrocks.h"
 #include "./enc_aes_ctr_encryption_provider.h"
 #include "./enc_aes_ctr_stream_factory.h"
-#include "./enc_master_key_manager.h"
+#include "./enc_env_encryption_myrocks.h"
 #include "./enc_keyring_master_key_manager.h"
+#include "./enc_master_key_manager.h"
+#include "rocksdb/env/composite_env_wrapper.h"
+#include "rocksdb/env_encryption.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -5694,19 +5694,21 @@ static void initialize_encryption() {
      local implementation behind the interface
    */
   auto cipherFactory = std::make_unique<AesCtrStreamFactory>();
-  auto provider =
-    std::make_shared<AesCtrEncryptionProvider>(keyringMasterKeyManager, std::move(cipherFactory));
+  auto provider = std::make_shared<AesCtrEncryptionProvider>(
+      keyringMasterKeyManager, std::move(cipherFactory));
 
-  /* Now let's add the wrapper around the default file system, which will provide
-     encryption + MK header encryption
+  /* Now let's add the wrapper around the default file system, which will
+     provide encryption + MK header encryption
    */
-  encryptedFileSystem = myrocks::NewEncryptedFS(rocksdb_db_options->env->GetFileSystem(), provider, rocksdb_encryption, rocksdb_datadir);
+  encryptedFileSystem =
+      myrocks::NewEncryptedFS(rocksdb_db_options->env->GetFileSystem(),
+                              provider, rocksdb_encryption, rocksdb_datadir);
   encryptedFileSystem->Init(rocksdb_datadir);
 
-  // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
+  // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env,
+  // provider, rocksdb_encryption, rocksdb_datadir);
   rocksdb_db_options->env = new rocksdb::CompositeEnvWrapper(
-      rocksdb_db_options->env,
-      encryptedFileSystem);
+      rocksdb_db_options->env, encryptedFileSystem);
 }
 
 /*
@@ -5873,7 +5875,8 @@ static int rocksdb_init_internal(void *const p) {
       rocksdb_rollback_to_savepoint_can_release_mdl;
   rocksdb_hton->get_table_statistics = rocksdb_get_table_statistics;
   rocksdb_hton->flush_logs = rocksdb_flush_wal;
-  rocksdb_hton->rotate_encryption_master_key = rocksdb_rotate_encryption_aster_key; 
+  rocksdb_hton->rotate_encryption_master_key =
+      rocksdb_rotate_encryption_aster_key;
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE |
                         HTON_SUPPORTS_ONLINE_BACKUPS;

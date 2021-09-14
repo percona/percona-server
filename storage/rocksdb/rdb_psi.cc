@@ -84,9 +84,8 @@ my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
     {&rdb_bottom_pri_background_compactions_resize_mutex_key,
      "resizing bottom pri compaction threads", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
-    {&rdb_master_key_mutex_key,
-     "encryption master key manager", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
+    {&rdb_master_key_mutex_key, "encryption master key manager",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 my_core::PSI_rwlock_key key_rwlock_collation_exception_list,

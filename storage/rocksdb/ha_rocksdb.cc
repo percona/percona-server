@@ -63,8 +63,6 @@
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/compaction_job_stats.h"
 #include "rocksdb/env.h"
-#include "rocksdb/env/composite_env_wrapper.h"
-#include "./keyring_master_key_manager.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/persistent_cache.h"
 #include "rocksdb/rate_limiter.h"
@@ -94,13 +92,15 @@
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_psi.h"
 #include "./rdb_threads.h"
-#include "./aes_ctr_stream_factory.h"
 
 /* encryption includes */
 #include "rocksdb/env_encryption.h"
-#include "./env_encryption_ctr_aes.h"
-#include "./env_encryption_myrocks.h"
-#include "./master_key_manager.h"
+#include "rocksdb/env/composite_env_wrapper.h"
+#include "./enc_env_encryption_myrocks.h"
+#include "./enc_aes_ctr_encryption_provider.h"
+#include "./enc_aes_ctr_stream_factory.h"
+#include "./enc_master_key_manager.h"
+#include "./enc_keyring_master_key_manager.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -5693,9 +5693,9 @@ static void initialize_encryption() {
      keyring_encryption_service. As it does not provide AES CTR, we will hide
      local implementation behind the interface
    */
-  auto cipherFactory = std::make_unique<AESCtrStreamFactory>();
+  auto cipherFactory = std::make_unique<AesCtrStreamFactory>();
   auto provider =
-    std::make_shared<CTRAesEncryptionProvider>(keyringMasterKeyManager, std::move(cipherFactory));
+    std::make_shared<AesCtrEncryptionProvider>(keyringMasterKeyManager, std::move(cipherFactory));
 
   /* Now let's add the wrapper around the default file system, which will provide
      encryption + MK header encryption

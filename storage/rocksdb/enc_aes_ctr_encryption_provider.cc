@@ -1,11 +1,10 @@
-#include "./env_encryption_ctr_aes.h"
-#include "./master_key_manager.h"
-#include "./cipher_stream_factory.h"
+#include "./enc_aes_ctr_encryption_provider.h"
+#include "./enc_master_key_manager.h"
+#include "./enc_cipher_stream_factory.h"
 #include "rocksdb/system_clock.h"
 #include "rocksdb/util/random.h"
 
 namespace myrocks {
-
 
 /******************************************************************************/
 static constexpr char kKeyMagic[]       = "rdbe001";
@@ -28,21 +27,21 @@ static constexpr char iv[IV_SIZE] = {0};
 static const std::string kHeaderIV(iv, IV_SIZE);
 
 /******************************************************************************/
-const char* CTRAesEncryptionProvider::kCTRAesProviderName = "AES_CTR";
+const char* AesCtrEncryptionProvider::kCTRAesProviderName = "AES_CTR";
 
 
-CTRAesEncryptionProvider::~CTRAesEncryptionProvider() {
+AesCtrEncryptionProvider::~AesCtrEncryptionProvider() {
 
 }
 
-CTRAesEncryptionProvider::CTRAesEncryptionProvider(std::shared_ptr<MasterKeyManager> mmm,
+AesCtrEncryptionProvider::AesCtrEncryptionProvider(std::shared_ptr<MasterKeyManager> mmm,
                                                    std::unique_ptr<CipherStreamFactory> csf)
 : masterKeyManager_(mmm)
 , cipherStreamFactory_(std::move(csf)) {
 
 }
 
-rocksdb::Status CTRAesEncryptionProvider::Feed(rocksdb::Slice& prefix)
+rocksdb::Status AesCtrEncryptionProvider::Feed(rocksdb::Slice& prefix)
 {
     // here we get the whole prefix of the encrypted file
     uint32_t masterKeyId = 0;
@@ -56,12 +55,12 @@ rocksdb::Status CTRAesEncryptionProvider::Feed(rocksdb::Slice& prefix)
 }
 
 
-const char* CTRAesEncryptionProvider::Name() const
+const char* AesCtrEncryptionProvider::Name() const
 {
   return kCTRAesProviderName;
 }
 
-size_t CTRAesEncryptionProvider::GetPrefixLength() const
+size_t AesCtrEncryptionProvider::GetPrefixLength() const
 {
   return defaultPrefixLength;
 }
@@ -75,7 +74,7 @@ Encryption prefix:
 32 bytes		key				encrypted
 16 bytes		iv				encrypted
 */
-rocksdb::Status CTRAesEncryptionProvider::CreateNewPrefix(const std::string& fname, char* prefix,
+rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(const std::string& fname, char* prefix,
                        size_t prefixLength) const
 {
   memcpy((void*)(&prefix[KEY_MAGIC_OFFSET]), kKeyMagic, KEY_MAGIC_SIZE);
@@ -129,7 +128,7 @@ rocksdb::Status CTRAesEncryptionProvider::CreateNewPrefix(const std::string& fna
 }
 
 // prefix is encrypted, reencrypt with new master key if needed.
-rocksdb::Status CTRAesEncryptionProvider::ReencryptPrefix(rocksdb::Slice& prefix) const {
+rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(rocksdb::Slice& prefix) const {
     // todo: introduce GetMostRecentMasterKeyId, to avoid getting it over and
     // over from keyring component
     std::string newestMasterKey;
@@ -169,7 +168,7 @@ rocksdb::Status CTRAesEncryptionProvider::ReencryptPrefix(rocksdb::Slice& prefix
     return rocksdb::Status::OK();
 }
 
-rocksdb::Status CTRAesEncryptionProvider::CreateCipherStream(
+rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(
       const std::string& fname, const rocksdb::EnvOptions& options, rocksdb::Slice& prefix,
       std::unique_ptr<rocksdb::BlockAccessCipherStream>* result)
 {
@@ -209,19 +208,14 @@ rocksdb::Status CTRAesEncryptionProvider::CreateCipherStream(
   return CreateCipherStreamFromPrefix(fileKey, fileIV, result);
 }
 
-rocksdb::Status CTRAesEncryptionProvider::AddCipher(const std::string& /*descriptor*/, const char* /*cipher*/,
+rocksdb::Status AesCtrEncryptionProvider::AddCipher(const std::string& /*descriptor*/, const char* /*cipher*/,
                  size_t /*len*/, bool /*for_write*/)
 {
-  return rocksdb::Status::OK();
+  // We do not use this method
+  return rocksdb::Status::NotSupported();
 }
 
-rocksdb::Status CTRAesEncryptionProvider::TEST_Initialize()
-{
-  // todo
-  return rocksdb::Status::OK();
-}
-
-rocksdb::Status CTRAesEncryptionProvider::CreateCipherStreamFromPrefix(
+rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamFromPrefix(
       const rocksdb::Slice& key, const rocksdb::Slice& iv,
       std::unique_ptr<rocksdb::BlockAccessCipherStream>* result)
 {
@@ -231,7 +225,7 @@ rocksdb::Status CTRAesEncryptionProvider::CreateCipherStreamFromPrefix(
   return rocksdb::Status::OK();
 }
 
-std::string CTRAesEncryptionProvider::GetMarker() const {
+std::string AesCtrEncryptionProvider::GetMarker() const {
     return kKeyMagic;
 }
 }  // namespace

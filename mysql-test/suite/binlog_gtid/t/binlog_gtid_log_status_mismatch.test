@@ -1,0 +1,83 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/count_sessions.inc
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+--echo # Connection default
+--connection default
+RESET BINARY LOGS AND GTIDS;
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+FLUSH BINARY LOGS;
+
+#
+# Test 1 - Check we get correct GTID from log_status
+#
+
+SET debug_sync = "process_commit_stage_queue_before_handle_gtid SIGNAL insert_in_sync WAIT_FOR insert_continue";
+--send INSERT INTO t1 VALUES(3)
+
+--echo # Connection 1
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR insert_in_sync';
+SET debug_sync = "log_resource_gtid_lock SIGNAL gtid_in_sync WAIT_FOR gtid_continue";
+
+--send SELECT REPLACE(LOCAL->"$.gtid_executed", '"', '') INTO @ps_log_status FROM performance_schema.log_status
+
+--echo # Connection 2
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR gtid_in_sync';
+SET DEBUG_SYNC= 'now SIGNAL gtid_continue';
+SET DEBUG_SYNC= 'now SIGNAL insert_continue';
+
+--echo # Connection 1
+--connection con1
+--reap
+--let $assert_text= Gtid_executed is updated with GTID 4
+--let $assert_cond= "[SELECT @ps_log_status]" = "$server_uuid:1-4"
+--source include/assert.inc
+
+
+--connection default
+--reap
+
+#
+# Test 2 - Check the query to log_status is waiting on LOCK_commit
+#
+
+SET debug_sync = "process_commit_stage_queue_before_handle_gtid SIGNAL insert_in_sync WAIT_FOR insert_continue";
+--send INSERT INTO t1 VALUES(4)
+
+--echo # Connection 1
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR insert_in_sync';
+SET debug_sync = "log_resource_gtid_lock SIGNAL gtid_in_sync WAIT_FOR gtid_continue";
+
+--send SELECT REPLACE(LOCAL->"$.gtid_executed", '"', '') INTO @ps_log_status FROM performance_schema.log_status
+
+--echo # Connection 2
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR gtid_in_sync';
+SET DEBUG_SYNC= 'now SIGNAL gtid_continue';
+--let $assert_text= SELECT is waiting on LOCK_commit
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID=W.THREAD_ID AND W.EVENT_NAME LIKE \"%MYSQL_BIN_LOG::LOCK_commit\" AND T.PROCESSLIST_INFO LIKE \"%FROM%log_status%\"]" = 1
+--source include/assert.inc
+SET DEBUG_SYNC= 'now SIGNAL insert_continue';
+
+
+
+# Cleanup
+--connection con1
+--reap
+--connection default
+--reap
+DROP TABLE t1;
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_count_sessions.inc

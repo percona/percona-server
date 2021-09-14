@@ -176,19 +176,23 @@ class Log_resource_binlog_wrapper : public Log_resource {
 */
 class Log_resource_gtid_state_wrapper : public Log_resource {
   Gtid_state *gtid_state = nullptr;
+  MYSQL_BIN_LOG *binlog = nullptr;
 
  public:
   /**
     Log_resource_gtid_state_wrapper constructor.
 
     @param[in] gtid_state_arg the pointer to the Gtid_state object resource.
+    @param[in] binlog_arg the pointer to the MYSQL_BIN_LOG object resource.
     @param[in] json_arg the pointer to the JSON object to be populated with the
                         resource log information.
   */
 
   Log_resource_gtid_state_wrapper(Gtid_state *gtid_state_arg,
-                                  Json_dom *json_arg)
-      : Log_resource(json_arg), gtid_state(gtid_state_arg) {}
+                                  MYSQL_BIN_LOG *binlog_arg, Json_dom *json_arg)
+      : Log_resource(json_arg),
+        gtid_state(gtid_state_arg),
+        binlog(binlog_arg) {}
 
   void lock() override;
   void unlock() override;
@@ -254,12 +258,14 @@ class Log_resource_factory {
     Creates a Log_resource wrapper based on a Gtid_state object.
 
     @param[in] gtid_state the pointer to the Gtid_state object resource.
+    @param[in] binlog the pointer to the MYSQL_BIN_LOG object resource.
     @param[in] json the pointer to the JSON object to be populated with the
                     resource log information.
     @return  the pointer to the new Log_resource.
   */
 
-  static Log_resource *get_wrapper(Gtid_state *gtid_state, Json_dom *json);
+  static Log_resource *get_wrapper(Gtid_state *gtid_state,
+                                   MYSQL_BIN_LOG *binlog, Json_dom *json);
 
   /**
     Creates a Log_resource wrapper based on a handlerton.

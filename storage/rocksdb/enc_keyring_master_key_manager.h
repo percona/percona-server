@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./master_key_manager.h"
+#include "./enc_master_key_manager.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/registry.h"
 

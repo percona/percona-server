@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "./env_encryption_myrocks.h"
+#include "./enc_env_encryption_myrocks.h"
 
 namespace myrocks {
 
@@ -13,7 +13,7 @@ class MasterKeyManager;
 class CipherStreamFactory;
 
 
-class CTRAesEncryptionProvider : public MyRocksEncryptionProvider {
+class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
  private:
 
  protected:
@@ -26,9 +26,9 @@ class CTRAesEncryptionProvider : public MyRocksEncryptionProvider {
   std::unique_ptr<CipherStreamFactory> cipherStreamFactory_;
 
  public:
-  CTRAesEncryptionProvider(std::shared_ptr<MasterKeyManager> mmm,
+  AesCtrEncryptionProvider(std::shared_ptr<MasterKeyManager> mmm,
                            std::unique_ptr<CipherStreamFactory> csf);
-  ~CTRAesEncryptionProvider() override;
+  ~AesCtrEncryptionProvider() override;
 
   static const char* kCTRAesProviderName;
 
@@ -62,8 +62,6 @@ class CTRAesEncryptionProvider : public MyRocksEncryptionProvider {
   rocksdb::Status Feed(rocksdb::Slice& prefix) override;
 
  protected:
-  rocksdb::Status TEST_Initialize() override;
-
   // CreateCipherStreamFromPrefix creates a block access cipher stream for a
   // file given
   // given name and options. The given prefix is already decrypted.

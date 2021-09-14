@@ -4,7 +4,7 @@
 //  (found in the LICENSE.Apache file in the root directory).
 
 
-#include "./env_encryption_myrocks.h"
+#include "./enc_env_encryption_myrocks.h"
 #include "env/composite_env_wrapper.h"
 #include <algorithm>
 #include <cassert>
@@ -23,7 +23,6 @@
 #include "util/random.h"
 #include "util/string_util.h"
 #include "file/filename.h"
-#include "./env_encryption_myrocks.h"
 
 namespace myrocks {
 using namespace rocksdb;

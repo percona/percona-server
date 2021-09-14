@@ -1,5 +1,5 @@
-#include "./aes_ctr_stream_factory.h"
-#include "./stream_cipher.h"
+#include "./enc_aes_ctr_stream_factory.h"
+#include "./enc_stream_cipher.h"
 #include <rocksdb/env_encryption.h>
 #include <openssl/evp.h>
 
@@ -17,16 +17,14 @@ namespace myrocks {
 // Counter operations mode.
 // See https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
 //
-class CTRAesCipherStream final : public rocksdb::BlockAccessCipherStream {
+class AesCtrCipherStream final : public rocksdb::BlockAccessCipherStream {
  private:
-  std::unique_ptr<Stream_cipher> m_encryptor;
-  std::unique_ptr<Stream_cipher> m_decryptor;
-  uint64_t m_encryptPosition;
-  uint64_t m_decryptPosition;
+  std::unique_ptr<Stream_cipher> encryptor_;
+  std::unique_ptr<Stream_cipher> decryptor_;
 
  public:
-  CTRAesCipherStream();
-  virtual ~CTRAesCipherStream();
+  AesCtrCipherStream();
+  virtual ~AesCtrCipherStream();
 
   // BlockSize returns the size of each block supported by this cipher stream.
   size_t BlockSize() override;
@@ -57,15 +55,15 @@ class CTRAesCipherStream final : public rocksdb::BlockAccessCipherStream {
 
 
 /******************************************************************************/
-CTRAesCipherStream::CTRAesCipherStream() {
+AesCtrCipherStream::AesCtrCipherStream() {
 }
 
-CTRAesCipherStream::~CTRAesCipherStream() {
-    m_encryptor->close();
-    m_decryptor->close();
+AesCtrCipherStream::~AesCtrCipherStream() {
+    encryptor_->close();
+    decryptor_->close();
 }
 
-bool CTRAesCipherStream::Init(const std::string& file_key, const std::string& iv) {
+bool AesCtrCipherStream::Init(const std::string& file_key, const std::string& iv) {
   // encryptor
   auto encryptor = Aes_ctr::get_encryptor();
   auto openRes = encryptor->open(reinterpret_cast<const unsigned char*>(file_key.c_str()),
@@ -78,52 +76,63 @@ bool CTRAesCipherStream::Init(const std::string& file_key, const std::string& iv
                             reinterpret_cast<const unsigned char*>(iv.c_str()));
   if (openRes) return openRes;
 
-  m_encryptor = std::move(encryptor);
-  m_decryptor = std::move(decryptor);
+  encryptor_ = std::move(encryptor);
+  decryptor_ = std::move(decryptor);
   return false;
 }
 
-size_t CTRAesCipherStream::BlockSize()
+size_t AesCtrCipherStream::BlockSize()
 {
+    // this method is not used
     return 0;
 }
 
-rocksdb::Status CTRAesCipherStream::Encrypt(uint64_t fileOffset, char* data, size_t dataSize)
+rocksdb::Status AesCtrCipherStream::Encrypt(uint64_t fileOffset, char* data, size_t dataSize)
 {
-  // todo: add offset tracking to avoid underlaying cipher reinitialization if not needed
-  m_encryptor->set_stream_offset(fileOffset);
-  m_encryptor->encrypt((unsigned char*)data, (const unsigned char*)data, dataSize);
+  // Offset tracking to avoid underlaying cipher reinitialization is done
+  // inside encryptor_
+  if (encryptor_->set_stream_offset(fileOffset)) {
+    return rocksdb::Status::IOError();
+  }
+  if (encryptor_->encrypt((unsigned char*)data, (const unsigned char*)data, dataSize)) {
+    return rocksdb::Status::IOError();
+  }
   return rocksdb::Status::OK();
 }
 
-rocksdb::Status CTRAesCipherStream::Decrypt(uint64_t fileOffset, char* data, size_t dataSize)
+rocksdb::Status AesCtrCipherStream::Decrypt(uint64_t fileOffset, char* data, size_t dataSize)
 {
-  // todo: add offset tracking to avoid underlaying cipher reinitialization if not needed
-  m_decryptor->set_stream_offset(fileOffset);
-  m_decryptor->decrypt((unsigned char*)data, (const unsigned char*)data, dataSize);
+  // Offset tracking to avoid underlaying cipher reinitialization is done
+  // inside decryptor_
+  if (decryptor_->set_stream_offset(fileOffset)) {
+    return rocksdb::Status::IOError();
+  }
+  if (decryptor_->decrypt((unsigned char*)data, (const unsigned char*)data, dataSize)) {
+    return rocksdb::Status::IOError();
+  }
   return rocksdb::Status::OK();
 }
 
-void CTRAesCipherStream::AllocateScratch(std::string&)
+void AesCtrCipherStream::AllocateScratch(std::string&)
 {
 
 }
 
-rocksdb::Status CTRAesCipherStream::EncryptBlock(uint64_t blockIndex, char* data, char* scratch)
+rocksdb::Status AesCtrCipherStream::EncryptBlock(uint64_t blockIndex, char* data, char* scratch)
 {
-  return rocksdb::Status::OK();
+  return rocksdb::Status::NotSupported();
 }
 
-rocksdb::Status CTRAesCipherStream::DecryptBlock(uint64_t blockIndex, char* data, char* scratch)
+rocksdb::Status AesCtrCipherStream::DecryptBlock(uint64_t blockIndex, char* data, char* scratch)
 {
-  return rocksdb::Status::OK();
+  return rocksdb::Status::NotSupported();
 }
 
 /******************************************************************************/
 
 std::unique_ptr<rocksdb::BlockAccessCipherStream>
-  AESCtrStreamFactory::CreateCipherStream(const std::string& fileKey, const std::string& iv) {
-  auto cipher = std::make_unique<CTRAesCipherStream>();
+  AesCtrStreamFactory::CreateCipherStream(const std::string& fileKey, const std::string& iv) {
+  auto cipher = std::make_unique<AesCtrCipherStream>();
   if (cipher->Init(fileKey, iv)) {
       return nullptr;
   }

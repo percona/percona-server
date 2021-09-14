@@ -185,6 +185,10 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     /* We call keyring API to generate master key here. */
     if (keyring_generator_service_->generate(
             keyName.c_str(), nullptr, rocksdb_key_type, KEY_LEN) == true) {
+      fprintf(stderr, "MasterKey generation FAILED. Keyring component installed?\n");
+      if (key_id_locked) {
+        RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
+      }
       return -1;
     }
 

@@ -268,6 +268,11 @@ SET(ROCKSDB_SOURCES
   rdb_threads.cc rdb_threads.h
   ha_rockspart.cc ha_rockspart.h
   keyring_master_key_manager.cc keyring_master_key_manager.h
+  env_encryption_ctr_aes.cc
+  stream_cipher.cc stream_cipher.h
+  master_key_manager.cc master_key_manager.h
+  aes_ctr_stream_factory.cc
+  env_encryption_myrocks.cc
 )
 
 IF(WITH_FB_TSAN)

@@ -64,9 +64,6 @@
 #include "rocksdb/compaction_job_stats.h"
 #include "rocksdb/env.h"
 #include "rocksdb/env/composite_env_wrapper.h"
-#include "rocksdb/env_encryption.h"
-#include "rocksdb/env/env_encryption_ctr_aes.h"
-#include "rocksdb/env/master_key_manager.h"
 #include "./keyring_master_key_manager.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/persistent_cache.h"
@@ -97,6 +94,13 @@
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_psi.h"
 #include "./rdb_threads.h"
+#include "./aes_ctr_stream_factory.h"
+
+/* encryption includes */
+#include "rocksdb/env_encryption.h"
+#include "./env_encryption_ctr_aes.h"
+#include "./env_encryption_myrocks.h"
+#include "./master_key_manager.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -133,7 +137,7 @@ static std::vector<std::string> rdb_tables_to_recalc;
 static Rdb_exec_time st_rdb_exec_time;
 
 static std::shared_ptr<KeyringMasterKeyManager> keyringMasterKeyManager;
-static std::shared_ptr<rocksdb::EncryptedFileSystem> encryptedFileSystem;
+static std::shared_ptr<MyRocksEncryptedFileSystem> encryptedFileSystem;
 /**
   Updates row counters based on the table type and operation type.
 */
@@ -5671,6 +5675,40 @@ void rocksdb_truncation_table_cleanup(void) {
   }
 }
 
+// encryption infrastructure initialization
+static void initialize_encryption() {
+  /* We are here before MySql uuid is generated or read from auto.cnf file.
+     As the master key name consists of unique uuid, to be able to distinguish
+     keys from multiple MySql servers, we need some unique number.
+     Feed the MasterKeyManager with such uuid which will be used if there are
+     no files encrypted.
+     If any encrypted file is found, we will restore uuid from that file.
+   */
+  auto uuid = rocksdb_db_options->env->GenerateUniqueId();
+  // unfortunately it has new line character at the end
+  uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
+  keyringMasterKeyManager = std::make_shared<KeyringMasterKeyManager>(uuid);
+
+  /* The best case scenario would be to use AES CTR provided by MySql as
+     keyring_encryption_service. As it does not provide AES CTR, we will hide
+     local implementation behind the interface
+   */
+  auto cipherFactory = std::make_unique<AESCtrStreamFactory>();
+  auto provider =
+    std::make_shared<CTRAesEncryptionProvider>(keyringMasterKeyManager, std::move(cipherFactory));
+
+  /* Now let's add the wrapper around the default file system, which will provide
+     encryption + MK header encryption
+   */
+  encryptedFileSystem = myrocks::NewEncryptedFS(rocksdb_db_options->env->GetFileSystem(), provider, rocksdb_encryption, rocksdb_datadir);
+  encryptedFileSystem->Init(rocksdb_datadir);
+
+  // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
+  rocksdb_db_options->env = new rocksdb::CompositeEnvWrapper(
+      rocksdb_db_options->env,
+      encryptedFileSystem);
+}
+
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
@@ -5853,22 +5891,7 @@ static int rocksdb_init_internal(void *const p) {
     rocksdb_db_options->max_open_files = open_files_limit / 2;
   }
 
-  // encryption initialization
-  auto uuid = rocksdb_db_options->env->GenerateUniqueId();
-  // unfortunately it has new line character at the end
-  uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
-  keyringMasterKeyManager = std::make_shared<KeyringMasterKeyManager>(uuid);
-  auto provider = std::make_shared<rocksdb::CTRAesEncryptionProvider>(keyringMasterKeyManager);
-
-  encryptedFileSystem =
-    rocksdb::NewEncryptedFS2(rocksdb_db_options->env->GetFileSystem(),
-    provider);
-  encryptedFileSystem->Init(rocksdb_datadir);
-
-  // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env, provider, rocksdb_encryption, rocksdb_datadir);
-  rocksdb_db_options->env = new rocksdb::CompositeEnvWrapper(
-      rocksdb_db_options->env,
-      encryptedFileSystem);
+  initialize_encryption();
 
   rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
                                            get_regex_flags());

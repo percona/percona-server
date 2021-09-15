@@ -1419,7 +1419,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
   }
 
   if (prebuilt->compress_heap) {
-    mem_heap_free(prebuilt->compress_heap);
+    row_mysql_prebuilt_free_compress_heap(prebuilt);
   }
 
   if (prebuilt->old_vers_heap) {

@@ -16,6 +16,10 @@ class MyRocksEncryptionProvider : public rocksdb::EncryptionProvider {
  public:
   virtual rocksdb::Status Feed(rocksdb::Slice &prefix) = 0;
   virtual rocksdb::Status ReencryptPrefix(rocksdb::Slice &prefix) const = 0;
+  virtual rocksdb::Status CreateThreadSafeCipherStream(
+      const std::string &fname, const rocksdb::EnvOptions &options,
+      rocksdb::Slice &prefix,
+      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) = 0;
 };
 
 class MyRocksEncryptedFileSystem : public rocksdb::EncryptedFileSystem {

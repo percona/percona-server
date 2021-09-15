@@ -8,6 +8,8 @@ class AesCtrStreamFactory : public CipherStreamFactory {
  public:
   virtual std::unique_ptr<rocksdb::BlockAccessCipherStream> CreateCipherStream(
       const std::string &fileKey, const std::string &iv) override;
+  virtual std::unique_ptr<rocksdb::BlockAccessCipherStream> CreateThreadSafeCipherStream(
+      const std::string &fileKey, const std::string &iv) override;
 };
 
 }  // namespace myrocks

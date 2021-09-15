@@ -228,7 +228,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   IOStatus CreateRandomReadCipherStream(
       const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
       const FileOptions &options, size_t *prefix_length,
-      std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
+      std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg,
+      bool threadSafeStream = false) {
     // Read prefix (if needed)
     AlignedBuffer buffer;
     Slice prefix;
@@ -244,8 +245,14 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       }
       buffer.Size(*prefix_length);
     }
-    return status_to_io_status(
+
+    if(threadSafeStream) {
+      return status_to_io_status(
+        provider_->CreateThreadSafeCipherStream(fname, options, prefix, stream));
+    } else {
+      return status_to_io_status(
         provider_->CreateCipherStream(fname, options, prefix, stream));
+    }
   }
 
  public:
@@ -468,7 +475,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::unique_ptr<BlockAccessCipherStream> stream;
     size_t prefix_length;
     status = CreateRandomReadCipherStream(fname, underlying, options,
-                                          &prefix_length, &stream, dbg);
+                                          &prefix_length, &stream, dbg, true);
     if (status.ok()) {
       if (stream) {
         result->reset(new EncryptedRandomAccessFile(

@@ -55,12 +55,24 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
 
   rocksdb::Status Feed(rocksdb::Slice &prefix) override;
 
+  rocksdb::Status CreateThreadSafeCipherStream(
+      const std::string &fname, const rocksdb::EnvOptions &options,
+      rocksdb::Slice &prefix,
+      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) override;
+
  protected:
   // CreateCipherStreamFromPrefix creates a block access cipher stream for a
   // file given
   // given name and options. The given prefix is already decrypted.
   virtual rocksdb::Status CreateCipherStreamFromPrefix(
       const rocksdb::Slice &key, const rocksdb::Slice &iv,
-      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result);
+      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
+      bool threadSafe);
+ private:
+  rocksdb::Status CreateCipherStreamCommon(
+    const std::string &fname, const rocksdb::EnvOptions &options,
+    rocksdb::Slice &prefix,
+    std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
+    bool threadSafe);
 };
 }  // namespace myrocks

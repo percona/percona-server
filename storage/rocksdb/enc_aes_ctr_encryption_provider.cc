@@ -169,6 +169,21 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(
     const std::string &fname, const rocksdb::EnvOptions &options,
     rocksdb::Slice &prefix,
     std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) {
+    return CreateCipherStreamCommon(fname, options, prefix, result, false);
+}
+
+rocksdb::Status AesCtrEncryptionProvider::CreateThreadSafeCipherStream(
+    const std::string &fname, const rocksdb::EnvOptions &options,
+    rocksdb::Slice &prefix,
+    std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) {
+    return CreateCipherStreamCommon(fname, options, prefix, result, true);
+}
+
+rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
+    const std::string &fname, const rocksdb::EnvOptions &options,
+    rocksdb::Slice &prefix,
+    std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
+    bool threadSafe) {
   if (0 != memcmp(prefix.data(), kKeyMagic, KEY_MAGIC_SIZE)) {
     fprintf(stderr, "KH: not encrypted file detected\n");
     return rocksdb::Status::OK();
@@ -204,7 +219,7 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(
   rocksdb::Slice fileIV((char *)(dataToDecrypt + FILE_KEY_SIZE), IV_SIZE);
 
   // Create cipher stream
-  return CreateCipherStreamFromPrefix(fileKey, fileIV, result);
+  return CreateCipherStreamFromPrefix(fileKey, fileIV, result, threadSafe);
 }
 
 rocksdb::Status AesCtrEncryptionProvider::AddCipher(
@@ -216,10 +231,15 @@ rocksdb::Status AesCtrEncryptionProvider::AddCipher(
 
 rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamFromPrefix(
     const rocksdb::Slice &key, const rocksdb::Slice &iv,
-    std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) {
+    std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
+    bool threadSafe) {
   std::string skey(key.data(), key.size());
   std::string siv(iv.data(), iv.size());
-  (*result) = cipherStreamFactory_->CreateCipherStream(skey, siv);
+  if (threadSafe) {
+    (*result) = cipherStreamFactory_->CreateThreadSafeCipherStream(skey, siv);
+  } else {
+    (*result) = cipherStreamFactory_->CreateCipherStream(skey, siv);
+  }
   return rocksdb::Status::OK();
 }
 

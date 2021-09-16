@@ -177,6 +177,7 @@ my $opt_mtr_term_args      = env_or_val(MTR_TERM => "xterm -title %title% -e");
 my $opt_lldb_cmd           = env_or_val(MTR_LLDB => "lldb");
 our $opt_junit_output      = undef;
 our $opt_junit_package     = undef;
+my $opt_fs_cleanup_hook = undef;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -376,6 +377,7 @@ our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
+our $exe_mysql_zenfs;
 our $glob_mysql_test_dir;
 our $mysql_version_extra;
 our $mysql_version_id;
@@ -1822,6 +1824,7 @@ sub command_line_setup {
     'vardir=s'        => \$opt_vardir,
 
     # Misc
+    'fs-cleanup-hook=s'     => \$opt_fs_cleanup_hook,
     'charset-for-testdb=s'  => \$opt_charset_for_testdb,
     'colored-diff'          => \$opt_colored_diff,
     'comment=s'             => \$opt_comment,
@@ -2760,6 +2763,7 @@ sub executable_setup () {
     my_find_bin($bindir,
                 [ "runtime_output_directory", "libexec", "sbin", "bin" ],
                 "mysql_keyring_encryption_test");
+  $exe_mysql_zenfs = mtr_exe_maybe_exists("$path_client_bindir/zenfs");
 
   if ($ndbcluster_enabled) {
     # Look for single threaded NDB
@@ -3296,6 +3300,7 @@ sub environment_setup {
     client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_SECURE_INSTALLATION'} =
     "$path_client_bindir/mysql_secure_installation";
+  $ENV{'MYSQL_ZENFS'} = $exe_mysql_zenfs;
 
   my $exe_mysqld = find_mysqld($basedir);
   $ENV{'MYSQLD'} = $exe_mysqld;
@@ -3525,6 +3530,7 @@ sub remove_stale_vardir () {
   # Remove the "tmp" dir
   mtr_verbose("Removing $opt_tmpdir/");
   rmtree("$opt_tmpdir/");
+  invoke_fs_cleanup_hook();
 }
 
 # Create var and the directories needed in var
@@ -6016,6 +6022,14 @@ sub clean_dir {
     $dir);
 }
 
+sub invoke_fs_cleanup_hook {
+  if (defined $opt_fs_cleanup_hook and $opt_fs_cleanup_hook ne '') {
+    mtr_report(" - executing custom fs-cleanup hook");
+    mtr_verbose(" - $opt_fs_cleanup_hook");
+    system($opt_fs_cleanup_hook);
+  }
+}
+
 sub clean_datadir {
   my ($tinfo) = @_;
 
@@ -6042,6 +6056,7 @@ sub clean_datadir {
         !$bootstrap_opts) {
       mtr_verbose(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
+      invoke_fs_cleanup_hook();
     }
   }
 
@@ -6063,6 +6078,7 @@ sub save_datadir_after_failure($$) {
   mtr_report(" - saving '$dir'");
   my $dir_name = basename($dir);
   rename("$dir", "$savedir/$dir_name");
+  invoke_fs_cleanup_hook();
 }
 
 sub remove_ndbfs_from_ndbd_datadir {
@@ -8050,6 +8066,9 @@ Misc options
   xml-report=FILE       Generate a XML report file compatible with JUnit.
   junit-output=FILE     Output JUnit test summary XML to FILE.
   junit-package=NAME    Set the JUnit package name to NAME for this test run.
+  fs-cleanup-hook=COMMAND
+                        Execute custom command (e.g. external storage cleanup)
+                        upon test failure (Currently used for ZenFS storages).
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

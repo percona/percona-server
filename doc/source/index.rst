@@ -9,7 +9,7 @@
  |Percona Server| |version| - Documentation
 ============================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
+|Percona Server| is an enhanced drop-in replacement for MySQL. With |Percona Server|,
 
   * Your queries will run faster and more consistently.
 

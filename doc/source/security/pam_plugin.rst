@@ -4,16 +4,16 @@
  PAM Authentication Plugin
 ===========================
 
-Percona PAM Authentication Plugin is a free and Open Source implementation of the |MySQL|'s authentication plugin. This plugin acts as a mediator between the |MySQL| server, the |MySQL| client, and the PAM stack. The server plugin requests authentication from the PAM stack, forwards any requests and messages from the PAM stack over the wire to the client (in cleartext) and reads back any replies for the PAM stack.
+Percona PAM Authentication Plugin is a free and Open Source implementation of the MySQL's authentication plugin. This plugin acts as a mediator between the MySQL server, the MySQL client, and the PAM stack. The server plugin requests authentication from the PAM stack, forwards any requests and messages from the PAM stack over the wire to the client (in cleartext) and reads back any replies for the PAM stack.
 
  PAM plugin uses dialog as its client side plugin. Dialog plugin can be loaded to any client application that uses :file:`libperconaserverclient`/:file:`libmysqlclient` library.
 
 Here are some of the benefits that Percona dialog plugin offers over the default one:
 
   * It correctly recognizes whether PAM wants input to be echoed or not, while the default one always echoes the input on the user's console.
-  * It can use the password which is passed to |MySQL| client via "-p" parameter.
+  * It can use the password which is passed to MySQL client via "-p" parameter.
   * Dialog client `installation bug <http://bugs.mysql.com/bug.php?id=60745>`_ has been fixed.
-  * This plugin works on |MySQL| and |Percona Server|.
+  * This plugin works on MySQL and |Percona Server|.
 
 Percona offers two versions of this plugin:  
 
@@ -75,7 +75,7 @@ This feature enables using secondary groups in the mapping part of the authentic
 Known issues
 ============
 
-Default mysql stack size is not enough to handle ``pam_ecryptfs`` module. Workaround is to increase the |MySQL| stack size by setting the `thread-stack <https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_thread_stack>`_ variable to at least ``512KB`` or by increasing the old value by ``256KB``.
+Default mysql stack size is not enough to handle ``pam_ecryptfs`` module. Workaround is to increase the MySQL stack size by setting the `thread-stack <https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_thread_stack>`_ variable to at least ``512KB`` or by increasing the old value by ``256KB``.
 
 PAM authentication can fail with ``mysqld: pam_unix(mysqld:account): Fork failed: Cannot allocate memory`` error in the :file:`/var/log/secure` even when there is enough memory available. Current workaround is to set `vm.overcommit_memory <https://www.kernel.org/doc/Documentation/vm/overcommit-accounting>`_ to ``1``:
 

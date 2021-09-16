@@ -43,7 +43,7 @@ Bugs Fixed
 
 * A ``key_block_size`` value was set automatically by the Improved MEMORY
   Storage Engine, which resulted in warnings when changing the engine type to
-  |InnoDB|, and constantly growing ``key_block_size`` during alter operations.
+  InnoDB, and constantly growing ``key_block_size`` during alter operations.
   Bugs fixed :psbug:`3936`, :psbug:`3940`, and :psbug:`3943`.
 
 * Fixes were introduced to remove GCC 8 compilation warnings for the
@@ -56,7 +56,7 @@ Bugs Fixed
   Ubuntu 14.04 (Trusty) because of too old LZ4 packages. Bug fixed
   :psbug:`3842`.
 
-* A regression brought during |TokuDB| code clean-up in :rn:`5.7.21-21` was
+* A regression brought during TokuDB code clean-up in :rn:`5.7.21-21` was
   causing assertion in cases when the FT layer returns an error during an alter
   table operation. Bug fixed :psbug:`4294`.
 

@@ -4,7 +4,7 @@
 Expanded Program Option Modifiers
 =================================
 
-|MySQL| has the concept of `options modifiers <http://dev.mysql.com/doc/refman/5.7/en/option-modifiers.html>`_ which is a simple way to modify either the way that |MySQL| interprets an option or the way the option behaves. Option modifiers are used by simply prepending the name of the modifier and a dash "-" before the actual configuration option name. For example specifying --maximum-query_cache_size=4M on the mysqld commad line or specifying maximum-query_cache_size=4M in the :file:`my.cnf` will prevent any client from setting the :variable:`query_cache_size` value larger than 4MB.
+MySQL has the concept of `options modifiers <http://dev.mysql.com/doc/refman/5.7/en/option-modifiers.html>`_ which is a simple way to modify either the way that MySQL interprets an option or the way the option behaves. Option modifiers are used by simply prepending the name of the modifier and a dash "-" before the actual configuration option name. For example specifying --maximum-query_cache_size=4M on the mysqld commad line or specifying maximum-query_cache_size=4M in the :file:`my.cnf` will prevent any client from setting the :variable:`query_cache_size` value larger than 4MB.
 
 Currently MySQL supports five existing option modifiers:
   * disable [disable-<option_name>] disables or ignores option_name.

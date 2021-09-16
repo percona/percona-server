@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.11
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-11.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.11-4 is the current GA release in
-the |Percona Server| 5.7 series. All of |Percona|'s software is open-source and
+the |Percona Server| 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.11-4 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.11-4>`_
 
@@ -27,7 +27,7 @@ New Features
  ``0`` to ``30``. (:tokubug:`935`)
 
  :ref:`log_warning_suppress` feature has been removed from |Percona Server| 5.7
- because |MySQL| 5.7.11 has implemented a new system variable,
+ because MySQL 5.7.11 has implemented a new system variable,
  `log_statements_unsafe_for_binlog
  <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_log_statements_unsafe_for_binlog>`_,
  which implements the same effect.

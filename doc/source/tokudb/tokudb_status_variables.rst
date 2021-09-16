@@ -4,7 +4,7 @@
 TokuDB Status Variables
 =======================
 
-|TokuDB| status variables provide details about the inner workings of |TokuDB|
+TokuDB status variables provide details about the inner workings of TokuDB
 storage engine and they can be useful in tuning the storage engine to a
 particular environment. 
 
@@ -594,7 +594,7 @@ used to store a new or modified row on disk.
 
 This variable shows the maximum number of bytes that were stored on disk as a
 new or modified row. This is the maximum uncompressed size of any row stored in
-|TokuDB| that was created or modified since the server started.
+TokuDB that was created or modified since the server started.
 
 .. variable:: Tokudb_LEAF_ENTRY_APPLY_GC_BYTES_IN
 
@@ -684,7 +684,7 @@ use for any purpose.
 
 This variable shows the number of times a non-checkpoint client thread waited
 for the multi-operation lock. It is an internal ``rwlock`` that is similar in
-nature to the |InnoDB| kernel mutex, it effectively halts all access to the
+nature to the InnoDB kernel mutex, it effectively halts all access to the
 PerconaFT API when write locked. The ``begin`` phase of the checkpoint takes
 this lock for a brief period.
 
@@ -802,7 +802,7 @@ executed.
 
 .. variable:: Tokudb_CACHETABLE_CLEANER_PERIOD
 
-|TokuDB| includes a cleaner thread that optimizes indexes in the background.
+TokuDB includes a cleaner thread that optimizes indexes in the background.
 This variable is the time, in seconds, between the completion of a group of
 cleaner operations and the beginning of the next group of cleaner operations.
 The cleaner operations run on a background thread performing work that does not

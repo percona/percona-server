@@ -4,7 +4,7 @@
  Installing |Percona Server| on Red Hat Enterprise Linux and CentOS
 ====================================================================
 
-Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The |Percona| :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
+Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The Percona :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
@@ -43,7 +43,7 @@ You can install Percona yum repository by running the following command as a
 
    .. admonition:: Output example
 
-      .. code-block:: guess
+      .. code-block:: bash
 
 	 Retrieving https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 	 Preparing...                ########################################### [100%]
@@ -96,7 +96,7 @@ You can install Percona yum repository by running the following command as a
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 Percona `yum` Testing repository
 --------------------------------
@@ -150,9 +150,9 @@ This will install only packages required to run the |Percona Server| 5.7.
 
 Optionally, you can install either the :ref:`TokuDB <tokudb_intro>` storage engine, adding ``Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm``  or the :ref:`MyRocks <myrocks_intro>` storage engine, adding ``Percona-Server-rocksdb-57-5.7.31-34.1.el7.x86_64.rpm`` to the install command.
 
-You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
-You can find more information on how to install and enable the |MyRocks| storage engine in the :ref:`myrocks_install` guide.
+You can find more information on how to install and enable the MyRocks storage engine in the :ref:`myrocks_install` guide.
 
 To install all the packages (for debugging, testing, etc.) you should run:
 

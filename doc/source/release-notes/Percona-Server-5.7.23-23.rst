@@ -1,17 +1,17 @@
 .. rn:: 5.7.23-23
 
 ========================
-Percona Server |release|
+Percona Server 5.7.23-23
 ========================
 
-Percona is glad to announce the release of Percona Server |release| on
+Percona is glad to announce the release of Percona Server 5.7.23-23 on
 September 12, 2018. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.23-23/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
 This release is based on `MySQL 5.7.23
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-23.html>`_
-and includes all the bug fixes in it. |Percona Server| |release| is
+and includes all the bug fixes in it. |Percona Server| 5.7.23-23 is
 now the current GA (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.
@@ -24,7 +24,7 @@ New Features
   :variable:`binlog_space_limit` is consistent with the variable
   :variable:`relay-log-space-limit` used for relay logs; both variables have the
   same semantics. For more information, see :psbug:`275`.
-* Starting with |release|, it is possible to encrypt all data in the InnoDB
+* Starting with 5.7.23-23, it is possible to encrypt all data in the InnoDB
   system tablespace and in the parallel double write buffer. A new variable
   :variable:`innodb_sys_tablespace_encrypt` is introduced to encrypt the system
   tablespace. This feature is considered **ALPHA** quality. The encryption of
@@ -37,7 +37,7 @@ New Features
 * :variable:`rocksdb_number_stat_computers` and 
   :variable:`rocksdb_rate_limit_delay_millis` variables have been removed. For
   more information, see :psbug:`4780`.
-* A number of new variables were introduced for |MyRocks|: 
+* A number of new variables were introduced for MyRocks: 
   :variable:`rocksdb_rows_filtered` to show the number of rows filtered out for
   TTL in MyRocks tables, :variable:`rocksdb_bulk_load_allow_sk` to allow adding
   secondary keys using the bulk loading feature,
@@ -73,7 +73,7 @@ Bugs Fixed
   :mysqlbug:`91541`).
 * In some cases, it was not possible to set the :variable:`flush_caches`
   variable on systems that use systemd. Bug fixed :psbug:`3796`.
-* A message in the |MyRocks| log file did not clearly inform whether fast CRC32
+* A message in the MyRocks log file did not clearly inform whether fast CRC32
   was supported. Bug fixed :psbug:`3988`.
 * ``mysqld`` could not be started on Ubuntu if the database recovery had taken
   longer than ten minutes. Bug fixed :psbug:`4546` (upstream :mysqlbug:`91423`).
@@ -82,7 +82,7 @@ Bugs Fixed
 * Setting the global variable :variable:`version_suffix` to NULL could
   lead to a server crash. Bug fixed :psbug:`4785`.
 * When more space was added to the data partition after the error that the disk
-  partition was full, |MyRocks| could ignore data update commands. Bug fixed
+  partition was full, MyRocks could ignore data update commands. Bug fixed
   :psbug:`4706`.
 
 Other Bugs Fixed
@@ -97,4 +97,4 @@ Other Bugs Fixed
 * :psbug:`4561` \"Read after free at Binlog_crypt_data::load_latest_binlog_key()\"
 * :psbug:`4587` \"ROCKSDB_INCLUDE_RFR macro in wrong file\"
   
-.. |release| replace:: 5.7.23-23
+.. 5.7.23-23 replace:: 5.7.23-23

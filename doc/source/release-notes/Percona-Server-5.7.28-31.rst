@@ -1,13 +1,13 @@
 .. rn:: 5.7.28-31:
 
 ===============================================================================
-|Percona Server| |release|
+|Percona Server| 5.7.28-31
 ===============================================================================
 
-Percona is glad to announce the release of |Percona Server| |release| on |date|. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.28-31/>`_
+Percona is glad to announce the release of |Percona Server| 5.7.28-31 on November 13, 2019. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.28-31/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
-This release is based on `MySQL 5.7.28 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-28.html>`_ and includes all the bug fixes in it. |Percona Server| |release| is now the current GA
+This release is based on `MySQL 5.7.28 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-28.html>`_ and includes all the bug fixes in it. |Percona Server| 5.7.28-31 is now the current GA
 (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.
@@ -54,5 +54,5 @@ Known Issues
 - :psbug:`5783`: The length of time and resources required for a MySQL query execution increased with a large number of table partitions. :ref:`query-limit-estimates` describes the experimental options added to prevent index scans on the partitions and return a specified number of values.
 
 
-.. |date| replace:: November 13, 2019
-.. |release| replace:: 5.7.28-31
+.. November 13, 2019 replace:: November 13, 2019
+.. 5.7.28-31 replace:: 5.7.28-31

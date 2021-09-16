@@ -4,7 +4,7 @@
  Misc. INFORMATION_SCHEMA Tables
 =================================
 
-This page lists the ``INFORMATION_SCHEMA`` tables added to standard |MySQL| by |Percona Server| that don't exist elsewhere in the documentation.
+This page lists the ``INFORMATION_SCHEMA`` tables added to standard MySQL by |Percona Server| that don't exist elsewhere in the documentation.
 
 .. _temp_tables:
 
@@ -20,7 +20,7 @@ Only the temporary tables that were explicitly created with `CREATE TEMPORARY TA
 .. table:: INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES
  
    :version 5.7.10-1: Feature ported from |Percona Server| 5.6
-   :column SESSION_ID: |MySQL| connection id
+   :column SESSION_ID: MySQL connection id
    :column TABLE_SCHEMA: Schema in which the temporary table is created
    :column TABLE_NAME: Name of the temporary table
    :column ENGINE: Engine of the temporary table
@@ -37,7 +37,7 @@ This table holds information on the temporary tables existing for all connection
 .. table:: INFORMATION_SCHEMA.TEMPORARY_TABLES
 
    :version 5.7.10-1: Feature ported from |Percona Server| 5.6
-   :column SESSION_ID: |MySQL| connection id
+   :column SESSION_ID: MySQL connection id
    :column TABLE_SCHEMA: Schema in which the temporary table is created
    :column TABLE_NAME: Name of the temporary table
    :column ENGINE: Engine of the temporary table

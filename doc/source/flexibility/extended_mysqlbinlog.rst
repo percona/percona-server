@@ -15,9 +15,9 @@ In the `mysqlbinlog utility
 <https://dev.mysql.com/doc/refman/5.7/en/mysqlbinlog.html>`__ add either the
 ``--compress`` or ``-C`` flag to the command-line options.
 
-.. code-block:: mysql
+.. code-block:: text
 
-    > mysqlbinlog [--compress|-C] --remote-server
+    mysqlbinlog [--compress|-C] --remote-server
 
 
 Version Specific Information

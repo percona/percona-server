@@ -129,12 +129,12 @@ message(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
 
 # Suppress warnings for all compilers
 append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
-# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
-remove_compile_flags(-Wcast-qual -Wundef)
+# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef -Wextra-semi" which cause warnings with RocksDB
+remove_compile_flags(-Wcast-qual -Wundef -Wextra-semi)
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wextra-semi -Wnon-virtual-dtor)
+  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wnon-virtual-dtor)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
 ENDIF()
@@ -188,9 +188,7 @@ IF(BUILD_BUNDLED_ZSTD)
 ENDIF()
 
 # add bundled compression code
-SET(ZSTD_SOURCES
-  ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
-)
+SET(ZSTD_SOURCES ${BUNDLED_LZ4_PATH}/xxhash.c)
 
 SET(ROCKSDB_SOURCES
   ${ROCKSDB_SOURCES}

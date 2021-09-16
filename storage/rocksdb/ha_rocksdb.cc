@@ -5530,7 +5530,6 @@ static int rocksdb_init_internal(void *const p) {
     LogPluginErrMsg(
         ERROR_LEVEL, 0,
         "Can't enable both use_direct_reads and allow_mmap_reads\n");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5575,7 +5574,6 @@ static int rocksdb_init_internal(void *const p) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "Can't enable both use_direct_io_for_flush_and_compaction "
                     "and allow_mmap_writes\n");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5584,7 +5582,6 @@ static int rocksdb_init_internal(void *const p) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "rocksdb_flush_log_at_trx_commit needs to be 0 to use "
                     "allow_mmap_writes");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5695,14 +5692,12 @@ static int rocksdb_init_internal(void *const p) {
     if (!status.ok()) {
       LogPluginErrMsg(ERROR_LEVEL, 0, "Persistent cache returned error: (%s)",
                       status.getState());
-      deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
     rocksdb_tbl_options->persistent_cache = pcache;
   } else if (strlen(rocksdb_persistent_cache_path)) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "ust specify rocksdb_persistent_cache_size_mb");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5716,7 +5711,6 @@ static int rocksdb_init_internal(void *const p) {
                             rocksdb_default_cf_options,
                             rocksdb_override_cf_options)) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Failed to initialize CF options map.");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5805,7 +5799,6 @@ static int rocksdb_init_internal(void *const p) {
                                  rocksdb_enable_remove_orphaned_dropped_cfs);
       })) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Failed to initialize data dictionary.");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5821,7 +5814,6 @@ static int rocksdb_init_internal(void *const p) {
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
       })) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Failed to initialize DDL manager.");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5866,7 +5858,6 @@ static int rocksdb_init_internal(void *const p) {
   if (err != 0) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "Couldn't start the background thread: (errno=%d)", err);
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5879,7 +5870,6 @@ static int rocksdb_init_internal(void *const p) {
   if (err != 0) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "Couldn't start the drop index thread: (errno=%d)", err);
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5923,7 +5913,6 @@ static int rocksdb_init_internal(void *const p) {
                           HA_ERR_ROCKSDB_LAST);
   if (err != 0) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Couldn't initialize error messages");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 

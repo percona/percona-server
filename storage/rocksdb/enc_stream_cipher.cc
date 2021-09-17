@@ -151,9 +151,15 @@ void Aes_ctr_cipher<TYPE>::deinit_cipher() {
   m_ctx = nullptr;
 }
 
+// #define FAKE_CIPHER
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
+#ifdef FAKE_CIPHER
+    memcpy(dest, src, length);
+    return false;
+#endif
+
   if (TYPE == Cipher_type::DECRYPT) {
     /* It should never be called by a decrypt cipher */
     assert(0);
@@ -174,6 +180,11 @@ bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
 template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
+#ifdef FAKE_CIPHER
+    memcpy(dest, src, length);
+    return false;
+#endif
+
   if (TYPE == Cipher_type::ENCRYPT) {
     /* It should never be called by an encrypt cipher */
     assert(0);

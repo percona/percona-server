@@ -9,6 +9,10 @@
 #include <mysql/components/services/keyring_writer.h>
 #include <mysql/service_plugin_registry.h>
 
+#include <string>
+#include <map>
+#include <mutex>
+
 namespace myrocks {
 
 class KeyringMasterKeyManager : public MasterKeyManager {
@@ -25,11 +29,13 @@ class KeyringMasterKeyManager : public MasterKeyManager {
 
   void RegisterMasterKeyId(uint32_t masterKeyId,
                            const std::string &serverUuid) override;
-
+  void Shutdown() override;
  private:
   void InitKeyringServices();
   void DeinitKeyringServices();
   int ReadSecret(const std::string &keyName, std::string *secret);
+  int GetSecretFromCache(const std::string &keyName, std::string *secret);
+  int StoreSecretInCache(const std::string &keyName, const std::string &secret);
 
   SERVICE_TYPE(keyring_reader_with_status) * keyring_reader_service_{nullptr};
   SERVICE_TYPE(keyring_writer) * keyring_writer_service_{nullptr};
@@ -39,6 +45,9 @@ class KeyringMasterKeyManager : public MasterKeyManager {
   uint32_t newestMasterKeyId_;
   std::string serverUuid_;
   std::string seedUuid_;
+
+  std::map<std::string, std::string> keysCache_;
+  std::mutex keysCacheMtx_;
 };
 
 }  // namespace myrocks

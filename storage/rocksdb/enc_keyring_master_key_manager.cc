@@ -7,6 +7,7 @@
 #include "./rdb_psi.h"
 #include "sql/mysqld.h"
 
+//#define USE_DEVEL_KEY
 namespace myrocks {
 // The implementation of KeyringMasterManager is based on the implementation
 // in InnoDB (os0enc.cc). That logic works fine, so no point in reinventing
@@ -107,13 +108,60 @@ void KeyringMasterKeyManager::DeinitKeyringServices() {
   mysql_plugin_registry_release(reg_svc);
 }
 
+void KeyringMasterKeyManager::Shutdown(){
+    DeinitKeyringServices();
+}
+
 static constexpr uint32_t DEFAULT_MASTER_KEY_ID = 0;
 static constexpr char MASTER_KEY_PREFIX[] = "ROCKSDBKey";
 constexpr char rocksdb_key_type[] = "AES";
 static constexpr size_t KEY_LEN = 32;
 
+/* Why we need this case?
+   This is because of MySql components deinitialization sequence, which is
+   executed on SHUTDOWN.
+   Keyring component is deinitialized before SEs. When RocksDB is going down
+   it creates several files, which are to be encrypted as well, so we need to
+   cache MK.
+   TODO: check if only recent MK caching is necessary. It should be good,
+   as new files are always created with the newest MK, and files already open
+   do not need access to MK. (The problem would be if RocksDB opened already
+   existing files on its shutdown)
+*/
+int KeyringMasterKeyManager::GetSecretFromCache(const std::string &keyName,
+                                                 std::string *secret) {
+  std::unique_lock<std::mutex> lock(keysCacheMtx_);
+  auto it = keysCache_.find(keyName);
+  if (it == keysCache_.end()) {
+      return -1;
+  }
+  secret->assign(it->second);
+  return 0;
+}
+
+int KeyringMasterKeyManager::StoreSecretInCache(const std::string &keyName,
+                                                const std::string &secret) {
+  std::unique_lock<std::mutex> lock(keysCacheMtx_);
+  auto it = keysCache_.find(keyName);
+  if (it != keysCache_.end()) {
+      // it may happen if it is already added if two thread simultaneously
+      // accessed it for the 1st time.
+      return -1;
+  }
+  keysCache_[keyName] = secret;
+  return 0;
+}
+
 int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
                                         std::string *secret) {
+#ifdef USE_DEVEL_KEY
+  *secret = "12345678901234567890123456789012";
+  return 0;
+#else
+  if (0 == GetSecretFromCache(keyName, secret)) {
+    return 0;
+  }
+
   size_t secret_length = 0;
   size_t secret_type_length = 0;
   my_h_keyring_reader_object reader_object = nullptr;
@@ -155,11 +203,26 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
   }
   secret->assign((char *)(secret_v.data()), secret_length);
 
+  StoreSecretInCache(keyName, *secret);
+
   return 0;
+#endif
 }
 
 int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
                                                     uint32_t *masterKeyId) {
+#ifdef USE_DEVEL_KEY
+  if (newestMasterKeyId_ == 0) {
+        // there are no encrypted files and we are on default MK id
+        // generate the new master key
+      newestMasterKeyId_++;
+      serverUuid_ = seedUuid_;
+  }
+  *masterKey = "12345678901234567890123456789012";
+  *masterKeyId = newestMasterKeyId_;
+  return 0;
+#else
+
   std::string keyName;
   int retval;
   bool key_id_locked = false;
@@ -218,16 +281,10 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
   }
 
-#if 0
-    if (newestMasterKeyId_ == 0) {
-        // there are no encrypted files and we are on default MK id
-        // generate the new master key
-        newestMasterKeyId_++;
-    }
-    *masterKey = "12345678901234567890123456789012";
-    *masterKeyId = newestMasterKeyId_;
-#endif
+  StoreSecretInCache(keyName, *masterKey);
+
   return retval;
+#endif
 }
 
 int KeyringMasterKeyManager::GetServerUuid(std::string *serverUuid) {

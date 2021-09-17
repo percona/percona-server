@@ -169,7 +169,7 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(
     const std::string &fname, const rocksdb::EnvOptions &options,
     rocksdb::Slice &prefix,
     std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) {
-    return CreateCipherStreamCommon(fname, options, prefix, result, false);
+    return CreateCipherStreamCommon(fname, options, prefix, result, true);
 }
 
 rocksdb::Status AesCtrEncryptionProvider::CreateThreadSafeCipherStream(

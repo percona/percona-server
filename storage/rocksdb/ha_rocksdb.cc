@@ -5711,6 +5711,11 @@ static void initialize_encryption() {
       rocksdb_db_options->env, encryptedFileSystem);
 }
 
+static void deinitialize_encryption() {
+    encryptedFileSystem.reset();
+    keyringMasterKeyManager->Shutdown();  // todo: the reference is still kept in
+                                          // rocksdb_db_options->env CompositeEnvWrapper
+}
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
@@ -6507,6 +6512,8 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 
   // clear the initialized flag and unlock
   rdb_get_hton_init_state()->set_initialized(false);
+
+  deinitialize_encryption();
 
   return error;
 }

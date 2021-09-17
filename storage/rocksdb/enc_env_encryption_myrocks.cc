@@ -73,6 +73,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   IOStatus CreateWritableCipherStream(
       const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
       const FileOptions &options, size_t *prefix_length,
+      bool createPrefix,
       std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
     EncryptionProvider *provider = nullptr;
     *prefix_length = 0;
@@ -84,7 +85,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       AlignedBuffer buffer;
       Slice prefix;
       *prefix_length = provider->GetPrefixLength();
-      if (*prefix_length > 0) {
+      if (*prefix_length > 0 && createPrefix) {
         // Initialize prefix
         buffer.Alignment(underlying->GetRequiredBufferAlignment());
         buffer.AllocateNewBuffer(*prefix_length);
@@ -111,13 +112,15 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   IOStatus CreateWritableEncryptedFile(const std::string &fname,
                                        std::unique_ptr<TypeFile> &underlying,
                                        const FileOptions &options,
+                                       bool createPrefix,
                                        std::unique_ptr<TypeFile> *result,
                                        IODebugContext *dbg) {
     // Create cipher stream
     std::unique_ptr<BlockAccessCipherStream> stream;
     size_t prefix_length;
     IOStatus status = CreateWritableCipherStream(fname, underlying, options,
-                                                 &prefix_length, &stream, dbg);
+                                                 &prefix_length, createPrefix,
+                                                 &stream, dbg);
     if (status.ok()) {
       if (stream) {
         result->reset(new EncryptedWritableFile(
@@ -509,12 +512,13 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return status;
     }
 
-    return CreateWritableEncryptedFile(fname, underlying, options, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, false, result, dbg);
   }
 
   // Create an object that writes to a new file with the specified
   // name.  Deletes any existing file with the same name and creates a
-  // new file.  On success, stores a pointer to the new file in
+  // new file. (KH: this is not true. see how posix layer works)
+  // On success, stores a pointer to the new file in
   // *result and returns OK.  On failure stores nullptr in *result and
   // returns non-OK.
   //
@@ -556,7 +560,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     // here we go if we need to create encrypted file (new one, or wrap existing
     // one)
-    return CreateWritableEncryptedFile(fname, underlying, options, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, isNewFile, result, dbg);
   }
 
   // Reuse an existing file by renaming it and opening it as writable.
@@ -583,7 +587,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return status;
     }
 
-    return CreateWritableEncryptedFile(fname, underlying, options, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, true, result, dbg);
   }
 
   // Open `fname` for random read and write, if file doesn't exist the file

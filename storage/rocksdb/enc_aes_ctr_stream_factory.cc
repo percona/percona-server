@@ -144,6 +144,11 @@ class CipherManager {
 
       }
 
+    ~CipherManager() {
+      std::unique_lock<std::mutex> lock(ciphers_mutex_);
+      ciphers_.clear();
+    }
+
     std::unique_ptr<Stream_cipher> CreateNewCipher() {
         std::unique_ptr<Stream_cipher> cipher;
 
@@ -219,7 +224,7 @@ class CipherManager {
 
 class AesCtrCipherStreamTS final : public MyRocksBlockAccessCipherStream {
  private:
-  std::unique_ptr<Stream_cipher> encryptor_;
+  std::unique_ptr<CipherManager> encryptorManager_;
   std::unique_ptr<CipherManager> decryptorManager_;
 
  public:
@@ -245,20 +250,14 @@ class AesCtrCipherStreamTS final : public MyRocksBlockAccessCipherStream {
 AesCtrCipherStreamTS::AesCtrCipherStreamTS() {}
 
 AesCtrCipherStreamTS::~AesCtrCipherStreamTS() {
-  encryptor_->close();
+  encryptorManager_.release();
   decryptorManager_.release();
 }
 
 bool AesCtrCipherStreamTS::Init(const std::string &file_key,
                               const std::string &iv) {
   // encryptor
-  auto encryptor = Aes_ctr::get_encryptor();
-  auto openRes =
-      encryptor->open(reinterpret_cast<const unsigned char *>(file_key.c_str()),
-                      reinterpret_cast<const unsigned char *>(iv.c_str()));
-  if (openRes) return openRes;
-
-  encryptor_ = std::move(encryptor);
+  encryptorManager_ = std::make_unique<CipherManager>(10, CipherManager::ENCRYPTOR, file_key, iv);
 
   // decryptor
   decryptorManager_ = std::make_unique<CipherManager>(10, CipherManager::DECRYPTOR, file_key, iv);
@@ -271,17 +270,40 @@ size_t AesCtrCipherStreamTS::BlockSize() {
   return 0;
 }
 
+// #define VALIDATE_ENCRYPT
 rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
                                             size_t dataSize) {
+#ifdef VALIDATE_ENCRYPT
+  std::vector<unsigned char> originalData;
+  originalData.reserve(dataSize);
+  memcpy(originalData.data(), data, dataSize);
+#endif
   // Offset tracking to avoid underlaying cipher reinitialization is done
   // inside encryptor_
-  if (encryptor_->set_stream_offset(fileOffset)) {
+  auto encryptor = encryptorManager_->AllocateCipher(fileOffset);
+  if (encryptor->set_stream_offset(fileOffset)) {
+    encryptorManager_->DeallocateCipher(std::move(encryptor), (size_t)-1);
     return rocksdb::Status::IOError();
   }
-  if (encryptor_->encrypt((unsigned char *)data, (const unsigned char *)data,
+  if (encryptor->encrypt((unsigned char *)data, (const unsigned char *)data,
                           dataSize)) {
+    encryptorManager_->DeallocateCipher(std::move(encryptor), (size_t)-1);
     return rocksdb::Status::IOError();
   }
+  encryptorManager_->DeallocateCipher(std::move(encryptor), fileOffset);
+
+#ifdef VALIDATE_ENCRYPT
+  std::vector<unsigned char> vec;
+  vec.reserve(dataSize);
+  auto decryptor = decryptorManager_->AllocateCipher(fileOffset);
+  decryptor->set_stream_offset(fileOffset);
+  auto decrypted = vec.data();
+  decryptor->decrypt(decrypted, (const unsigned char *)data, dataSize);
+  decryptorManager_->DeallocateCipher(std::move(decryptor), fileOffset);
+  if(memcmp(decrypted, originalData.data(), dataSize)) {
+      fprintf(stderr, "KH: encryption failure\n");
+  }
+#endif
   return rocksdb::Status::OK();
 }
 

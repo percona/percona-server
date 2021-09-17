@@ -13,19 +13,24 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <my_global.h>
 #include "../../include/plugin.h"
 #include "../../include/udf/udf_utils.h"
 #include "../../include/udf/udf_utils_string.h"
 
 extern "C" {
-  bool gen_dictionary_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+  my_bool gen_dictionary_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
   void gen_dictionary_deinit(UDF_INIT *initid);
   char *gen_dictionary(UDF_INIT *initid, UDF_ARGS *args, char *,
                        unsigned long *length, char *is_null, char *);
 }
 
-bool gen_dictionary_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+my_bool gen_dictionary_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_ENTER("gen_dictionary_init");
+
+  if (!data_masking_is_inited(message, MYSQL_ERRMSG_SIZE)) {
+    DBUG_RETURN(true);
+  }
 
   if (args->arg_count != 1) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
@@ -86,7 +91,7 @@ char *gen_dictionary(UDF_INIT *initid, UDF_ARGS *args, char *,
   std::string res = _gen_dictionary(args->args[0]);
   *length = res.size();
   if (!(*is_null = (*length == 0))) {
-    initid->ptr = new char[*length * 1];
+    initid->ptr = new char[*length + 1];
     strcpy(initid->ptr, res.c_str());
   }
 

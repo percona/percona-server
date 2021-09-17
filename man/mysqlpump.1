@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlpump\fR
+.\"     Title: mysqlpump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 06/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLPUMP" "1" "06/07/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -218,7 +218,7 @@ A dump made using PowerShell on Windows with output redirection creates a file t
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump [options] > dump\&.sql\fR
+mysqlpump [options] > dump\&.sql
 .fi
 .if n \{\
 .RE
@@ -233,7 +233,7 @@ option, which creates the output in ASCII format:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump [options] \-\-result\-file=dump\&.sql\fR
+mysqlpump [options] \-\-result\-file=dump\&.sql
 .fi
 .if n \{\
 .RE
@@ -253,7 +253,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-all\-databases\fR
+mysqlpump \-\-all\-databases
 .fi
 .if n \{\
 .RE
@@ -265,8 +265,8 @@ To dump a single database, or certain tables within that database, name the data
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \fR\fB\fIdb_name\fR\fR
-shell> \fBmysqlpump \fR\fB\fIdb_name tbl_name1 tbl_name2 \&.\&.\&.\fR\fR
+mysqlpump \fIdb_name\fR
+mysqlpump \fIdb_name tbl_name1 tbl_name2 \&.\&.\&.\fR
 .fi
 .if n \{\
 .RE
@@ -280,7 +280,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-databases \fR\fB\fIdb_name1 db_name2\fR\fR\fB \&.\&.\&.\fR
+mysqlpump \-\-databases \fIdb_name1 db_name2\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -302,7 +302,7 @@ option and suppress all database dumping:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-exclude\-databases=% \-\-users\fR
+mysqlpump \-\-exclude\-databases=% \-\-users
 .fi
 .if n \{\
 .RE
@@ -326,8 +326,8 @@ client:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump [options] > dump\&.sql\fR
-shell> \fBmysql < dump\&.sql\fR
+mysqlpump [options] > dump\&.sql
+mysql < dump\&.sql
 .fi
 .if n \{\
 .RE
@@ -551,8 +551,8 @@ output that was compressed using the
 and
 \fB\-\-compress\-output=ZLIB\fR
 options\&. For more information, see
-\fBlz4_decompress\fR(1), and
-\fBzlib_decompress\fR(1)\&.
+lz4_decompress(1), and
+zlib_decompress(1)\&.
 .sp
 Alternatives include the
 \fBlz4\fR
@@ -568,7 +568,7 @@ output:
 .RS 4
 .\}
 .nf
-shell> \fBlz4 \-d \fR\fB\fIinput_file output_file\fR\fR
+lz4 \-d \fIinput_file output_file\fR
 .fi
 .if n \{\
 .RE
@@ -581,7 +581,7 @@ output can be uncompresed like this:
 .RS 4
 .\}
 .nf
-shell> \fBopenssl zlib \-d < \fR\fB\fIinput_file\fR\fR\fB > \fR\fB\fIoutput_file\fR\fR
+openssl zlib \-d < \fIinput_file\fR > \fIoutput_file\fR
 .fi
 .if n \{\
 .RE
@@ -747,7 +747,7 @@ to 0 and not using any instances of
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
+mysqlpump \-\-single\-transaction \-\-default\-parallelism=0
 .fi
 .if n \{\
 .RE
@@ -765,9 +765,9 @@ shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -782,9 +782,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -810,9 +810,8 @@ normally reads the
 [client]
 and
 [mysqlpump]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysqlpump\fR
 also reads the
 [client_other]
@@ -1171,7 +1170,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1255,13 +1254,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1684,7 +1683,7 @@ to 0 and not using any instances of
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
+mysqlpump \-\-single\-transaction \-\-default\-parallelism=0
 .fi
 .if n \{\
 .RE
@@ -1713,7 +1712,7 @@ DEFINER
 and
 SQL SECURITY
 values\&. See
-Section\ \&22.6, \(lqStored Object Access Control\(rq\&.
+Section\ \&23.6, \(lqStored Object Access Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1760,7 +1759,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -1863,7 +1862,7 @@ option and suppress all database dumping:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-exclude\-databases=% \-\-users\fR
+mysqlpump \-\-exclude\-databases=% \-\-users
 .fi
 .if n \{\
 .RE
@@ -2104,7 +2103,7 @@ db2\&.t2:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-include\-databases=db1,db2 \-\-exclude\-tables=db1\&.t1,db2\&.t2\fR
+mysqlpump \-\-include\-databases=db1,db2 \-\-exclude\-tables=db1\&.t1,db2\&.t2
 .fi
 .if n \{\
 .RE
@@ -2233,7 +2232,7 @@ Examples:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-parallel\-schemas=db1,db2 \-\-parallel\-schemas=db3\fR
+mysqlpump \-\-parallel\-schemas=db1,db2 \-\-parallel\-schemas=db3
 .fi
 .if n \{\
 .RE
@@ -2250,8 +2249,8 @@ db3, and a default queue to process all other databases\&. All queues use two th
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-parallel\-schemas=db1,db2 \-\-parallel\-schemas=db3\fR
-         \fB\-\-default\-parallelism=4\fR
+mysqlpump \-\-parallel\-schemas=db1,db2 \-\-parallel\-schemas=db3
+          \-\-default\-parallelism=4
 .fi
 .if n \{\
 .RE
@@ -2263,7 +2262,7 @@ This is the same as the previous example except that all queues use four threads
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-parallel\-schemas=5:db1,db2 \-\-parallel\-schemas=3:db3\fR
+mysqlpump \-\-parallel\-schemas=5:db1,db2 \-\-parallel\-schemas=3:db3
 .fi
 .if n \{\
 .RE
@@ -2309,7 +2308,7 @@ to 0 and not using any instances of
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump \-\-single\-transaction \-\-default\-parallelism=0\fR
+mysqlpump \-\-single\-transaction \-\-default\-parallelism=0
 .fi
 .if n \{\
 .RE
@@ -2361,7 +2360,7 @@ database followed by the table names:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlpump mysql user db \&.\&.\&.\fR
+mysqlpump mysql user db \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -2369,7 +2368,7 @@ shell> \fBmysqlpump mysql user db \&.\&.\&.\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

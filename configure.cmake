@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -142,15 +142,30 @@ ENDFUNCTION()
 FIND_PACKAGE (Threads)
 
 IF(UNIX)
-  MY_SEARCH_LIBS(floor m LIBM)
+  IF(NOT LIBM)
+    MY_SEARCH_LIBS(floor m LIBM)
+  ENDIF()
   IF(NOT LIBM)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
+  # Feature test broken with -fsanitize=address, look for lib first.
+  IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
+    CHECK_LIBRARY_EXISTS(crypt crypt "" HAVE_crypt_IN_crypt)
+    # If found, do not look in libc.
+    IF(HAVE_crypt_IN_crypt)
+      SET(LIBCRYPT crypt)
+      SET(${LIBCRYPT} 1)
+    ENDIF()
+  ENDIF()
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
+  # HAVE_dlopen_IN_LIBC
+  IF(NOT LIBDL)
+    MY_SEARCH_LIBS(dlsym dl LIBDL)
+  ENDIF()
   MY_SEARCH_LIBS(sched_yield rt LIBRT)
   IF(NOT LIBRT)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)

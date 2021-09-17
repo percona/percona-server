@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +206,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   // The below type_code assert is correct and needed in 99% of time. In normal testing we do not
   // anticipate type_code to be of unknown value. This is why we only skip this assert when
   // debug variable expect_Unknown_event is set.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (binary_log_debug::debug_expect_unknown_event)
     return;
 #endif
@@ -277,7 +277,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     res= !(computed == incoming);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (binary_log_debug::debug_checksum_test)
     return true;
 #endif

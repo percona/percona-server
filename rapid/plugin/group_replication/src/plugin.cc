@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <sstream>
+#include <mysql/service_rpl_transaction_write_set.h>
 
 #include "observer_server_actions.h"
 #include "observer_server_state.h"
@@ -38,8 +39,8 @@ unsigned int plugin_version= 0;
 
 //The plugin running flag and lock
 static mysql_mutex_t plugin_running_mutex;
-bool group_replication_running= false;
-bool group_replication_stopping= false;
+int32 group_replication_running= 0;
+int32 group_replication_stopping= 0;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
@@ -192,7 +193,7 @@ ulong compression_threshold_var= DEFAULT_COMPRESSION_THRESHOLD;
 /* GTID assignment block size options */
 #define DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE 1000000
 #define MIN_GTID_ASSIGNMENT_BLOCK_SIZE 1
-#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE MAX_GNO
+#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE GNO_END
 ulonglong gtid_assignment_block_size_var= DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE;
 
 /* Flow control options */
@@ -207,7 +208,8 @@ int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 0
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
-ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+ulong transaction_size_limit_base_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+int64 transaction_size_limit_var;
 
 /* Member Weight limits */
 #define DEFAULT_MEMBER_WEIGHT 50
@@ -249,7 +251,6 @@ int configure_and_start_applier_module();
 void initialize_asynchronous_channels_observer();
 void initialize_group_partition_handler();
 int start_group_communication();
-void declare_plugin_running();
 int leave_group();
 int terminate_plugin_modules(bool flag_stop_async_channel= false);
 int terminate_applier_module();
@@ -271,12 +272,12 @@ mysql_mutex_t* get_plugin_running_lock()
 
 bool plugin_is_group_replication_running()
 {
-  return group_replication_running;
+  return my_atomic_load32(&group_replication_running);
 }
 
 bool get_plugin_is_stopping()
 {
-  return group_replication_stopping;
+  return my_atomic_load32(&group_replication_stopping);
 }
 
 int plugin_group_replication_set_retrieved_certification_info(void* info)
@@ -371,7 +372,7 @@ int plugin_group_replication_start()
   DBUG_EXECUTE_IF("group_replication_wait_on_start",
                  {
                    const char act[]= "now signal signal.start_waiting wait_for signal.start_continue";
-                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                   assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
   if (plugin_is_group_replication_running())
@@ -459,6 +460,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   //Avoid unnecessary operations
   bool enabled_super_read_only= false;
   bool read_only_mode= false, super_read_only_mode=false;
+  bool write_set_limits_set = false;
 
   st_server_ssl_variables server_ssl_variables=
     {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
@@ -511,6 +513,10 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   enabled_super_read_only= true;
   if (delayed_init_thd)
     delayed_init_thd->signal_read_mode_ready();
+
+  require_full_write_set(1);
+  set_write_set_memory_size_limit(get_transaction_size_limit());
+  write_set_limits_set = true;
 
   get_server_parameters(&hostname, &port, &uuid, &server_version,
                         &server_ssl_variables);
@@ -588,8 +594,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   DBUG_EXECUTE_IF("group_replication_before_joining_the_group",
                   {
                     const char act[]= "now wait_for signal.continue_group_join";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   });
 
   if ((error= start_group_communication()))
@@ -610,8 +616,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     error= view_change_notifier->get_error();
     goto err;
   }
-  group_replication_running= true;
-  group_replication_stopping= false;
+  my_atomic_store32(&group_replication_running, 1);
+  my_atomic_store32(&group_replication_stopping, 0);
   log_primary_member_details();
 
 err:
@@ -622,6 +628,12 @@ err:
       delayed_init_thd->signal_read_mode_ready();
     leave_group();
     terminate_plugin_modules();
+
+    if (write_set_limits_set) {
+      // Remove server constraints on write set collection
+      update_write_set_memory_size_limit(0);
+      require_full_write_set(0);
+    }
 
     if (!server_shutdown_status && server_engine_initialized()
         && enabled_super_read_only)
@@ -840,12 +852,11 @@ int plugin_group_replication_stop()
   DBUG_ENTER("plugin_group_replication_stop");
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
-  group_replication_stopping= true;
 
   DBUG_EXECUTE_IF("group_replication_wait_on_stop",
                  {
                    const char act[]= "now signal signal.stop_waiting wait_for signal.stop_continue";
-                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                   assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
   /*
@@ -868,16 +879,25 @@ int plugin_group_replication_stop()
     delayed_initialization_thread= NULL;
   }
 
-  shared_plugin_stop_lock->grab_write_lock();
   if (!plugin_is_group_replication_running())
   {
-    shared_plugin_stop_lock->release_write_lock();
     DBUG_RETURN(0);
   }
+
+  my_atomic_store32(&group_replication_stopping, 1);
+
+  shared_plugin_stop_lock->grab_write_lock();
   log_message(MY_INFORMATION_LEVEL,
               "Plugin 'group_replication' is stopping.");
 
   plugin_is_waiting_to_set_server_read_mode= true;
+
+  DBUG_EXECUTE_IF("group_replication_hold_stop_before_leave_the_group", {
+    const char act[] =
+        "now signal signal.stopping_before_leave_the_group "
+        "wait_for signal.resume_stop_before_leave_the_group";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   // wait for all transactions waiting for certification
   bool timeout=
@@ -893,7 +913,7 @@ int plugin_group_replication_stop()
 
   int error= terminate_plugin_modules(true);
 
-  group_replication_running= false;
+  my_atomic_store32(&group_replication_running, 0);
   shared_plugin_stop_lock->release_write_lock();
   log_message(MY_INFORMATION_LEVEL,
               "Plugin 'group_replication' has been stopped.");
@@ -913,6 +933,10 @@ int plugin_group_replication_stop()
     plugin_is_waiting_to_set_server_read_mode= false;
   }
 
+  // Remove server constraints on write set collection
+  update_write_set_memory_size_limit(0);
+  require_full_write_set(0);
+
   DBUG_RETURN(error);
 }
 
@@ -930,7 +954,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel)
   DBUG_EXECUTE_IF("group_replication_after_recovery_module_terminated",
                  {
                    const char act[]= "now wait_for signal.termination_continue";
-                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                   assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
   /*
@@ -996,8 +1020,8 @@ int terminate_plugin_modules(bool flag_stop_async_channel)
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
   // Reset plugin local variables.
-  group_replication_running= false;
-  group_replication_stopping= false;
+  my_atomic_store32(&group_replication_running, 0);
+  my_atomic_store32(&group_replication_stopping, 0);
   plugin_is_being_uninstalled= false;
   plugin_is_waiting_to_set_server_read_mode= false;
 
@@ -1075,6 +1099,9 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   //Initialize the compatibility module before starting
   init_compatibility_manager();
 
+  // Set the atomic var to the value of the base plugin variable
+  transaction_size_limit_var = transaction_size_limit_base_var;
+
   plugin_is_auto_starting= start_group_replication_at_boot_var;
   if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
@@ -1092,6 +1119,7 @@ int plugin_group_replication_deinit(void *p)
     return 0;
 
   plugin_is_being_uninstalled= true;
+  my_atomic_store32(&group_replication_stopping, 1);
   int observer_unregister_error= 0;
 
   if (plugin_group_replication_stop())
@@ -1199,11 +1227,6 @@ static bool init_group_sidno()
   }
 
   DBUG_RETURN(false);
-}
-
-void declare_plugin_running()
-{
-  group_replication_running= true;
 }
 
 int configure_and_start_applier_module()
@@ -1573,7 +1596,9 @@ bool get_allow_local_disjoint_gtids_join()
 ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
-  DBUG_RETURN(transaction_size_limit_var);
+  assert(my_atomic_load64(&transaction_size_limit_var)>=0);
+  ulong limit = static_cast<ulong>(my_atomic_load64(&transaction_size_limit_var));
+  DBUG_RETURN(limit);
 }
 
 bool is_plugin_waiting_to_set_server_read_mode()
@@ -1693,8 +1718,8 @@ static int check_if_server_properly_configured()
   }
 
   gr_lower_case_table_names= startup_pre_reqs.lower_case_table_names;
-  DBUG_ASSERT (gr_lower_case_table_names <= 2);
-#ifndef DBUG_OFF
+  assert (gr_lower_case_table_names <= 2);
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names",
                 {
                   gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
@@ -1920,7 +1945,7 @@ static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
         recovery_module->set_recovery_ssl_crlpath(new_option_val);
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
   }
 
   DBUG_VOID_RETURN;
@@ -2127,11 +2152,11 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
   force_members_running= true;
   mysql_mutex_unlock(&force_members_running_mutex);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_wait_on_check_force_members",
                   {
                     const char act[]= "now wait_for waiting";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif
 
@@ -2362,6 +2387,20 @@ update_member_weight(MYSQL_THD, SYS_VAR*,
   }
 
   DBUG_VOID_RETURN;
+}
+
+static void update_transaction_size_limit(MYSQL_THD, SYS_VAR *, void *var_ptr,
+                                          const void *save) {
+
+  ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
+  my_atomic_store64(&transaction_size_limit_var, in_val);
+
+  transaction_size_limit_var = in_val;
+
+  if (plugin_is_group_replication_running()) {
+    update_write_set_memory_size_limit(transaction_size_limit_var);
+  }
 }
 
 //Base plugin variables
@@ -2791,11 +2830,11 @@ static MYSQL_SYSVAR_INT(
 
 static MYSQL_SYSVAR_ULONG(
   transaction_size_limit,              /* name */
-  transaction_size_limit_var,          /* var */
+  transaction_size_limit_base_var,          /* var */
   PLUGIN_VAR_OPCMDARG,                 /* optional var */
   "Specifies the limit of transaction size that can be transferred over network.",
   NULL,                                /* check func. */
-  NULL,                                /* update func. */
+  update_transaction_size_limit,       /* update func. */
   DEFAULT_TRANSACTION_SIZE_LIMIT,      /* default */
   MIN_TRANSACTION_SIZE_LIMIT,          /* min */
   MAX_TRANSACTION_SIZE_LIMIT,          /* max */

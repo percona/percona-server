@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysql_upgrade\fR
+.\"     Title: mysql_upgrade
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/10/2020
+.\"      Date: 06/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "12/10/2020" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQL_UPGRADE" "1" "06/07/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -95,32 +95,29 @@ communicates directly with the MySQL server, sending it the SQL statements requi
 .ps -1
 .br
 .PP
-As of MySQL 5\&.7\&.12, the default
-\fB\-\-early\-plugin\-load\fR
-value is empty\&. To load the
-keyring_file
-plugin, you must use an explicit
-\fB\-\-early\-plugin\-load\fR
-option with a nonempty value\&.
-.PP
 In MySQL 5\&.7\&.11, the default
 \fB\-\-early\-plugin\-load\fR
-value was the name of the
+value is the name of the
 keyring_file
-plugin library file, so that plugin was loaded by default\&.
-InnoDB
-tablespace encryption requires the
+plugin library file, causing that plugin to be loaded by default\&. In MySQL 5\&.7\&.12 and higher, the default
+\fB\-\-early\-plugin\-load\fR
+value is empty; to load the
 keyring_file
-plugin to be loaded prior to
-InnoDB
-initialization, so this change of default value introduces an incompatibility for upgrades from 5\&.7\&.11 to 5\&.7\&.12 or higher\&. Administrators who have encrypted
-InnoDB
-tablespaces must take explicit action to ensure continued loading of the
+plugin, you must explicitly specify the option with a value naming the
 keyring_file
-plugin: Start the server with an
+plugin library file\&.
+.PP
+InnoDB
+tablespace encryption requires that the keyring plugin to be used be loaded prior to
+InnoDB
+initialization, so this change of default
+\fB\-\-early\-plugin\-load\fR
+value introduces an incompatibility for upgrades from 5\&.7\&.11 to 5\&.7\&.12 or higher\&. Administrators who have encrypted
+InnoDB
+tablespaces must take explicit action to ensure continued loading of the keyring plugin: Start the server with an
 \fB\-\-early\-plugin\-load\fR
 option that names the plugin library file\&. For additional information, see
-Section\ \&6.4.4, \(lqThe MySQL Keyring\(rq\&.
+Section\ \&6.4.4.1, \(lqKeyring Plugin Installation\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -220,7 +217,7 @@ schema and check and repair tables in other schemas:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
+mysql_upgrade [\fIoptions\fR]
 .fi
 .if n \{\
 .RE
@@ -246,9 +243,9 @@ with connection parameters appropriate for connecting to each of the desired ser
 .RS 4
 .\}
 .nf
-shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3306 [\fR\fB\fIother_options\fR\fR\fB]\fR
-shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3307 [\fR\fB\fIother_options\fR\fR\fB]\fR
-shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\fB]\fR
+mysql_upgrade \-\-protocol=tcp \-P 3306 [\fIother_options\fR]
+mysql_upgrade \-\-protocol=tcp \-P 3307 [\fIother_options\fR]
+mysql_upgrade \-\-protocol=tcp \-P 3308 [\fIother_options\fR]
 .fi
 .if n \{\
 .RE
@@ -584,9 +581,9 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -601,9 +598,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -625,9 +622,8 @@ normally reads the
 [client]
 and
 [mysql_upgrade]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysql_upgrade\fR
 also reads the
 [client_other]
@@ -684,7 +680,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -729,13 +725,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -909,7 +905,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -1010,7 +1006,7 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

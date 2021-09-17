@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -310,11 +310,9 @@ trx_rseg_schedule_pending_purge(
 
 		ut_ad(found);
 
-		trx_rseg_t** rseg_array =
-			((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
 		rseg = trx_rseg_mem_create(
 			slot, space, page_no, page_size,
-			purge_queue, rseg_array, mtr);
+			purge_queue, trx_sys->pending_purge_rseg_array, mtr);
 
 		ut_a(rseg->id == slot);
 	}

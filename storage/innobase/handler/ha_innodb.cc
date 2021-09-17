@@ -1470,6 +1470,15 @@ static INNOBASE_SHARE *get_share(
 /** Free the shared object that was registered with get_share(). */
 static void free_share(INNOBASE_SHARE *share); /*!< in/own: share to free */
 
+/** Calls free_share and assign nullptr to share.
+@param[in,out]	share	table share to free */
+static void free_share_and_nullify(
+    INNOBASE_SHARE **share) /*!< in/own: table share to free */
+{
+  free_share(*share);
+  *share = nullptr;
+}
+
 /** Frees a possible InnoDB trx object associated with the current THD.
  @return 0 or error number */
 static int innobase_close_connection(
@@ -7880,7 +7889,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
     if (UNIV_UNLIKELY(m_share->ib_table && m_share->ib_table->is_corrupt &&
                       srv_pass_corrupt_table <= 1)) {
-      free_share(m_share);
+      free_share_and_nullify(&m_share);
+      dict_table_close(ib_table, FALSE, FALSE);
       return HA_ERR_CRASHED_ON_USAGE;
     }
   }
@@ -7903,14 +7913,15 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
     ib_table->first_index()->type |= DICT_CORRUPT;
-    free_share(m_share);
+    free_share_and_nullify(&m_share);
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = nullptr;
   }
 
   if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
                     srv_pass_corrupt_table <= 1)) {
-    free_share(m_share);
+    free_share_and_nullify(&m_share);
+    dict_table_close(ib_table, FALSE, FALSE);
     return HA_ERR_CRASHED_ON_USAGE;
   }
 
@@ -7942,7 +7953,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = nullptr;
 
-    free_share(m_share);
+    free_share_and_nullify(&m_share);
     return error;
   }
 
@@ -7988,7 +7999,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   }
 
   if (!thd_tablespace_op(thd) && no_tablespace) {
-    free_share(m_share);
+    free_share_and_nullify(&m_share);
     set_my_errno(ENOENT);
 
     dict_table_close(ib_table, FALSE, FALSE);
@@ -8286,7 +8297,7 @@ int ha_innobase::close() {
     vec->erase(std::remove(vec->begin(), vec->end(), m_prebuilt), vec->end());
   }
 
-  free_share(m_share);
+  free_share_and_nullify(&m_share);
 
   row_prebuilt_free(m_prebuilt, FALSE);
 
@@ -20299,6 +20310,10 @@ static INNOBASE_SHARE *get_share(const char *table_name) {
 static void free_share(
     INNOBASE_SHARE *share) /*!< in/own: table share to free */
 {
+  if (!share) {
+    return;
+  }
+
   mysql_mutex_lock(&innobase_share_mutex);
 
 #ifdef UNIV_DEBUG

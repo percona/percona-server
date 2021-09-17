@@ -47,11 +47,12 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 116 variables in the table.]
+include/assert.inc [Expect 117 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
 SET PERSIST_ONLY binlog_checksum = @@GLOBAL.binlog_checksum;
+SET PERSIST_ONLY binlog_ddl_skip_rewrite = @@GLOBAL.binlog_ddl_skip_rewrite;
 SET PERSIST_ONLY binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
 SET PERSIST_ONLY binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
@@ -261,22 +262,23 @@ SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 103 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 104 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 103 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 103 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 103 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 104 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 104 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 104 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
 #    are removed.
 RESET PERSIST binlog_cache_size;
 RESET PERSIST binlog_checksum;
+RESET PERSIST binlog_ddl_skip_rewrite;
 RESET PERSIST binlog_direct_non_transactional_updates;
 RESET PERSIST binlog_encryption;
 RESET PERSIST binlog_error_action;

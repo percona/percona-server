@@ -51,6 +51,7 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/adaptive_network_buffers
    performance/aio_page_requests
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
@@ -188,6 +189,7 @@ Percona MyRocks
    MyRocks Installation <myrocks/install>
    MyRocks Limitations <myrocks/limitations>
    MyRocks Differences <myrocks/differences>
+   MyRocks Information Schema Tables <myrocks/information-schema-tables>
    MyRocks Server Variables <myrocks/variables>
    MyRocks Status Variables <myrocks/status_variables>
    MyRocks Gap Locks Detection <myrocks/gap_locks_detection>

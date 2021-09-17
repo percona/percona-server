@@ -22,7 +22,7 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
 
    .. admonition:: Output
 
-      .. code-block:: guess
+      .. code-block:: bash
 
 	 Checking SELinux status...
 	 INFO: SELinux is disabled.
@@ -42,7 +42,7 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
 
    .. admonition:: Output
 
-      .. code-block:: guess
+      .. code-block:: bash
 
 	 Checking SELinux status...
 	 INFO: SELinux is disabled.

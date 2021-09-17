@@ -143,7 +143,7 @@ System using |InnoDB| and |TokuDB|
    the cache size for each. For example, on a server with 16 GB of RAM you could
    use the following values in your configuration file:
  
-   .. code-block:: guess
+   .. code-block:: bash
 
       innodb_buffer_pool_size = 2G
       tokudb_cache_size = 8G

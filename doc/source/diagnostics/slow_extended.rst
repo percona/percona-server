@@ -298,7 +298,7 @@ Any other number      KILLED_NO_VALUE (Catches all other cases)
 .. seealso::
 
    |MySQL| Documentation: |MySQL| Server Error Codes
-      https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html
+      https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
 
 Connection and Schema Identifier
 --------------------------------

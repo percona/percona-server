@@ -42,7 +42,7 @@ in startup.
 
 To use the keyring_vault, you can add this option to your configuration file:
 
-.. code-block:: guess
+.. code-block:: text
 
     [mysqld]
     early-plugin-load="keyring_vault=keyring_vault.so"

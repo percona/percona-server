@@ -12,7 +12,7 @@ Here are some of the benefits that Percona dialog plugin offers over the default
 
   * It correctly recognizes whether PAM wants input to be echoed or not, while the default one always echoes the input on the user's console.
   * It can use the password which is passed to |MySQL| client via "-p" parameter.
-  * Dialog client `installation bug <http://bugs.mysql.com/bug.php?id=60745>`_ has been fixed.
+  * Dialog client `installation bug <https://bugs.mysql.com/bug.php?id=60745>`_ has been fixed.
   * This plugin works on |MySQL| and |Percona Server|.
 
 Percona offers two versions of this plugin:  

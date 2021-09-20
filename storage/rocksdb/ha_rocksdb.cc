@@ -5783,6 +5783,11 @@ static int rocksdb_init_internal(void *const p) {
   DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption",
                   { DBUG_RETURN(HA_EXIT_FAILURE); });
 
+  // Initialize it before 'fault_injection' fs. This way
+  // fault injection is done in the layer above the encryption
+  // so the encryption stays transparent.
+  initialize_encryption();
+
   if (opt_rocksdb_fault_injection_options != nullptr &&
       *opt_rocksdb_fault_injection_options != '\0') {
     bool retryable = false;
@@ -5898,8 +5903,6 @@ static int rocksdb_init_internal(void *const p) {
   } else if (rocksdb_db_options->max_open_files == -2) {
     rocksdb_db_options->max_open_files = open_files_limit / 2;
   }
-
-  initialize_encryption();
 
   rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
                                            get_regex_flags());

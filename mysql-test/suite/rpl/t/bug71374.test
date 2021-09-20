@@ -21,7 +21,7 @@ call mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master fail
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
---let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rpl_bug71374.mysqld.2.err
+--let SEARCH_FILE=$MYSQL_TMP_DIR/rpl_bug71374.mysqld.2.err
 
 connection slave;
 SET @debug_saved=@@global.debug;
@@ -42,7 +42,7 @@ while($i)
   # Stop slave and set debug variables
   eval SET @@global.debug="+d,$debug_name";
 
-  START SLAVE;
+  START REPLICA;
   # Crash if error during slave starting takes place
   let $rpl_allow_error= 0;
   source include/wait_for_slave_io_to_start.inc;

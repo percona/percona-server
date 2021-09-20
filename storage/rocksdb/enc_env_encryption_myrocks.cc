@@ -512,7 +512,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return status;
     }
 
-    return CreateWritableEncryptedFile(fname, underlying, options, false, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, true, result, dbg);
   }
 
   // Create an object that writes to a new file with the specified

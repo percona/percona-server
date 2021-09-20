@@ -13,5 +13,7 @@ rocksdb_allow_unsafe_alter
 rocksdb_allow_unsafe_alter
 rocksdb_fs_uri
 rocksdb_fs_uri
+rocksdb_encryption
+rocksdb_encryption
 drop table t1;
 drop table t2;

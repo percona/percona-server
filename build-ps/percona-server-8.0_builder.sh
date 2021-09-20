@@ -309,7 +309,7 @@ enable_zenfs() {
 
     if [[ $mode == "tarball" ]]; then
         rm build-ps/build-binary.sh
-        curl https://raw.githubusercontent.com/Sudokamikaze/percona-server/PS-7836-rework/build-ps/build-binary.sh --output build-ps/build-binary.sh
+        curl https://raw.githubusercontent.com/percona/percona-server/8.0/build-ps/build-binary.sh --output build-ps/build-binary.sh
         chmod +x build-ps/build-binary.sh
     elif [[ $mode == "debian" ]]; then
         rm -rf debian

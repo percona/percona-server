@@ -85,20 +85,40 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       AlignedBuffer buffer;
       Slice prefix;
       *prefix_length = provider->GetPrefixLength();
-      if (*prefix_length > 0 && createPrefix) {
-        // Initialize prefix
-        buffer.Alignment(underlying->GetRequiredBufferAlignment());
-        buffer.AllocateNewBuffer(*prefix_length);
-        status = status_to_io_status(provider->CreateNewPrefix(
-            fname, buffer.BufferStart(), *prefix_length));
-        if (status.ok()) {
-          buffer.Size(*prefix_length);
-          prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
-          // Write prefix
-          status = underlying->Append(prefix, options.io_options, dbg);
-        }
-        if (!status.ok()) {
-          return status;
+      if (*prefix_length > 0) {
+        if (createPrefix) {
+            // Initialize prefix
+            buffer.Alignment(underlying->GetRequiredBufferAlignment());
+            buffer.AllocateNewBuffer(*prefix_length);
+            status = status_to_io_status(provider->CreateNewPrefix(
+                fname, buffer.BufferStart(), *prefix_length));
+            if (status.ok()) {
+            buffer.Size(*prefix_length);
+            prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
+            // Write prefix
+            status = underlying->Append(prefix, options.io_options, dbg);
+            }
+            if (!status.ok()) {
+              return status;
+            }
+        } else {
+            // Read prefix, but underlying is write only, so need to open as readable
+            rocksdb::EnvOptions soptions;
+            std::unique_ptr<FSSequentialFile> underlyingSR;
+            status =
+                FileSystemWrapper::NewSequentialFile(fname, soptions, &underlyingSR, dbg);
+            if (!status.ok()) {
+            return status;
+            }
+
+            buffer.Alignment(underlyingSR->GetRequiredBufferAlignment());
+            buffer.AllocateNewBuffer(*prefix_length);
+            status = underlyingSR->Read(*prefix_length, options.io_options,
+                                                &prefix, buffer.BufferStart(), dbg);
+            if (!status.ok()) {
+                return status;
+            }
+            buffer.Size(*prefix_length);
         }
       }
       // Create cipher stream

@@ -135,8 +135,11 @@ static std::vector<std::string> rdb_tables_to_recalc;
 
 static Rdb_exec_time st_rdb_exec_time;
 
+static std::shared_ptr<rocksdb::Env> fault_env_guard;
 static std::shared_ptr<KeyringMasterKeyManager> keyringMasterKeyManager;
 static std::shared_ptr<MyRocksEncryptedFileSystem> encryptedFileSystem;
+static std::shared_ptr<rocksdb::Env> encryptedEnv;
+
 /**
   Updates row counters based on the table type and operation type.
 */
@@ -5361,14 +5364,15 @@ static void initialize_encryption() {
 
   // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env,
   // provider, rocksdb_encryption, rocksdb_datadir);
-  rocksdb_db_options->env = new rocksdb::CompositeEnvWrapper(
-      rocksdb_db_options->env, encryptedFileSystem);
+  encryptedEnv.reset(new rocksdb::CompositeEnvWrapper(
+      rocksdb_db_options->env, encryptedFileSystem));
+  rocksdb_db_options->env = encryptedEnv.get();
 }
 
 static void deinitialize_encryption() {
   encryptedFileSystem.reset();
   keyringMasterKeyManager.reset();
-  delete rocksdb_db_options->env;
+  encryptedEnv.reset();
 }
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
@@ -5467,7 +5471,7 @@ static int rocksdb_init_internal(void *const p) {
     fs->SetRandomWriteError(seed, failure_ratio, error_msg, types);
     fs->EnableWriteErrorInjection();
 
-    static auto fault_env_guard =
+    fault_env_guard =
         std::make_shared<rocksdb::CompositeEnvWrapper>(rocksdb_db_options->env,
                                                        fs);
     rocksdb_db_options->env = fault_env_guard.get();
@@ -6165,6 +6169,7 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 
   // Do it before clearing rocksdb_db_options.
   // We need to delete delete encryption wrapper to release resources.
+  fault_env_guard.reset();
   deinitialize_encryption();
 
   rocksdb_db_options = nullptr;

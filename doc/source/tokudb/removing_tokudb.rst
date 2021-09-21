@@ -87,7 +87,7 @@ or
 
 .. code-block:: bash
 
- root@wheezy:~# apt-get remove percona-server-tokudb-5.7
+ root@wheezy:~# apt remove percona-server-tokudb-5.7
  
 .. note::
 

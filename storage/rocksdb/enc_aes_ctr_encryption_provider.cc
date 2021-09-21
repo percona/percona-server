@@ -3,6 +3,7 @@
 #include "./enc_master_key_manager.h"
 #include "rocksdb/system_clock.h"
 #include "rocksdb/util/random.h"
+#include "rocksdb/util/crc32c.h"
 
 namespace myrocks {
 
@@ -12,16 +13,16 @@ static constexpr char kKeyMagic[] = "rdbe001";
 static constexpr int KEY_MAGIC_SIZE = strlen(kKeyMagic);
 static constexpr int MASTER_KEY_ID_SIZE = sizeof(uint32_t);
 static constexpr int S_UUID_SIZE = 36;
-static constexpr int CRC_SIZE = sizeof(uint32_t);
 static constexpr int FILE_KEY_SIZE = 32;
 static constexpr int IV_SIZE = 16;
+static constexpr int CRC_SIZE = sizeof(uint32_t);
 
 static constexpr int KEY_MAGIC_OFFSET = 0;
 static constexpr int MASTER_KEY_ID_OFFSET = KEY_MAGIC_OFFSET + KEY_MAGIC_SIZE;
 static constexpr int S_UUID_OFFSET = MASTER_KEY_ID_OFFSET + MASTER_KEY_ID_SIZE;
-static constexpr int CRC_OFFSET = S_UUID_OFFSET + S_UUID_SIZE;
-static constexpr int FILE_KEY_OFFSET = CRC_OFFSET + CRC_SIZE;
+static constexpr int FILE_KEY_OFFSET = S_UUID_OFFSET + S_UUID_SIZE;
 static constexpr int IV_OFFSET = FILE_KEY_OFFSET + FILE_KEY_SIZE;
+static constexpr int CRC_OFFSET = IV_OFFSET + IV_SIZE;
 
 static constexpr char iv[IV_SIZE] = {0};
 static const std::string kHeaderIV(iv, IV_SIZE);
@@ -62,9 +63,9 @@ Encryption prefix:
  4 bytes		KEY_MAGIC_V1 (e001) 		not encrypted
  4 bytes		master_key_id			not encrypted
 36 bytes		s_uuid				not encrypted
- 4 bytes		CRC (unencrypted key + iv)	not encrypted
 32 bytes		key				encrypted
 16 bytes		iv				encrypted
+ 4 bytes		CRC (unencrypted key + iv)	encrypted
 */
 rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
     const std::string &fname, char *prefix, size_t prefixLength) const {
@@ -85,7 +86,6 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   memcpy((void *)(&prefix[S_UUID_OFFSET]), serverUuid.data(), S_UUID_SIZE);
 
   // Create & seed rnd.
-  // todo: maybe openssl would be better for random numbers?
   rocksdb::Random rnd((uint32_t)rocksdb::SystemClock::Default()->NowMicros());
   // Fill the not clear-text part of the prefix with random values.
   // file key and IV are generated here as well
@@ -99,15 +99,14 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
 #endif
 
   // calculate and store CRC of not encrypted file key and IV
-  // todo: skip calculation for now
-  uint32_t crc = 0xABCDABCD;
+  uint32_t crc = rocksdb::crc32c::Extend(0, &prefix[FILE_KEY_OFFSET], FILE_KEY_SIZE + IV_SIZE);
   memcpy((void *)(&prefix[CRC_OFFSET]), &crc, CRC_SIZE);
 
-  // encrypt file key and IV with master key
+  // encrypt file key + IV + CRC with master key
   auto encryptor =
       cipherStreamFactory_->CreateCipherStream(masterKey, kHeaderIV);
   char *dataToEncrypt = &prefix[FILE_KEY_OFFSET];
-  encryptor->Encrypt(0, dataToEncrypt, FILE_KEY_SIZE + IV_SIZE);
+  encryptor->Encrypt(0, dataToEncrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
 
 #if 0
   memset((void*)(&prefix[MASTER_KEY_ID_OFFSET]), 'M', MASTER_KEY_ID_SIZE);
@@ -147,16 +146,24 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
       cipherStreamFactory_->CreateCipherStream(fileMasterKey, kHeaderIV);
 
   auto data = (char *)(prefix.data() + FILE_KEY_OFFSET);
-  cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE);
+  cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+
+  // Calculate and validate CRC
+  uint32_t crcRead = 0;
+  memcpy(&crcRead, prefix.data() + CRC_OFFSET, CRC_SIZE);
+
+  uint32_t crcCalculated = rocksdb::crc32c::Extend(0, &prefix.data()[FILE_KEY_OFFSET], FILE_KEY_SIZE + IV_SIZE);
+
+  if (crcRead != crcCalculated) {
+    fprintf(stderr, "WRONG CRC!\n");
+    return rocksdb::Status::Corruption();
+  }
+
+  // no need to update CRC as it is calculated from plain text it didn't change
 
   // encrypt using the new master key
   cipher = cipherStreamFactory_->CreateCipherStream(newestMasterKey, kHeaderIV);
-  cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE);
-
-  // update CRC
-  // todo: skip calculation for now
-  uint32_t crc = 0xABCDABCD;
-  memcpy((void *)(prefix.data() + CRC_OFFSET), &crc, CRC_SIZE);
+  cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
 
   // update MK id
   memcpy((void *)(prefix.data() + MASTER_KEY_ID_OFFSET), &newestMasterKeyId,
@@ -199,20 +206,24 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
   std::string masterKey;
   masterKeyManager_->GetMasterKey(masterKeyId, suuid, &masterKey);
 
-  // Decrypt key and iv with master key
+  // Decrypt key+iv+crc with master key
   auto cipher = cipherStreamFactory_->CreateCipherStream(masterKey, kHeaderIV);
 
-  char dataToDecrypt[FILE_KEY_SIZE + IV_SIZE];
+  char dataToDecrypt[FILE_KEY_SIZE + IV_SIZE + CRC_SIZE];
   memcpy(dataToDecrypt, prefix.data() + FILE_KEY_OFFSET,
-         FILE_KEY_SIZE + IV_SIZE);
+         FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
 
-  cipher->Decrypt(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE);
+  cipher->Decrypt(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
 
-  // TODO: Calculate and validate CRC
-  uint32_t crc = 0;
-  memcpy(&crc, prefix.data() + CRC_OFFSET, CRC_SIZE);
-  if (crc != 0xABCDABCD) {
+  // Calculate and validate CRC
+  uint32_t crcRead = 0;
+  memcpy(&crcRead, &dataToDecrypt[FILE_KEY_SIZE+IV_SIZE], CRC_SIZE);
+
+  uint32_t crcCalculated = rocksdb::crc32c::Extend(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE);
+
+  if (crcRead != crcCalculated) {
     fprintf(stderr, "WRONG CRC!\n");
+    return rocksdb::Status::Corruption();
   }
 
   rocksdb::Slice fileKey((char *)dataToDecrypt, FILE_KEY_SIZE);

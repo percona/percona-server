@@ -68,7 +68,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_DEBUG) \
-		-DROCKSDB_PLUGINS=zenfs \
+		-DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=DEB \
 		-DWITH_INNODB_MEMCACHED=ON \
@@ -116,7 +116,7 @@ endif
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_RELEASE) \
-		-DROCKSDB_PLUGINS=zenfs \
+		-DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=DEB \
 		-DWITH_INNODB_MEMCACHED=ON \
@@ -158,14 +158,12 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 endif
 
 	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
-
-
 	cd $(builddir)/../; \
 	ls; mkdir -p $(CURDIR)/storage/rocksdb/rocksdb/plugin/; ln -s $(CURDIR)/storage/rocksdb/rocksdb_plugins/zenfs/ $(CURDIR)/storage/rocksdb/rocksdb/plugin/; \
 	cd storage/rocksdb/rocksdb/; \
 	CC=clang-12 CXX=clang++-12 make -j$(NCPU) DISABLE_WARNING_AS_ERROR=1 PREFIX=$(CURDIR)/rocksdb-root/usr OBJ_DIR=$(CURDIR)/rocksdb-build ROCKSDB_PLUGINS=zenfs install-static; \
 	cd plugin/zenfs/util; \
-	PKG_CONFIG_PATH=$(CURDIR)/rocksdb-root/usr/lib/pkgconfig CC=clang-12 CXX=clang++-12 make -j$(NCPU) 
+	PKG_CONFIG_PATH=$(CURDIR)/rocksdb-root/usr/lib/pkgconfig CC=clang-12 CXX=clang++-12 make -j$(NCPU)
 
 	touch $@
 

@@ -107,6 +107,7 @@ usr/lib/mysql/plugin/debug/component_query_attributes.so
 usr/lib/mysql/plugin/debug/component_test_component_deinit.so
 usr/lib/mysql/plugin/debug/component_reference_cache.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
+usr/lib/mysql/plugin/debug/authentication_kerberos_client.so
 
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
@@ -138,6 +139,7 @@ usr/lib/mysql/plugin/debug/binlog_utils_udf.so
 usr/lib/mysql/plugin/debug/test_udf_wrappers.so
 usr/lib/mysql/plugin/procfs.so
 usr/lib/mysql/plugin/debug/procfs.so
+usr/lib/mysql/plugin/authentication_kerberos_client.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/mysql-log-rotate

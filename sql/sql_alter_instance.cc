@@ -175,7 +175,8 @@ bool Rotate_innodb_master_key::execute() {
   In case of failure, appropriate error
   is logged by function.
 */
-// todo: this is actually the same as for innodb, only const storage_engine differs
+// todo: this is actually the same as for innodb, only const storage_engine
+// differs
 bool Rotate_rocksdb_master_key::execute() {
   const LEX_CSTRING storage_engine = {STRING_WITH_LEN("rocksdb")};
   plugin_ref se_plugin;
@@ -234,7 +235,6 @@ bool Rotate_rocksdb_master_key::execute() {
   my_ok(m_thd);
   return false;
 }
-
 
 bool Rotate_percona_system_key::rotate() {
   size_t key_length{0};

@@ -1,9 +1,9 @@
 #include "./enc_aes_ctr_stream_factory.h"
 #include <openssl/evp.h>
 #include <rocksdb/env_encryption.h>
-#include "./enc_stream_cipher.h"
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
+#include "./enc_stream_cipher.h"
 
 // Note: This implementation of BlockAccessCipherStream uses AES-CRT encryption
 // with SSL backend
@@ -16,25 +16,21 @@
 namespace myrocks {
 
 class MyRocksBlockAccessCipherStream : public rocksdb::BlockAccessCipherStream {
-  public:
-    virtual bool Init(const std::string &file_key, const std::string &iv) = 0;
+ public:
+  virtual bool Init(const std::string &file_key, const std::string &iv) = 0;
 
-protected:
-    void AllocateScratch(std::string &) override {}
-    rocksdb::Status EncryptBlock(uint64_t blockIndex,
-                                 char *data, char *scratch) override {
-      return rocksdb::Status::NotSupported();
-    }
-    rocksdb::Status DecryptBlock(uint64_t blockIndex,
-                                 char *data, char *scratch) {
-      return rocksdb::Status::NotSupported();
-    }
+ protected:
+  void AllocateScratch(std::string &) override {}
+  rocksdb::Status EncryptBlock(uint64_t blockIndex, char *data,
+                               char *scratch) override {
+    return rocksdb::Status::NotSupported();
+  }
+  rocksdb::Status DecryptBlock(uint64_t blockIndex, char *data, char *scratch) {
+    return rocksdb::Status::NotSupported();
+  }
 };
 
-
 /******************************************************************************/
-
-
 
 class AesCtrCipherStream final : public MyRocksBlockAccessCipherStream {
  private:
@@ -126,100 +122,97 @@ rocksdb::Status AesCtrCipherStream::Decrypt(uint64_t fileOffset, char *data,
 /******************************************************************************/
 /* thread safe implementation, necessary for RandomReadAccessFile->read() */
 class CipherManager {
-  public:
-    enum CipherType {
-        ENCRYPTOR,
-        DECRYPTOR
-    };
+ public:
+  enum CipherType { ENCRYPTOR, DECRYPTOR };
 
-    CipherManager(size_t maxCiphers, CipherType type, const std::string& key, const std::string& iv)
-      : max_ciphers_(maxCiphers)
-      , ciphers_count_(0)
-      , cipher_type_(type)
-      , key_(key)
-      , iv_(iv)
-      , ciphers_mutex_()
-      , cv_()
-      {
+  CipherManager(size_t maxCiphers, CipherType type, const std::string &key,
+                const std::string &iv)
+      : max_ciphers_(maxCiphers),
+        ciphers_count_(0),
+        cipher_type_(type),
+        key_(key),
+        iv_(iv),
+        ciphers_mutex_(),
+        cv_() {}
 
-      }
+  ~CipherManager() {
+    std::unique_lock<std::mutex> lock(ciphers_mutex_);
+    ciphers_.clear();
+  }
 
-    ~CipherManager() {
-      std::unique_lock<std::mutex> lock(ciphers_mutex_);
-      ciphers_.clear();
+  std::unique_ptr<Stream_cipher> CreateNewCipher() {
+    std::unique_ptr<Stream_cipher> cipher;
+
+    if (cipher_type_ == ENCRYPTOR) {
+      cipher = Aes_ctr::get_encryptor();
+    } else {
+      cipher = Aes_ctr::get_decryptor();
     }
+    auto openRes =
+        cipher->open(reinterpret_cast<const unsigned char *>(key_.c_str()),
+                     reinterpret_cast<const unsigned char *>(iv_.c_str()));
+    if (openRes) return nullptr;
+    return cipher;
+  }
 
-    std::unique_ptr<Stream_cipher> CreateNewCipher() {
-        std::unique_ptr<Stream_cipher> cipher;
-
-        if (cipher_type_ == ENCRYPTOR) {
-          cipher = Aes_ctr::get_encryptor();
-        } else {
-          cipher = Aes_ctr::get_decryptor();
-        }
-        auto openRes =
-          cipher->open(reinterpret_cast<const unsigned char *>(key_.c_str()),
-                          reinterpret_cast<const unsigned char *>(iv_.c_str()));
-        if (openRes) return nullptr;
-        return cipher;
-    }
-
-    std::unique_ptr<Stream_cipher> AllocateCipher(uint64_t offsetHint) {
-      std::unique_lock<std::mutex> lock(ciphers_mutex_);
-      // try to find the cipher which is at the requested offset
-      auto it = ciphers_.find(offsetHint);
-      if (it != ciphers_.end()) {
-          // free cipher at the requested position found
-          auto res = std::move(it->second);
-          ciphers_.erase(it);
-          return res;
-      }
-
-      // if there is no cipher at the requested position, use the 1st one
-      it = ciphers_.begin();
-      if (it != ciphers_.end()) {
-          auto res = std::move(it->second);
-          ciphers_.erase(it);
-          return res;
-      }
-
-      // If there are not free ciphers, check if we already have max number
-      // of ciphers allocated. If not - alllocate new one
-      if (ciphers_count_ < max_ciphers_) {
-        auto res = CreateNewCipher();
-        if (res != nullptr) {
-            // new cipher allocated
-            ciphers_count_++;
-            return res;
-        }
-      }
-
-      // if we got here it means that max count of ciphers were already allocated
-      // and there is no free cipher to be used. We just need to wait
-
-      cv_.wait(lock, [this]{return ciphers_.size() > 0;});
-      // a cipher has been deallocated. Use the first one
-      it = ciphers_.begin();
+  std::unique_ptr<Stream_cipher> AllocateCipher(uint64_t offsetHint) {
+    std::unique_lock<std::mutex> lock(ciphers_mutex_);
+    // try to find the cipher which is at the requested offset
+    auto it = ciphers_.find(offsetHint);
+    if (it != ciphers_.end()) {
+      // free cipher at the requested position found
       auto res = std::move(it->second);
       ciphers_.erase(it);
       return res;
     }
 
-    void DeallocateCipher(std::unique_ptr<Stream_cipher> cipher, uint64_t offsetHint) {
-      std::unique_lock<std::mutex> lock(ciphers_mutex_);
-      ciphers_.insert(std::pair<uint64_t, std::unique_ptr<Stream_cipher>>(offsetHint, std::move(cipher)));
-      cv_.notify_one();
+    // if there is no cipher at the requested position, use the 1st one
+    it = ciphers_.begin();
+    if (it != ciphers_.end()) {
+      auto res = std::move(it->second);
+      ciphers_.erase(it);
+      return res;
     }
 
-  private:
-    const size_t max_ciphers_;
-    size_t ciphers_count_;
-    CipherType cipher_type_;
-    const std::string key_;
-    const std::string iv_;
-    std::mutex ciphers_mutex_;
-    std::condition_variable cv_;
-    std::multimap<uint64_t, std::unique_ptr<Stream_cipher>> ciphers_;
+    // If there are not free ciphers, check if we already have max number
+    // of ciphers allocated. If not - alllocate new one
+    if (ciphers_count_ < max_ciphers_) {
+      auto res = CreateNewCipher();
+      if (res != nullptr) {
+        // new cipher allocated
+        ciphers_count_++;
+        return res;
+      }
+    }
+
+    // if we got here it means that max count of ciphers were already allocated
+    // and there is no free cipher to be used. We just need to wait
+
+    cv_.wait(lock, [this] { return ciphers_.size() > 0; });
+    // a cipher has been deallocated. Use the first one
+    it = ciphers_.begin();
+    auto res = std::move(it->second);
+    ciphers_.erase(it);
+    return res;
+  }
+
+  void DeallocateCipher(std::unique_ptr<Stream_cipher> cipher,
+                        uint64_t offsetHint) {
+    std::unique_lock<std::mutex> lock(ciphers_mutex_);
+    ciphers_.insert(std::pair<uint64_t, std::unique_ptr<Stream_cipher>>(
+        offsetHint, std::move(cipher)));
+    cv_.notify_one();
+  }
+
+ private:
+  const size_t max_ciphers_;
+  size_t ciphers_count_;
+  CipherType cipher_type_;
+  const std::string key_;
+  const std::string iv_;
+  std::mutex ciphers_mutex_;
+  std::condition_variable cv_;
+  std::multimap<uint64_t, std::unique_ptr<Stream_cipher>> ciphers_;
 };
 
 class AesCtrCipherStreamTS final : public MyRocksBlockAccessCipherStream {
@@ -255,12 +248,14 @@ AesCtrCipherStreamTS::~AesCtrCipherStreamTS() {
 }
 
 bool AesCtrCipherStreamTS::Init(const std::string &file_key,
-                              const std::string &iv) {
+                                const std::string &iv) {
   // encryptor
-  encryptorManager_ = std::make_unique<CipherManager>(10, CipherManager::ENCRYPTOR, file_key, iv);
+  encryptorManager_ = std::make_unique<CipherManager>(
+      10, CipherManager::ENCRYPTOR, file_key, iv);
 
   // decryptor
-  decryptorManager_ = std::make_unique<CipherManager>(10, CipherManager::DECRYPTOR, file_key, iv);
+  decryptorManager_ = std::make_unique<CipherManager>(
+      10, CipherManager::DECRYPTOR, file_key, iv);
 
   return false;
 }
@@ -272,7 +267,7 @@ size_t AesCtrCipherStreamTS::BlockSize() {
 
 // #define VALIDATE_ENCRYPT
 rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
-                                            size_t dataSize) {
+                                              size_t dataSize) {
 #ifdef VALIDATE_ENCRYPT
   std::vector<unsigned char> originalData;
   originalData.reserve(dataSize);
@@ -286,7 +281,7 @@ rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
     return rocksdb::Status::IOError();
   }
   if (encryptor->encrypt((unsigned char *)data, (const unsigned char *)data,
-                          dataSize)) {
+                         dataSize)) {
     encryptorManager_->DeallocateCipher(std::move(encryptor), (size_t)-1);
     return rocksdb::Status::IOError();
   }
@@ -300,15 +295,15 @@ rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
   auto decrypted = vec.data();
   decryptor->decrypt(decrypted, (const unsigned char *)data, dataSize);
   decryptorManager_->DeallocateCipher(std::move(decryptor), fileOffset);
-  if(memcmp(decrypted, originalData.data(), dataSize)) {
-      fprintf(stderr, "KH: encryption failure\n");
+  if (memcmp(decrypted, originalData.data(), dataSize)) {
+    fprintf(stderr, "KH: encryption failure\n");
   }
 #endif
   return rocksdb::Status::OK();
 }
 
 rocksdb::Status AesCtrCipherStreamTS::Decrypt(uint64_t fileOffset, char *data,
-                                            size_t dataSize) {
+                                              size_t dataSize) {
   // Offset tracking to avoid underlaying cipher reinitialization is done
   // inside decryptor_
   auto decryptor = decryptorManager_->AllocateCipher(fileOffset);
@@ -317,7 +312,7 @@ rocksdb::Status AesCtrCipherStreamTS::Decrypt(uint64_t fileOffset, char *data,
     return rocksdb::Status::IOError();
   }
   if (decryptor->decrypt((unsigned char *)data, (const unsigned char *)data,
-                          dataSize)) {
+                         dataSize)) {
     decryptorManager_->DeallocateCipher(std::move(decryptor), (size_t)-1);
     return rocksdb::Status::IOError();
   }
@@ -329,15 +324,11 @@ rocksdb::Status AesCtrCipherStreamTS::Decrypt(uint64_t fileOffset, char *data,
 
 /******************************************************************************/
 
-
-
-
-
 std::unique_ptr<rocksdb::BlockAccessCipherStream>
 AesCtrStreamFactory::CreateThreadSafeCipherStream(const std::string &fileKey,
-                                        const std::string &iv) {
-  std::unique_ptr<MyRocksBlockAccessCipherStream> cipher 
-    = std::make_unique<AesCtrCipherStreamTS>();
+                                                  const std::string &iv) {
+  std::unique_ptr<MyRocksBlockAccessCipherStream> cipher =
+      std::make_unique<AesCtrCipherStreamTS>();
 
   if (cipher == nullptr || cipher->Init(fileKey, iv)) {
     return nullptr;
@@ -348,8 +339,8 @@ AesCtrStreamFactory::CreateThreadSafeCipherStream(const std::string &fileKey,
 std::unique_ptr<rocksdb::BlockAccessCipherStream>
 AesCtrStreamFactory::CreateCipherStream(const std::string &fileKey,
                                         const std::string &iv) {
-  std::unique_ptr<MyRocksBlockAccessCipherStream> cipher 
-    = std::make_unique<AesCtrCipherStream>();
+  std::unique_ptr<MyRocksBlockAccessCipherStream> cipher =
+      std::make_unique<AesCtrCipherStream>();
 
   if (cipher == nullptr || cipher->Init(fileKey, iv)) {
     return nullptr;

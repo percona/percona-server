@@ -72,8 +72,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   template <class TypeFile>
   IOStatus CreateWritableCipherStream(
       const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
-      const FileOptions &options, size_t *prefix_length,
-      bool createPrefix,
+      const FileOptions &options, size_t *prefix_length, bool createPrefix,
       std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
     EncryptionProvider *provider = nullptr;
     *prefix_length = 0;
@@ -87,38 +86,39 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       *prefix_length = provider->GetPrefixLength();
       if (*prefix_length > 0) {
         if (createPrefix) {
-            // Initialize prefix
-            buffer.Alignment(underlying->GetRequiredBufferAlignment());
-            buffer.AllocateNewBuffer(*prefix_length);
-            status = status_to_io_status(provider->CreateNewPrefix(
-                fname, buffer.BufferStart(), *prefix_length));
-            if (status.ok()) {
+          // Initialize prefix
+          buffer.Alignment(underlying->GetRequiredBufferAlignment());
+          buffer.AllocateNewBuffer(*prefix_length);
+          status = status_to_io_status(provider->CreateNewPrefix(
+              fname, buffer.BufferStart(), *prefix_length));
+          if (status.ok()) {
             buffer.Size(*prefix_length);
             prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
             // Write prefix
             status = underlying->Append(prefix, options.io_options, dbg);
-            }
-            if (!status.ok()) {
-              return status;
-            }
-        } else {
-            // Read prefix, but underlying is write only, so need to open as readable
-            rocksdb::EnvOptions soptions;
-            std::unique_ptr<FSSequentialFile> underlyingSR;
-            status =
-                FileSystemWrapper::NewSequentialFile(fname, soptions, &underlyingSR, dbg);
-            if (!status.ok()) {
+          }
+          if (!status.ok()) {
             return status;
-            }
+          }
+        } else {
+          // Read prefix, but underlying is write only, so need to open as
+          // readable
+          rocksdb::EnvOptions soptions;
+          std::unique_ptr<FSSequentialFile> underlyingSR;
+          status = FileSystemWrapper::NewSequentialFile(fname, soptions,
+                                                        &underlyingSR, dbg);
+          if (!status.ok()) {
+            return status;
+          }
 
-            buffer.Alignment(underlyingSR->GetRequiredBufferAlignment());
-            buffer.AllocateNewBuffer(*prefix_length);
-            status = underlyingSR->Read(*prefix_length, options.io_options,
-                                                &prefix, buffer.BufferStart(), dbg);
-            if (!status.ok()) {
-                return status;
-            }
-            buffer.Size(*prefix_length);
+          buffer.Alignment(underlyingSR->GetRequiredBufferAlignment());
+          buffer.AllocateNewBuffer(*prefix_length);
+          status = underlyingSR->Read(*prefix_length, options.io_options,
+                                      &prefix, buffer.BufferStart(), dbg);
+          if (!status.ok()) {
+            return status;
+          }
+          buffer.Size(*prefix_length);
         }
       }
       // Create cipher stream
@@ -138,9 +138,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     // Create cipher stream
     std::unique_ptr<BlockAccessCipherStream> stream;
     size_t prefix_length;
-    IOStatus status = CreateWritableCipherStream(fname, underlying, options,
-                                                 &prefix_length, createPrefix,
-                                                 &stream, dbg);
+    IOStatus status = CreateWritableCipherStream(
+        fname, underlying, options, &prefix_length, createPrefix, &stream, dbg);
     if (status.ok()) {
       if (stream) {
         result->reset(new EncryptedWritableFile(
@@ -269,12 +268,12 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       buffer.Size(*prefix_length);
     }
 
-    if(threadSafeStream) {
-      return status_to_io_status(
-        provider_->CreateThreadSafeCipherStream(fname, options, prefix, stream));
+    if (threadSafeStream) {
+      return status_to_io_status(provider_->CreateThreadSafeCipherStream(
+          fname, options, prefix, stream));
     } else {
       return status_to_io_status(
-        provider_->CreateCipherStream(fname, options, prefix, stream));
+          provider_->CreateCipherStream(fname, options, prefix, stream));
     }
   }
 
@@ -315,33 +314,33 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     IODebugContext dbg;
 
     std::unique_ptr<FSRandomRWFile> underlying;
-    auto status =
+    auto io_status =
         FileSystemWrapper::NewRandomRWFile(fname, soptions, &underlying, &dbg);
-    if (!status.ok()) {
-      return status;
+    if (!io_status.ok()) {
+      return io_status;
     }
     auto encPrefix = provider_->GetMarker();
     std::vector<char> buffer;
     buffer.reserve(provider_->GetPrefixLength());
     Slice prefix;
-    status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
-                              &prefix, buffer.data(), nullptr);
-    if (!status.ok()) {
-      return status;
+    io_status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
+                                 &prefix, buffer.data(), nullptr);
+    if (!io_status.ok()) {
+      return io_status;
     }
     auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
                                         encPrefix.size()) == 0);
 
     if (encrypted) {
-      provider_->ReencryptPrefix(prefix);
+      auto reencryptStatus = provider_->ReencryptPrefix(prefix);
 
       // now store it back
-      if (status.ok()) {
+      if (reencryptStatus == Status::OK()) {
         // Write prefix
-        status = underlying->Write(0, prefix, IOOptions(), &dbg);
+        io_status = underlying->Write(0, prefix, IOOptions(), &dbg);
       }
     }
-    return status_to_io_status(Status::OK());
+    return io_status;
   }
 
   Status RotateEncryptionMasterKey(const std::string dir) override {
@@ -356,14 +355,20 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     uint64_t number = 0;
     FileType type = kInfoLogFile;
+    Status status = Status::OK();
     for (const std::string &file : files) {
       if (!ParseFileName(file, &number, &type)) {
         continue;
       }
 
-      RotateFileMasterEncryptionKey(dir + "/" + file);
+      status = RotateFileMasterEncryptionKey(dir + "/" + file);
+      if (status != Status::OK()) {
+        fprintf(stderr, "MK rotation for file %s failed\n",
+                (dir + "/" + file).c_str());
+        break;
+      }
     }
-    return Status::OK();
+    return status;
   }
 
   IOStatus FeedEncryptionProvider(const std::string &fname) {
@@ -532,7 +537,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return status;
     }
 
-    return CreateWritableEncryptedFile(fname, underlying, options, true, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, true, result,
+                                       dbg);
   }
 
   // Create an object that writes to a new file with the specified
@@ -580,7 +586,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     // here we go if we need to create encrypted file (new one, or wrap existing
     // one)
-    return CreateWritableEncryptedFile(fname, underlying, options, isNewFile, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, isNewFile,
+                                       result, dbg);
   }
 
   // Reuse an existing file by renaming it and opening it as writable.
@@ -607,7 +614,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return status;
     }
 
-    return CreateWritableEncryptedFile(fname, underlying, options, true, result, dbg);
+    return CreateWritableEncryptedFile(fname, underlying, options, true, result,
+                                       dbg);
   }
 
   // Open `fname` for random read and write, if file doesn't exist the file

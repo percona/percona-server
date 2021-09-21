@@ -156,8 +156,8 @@ template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
 #ifdef FAKE_CIPHER
-    memcpy(dest, src, length);
-    return false;
+  memcpy(dest, src, length);
+  return false;
 #endif
 
   if (TYPE == Cipher_type::DECRYPT) {
@@ -181,8 +181,8 @@ template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
                                    const unsigned char *src, int length) {
 #ifdef FAKE_CIPHER
-    memcpy(dest, src, length);
-    return false;
+  memcpy(dest, src, length);
+  return false;
 #endif
 
   if (TYPE == Cipher_type::ENCRYPT) {

@@ -15,8 +15,9 @@ class CipherStreamFactory {
  public:
   virtual std::unique_ptr<rocksdb::BlockAccessCipherStream> CreateCipherStream(
       const std::string &fileKey, const std::string &iv) = 0;
-  virtual std::unique_ptr<rocksdb::BlockAccessCipherStream> CreateThreadSafeCipherStream(
-      const std::string &fileKey, const std::string &iv) = 0;
+  virtual std::unique_ptr<rocksdb::BlockAccessCipherStream>
+  CreateThreadSafeCipherStream(const std::string &fileKey,
+                               const std::string &iv) = 0;
 };
 
 }  // namespace myrocks

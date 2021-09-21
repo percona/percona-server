@@ -4655,10 +4655,14 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
   DBUG_RETURN(false);
 }
 
-bool rocksdb_rotate_encryption_aster_key() {
+bool rocksdb_rotate_encryption_master_key() {
   keyringMasterKeyManager->GenerateNewMasterKey();
-  encryptedFileSystem->RotateEncryptionMasterKey(rocksdb_datadir);
-  return false;
+  auto res = (rocksdb::Status::OK() !=
+              encryptedFileSystem->RotateEncryptionMasterKey(rocksdb_datadir));
+  if (res) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+  }
+  return res;
 }
 
 /**
@@ -5712,9 +5716,9 @@ static void initialize_encryption() {
 }
 
 static void deinitialize_encryption() {
-    encryptedFileSystem.reset();
-    keyringMasterKeyManager->Shutdown();  // todo: the reference is still kept in
-                                          // rocksdb_db_options->env CompositeEnvWrapper
+  encryptedFileSystem.reset();
+  keyringMasterKeyManager.reset();
+  delete rocksdb_db_options->env;
 }
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
@@ -5886,7 +5890,7 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_hton->get_table_statistics = rocksdb_get_table_statistics;
   rocksdb_hton->flush_logs = rocksdb_flush_wal;
   rocksdb_hton->rotate_encryption_master_key =
-      rocksdb_rotate_encryption_aster_key;
+      rocksdb_rotate_encryption_master_key;
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE |
                         HTON_SUPPORTS_ONLINE_BACKUPS;
@@ -6503,6 +6507,10 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 #endif /* HAVE_VALGRIND */
   }
 
+  // Do it before clearing rocksdb_db_options.
+  // We need to delete delete encryption wrapper to release resources.
+  deinitialize_encryption();
+
   rocksdb_db_options = nullptr;
   rocksdb_tbl_options = nullptr;
   rocksdb_stats = nullptr;
@@ -6515,8 +6523,6 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 
   // clear the initialized flag and unlock
   rdb_get_hton_init_state()->set_initialized(false);
-
-  deinitialize_encryption();
 
   return error;
 }

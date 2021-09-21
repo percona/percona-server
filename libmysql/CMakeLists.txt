@@ -276,7 +276,7 @@ ADD_SUBDIRECTORY(authentication_ldap)
 # authentication kerberos client plug-in
 ADD_SUBDIRECTORY(authentication_kerberos)
 
-# Merge several convenience libraries into one big mysqlclient
+# Merge several convenience libraries into one big perconaserverclient
 MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
   COMPONENT Development
   LINK_LIBRARIES ${LIBS_TO_LINK}
@@ -319,8 +319,8 @@ IF(UNIX)
     STRING_APPEND(OS_SHARED_LIB_VERSION
       ".${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
   ENDIF()
-  # Name of shared library is libmysqlclient on Unix
-  SET(UNIX_OUTPUT_NAME OUTPUT_NAME mysqlclient)
+  # Name of shared library is libperconaserverclient on Unix
+  SET(UNIX_OUTPUT_NAME OUTPUT_NAME perconaserverclient)
   SET(UNIX_VERSION     VERSION     "${OS_SHARED_LIB_VERSION}")
   SET(UNIX_SOVERSION   SOVERSION   "${SHARED_LIB_MAJOR_VERSION}")
 ENDIF()
@@ -341,7 +341,7 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
 
 IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
   ADD_DEPENDENCIES(libmysql ${kerberos_target})
-  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
+  ADD_DEPENDENCIES(perconaserverclient ${kerberos_target})
 ENDIF()
 
 IF(UNIX)

@@ -47,7 +47,7 @@ IF(KERBEROS_INCLUDE_DIR AND GSSAPI_INCLUDE_DIR)
       INCLUDE_DIRECTORIES(BEFORE SYSTEM ${GSSAPI_INCLUDE_DIR})
     ENDIF()
   ENDIF()
-  SET(MY_SQL "mysqlclient")
+  SET(MY_SQL "perconaserverclient")
 ELSE()
   MESSAGE(WARNING
     "Skipping the KERBEROS client authentication plugin.")

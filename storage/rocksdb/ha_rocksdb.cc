@@ -4707,7 +4707,7 @@ static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
   assert(xid != nullptr);
   assert(commit_latency_stats != nullptr);
 
-  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  auto clock = rocksdb_db_options->env->GetSystemClock().get();
   rocksdb::StopWatchNano timer(clock, true);
 
   const auto name = rdb_xid_to_string(*xid);
@@ -4825,7 +4825,7 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
   assert(thd != nullptr);
   assert(commit_latency_stats != nullptr);
 
-  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  auto clock = rocksdb_db_options->env->GetSystemClock().get();
   rocksdb::StopWatchNano timer(clock, true);
 
   /* note: h->external_lock(F_UNLCK) is called after this function is called) */
@@ -5578,7 +5578,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
   rocksdb::Status status =
-      LoadLatestOptions(dbpath, rocksdb::Env::Default(), &loaded_db_opt,
+      LoadLatestOptions(dbpath, rocksdb_db_options->env, &loaded_db_opt,
                         &loaded_cf_descs, rocksdb_ignore_unknown_options);
 
   // If we're starting from scratch and there are no options saved yet then this
@@ -5618,7 +5618,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
-  status = CheckOptionsCompatibility(dbpath, rocksdb::Env::Default(), main_opts,
+  status = CheckOptionsCompatibility(dbpath, rocksdb_db_options->env, main_opts,
                                      loaded_cf_descs,
                                      rocksdb_ignore_unknown_options);
 
@@ -6116,7 +6116,7 @@ static int rocksdb_init_internal(void *const p) {
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
-        rocksdb::Env::Default(), std::string(rocksdb_persistent_cache_path),
+        rocksdb_db_options->env, std::string(rocksdb_persistent_cache_path),
         cache_size_bytes, myrocks_logger, true, &pcache);
     if (!status.ok()) {
       LogPluginErrMsg(ERROR_LEVEL, 0, "Persistent cache returned error: (%s)",

@@ -68,11 +68,12 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
       const rocksdb::Slice &key, const rocksdb::Slice &iv,
       std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
       bool threadSafe);
+
  private:
   rocksdb::Status CreateCipherStreamCommon(
-    const std::string &fname, const rocksdb::EnvOptions &options,
-    rocksdb::Slice &prefix,
-    std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
-    bool threadSafe);
+      const std::string &fname, const rocksdb::EnvOptions &options,
+      rocksdb::Slice &prefix,
+      std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
+      bool threadSafe);
 };
 }  // namespace myrocks

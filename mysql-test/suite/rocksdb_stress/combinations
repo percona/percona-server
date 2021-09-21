@@ -3,3 +3,15 @@ loose-rocksdb_write_policy=write_committed
 
 [write_prepared]
 loose-rocksdb_write_policy=write_prepared
+
+[write_committed_enc]
+early-plugin-load=keyring_file.so
+keyring_file_data=keyring
+loose-rocksdb-encryption=1
+loose-rocksdb_write_policy=write_committed
+
+[write_prepared_enc]
+early-plugin-load=keyring_file.so
+keyring_file_data=keyring
+loose-rocksdb-encryption=1
+loose-rocksdb_write_policy=write_prepared

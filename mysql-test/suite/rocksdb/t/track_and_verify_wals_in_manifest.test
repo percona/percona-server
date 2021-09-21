@@ -68,26 +68,30 @@ EOF
 --exec $MYSQL_TMP_DIR/truncate_tail_wal_N.sh 2 $write_policy
 --remove_file $MYSQL_TMP_DIR/truncate_tail_wal_N.sh
 
+# For combination with myrocks_encryption=1 we need keyring plugin to be loaded.
+# For combination without encryption, loading keyring pluging will not do any harm. 
+--let $ROCKSDB_ENC_OPTIONS=$KEYRING_PLUGIN_LOAD_EARLY --keyring_file_data=keyring
+
 # The restart has to fail with rocksdb_track_and_verify_wals_in_manifest=1 (default)
 --error 1
---exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=0 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
+--exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_ENC_OPTIONS $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=0 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
 --exec grep "Size mismatch: WAL" $_custom_err | wc -l
 
 --error 1
---exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=2 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
+--exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_ENC_OPTIONS $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=2 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
 --exec grep "Size mismatch: WAL" $_custom_err | wc -l
 
 --error 1
---exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=1 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
+--exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_ENC_OPTIONS $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=1 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
 --exec grep "Size mismatch: WAL" $_custom_err | wc -l
 
 # The restart has to fail with rocksdb_wal_recovery_mode=1
 --error 1
---exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=1 --rocksdb_track_and_verify_wals_in_manifest=0 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
+--exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_ENC_OPTIONS $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=1 --rocksdb_track_and_verify_wals_in_manifest=0 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
 
 #--echo forcing to restart with kPointInTimeRecovery will also fail with RocksDB PR#7701
 --error 1
---exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=2 --rocksdb_track_and_verify_wals_in_manifest=0 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
+--exec $MYSQLD_CMD --rocksdb=FORCE $ROCKSDB_ENC_OPTIONS $ROCKSDB_OPT '$ROCKSDB_LOAD' --rocksdb_wal_recovery_mode=2 --rocksdb_track_and_verify_wals_in_manifest=0 --rocksdb_write_policy=$write_policy > $_custom_err 2>&1
 --exec grep "Corruption: SST file is ahead of WALs" $_custom_err | wc -l
 
 --exec echo "restart:--rocksdb_wal_recovery_mode=3 --rocksdb_track_and_verify_wals_in_manifest=0" --rocksdb_write_policy=$write_policy > $_expect_file_name

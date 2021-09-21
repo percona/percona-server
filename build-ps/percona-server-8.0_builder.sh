@@ -354,6 +354,7 @@ install_deps() {
 	    yum -y install rpcgen re2-devel libtirpc-devel
 	    yum -y install zstd libzstd libzstd-devel
 	    yum -y install cmake
+            yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         fi
         if [ "x${RHEL}" = "x8" ]; then
             yum -y install centos-release-stream
@@ -415,6 +416,11 @@ install_deps() {
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
+        fi
+        if [ x"${DIST}}" = xbionic ]; then
+            sudo apt-get -y install gcc-8 g++-8
+        else
+            sudo apt-get -y install gcc g++
         fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
@@ -773,7 +779,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco" ]; then
+    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi

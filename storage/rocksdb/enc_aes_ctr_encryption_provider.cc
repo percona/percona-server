@@ -150,7 +150,7 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
       rocksdb::DecodeFixed32(prefix.data() + MASTER_KEY_ID_OFFSET);
 
   if (newestMasterKeyId == fileMasterKeyId) {
-    ROCKS_LOG_INFO(logger_, "Newest MK already used. Reencryption skipped.");
+    ROCKS_LOG_INFO(logger_, "Newest master key already used. Reencryption skipped.");
     return rocksdb::Status::OK();
   }
 

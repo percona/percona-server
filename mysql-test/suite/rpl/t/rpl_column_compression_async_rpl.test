@@ -1,8 +1,8 @@
 #
 # PS-7806 : Column compression breaks async replication on PS
 #
---source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+--source include/master-slave.inc
 
 CREATE DATABASE test7806;
 USE test7806;
@@ -19,7 +19,7 @@ DELETE FROM t WHERE d2 = 0.00000 ;
 --let $rpl_diff_statement = SELECT * FROM test7806.t;
 --source include/rpl_diff.inc
 
-connection master;
+--source include/rpl_connection_master.inc
 
 DROP TABLE t;
 DROP DATABASE test7806;

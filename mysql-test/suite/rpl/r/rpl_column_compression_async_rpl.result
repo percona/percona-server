@@ -11,6 +11,7 @@ INSERT INTO t  ( ip_col ,c0 ,lb1 ,d2 ,lb3 ,f4 ,v5 ) VALUES( 4314, 'C', '9v2pBuu9
 DELETE FROM t WHERE d2 = 0.00000 ;
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc
+[connection master]
 DROP TABLE t;
 DROP DATABASE test7806;
 include/rpl_end.inc

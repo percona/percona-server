@@ -15653,10 +15653,22 @@ double ha_rocksdb::read_time(uint index, uint ranges, ha_rows rows) {
 }
 
 void ha_rocksdb::print_error(int error, myf errflag) {
-  if (error == HA_ERR_ROCKSDB_STATUS_BUSY) {
-    error = HA_ERR_LOCK_DEADLOCK;
+  switch (error) {
+    case HA_ERR_ROCKSDB_STATUS_BUSY:
+      handler::print_error(HA_ERR_LOCK_DEADLOCK, errflag);
+      break;
+    case HA_ERR_LOCK_WAIT_TIMEOUT:
+      if (error == HA_ERR_LOCK_WAIT_TIMEOUT && my_core::thd_killed(ha_thd())) {
+        my_error(ER_QUERY_TIMEOUT, errflag,
+                 table_share->table_name.str /*, error*/);
+      } else {
+        handler::print_error(error, errflag);
+      }
+      break;
+    default:
+      handler::print_error(error, errflag);
+      break;
   }
-  handler::print_error(error, errflag);
 }
 
 std::string rdb_corruption_marker_file_name() {

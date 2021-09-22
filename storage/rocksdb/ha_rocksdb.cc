@@ -5683,7 +5683,8 @@ void rocksdb_truncation_table_cleanup(void) {
 }
 
 // encryption infrastructure initialization
-static void initialize_encryption() {
+static rocksdb::Status initialize_encryption(
+    std::shared_ptr<Rdb_logger> logger) {
   /* We are here before MySql uuid is generated or read from auto.cnf file.
      As the master key name consists of unique uuid, to be able to distinguish
      keys from multiple MySql servers, we need some unique number.
@@ -5694,29 +5695,34 @@ static void initialize_encryption() {
   auto uuid = rocksdb_db_options->env->GenerateUniqueId();
   // unfortunately it has new line character at the end
   uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
-  keyringMasterKeyManager = std::make_shared<KeyringMasterKeyManager>(uuid);
+  keyringMasterKeyManager =
+      std::make_shared<KeyringMasterKeyManager>(uuid, logger);
 
   /* The best case scenario would be to use AES CTR provided by MySql as
      keyring_encryption_service. As it does not provide AES CTR, we will hide
      local implementation behind the interface
    */
-  auto cipherFactory = std::make_unique<AesCtrStreamFactory>();
+  auto cipherFactory = std::make_unique<AesCtrStreamFactory>(logger);
   auto provider = std::make_shared<AesCtrEncryptionProvider>(
-      keyringMasterKeyManager, std::move(cipherFactory));
+      keyringMasterKeyManager, std::move(cipherFactory), logger);
 
   /* Now let's add the wrapper around the default file system, which will
      provide encryption + MK header encryption
    */
-  encryptedFileSystem =
-      myrocks::NewEncryptedFS(rocksdb_db_options->env->GetFileSystem(),
-                              provider, rocksdb_encryption, rocksdb_datadir);
-  encryptedFileSystem->Init(rocksdb_datadir);
+  encryptedFileSystem = myrocks::NewEncryptedFS(
+      rocksdb_db_options->env->GetFileSystem(), provider, rocksdb_encryption,
+      rocksdb_datadir, logger);
 
+  if (!encryptedFileSystem) {
+    return rocksdb::Status::Corruption();
+  }
   // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env,
   // provider, rocksdb_encryption, rocksdb_datadir);
-  encryptedEnv.reset(new rocksdb::CompositeEnvWrapper(
-      rocksdb_db_options->env, encryptedFileSystem));
+  encryptedEnv.reset(new rocksdb::CompositeEnvWrapper(rocksdb_db_options->env,
+                                                      encryptedFileSystem));
   rocksdb_db_options->env = encryptedEnv.get();
+
+  return rocksdb::Status::OK();
 }
 
 static void deinitialize_encryption() {
@@ -5791,10 +5797,17 @@ static int rocksdb_init_internal(void *const p) {
   DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption",
                   { DBUG_RETURN(HA_EXIT_FAILURE); });
 
+  std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
+
   // Initialize it before 'fault_injection' fs. This way
   // fault injection is done in the layer above the encryption
   // so the encryption stays transparent.
-  initialize_encryption();
+  auto enc_init_status = initialize_encryption(myrocks_logger);
+  if (enc_init_status != rocksdb::Status::OK()) {
+    rdb_log_status_error(enc_init_status,
+                         "Encryption environment initialization failed");
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
 
   if (opt_rocksdb_fault_injection_options != nullptr &&
       *opt_rocksdb_fault_injection_options != '\0') {
@@ -5820,9 +5833,8 @@ static int rocksdb_init_internal(void *const p) {
                             /* inject_for_all_file_types */ false, types);
     fs->EnableWriteErrorInjection();
 
-    fault_env_guard =
-        std::make_shared<rocksdb::CompositeEnvWrapper>(rocksdb_db_options->env,
-                                                       fs);
+    fault_env_guard = std::make_shared<rocksdb::CompositeEnvWrapper>(
+        rocksdb_db_options->env, fs);
     rocksdb_db_options->env = fault_env_guard.get();
   }
 
@@ -5929,7 +5941,6 @@ static int rocksdb_init_internal(void *const p) {
 
   rocksdb_db_options->delayed_write_rate = rocksdb_delayed_write_rate;
 
-  std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
   rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
       rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
   if (s.ok()) {
@@ -5939,6 +5950,7 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_db_options->info_log = myrocks_logger;
   myrocks_logger->SetInfoLogLevel(
       static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
+
   rocksdb_db_options->wal_dir = rocksdb_wal_dir;
 
   rocksdb_db_options->wal_recovery_mode =

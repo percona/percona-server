@@ -4,6 +4,8 @@
 #include <condition_variable>
 #include <mutex>
 #include "./enc_stream_cipher.h"
+#include "rocksdb/env.h"
+#include "rocksdb/logging/logging.h"
 
 // Note: This implementation of BlockAccessCipherStream uses AES-CRT encryption
 // with SSL backend
@@ -15,8 +17,12 @@
 
 namespace myrocks {
 
+using rocksdb::InfoLogLevel;
+
 class MyRocksBlockAccessCipherStream : public rocksdb::BlockAccessCipherStream {
  public:
+  MyRocksBlockAccessCipherStream(std::shared_ptr<rocksdb::Logger> logger)
+      : logger_(logger) {}
   virtual bool Init(const std::string &file_key, const std::string &iv) = 0;
 
  protected:
@@ -28,6 +34,8 @@ class MyRocksBlockAccessCipherStream : public rocksdb::BlockAccessCipherStream {
   rocksdb::Status DecryptBlock(uint64_t blockIndex, char *data, char *scratch) {
     return rocksdb::Status::NotSupported();
   }
+
+  std::shared_ptr<rocksdb::Logger> logger_;
 };
 
 /******************************************************************************/
@@ -38,7 +46,7 @@ class AesCtrCipherStream final : public MyRocksBlockAccessCipherStream {
   std::unique_ptr<Stream_cipher> decryptor_;
 
  public:
-  AesCtrCipherStream();
+  AesCtrCipherStream(std::shared_ptr<rocksdb::Logger> logger);
   virtual ~AesCtrCipherStream();
 
   // BlockSize returns the size of each block supported by this cipher stream.
@@ -58,7 +66,8 @@ class AesCtrCipherStream final : public MyRocksBlockAccessCipherStream {
 };
 
 /******************************************************************************/
-AesCtrCipherStream::AesCtrCipherStream() {}
+AesCtrCipherStream::AesCtrCipherStream(std::shared_ptr<rocksdb::Logger> logger)
+    : MyRocksBlockAccessCipherStream(logger) {}
 
 AesCtrCipherStream::~AesCtrCipherStream() {
   encryptor_->close();
@@ -72,14 +81,20 @@ bool AesCtrCipherStream::Init(const std::string &file_key,
   auto openRes =
       encryptor->open(reinterpret_cast<const unsigned char *>(file_key.c_str()),
                       reinterpret_cast<const unsigned char *>(iv.c_str()));
-  if (openRes) return openRes;
+  if (openRes) {
+    ROCKS_LOG_ERROR(logger_, "Encryptor open failed");
+    return openRes;
+  }
 
   // decryptor
   auto decryptor = Aes_ctr::get_decryptor();
   openRes =
       decryptor->open(reinterpret_cast<const unsigned char *>(file_key.c_str()),
                       reinterpret_cast<const unsigned char *>(iv.c_str()));
-  if (openRes) return openRes;
+  if (openRes) {
+    ROCKS_LOG_ERROR(logger_, "Decryptor open failed");
+    return openRes;
+  }
 
   encryptor_ = std::move(encryptor);
   decryptor_ = std::move(decryptor);
@@ -96,10 +111,12 @@ rocksdb::Status AesCtrCipherStream::Encrypt(uint64_t fileOffset, char *data,
   // Offset tracking to avoid underlaying cipher reinitialization is done
   // inside encryptor_
   if (encryptor_->set_stream_offset(fileOffset)) {
+    ROCKS_LOG_ERROR(logger_, "Set stream offset for encryption failed");
     return rocksdb::Status::IOError();
   }
   if (encryptor_->encrypt((unsigned char *)data, (const unsigned char *)data,
                           dataSize)) {
+    ROCKS_LOG_ERROR(logger_, "Encryption failed");
     return rocksdb::Status::IOError();
   }
   return rocksdb::Status::OK();
@@ -110,10 +127,12 @@ rocksdb::Status AesCtrCipherStream::Decrypt(uint64_t fileOffset, char *data,
   // Offset tracking to avoid underlaying cipher reinitialization is done
   // inside decryptor_
   if (decryptor_->set_stream_offset(fileOffset)) {
+    ROCKS_LOG_ERROR(logger_, "Set stream offset for decryption failed");
     return rocksdb::Status::IOError();
   }
   if (decryptor_->decrypt((unsigned char *)data, (const unsigned char *)data,
                           dataSize)) {
+    ROCKS_LOG_ERROR(logger_, "Decryption failed");
     return rocksdb::Status::IOError();
   }
   return rocksdb::Status::OK();
@@ -221,7 +240,7 @@ class AesCtrCipherStreamTS final : public MyRocksBlockAccessCipherStream {
   std::unique_ptr<CipherManager> decryptorManager_;
 
  public:
-  AesCtrCipherStreamTS();
+  AesCtrCipherStreamTS(std::shared_ptr<rocksdb::Logger> logger);
   virtual ~AesCtrCipherStreamTS();
 
   // BlockSize returns the size of each block supported by this cipher stream.
@@ -240,7 +259,9 @@ class AesCtrCipherStreamTS final : public MyRocksBlockAccessCipherStream {
   bool Init(const std::string &file_key, const std::string &iv) override;
 };
 
-AesCtrCipherStreamTS::AesCtrCipherStreamTS() {}
+AesCtrCipherStreamTS::AesCtrCipherStreamTS(
+    std::shared_ptr<rocksdb::Logger> logger)
+    : MyRocksBlockAccessCipherStream(logger) {}
 
 AesCtrCipherStreamTS::~AesCtrCipherStreamTS() {
   encryptorManager_.release();
@@ -278,11 +299,13 @@ rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
   auto encryptor = encryptorManager_->AllocateCipher(fileOffset);
   if (encryptor->set_stream_offset(fileOffset)) {
     encryptorManager_->DeallocateCipher(std::move(encryptor), (size_t)-1);
+    ROCKS_LOG_ERROR(logger_, "Set stream offset for encryption failed");
     return rocksdb::Status::IOError();
   }
   if (encryptor->encrypt((unsigned char *)data, (const unsigned char *)data,
                          dataSize)) {
     encryptorManager_->DeallocateCipher(std::move(encryptor), (size_t)-1);
+    ROCKS_LOG_ERROR(logger_, "Encryption failed");
     return rocksdb::Status::IOError();
   }
   encryptorManager_->DeallocateCipher(std::move(encryptor), fileOffset);
@@ -296,7 +319,7 @@ rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
   decryptor->decrypt(decrypted, (const unsigned char *)data, dataSize);
   decryptorManager_->DeallocateCipher(std::move(decryptor), fileOffset);
   if (memcmp(decrypted, originalData.data(), dataSize)) {
-    fprintf(stderr, "KH: encryption failure\n");
+    ROCKS_LOG_ERROR(logger_, "Encryption failed");
   }
 #endif
   return rocksdb::Status::OK();
@@ -309,11 +332,13 @@ rocksdb::Status AesCtrCipherStreamTS::Decrypt(uint64_t fileOffset, char *data,
   auto decryptor = decryptorManager_->AllocateCipher(fileOffset);
   if (decryptor->set_stream_offset(fileOffset)) {
     decryptorManager_->DeallocateCipher(std::move(decryptor), (size_t)-1);
+    ROCKS_LOG_ERROR(logger_, "Set stream offset for decryption failed");
     return rocksdb::Status::IOError();
   }
   if (decryptor->decrypt((unsigned char *)data, (const unsigned char *)data,
                          dataSize)) {
     decryptorManager_->DeallocateCipher(std::move(decryptor), (size_t)-1);
+    ROCKS_LOG_ERROR(logger_, "Decryption failed");
     return rocksdb::Status::IOError();
   }
 
@@ -324,13 +349,18 @@ rocksdb::Status AesCtrCipherStreamTS::Decrypt(uint64_t fileOffset, char *data,
 
 /******************************************************************************/
 
+AesCtrStreamFactory::AesCtrStreamFactory(
+    std::shared_ptr<rocksdb::Logger> logger)
+    : logger_(logger) {}
+
 std::unique_ptr<rocksdb::BlockAccessCipherStream>
 AesCtrStreamFactory::CreateThreadSafeCipherStream(const std::string &fileKey,
                                                   const std::string &iv) {
   std::unique_ptr<MyRocksBlockAccessCipherStream> cipher =
-      std::make_unique<AesCtrCipherStreamTS>();
+      std::make_unique<AesCtrCipherStreamTS>(logger_);
 
   if (cipher == nullptr || cipher->Init(fileKey, iv)) {
+    ROCKS_LOG_ERROR(logger_, "Thread safe cipher creation failed");
     return nullptr;
   }
   return cipher;
@@ -340,9 +370,10 @@ std::unique_ptr<rocksdb::BlockAccessCipherStream>
 AesCtrStreamFactory::CreateCipherStream(const std::string &fileKey,
                                         const std::string &iv) {
   std::unique_ptr<MyRocksBlockAccessCipherStream> cipher =
-      std::make_unique<AesCtrCipherStream>();
+      std::make_unique<AesCtrCipherStream>(logger_);
 
   if (cipher == nullptr || cipher->Init(fileKey, iv)) {
+    ROCKS_LOG_ERROR(logger_, "Cipher creation failed");
     return nullptr;
   }
   return cipher;

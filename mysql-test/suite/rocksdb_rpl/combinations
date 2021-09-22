@@ -19,38 +19,36 @@ binlog-format=statement
 binlog-format=mixed
 
 
+# Unfortunately, there is no way to force MTR framework to bootstrap the server
+# between tests, so it may happen that we executed test with encryption enabled,
+# then restarted server without keyring component, which will lead to problems
+# while reading DB configuration files, which are encrypted.
+# It would be better to have keyring component configuration here, and execute
+# not encrypted combinations without it, but that
+# means we would need fresh .rocksdb directory each time the test is started.
+# For now keyring component is loaded always (in suite.opt).
 [row-write-committed-enc]
-early-plugin-load=keyring_file.so
-keyring_file_data=keyring
 loose-rocksdb-encryption=1
 binlog-format=row
 loose-rocksdb_write_policy=write_committed
 
 [row-write-prepared-enc]
-early-plugin-load=keyring_file.so
-keyring_file_data=keyring
 loose-rocksdb-encryption=1
 binlog-format=row
 loose-rocksdb_write_policy=write_prepared
 loose-rocksdb_commit_time_batch_for_recovery=on
 
 [row-write-unprepared-enc]
-early-plugin-load=keyring_file.so
-keyring_file_data=keyring
 loose-rocksdb-encryption=1
 binlog-format=row
 loose-rocksdb_write_policy=write_unprepared
 loose-rocksdb_write_batch_flush_threshold=1
 
 [stmt-enc]
-early-plugin-load=keyring_file.so
-keyring_file_data=keyring
 loose-rocksdb-encryption=1
 binlog-format=statement
 
 [mix-enc]
-early-plugin-load=keyring_file.so
-keyring_file_data=keyring
 loose-rocksdb-encryption=1
 binlog-format=mixed
 

@@ -1,12 +1,16 @@
 #include "./enc_aes_ctr_encryption_provider.h"
 #include "./enc_cipher_stream_factory.h"
 #include "./enc_master_key_manager.h"
+#include "rocksdb/env.h"
+#include "rocksdb/logging/logging.h"
 #include "rocksdb/system_clock.h"
 #include "rocksdb/util/coding_lean.h"
 #include "rocksdb/util/crc32c.h"
 #include "rocksdb/util/random.h"
 
 namespace myrocks {
+
+using rocksdb::InfoLogLevel;
 
 /******************************************************************************/
 static constexpr char kKeyMagic[] = "rdbe001";
@@ -35,8 +39,11 @@ AesCtrEncryptionProvider::~AesCtrEncryptionProvider() {}
 
 AesCtrEncryptionProvider::AesCtrEncryptionProvider(
     std::shared_ptr<MasterKeyManager> mmm,
-    std::unique_ptr<CipherStreamFactory> csf)
-    : masterKeyManager_(mmm), cipherStreamFactory_(std::move(csf)) {}
+    std::unique_ptr<CipherStreamFactory> csf,
+    std::shared_ptr<rocksdb::Logger> logger)
+    : masterKeyManager_(mmm),
+      cipherStreamFactory_(std::move(csf)),
+      logger_(logger) {}
 
 rocksdb::Status AesCtrEncryptionProvider::Feed(rocksdb::Slice &prefix) {
   // here we get the whole prefix of the encrypted file
@@ -74,7 +81,10 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   std::string masterKey;
   uint32_t masterKeyId = 0;
 
-  masterKeyManager_->GetMostRecentMasterKey(&masterKey, &masterKeyId);
+  if (masterKeyManager_->GetMostRecentMasterKey(&masterKey, &masterKeyId)) {
+    ROCKS_LOG_ERROR(logger_, "Failed to get the most recent master key");
+    return rocksdb::Status::IOError();
+  }
   // store the master key id
   rocksdb::EncodeFixed32(&prefix[MASTER_KEY_ID_OFFSET], masterKeyId);
 
@@ -104,9 +114,16 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   // encrypt file key + IV + CRC with master key
   auto encryptor =
       cipherStreamFactory_->CreateCipherStream(masterKey, kHeaderIV);
+  if (!encryptor) {
+    ROCKS_LOG_ERROR(logger_, "Failed to create cipher stream");
+    return rocksdb::Status::IOError();
+  }
   char *dataToEncrypt = &prefix[FILE_KEY_OFFSET];
-  encryptor->Encrypt(0, dataToEncrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
-
+  auto res =
+      encryptor->Encrypt(0, dataToEncrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  if (res != rocksdb::Status::OK()) {
+    ROCKS_LOG_ERROR(logger_, "Encryption failed");
+  }
 #if 0
   memset((void*)(&prefix[MASTER_KEY_ID_OFFSET]), 'M', MASTER_KEY_ID_SIZE);
   memset((void*)(&prefix[S_UUID_OFFSET]), 'U', S_UUID_SIZE);
@@ -114,7 +131,7 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   memset((void*)(&prefix[IV_OFFSET]), 'V', IV_SIZE);
   memset((void*)(&prefix[CRC_OFFSET]), 'C', CRC_SIZE);
 #endif
-  return rocksdb::Status::OK();
+  return res;
 }
 
 // prefix is encrypted, reencrypt with new master key if needed.
@@ -123,13 +140,17 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
   std::string newestMasterKey;
   uint32_t newestMasterKeyId;
 
-  masterKeyManager_->GetMostRecentMasterKey(&newestMasterKey,
-                                            &newestMasterKeyId);
+  if (masterKeyManager_->GetMostRecentMasterKey(&newestMasterKey,
+                                                &newestMasterKeyId)) {
+    ROCKS_LOG_ERROR(logger_, "Failed to get the most recent master key");
+    return rocksdb::Status::IOError();
+  }
 
   uint32_t fileMasterKeyId =
       rocksdb::DecodeFixed32(prefix.data() + MASTER_KEY_ID_OFFSET);
 
   if (newestMasterKeyId == fileMasterKeyId) {
+    ROCKS_LOG_INFO(logger_, "Newest MK already used. Reencryption skipped.");
     return rocksdb::Status::OK();
   }
 
@@ -137,21 +158,31 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
   std::string suuid(prefix.data() + S_UUID_OFFSET, S_UUID_SIZE);
   std::string fileMasterKey;
 
-  masterKeyManager_->GetMasterKey(fileMasterKeyId, suuid, &fileMasterKey);
+  if (masterKeyManager_->GetMasterKey(fileMasterKeyId, suuid, &fileMasterKey)) {
+    ROCKS_LOG_ERROR(logger_, "Failed to get master key");
+    return rocksdb::Status::IOError();
+  }
 
   auto cipher =
       cipherStreamFactory_->CreateCipherStream(fileMasterKey, kHeaderIV);
-
+  if (!cipher) {
+    ROCKS_LOG_ERROR(logger_,
+                    "Failed to create cipher stream for header decryption");
+    return rocksdb::Status::IOError();
+  }
   auto data = (char *)(prefix.data() + FILE_KEY_OFFSET);
-  cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
-
+  auto res = cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  if (res != rocksdb::Status::OK()) {
+    ROCKS_LOG_ERROR(logger_, "Header decryption failed");
+    return rocksdb::Status::IOError();
+  }
   // Calculate and validate CRC
   uint32_t crcRead = rocksdb::DecodeFixed32(prefix.data() + CRC_OFFSET);
 
   uint32_t crcCalculated = rocksdb::crc32c::Extend(
       0, &prefix.data()[FILE_KEY_OFFSET], FILE_KEY_SIZE + IV_SIZE);
   if (crcRead != crcCalculated) {
-    fprintf(stderr, "AesCtrEncryptionProvider::ReencryptPrefix() WRONG CRC!\n");
+    ROCKS_LOG_ERROR(logger_, "Wrong CRC in header");
     return rocksdb::Status::Corruption();
   }
 
@@ -159,13 +190,22 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
 
   // encrypt using the new master key
   cipher = cipherStreamFactory_->CreateCipherStream(newestMasterKey, kHeaderIV);
-  cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  if (!cipher) {
+    ROCKS_LOG_ERROR(logger_,
+                    "Failed to create cipher stream for header encryption");
+    return rocksdb::Status::IOError();
+  }
+  res = cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  if (res != rocksdb::Status::OK()) {
+    ROCKS_LOG_ERROR(logger_, "Header encryption failed");
+    return rocksdb::Status::IOError();
+  }
 
   // update MK id
   rocksdb::EncodeFixed32((char *)prefix.data() + MASTER_KEY_ID_OFFSET,
                          newestMasterKeyId);
 
-  return rocksdb::Status::OK();
+  return res;
 }
 
 rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(
@@ -188,7 +228,8 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
     std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
     bool threadSafe) {
   if (0 != memcmp(prefix.data(), kKeyMagic, KEY_MAGIC_SIZE)) {
-    fprintf(stderr, "KH: not encrypted file detected\n");
+    ROCKS_LOG_INFO(logger_,
+                   "Header corruption detected or file is not encrypted");
     return rocksdb::Status::OK();
   }
 
@@ -197,17 +238,28 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
   std::string suuid(prefix.data() + S_UUID_OFFSET, S_UUID_SIZE);
 
   std::string masterKey;
-  masterKeyManager_->GetMasterKey(masterKeyId, suuid, &masterKey);
+  if (masterKeyManager_->GetMasterKey(masterKeyId, suuid, &masterKey)) {
+    ROCKS_LOG_ERROR(logger_, "Failed to get master key");
+    return rocksdb::Status::IOError();
+  }
 
   // Decrypt key+iv+crc with master key
   auto cipher = cipherStreamFactory_->CreateCipherStream(masterKey, kHeaderIV);
-
+  if (!cipher) {
+    ROCKS_LOG_ERROR(logger_,
+                    "Failed to create cipher stream for header decryption");
+    return rocksdb::Status::IOError();
+  }
   char dataToDecrypt[FILE_KEY_SIZE + IV_SIZE + CRC_SIZE];
   memcpy(dataToDecrypt, prefix.data() + FILE_KEY_OFFSET,
          FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
 
-  cipher->Decrypt(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
-
+  auto res =
+      cipher->Decrypt(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  if (res != rocksdb::Status::OK()) {
+    ROCKS_LOG_ERROR(logger_, "Decryption of file header failed");
+    return rocksdb::Status::IOError();
+  }
   // Calculate and validate CRC
   uint32_t crcRead =
       rocksdb::DecodeFixed32(&dataToDecrypt[FILE_KEY_SIZE + IV_SIZE]);
@@ -215,9 +267,7 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
   uint32_t crcCalculated =
       rocksdb::crc32c::Extend(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE);
   if (crcRead != crcCalculated) {
-    fprintf(
-        stderr,
-        "AesCtrEncryptionProvider::CreateCipherStreamCommon() WRONG CRC!\n");
+    ROCKS_LOG_ERROR(logger_, "Wrong CRC in header");
     return rocksdb::Status::Corruption();
   }
 
@@ -245,6 +295,10 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamFromPrefix(
     (*result) = cipherStreamFactory_->CreateThreadSafeCipherStream(skey, siv);
   } else {
     (*result) = cipherStreamFactory_->CreateCipherStream(skey, siv);
+  }
+  if (!*result) {
+    ROCKS_LOG_ERROR(logger_, "Failed to create cipher stream from prefix");
+    return rocksdb::Status::IOError();
   }
   return rocksdb::Status::OK();
 }

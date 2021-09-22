@@ -9,7 +9,9 @@
 #include "file/filename.h"
 #include "monitoring/perf_context_imp.h"
 #include "rocksdb/convenience.h"
+#include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
+#include "rocksdb/logging/logging.h"
 #include "rocksdb/system_clock.h"
 #include "util/aligned_buffer.h"
 #include "util/coding.h"
@@ -24,11 +26,11 @@ namespace {
 // encryption to files stored on disk.
 // This implementation is heavily based on EncryptedFileSystemImpl from rocksdb
 // however, we need the logic to be a bit different + we need to add master
-// key encryption support. Morover EncryptedFileSystemImpl is private to RocksDB
-// so we have no chance to extend it whatsoever.
-// That's why we provide extended implementation in MyRocks layer.
-// However, let's keep it similar to rocksdb::EncryptedFileSystemImpl for now
-// for easy changes tracking in the future.
+// key encryption support. Moreover, EncryptedFileSystemImpl is private to
+// RocksDB so we have no chance to extend it whatsoever. That's why we provide
+// extended implementation in MyRocks layer. However, let's keep it similar to
+// rocksdb::EncryptedFileSystemImpl for now for easy changes tracking in the
+// future.
 class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
  public:
   const char *Name() const override { return "MyRocksEncryptedFS"; }
@@ -41,6 +43,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return IOStatus::OK();
     } else {
       *result = nullptr;
+      ROCKS_LOG_ERROR(logger_, "Writable encryption provier not found");
       return IOStatus::NotFound("No WriteProvider specified");
     }
   }
@@ -54,6 +57,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return IOStatus::OK();
     } else {
       *result = nullptr;
+      ROCKS_LOG_ERROR(logger_, "Readable encryption provier not found");
       return IOStatus::NotFound("No Provider specified");
     }
   }
@@ -98,6 +102,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
             status = underlying->Append(prefix, options.io_options, dbg);
           }
           if (!status.ok()) {
+            ROCKS_LOG_ERROR(logger_, "Failed to create new prefix");
             return status;
           }
         } else {
@@ -108,6 +113,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           status = FileSystemWrapper::NewSequentialFile(fname, soptions,
                                                         &underlyingSR, dbg);
           if (!status.ok()) {
+            ROCKS_LOG_ERROR(
+                logger_,
+                "Failed opening underlaying file to get encryption prefix");
             return status;
           }
 
@@ -116,6 +124,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           status = underlyingSR->Read(*prefix_length, options.io_options,
                                       &prefix, buffer.BufferStart(), dbg);
           if (!status.ok()) {
+            ROCKS_LOG_ERROR(
+                logger_,
+                "Failed reading encryption prefix from underlayin file");
             return status;
           }
           buffer.Size(*prefix_length);
@@ -190,6 +201,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           io_s = underlying->Write(0, prefix, options.io_options, dbg);
         }
         if (!io_s.ok()) {
+          ROCKS_LOG_ERROR(logger_, "Failed to create file prefix");
           return io_s;
         }
       }
@@ -227,6 +239,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       IOStatus status = underlying->Read(*prefix_length, options.io_options,
                                          &prefix, buffer.BufferStart(), dbg);
       if (!status.ok()) {
+        ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlaying file");
         return status;
       }
       buffer.Size(*prefix_length);
@@ -263,6 +276,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       IOStatus status = underlying->Read(0, *prefix_length, options.io_options,
                                          &prefix, buffer.BufferStart(), dbg);
       if (!status.ok()) {
+        ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlaying file");
         return status;
       }
       buffer.Size(*prefix_length);
@@ -281,10 +295,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   MyRocksEncryptedFileSystemImpl(
       const std::shared_ptr<FileSystem> &base,
       const std::shared_ptr<MyRocksEncryptionProvider> &provider,
-      bool encryptNewFiles)
+      bool encryptNewFiles, std::shared_ptr<rocksdb::Logger> logger)
       : MyRocksEncryptedFileSystem(base),
         provider_(provider),
-        encrypt_new_files_(encryptNewFiles) {}
+        encrypt_new_files_(encryptNewFiles),
+        logger_(logger) {}
 
   Status Init(const std::string dir) override {
     IOOptions io_opts;
@@ -298,15 +313,22 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
     uint64_t number = 0;
     FileType type = kInfoLogFile;
+    Status res = Status::OK();
     for (const std::string &file : files) {
       if (!ParseFileName(file, &number, &type)) {
         continue;
       }
 
-      FeedEncryptionProvider(dir + "/" + file);
+      res = FeedEncryptionProvider(dir + "/" + file);
+      if (res != Status::OK()) {
+        ROCKS_LOG_ERROR(logger_,
+                        "Feeding encryption provider with file %s failed",
+                        (dir + "/" + file).c_str());
+        break;
+      }
     }
 
-    return Status::OK();
+    return res;
   }
 
   Status RotateFileMasterEncryptionKey(const std::string &fname) {
@@ -317,6 +339,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto io_status =
         FileSystemWrapper::NewRandomRWFile(fname, soptions, &underlying, &dbg);
     if (!io_status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Rotation of MK for file %s. File open failed.",
+                      fname.c_str());
       return io_status;
     }
     auto encPrefix = provider_->GetMarker();
@@ -326,6 +350,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     io_status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
                                  &prefix, buffer.data(), nullptr);
     if (!io_status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Rotation of MK for file %s. File read failed.",
+                      fname.c_str());
       return io_status;
     }
     auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
@@ -338,7 +364,15 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       if (reencryptStatus == Status::OK()) {
         // Write prefix
         io_status = underlying->Write(0, prefix, IOOptions(), &dbg);
+      } else {
+        ROCKS_LOG_ERROR(
+            logger_, "Rotation of MK for file %s. Prefix reencryption failed.",
+            fname.c_str());
       }
+    } else {
+      ROCKS_LOG_INFO(
+          logger_, "Rotation of MK for file %s skipped. File is not encrypted",
+          fname.c_str());
     }
     return io_status;
   }
@@ -363,8 +397,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
       status = RotateFileMasterEncryptionKey(dir + "/" + file);
       if (status != Status::OK()) {
-        fprintf(stderr, "MK rotation for file %s failed\n",
-                (dir + "/" + file).c_str());
+        ROCKS_LOG_ERROR(logger_, "Rotation of MK for file %s failed.",
+                        file.c_str());
         break;
       }
     }
@@ -379,6 +413,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status = FileSystemWrapper::NewSequentialFile(fname, soptions,
                                                        &underlying, &dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed to open file %s for reading",
+                      fname.c_str());
       return status;
     }
     auto encPrefix = provider_->GetMarker();
@@ -388,6 +424,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     status = underlying->Read(provider_->GetPrefixLength(), IOOptions(),
                               &prefix, buffer.data(), nullptr);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed to read from file %s", fname.c_str());
       return status;
     }
     auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
@@ -407,6 +444,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status =
         FileSystemWrapper::NewSequentialFile(fname, soptions, &underlying, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed to open file %s for reading",
+                      fname.c_str());
       return status;
     }
     auto encPrefix = provider_->GetMarker();
@@ -416,6 +455,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     status = underlying->Read(encPrefix.size(), IOOptions(), &fragment,
                               space.data(), nullptr);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed reading from file %s", fname.c_str());
       return status;
     }
     *result = (encPrefix.compare(0, encPrefix.size(), fragment.data(),
@@ -437,6 +477,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                              IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_reads) {
+      ROCKS_LOG_ERROR(logger_,
+                      "New encrypted SequentialFile file %s creation failed",
+                      fname.c_str());
       return IOStatus::InvalidArgument();
     }
     // Open file using underlying Env implementation
@@ -444,12 +487,19 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status =
         FileSystemWrapper::NewSequentialFile(fname, options, &underlying, dbg);
     if (!status.ok()) {
+      // Keep it as warning because upper layer may be OK if there is no such a
+      // file
+      ROCKS_LOG_WARN(logger_,
+                     "Failed to create underlaying file %s. Most probably file "
+                     "does not exist.",
+                     fname.c_str());
       return status;
     }
     uint64_t file_size;
     status = FileSystemWrapper::GetFileSize(fname, options.io_options,
                                             &file_size, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed to get file size %s", fname.c_str());
       return status;
     }
     if (!file_size) {
@@ -472,6 +522,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     if (status.ok()) {
       result->reset(new EncryptedSequentialFile(
           std::move(underlying), std::move(stream), prefix_length));
+    } else {
+      ROCKS_LOG_ERROR(logger_,
+                      "New encrypted SequentialFile file %s creation failed",
+                      fname.c_str());
     }
     return status;
   }
@@ -483,6 +537,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                                IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_reads) {
+      ROCKS_LOG_ERROR(logger_,
+                      "New encrypted RandomAccess file %s creation failed",
+                      fname.c_str());
       return IOStatus::InvalidArgument();
     }
     // Open file using underlying Env implementation
@@ -490,6 +547,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status = FileSystemWrapper::NewRandomAccessFile(fname, options,
                                                          &underlying, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed to open underlaying file %s",
+                      fname.c_str());
       return status;
     }
 
@@ -511,6 +570,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       } else {
         result->reset(underlying.release());
       }
+    } else {
+      ROCKS_LOG_ERROR(logger_,
+                      "New encrypted RandomAccess file %s creation failed",
+                      fname.c_str());
     }
     return status;
   }
@@ -521,6 +584,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                            IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_writes) {
+      ROCKS_LOG_ERROR(logger_, "New encrypted Writable file %s creation failed",
+                      fname.c_str());
       return IOStatus::InvalidArgument();
     }
     // Open file using underlying Env implementation
@@ -528,6 +593,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     IOStatus status =
         FileSystemWrapper::NewWritableFile(fname, options, &underlying, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Failed opening underlaying file %s",
+                      fname.c_str());
       return status;
     }
 
@@ -555,6 +622,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                               IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_writes) {
+      ROCKS_LOG_ERROR(logger_, "Reopening encrypted Writable file %s failed",
+                      fname.c_str());
       return IOStatus::InvalidArgument();
     }
 
@@ -565,6 +634,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     IOStatus status =
         FileSystemWrapper::ReopenWritableFile(fname, options, &underlying, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Reopening underlaying file %s failed",
+                      fname.c_str());
       return status;
     }
 
@@ -598,6 +669,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                              IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_writes) {
+      ROCKS_LOG_ERROR(logger_, "Reusing encrypted Writable file %s failed",
+                      fname.c_str());
       return IOStatus::InvalidArgument();
     }
     // Open file using underlying Env implementation
@@ -605,6 +678,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status = FileSystemWrapper::ReuseWritableFile(
         fname, old_fname, options, &underlying, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Opening underlaying file %s failed",
+                      fname.c_str());
       return status;
     }
 
@@ -628,6 +703,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                            IODebugContext *dbg) override {
     result->reset();
     if (options.use_mmap_reads || options.use_mmap_writes) {
+      ROCKS_LOG_ERROR(logger_, "New encrypted RandomRW file %s creation failed",
+                      fname.c_str());
       return IOStatus::InvalidArgument();
     }
     // Check file exists
@@ -638,6 +715,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status =
         FileSystemWrapper::NewRandomRWFile(fname, options, &underlying, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Opening underlaying file %s failed",
+                      fname.c_str());
       return status;
     }
 
@@ -676,6 +755,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       } else {
         result->reset(underlying.release());
       }
+    } else {
+      ROCKS_LOG_ERROR(logger_, "New encrypted RandomRW file %s creation failed",
+                      fname.c_str());
     }
     return status;
   }
@@ -701,6 +783,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status =
         FileSystemWrapper::GetChildrenFileAttributes(dir, options, result, dbg);
     if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Get childern file attributes failed. dir: %s",
+                      dir.c_str());
       return status;
     }
     for (auto it = std::begin(*result); it != std::end(*result); ++it) {
@@ -731,7 +815,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                        uint64_t *file_size, IODebugContext *dbg) override {
     auto status =
         FileSystemWrapper::GetFileSize(fname, options, file_size, dbg);
-    if (!status.ok() || !(*file_size)) {
+    // Underlying file size can 0 if the file is not encrypted.
+    if (!status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "Get size of file %s failed", fname.c_str());
       return status;
     }
 
@@ -754,16 +840,21 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
  private:
   std::shared_ptr<MyRocksEncryptionProvider> provider_;
   bool encrypt_new_files_;
+  std::shared_ptr<rocksdb::Logger> logger_;
 };
 }  // namespace
 
 std::shared_ptr<MyRocksEncryptedFileSystem> NewEncryptedFS(
     const std::shared_ptr<FileSystem> &base,
     const std::shared_ptr<MyRocksEncryptionProvider> &provider,
-    bool encryptNewFiles, const std::string &dir) {
-  auto res = std::make_shared<MyRocksEncryptedFileSystemImpl>(base, provider,
-                                                              encryptNewFiles);
-  res->Init(dir);
+    bool encryptNewFiles, const std::string &dir,
+    std::shared_ptr<rocksdb::Logger> logger) {
+  auto res = std::make_shared<MyRocksEncryptedFileSystemImpl>(
+      base, provider, encryptNewFiles, logger);
+  auto initRes = res->Init(dir);
+  if (initRes != rocksdb::Status::OK()) {
+    res.reset();
+  }
   return res;
 }
 

@@ -5,6 +5,8 @@
 #include <string>
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_psi.h"
+#include "rocksdb/env.h"
+#include "rocksdb/logging/logging.h"
 #include "sql/mysqld.h"
 
 //#define USE_DEVEL_KEY
@@ -14,6 +16,8 @@ namespace myrocks {
 // in InnoDB (os0enc.cc). That logic works fine, so no point in reinventing
 // the wheel.
 
+using rocksdb::InfoLogLevel;
+
 static constexpr uint32_t DEFAULT_MASTER_KEY_ID = 0;
 constexpr char rocksdb_key_type[] = "AES";
 static constexpr size_t KEY_LEN = 32;
@@ -21,13 +25,21 @@ static constexpr size_t KEY_LEN = 32;
 static std::once_flag master_key_mutex_init_once_flag;
 static Rds_mysql_mutex master_key_id_mutex_;
 
-KeyringMasterKeyManager::KeyringMasterKeyManager(const std::string &uuid)
+KeyringMasterKeyManager::KeyringMasterKeyManager(
+    const std::string &uuid, std::shared_ptr<rocksdb::Logger> logger)
     : oldestMasterKeyId_((uint32_t)-1),
       newestMasterKeyId_(DEFAULT_MASTER_KEY_ID),
-      seedUuid_(uuid) {
+      seedUuid_(uuid),
+      logger_(logger) {
   std::call_once(master_key_mutex_init_once_flag, []() {
     master_key_id_mutex_.init(rdb_master_key_mutex_key, MY_MUTEX_INIT_FAST);
   });
+
+#ifdef USE_DEVEL_KEY
+  ROCKS_LOG_WARN(
+      logger_,
+      "KeyringMasterKeyManger uses development (hardcoded) master key.");
+#endif
 
   InitKeyringServices();
 }
@@ -38,6 +50,7 @@ void KeyringMasterKeyManager::InitKeyringServices() {
   SERVICE_TYPE(registry) *reg_svc = mysql_plugin_registry_acquire();
 
   if (reg_svc == nullptr) {
+    ROCKS_LOG_ERROR(logger_, "Failed to get pluging registry");
     return;
   }
 
@@ -60,6 +73,8 @@ void KeyringMasterKeyManager::InitKeyringServices() {
     keyring_reader_service_ = nullptr;
     keyring_writer_service_ = nullptr;
     keyring_generator_service_ = nullptr;
+
+    ROCKS_LOG_ERROR(logger_, "Failed initializing keyring services");
   };
 
   if (reg_svc->acquire("keyring_reader_with_status",
@@ -88,6 +103,7 @@ void KeyringMasterKeyManager::DeinitKeyringServices() {
   SERVICE_TYPE(registry) *reg_svc = mysql_plugin_registry_acquire();
 
   if (reg_svc == nullptr) {
+    ROCKS_LOG_ERROR(logger_, "Failed to get pluging registry");
     return;
   }
 
@@ -172,8 +188,10 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
       keyring_reader_service_->init(keyName.c_str(), nullptr, &reader_object);
 
   /* Keyring error */
-  if (retval == true) return -1;
-
+  if (retval == true) {
+    ROCKS_LOG_ERROR(logger_, "Failed to initialize keyring reader service");
+    return -1;
+  }
   /* Key absent */
   if (reader_object == nullptr) return -1;
 
@@ -185,8 +203,11 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
 
   /* Fetch length */
   if (keyring_reader_service_->fetch_length(reader_object, &secret_length,
-                                            &secret_type_length) == true)
+                                            &secret_type_length) == true) {
+    ROCKS_LOG_ERROR(
+        logger_, "Failed to fetch secret length from keyring reader service");
     return -1;
+  }
 
   if (secret_length == 0 || secret_type_length == 0) return -1;
 
@@ -202,6 +223,8 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
                                      secret_length, &secret_length,
                                      secret_type_v.data(), secret_type_length,
                                      &secret_type_length) == true) {
+    ROCKS_LOG_ERROR(logger_,
+                    "Failed to fetch secret from keyring reader service");
     return -1;
   }
   secret->assign((char *)(secret_v.data()), secret_length);
@@ -252,11 +275,12 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     // We call keyring API to generate master key here.
     if (keyring_generator_service_->generate(
             keyName.c_str(), nullptr, rocksdb_key_type, KEY_LEN) == true) {
-      fprintf(stderr,
-              "MasterKey generation FAILED. Keyring component installed?\n");
       if (key_id_locked) {
         RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
       }
+      ROCKS_LOG_ERROR(logger_,
+                      "MasterKey generation FAILED. Check if Keyring component "
+                      "is installed.");
       return -1;
     }
 
@@ -276,9 +300,9 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
 
   if (retval == -1) {
     masterKey->clear();
-    fprintf(stderr,
-            "Encryption can't find master key, please check the keyring is "
-            "loaded\n");
+    ROCKS_LOG_ERROR(logger_,
+                    "Encryption can't find master key, please check the "
+                    "keyring is installed.");
   }
 
   if (key_id_locked) {
@@ -308,6 +332,9 @@ int KeyringMasterKeyManager::GenerateNewMasterKey() {
           CreateKeyName(newMasterKeyId).c_str(), nullptr, rocksdb_key_type,
           KEY_LEN) == true) {
     RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
+    ROCKS_LOG_ERROR(logger_,
+                    "MasterKey generation FAILED. Check if Keyring component "
+                    "is installed.");
     return -1;
   }
   newestMasterKeyId_ = newMasterKeyId;

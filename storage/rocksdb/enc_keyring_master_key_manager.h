@@ -10,14 +10,20 @@
 #include <mysql/service_plugin_registry.h>
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
+
+namespace rocksdb {
+class Logger;
+}
 
 namespace myrocks {
 
 class KeyringMasterKeyManager : public MasterKeyManager {
  public:
-  KeyringMasterKeyManager(const std::string &uuid);
+  KeyringMasterKeyManager(const std::string &uuid,
+                          std::shared_ptr<rocksdb::Logger> logger);
   ~KeyringMasterKeyManager() override;
 
   int GetMostRecentMasterKey(std::string *masterKey,
@@ -50,6 +56,8 @@ class KeyringMasterKeyManager : public MasterKeyManager {
 
   std::map<std::string, std::string> keysCache_;
   std::mutex keysCacheMtx_;
+
+  std::shared_ptr<rocksdb::Logger> logger_;
 };
 
 }  // namespace myrocks

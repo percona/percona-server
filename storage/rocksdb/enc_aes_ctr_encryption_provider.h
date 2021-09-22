@@ -19,7 +19,8 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
 
  public:
   AesCtrEncryptionProvider(std::shared_ptr<MasterKeyManager> mmm,
-                           std::unique_ptr<CipherStreamFactory> csf);
+                           std::unique_ptr<CipherStreamFactory> csf,
+                           std::shared_ptr<rocksdb::Logger> logger);
   ~AesCtrEncryptionProvider() override;
 
   static const char *kCTRAesProviderName;
@@ -75,5 +76,7 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
       rocksdb::Slice &prefix,
       std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
       bool threadSafe);
+
+  std::shared_ptr<rocksdb::Logger> logger_;
 };
 }  // namespace myrocks

@@ -38,7 +38,7 @@ KeyringMasterKeyManager::KeyringMasterKeyManager(
 #ifdef USE_DEVEL_KEY
   ROCKS_LOG_WARN(
       logger_,
-      "KeyringMasterKeyManger uses development (hardcoded) master key.");
+      "KeyringMasterKeyManger uses hardcoded development master key.");
 #endif
 
   InitKeyringServices();
@@ -50,7 +50,7 @@ void KeyringMasterKeyManager::InitKeyringServices() {
   SERVICE_TYPE(registry) *reg_svc = mysql_plugin_registry_acquire();
 
   if (reg_svc == nullptr) {
-    ROCKS_LOG_ERROR(logger_, "Failed to get pluging registry");
+    ROCKS_LOG_ERROR(logger_, "Failed to get plugin registry");
     return;
   }
 
@@ -103,7 +103,7 @@ void KeyringMasterKeyManager::DeinitKeyringServices() {
   SERVICE_TYPE(registry) *reg_svc = mysql_plugin_registry_acquire();
 
   if (reg_svc == nullptr) {
-    ROCKS_LOG_ERROR(logger_, "Failed to get pluging registry");
+    ROCKS_LOG_ERROR(logger_, "Failed to get plugin registry");
     return;
   }
 
@@ -301,7 +301,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
   if (retval == -1) {
     masterKey->clear();
     ROCKS_LOG_ERROR(logger_,
-                    "Encryption can't find master key, please check the "
+                    "Encryption can't find master key, please check that the "
                     "keyring is installed.");
   }
 

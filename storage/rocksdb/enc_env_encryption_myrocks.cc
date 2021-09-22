@@ -487,12 +487,14 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     auto status =
         FileSystemWrapper::NewSequentialFile(fname, options, &underlying, dbg);
     if (!status.ok()) {
-      // Keep it as warning because upper layer may be OK if there is no such a
-      // file
-      ROCKS_LOG_WARN(logger_,
-                     "Failed to create underlaying file %s. Most probably file "
-                     "does not exist.",
-                     fname.c_str());
+      bool exists = FileExists(fname, IOOptions(), dbg).ok();
+      if (exists) {
+        // Upper layer may be OK if there is no such a file, but if it exists
+        // opening should succeed.
+        ROCKS_LOG_WARN(logger_,
+                       "Failed to create underlaying file %s.", fname.c_str());
+      }
+
       return status;
     }
     uint64_t file_size;
@@ -817,7 +819,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
         FileSystemWrapper::GetFileSize(fname, options, file_size, dbg);
     // Underlying file size can 0 if the file is not encrypted.
     if (!status.ok()) {
-      ROCKS_LOG_ERROR(logger_, "Get size of file %s failed", fname.c_str());
+      bool exists = FileExists(fname, options, dbg).ok();
+      if (exists) {
+        // upper layer can call it for non existing files
+        ROCKS_LOG_ERROR(logger_, "Get size of file %s failed", fname.c_str());
+      }
       return status;
     }
 

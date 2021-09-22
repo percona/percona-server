@@ -1,0 +1,32 @@
+# issue 7894 : Wrong error when query interrupted due to MAX_EXECUTION_TIME
+--source include/have_rocksdb.inc
+
+connect (con1, localhost, root,,);
+connection default;
+
+CREATE TABLE test_table_rocksdb(id INT NOT NULL PRIMARY KEY, value CHAR(32)) ENGINE=ROCKSDB;
+
+INSERT INTO test_table_rocksdb VALUES(1, 'one');
+
+SET SESSION rocksdb_lock_wait_timeout=10;
+
+connection con1;
+BEGIN;
+SELECT /*+ MAX_EXECUTION_TIME(5) */ * FROM test_table_rocksdb WHERE id=1 FOR UPDATE;
+
+connection default;
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(5) */ * FROM test_table_rocksdb WHERE id=1 FOR UPDATE;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM test_table_rocksdb WHERE id=1 FOR UPDATE;
+
+SET SESSION rocksdb_lock_wait_timeout=5;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM test_table_rocksdb WHERE id=1 FOR UPDATE;
+
+set max_execution_time=2000;
+--error ER_QUERY_TIMEOUT
+SELECT * FROM test_table_rocksdb WHERE id=1 FOR UPDATE;
+
+connection con1;
+DROP table test_table_rocksdb;

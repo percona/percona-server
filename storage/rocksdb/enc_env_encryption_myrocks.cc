@@ -17,6 +17,8 @@
 #include "util/coding.h"
 #include "util/random.h"
 #include "util/string_util.h"
+#include "rocksdb/port/port.h"
+
 
 namespace myrocks {
 using namespace rocksdb;
@@ -99,6 +101,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
             buffer.Size(*prefix_length);
             prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
             // Write prefix
+            WriteLock _(&master_key_rotation_mutex_);
             status = underlying->Append(prefix, options.io_options, dbg);
           }
           if (!status.ok()) {
@@ -121,8 +124,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
           buffer.Alignment(underlyingSR->GetRequiredBufferAlignment());
           buffer.AllocateNewBuffer(*prefix_length);
-          status = underlyingSR->Read(*prefix_length, options.io_options,
-                                      &prefix, buffer.BufferStart(), dbg);
+          {
+            ReadLock _(&master_key_rotation_mutex_);
+            status = underlyingSR->Read(*prefix_length, options.io_options,
+                                        &prefix, buffer.BufferStart(), dbg);
+          }
           if (!status.ok()) {
             ROCKS_LOG_ERROR(
                 logger_,
@@ -198,6 +204,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           buffer.Size(*prefix_length);
           prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
           // Write prefix
+          WriteLock _(&master_key_rotation_mutex_);
           io_s = underlying->Write(0, prefix, options.io_options, dbg);
         }
         if (!io_s.ok()) {
@@ -236,8 +243,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       // Read prefix
       buffer.Alignment(underlying->GetRequiredBufferAlignment());
       buffer.AllocateNewBuffer(*prefix_length);
+      ReadLock _(&master_key_rotation_mutex_);
       IOStatus status = underlying->Read(*prefix_length, options.io_options,
-                                         &prefix, buffer.BufferStart(), dbg);
+                                          &prefix, buffer.BufferStart(), dbg);
       if (!status.ok()) {
         ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlaying file");
         return status;
@@ -273,6 +281,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       // Read prefix
       buffer.Alignment(underlying->GetRequiredBufferAlignment());
       buffer.AllocateNewBuffer(*prefix_length);
+      ReadLock _(&master_key_rotation_mutex_);
       IOStatus status = underlying->Read(0, *prefix_length, options.io_options,
                                          &prefix, buffer.BufferStart(), dbg);
       if (!status.ok()) {
@@ -347,8 +356,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<char> buffer;
     buffer.reserve(provider_->GetPrefixLength());
     Slice prefix;
-    io_status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
-                                 &prefix, buffer.data(), nullptr);
+    {
+      ReadLock _(&master_key_rotation_mutex_);
+      io_status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
+                                   &prefix, buffer.data(), nullptr);
+    }
     if (!io_status.ok()) {
       ROCKS_LOG_ERROR(logger_, "Rotation of MK for file %s. File read failed.",
                       fname.c_str());
@@ -363,6 +375,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       // now store it back
       if (reencryptStatus == Status::OK()) {
         // Write prefix
+        WriteLock _(&master_key_rotation_mutex_);
         io_status = underlying->Write(0, prefix, IOOptions(), &dbg);
       } else {
         ROCKS_LOG_ERROR(
@@ -421,8 +434,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<char> buffer;
     buffer.reserve(provider_->GetPrefixLength());
     Slice prefix;
-    status = underlying->Read(provider_->GetPrefixLength(), IOOptions(),
-                              &prefix, buffer.data(), nullptr);
+    {
+      ReadLock _(&master_key_rotation_mutex_);
+      status = underlying->Read(provider_->GetPrefixLength(), IOOptions(),
+                                &prefix, buffer.data(), nullptr);
+    }
     if (!status.ok()) {
       ROCKS_LOG_ERROR(logger_, "Failed to read from file %s", fname.c_str());
       return status;
@@ -452,8 +468,11 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     std::vector<char> space;
     space.reserve(encPrefix.size());
     Slice fragment;
-    status = underlying->Read(encPrefix.size(), IOOptions(), &fragment,
-                              space.data(), nullptr);
+    {
+      ReadLock _(&master_key_rotation_mutex_);
+      status = underlying->Read(encPrefix.size(), IOOptions(), &fragment,
+                                space.data(), nullptr);
+    }
     if (!status.ok()) {
       ROCKS_LOG_ERROR(logger_, "Failed reading from file %s", fname.c_str());
       return status;
@@ -475,6 +494,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                              const FileOptions &options,
                              std::unique_ptr<FSSequentialFile> *result,
                              IODebugContext *dbg) override {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s", __FUNCTION__, fname.c_str());
+
     result->reset();
     if (options.use_mmap_reads) {
       ROCKS_LOG_ERROR(logger_,
@@ -537,6 +558,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                                const FileOptions &options,
                                std::unique_ptr<FSRandomAccessFile> *result,
                                IODebugContext *dbg) override {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s", __FUNCTION__, fname.c_str());
+
     result->reset();
     if (options.use_mmap_reads) {
       ROCKS_LOG_ERROR(logger_,
@@ -584,6 +607,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   IOStatus NewWritableFile(const std::string &fname, const FileOptions &options,
                            std::unique_ptr<FSWritableFile> *result,
                            IODebugContext *dbg) override {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s", __FUNCTION__, fname.c_str());
+
     result->reset();
     if (options.use_mmap_writes) {
       ROCKS_LOG_ERROR(logger_, "New encrypted Writable file %s creation failed",
@@ -622,6 +647,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                               const FileOptions &options,
                               std::unique_ptr<FSWritableFile> *result,
                               IODebugContext *dbg) override {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s", __FUNCTION__, fname.c_str());
+
     result->reset();
     if (options.use_mmap_writes) {
       ROCKS_LOG_ERROR(logger_, "Reopening encrypted Writable file %s failed",
@@ -669,6 +696,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                              const FileOptions &options,
                              std::unique_ptr<FSWritableFile> *result,
                              IODebugContext *dbg) override {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s", __FUNCTION__, fname.c_str());
+
     result->reset();
     if (options.use_mmap_writes) {
       ROCKS_LOG_ERROR(logger_, "Reusing encrypted Writable file %s failed",
@@ -703,6 +732,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   IOStatus NewRandomRWFile(const std::string &fname, const FileOptions &options,
                            std::unique_ptr<FSRandomRWFile> *result,
                            IODebugContext *dbg) override {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s", __FUNCTION__, fname.c_str());
+
     result->reset();
     if (options.use_mmap_reads || options.use_mmap_writes) {
       ROCKS_LOG_ERROR(logger_, "New encrypted RandomRW file %s creation failed",
@@ -847,6 +878,16 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   std::shared_ptr<MyRocksEncryptionProvider> provider_;
   bool encrypt_new_files_;
   std::shared_ptr<rocksdb::Logger> logger_;
+
+  /* We have only 1 mutex protecting all encryption headers while master key
+     rotation. This is to keep it simple. Files are not opened/created too
+     often, master key rotation does not happen often as well so it should not
+     be a big deal to stop opening existing/new files for a while (just for
+     the time needed for writing prefix for one file).
+     If we wanted it to be fully scalable, we would need to introduce mutex per
+     file to avoid blocking file F1 while header for file F2 is written. Anyway,
+     this seems to be not needed for now. */
+  port::RWMutex master_key_rotation_mutex_;
 };
 }  // namespace
 

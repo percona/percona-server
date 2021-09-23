@@ -5707,7 +5707,7 @@ static rocksdb::Status initialize_encryption(
       keyringMasterKeyManager, std::move(cipherFactory), logger);
 
   /* Now let's add the wrapper around the default file system, which will
-     provide encryption + MK header encryption
+     provide encryption + master key header encryption
    */
   encryptedFileSystem = myrocks::NewEncryptedFS(
       rocksdb_db_options->env->GetFileSystem(), provider, rocksdb_encryption,
@@ -5716,8 +5716,7 @@ static rocksdb::Status initialize_encryption(
   if (!encryptedFileSystem) {
     return rocksdb::Status::Corruption();
   }
-  // rocksdb_db_options->env = NewEncryptedEnv(rocksdb_db_options->env,
-  // provider, rocksdb_encryption, rocksdb_datadir);
+
   encryptedEnv.reset(new rocksdb::CompositeEnvWrapper(rocksdb_db_options->env,
                                                       encryptedFileSystem));
   rocksdb_db_options->env = encryptedEnv.get();
@@ -5730,10 +5729,10 @@ static void deinitialize_encryption() {
   keyringMasterKeyManager.reset();
   encryptedEnv.reset();
 }
+
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
-
 static int rocksdb_init_internal(void *const p) {
   DBUG_ENTER_FUNC();
 
@@ -6524,7 +6523,7 @@ static int rocksdb_shutdown(bool minimalShutdown) {
   }
 
   // Do it before clearing rocksdb_db_options.
-  // We need to delete delete encryption wrapper to release resources.
+  // We need to delete encryption wrapper to release resources.
   fault_env_guard.reset();
   deinitialize_encryption();
 

@@ -37,8 +37,7 @@ KeyringMasterKeyManager::KeyringMasterKeyManager(
 
 #ifdef USE_DEVEL_KEY
   ROCKS_LOG_WARN(
-      logger_,
-      "KeyringMasterKeyManger uses hardcoded development master key.");
+      logger_, "KeyringMasterKeyManger uses hardcoded development master key.");
 #endif
 
   InitKeyringServices();

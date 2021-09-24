@@ -12,13 +12,12 @@
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
 #include "rocksdb/logging/logging.h"
+#include "rocksdb/port/port.h"
 #include "rocksdb/system_clock.h"
 #include "util/aligned_buffer.h"
 #include "util/coding.h"
 #include "util/random.h"
 #include "util/string_util.h"
-#include "rocksdb/port/port.h"
-
 
 namespace myrocks {
 using namespace rocksdb;
@@ -31,11 +30,46 @@ namespace {
 // key encryption support. Moreover, EncryptedFileSystemImpl is private to
 // RocksDB so we have no chance to extend it whatsoever. That's why we provide
 // extended implementation in MyRocks layer. However, let's keep it similar to
-// rocksdb::EncryptedFileSystemImpl for now for easy changes tracking in the
-// future.
+// rocksdb::EncryptedFileSystemImpl even if it is well visible that logic could
+// be simplified in several places. This is for now for easy changes tracking
+// in the near future.
+
+// How does encypted file look like?
+// Each encrypted file starts with encryption prefix, which is
+// provided/maintained by encryption provider.
+// We have 2 copies of the prefix, each of them written to the file
+// separately with consecutive fsync. This ensures that during the
+// master key rotation we will keep at least one valid prefix if the crash
+// happens in the middle. When any copy of the prefix (main/backup) is detected
+// to be corrupted while reading, it is restored from its valid copy.
+//
+// Right now encrypton prefix size created by encryption provider is 4k
+//
+// Layout of the encrypted file:
+//
+// offset
+//       -------------------------------------------
+// 0     | main encryption prefix
+//       |
+//       |
+//       -------------------------------------------
+// 4096  | backup encryption prefix
+//       |
+//       |
+//       -------------------------------------------
+// 8192  | encrypted data
+//       |
+//       |
+//
+// Encrypted file system layer intercepts the IO stack above underlaying
+// Posix filesystem and below RocksDB. It adds and entirely maintains encryption
+// in so that RocksDB layer is not aware of it at all. It sees files as they
+// were not encrypted.
+
 class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
  public:
   const char *Name() const override { return "MyRocksEncryptedFS"; }
+
   // Returns the raw encryption provider that should be used to write the input
   // encrypted file.  If there is no such provider, NotFound is returned.
   IOStatus GetWritableProvider(const std::string & /*fname*/,
@@ -80,6 +114,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       const std::string &fname, const std::unique_ptr<TypeFile> &underlying,
       const FileOptions &options, size_t *prefix_length, bool createPrefix,
       std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
+    ROCKS_LOG_DEBUG(logger_, "%s: %s, createPrefix? %d", __FUNCTION__,
+                    fname.c_str(), createPrefix);
+
     EncryptionProvider *provider = nullptr;
     *prefix_length = 0;
     IOStatus status = GetWritableProvider(fname, &provider);
@@ -87,10 +124,12 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return status;
     } else if (provider != nullptr) {
       // Initialize & write prefix (if needed)
-      AlignedBuffer buffer;
       Slice prefix;
+      AlignedBuffer buffer;
       *prefix_length = provider->GetPrefixLength();
       if (*prefix_length > 0) {
+        // Skip prefix creation if we create the stream for file that already
+        // exists. In such a case reade the existing prefix.
         if (createPrefix) {
           // Initialize prefix
           buffer.Alignment(underlying->GetRequiredBufferAlignment());
@@ -100,9 +139,12 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           if (status.ok()) {
             buffer.Size(*prefix_length);
             prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
-            // Write prefix
+            // Write main and backup prefix
             WriteLock _(&master_key_rotation_mutex_);
             status = underlying->Append(prefix, options.io_options, dbg);
+            underlying->Fsync(IOOptions(), dbg);
+            status = underlying->Append(prefix, options.io_options, dbg);
+            underlying->Fsync(IOOptions(), dbg);
           }
           if (!status.ok()) {
             ROCKS_LOG_ERROR(logger_, "Failed to create new prefix");
@@ -110,7 +152,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           }
         } else {
           // Read prefix, but underlying is write only, so need to open as
-          // readable
+          // readable.
           rocksdb::EnvOptions soptions;
           std::unique_ptr<FSSequentialFile> underlyingSR;
           status = FileSystemWrapper::NewSequentialFile(fname, soptions,
@@ -122,20 +164,25 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
             return status;
           }
 
-          buffer.Alignment(underlyingSR->GetRequiredBufferAlignment());
-          buffer.AllocateNewBuffer(*prefix_length);
-          {
+          auto fullPrefixLength = *prefix_length * 2;
+          buffer.Alignment(
+              underlyingSR->GetRequiredBufferAlignment());
+          buffer.AllocateNewBuffer(fullPrefixLength);
+
+          auto fn = [&](Slice *s) {
             ReadLock _(&master_key_rotation_mutex_);
-            status = underlyingSR->Read(*prefix_length, options.io_options,
-                                        &prefix, buffer.BufferStart(), dbg);
-          }
+            return underlyingSR->Read(fullPrefixLength, options.io_options, s,
+                                      buffer.BufferStart(), dbg);
+          };
+          IOStatus status =
+              GetEncryptionPrefix(fname, *prefix_length, &prefix, fn);
+
           if (!status.ok()) {
             ROCKS_LOG_ERROR(
                 logger_,
                 "Failed reading encryption prefix from underlayin file");
             return status;
           }
-          buffer.Size(*prefix_length);
         }
       }
       // Create cipher stream
@@ -160,7 +207,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     if (status.ok()) {
       if (stream) {
         result->reset(new EncryptedWritableFile(
-            std::move(underlying), std::move(stream), prefix_length));
+            std::move(underlying), std::move(stream), 2 * prefix_length));
       } else {
         result->reset(underlying.release());
       }
@@ -203,9 +250,13 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
         if (io_s.ok()) {
           buffer.Size(*prefix_length);
           prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
-          // Write prefix
+          // Write main and backup prefix
           WriteLock _(&master_key_rotation_mutex_);
           io_s = underlying->Write(0, prefix, options.io_options, dbg);
+          underlying->Fsync(IOOptions(), dbg);
+          io_s = underlying->Write(*prefix_length, prefix, options.io_options,
+                                   dbg);
+          underlying->Fsync(IOOptions(), dbg);
         }
         if (!io_s.ok()) {
           ROCKS_LOG_ERROR(logger_, "Failed to create file prefix");
@@ -217,6 +268,156 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           provider->CreateCipherStream(fname, options, prefix, stream));
     }
     return io_s;
+  }
+
+  IOStatus StoreEncryptionPrefix(const std::string &fname, const Slice &prefix,
+                                 bool backup) {
+    std::unique_ptr<FSRandomRWFile> underlying;
+    auto io_status = FileSystemWrapper::NewRandomRWFile(fname, FileOptions(),
+                                                        &underlying, nullptr);
+    if (!io_status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "%s, file: %s. File open failed.", __FUNCTION__,
+                      fname.c_str());
+      return io_status;
+    }
+
+    uint64_t offset = backup ? provider_->GetPrefixLength() : 0;
+    io_status = underlying->Write(offset, prefix, IOOptions(), nullptr);
+    if (!io_status.ok()) {
+      ROCKS_LOG_ERROR(logger_, "%s, file: %s. Write prefix failed.",
+                      __FUNCTION__, fname.c_str());
+      return io_status;
+    }
+    return underlying->Fsync(IOOptions(), nullptr);
+  }
+
+  // Get encryption prefix from underlying file
+  // Returns: IOStatus::NotFound() if the encryption prefix was not found,
+  // meaning
+  //                             that file is not encrypted (or badly corrupted)
+  //          IOStatus::OK() if the encryption header was found, and is valid
+  //                       in that case prefix is set accordingly
+  //          IOStatus::Corruption() if the encryption header is found, but both
+  //                                 main and backup versions are corrupted
+  //
+  // This method examines both headers: main and backup. If one of the is
+  // corrupted, it is restored from the other copy.
+  IOStatus GetEncryptionPrefix(
+      const std::string &fname, const size_t prefix_length, Slice *prefix,
+      std::function<IOStatus(Slice *s)> getFullPrefixFn) {
+    // We will validate both copies of the header.
+    // If any is corrupted, we will restore it.
+    Slice fullPrefix;
+    auto status = getFullPrefixFn(&fullPrefix);
+    if (!status.ok()) {
+      return status;
+    }
+
+    // Here we expect that we were able to read main and backup prefix,
+    // but it may happen that we are able to read only main prefix, and there is
+    // no data for backup prefix.
+    // However if the file does not contain even main prefix, conclude it is not
+    // encrypted
+    if (fullPrefix.size() < prefix_length) {
+      ROCKS_LOG_INFO(logger_, "%s, file: %s. Encryption header not detected",
+                     __FUNCTION__, fname.c_str());
+      return IOStatus::NotFound();
+    }
+    Slice mainPrefix(fullPrefix.data(), prefix_length);
+    Slice backupPrefix;
+
+    if (fullPrefix.size() >= 2 * prefix_length) {
+      backupPrefix = Slice(fullPrefix.data() + prefix_length, prefix_length);
+    }
+
+    // Check if we are dealing with encrypted file at all
+    auto encPrefix = provider_->GetMarker();
+    auto encryptionMagicDetected =
+        (encPrefix.compare(0, encPrefix.size(), mainPrefix.data(),
+                           encPrefix.size()) == 0);
+    if (!encryptionMagicDetected && backupPrefix.size() > 0) {
+      encryptionMagicDetected =
+          (encPrefix.compare(0, encPrefix.size(), backupPrefix.data(),
+                             encPrefix.size()) == 0);
+    }
+
+    if (!encryptionMagicDetected) {
+      ROCKS_LOG_INFO(logger_, "%s, file: %s. Encryption header not detected",
+                     __FUNCTION__, fname.c_str());
+      return IOStatus::NotFound();
+    }
+
+    // At least one header says that this is encrypted file
+    auto mainPrefixOK = provider_->IsPrefixOK(mainPrefix);
+    auto backupPrefixOK = provider_->IsPrefixOK(backupPrefix);
+
+    if (!mainPrefixOK && !backupPrefixOK) {
+      ROCKS_LOG_INFO(logger_,
+                     "%s, file: %s. Main and backup prefixes of encrypted file "
+                     "are corrupted.",
+                     __FUNCTION__, fname.c_str());
+      return IOStatus::Corruption();
+    }
+
+    if (mainPrefixOK && backupPrefixOK) {
+      // It may happen that both are OK, but are different if master key
+      // rotation was interrupted just after updating main prefix. In that case
+      // we need to restore backup prefix. Note that there is no possibility
+      // that we should restore main from backup because of the order in which
+      // prefixes are update while rotation.
+      if (mainPrefix.compare(backupPrefix)) {
+        ROCKS_LOG_WARN(logger_,
+                       "%s, file: %s. Main and backup prefixes do not match. "
+                       "This may be caused by interrupted master key rotation. "
+                       "Assuming main is the proper one. Restoring backup.",
+                       __FUNCTION__, fname.c_str());
+        backupPrefixOK = false;
+      }
+    }
+
+    if (mainPrefixOK && !backupPrefixOK) {
+      // restore backup prefix
+      ROCKS_LOG_WARN(
+          logger_,
+          "%s, file: %s. Backup encryption prefix corrupted. Restoring.",
+          __FUNCTION__, fname.c_str());
+
+      WriteLock _(&master_key_rotation_mutex_);
+      auto io_status = StoreEncryptionPrefix(fname, mainPrefix, true);
+      if (!io_status.ok()) {
+        ROCKS_LOG_ERROR(logger_, "%s, file: %s. Write prefix failed.",
+                        __FUNCTION__, fname.c_str());
+        return io_status;
+      }
+    }
+
+    if (!mainPrefixOK && backupPrefixOK) {
+      // restore main prefix
+      ROCKS_LOG_WARN(
+          logger_, "%s, file: %s. Main encryption prefix corrupted. Restoring.",
+          __FUNCTION__, fname.c_str());
+
+      WriteLock _(&master_key_rotation_mutex_);
+      auto io_status = StoreEncryptionPrefix(fname, backupPrefix, false);
+      if (!io_status.ok()) {
+        ROCKS_LOG_ERROR(logger_, "%s, file: %s. Write prefix failed.",
+                        __FUNCTION__, fname.c_str());
+        return io_status;
+      }
+    }
+
+    // Now get the prefix to return. We already got it in the buffer
+    if (mainPrefixOK) {
+      ROCKS_LOG_DEBUG(logger_, "%s, file: %s. Using main prefix.", __FUNCTION__,
+                      fname.c_str());
+      *prefix = Slice(mainPrefix.data(), mainPrefix.size());
+    } else {
+      ROCKS_LOG_DEBUG(logger_, "%s, file: %s. Using backup copy of prefix.",
+                      __FUNCTION__, fname.c_str());
+      *prefix = Slice(backupPrefix.data(), backupPrefix.size());
+    }
+
+    return IOStatus::OK();
   }
 
   // Creates a CipherStream for the underlying file/name using the options
@@ -236,21 +437,26 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       const FileOptions &options, size_t *prefix_length,
       std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg) {
     // Read prefix (if needed)
-    AlignedBuffer buffer;
+    AlignedBuffer fullPrefixBuffer;
     Slice prefix;
     *prefix_length = provider_->GetPrefixLength();
     if (*prefix_length > 0) {
+      auto fullPrefixLength = *prefix_length * 2;
       // Read prefix
-      buffer.Alignment(underlying->GetRequiredBufferAlignment());
-      buffer.AllocateNewBuffer(*prefix_length);
-      ReadLock _(&master_key_rotation_mutex_);
-      IOStatus status = underlying->Read(*prefix_length, options.io_options,
-                                          &prefix, buffer.BufferStart(), dbg);
+      fullPrefixBuffer.Alignment(underlying->GetRequiredBufferAlignment());
+      fullPrefixBuffer.AllocateNewBuffer(fullPrefixLength);
+
+      auto fn = [&](Slice *s) {
+        ReadLock _(&master_key_rotation_mutex_);
+        return underlying->Read(fullPrefixLength, options.io_options, s,
+                                fullPrefixBuffer.BufferStart(), dbg);
+      };
+      IOStatus status = GetEncryptionPrefix(fname, *prefix_length, &prefix, fn);
+
       if (!status.ok()) {
-        ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlaying file");
+        ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlying file");
         return status;
       }
-      buffer.Size(*prefix_length);
     }
     return status_to_io_status(
         provider_->CreateCipherStream(fname, options, prefix, stream));
@@ -274,21 +480,26 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       std::unique_ptr<BlockAccessCipherStream> *stream, IODebugContext *dbg,
       bool threadSafeStream = false) {
     // Read prefix (if needed)
-    AlignedBuffer buffer;
+    AlignedBuffer fullPrefixBuffer;
     Slice prefix;
     *prefix_length = provider_->GetPrefixLength();
     if (*prefix_length > 0) {
+      auto fullPrefixLength = *prefix_length * 2;
       // Read prefix
-      buffer.Alignment(underlying->GetRequiredBufferAlignment());
-      buffer.AllocateNewBuffer(*prefix_length);
-      ReadLock _(&master_key_rotation_mutex_);
-      IOStatus status = underlying->Read(0, *prefix_length, options.io_options,
-                                         &prefix, buffer.BufferStart(), dbg);
+      fullPrefixBuffer.Alignment(underlying->GetRequiredBufferAlignment());
+      fullPrefixBuffer.AllocateNewBuffer(fullPrefixLength);
+
+      auto fn = [&](Slice *s) {
+        ReadLock _(&master_key_rotation_mutex_);
+        return underlying->Read(0, fullPrefixLength, options.io_options, s,
+                                fullPrefixBuffer.BufferStart(), dbg);
+      };
+      IOStatus status = GetEncryptionPrefix(fname, *prefix_length, &prefix, fn);
+
       if (!status.ok()) {
-        ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlaying file");
+        ROCKS_LOG_ERROR(logger_, "Failed to read prefix from underlying file");
         return status;
       }
-      buffer.Size(*prefix_length);
     }
 
     if (threadSafeStream) {
@@ -310,6 +521,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
         encrypt_new_files_(encryptNewFiles),
         logger_(logger) {}
 
+  // We need to initialize the encrypted filesystem, because associated
+  // encryption provider need to learn which master keys are used and what
+  // uuids are assoicated with already encrypted files.
   Status Init(const std::string dir) override {
     IOOptions io_opts;
     IODebugContext dbg;
@@ -353,23 +567,29 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       return io_status;
     }
     auto encPrefix = provider_->GetMarker();
-    std::vector<char> buffer;
-    buffer.reserve(provider_->GetPrefixLength());
+
+    AlignedBuffer fullPrefixBuffer;
     Slice prefix;
-    {
+    uint32_t prefix_length = provider_->GetPrefixLength();
+    auto fullPrefixLength = prefix_length * 2;
+    // Read prefix
+    fullPrefixBuffer.Alignment(underlying->GetRequiredBufferAlignment());
+    fullPrefixBuffer.AllocateNewBuffer(fullPrefixLength);
+
+    auto fn = [&](Slice *s) {
       ReadLock _(&master_key_rotation_mutex_);
-      io_status = underlying->Read(0, provider_->GetPrefixLength(), IOOptions(),
-                                   &prefix, buffer.data(), nullptr);
-    }
-    if (!io_status.ok()) {
+      return underlying->Read(0, fullPrefixLength, IOOptions(), s,
+                              fullPrefixBuffer.BufferStart(), nullptr);
+    };
+    io_status = GetEncryptionPrefix(fname, prefix_length, &prefix, fn);
+
+    if (!io_status.ok() && !io_status.IsNotFound()) {
       ROCKS_LOG_ERROR(logger_, "Rotation of MK for file %s. File read failed.",
                       fname.c_str());
       return io_status;
     }
-    auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
-                                        encPrefix.size()) == 0);
 
-    if (encrypted) {
+    if (io_status.ok()) {
       auto reencryptStatus = provider_->ReencryptPrefix(prefix);
 
       // now store it back
@@ -377,6 +597,10 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
         // Write prefix
         WriteLock _(&master_key_rotation_mutex_);
         io_status = underlying->Write(0, prefix, IOOptions(), &dbg);
+        underlying->Fsync(IOOptions(), &dbg);
+        io_status = underlying->Write(provider_->GetPrefixLength(), prefix,
+                                      IOOptions(), &dbg);
+        underlying->Fsync(IOOptions(), &dbg);
       } else {
         ROCKS_LOG_ERROR(
             logger_, "Rotation of MK for file %s. Prefix reencryption failed.",
@@ -386,6 +610,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       ROCKS_LOG_INFO(
           logger_, "Rotation of MK for file %s skipped. File is not encrypted",
           fname.c_str());
+      io_status = IOStatus::OK();
     }
     return io_status;
   }
@@ -418,6 +643,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     return status;
   }
 
+  // Let encryption provider know about the file if it is encrypted.
   IOStatus FeedEncryptionProvider(const std::string &fname) {
     rocksdb::EnvOptions soptions;
     IODebugContext dbg;
@@ -430,29 +656,35 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                       fname.c_str());
       return status;
     }
-    auto encPrefix = provider_->GetMarker();
-    std::vector<char> buffer;
-    buffer.reserve(provider_->GetPrefixLength());
+
+    AlignedBuffer fullPrefixBuffer;
     Slice prefix;
-    {
+    uint32_t prefix_length = provider_->GetPrefixLength();
+    auto fullPrefixLength = prefix_length * 2;
+    // Read prefix
+    fullPrefixBuffer.Alignment(underlying->GetRequiredBufferAlignment());
+    fullPrefixBuffer.AllocateNewBuffer(fullPrefixLength);
+
+    auto fn = [&](Slice *s) {
       ReadLock _(&master_key_rotation_mutex_);
-      status = underlying->Read(provider_->GetPrefixLength(), IOOptions(),
-                                &prefix, buffer.data(), nullptr);
-    }
-    if (!status.ok()) {
+      return underlying->Read(fullPrefixLength, IOOptions(), s,
+                              fullPrefixBuffer.BufferStart(), nullptr);
+    };
+    status = GetEncryptionPrefix(fname, prefix_length, &prefix, fn);
+
+    if (!status.ok() && !status.IsNotFound()) {
       ROCKS_LOG_ERROR(logger_, "Failed to read from file %s", fname.c_str());
       return status;
     }
-    auto encrypted = (encPrefix.compare(0, encPrefix.size(), prefix.data(),
-                                        encPrefix.size()) == 0);
 
-    if (encrypted) {
+    if (status.ok()) {
       provider_->Feed(prefix);
     }
 
     return status_to_io_status(Status::OK());
   }
 
+  // Check if the given file is encrypted
   IOStatus IsFileEncrypted(const std::string &fname, bool *result,
                            IODebugContext *dbg) {
     rocksdb::EnvOptions soptions;
@@ -464,21 +696,29 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                       fname.c_str());
       return status;
     }
-    auto encPrefix = provider_->GetMarker();
-    std::vector<char> space;
-    space.reserve(encPrefix.size());
-    Slice fragment;
-    {
+
+    AlignedBuffer fullPrefixBuffer;
+    Slice prefix;
+    uint32_t prefix_length = provider_->GetPrefixLength();
+    auto fullPrefixLength = prefix_length * 2;
+    // Read prefix
+    fullPrefixBuffer.Alignment(underlying->GetRequiredBufferAlignment());
+    fullPrefixBuffer.AllocateNewBuffer(fullPrefixLength);
+
+    auto fn = [&](Slice *s) {
       ReadLock _(&master_key_rotation_mutex_);
-      status = underlying->Read(encPrefix.size(), IOOptions(), &fragment,
-                                space.data(), nullptr);
-    }
-    if (!status.ok()) {
+      return underlying->Read(fullPrefixLength, IOOptions(), s,
+                              fullPrefixBuffer.BufferStart(), dbg);
+    };
+    status = GetEncryptionPrefix(fname, prefix_length, &prefix, fn);
+
+    if (!status.ok() && !status.IsNotFound()) {
       ROCKS_LOG_ERROR(logger_, "Failed reading from file %s", fname.c_str());
       return status;
     }
-    *result = (encPrefix.compare(0, encPrefix.size(), fragment.data(),
-                                 fragment.size()) == 0);
+
+    // If we got OK it means encryption header was found
+    *result = status.ok();
 
     return status_to_io_status(Status::OK());
   }
@@ -512,8 +752,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       if (exists) {
         // Upper layer may be OK if there is no such a file, but if it exists
         // opening should succeed.
-        ROCKS_LOG_WARN(logger_,
-                       "Failed to create underlaying file %s.", fname.c_str());
+        ROCKS_LOG_WARN(logger_, "Failed to create underlaying file %s.",
+                       fname.c_str());
       }
 
       return status;
@@ -525,7 +765,9 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       ROCKS_LOG_ERROR(logger_, "Failed to get file size %s", fname.c_str());
       return status;
     }
+
     if (!file_size) {
+      // File exists, but its size is 0. It is not encrypted for sure.
       *result = std::move(underlying);
       return status;
     }
@@ -544,7 +786,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
                                           &prefix_length, &stream, dbg);
     if (status.ok()) {
       result->reset(new EncryptedSequentialFile(
-          std::move(underlying), std::move(stream), prefix_length));
+          std::move(underlying), std::move(stream), 2 * prefix_length));
     } else {
       ROCKS_LOG_ERROR(logger_,
                       "New encrypted SequentialFile file %s creation failed",
@@ -554,6 +796,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   }
 
   // NewRandomAccessFile opens a file for random read access.
+  // File may be used by multiple threads
   IOStatus NewRandomAccessFile(const std::string &fname,
                                const FileOptions &options,
                                std::unique_ptr<FSRandomAccessFile> *result,
@@ -591,7 +834,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     if (status.ok()) {
       if (stream) {
         result->reset(new EncryptedRandomAccessFile(
-            std::move(underlying), std::move(stream), prefix_length));
+            std::move(underlying), std::move(stream), 2 * prefix_length));
       } else {
         result->reset(underlying.release());
       }
@@ -637,7 +880,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
   // Create an object that writes to a new file with the specified
   // name.  Deletes any existing file with the same name and creates a
-  // new file. (KH: this is not true. see how posix layer works)
+  // new file. (KH: this is not true. see how posix layer works. If file exists
+  // it opens it in append mode.)
   // On success, stores a pointer to the new file in
   // *result and returns OK.  On failure stores nullptr in *result and
   // returns non-OK.
@@ -678,7 +922,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       }
     }
 
-    // file does not exist and is not encrypted
+    // file does not exist and is not to be encrypted
     if (isNewFile && !encrypt_new_files_) {
       result->reset(underlying.release());
       return status;
@@ -784,7 +1028,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     if (status.ok()) {
       if (stream) {
         result->reset(new EncryptedRandomRWFile(
-            std::move(underlying), std::move(stream), prefix_length));
+            std::move(underlying), std::move(stream), 2 * prefix_length));
       } else {
         result->reset(underlying.release());
       }
@@ -837,7 +1081,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
       if (!status.ok()) {
         return status;
       } else if (provider != nullptr) {
-        it->size_bytes -= provider->GetPrefixLength();
+        it->size_bytes -= 2 * provider->GetPrefixLength();
       }
     }
     return IOStatus::OK();
@@ -868,8 +1112,8 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
     status = GetReadableProvider(fname, &provider);
     if (provider != nullptr && status.ok()) {
       size_t prefixLength = provider->GetPrefixLength();
-      assert(*file_size >= prefixLength);
-      *file_size -= prefixLength;
+      assert(*file_size >= 2 * prefixLength);
+      *file_size -= 2 * prefixLength;
     }
     return status;
   }

@@ -13,8 +13,13 @@ namespace myrocks {
 
 class CipherStreamFactory {
  public:
+  // Create non thread-safe cipher stream.
   virtual std::unique_ptr<rocksdb::BlockAccessCipherStream> CreateCipherStream(
       const std::string &fileKey, const std::string &iv) = 0;
+
+  // Create thread-safe cipher stream.
+  // Multiple threads can use it like stream->Decrypt()/stream->Encrypt()
+  // concurently.
   virtual std::unique_ptr<rocksdb::BlockAccessCipherStream>
   CreateThreadSafeCipherStream(const std::string &fileKey,
                                const std::string &iv) = 0;

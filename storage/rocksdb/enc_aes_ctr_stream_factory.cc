@@ -19,6 +19,7 @@ namespace myrocks {
 
 using rocksdb::InfoLogLevel;
 
+// Common part for thread safe and unsafe streams
 class MyRocksBlockAccessCipherStream : public rocksdb::BlockAccessCipherStream {
  public:
   MyRocksBlockAccessCipherStream(std::shared_ptr<rocksdb::Logger> logger)
@@ -26,6 +27,8 @@ class MyRocksBlockAccessCipherStream : public rocksdb::BlockAccessCipherStream {
   virtual bool Init(const std::string &file_key, const std::string &iv) = 0;
 
  protected:
+  // We don't use these methods, however rocksdb::BlockAccessCipherStream
+  // declares them as pure virtual
   void AllocateScratch(std::string &) override {}
   rocksdb::Status EncryptBlock(uint64_t blockIndex, char *data,
                                char *scratch) override {
@@ -34,12 +37,13 @@ class MyRocksBlockAccessCipherStream : public rocksdb::BlockAccessCipherStream {
   rocksdb::Status DecryptBlock(uint64_t blockIndex, char *data, char *scratch) {
     return rocksdb::Status::NotSupported();
   }
+  size_t BlockSize() override { return 0; };
 
   std::shared_ptr<rocksdb::Logger> logger_;
 };
 
 /******************************************************************************/
-
+// Simple, non thread-safe cipher stream
 class AesCtrCipherStream final : public MyRocksBlockAccessCipherStream {
  private:
   std::unique_ptr<Stream_cipher> encryptor_;
@@ -48,9 +52,6 @@ class AesCtrCipherStream final : public MyRocksBlockAccessCipherStream {
  public:
   AesCtrCipherStream(std::shared_ptr<rocksdb::Logger> logger);
   virtual ~AesCtrCipherStream();
-
-  // BlockSize returns the size of each block supported by this cipher stream.
-  size_t BlockSize() override;
 
   // Encrypt one or more (partial) blocks of data at the file offset.
   // Length of data is given in dataSize.
@@ -101,14 +102,9 @@ bool AesCtrCipherStream::Init(const std::string &file_key,
   return false;
 }
 
-size_t AesCtrCipherStream::BlockSize() {
-  // this method is not used
-  return 0;
-}
-
 rocksdb::Status AesCtrCipherStream::Encrypt(uint64_t fileOffset, char *data,
                                             size_t dataSize) {
-  // Offset tracking to avoid underlaying cipher reinitialization is done
+  // Offset tracking to avoid underlying cipher reinitialization is done
   // inside encryptor_
   if (encryptor_->set_stream_offset(fileOffset)) {
     ROCKS_LOG_ERROR(logger_, "Set stream offset for encryption failed");
@@ -124,7 +120,7 @@ rocksdb::Status AesCtrCipherStream::Encrypt(uint64_t fileOffset, char *data,
 
 rocksdb::Status AesCtrCipherStream::Decrypt(uint64_t fileOffset, char *data,
                                             size_t dataSize) {
-  // Offset tracking to avoid underlaying cipher reinitialization is done
+  // Offset tracking to avoid underlying cipher reinitialization is done
   // inside decryptor_
   if (decryptor_->set_stream_offset(fileOffset)) {
     ROCKS_LOG_ERROR(logger_, "Set stream offset for decryption failed");
@@ -139,7 +135,7 @@ rocksdb::Status AesCtrCipherStream::Decrypt(uint64_t fileOffset, char *data,
 }
 
 /******************************************************************************/
-/* thread safe implementation, necessary for RandomReadAccessFile->read() */
+/* thread safe implementation, necessary for RandomReadAccessFile->Read() */
 class CipherManager {
  public:
   enum CipherType { ENCRYPTOR, DECRYPTOR };
@@ -243,9 +239,6 @@ class AesCtrCipherStreamTS final : public MyRocksBlockAccessCipherStream {
   AesCtrCipherStreamTS(std::shared_ptr<rocksdb::Logger> logger);
   virtual ~AesCtrCipherStreamTS();
 
-  // BlockSize returns the size of each block supported by this cipher stream.
-  size_t BlockSize() override;
-
   // Encrypt one or more (partial) blocks of data at the file offset.
   // Length of data is given in dataSize.
   rocksdb::Status Encrypt(uint64_t fileOffset, char *data,
@@ -281,11 +274,6 @@ bool AesCtrCipherStreamTS::Init(const std::string &file_key,
   return false;
 }
 
-size_t AesCtrCipherStreamTS::BlockSize() {
-  // this method is not used
-  return 0;
-}
-
 // #define VALIDATE_ENCRYPT
 rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
                                               size_t dataSize) {
@@ -294,7 +282,7 @@ rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
   originalData.reserve(dataSize);
   memcpy(originalData.data(), data, dataSize);
 #endif
-  // Offset tracking to avoid underlaying cipher reinitialization is done
+  // Offset tracking to avoid underlying cipher reinitialization is done
   // inside encryptor_
   auto encryptor = encryptorManager_->AllocateCipher(fileOffset);
   if (encryptor->set_stream_offset(fileOffset)) {
@@ -327,7 +315,7 @@ rocksdb::Status AesCtrCipherStreamTS::Encrypt(uint64_t fileOffset, char *data,
 
 rocksdb::Status AesCtrCipherStreamTS::Decrypt(uint64_t fileOffset, char *data,
                                               size_t dataSize) {
-  // Offset tracking to avoid underlaying cipher reinitialization is done
+  // Offset tracking to avoid underlying cipher reinitialization is done
   // inside decryptor_
   auto decryptor = decryptorManager_->AllocateCipher(fileOffset);
   if (decryptor->set_stream_offset(fileOffset)) {

@@ -20,14 +20,19 @@ static constexpr int MASTER_KEY_ID_SIZE = sizeof(uint32_t);
 static constexpr int S_UUID_SIZE = 36;
 static constexpr int FILE_KEY_SIZE = 32;
 static constexpr int IV_SIZE = 16;
-static constexpr int CRC_SIZE = sizeof(uint32_t);
+static constexpr int KEY_CRC_SIZE = sizeof(uint32_t);
+static constexpr int HEADER_CRC_SIZE = sizeof(uint32_t);
+static constexpr int HEADER_SIZE = KEY_MAGIC_SIZE + MASTER_KEY_ID_SIZE +
+                                   S_UUID_SIZE + FILE_KEY_SIZE + IV_SIZE +
+                                   KEY_CRC_SIZE;
 
 static constexpr int KEY_MAGIC_OFFSET = 0;
 static constexpr int MASTER_KEY_ID_OFFSET = KEY_MAGIC_OFFSET + KEY_MAGIC_SIZE;
 static constexpr int S_UUID_OFFSET = MASTER_KEY_ID_OFFSET + MASTER_KEY_ID_SIZE;
 static constexpr int FILE_KEY_OFFSET = S_UUID_OFFSET + S_UUID_SIZE;
 static constexpr int IV_OFFSET = FILE_KEY_OFFSET + FILE_KEY_SIZE;
-static constexpr int CRC_OFFSET = IV_OFFSET + IV_SIZE;
+static constexpr int KEY_CRC_OFFSET = IV_OFFSET + IV_SIZE;
+static constexpr int HEADER_CRC_OFFSET = KEY_CRC_OFFSET + KEY_CRC_SIZE;
 
 static constexpr char iv[IV_SIZE] = {0};
 static const std::string kHeaderIV(iv, IV_SIZE);
@@ -73,6 +78,7 @@ Encryption prefix:
 32 bytes		key				            encrypted
 16 bytes		iv				            encrypted
  4 bytes		CRC (unencrypted key + iv)	encrypted
+ 4 bytes        CRC (all above)             not encrypted
 */
 rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
     const std::string &fname, char *prefix, size_t prefixLength) const {
@@ -109,7 +115,7 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   // calculate and store CRC of not encrypted file key and IV
   uint32_t crc = rocksdb::crc32c::Extend(0, &prefix[FILE_KEY_OFFSET],
                                          FILE_KEY_SIZE + IV_SIZE);
-  rocksdb::EncodeFixed32(&prefix[CRC_OFFSET], crc);
+  rocksdb::EncodeFixed32(&prefix[KEY_CRC_OFFSET], crc);
 
   // encrypt file key + IV + CRC with master key
   auto encryptor =
@@ -119,19 +125,33 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
     return rocksdb::Status::IOError();
   }
   char *dataToEncrypt = &prefix[FILE_KEY_OFFSET];
-  auto res =
-      encryptor->Encrypt(0, dataToEncrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  auto res = encryptor->Encrypt(0, dataToEncrypt,
+                                FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
   if (res != rocksdb::Status::OK()) {
     ROCKS_LOG_ERROR(logger_, "Encryption failed");
   }
-#if 0
-  memset((void*)(&prefix[MASTER_KEY_ID_OFFSET]), 'M', MASTER_KEY_ID_SIZE);
-  memset((void*)(&prefix[S_UUID_OFFSET]), 'U', S_UUID_SIZE);
-  memset((void*)(&prefix[FILE_KEY_OFFSET]), 'K', FILE_KEY_SIZE);
-  memset((void*)(&prefix[IV_OFFSET]), 'V', IV_SIZE);
-  memset((void*)(&prefix[CRC_OFFSET]), 'C', CRC_SIZE);
-#endif
+
+  // calculate and store CRC of the whole header
+  crc = rocksdb::crc32c::Extend(0, prefix, HEADER_CRC_SIZE);
+  rocksdb::EncodeFixed32(&prefix[HEADER_CRC_OFFSET], crc);
+
   return res;
+}
+
+bool AesCtrEncryptionProvider::IsPrefixOK(const rocksdb::Slice &prefix) {
+  if (prefix.size() != defaultPrefixLength) {
+    return false;
+  }
+
+  if (memcmp(prefix.data() + KEY_MAGIC_OFFSET, kKeyMagic, KEY_MAGIC_SIZE)) {
+    return false;
+  }
+
+  uint32_t crc = rocksdb::DecodeFixed32(prefix.data() + HEADER_CRC_OFFSET);
+  uint32_t crcCalculated =
+      rocksdb::crc32c::Extend(0, prefix.data(), HEADER_CRC_SIZE);
+
+  return crc == crcCalculated;
 }
 
 // prefix is encrypted, reencrypt with new master key if needed.
@@ -150,7 +170,8 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
       rocksdb::DecodeFixed32(prefix.data() + MASTER_KEY_ID_OFFSET);
 
   if (newestMasterKeyId == fileMasterKeyId) {
-    ROCKS_LOG_INFO(logger_, "Newest master key already used. Reencryption skipped.");
+    ROCKS_LOG_INFO(logger_,
+                   "Newest master key already used. Reencryption skipped.");
     return rocksdb::Status::OK();
   }
 
@@ -171,13 +192,13 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
     return rocksdb::Status::IOError();
   }
   auto data = (char *)(prefix.data() + FILE_KEY_OFFSET);
-  auto res = cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  auto res = cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
   if (res != rocksdb::Status::OK()) {
     ROCKS_LOG_ERROR(logger_, "Header decryption failed");
     return rocksdb::Status::IOError();
   }
   // Calculate and validate CRC
-  uint32_t crcRead = rocksdb::DecodeFixed32(prefix.data() + CRC_OFFSET);
+  uint32_t crcRead = rocksdb::DecodeFixed32(prefix.data() + KEY_CRC_OFFSET);
 
   uint32_t crcCalculated = rocksdb::crc32c::Extend(
       0, &prefix.data()[FILE_KEY_OFFSET], FILE_KEY_SIZE + IV_SIZE);
@@ -195,7 +216,7 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
                     "Failed to create cipher stream for header encryption");
     return rocksdb::Status::IOError();
   }
-  res = cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+  res = cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
   if (res != rocksdb::Status::OK()) {
     ROCKS_LOG_ERROR(logger_, "Header encryption failed");
     return rocksdb::Status::IOError();
@@ -204,6 +225,10 @@ rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
   // update MK id
   rocksdb::EncodeFixed32((char *)prefix.data() + MASTER_KEY_ID_OFFSET,
                          newestMasterKeyId);
+
+  // calculate and store CRC of the whole header
+  uint32_t crc = rocksdb::crc32c::Extend(0, prefix.data(), HEADER_CRC_SIZE);
+  rocksdb::EncodeFixed32((char *)prefix.data() + HEADER_CRC_OFFSET, crc);
 
   return res;
 }
@@ -228,8 +253,10 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
     std::unique_ptr<rocksdb::BlockAccessCipherStream> *result,
     bool threadSafe) {
   if (0 != memcmp(prefix.data(), kKeyMagic, KEY_MAGIC_SIZE)) {
-    ROCKS_LOG_INFO(logger_,
-                   "Header corruption detected or file is not encrypted");
+    ROCKS_LOG_INFO(
+        logger_,
+        "Header corruption detected or file is not encrypted. file: %s",
+        fname.c_str());
     return rocksdb::Status::OK();
   }
 
@@ -250,12 +277,12 @@ rocksdb::Status AesCtrEncryptionProvider::CreateCipherStreamCommon(
                     "Failed to create cipher stream for header decryption");
     return rocksdb::Status::IOError();
   }
-  char dataToDecrypt[FILE_KEY_SIZE + IV_SIZE + CRC_SIZE];
+  char dataToDecrypt[FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE];
   memcpy(dataToDecrypt, prefix.data() + FILE_KEY_OFFSET,
-         FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+         FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
 
   auto res =
-      cipher->Decrypt(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE + CRC_SIZE);
+      cipher->Decrypt(0, dataToDecrypt, FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
   if (res != rocksdb::Status::OK()) {
     ROCKS_LOG_ERROR(logger_, "Decryption of file header failed");
     return rocksdb::Status::IOError();

@@ -417,10 +417,12 @@ install_deps() {
         else
             apt-get -y install python-mysqldb
         fi
-        if [ x"${DIST}}" = xbionic ]; then
-            sudo apt-get -y install gcc-8 g++-8
+        if [ x"${DIST}" = xbionic ]; then
+            apt-get -y install gcc-8 g++-8
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
         else
-            sudo apt-get -y install gcc g++
+            apt-get -y install gcc g++
         fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor

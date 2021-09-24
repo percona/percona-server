@@ -36,6 +36,7 @@ namespace myrocks {
 typedef unsigned char uchar;
 typedef unsigned int uint32;
 typedef unsigned long long ulonglong;
+
 // from big_endian.h
 static inline void int4store(uchar *T, uint32 A) {
   *(T) = (uchar)(A);

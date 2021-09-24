@@ -5449,6 +5449,15 @@ static int rocksdb_init_internal(void *const p) {
 #endif
 
   std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
+  rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
+      rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
+  if (s.ok()) {
+    myrocks_logger->SetRocksDBLogger(rocksdb_db_options->info_log);
+  }
+
+  rocksdb_db_options->info_log = myrocks_logger;
+  myrocks_logger->SetInfoLogLevel(
+      static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
 
   // Initialize it before 'fault_injection' fs. This way
   // fault injection is done in the layer above the encryption
@@ -5591,16 +5600,6 @@ static int rocksdb_init_internal(void *const p) {
   }
 
   rocksdb_db_options->delayed_write_rate = rocksdb_delayed_write_rate;
-
-  rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
-      rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
-  if (s.ok()) {
-    myrocks_logger->SetRocksDBLogger(rocksdb_db_options->info_log);
-  }
-
-  rocksdb_db_options->info_log = myrocks_logger;
-  myrocks_logger->SetInfoLogLevel(
-      static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
 
   rocksdb_db_options->wal_dir = rocksdb_wal_dir;
 

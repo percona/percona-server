@@ -69,3 +69,13 @@ Description: Enable lowercase table names
  .
  This setting must be enabled before the database is initialized
  The change will be written to the file /etc/mysql/mysql.conf.d/lowercase-table-names.cnf
+
+Template: percona-server-server/zenfs-install
+Type: note
+Description: Percona Server for MySQL with ZenFS support
+ ZenFS is a file system plugin which places files into zones on a raw zoned block
+ device (ZBD) using the RocksDB File System interface. ZenFS depends on libzbd
+ and requires a Linux kernel implementation which supports NVMe Zoned Namespaces.
+ The kernel must be configured with zone block device support enabled.
+ For more information please visit
+ https://zonedstorage.io/linux/config/#kernel-configuration

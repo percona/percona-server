@@ -375,6 +375,7 @@ install_deps() {
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
             yum -y install re2-devel redhat-lsb-core lz4-static
             source /opt/rh/devtoolset-8/enable
+            yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         else
 	    yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config

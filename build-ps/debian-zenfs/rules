@@ -194,7 +194,6 @@ override_dh_auto_install:
 	# install AppArmor profile for Percona Server
 	install -d $(TMP)/etc/apparmor.d
 	install -d $(TMP)/etc/apparmor.d/local
-	install -m 0755 storage/rocksdb/rocksdb/plugin/zenfs/util/zenfs $(TMP)/usr/bin/zenfs
 
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg-zenfs

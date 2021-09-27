@@ -126,11 +126,13 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt
 +++ libmysql/CMakeLists.txt
-@@ -277,14 +277,14 @@
+@@ -276,15 +276,15 @@
+ # authentication kerberos client plug-in
  ADD_SUBDIRECTORY(authentication_kerberos)
  
- # Merge several convenience libraries into one big perconaserverclient
+-# Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
++# Merge several convenience libraries into one big mysqlclient
 +MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
    COMPONENT Development
    LINK_LIBRARIES ${LIBS_TO_LINK}
@@ -143,7 +145,15 @@
  
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-@@ -325,7 +325,7 @@
+@@ -319,13 +319,13 @@
+     STRING_APPEND(OS_SHARED_LIB_VERSION
+       ".${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
+   ENDIF()
+-  # Name of shared library is libperconaserverclient on Unix
+-  SET(UNIX_OUTPUT_NAME OUTPUT_NAME perconaserverclient)
++  # Name of shared library is libmysqlclient on Unix
++  SET(UNIX_OUTPUT_NAME OUTPUT_NAME mysqlclient)
+   SET(UNIX_VERSION     VERSION     "${OS_SHARED_LIB_VERSION}")
    SET(UNIX_SOVERSION   SOVERSION   "${SHARED_LIB_MAJOR_VERSION}")
  ENDIF()
  
@@ -152,6 +162,15 @@
  # and link them together into shared library.
  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
    EXPORTS
+@@ -341,7 +341,7 @@
+ 
+ IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+   ADD_DEPENDENCIES(libmysql ${kerberos_target})
+-  ADD_DEPENDENCIES(perconaserverclient ${kerberos_target})
++  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
+ ENDIF()
+ 
+ IF(UNIX)
 @@ -356,8 +356,8 @@
    ENDIF() 
  

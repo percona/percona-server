@@ -129,7 +129,7 @@
 @@ -277,14 +277,14 @@
  ADD_SUBDIRECTORY(authentication_kerberos)
  
- # Merge several convenience libraries into one big mysqlclient
+ # Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
 +MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
    COMPONENT Development

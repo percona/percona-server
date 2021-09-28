@@ -82,8 +82,38 @@
     and lower performance.
 
   Percona Server
+
     Percona's branch of `MySQL` with performance and management improvements.
 
+    .. variable:: version_suffix
+
+       :version 5.7.21-20: Implemented
+       :cli: Yes
+       :scope: Global
+       :dyn: Yes
+       :vartype: String
+       :default: 
+
+       This variable allows to change the suffix for the Percona Server for MySQL
+       version string returned by the read-only :variable:`version` variable.
+       This allows to append the version number for the server with a custom
+       suffix to reflect some build or configuration specifics.
+
+       .. code-block:: mysql
+
+	          SET GLOBAL version_suffix = '-new-suffix';
+
+    .. variable:: version_comment
+
+       :version 5.7.21-20: Implemented
+       :cli: No
+       :scope: Global
+       :dyn: Yes
+       :vartype: String
+       :default: The value of the CMake ``COMPILATION_COMMENT`` option
+		  
+       This variable is converted from a global read-only to a global read-write
+       variable, and thereby it can now be customized.
 
   Storage Engine
     A Storage Engine` is a piece of software that implements the

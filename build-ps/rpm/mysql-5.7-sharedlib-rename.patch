@@ -256,7 +256,7 @@ diff -rup old/plugin/percona-pam-for-mysql/CMakeLists.txt new/plugin/percona-pam
 diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
 --- old/scripts/CMakeLists.txt	2016-03-09 09:25:25.000000000 +0100
 +++ new/scripts/CMakeLists.txt	2016-03-09 11:41:15.163325622 +0100
-@@ -319,7 +319,7 @@ ELSE()
+@@ -305,7 +305,7 @@
  ENDIF()
  
  # Use cmake variables to inspect dependencies for 
@@ -265,14 +265,16 @@ diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
  SET(CLIENT_LIBS "")
  SET(LIBS "")
  
-@@ -360,14 +360,14 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
+@@ -343,7 +343,7 @@
    STRING(REGEX REPLACE "[ ]+$" "" ${var} "${${var}}")
  ENDMACRO()
  
 -EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
 +EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
- IF(WITH_EMBEDDED_SERVER)
-   EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
+ IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+   STRING_APPEND(CLIENT_LIBS " -xatomic=gcc")
+ ENDIF()
+@@ -356,8 +356,8 @@
  ENDIF()
  
  IF(MSVC)

@@ -1,5 +1,5 @@
 #
-# Bug 93770: no tmpdir space can cause a DBUG_ASSERT(0) call in send_statement_status
+# Bug 93770: no tmpdir space can cause a assert(0) call in send_statement_status
 #
 # https://jira.percona.com/browse/PS-5263
 # https://bugs.mysql.com/bug.php?id=93770

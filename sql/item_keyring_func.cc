@@ -35,7 +35,7 @@ bool Item_func_rotate_system_key::itemize(Parse_context *pc, Item **res)
 
 longlong Item_func_rotate_system_key::val_int()
 {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   if (args[0]->result_type() != STRING_RESULT) // String argument expected
     return 0;

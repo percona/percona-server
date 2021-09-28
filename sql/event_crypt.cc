@@ -3,8 +3,8 @@
 
 static bool encrypt_event(uint32 offs, int flags, const Binlog_crypt_data &crypto, uchar* buf, uchar *ebuf, size_t buf_len) 
 {
-  DBUG_ASSERT(crypto.is_enabled());
-  DBUG_ASSERT(crypto.get_key() != NULL);
+  assert(crypto.is_enabled());
+  assert(crypto.get_key() != NULL);
 
   size_t elen;
   uchar iv[Binlog_crypt_data::BINLOG_IV_LENGTH];
@@ -19,7 +19,7 @@ static bool encrypt_event(uint32 offs, int flags, const Binlog_crypt_data &crypt
     memcpy(buf, buf + EVENT_LEN_OFFSET, 4);
     return true;
   }
-  DBUG_ASSERT(elen == buf_len - 4);
+  assert(elen == buf_len - 4);
 
   memcpy(ebuf, ebuf + EVENT_LEN_OFFSET, 4);
   int4store(ebuf + EVENT_LEN_OFFSET, buf_len);
@@ -51,9 +51,9 @@ bool Event_encrypter::init(IO_CACHE *output_cache, uchar* &header, size_t &buf_l
                         crypto->get_key(), crypto->get_keys_length(), iv, sizeof(iv)))
     return true;
 
-  DBUG_ASSERT(buf_len >= LOG_EVENT_HEADER_LEN);
+  assert(buf_len >= LOG_EVENT_HEADER_LEN);
   event_len = uint4korr(header + EVENT_LEN_OFFSET);
-  DBUG_ASSERT(event_len >= buf_len);
+  assert(event_len >= buf_len);
   memcpy(header + EVENT_LEN_OFFSET, header, 4);
   header += 4;
   buf_len -= 4;
@@ -65,7 +65,7 @@ bool Event_encrypter::maybe_write_event_len(IO_CACHE *output_cache, uchar *pos, 
 {
   if (len && event_len)
   {
-    DBUG_ASSERT(len >= EVENT_LEN_OFFSET);
+    assert(len >= EVENT_LEN_OFFSET);
     if (my_b_safe_write(output_cache, pos + EVENT_LEN_OFFSET - 4, 4)) 
       return true;
     int4store(pos + EVENT_LEN_OFFSET - 4, event_len);
@@ -76,7 +76,7 @@ bool Event_encrypter::maybe_write_event_len(IO_CACHE *output_cache, uchar *pos, 
 
 bool Event_encrypter::encrypt_and_write(IO_CACHE *output_cache, const uchar *pos, size_t len)
 {
-  DBUG_ASSERT(output_cache != NULL);
+  assert(output_cache != NULL);
 
   uchar *dst = NULL;
   size_t dstsize = 0;
@@ -113,8 +113,8 @@ err:
 
 bool Event_encrypter::finish(IO_CACHE *output_cache)
 {
-  DBUG_ASSERT(output_cache != NULL);
-  DBUG_ASSERT(ctx != NULL);
+  assert(output_cache != NULL);
+  assert(ctx != NULL);
 
   size_t dstlen;
   uchar dst[MY_AES_BLOCK_SIZE*2];

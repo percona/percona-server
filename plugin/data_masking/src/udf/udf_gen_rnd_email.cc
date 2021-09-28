@@ -13,19 +13,24 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <my_global.h>
 #include "../../include/plugin.h"
 #include "../../include/udf/udf_utils.h"
 #include "../../include/udf/udf_utils_string.h"
 
 extern "C" {
-  bool gen_rnd_email_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+  my_bool gen_rnd_email_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
   void gen_rnd_email_deinit(UDF_INIT *initid);
   char *gen_rnd_email(UDF_INIT *initid, UDF_ARGS *args, char *result,
                       unsigned long *length, char *is_null, char *is_error);
 }
 
-bool gen_rnd_email_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+my_bool gen_rnd_email_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_ENTER("gen_rnd_email_init");
+
+  if (!data_masking_is_inited(message, MYSQL_ERRMSG_SIZE)) {
+    DBUG_RETURN(true);
+  }
 
   if (args->arg_count > 2) {
     std::snprintf(

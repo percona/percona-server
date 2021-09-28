@@ -539,3 +539,14 @@
      endif ()
    endif ()
 
+--- libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 04:49:14.000000000 +0000
++++ libmysql/authentication_kerberos/CMakeLists.txt     2021-09-28 09:24:09.917822028 +0000
+@@ -47,7 +47,7 @@
+       INCLUDE_DIRECTORIES(BEFORE SYSTEM ${GSSAPI_INCLUDE_DIR})
+     ENDIF()
+   ENDIF()
+-  SET(MY_SQL "perconaserverclient")
++  SET(MY_SQL "mysqlclient")
+ ELSE()
+   MESSAGE(WARNING
+     "Skipping the KERBEROS client authentication plugin.")

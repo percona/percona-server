@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.12
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-12.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.12-5 is the current GA release in
-the |Percona Server| 5.7 series. All of |Percona|'s software is open-source and
+the |Percona Server| 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.12-5 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.12-5>`_
 
@@ -22,8 +22,8 @@ Bugs Fixed
  ``MEMORY`` storage engine did not support JSON columns. Bug fixed
  :bug:`1536469`.
 
- When :ref:`tokudb_read_free_replication` was enabled for |TokuDB| and there
- was no explicit primary key for the replicated |TokuDB| table there could be
+ When :ref:`tokudb_read_free_replication` was enabled for TokuDB and there
+ was no explicit primary key for the replicated TokuDB table there could be
  duplicated records in the table on update operation. The fix disables
  :ref:`tokudb_read_free_replication` for tables without explicit primary key
  and does rows lookup for ``UPDATE`` and ``DELETE`` binary log events and
@@ -33,11 +33,11 @@ Bugs Fixed
  :ref:`response_time_distribution` plugin enabled could lead to a server crash.
  Bug fixed :bug:`1538019`.
 
- |TokuDB| was using using different memory allocators, this was causing
+ TokuDB was using using different memory allocators, this was causing
  ``safemalloc`` warnings in debug builds and crashes because memory accounting
  didn't add up. Bug fixed :bug:`1546538` (:tokubug:`962`).
 
- Adding an index to an |InnoDB| temporary table while
+ Adding an index to an InnoDB temporary table while
  :variable:`expand_fast_index_creation` was enabled could lead to server
  assertion. Bug fixed :bug:`1554622`.
 
@@ -47,7 +47,7 @@ Bugs Fixed
  Running ``SHOW STATUS`` in parallel to online buffer pool resizing could lead
  to server crash. Bug fixed :bug:`1577282`.
 
- |InnoDB| crash recovery might fail if :variable:`innodb_flush_method` was set
+ InnoDB crash recovery might fail if :variable:`innodb_flush_method` was set
  to ``ALL_O_DIRECT``. Bug fixed :bug:`1529885`.
 
  Fixed heap allocator/deallocator mismatch in
@@ -56,9 +56,9 @@ Bugs Fixed
  |Percona Server| is now built with system ``zlib`` library instead of the
  older bundled one. Bug fixed :bug:`1108016`.
 
- ``CMake`` would fail if |TokuDB| tests passed. Bug fixed :bug:`1521566`.
+ ``CMake`` would fail if TokuDB tests passed. Bug fixed :bug:`1521566`.
 
- Reduced the memory overhead per page in the |InnoDB| buffer pool. The fix was
+ Reduced the memory overhead per page in the InnoDB buffer pool. The fix was
  based on Facebook patch
  `#91e979e <https://github.com/facebook/mysql-5.6/commit/91e979e8436b83400e918fa0f251036e50d0cb5f>`_.
  Bug fixed :bug:`1536693` (upstream :mysqlbug:`72466`).
@@ -88,7 +88,7 @@ Bugs Fixed
  A replication slave would fail to connect to a master running 5.5. Bug fixed
  :bug:`1566642` (upstream :mysqlbug:`80962`).
 
- Upgrade logic for figuring if |TokuDB| upgrade can be performed from the
+ Upgrade logic for figuring if TokuDB upgrade can be performed from the
  version on disk to the current version was broken due to regression introduced
  when fixing :ftbug:`684` in |Percona Server| :rn:`5.7.11-4`. Bug fixed
  :ftbug:`717`.
@@ -105,7 +105,7 @@ Bugs Fixed
  to ``1``. The optimization will be used where safe and not used where not
  safe. Bug fixed :tokubug:`952`.
 
- Bug in |TokuDB| Index Condition Pushdown was causing ``ORDER BY DESC`` to
+ Bug in TokuDB Index Condition Pushdown was causing ``ORDER BY DESC`` to
  reverse the scan outside of the `WHERE` bounds. This would cause query to hang
  in a ``sending data`` state for several minutes in some environments with
  large amounts of data (3 billion records) if the ``ORDER BY DESC`` statement

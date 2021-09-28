@@ -23,7 +23,7 @@ Before installing, you might want to read the :doc:`release-notes/release-notes_
 Installing |Percona Server| from Repositories
 =============================================
 
-|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommended way of installing where possible.
+Percona provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommended way of installing where possible.
 
 Following guides describe the installation process for using the official Percona repositories for :file:`.deb` and :file:`.rpm` packages.
 
@@ -124,7 +124,7 @@ After either fetching the source repository or extracting a source tarball
 configure and build Percona Server.
 
 First, run cmake to configure the build. Here you can specify all the normal
-build options as you do for a normal |MySQL| build. Depending on what
+build options as you do for a normal MySQL build. Depending on what
 options you wish to compile Percona Server with, you may need other
 libraries installed on your system. Here is an example using a
 configure line similar to the options that Percona uses to produce

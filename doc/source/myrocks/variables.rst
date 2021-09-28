@@ -1508,11 +1508,9 @@ insensitive). Enabled by default.
   :default: ``1``
 
 Specifies whether to sync on every transaction commit,
-similar to |innodb_flush_log_at_trx_commit|_.
+similar to `innodb_flush_log_at_trx_commit <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_log_at_trx_commit>`__.
 Enabled by default, which ensures ACID compliance.
 
-.. |innodb_flush_log_at_trx_commit| replace:: ``innodb_flush_log_at_trx_commit``
-.. _innodb_flush_log_at_trx_commit: https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_log_at_trx_commit
 
 Possible values:
 

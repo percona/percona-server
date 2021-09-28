@@ -170,7 +170,7 @@ privileges.
 
 The following statements loads the keyring_vault plugin and the `keyring_vault_config`. The second statement provides the location to the keyring_vault configuration file.
 
-.. code-block:: guess
+.. code-block:: text
 
     [mysqld]
     early-plugin-load="keyring_vault=keyring_vault.so"
@@ -178,7 +178,7 @@ The following statements loads the keyring_vault plugin and the `keyring_vault_c
 
 Add the following statements to my.cnf:
 
-.. code-block:: MySQL
+.. code-block:: text
 
     [mysqld]
     early-plugin-load="keyring_vault=keyring_vault.so"
@@ -249,7 +249,7 @@ run a query on the `INFORMATION_SCHEMA.PLUGINS` table. You can also query the PL
 
 .. code-block:: mysql
 
-    mysql> SELECT plugin_name, plugin_status FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name LIKE 'keyring%';
+    SELECT plugin_name, plugin_status FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name LIKE 'keyring%';
 
     +---------------+----------------+
     | plugin_name   | plugin_status  |
@@ -266,13 +266,13 @@ The `CREATE TABLESPACE <https://dev.mysql.com/doc/refman/5.7/en/create-tablespac
 
 .. code-block:: mysql
 
-    mysql> CREATE TABLE myexample (id INT mytext varchar(255)) ENCRYPTION='Y';
+    CREATE TABLE myexample (id INT mytext varchar(255)) ENCRYPTION='Y';
 
 To enable encryption to an existing tablespace, add the ``ENCRYPTION`` option to the ``ALTER TABLE`` statement.
 
 .. code-block:: mysql
 
-    mysql> CREATE TABLE myexample ENCRYPTION='Y';
+    CREATE TABLE myexample ENCRYPTION='Y';
 
 You must add the ``ENCRYPTION`` option to `ALTER TABLE <https://dev.mysql.com/doc/refman/5.7/en/alter-table.html>`__ to change the table encryption state. Without the ``ENCRYPTION`` option, an encrypted table remains encrypted or an unencrypted table remains unencrypted.
 
@@ -311,22 +311,22 @@ Add the ``innodb_encrypt_tables`` variable to my.cnf to automatically encrypt ge
 The `CREATE TABLESPACE <https://dev.mysql.com/doc/refman/5.7/en/create-tablespace.html>`_ statement is extended to allow the ``ENCRYPTION=['
 Y/N']`` option.
 
-.. code-block:: guess
+.. code-block:: mysql
 
-    mysql> CREATE TABLE t1 (id INT) ENCRYPTION='Y';
+    CREATE TABLE t1 (id INT) ENCRYPTION='Y';
 
 To encrypt an existing table, add the `ENCRYPTION` option in the ``ALTER TABLE`` statement. 
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
-    mysql> ALTER TABLE t1 ENCRYPTION='Y';
+    ALTER TABLE t1 ENCRYPTION='Y';
 
 You can also disable encryption for a table, set the
 encryption to `N`.
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
-    mysql> ALTER TABLE t1 ENCRYPTION='N';
+    ALTER TABLE t1 ENCRYPTION='N';
 
 .. note::
 
@@ -354,9 +354,9 @@ To start binlog encryption, start the server with ``-encrypt-binlog=1``. This st
 You can rotate the encryption key used by |Percona Server| by running the
 following statement:
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
-    mysql> SELECT rotate_system_key("percona_binlog");
+    SELECT rotate_system_key("percona_binlog");
 
 :Availability: The ``rotate_system_key("percona_binlog")`` command is **Experimental** quality.
 
@@ -373,7 +373,7 @@ Temporary file encryption
 
 Enable the variable in the following command:
 
-..  code-block:: guess
+..  code-block:: text
 
     [mysqld]
     encrypt-tmp-files=ON
@@ -386,9 +386,9 @@ Verifying the Encryption Setting
 For single tablespaces, verify the ENCRYPTION option using
 `INFORMATION_SCHEMA.TABLES` and the `CREATE OPTIONS` settings.
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
-    mysql> SELECT TABLE_SCHEMA, TABLE_NAME, CREATE_OPTIONS FROM
+    SELECT TABLE_SCHEMA, TABLE_NAME, CREATE_OPTIONS FROM
            INFORMATION_SCHEMA.TABLES WHERE CREATE_OPTIONS LIKE '%ENCRYPTION%';
 
     +----------------------+-------------------+------------------------------+
@@ -421,9 +421,9 @@ To allow for master Key rotation, you can encrypt an already encrypted InnoDB
 system tablespace with a new master key by running the following ``ALTER
 INSTANCE`` statement:
 
-.. code-block:: guess
+.. code-block:: mysql
 
-   mysql> ALTER INSTANCE ROTATE INNODB MASTER KEY;
+   ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 .. seealso::
 
@@ -437,7 +437,7 @@ For security, you should rotate the Master key in a timely manner. Use the ``ALT
 
 .. code-block:: mysql
 
-    mysql> ALTER INSTANCE ROTATE INNODB MASTER KEY;
+    ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 The statement cannot be run at the same time you run ``CREATE TABLE ... ENCRYPTION`` or ``ALTER TABLE ENCRYPTION`` statements. The ``ALTER INSTANCE`` statement uses locks to prevent conflicts. If a DML statement is running, that statement must complete before the ``ALTER INSTANCE`` statement begins.
 

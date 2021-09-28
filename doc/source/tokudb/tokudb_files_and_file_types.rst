@@ -4,10 +4,10 @@
 TokuDB files and file types
 ===========================
 
-The |TokuDB| file set consists of many different files that all serve various
+The TokuDB file set consists of many different files that all serve various
 purposes.
 
-If you have any |TokuDB| data your data directory should look similar to this:
+If you have any TokuDB data your data directory should look similar to this:
 
 .. code-block:: bash
 
@@ -25,7 +25,7 @@ If you have any |TokuDB| data your data directory should look similar to this:
   -rw-rw----  1 mysql mysql  16K Oct 13 15:52 tokudb.rollback
   ...
 
-This document lists the different types of |TokuDB| and *Percona Fractal Tree*
+This document lists the different types of TokuDB and *Percona Fractal Tree*
 files, explains their purpose, shows their location and how to move them
 around.
 
@@ -37,7 +37,7 @@ metadata about the system, such as creation times, current file format
 versions, etc.
 
 |Percona FT| will create/expect this file in the directory specified by the
-|MySQL| :term:`datadir`.
+MySQL source/glossary.rst`datadir`.
 
 tokudb.rollback
 ---------------
@@ -52,7 +52,7 @@ if the transaction is explicitly rolled back, or rolled back via recovery as a
 result of an uncommitted transaction when a crash occurs.
 
 |Percona FT| will create/expect this file in the directory specified by the
-|MySQL| :term:`datadir`.
+MySQL source/glossary.rst`datadir`.
 
 tokudb.directory
 ----------------
@@ -64,12 +64,12 @@ single |Percona FT| dictionary file and takes up space within the |Percona FT|
 cachetable just like any other |Percona FT| dictionary.
 
 |Percona FT| will create/expect this file in the directory specified by the
-|MySQL| :term:`datadir`.
+MySQL source/glossary.rst`datadir`.
 
 Dictionary files
 ----------------
 
-|TokuDB| dictionary (data) files store actual user data. For each |MySQL|
+TokuDB dictionary (data) files store actual user data. For each MySQL
 table there will be:
 
 * One ``status`` dictionary that contains metadata about the table.
@@ -83,7 +83,7 @@ These are typically named:
 ``_<database>_<table>_<key>_<internal_txn_id>.tokudb``
 
 |Percona FT| creates/expects these files in the directory specified by
-:variable:`tokudb_data_dir` if set, otherwise the |MySQL| ``datadir`` is used.
+:variable:`tokudb_data_dir` if set, otherwise the MySQL ``datadir`` is used.
 
 Recovery log files
 ------------------
@@ -98,7 +98,7 @@ These files have a rolling naming convention, but use:
 ``log<log_file_number>.tokulog<log_file_format_version>``.
 
 |Percona FT| creates/expects these files in the directory specified by
-:variable:`tokudb_log_dir` if set, otherwise the |MySQL| :term:`datadir` is
+:variable:`tokudb_log_dir` if set, otherwise the MySQL source/glossary.rst`datadir` is
 used.
 
 |Percona FT| does not track what log files should or shouldn't be present. Upon
@@ -119,7 +119,7 @@ There are no temporary files left behind upon a clean shutdown,
 
 |Percona FT| creates/expects these files in the directory specified by
 :variable:`tokudb_tmp_dir` if set. If not, the :variable:`tokudb_data_dir` is
-used if set, otherwise the |MySQL| :term:`datadir` is used.
+used if set, otherwise the MySQL source/glossary.rst`datadir` is used.
 
 Lock files
 ----------

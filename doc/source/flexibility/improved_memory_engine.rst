@@ -26,7 +26,7 @@ Ordering of Rows
 
 In the absence of ``ORDER BY``, records may be returned in a different order than the previous ``MEMORY`` implementation.
 
-This is not a bug. Any application relying on a specific order without an ``ORDER BY`` clause may deliver unexpected results. A specific order without ``ORDER BY`` is a side effect of a storage engine and query optimizer implementation which may and will change between minor |MySQL| releases.
+This is not a bug. Any application relying on a specific order without an ``ORDER BY`` clause may deliver unexpected results. A specific order without ``ORDER BY`` is a side effect of a storage engine and query optimizer implementation which may and will change between minor MySQL releases.
 
 
 Indexing
@@ -64,7 +64,7 @@ The block size has to be big enough to store all fixed-length information in the
 Limitations
 ===========
 
-|MyISAM| tables are still used for query optimizer internal temporary tables where the ``MEMORY`` tables could be used now instead: for temporary tables containing large ``VARCHAR``s, ``BLOB``, and ``TEXT`` columns.
+MyISAM tables are still used for query optimizer internal temporary tables where the ``MEMORY`` tables could be used now instead: for temporary tables containing large ``VARCHAR``s, ``BLOB``, and ``TEXT`` columns.
 
 Setting Row Format
 ==================
@@ -137,7 +137,7 @@ On a 64-bit platform: ::
 Implementation Details
 ======================
 
-|MySQL| *MEMORY* tables keep data in arrays of fixed-size chunks. These chunks are organized into two groups of ``HP_BLOCK`` structures:
+MySQL *MEMORY* tables keep data in arrays of fixed-size chunks. These chunks are organized into two groups of ``HP_BLOCK`` structures:
 
   * ``group1`` contains indexes, with one ``HP_BLOCK`` per key (part of ``HP_KEYDEF``),
 

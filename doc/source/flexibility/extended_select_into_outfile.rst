@@ -14,4 +14,4 @@ Version Specific Information
 
 Other Reading
 =============
-* |MySQL| bug: :mysqlbug:`44835`
+* MySQL bug: :mysqlbug:`44835`

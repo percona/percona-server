@@ -1,0 +1,5 @@
+[mysqld]
+rocksdb-fs-uri=zenfs://dev:nullb1
+
+[mysqld.1]
+rocksdb-fs-uri=zenfs://dev:nullb0

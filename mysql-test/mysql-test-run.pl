@@ -365,6 +365,8 @@ use constant { MYSQLTEST_PASS        => 0,
                MYSQLTEST_NOSKIP_PASS => 63,
                MYSQLTEST_NOSKIP_FAIL => 64 };
 
+use constant DEFAULT_WORKER_ID => 1;
+
 sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
 sub suite_timeout { return $opt_suite_timeout * 60; }
@@ -3516,7 +3518,9 @@ sub remove_stale_vardir () {
   # Remove the "tmp" dir
   mtr_verbose("Removing $opt_tmpdir/");
   rmtree("$opt_tmpdir/");
-  invoke_fs_cleanup_hook();
+  for (my $worker = 1; $worker <= $opt_parallel; ++$worker) {
+    invoke_fs_cleanup_hook($worker);
+  }
 }
 
 # Create var and the directories needed in var
@@ -4190,7 +4194,8 @@ sub default_mysqld {
                                     baseport      => 0,
                                     user          => $opt_user,
                                     password      => '',
-                                    bind_local    => $opt_bind_local
+                                    bind_local    => $opt_bind_local,
+                                    worker        => DEFAULT_WORKER_ID,
                                   });
 
   my $mysqld = $config->group('mysqld.1') or
@@ -4986,7 +4991,9 @@ sub run_testcase ($) {
                            tmpdir              => $opt_tmpdir,
                            user                => $opt_user,
                            vardir              => $opt_vardir,
-                           bind_local          => $opt_bind_local
+                           bind_local          => $opt_bind_local,
+                           worker              => $tinfo->{worker} ||
+                                                    DEFAULT_WORKER_ID
                          });
 
       # Write the new my.cnf
@@ -6062,11 +6069,17 @@ sub clean_dir {
     $dir);
 }
 
-sub invoke_fs_cleanup_hook {
+sub invoke_fs_cleanup_hook($) {
+  my ($worker_id) = @_;
+
   if (defined $opt_fs_cleanup_hook and $opt_fs_cleanup_hook ne '') {
-    mtr_report(" - executing custom fs-cleanup hook");
-    mtr_verbose(" - $opt_fs_cleanup_hook");
-    system($opt_fs_cleanup_hook);
+    mtr_report(" - executing custom fs-cleanup hook for worker $worker_id");
+    my $hook_command_line = $opt_fs_cleanup_hook;
+    if (substr($opt_fs_cleanup_hook, 0, 1) eq '@') {
+      $hook_command_line = substr($opt_fs_cleanup_hook, 1) . ' ' . $worker_id;
+    }
+    mtr_verbose(" - $hook_command_line");
+    system($hook_command_line);
   }
 }
 
@@ -6096,7 +6109,7 @@ sub clean_datadir {
         !$bootstrap_opts) {
       mtr_verbose(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
-      invoke_fs_cleanup_hook();
+      invoke_fs_cleanup_hook($tinfo->{worker} || DEFAULT_WORKER_ID);
     }
   }
 
@@ -6112,13 +6125,13 @@ sub clean_datadir {
 }
 
 # Save datadir before it's removed
-sub save_datadir_after_failure($$) {
-  my ($dir, $savedir) = @_;
+sub save_datadir_after_failure($$$) {
+  my ($dir, $savedir, $worker) = @_;
 
   mtr_report(" - saving '$dir'");
   my $dir_name = basename($dir);
   rename("$dir", "$savedir/$dir_name");
-  invoke_fs_cleanup_hook();
+  invoke_fs_cleanup_hook($worker);
 }
 
 sub remove_ndbfs_from_ndbd_datadir {
@@ -6164,12 +6177,14 @@ sub after_failure ($) {
         }
       }
 
-      save_datadir_after_failure($cluster_dir, $save_dir);
+      save_datadir_after_failure($cluster_dir, $save_dir,
+                                 $tinfo->{worker} || DEFAULT_WORKER_ID);
     }
   } else {
     foreach my $mysqld (mysqlds()) {
       my $data_dir = $mysqld->value('datadir');
-      save_datadir_after_failure(dirname($data_dir), $save_dir);
+      save_datadir_after_failure(dirname($data_dir), $save_dir,
+                                 $tinfo->{worker} || DEFAULT_WORKER_ID);
       save_secondary_engine_logdir($save_dir) if $tinfo->{'secondary-engine'};
     }
   }

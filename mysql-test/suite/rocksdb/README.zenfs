@@ -1,0 +1,42 @@
+Single worker runs (without '--parallel=N'):
+1. Without replication
+  ******************************************************************************************************************
+  ./mtr ... --suite=rocksdb \
+  --skip-rpl \
+  --mysql=--rocksdb-fs-uri=zenfs://dev:nullb0 \
+  --fs-cleanup-hook="rm -rf /tmp/zenfs_aux/nullb0; zenfs mkfs --zbd=nullb0 --aux_path=/tmp/zenfs_aux/nullb0 --force"
+  ******************************************************************************************************************
+  Alternatively,
+  ******************************************************************************************************************
+  ./mtr ... --suite=rocksdb \
+  --skip-rpl \
+  --defaults-extra-file=include/zenfs_nullb_emulated.cnf \
+  --fs-cleanup-hook="rm -rf /tmp/zenfs_aux/nullb0; zenfs mkfs --zbd=nullb0 --aux_path=/tmp/zenfs_aux/nullb0 --force"
+  ******************************************************************************************************************
+2. With replication
+  ******************************************************************************************************************
+  ./mtr ... --suite=rocksdb \
+  --defaults-extra-file=include/zenfs_nullb_emulated_rpl.cnf \
+  --fs-cleanup-hook="rm -rf /tmp/zenfs_aux/nullb0; rm -rf /tmp/zenfs_aux/nullb1; zenfs mkfs --zbd=nullb0 --aux_path=/tmp/zenfs_aux/nullb0 --force; zenfs mkfs --zbd=nullb1 --aux_path=/tmp/zenfs_aux/nullb1 --force"
+  ******************************************************************************************************************
+
+Parallel runs (with '--parallel=N'):
+1. Without replication
+  ******************************************************************************************************************
+  FS_URI1=zenfs://dev:nullb0 FS_URI2=zenfs://dev:nullb1 FS_URI3=zenfs://dev:nullb2 \
+  FS_URI4=zenfs://dev:nullb3 FS_URI5=zenfs://dev:nullb4 FS_URI6=zenfs://dev:nullb5 \
+  ./mtr ... --suite=rocksdb \
+  --skip-rpl \
+  --defaults-extra-file=include/zenfs_nullb_emulated_parallel.cnf \
+  --fs-cleanup-hook="@lib/zenfs_cleanup.sh" \
+  --parallel=6
+  ******************************************************************************************************************
+2. With replication
+  ******************************************************************************************************************
+  SOURCE_FS_URI1=zenfs://dev:nullb0 SOURCE_FS_URI2=zenfs://dev:nullb1 SOURCE_FS_URI3=zenfs://dev:nullb2 \
+  REPLICA_FS_URI1=zenfs://dev:nullb3 REPLICA_FS_URI2=zenfs://dev:nullb4 REPLICA_FS_URI3=zenfs://dev:nullb5 \
+  ./mtr ... --suite=rocksdb \
+  --defaults-extra-file=include/zenfs_nullb_emulated_parallel_rpl.cnf \
+  --fs-cleanup-hook="@lib/zenfs_cleanup_rpl.sh" \
+  --parallel=3
+  ******************************************************************************************************************

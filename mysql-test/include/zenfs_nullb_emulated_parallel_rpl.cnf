@@ -1,0 +1,5 @@
+[mysqld]
+rocksdb-fs-uri=@envarray.REPLICA_FS_URI
+
+[mysqld.1]
+rocksdb-fs-uri=@envarray.SOURCE_FS_URI

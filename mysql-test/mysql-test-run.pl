@@ -410,6 +410,8 @@ use constant { MYSQLTEST_PASS        => 0,
                MYSQLTEST_NOSKIP_PASS => 63,
                MYSQLTEST_NOSKIP_FAIL => 64 };
 
+use constant DEFAULT_WORKER_ID => 1;
+
 sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
 sub suite_timeout { return $opt_suite_timeout * 60; }
@@ -4177,6 +4179,7 @@ sub default_mysqld {
                                     baseport      => 0,
                                     user          => $opt_user,
                                     password      => '',
+                                    worker        => DEFAULT_WORKER_ID,
                                   });
 
   my $mysqld = $config->group('mysqld.1') or
@@ -4976,6 +4979,8 @@ sub run_testcase ($) {
                            tmpdir              => $opt_tmpdir,
                            user                => $opt_user,
                            vardir              => $opt_vardir,
+                           worker              => $tinfo->{worker} ||
+                                                    DEFAULT_WORKER_ID
                          });
 
       # Write the new my.cnf

@@ -1,0 +1,2 @@
+[mysqld]
+rocksdb-fs-uri=@envarray.FS_URI

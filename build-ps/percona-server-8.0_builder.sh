@@ -552,7 +552,7 @@ build_mecab_lib(){
     rm -rf ${MECAB_DIR}
     rm -rf ${MECAB_INSTALL_DIR}
     mkdir ${MECAB_INSTALL_DIR}
-    wget ${MECAB_LINK}
+    wget --no-check-certificate ${MECAB_LINK}
     tar xf ${MECAB_TARBAL}
     cd ${MECAB_DIR}
     ./configure --with-pic --prefix=/usr

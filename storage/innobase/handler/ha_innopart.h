@@ -622,6 +622,10 @@ class ha_innopart : public ha_innobase,
   when changing partitions. */
   mem_heap_t **m_blob_heap_parts;
 
+  /** compress_heap per partition. Synchronized with
+   * prebuilt->compress_heap when changing partitions. */
+  mem_heap_t **m_compress_heap_parts;
+
   /** trx_id from the partitions table->def_trx_id. Keep in sync
   with prebuilt->trx_id when changing partitions.
   prebuilt only reflects the current partition! */
@@ -669,6 +673,15 @@ class ha_innopart : public ha_innobase,
 
   /** Free the array that holds blob heaps for all partitions */
   void free_blob_heap_array();
+
+  /** Allocate the array to hold compress heaps for all partitions */
+  mem_heap_t **alloc_compress_heap_array();
+
+  /** Free the array that holds compress heaps for all partitions */
+  void free_compress_heap_array();
+
+  /** Clear the compress heaps for all partitions */
+  void clear_compress_heaps();
 
   /** Changes the active index of a handle.
   @param[in]	part_id	Use this partition.

@@ -602,6 +602,7 @@ ha_innopart::ha_innopart(handlerton *hton, TABLE_SHARE *table_arg)
       m_ins_node_parts(),
       m_upd_node_parts(),
       m_blob_heap_parts(),
+      m_compress_heap_parts(),
       m_trx_id_parts(),
       m_row_read_type_parts(),
       m_bitset(),
@@ -1146,6 +1147,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
       static_cast<upd_node_t **>(ut_zalloc(alloc_size, mem_key_partitioning));
 
   alloc_blob_heap_array();
+  alloc_compress_heap_array();
 
   alloc_size = sizeof(*m_trx_id_parts) * m_tot_parts;
   m_trx_id_parts =
@@ -1160,7 +1162,8 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
 
   if (m_ins_node_parts == nullptr || m_upd_node_parts == nullptr ||
       m_blob_heap_parts == nullptr || m_trx_id_parts == nullptr ||
-      m_row_read_type_parts == nullptr || m_bitset == nullptr) {
+      m_row_read_type_parts == nullptr || m_bitset == nullptr ||
+      m_compress_heap_parts == nullptr) {
     close();  // Frees all the above.
     return HA_ERR_OUT_OF_MEM;
   }
@@ -1260,6 +1263,7 @@ int ha_innopart::close() {
   }
   clear_ins_upd_nodes();
   free_blob_heap_array();
+  free_compress_heap_array();
 
   /* Prevent double close of m_prebuilt->table. The real one was done
   done in m_part_share->close_table_parts(). */
@@ -1330,6 +1334,7 @@ void ha_innopart::set_partition(uint part_id) {
   /* For unordered scan and table scan, use blob_heap from first
   partition as we need exactly one blob. */
   m_prebuilt->blob_heap = m_blob_heap_parts[m_ordered ? part_id : 0];
+  m_prebuilt->compress_heap = m_compress_heap_parts[m_ordered ? part_id : 0];
 
 #ifdef UNIV_DEBUG
   if (m_prebuilt->blob_heap != nullptr) {
@@ -1371,6 +1376,8 @@ void ha_innopart::update_partition(uint part_id) {
   /* For unordered scan and table scan, use blob_heap from first
   partition as we need exactly one blob anytime. */
   m_blob_heap_parts[m_ordered ? part_id : 0] = m_prebuilt->blob_heap;
+
+  m_compress_heap_parts[m_ordered ? part_id : 0] = m_prebuilt->compress_heap;
 
   m_trx_id_parts[part_id] = m_prebuilt->trx_id;
   m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
@@ -4248,12 +4255,59 @@ void ha_innopart::clear_blob_heaps() {
   m_prebuilt->blob_heap = nullptr;
 }
 
+/** Allocate the array to hold compress heaps for all partitions */
+mem_heap_t **ha_innopart::alloc_compress_heap_array() {
+  DBUG_TRACE;
+
+  const ulint len = sizeof(mem_heap_t *) * m_tot_parts;
+  m_compress_heap_parts =
+      static_cast<mem_heap_t **>(ut_zalloc(len, mem_key_partitioning));
+  if (m_compress_heap_parts == nullptr) {
+    return nullptr;
+  }
+
+  return m_compress_heap_parts;
+}
+
+/** Free the array that holds compress heaps for all partitions */
+void ha_innopart::free_compress_heap_array() {
+  DBUG_TRACE;
+
+  if (m_compress_heap_parts != nullptr) {
+    clear_compress_heaps();
+    ut_free(m_compress_heap_parts);
+    m_compress_heap_parts = nullptr;
+  }
+}
+
+void ha_innopart::clear_compress_heaps() {
+  DBUG_TRACE;
+
+  if (m_compress_heap_parts == nullptr) {
+    return;
+  }
+
+  for (uint i = 0; i < m_tot_parts; i++) {
+    if (m_compress_heap_parts[i] != nullptr) {
+      DBUG_PRINT("ha_innopart",
+                 ("freeing compress_heap: %p", m_compress_heap_parts[i]));
+      mem_heap_free(m_compress_heap_parts[i]);
+      m_compress_heap_parts[i] = nullptr;
+    }
+  }
+
+  /* Reset compress_heap in m_prebuilt after freeing all heaps. It is set in
+  ha_innopart::set_partition to the blob heap of current partition. */
+  m_prebuilt->compress_heap = nullptr;
+}
+
 /** Reset state of file to after 'open'. This function is called
 after every statement for all tables used by that statement. */
 int ha_innopart::reset() {
   DBUG_TRACE;
 
   clear_blob_heaps();
+  clear_compress_heaps();
 
   return ha_innobase::reset();
 }

@@ -1372,6 +1372,8 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->fts_doc_id_in_read_set = false;
   prebuilt->blob_heap = nullptr;
 
+  prebuilt->compress_heap = nullptr;
+
   prebuilt->no_read_locking = false;
   prebuilt->no_autoinc_locking = false;
 
@@ -1419,7 +1421,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
   }
 
   if (prebuilt->compress_heap) {
-    mem_heap_free(prebuilt->compress_heap);
+    row_mysql_prebuilt_free_compress_heap(prebuilt);
   }
 
   if (prebuilt->old_vers_heap) {

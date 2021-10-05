@@ -1,0 +1,30 @@
+#
+# Checking that queries failing with error code set in log_query_errors
+# are getting added into slow query log.
+#
+
+--let log_file = mysqld-slow.log
+--let log_file_full_path = `SELECT Variable_value FROM performance_schema.global_variables WHERE Variable_name = 'slow_query_log_file';`
+
+# Shouldn't be logged
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+# Should be printed to slow log
+SET SESSION log_query_errors="1146";
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+# Should be printed to slow log as well
+CREATE TABLE t1 (i int);
+SET SESSION log_query_errors="ALL";
+--error ER_BAD_FIELD_ERROR
+SELECT j from t1;
+
+--let grep_pattern = SELECT \* FROM t1
+--source include/log_grep.inc
+
+--let grep_pattern = SELECT j from t1
+--source include/log_grep.inc
+
+DROP TABLE t1;

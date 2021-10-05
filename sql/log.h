@@ -94,6 +94,10 @@ struct TABLE_LIST;
     Values: ON, OFF
     Control slow query logging of queries that do not use indexes.
 
+  --log-query-errors
+    Values: ALL, comma separated list of code errors
+    Control slow query logging of queries failed with the specified error code.
+
   --log-raw
     Values: ON, OFF
     Control query rewrite of passwords to the general log.

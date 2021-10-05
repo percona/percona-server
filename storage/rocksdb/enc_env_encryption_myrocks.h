@@ -34,7 +34,7 @@ class MyRocksEncryptedFileSystem : public rocksdb::EncryptedFileSystem {
 std::shared_ptr<MyRocksEncryptedFileSystem> NewEncryptedFS(
     const std::shared_ptr<rocksdb::FileSystem> &base,
     const std::shared_ptr<MyRocksEncryptionProvider> &provider,
-    bool encryptNewFiles, const std::string &dir,
+    std::atomic_bool &encryptNewFiles, const std::string &dir,
     std::shared_ptr<rocksdb::Logger> logger);
 
 }  // namespace myrocks

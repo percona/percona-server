@@ -749,7 +749,8 @@ static bool rocksdb_enable_insert_with_update_caching = true;
 static unsigned long long rocksdb_max_compaction_history = 0;
 static bool rocksdb_skip_locks_if_skip_unique_check = false;
 static bool rocksdb_alter_column_default_inplace = false;
-static bool rocksdb_encryption = false;
+static bool rocksdb_encryption_enabled = false;
+static std::atomic_bool rocksdb_encryption(rocksdb_encryption_enabled);
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -2366,13 +2367,17 @@ static MYSQL_THDVAR_ULONGLONG(
     nullptr, nullptr,
     /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
-static MYSQL_SYSVAR_BOOL(
-    encryption,
-    rocksdb_encryption,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "DBOptions::RocksDB encryption on/off", nullptr, nullptr,
-    false);
+static void rocksdb_encryption_enabled_on_update(MYSQL_THD, SYS_VAR *, void *ptr,
+                                                 const void *val) {
+    bool *value = (bool*)val;
+    rocksdb_encryption_enabled = *value;
+    rocksdb_encryption = rocksdb_encryption_enabled;
+}
 
+static MYSQL_SYSVAR_BOOL(encryption, rocksdb_encryption_enabled,
+                         PLUGIN_VAR_RQCMDARG,
+                         "DBOptions::RocksDB encryption on/off", nullptr,
+                         &rocksdb_encryption_enabled_on_update, false);
 
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
@@ -5685,6 +5690,11 @@ void rocksdb_truncation_table_cleanup(void) {
 // encryption infrastructure initialization
 static rocksdb::Status initialize_encryption(
     std::shared_ptr<Rdb_logger> logger) {
+    rocksdb_encryption = rocksdb_encryption_enabled;
+
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Initializing MyRocks encryption. "
+      "Enabled: %d", rocksdb_encryption.load());
+
   /* We are here before MySql uuid is generated or read from auto.cnf file.
      As the master key name consists of unique uuid, to be able to distinguish
      keys from multiple MySql servers, we need some unique number.

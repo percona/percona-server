@@ -280,7 +280,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
       ROCKS_LOG_ERROR(logger_,
                       "MasterKey generation FAILED. Check if Keyring component "
                       "is installed.");
-      return -1;
+      return -2;
     }
 
     // We call keyring API to get master key here.

@@ -33,8 +33,12 @@
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"  // my_thread_id
 #include "mysql/strings/m_ctype.h"
+#include "mysqld_error.h"
+#include "sql/mysqld_cs.h"
 #include "sql/rpl_gtid.h"        // Gitd_specification
 #include "sql/sql_plugin_ref.h"  // plugin_ref
+#include "sql_string.h"
+#include "str2int.h"
 
 class MY_LOCALE;
 class Time_zone;
@@ -216,6 +220,160 @@ struct fragmentation_stats_t {
                                               query (in bytes) */
 };
 
+class Query_errors_set {
+ public:
+  static constexpr uint8_t MAX_CODES_NUM = 64;
+  static constexpr uint32_t MAX_TEXT_LENGTH =
+      std::numeric_limits<uint32_t>::digits10 * MAX_CODES_NUM + MAX_CODES_NUM;
+  static const String LOG_ALL;
+
+ private:
+  bool is_all_set;
+  uint32_t codes[MAX_CODES_NUM];
+
+  void set_all() {
+    if (!is_all_set) {
+      clear_all();
+      is_all_set = true;
+    }
+  }
+
+ public:
+  void clear_all() {
+    is_all_set = false;
+    for (uint32_t &code : codes) {
+      code = 0;
+    }
+  }
+
+  static bool check(const String *str) {
+    if (str == nullptr || str->is_empty()) {
+      return true;
+    }
+    if (stringcmp(str, &LOG_ALL) == 0) {
+      return true;
+    }
+
+    const char *val = str->ptr();
+
+    for (; my_isspace(system_charset_info, *val); ++val) /* empty */
+      ;
+
+    uint8_t codes_count = 0;
+    uint8_t digits_count = 0;
+
+    for (const char *p = val; *p; ++p) {
+      if (!my_isdigit(system_charset_info, *p) && *p != ',') {
+        return false;
+      }
+
+      if (*p == ',' && ++codes_count == MAX_CODES_NUM) {
+        my_error(ER_TOO_MANY_ERROR_CODES, MYF(0), MAX_CODES_NUM);
+        return false;
+      }
+
+      if (my_isdigit(system_charset_info, *p)) {
+        ++digits_count;
+      }
+      if ((*p == ',' || static_cast<size_t>(p - val) + 1 == str->length()) &&
+          digits_count > 0) {
+        long err_code = 0;
+        const char *code_start =
+            (*p == ',') ? p - digits_count : p - digits_count + 1;
+        if (!str2int(code_start, 10, 0, LONG_MAX, &err_code)) {
+          my_error(ER_TOO_BIG_ERROR_CODE, MYF(0), LONG_MAX);
+          return false;
+        }
+        digits_count = 0;
+      }
+    }
+
+    return true;
+  }
+
+  bool set_codes(const String *str) {
+    if (str == nullptr || str->is_empty()) {
+      clear_all();
+      return true;
+    }
+    if (stringcmp(str, &LOG_ALL) == 0) {
+      set_all();
+      return true;
+    }
+
+    const char *val = str->ptr();
+
+    for (; my_isspace(system_charset_info, *val); ++val) /* empty */
+      ;
+
+    clear_all();
+    uint8_t error_index = 0;
+
+    for (const char *p = val; *p;) {
+      long err_code;
+      if (!(p = str2int(p, 10, 0, LONG_MAX, &err_code))) {
+        break;
+      }
+
+      if (error_index == MAX_CODES_NUM) {
+        // Too many codes, should have been detected in check()
+        return true;
+      }
+
+      codes[error_index] = err_code;
+      ++error_index;
+
+      while (!my_isdigit(system_charset_info, *p) && *p) {
+        p++;
+      }
+    }
+
+    return true;
+  }
+
+  size_t to_string(char *buf) const {
+    char *p = buf;
+
+    if (is_all_set) {
+      p += sprintf(p, "%s", LOG_ALL.ptr());
+    } else {
+      for (int i = 0; i < MAX_CODES_NUM; ++i) {
+        if (codes[i] != 0) {
+          if (i > 0) {
+            p += sprintf(p, ",%d", codes[i]);
+          } else {
+            p += sprintf(p, "%d", codes[i]);
+          }
+        }
+      }
+    }
+
+    *p = '\0';
+
+    return p - buf;
+  }
+
+  bool check_error_set(const uint32_t code) const {
+    if (is_all_set) {
+      return true;
+    }
+
+    for (const uint32_t &c : codes) {
+      if (c == 0) {
+        // unused slots reached
+        break;
+      }
+      if (code == c) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool check_variable_set() const { return is_all_set || codes[0] != 0; }
+};
+
 struct System_variables {
   /*
     How dynamically allocated system variables are handled:
@@ -363,6 +521,7 @@ struct System_variables {
   ulong log_slow_rate_limit;
   ulonglong log_slow_filter;
   ulonglong log_slow_verbosity;
+  Query_errors_set log_query_errors;
 
   ulong innodb_io_reads;
   ulonglong innodb_io_read;

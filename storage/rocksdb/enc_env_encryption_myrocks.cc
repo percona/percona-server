@@ -136,6 +136,13 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
           buffer.AllocateNewBuffer(*prefix_length);
           status = status_to_io_status(provider->CreateNewPrefix(
               fname, buffer.BufferStart(), *prefix_length));
+          if (status.IsNotSupported()){
+            // NotSupported means that we were not able to create the stream, because
+            // there is no access to keyring component. Return OK and no stream,
+            // and let caller decide what do to with this.
+            return IOStatus::OK();
+          }
+
           if (status.ok()) {
             buffer.Size(*prefix_length);
             prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
@@ -247,6 +254,13 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
         buffer.AllocateNewBuffer(*prefix_length);
         io_s = status_to_io_status(provider->CreateNewPrefix(
             fname, buffer.BufferStart(), *prefix_length));
+        if (io_s.IsNotSupported()){
+          // NotSupported means that we were not able to create the stream, because
+          // there is no access to keyring component. Return OK and no stream,
+          // and let caller decide what do to with this.
+          return IOStatus::OK();
+        }
+
         if (io_s.ok()) {
           buffer.Size(*prefix_length);
           prefix = Slice(buffer.BufferStart(), buffer.CurrentSize());
@@ -515,7 +529,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
   MyRocksEncryptedFileSystemImpl(
       const std::shared_ptr<FileSystem> &base,
       const std::shared_ptr<MyRocksEncryptionProvider> &provider,
-      bool encryptNewFiles, std::shared_ptr<rocksdb::Logger> logger)
+      std::atomic_bool &encryptNewFiles, std::shared_ptr<rocksdb::Logger> logger)
       : MyRocksEncryptedFileSystem(base),
         provider_(provider),
         encrypt_new_files_(encryptNewFiles),
@@ -1120,7 +1134,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 
  private:
   std::shared_ptr<MyRocksEncryptionProvider> provider_;
-  bool encrypt_new_files_;
+  std::atomic_bool &encrypt_new_files_;
   std::shared_ptr<rocksdb::Logger> logger_;
 
   /* We have only 1 mutex protecting all encryption headers while master key
@@ -1138,7 +1152,7 @@ class MyRocksEncryptedFileSystemImpl : public MyRocksEncryptedFileSystem {
 std::shared_ptr<MyRocksEncryptedFileSystem> NewEncryptedFS(
     const std::shared_ptr<FileSystem> &base,
     const std::shared_ptr<MyRocksEncryptionProvider> &provider,
-    bool encryptNewFiles, const std::string &dir,
+    std::atomic_bool &encryptNewFiles, const std::string &dir,
     std::shared_ptr<rocksdb::Logger> logger) {
   auto res = std::make_shared<MyRocksEncryptedFileSystemImpl>(
       base, provider, encryptNewFiles, logger);

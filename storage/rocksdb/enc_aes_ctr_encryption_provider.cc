@@ -87,7 +87,11 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   std::string masterKey;
   uint32_t masterKeyId = 0;
 
-  if (masterKeyManager_->GetMostRecentMasterKey(&masterKey, &masterKeyId)) {
+  auto mkres = masterKeyManager_->GetMostRecentMasterKey(&masterKey, &masterKeyId);
+  if (mkres == -2) {
+    ROCKS_LOG_WARN(logger_, "Most recent master key not found. No keyring component.");
+    return rocksdb::Status::NotSupported();
+  } else if (mkres) {
     ROCKS_LOG_ERROR(logger_, "Failed to get the most recent master key");
     return rocksdb::Status::IOError();
   }

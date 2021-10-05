@@ -307,7 +307,7 @@ ER_VERBOSE_REQUIRES_HELP
   eng "--verbose is for use with --help; did you mean --log-error-verbosity?"
 
 ER_POINTLESS_WITHOUT_SLOWLOG
-  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-replica-statements have no effect if --slow-query-log is not set"
+  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes, --log-slow-replica-statements and --log-query-errors have no effect if --slow-query-log is not set"
 
 ER_WASTEFUL_NET_BUFFER_SIZE
   eng "net_buffer_length (%lu) is set to be larger than max_allowed_packet (%lu). Please rectify."

@@ -13105,7 +13105,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   if (!opt_help && opt_verbose) LogErr(ERROR_LEVEL, ER_VERBOSE_REQUIRES_HELP);
 
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
-       opt_log_slow_replica_statements) &&
+       opt_log_slow_replica_statements ||
+       global_system_variables.log_query_errors.check_variable_set()) &&
       !opt_slow_log)
     LogErr(WARNING_LEVEL, ER_POINTLESS_WITHOUT_SLOWLOG);
 

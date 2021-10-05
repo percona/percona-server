@@ -1,0 +1,170 @@
+SET @old_log_query_errors = @@global.log_query_errors;
+
+--echo # check default empty value
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+SHOW GLOBAL VARIABLES LIKE 'log_query_errors';
+SHOW SESSION VARIABLES LIKE 'log_query_errors';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE variable_name='log_query_errors';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='log_query_errors';
+--enable_warnings
+
+--echo
+--echo # set global to ALL, session is unset
+SET GLOBAL log_query_errors=all;
+
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+SHOW GLOBAL VARIABLES LIKE 'log_query_errors';
+SHOW SESSION VARIABLES LIKE 'log_query_errors';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE variable_name='log_query_errors';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='log_query_errors';
+--enable_warnings
+
+--echo
+--echo # unset global, set session to ALL
+SET GLOBAL log_query_errors="";
+SET SESSION log_query_errors=all;
+
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+SHOW GLOBAL VARIABLES LIKE 'log_query_errors';
+SHOW SESSION VARIABLES LIKE 'log_query_errors';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE variable_name='log_query_errors';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='log_query_errors';
+--enable_warnings
+
+--echo
+--echo # set both to ALL
+SET GLOBAL log_query_errors=all;
+SET SESSION log_query_errors=all;
+
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+SHOW GLOBAL VARIABLES LIKE 'log_query_errors';
+SHOW SESSION VARIABLES LIKE 'log_query_errors';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE variable_name='log_query_errors';
+SELECT * FROM performance_schema.session_variables WHERE variable_name='log_query_errors';
+--enable_warnings
+
+--echo
+--echo # set to default
+SET SESSION log_query_errors=default;
+SET GLOBAL log_query_errors=default;
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+--echo
+--echo # set some codes
+SET GLOBAL log_query_errors="1010,1011,1012";
+SET SESSION log_query_errors="2010,2011,2012";
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+--echo
+--echo # set one code
+SET GLOBAL log_query_errors="1000";
+SET SESSION log_query_errors="2000";
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+--echo
+--echo # set max allowed number of codes
+SET GLOBAL log_query_errors="1001,1002,1003,1004,1005,1006,1007,1008,1009,1010,1011,1012,1013,1014,1015,1016,1017,1018,1019,1020,1021,1022,1023,1024,1025,1026,1027,1028,1029,1030,1031,1032,1033,1034,1035,1036,1037,1038,1039,1040,1041,1042,1043,1044,1045,1046,1047,1048,1049,1050,1051,1052,1053,1054,1055,1056,1057,1058,1059,1060,1061,1062,1063,1064";
+SELECT @@global.log_query_errors;
+
+--echo
+--echo # set more than max allowed number of codes
+--error ER_TOO_MANY_ERROR_CODES
+SET GLOBAL log_query_errors="1001,1002,1003,1004,1005,1006,1007,1008,1009,1010,1011,1012,1013,1014,1015,1016,1017,1018,1019,1020,1021,1022,1023,1024,1025,1026,1027,1028,1029,1030,1031,1032,1033,1034,1035,1036,1037,1038,1039,1040,1041,1042,1043,1044,1045,1046,1047,1048,1049,1050,1051,1052,1053,1054,1055,1056,1057,1058,1059,1060,1061,1062,1063,1064,1065";
+
+--echo
+--echo # check ALL in upper and in lower case is accepted
+SET GLOBAL log_query_errors=all;
+SELECT @@global.log_query_errors;
+SET GLOBAL log_query_errors=ALL;
+SELECT @@global.log_query_errors;
+
+--echo
+--echo # check it fails with non-numeric code added to the list
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_query_errors="1010,aaaa,1012";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_query_errors="1-34,23-13";
+
+--echo
+--echo # check spaces only string, should be processed as empty string
+SET GLOBAL log_query_errors=' ';
+SELECT @@global.log_query_errors;
+SET GLOBAL log_query_errors="  ";
+SELECT @@global.log_query_errors;
+
+--echo
+--echo # check negative code
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_query_errors="-1000";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_query_errors=" / ";
+
+--echo
+--echo # check some wrong types
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_query_errors=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_query_errors=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_query_errors=-7;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_query_errors=0;
+
+--echo
+--echo # check too big number
+--error ER_TOO_BIG_ERROR_CODE
+SET GLOBAL log_query_errors="92233720368547758070,123";
+--error ER_TOO_BIG_ERROR_CODE
+SET GLOBAL log_query_errors="123,92233720368547758070";
+--error ER_TOO_BIG_ERROR_CODE
+SET GLOBAL log_query_errors="92233720368547758070";
+
+--echo
+--echo # check SET PERSIST
+SET GLOBAL log_query_errors="1000";
+SET SESSION log_query_errors="2000";
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+SET PERSIST log_query_errors="3000";
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+--source include/restart_mysqld.inc
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+SET PERSIST log_query_errors=default;
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+--source include/restart_mysqld.inc
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+--echo
+--echo # check SET PERSIST_ONLY
+SET PERSIST_ONLY log_query_errors="4000";
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+--source include/restart_mysqld.inc
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+SET PERSIST_ONLY log_query_errors=default;
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+--source include/restart_mysqld.inc
+SELECT @@global.log_query_errors;
+SELECT @@session.log_query_errors;
+
+RESET PERSIST;
+SET @@global.log_query_errors = @old_log_query_errors;

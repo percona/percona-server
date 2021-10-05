@@ -3001,6 +3001,83 @@ class Sys_var_binlog_encryption : public Sys_var_bool {
   bool global_update(THD *thd, set_var *var) override;
 };
 
+class Sys_var_errors_set : public sys_var {
+ public:
+  Sys_var_errors_set(
+      const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
+      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      enum charset_enum is_os_charset_arg, PolyLock *lock = nullptr,
+      enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
+      on_check_function on_check_func = nullptr,
+      on_update_function on_update_func = nullptr,
+      const char *substitute = nullptr, int parse_flag = PARSE_NORMAL)
+      : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+                getopt.arg_type, SHOW_CHAR, 0, lock, binlog_status_arg,
+                on_check_func, on_update_func, substitute, parse_flag) {
+    is_os_charset = is_os_charset_arg == IN_FS_CHARSET;
+    assert(size == sizeof(Query_errors_set));
+    static_cast<Query_errors_set *>(option.value)->clear_all();
+  }
+
+  void saved_value_to_string(THD *, set_var *var, char *dest) override {
+    if (var->value != nullptr) {
+      String str;
+      String *val_str = var->value->val_str(&str);
+      strncpy(dest, val_str->ptr(), val_str->length());
+    }
+  }
+  void persist_only_to_string(THD *, set_var *var, String *dest) override {
+    if (var->value != nullptr) {
+      String str;
+      String *val_str = var->value->val_str(&str);
+      dest->copy(val_str->ptr(), val_str->length(), system_charset_info);
+    }
+  }
+  bool check_update_type(Item_result type) override {
+    return type != STRING_RESULT;
+  }
+  bool do_check(THD *, set_var *var) override {
+    String str;
+    String *val = var->value->val_str(&str);
+    return !Query_errors_set::check(val);
+  }
+  void session_save_default(THD *thd, set_var *) override {
+    ((Query_errors_set *)session_var_ptr(thd))->clear_all();
+  }
+  void global_save_default(THD *, set_var *) override {
+    ((Query_errors_set *)global_var_ptr())->clear_all();
+  }
+  bool session_update(THD *thd, set_var *var) override {
+    if (var->value != nullptr) {
+      String str;
+      String *val = var->value->val_str(&str);
+      return !((Query_errors_set *)session_var_ptr(thd))->set_codes(val);
+    }
+    return false;
+  }
+  bool global_update(THD *, set_var *var) override {
+    if (var->value != nullptr) {
+      String str;
+      String *val = var->value->val_str(&str);
+      return !((Query_errors_set *)global_var_ptr())->set_codes(val);
+    }
+    return false;
+  }
+  const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                 std::string_view) override {
+    char buf[Query_errors_set::MAX_TEXT_LENGTH + 1];
+    ((Query_errors_set *)session_var_ptr(target_thd))->to_string(buf);
+    char *ret = running_thd->mem_strdup(buf);
+    return (uchar *)ret;
+  }
+  const uchar *global_value_ptr(THD *thd, std::string_view) override {
+    char buf[Query_errors_set::MAX_TEXT_LENGTH + 1];
+    ((Query_errors_set *)global_var_ptr())->to_string(buf);
+    char *ret = thd->mem_strdup(buf);
+    return (uchar *)ret;
+  }
+};
+
 void update_parser_max_mem_size();
 void update_optimizer_switch();
 

@@ -589,6 +589,11 @@ The following options may be given as the first argument:
  --log-queries-not-using-indexes 
  Log queries that are executed without benefit of any
  index to the slow log if it is open
+ --log-query-errors=# 
+ Log queries which failed with the specified error code.
+ Multiple error codes are allowed in comma-separated
+ string. Can be set to ALL to match all possible error
+ codes.
  --log-raw           Log to general log before any rewriting of the query. For
  use in debugging, not production as sensitive information
  may be logged.
@@ -1499,7 +1504,7 @@ The following options may be given as the first argument:
  Multiple flags allowed in a comma-separated string.
  [none, log_slow_filter, log_slow_rate_limit,
  log_slow_verbosity, long_query_time,
- min_examined_row_limit, all]
+ min_examined_row_limit, log_query_errors, all]
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -1823,6 +1828,7 @@ log-error-verbosity 2
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
+log-query-errors (Disabled)
 log-raw FALSE
 log-replica-updates FALSE
 log-short-format FALSE

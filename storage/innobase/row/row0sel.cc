@@ -2987,6 +2987,9 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     mem_heap_empty(blob_heap);
   }
 
+  if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
+    row_mysql_prebuilt_free_compress_heap(prebuilt);
+
   if (clust_templ_for_sec) {
     /* Store all clustered index column of secondary index record. */
     for (ulint i = 0; i < dict_index_get_n_fields(prebuilt_index); i++) {

@@ -28,7 +28,7 @@ New Features
   :psbug:`3819`.
 
 * A new variable :variable:`innodb_encrypt_tables` can be set to ``ON``, making
-  |InnoDB| tables encrypted by default, to ``FORCE``, disabling creation of
+  InnoDB tables encrypted by default, to ``FORCE``, disabling creation of
   unencrypted tables, or ``OFF``, restoring the like-before behavior. Bug fixed
   :psbug:`1525`.
 
@@ -49,7 +49,7 @@ Bugs Fixed
   :variable:`thread_pool_stall_limit` variable values bigger than 2 seconds.
   Bug fixed :psbug:`1095`.
 
-* A memory leak took place in |Percona Server| when performance schema is used
+* A memory leak took place in Percona Server for MySQL when performance schema is used
   in conjunction with thread pooling. Bug fixed :psbug:`1096`.
 
 * A code clean-up was done to fix compilation with clang, both general warnings
@@ -60,11 +60,11 @@ Bugs Fixed
   compilation option, which makes QRT to be linked statically. Bug fixed
   :psbug:`3841`.
 
-* |Percona Server| returned empty result for ``SELECT`` query if number of
+* Percona Server for MySQL returned empty result for ``SELECT`` query if number of
   connections exceeded 65535. Bug fixed :psbug:`314` (upstream
   :mysqlbug:`89313`).
 
-* A clean-up in |Percona Server| binlog-related code was made to avoid
+* A clean-up in Percona Server for MySQL binlog-related code was made to avoid
   uninitialized memory comparison. Bug fixed :psbug:`3925` (upstream
   :mysqlbug:`90238`).
 
@@ -74,10 +74,10 @@ Bugs Fixed
 
 * A fix of the mysqld startup script failed to detect jemalloc library
   location for preloading, thus not starting on systemd based machines,
-  introduced in |Percona Server| :rn:`5.7.21-20`, was improved to take into
+  introduced in Percona Server for MySQL :rn:`5.7.21-20`, was improved to take into
   account previously created configuration file. Bug fixed :psbug:`3850`.
 
-* The possibility of a truncated bitmap file name was fixed in |InnoDB| logging
+* The possibility of a truncated bitmap file name was fixed in InnoDB logging
   subsystem. Bug fixed :psbug:`3926`.
 
 * Temporary file I/O was not instrumented for Performance Schema. Bug fixed
@@ -100,13 +100,13 @@ MyRocks Changes
 TokuDB Changes
 ===============
 
-* Two new variables introduced to facilitate the |TokuDB| fast updates feature,
+* Two new variables introduced to facilitate the TokuDB fast updates feature,
   :variable:`tokudb_enable_fast_update` and
   :variable:`tokudb_enable_fast_upsert`. Bugs fixed :tdbbug:`63` and
   :tdbbug:`148`.
 
-* A set of compilation fixes was introduced to make |TokuDB| successfully
-  build in |MySQL| / |Percona Server| 8.0. Bugs fixed :tdbbug:`84`,
+* A set of compilation fixes was introduced to make TokuDB successfully
+  build in MySQL / Percona Server for MySQL 8.0. Bugs fixed :tdbbug:`84`,
   :tdbbug:`85`, :tdbbug:`114`, :tdbbug:`115`, :tdbbug:`118`, :tdbbug:`128`,
   :tdbbug:`139`, :tdbbug:`141`, and :tdbbug:`172`.
 
@@ -114,7 +114,7 @@ TokuDB Changes
   separated and arranged to specific version branches. Bugs fixed
   :tdbbug:`133`, :tdbbug:`134`, :tdbbug:`135`, and :tdbbug:`136`.
 
-* ``ALTER TABLE ... COMMENT = ...`` statement caused |TokuDB| to rebuild the
+* ``ALTER TABLE ... COMMENT = ...`` statement caused TokuDB to rebuild the
   whole table, which is not needed, as only FRM metadata should be changed.
   Bugs fixed :tdbbug:`130` and :tdbbug:`137`.
 

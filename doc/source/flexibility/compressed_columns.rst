@@ -4,9 +4,9 @@
 Compressed columns with dictionaries
 ====================================
 
-In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
+In :rn:`5.7.17-11` Percona Server for MySQL has been extended with a new per-column
 compression feature. It is a data type modifier, independent from user-level SQL
-and |InnoDB| data compression, that causes the data stored in the column to be
+and InnoDB data compression, that causes the data stored in the column to be
 compressed on writing to storage and decompressed on reading. For all other
 purposes, the data type is identical to the one without the modifier, i.e. no
 new data types are created. Compression is done by using the ``zlib`` library.
@@ -20,7 +20,7 @@ This feature provides:
 * a better compression ratio for text data which consist of a large number of
   predefined words (e.g. JSON or XML) using compression methods with static
   dictionaries
-* a way to select columns in the table to compress (in contrast to the |InnoDB|
+* a way to select columns in the table to compress (in contrast to the InnoDB
   row compression method)
   
 This feature is based on a patch provided by Weixiang Zhai.
@@ -88,10 +88,10 @@ the same effect. However, the latter is more space-efficient. Quote symbol
 quoting is handled by regular SQL quoting. Maximum supported dictionary length
 is 32506 bytes (``zlib`` limitation).
 
-The compression dictionary is stored in a new system |InnoDB| table.
+The compression dictionary is stored in a new system InnoDB table.
 As this table is of the data dictionary kind, concurrent reads are
 allowed, but writes are serialized, and reads are blocked by writes. Table read
-through old read views are unsupported, similarly to |InnoDB| internal DDL
+through old read views are unsupported, similarly to InnoDB internal DDL
 transactions.
 
 Example
@@ -205,7 +205,7 @@ COLUMN_FORMAT DEFAULT``.
 mysqldump command line parameters
 =================================
 
-By default, with no additional options, ``mysqldump`` will generate a |MySQL|
+By default, with no additional options, ``mysqldump`` will generate a MySQL
 compatible SQL output.
 
 All ``/*!50633 COLUMN_FORMAT COMPRESSED */`` and ``/*!50633 COLUMN_FORMAT
@@ -251,7 +251,7 @@ following fragment (regardless of the values of
 Downgrade scenario
 ==================
 
-If it is necessary to perform |Percona Server| downgrade from a version
+If it is necessary to perform Percona Server for MySQL downgrade from a version
 :rn:`5.7.17-11` (or newer) to a version older than :rn:`5.7.17-11` and if
 user databases have one or more table with compressed columns, there are two
 options to do this safely:
@@ -268,7 +268,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.17-11`
-    Feature implemented in |Percona Server| 5.7
+    Feature implemented in Percona Server for MySQL 5.7
 
 System Variables
 ================
@@ -303,7 +303,7 @@ stored in raw (uncompressed) form.
 
 Please also notice that because of the nature of some data, its compressed
 representation can be longer than the original value. In this case it does not
-make sense to store such values in compressed form as |Percona Server| would
+make sense to store such values in compressed form as Percona Server for MySQL would
 have to waste both memory space and CPU resources for unnecessary
 decompression. Therefore, even if the length of such non-compressible values
 exceeds :variable:`innodb_compressed_columns_threshold`, they will be stored in

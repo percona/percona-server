@@ -4,10 +4,10 @@
 Data Masking
 ==================================================================
 
-This feature was implemented in |Percona Server| version :rn:`5.7.32-35`.
+This feature was implemented in Percona Server for MySQL version :rn:`5.7.32-35`.
 
 The Percona Data Masking plugin is a free and Open Source implementation of the
-|MySQL|'s data masking plugin. Data Masking provides a set of functions to hide
+MySQL's data masking plugin. Data Masking provides a set of functions to hide
 sensitive data with modified content.
 
 Data masking can have either of the characteristics:

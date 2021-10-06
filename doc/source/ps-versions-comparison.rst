@@ -1,17 +1,17 @@
 .. _ps_versions_comparison:
 
-=======================================================
-List of features available in |Percona Server| releases
-=======================================================
+============================================================================
+List of features available in Percona Server for MySQL releases
+============================================================================
 
 .. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
 
 .. list-table::
    :header-rows: 1
 
-   * - |Percona Server| 5.6
-     - |Percona Server| 5.7
-     - |Percona Server| 8.0
+   * - Percona Server for MySQL 5.6
+     - Percona Server for MySQL 5.7
+     - Percona Server for MySQL 8.0
    * - :ref:`Improved Buffer Pool Scalability <ps56:innodb_split_buf_pool_mutex>`
      - :ref:`Improved Buffer Pool Scalability <ps57:innodb_split_buf_pool_mutex>`
      - :ref:`Improved Buffer Pool Scalability <ps80:innodb_split_buf_pool_mutex>`
@@ -41,7 +41,7 @@ List of features available in |Percona Server| releases
      - :ref:`Ability to change database for mysqlbinlog <ps80:mysqlbinlog_change_db>`
    * - :ref:`Fixed Size for the Read Ahead Area <ps56:buff_read_ahead_area>`
      - :ref:`Fixed Size for the Read Ahead Area <ps57:buff_read_ahead_area>`
-     - :ref:`Fixed Size for the Read Ahead Area <ps80:buff_read_ahead_area>`      
+     - :ref:`Fixed Size for the Read Ahead Area <ps80:buff_read_ahead_area>`
    * - :ref:`Improved MEMORY Storage Engine <ps56:improved_memory_engine>`
      - :ref:`Improved MEMORY Storage Engine <ps57:improved_memory_engine>`
      - :ref:`Improved MEMORY Storage Engine <ps80:improved_memory_engine>`
@@ -77,7 +77,7 @@ List of features available in |Percona Server| releases
      - :ref:`XtraDB changed page tracking <ps80:changed_page_tracking>`
    * - :ref:`Enforcing Storage Engine <ps56:enforce_engine>`
      - :ref:`Enforcing Storage Engine <ps56:enforce_engine>`
-     - |replaced|
+     - Replaced with upstream implementation
    * - :ref:`Utility user <ps56:psaas_utility_user>`
      - :ref:`Utility user <ps57:psaas_utility_user>`
      - |-implemented|
@@ -171,5 +171,5 @@ Other Reading
 * `What Is New in MySQL 5.5 <http://dev.mysql.com/doc/refman/5.5/en/mysql-nutshell.html>`_
 * `What Is New in MySQL 5.6 <http://dev.mysql.com/doc/refman/5.6/en/mysql-nutshell.html>`_
 
-.. |replaced| replace:: Replaced with upstream implementation
+.. Replaced with upstream implementation replace:: Replaced with upstream implementation
 .. |-implemented| replace:: Feature not implemented

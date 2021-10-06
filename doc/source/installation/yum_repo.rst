@@ -1,19 +1,19 @@
 .. _yum_repo:
 
-====================================================================
- Installing |Percona Server| on Red Hat Enterprise Linux and CentOS
-====================================================================
+============================================================================
+ Installing Percona Server for MySQL on Red Hat Enterprise Linux and CentOS
+============================================================================
 
-Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The |Percona| :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
+Ready-to-use packages are available from the Percona Server for MySQL software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The Percona :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
 Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
 What's in each RPM package?
-===========================
+==================================
 
-Each of the |Percona Server| RPM packages have a particular purpose.
+Each of the Percona Server for MySQL RPM packages have a particular purpose.
 
 The ``Percona-Server-server-57`` package contains the server itself (the ``mysqld`` binary).
 
@@ -27,9 +27,9 @@ The ``Percona-Server-shared-57`` package includes the client shared library.
 
 The ``Percona-Server-shared-compat`` package includes shared libraries for software compiled against old versions of the client library. Following libraries are included in this package: ``libmysqlclient.so.12``, ``libmysqlclient.so.14``, ``libmysqlclient.so.15``, ``libmysqlclient.so.16``, and ``libmysqlclient.so.18``.
 
-The ``Percona-Server-test-57`` package includes the test suite for |Percona Server|.
+The ``Percona-Server-test-57`` package includes the test suite for Percona Server for MySQL.
 
-Installing |Percona Server| from Percona ``yum`` repository
+Installing Percona Server for MySQL from Percona ``yum`` repository
 ===========================================================
 
 1. Install the Percona repository
@@ -49,7 +49,7 @@ You can install Percona yum repository by running the following command as a
 	 Preparing...                ########################################### [100%]
          1:percona-release        ########################################### [100%]
 
-   To install |Percona Server| with SELinux policies, you also need the :program:`Percona-Server-selinux-*.noarch.rpm` package:
+   To install Percona Server for MySQL with SELinux policies, you also need the :program:`Percona-Server-selinux-*.noarch.rpm` package:
 
    .. code-block:: bash
 
@@ -78,8 +78,8 @@ You can install Percona yum repository by running the following command as a
      Percona-Server-tokudb-57.x86_64         5.7.31-34.1.el7                 @percona-release-x86_64
      ...
 
-     .. note:: 
-     
+     .. note::
+
      For a RHEL 8 package installation, the mysql module must be disabled.
 
    .. code-block:: bash
@@ -88,7 +88,7 @@ You can install Percona yum repository by running the following command as a
 
 3. Install the packages
 
-   You can now install |Percona Server| by running:
+   You can now install Percona Server for MySQL by running:
 
    .. code-block:: bash
 
@@ -96,7 +96,7 @@ You can install Percona yum repository by running the following command as a
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  Percona Server for MySQL 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 Percona `yum` Testing repository
 --------------------------------
@@ -106,13 +106,13 @@ Percona offers pre-release builds from our testing repository. To subscribe to t
 
 .. _standalone_rpm:
 
-Installing |Percona Server| using downloaded rpm packages
-=========================================================
+Installing Percona Server for MySQL using downloaded rpm packages
+============================================================================
 
-1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.31-34 release packages for *CentOS* 7:
+1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download Percona Server for MySQL 5.7.31-34 release packages for *CentOS* 7:
 
    .. code-block:: bash
- 
+
      $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.31-34/binary/redhat/7/x86_64/Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages:
@@ -120,8 +120,8 @@ Installing |Percona Server| using downloaded rpm packages
    .. code-block:: bash
 
      $ tar xvf Percona-Server-5.7.31-34-r2e68637-el7-x86_64-bundle.tar
-    
-   After you unpack the bundle you should see the following packages:  
+
+   After you unpack the bundle you should see the following packages:
 
    .. code-block:: bash
 
@@ -138,7 +138,7 @@ Installing |Percona Server| using downloaded rpm packages
      Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm
 
 
-3. Now you can install |Percona Server| 5.7 by running:
+3. Now you can install Percona Server for MySQL 5.7 by running:
 
    .. code-block:: bash
 
@@ -146,13 +146,13 @@ Installing |Percona Server| using downloaded rpm packages
      Percona-Server-client-57-5.7.31-34.1.el7.x86_64.rpm \
      Percona-Server-shared-57-5.7.31-34.1.el7.x86_64.rpm
 
-This will install only packages required to run the |Percona Server| 5.7.
+This will install only packages required to run the Percona Server for MySQL 5.7.
 
 Optionally, you can install either the :ref:`TokuDB <tokudb_intro>` storage engine, adding ``Percona-Server-tokudb-57-5.7.31-34.1.el7.x86_64.rpm``  or the :ref:`MyRocks <myrocks_intro>` storage engine, adding ``Percona-Server-rocksdb-57-5.7.31-34.1.el7.x86_64.rpm`` to the install command.
 
-You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
-You can find more information on how to install and enable the |MyRocks| storage engine in the :ref:`myrocks_install` guide.
+You can find more information on how to install and enable the MyRocks storage engine in the :ref:`myrocks_install` guide.
 
 To install all the packages (for debugging, testing, etc.) you should run:
 
@@ -190,12 +190,12 @@ You can use the following command to locate the Data directory:
     datadir=/var/lib/mysql
 
 
-Running |Percona Server|
+Running Percona Server for MySQL
 ========================
 
 1. Starting the service
 
-   |Percona Server| does not start automatically on *RHEL* and *CentOS* after
+   Percona Server for MySQL does not start automatically on *RHEL* and *CentOS* after
    the installation. You should start the server by running:
 
    .. code-block:: bash
@@ -230,12 +230,12 @@ Running |Percona Server|
 
   *RHEL* 7 and *CentOS* 7 come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
 
-Uninstalling |Percona Server|
-=============================
+Uninstalling Percona Server for MySQL
+============================================================================
 
-To completely uninstall |Percona Server| you'll need to remove all the installed packages and data files.
+To completely uninstall Percona Server for MySQL you'll need to remove all the installed packages and data files.
 
-1.  Stop the |Percona Server| service
+1.  Stop the Percona Server for MySQL service
 
     .. code-block:: bash
 
@@ -257,4 +257,3 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 .. warning::
 
   This will remove all the packages and delete all the data files (databases, tables, logs, etc.), you might want to take a backup before doing this in case you need the data.
-

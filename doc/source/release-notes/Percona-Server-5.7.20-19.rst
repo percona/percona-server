@@ -38,13 +38,13 @@ Bugs Fixed
   (upstream :mysqlbug:`88057`).
 
 * Help command command in the mysql command line client provided a link to an older 
-  version of the |Percona Server| manual. Bug fixed :bug:`1708073`.
+  version of the Percona Server for MySQL manual. Bug fixed :bug:`1708073`.
 
 * A regression in the ``mysqld_safe`` script forced it to print an extra error when 
   stopping the MySQL service. Bugs fixed :bug:`1738742`.
 
 * Blackhole storage engine was incompatible with newer length limit of the 
-  |InnoDB| index key prefixes. Bug fixed :bug:`1733049` (upstream :mysqlbug:`53588`).
+  InnoDB index key prefixes. Bug fixed :bug:`1733049` (upstream :mysqlbug:`53588`).
 
 * Heartbeats received by slave were reacted with :table:`mysql.slave_master_info` table
   sync on each of them even with :variable:`sync_master_info` set to zero, causing huge
@@ -54,7 +54,7 @@ MyRocks Changes
 ===============
 
 * The replication writebatch functionality has been removed from 
-  |Percona Server| 5.7 due to unsafety of the current implementation.
+  Percona Server for MySQL 5.7 due to unsafety of the current implementation.
 
 * Variables :variable:`rocksdb_block_cachecompressed_hit`, 
   :variable:`rocksdb_block_cachecompressed_miss`, and 

@@ -93,7 +93,7 @@
        :vartype: String
        :default: 
 
-       This variable allows to change the suffix for the |Percona Server|
+       This variable allows to change the suffix for the Percona Server for MySQL
        version string returned by the read-only :variable:`version` variable.
        This allows to append the version number for the server with a custom
        suffix to reflect some build or configuration specifics.

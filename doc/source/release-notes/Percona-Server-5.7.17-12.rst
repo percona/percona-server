@@ -1,8 +1,8 @@
 .. rn:: 5.7.17-12
 
-==========================
-|Percona Server| 5.7.17-12
-==========================
+============================================================================
+Percona Server for MySQL 5.7.17-12
+============================================================================
 
 Percona is glad to announce the GA (Generally Available) release of |Percona
 Server| 5.7.17-12 on March 24th, 2017 (Downloads are available `here
@@ -11,8 +11,8 @@ and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.17
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-17.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.17-12 is the current GA release
-in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source
+all the bug fixes in it, Percona Server for MySQL 5.7.17-12 is the current GA release
+in the Percona Server for MySQL 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.17-12
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-12>`_
@@ -20,7 +20,7 @@ Launchpad <https://launchpad.net/percona-server/+milestone/5.7.17-12>`_
 New Features
 ============
 
- |Percona Server| has implemented new :command:`mysqldump`
+ Percona Server for MySQL has implemented new :command:`mysqldump`
  :option:`--order-by-primary-desc` option. This feature tells ``mysqldump``
  to take the backup by descending primary key order (``PRIMARY KEY DESC``)
  which can be useful if storage engine is using reverse order column family
@@ -37,11 +37,11 @@ Bugs Fixed
 ==========
 
  If the variable :variable:`thread_handling` was set to ``pool-of-threads`` in
- the |MySQL| configuration file, server couldn't be gracefully shut down by a
+ the MySQL configuration file, server couldn't be gracefully shut down by a
  ``SIGTERM`` signal. Bug fixed :bug:`1537554`.
 
  When :variable:`innodb_ft_result_cache_limit` was exceeded by internal memory
- allocated by |InnoDB| during the FT scan not all memory was released which
+ allocated by InnoDB during the FT scan not all memory was released which
  could lead to server assertion. Bug fixed :bug:`1634932` (upstream
  :mysqlbug:`83648`).
 
@@ -78,7 +78,7 @@ Bugs Fixed
  TABLE ... SELECT ...`` would get logged in the binary log on a disconnect
  with mixed mode replication. Bug fixed :bug:`1671013`.
 
- |TokuDB| did not use index with even if cardinality was good. Bug fixed
+ TokuDB did not use index with even if cardinality was good. Bug fixed
  :bug:`1671152`.
 
  Row-based replication events were not reflected in ``Rows_updated`` fields in
@@ -89,7 +89,7 @@ Bugs Fixed
  :bug:`1592694`.
 
  It was impossible to use column compression dictionaries with partitioned
- |InnoDB| tables. Bug fixed :bug:`1653104`.
+ InnoDB tables. Bug fixed :bug:`1653104`.
 
  Diagnostics for OpenSSL errors have been improved. Bug fixed :bug:`1660339`
  (upstream :mysqlbug:`75311`).
@@ -100,4 +100,3 @@ Other bugs fixed: :bug:`1665545`, :bug:`1650321`, :bug:`1654501`,
 :bug:`1660239`, :bug:`1660243`, :bug:`1660348`, :bug:`1662163` (upstream
 :mysqlbug:`81467`), :bug:`1664219`, :bug:`1664473`, :bug:`1671076`, and
 :bug:`1671123`.
-

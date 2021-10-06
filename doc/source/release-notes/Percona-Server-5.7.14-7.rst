@@ -1,8 +1,8 @@
 .. rn:: 5.7.14-7
 
-===========================
- |Percona Server| 5.7.14-7
-===========================
+============================================================================
+ Percona Server for MySQL 5.7.14-7
+============================================================================
 
 Percona is glad to announce the GA (Generally Available) release of |Percona
 Server| 5.7.14-7 on August 23rd, 2016 (Downloads are available `here
@@ -11,30 +11,30 @@ and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.13
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-14.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.14-7 is the current GA release in
-the |Percona Server| 5.7 series. All of |Percona|'s software is open-source and
+all the bug fixes in it, Percona Server for MySQL 5.7.14-7 is the current GA release in
+the Percona Server for MySQL 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.14-7 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.14-7>`_
 
 New Features
 ============
 
- |Percona Server| :ref:`audit_log_plugin` now supports filtering by :ref:`user
+ Percona Server for MySQL :ref:`audit_log_plugin` now supports filtering by :ref:`user
  <filtering_by_user>`, :ref:`database <filtering_by_database>`, and
  :ref:`sql_command <filtering_by_sql_command_type>`.
 
- |Percona Server| now supports `tree map file block allocation strategy
+ Percona Server for MySQL now supports `tree map file block allocation strategy
  <https://www.percona.com/blog/2016/08/17/improve-tokudbperconaft-fragmented-data-file-performance/>`_
- for |TokuDB|.
+ for TokuDB.
 
 Bugs Fixed
 ==========
 
- Fixed potential cardinality ``0`` issue for |TokuDB| tables if ``ANALYZE
+ Fixed potential cardinality ``0`` issue for TokuDB tables if ``ANALYZE
  TABLE`` finds only deleted rows and no actual logical rows before it times
  out. Bug fixed :bug:`1607300` (:tokubug:`1006`, :ftbug:`732`).
 
- |TokuDB| ``database.table.index`` names longer than 256 characters could cause
+ TokuDB ``database.table.index`` names longer than 256 characters could cause
  server crash if :ref:`background analyze table
  <tokudb_background_analyze_table>` status was checked while running. Bug fixed
  :tokubug:`1005`.
@@ -78,7 +78,7 @@ Bugs Fixed
  then shutdown will wait for a long time for the log tracker thread to quit,
  which it never does. Bug fixed :bug:`1606821`.
 
- Changed page tracking was initialized too late by |InnoDB|. Bug fixed
+ Changed page tracking was initialized too late by InnoDB. Bug fixed
  :bug:`1612574`.
 
  Fixed stack buffer overflow if :variable:`--ssl-cipher` had more than 4000

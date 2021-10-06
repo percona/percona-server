@@ -61,7 +61,7 @@ Example of the Query event: ::
 Installation
 ============
 
-Audit Log plugin is shipped with |Percona Server|, but it is not installed by default. To enable the plugin you must run the following command: 
+Audit Log plugin is shipped with Percona Server for MySQL, but it is not installed by default. To enable the plugin you must run the following command: 
 
 .. code-block:: mysql
 
@@ -146,7 +146,7 @@ To stream the audit log to syslog you'll need to set :variable:`audit_log_handle
 Filtering by user
 =================
 
-In :rn:`5.7.14-7` |Percona Server| has implemented filtering by user. This
+In :rn:`5.7.14-7` Percona Server for MySQL has implemented filtering by user. This
 was implemented by adding two new global variables:
 :variable:`audit_log_include_accounts` and
 :variable:`audit_log_exclude_accounts` to specify which user accounts should be
@@ -242,7 +242,7 @@ This is what you'll see when ``user1`` connected from ``localhost``:
     DB=""
   />
 
-To exclude ``user1`` from logging in |Percona Server| 5.7 you must set:
+To exclude ``user1`` from logging in Percona Server for MySQL 5.7 you must set:
 
 .. code-block:: mysql
 
@@ -256,7 +256,7 @@ The value can be ``NULL`` or comma separated list of accounts in form
 Filtering by SQL command type
 =============================
 
-In :rn:`5.7.14-7` |Percona Server| has implemented filtering by SQL command
+In :rn:`5.7.14-7` Percona Server for MySQL has implemented filtering by SQL command
 type. This was implemented by adding two new global variables:
 :variable:`audit_log_include_commands` and
 :variable:`audit_log_exclude_commands` to specify which command types should be
@@ -361,7 +361,7 @@ or back, first reset the currently-active list to ``NULL``:
 Filtering by database
 =====================
 
-In :rn:`5.7.14-7` |Percona Server| has implemented filtering by SQL database.
+In :rn:`5.7.14-7` Percona Server for MySQL has implemented filtering by SQL database.
 This was implemented by adding two new global variables:
 :variable:`audit_log_include_databases` and
 :variable:`audit_log_exclude_databases` to specify which databases should be
@@ -661,10 +661,10 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+    Feature ported from Percona Server for MySQL 5.6
 
   * :rn:`5.7.14-7` 
-    |Percona Server| :ref:`audit_log_plugin` now supports filtering by
+    Percona Server for MySQL :ref:`audit_log_plugin` now supports filtering by
     :ref:`user <filtering_by_user>`,  
     :ref:`sql_command <filtering_by_sql_command_type>`, and
     :ref:`databases <filtering_by_database>`.

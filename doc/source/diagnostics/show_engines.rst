@@ -4,7 +4,7 @@
  Show Storage Engines
 ======================
 
-This feature changes the comment field displayed when the ``SHOW STORAGE ENGINES`` command is executed and |XtraDB| is the storage engine.
+This feature changes the comment field displayed when the ``SHOW STORAGE ENGINES`` command is executed and XtraDB is the storage engine.
 
 Before the Change: ::
 
@@ -30,5 +30,5 @@ Version-Specific Information
 ============================
 
   * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6
+    Feature ported from Percona Server for MySQL 5.6
 

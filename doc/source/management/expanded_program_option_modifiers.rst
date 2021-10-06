@@ -4,7 +4,7 @@
 Expanded Program Option Modifiers
 =================================
 
-|MySQL| has the concept of `options modifiers <http://dev.mysql.com/doc/refman/5.7/en/option-modifiers.html>`_ which is a simple way to modify either the way that |MySQL| interprets an option or the way the option behaves. Option modifiers are used by simply prepending the name of the modifier and a dash "-" before the actual configuration option name. For example specifying --maximum-query_cache_size=4M on the mysqld commad line or specifying maximum-query_cache_size=4M in the :file:`my.cnf` will prevent any client from setting the :variable:`query_cache_size` value larger than 4MB.
+MySQL has the concept of `options modifiers <http://dev.mysql.com/doc/refman/5.7/en/option-modifiers.html>`_ which is a simple way to modify either the way that MySQL interprets an option or the way the option behaves. Option modifiers are used by simply prepending the name of the modifier and a dash "-" before the actual configuration option name. For example specifying --maximum-query_cache_size=4M on the mysqld commad line or specifying maximum-query_cache_size=4M in the :file:`my.cnf` will prevent any client from setting the :variable:`query_cache_size` value larger than 4MB.
 
 Currently MySQL supports five existing option modifiers:
   * disable [disable-<option_name>] disables or ignores option_name.
@@ -13,7 +13,7 @@ Currently MySQL supports five existing option modifiers:
   * maximum [maximum-<option_name>=<value>] indicates that a client can not set the value of option_name greater than the limit specified. If the client does attempt to set the value of option_name greater than the limit, the option_name will simply be set to the defined limit. This option modifier does not work for non-numeric system variables.
   * skip [skip-<option_name>] skips or ignores option_name.
 
-In order to offer more control over option visibility, access and range limits, the following new option modifiers have been added by |Percona Server|:
+In order to offer more control over option visibility, access and range limits, the following new option modifiers have been added by Percona Server for MySQL:
   * minimum [minimum-<option_name>=<value>] indicates that clients can not set the value of option_name to less than the limit specified. If the client does attempt to set the value of option_name lesser than the limit, the option_name will simply be set to the defined limit. This option modifier does not work for non-numeric system variables.
   * hidden [hidden-<option_name>=<TRUE/FALSE>] indicates that clients can not see or modify the value of option_name.
   * readonly [readonly-<option_name>=<TRUE/FALSE>] indicates that clients can see the value of option_name but can not modify the value.
@@ -32,7 +32,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+    Feature ported from Percona Server for MySQL 5.6
 
 Examples
 ========

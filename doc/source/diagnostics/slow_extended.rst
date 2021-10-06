@@ -13,7 +13,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.7.10-1`:
-     * Feature ported from |Percona Server| 5.6.
+     * Feature ported from Percona Server for MySQL 5.6.
 
 System Variables
 ================
@@ -91,7 +91,7 @@ Decision "log or no" calculated in following manner:
 
 This allows flexible setup logging behavior.
 
-For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In Percona Server for MySQL information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
  
   Log_slow_rate_type: query  Log_slow_rate_limit: 10
 
@@ -109,7 +109,7 @@ If ``TRUE``, statements executed by stored procedures are logged to the slow if 
 
 .. _improved_sp_reporting:
 
-|Percona Server| implemented improvements for logging of stored procedures to the slow query log:
+Percona Server for MySQL implemented improvements for logging of stored procedures to the slow query log:
  * Each query from a stored procedure is now logged to the slow query log individually
  * ``CALL`` itself isn't logged to the slow query log anymore as this would be counting twice for the same query which would lead to incorrect results
  * Queries that were called inside of stored procedures are annotated in the slow query log with the stored procedure name in which they run.
@@ -179,7 +179,7 @@ Specifies how much information to include in your slow log. The value is a comma
     Log information about the query's execution plan.
 
   * ``innodb``:
-    Log |InnoDB| statistics.
+    Log InnoDB statistics.
 
   * ``minimal``:
     Equivalent to enabling just ``microtime``.
@@ -198,7 +198,7 @@ Specifies how much information to include in your slow log. The value is a comma
 
 Values are OR'ed together.
 
-For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
+For example, to enable microsecond query timing and InnoDB statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
 
 .. variable:: slow_query_log_use_global_control
 
@@ -292,15 +292,15 @@ Killed Numeric Code   Exception
 ====================  =================================================
 0                     NOT_KILLED 
 1                     KILL_BAD_DATA
-1053                  ER_SERVER_SHUTDOWN (see |MySQL| Documentation)
-1317                  ER_QUERY_INTERRUPTED (see |MySQL| Documentation)
-3024                  ER_QUERY_TIMEOUT (see |MySQL| Documentation)
+1053                  ER_SERVER_SHUTDOWN (see MySQL Documentation)
+1317                  ER_QUERY_INTERRUPTED (see MySQL Documentation)
+3024                  ER_QUERY_TIMEOUT (see MySQL Documentation)
 Any other number      KILLED_NO_VALUE (Catches all other cases)
 ====================  =================================================
   
 .. seealso::
 
-   |MySQL| Documentation: |MySQL| Server Error Codes
+   MySQL Documentation: MySQL Server Error Codes
       https://dev.mysql.com/doc/refman/5.7/en/server-error-reference.html
 
 Connection and Schema Identifier
@@ -361,10 +361,10 @@ Each query can be executed in various ways. For example, it may use indexes or d
 
 The values and their meanings are documented with the :variable:`log_slow_filter` option.
 
-|InnoDB| Usage Information
+InnoDB Usage Information
 --------------------------
 
-The final part of the output is the |InnoDB| usage statistics. |MySQL| currently shows many per-session statistics for operations with ``SHOW SESSION STATUS``, but that does not include those of |InnoDB|, which are always global and shared by all threads. This feature lets you see those values for a given query. ::
+The final part of the output is the InnoDB usage statistics. MySQL currently shows many per-session statistics for operations with ``SHOW SESSION STATUS``, but that does not include those of InnoDB, which are always global and shared by all threads. This feature lets you see those values for a given query. ::
 
   #   InnoDB_IO_r_ops: 6415  InnoDB_IO_r_bytes: 105103360  InnoDB_IO_r_wait: 0.001279
   #   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000
@@ -379,18 +379,18 @@ Values:
     Similar to innodb_IO_r_ops, but the unit is bytes.
 
   * ``innodb_IO_r_wait``:
-    Shows how long (in seconds) it took |InnoDB| to actually read the data from storage.
+    Shows how long (in seconds) it took InnoDB to actually read the data from storage.
 
   * ``innodb_rec_lock_wait``:
     Shows how long (in seconds) the query waited for row locks.
 
   * ``innodb_queue_wait``:
-    Shows how long (in seconds) the query spent either waiting to enter the |InnoDB| queue or inside that queue waiting for execution.
+    Shows how long (in seconds) the query spent either waiting to enter the InnoDB queue or inside that queue waiting for execution.
 
   * ``innodb_pages_distinct``:
     Counts approximately the number of unique pages the query accessed. The approximation is based on a small hash array representing the entire buffer pool, because it could take a lot of memory to map all the pages. The inaccuracy grows with the number of pages accessed by a query, because there is a higher probability of hash collisions.
 
-If the query did not use |InnoDB| tables, that information is written into the log instead of the above statistics.
+If the query did not use InnoDB tables, that information is written into the log instead of the above statistics.
 
 Related Reading
 ===============

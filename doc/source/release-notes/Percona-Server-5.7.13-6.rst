@@ -1,8 +1,8 @@
 .. rn:: 5.7.13-6
 
-===========================
- |Percona Server| 5.7.13-6
-===========================
+============================================================================
+ Percona Server for MySQL 5.7.13-6
+============================================================================
 
 Percona is glad to announce the GA (Generally Available) release of |Percona
 Server| 5.7.13-6 on July 6th, 2016 (Downloads are available `here
@@ -11,15 +11,15 @@ and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.13
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-13.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.13-6 is the current GA release in
-the |Percona Server| 5.7 series. All of |Percona|'s software is open-source and
+all the bug fixes in it, Percona Server for MySQL 5.7.13-6 is the current GA release in
+the Percona Server for MySQL 5.7 series. All of Percona's software is open-source and
 free, all the details of the release can be found in the `5.7.13-6 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.13-6>`_
 
 New Features
 ============
 
- |TokuDB| MTR suite is now part of the default MTR suite in |Percona Server|
+ TokuDB MTR suite is now part of the default MTR suite in Percona Server for MySQL
  5.7.
 
 Bugs Fixed
@@ -68,4 +68,3 @@ Bugs Fixed
 
 Other bugs fixed: :bug:`1541698` (upstream :mysqlbug:`80261`), :bug:`1587426`
 (upstream, :mysqlbug:`81657`), :bug:`1589431`, :tokubug:`956`, :tokubug:`964`,
-

@@ -6,10 +6,10 @@
 .. _dochome:
 
 ============================================
- |Percona Server| |version| - Documentation
+ Percona Server for MySQL |version| - Documentation
 ============================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
+Percona Server for MySQL is an enhanced drop-in replacement for MySQL. With Percona Server for MySQL,
 
   * Your queries will run faster and more consistently.
 
@@ -25,7 +25,7 @@
 
   * You will troubleshoot without guesswork.
 
-Does this sound too good to be true? It's not. |Percona Server| offers breakthrough performance, scalability, features, and instrumentation. Its self-tuning algorithms and support for extremely high-performance hardware make it the clear choice for companies who demand the utmost performance and reliability from their database server.
+Does this sound too good to be true? It's not. Percona Server for MySQL offers breakthrough performance, scalability, features, and instrumentation. Its self-tuning algorithms and support for extremely high-performance hardware make it the clear choice for companies who demand the utmost performance and reliability from their database server.
 
 Introduction
 ============

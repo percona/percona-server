@@ -208,6 +208,11 @@ SET(ROCKSDB_SOURCES
   rdb_utils.cc rdb_utils.h rdb_buff.h
   rdb_threads.cc rdb_threads.h
   ha_rockspart.cc ha_rockspart.h
+  enc_env_encryption_myrocks.cc
+  enc_aes_ctr_encryption_provider.cc
+  enc_keyring_master_key_manager.cc
+  enc_aes_ctr_stream_factory.cc
+  enc_stream_cipher.cc
 )
 
 IF(WITH_FB_TSAN)
@@ -220,7 +225,7 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl" "-lssl" "-lcrypto" "-lpthread")
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

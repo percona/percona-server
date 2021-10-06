@@ -50,6 +50,7 @@
 #include "./rdb_cf_manager.h"
 #include "./rdb_datadic.h"
 #include "./rdb_utils.h"
+#include "./enc_keyring_master_key_manager.h"
 
 namespace myrocks {
 
@@ -390,6 +391,85 @@ static int rdb_i_s_perf_context_init(void *const p) {
 
   schema->fields_info = rdb_i_s_perf_context_fields_info;
   schema->fill_table = rdb_i_s_perf_context_fill_table;
+
+  DBUG_RETURN(0);
+}
+
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_ENCRYPTION dynamic table
+ */
+static ST_FIELD_INFO rdb_i_s_perf_encryption_info[] = {
+    ROCKSDB_FIELD_INFO("ENCRYPTION_ENABLED", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("SUUID", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("MIN_KEY_ID", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("MAX_KEY_ID", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+extern std::atomic_bool rocksdb_encryption;
+extern std::shared_ptr<KeyringMasterKeyManager> keyringMasterKeyManager;
+
+static int rdb_i_s_perf_encryption_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
+  DBUG_ENTER_FUNC();
+
+  assert(thd != nullptr);
+  assert(tables != nullptr);
+  assert(tables->table != nullptr);
+  assert(tables->table->field != nullptr);
+
+  int ret = 0;
+  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(),
+                                              false);
+  if (!rdb_get_hton_init_state()->initialized()) {
+    ret = ER_PLUGIN_IS_NOT_LOADED;
+    my_error(ret, MYF(0), rocksdb_hton_name);
+    DBUG_RETURN(ret);
+  }
+
+  rocksdb::DB *const rdb = rdb_get_rocksdb_db();
+
+  if (!rdb) {
+    DBUG_RETURN(ret);
+  }
+
+  // ENCRYPTION_ENABLED
+  std::string encryption_enabled = rocksdb_encryption.load() ? "YES" : "NO";
+  tables->table->field[0]->store(
+    encryption_enabled.c_str(), encryption_enabled.size(),
+    system_charset_info);
+
+  uint32_t oldestId, newestId;
+  std::string suuid;
+  keyringMasterKeyManager->GetMasterKeyInfo(&oldestId, &newestId, &suuid);
+  // SUUID
+  tables->table->field[1]->store(
+    suuid.c_str(), suuid.size(),
+    system_charset_info);
+
+  // MIN_KEY_ID
+  tables->table->field[2]->store(oldestId, true);
+
+  // MAX_KEY_ID
+  tables->table->field[3]->store(newestId, true);
+
+  ret = static_cast<int>(
+    my_core::schema_table_store_record(thd, tables->table));
+
+  DBUG_RETURN(ret);
+}
+
+static int rdb_i_s_encryption_init(void *const p) {
+  DBUG_ENTER_FUNC();
+
+  assert(p != nullptr);
+
+  my_core::ST_SCHEMA_TABLE *schema;
+
+  schema = (my_core::ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = rdb_i_s_perf_encryption_info;
+  schema->fill_table = rdb_i_s_perf_encryption_fill_table;
 
   DBUG_RETURN(0);
 }
@@ -2140,6 +2220,23 @@ struct st_mysql_plugin rdb_i_s_perf_context = {
     "RocksDB perf context stats",
     PLUGIN_LICENSE_GPL,
     rdb_i_s_perf_context_init,
+    nullptr,
+    rdb_i_s_deinit,
+    0x0001,  /* version number (0.1) */
+    nullptr, /* status variables */
+    nullptr, /* system variables */
+    nullptr, /* config options */
+    0,       /* flags */
+};
+
+struct st_mysql_plugin rdb_i_s_encryption = {
+    MYSQL_INFORMATION_SCHEMA_PLUGIN,
+    &rdb_i_s_info,
+    "ROCKSDB_ENCRYPTION",
+    "Percona",
+    "RocksDB encryption information",
+    PLUGIN_LICENSE_GPL,
+    rdb_i_s_encryption_init,
     nullptr,
     rdb_i_s_deinit,
     0x0001,  /* version number (0.1) */

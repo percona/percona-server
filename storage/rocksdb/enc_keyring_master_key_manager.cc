@@ -316,6 +316,13 @@ void KeyringMasterKeyManager::GetServerUuid(std::string *serverUuid) {
   *serverUuid = serverUuid_;
 }
 
+void KeyringMasterKeyManager::GetMasterKeyInfo(uint32_t *oldestMasterKeyId,
+    uint32_t *newestMasterKeyId, std::string *serverUuid) {
+  *oldestMasterKeyId = oldestMasterKeyId_;
+  *newestMasterKeyId = newestMasterKeyId_;
+  *serverUuid = serverUuid_;
+}
+
 int KeyringMasterKeyManager::GetMasterKey(uint32_t masterKeyId,
                                           const std::string &suuid,
                                           std::string *masterKey) {

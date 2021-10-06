@@ -35,6 +35,8 @@ class KeyringMasterKeyManager : public MasterKeyManager {
 
   void RegisterMasterKeyId(uint32_t masterKeyId,
                            const std::string &serverUuid) override;
+  void GetMasterKeyInfo(uint32_t *oldestMasterKeyId,
+    uint32_t *newestMasterKeyId, std::string *serverUuid);
 
  private:
   void InitKeyringServices();

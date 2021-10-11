@@ -1114,6 +1114,9 @@ struct Rdb_hton_init_state {
 // file name indicating RocksDB data corruption
 std::string rdb_corruption_marker_file_name();
 
+// get rocksdb_db_options
+rocksdb::DBOptions *get_rocksdb_db_options();
+
 struct Rdb_compaction_stats_record {
   time_t start_timestamp;
   time_t end_timestamp;

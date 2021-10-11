@@ -33,6 +33,11 @@
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 
+/* RocksDB includes */
+#include "rocksdb/env.h"
+#include "rocksdb/file_system.h"
+#include "rocksdb/io_status.h"
+
 namespace myrocks {
 
 /*
@@ -391,14 +396,29 @@ std::vector<std::string> split_into_vector(const std::string &input,
   return elems;
 }
 
-bool rdb_check_rocksdb_corruption() {
-  return !my_access(myrocks::rdb_corruption_marker_file_name().c_str(), F_OK);
+bool rdb_has_rocksdb_corruption() {
+  rocksdb::DBOptions *rocksdb_db_options = get_rocksdb_db_options();
+  assert(rocksdb_db_options->env != nullptr);
+  const std::string fileName(myrocks::rdb_corruption_marker_file_name());
+
+  const auto &fs = rocksdb_db_options->env->GetFileSystem();
+  rocksdb::IOStatus io_s =
+      fs->FileExists(fileName, rocksdb::IOOptions(), nullptr);
+
+  return io_s.ok();
 }
 
 void rdb_persist_corruption_marker() {
-  const std::string &fileName = myrocks::rdb_corruption_marker_file_name();
-  int fd = my_open(fileName.c_str(), O_CREAT | O_SYNC, MYF(MY_WME));
-  if (fd < 0) {
+  rocksdb::DBOptions *rocksdb_db_options = get_rocksdb_db_options();
+  assert(rocksdb_db_options->env != nullptr);
+  const std::string fileName(myrocks::rdb_corruption_marker_file_name());
+
+  const auto &fs = rocksdb_db_options->env->GetFileSystem();
+  std::unique_ptr<rocksdb::FSWritableFile> file;
+  rocksdb::IOStatus io_s =
+      fs->NewWritableFile(fileName, rocksdb::FileOptions(), &file, nullptr);
+
+  if (!io_s.ok()) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "Can't create file %s to mark rocksdb as corrupted.",
                     fileName.c_str());
@@ -410,10 +430,10 @@ void rdb_persist_corruption_marker() {
                     fileName.c_str());
   }
 
-  int ret = my_close(fd, MYF(MY_WME));
-  if (ret) {
-    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%d) closing the file %s", ret,
-                    fileName.c_str());
+  io_s = file->Close(rocksdb::IOOptions(), nullptr);
+  if (!io_s.ok()) {
+    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%s) closing the file %s",
+                    io_s.ToString().c_str(), fileName.c_str());
   }
 }
 

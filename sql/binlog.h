@@ -473,6 +473,8 @@ class MYSQL_BIN_LOG: public TC_LOG
             const char *new_name);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name);
+  int generate_new_name(char *new_name, const char *log_name);
+
 public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
@@ -1072,9 +1074,6 @@ void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
-
-bool generate_new_log_name(char *new_name, ulong *new_ext,
-                           const char *log_name, bool is_binlog);
 
 bool handle_gtid_consistency_violation(THD *thd, int error_code);
 

@@ -3261,8 +3261,8 @@ class Rdb_transaction {
   virtual rocksdb::Status get_for_update(const Rdb_key_def &key_descr,
                                          const rocksdb::Slice &key,
                                          rocksdb::PinnableSlice *const value,
-                                         bool exclusive,
-                                         const bool do_validate) = 0;
+                                         bool exclusive, const bool do_validate,
+                                         bool no_wait) = 0;
 
   rocksdb::Iterator *get_iterator(
       rocksdb::ColumnFamilyHandle *const column_family, bool skip_bloom_filter,
@@ -3447,7 +3447,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
  public:
   void set_lock_timeout(int timeout_sec_arg) override {
     if (m_rocksdb_tx) {
-      m_rocksdb_tx->SetLockTimeout(rdb_convert_sec_to_ms(m_timeout_sec));
+      m_rocksdb_tx->SetLockTimeout(rdb_convert_sec_to_ms(timeout_sec_arg));
     }
   }
 
@@ -3659,8 +3659,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
   rocksdb::Status get_for_update(const Rdb_key_def &key_descr,
                                  const rocksdb::Slice &key,
                                  rocksdb::PinnableSlice *const value,
-                                 bool exclusive,
-                                 const bool do_validate) override {
+                                 bool exclusive, const bool do_validate,
+                                 bool no_wait) override {
     rocksdb::ColumnFamilyHandle *const column_family = key_descr.get_cf();
     /* check row lock limit in a trx */
     if (get_row_lock_count() >= get_max_row_lock_count()) {
@@ -3672,6 +3672,16 @@ class Rdb_transaction_impl : public Rdb_transaction {
       DBUG_EXECUTE_IF("rocksdb_check_uniqueness",
                       DEBUG_SYNC(m_thd, "rocksdb_after_unpin"););
     }
+
+    if (no_wait) {
+      set_lock_timeout(0);
+    }
+    auto restore_wait = create_scope_guard([&]() {
+      if (no_wait) {
+        set_lock_timeout(m_timeout_sec);
+      }
+    });
+
     rocksdb::Status s;
     // If snapshot is null, pass it to GetForUpdate and snapshot is
     // initialized there. Snapshot validation is skipped in that case.
@@ -3688,6 +3698,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
                                      exclusive, false);
       m_read_opts.snapshot = saved_snapshot;
     }
+
     // row_lock_count is to track per row instead of per key
     if (key_descr.is_primary_key()) incr_row_lock_count();
     return s;
@@ -3972,7 +3983,8 @@ class Rdb_writebatch_impl : public Rdb_transaction {
                                  const rocksdb::Slice &key,
                                  rocksdb::PinnableSlice *const value,
                                  bool /* exclusive */,
-                                 const bool /* do_validate */) override {
+                                 const bool /* do_validate */,
+                                 bool /* no_wait */) override {
     rocksdb::ColumnFamilyHandle *const column_family = key_descr.get_cf();
     if (value == nullptr) {
       rocksdb::PinnableSlice pin_val;
@@ -6942,6 +6954,7 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
   }
 
   m_lock_rows = RDB_LOCK_NONE;
+  m_locked_row_action = THR_WAIT;
   m_key_descr_arr = m_tbl_def->m_key_descr_arr;
 
   /*
@@ -8445,7 +8458,8 @@ ulong ha_rocksdb::index_flags(uint inx, uint part, bool all_parts) const {
   m_scan_it points at the index key-value pair that we should read the (pk,row)
   pair for.
 */
-int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
+int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf,
+                                     bool *skip_row) {
   assert(buf != nullptr);
   assert(table != nullptr);
 
@@ -8468,7 +8482,8 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
     inc_covered_sk_lookup();
   } else {
     DEBUG_SYNC(ha_thd(), "rocksdb_concurrent_delete_sk");
-    rc = get_row_by_rowid(buf, m_last_rowkey.ptr(), m_last_rowkey.length());
+    rc = get_row_by_rowid(buf, m_last_rowkey.ptr(), m_last_rowkey.length(),
+                          skip_row);
   }
 
   return rc;
@@ -8534,7 +8549,8 @@ int ha_rocksdb::index_read_intern(uchar *const buf, const uchar *const key,
         /* TODO(yzha) - row stats are gone in 8.0
         stats.rows_requested++; */
 
-        rc = get_row_by_rowid(buf, m_pk_packed_tuple, size, skip_lookup, false);
+        rc = get_row_by_rowid(buf, m_pk_packed_tuple, size, nullptr,
+                              skip_lookup, false);
         if (!rc && !skip_lookup) {
           /* TODO(yzha) - row stats are gone in 8.0
             stats.rows_read++;
@@ -8909,8 +8925,11 @@ rocksdb::Status ha_rocksdb::get_for_update(
 
   bool exclusive = m_lock_rows != RDB_LOCK_READ;
   bool do_validate = my_core::thd_tx_isolation(ha_thd()) > ISO_READ_COMMITTED;
-  rocksdb::Status s =
-      tx->get_for_update(key_descr, key, value, exclusive, do_validate);
+  bool skip_wait =
+      m_locked_row_action == THR_NOWAIT || m_locked_row_action == THR_SKIP;
+
+  rocksdb::Status s = tx->get_for_update(key_descr, key, value, exclusive,
+                                         do_validate, skip_wait);
 
 #ifndef NDEBUG
   ++rocksdb_num_get_for_update_calls;
@@ -8935,7 +8954,8 @@ bool ha_rocksdb::is_blind_delete_enabled() {
 */
 
 int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
-                                 const uint rowid_size, const bool skip_lookup,
+                                 const uint rowid_size, bool *skip_row,
+                                 const bool skip_lookup,
                                  const bool skip_ttl_check) {
   DBUG_ENTER_FUNC();
 
@@ -8944,6 +8964,10 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
   assert(table != nullptr);
 
   int rc;
+
+  if (skip_row) {
+    *skip_row = false;
+  }
 
   rocksdb::Slice key_slice(rowid, rowid_size);
 
@@ -8992,6 +9016,13 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
                   dbug_change_status_to_corrupted(&s););
 
   if (!s.IsNotFound() && !s.ok()) {
+    if (should_skip_locked_record(s)) {
+      assert(skip_row);
+      if (skip_row) {
+        *skip_row = true;
+      }
+      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+    }
     DBUG_RETURN(tx->set_status_error(table->in_use, s, *m_pk_descr, m_tbl_def));
   }
   found = !s.IsNotFound();
@@ -9163,7 +9194,12 @@ int ha_rocksdb::index_next_with_direction_intern(uchar *const buf,
       if (m_lock_rows != RDB_LOCK_NONE) {
         DEBUG_SYNC(ha_thd(), "rocksdb_concurrent_delete");
         /* We need to put a lock and re-read */
-        rc = get_row_by_rowid(buf, key.data(), key.size());
+        bool skip_row = false;
+        rc = get_row_by_rowid(buf, key.data(), key.size(), &skip_row);
+        if (rc != HA_EXIT_SUCCESS && skip_row) {
+          // We are asked to skip locked rows
+          continue;
+        }
       } else {
         /* Unpack from the row we've read */
         m_last_rowkey.copy(key.data(), key.size(), &my_charset_bin);
@@ -9198,7 +9234,12 @@ int ha_rocksdb::index_next_with_direction_intern(uchar *const buf,
       m_last_rowkey.copy((const char *)m_pk_packed_tuple, size,
                          &my_charset_bin);
 
-      rc = secondary_index_read(active_index, buf);
+      bool skip_row = false;
+      rc = secondary_index_read(active_index, buf, &skip_row);
+      if (!rc && skip_row) {
+        // SKIP LOCKED
+        continue;
+      }
     }
 
     if (!should_skip_invalidated_record(rc)) {
@@ -11183,6 +11224,21 @@ THR_LOCK_DATA **ha_rocksdb::store_lock(THD *const thd, THR_LOCK_DATA **to,
     }
 
     m_db_lock.type = lock_type;
+  }
+
+  m_locked_row_action = THR_WAIT;
+  if (lock_type != TL_IGNORE) {
+    auto action = table->pos_in_table_list->lock_descriptor().action;
+    switch (action) {
+      case THR_SKIP:
+        m_locked_row_action = THR_SKIP;
+        break;
+      case THR_NOWAIT:
+        m_locked_row_action = THR_NOWAIT;
+        break;
+      default:
+        break;
+    }
   }
 
   *to++ = &m_db_lock;
@@ -14353,6 +14409,21 @@ bool ha_rocksdb::should_skip_invalidated_record(const int rc) const {
   }
   return false;
 }
+
+bool ha_rocksdb::should_skip_locked_record(rocksdb::Status s) const {
+  if (m_locked_row_action == THR_SKIP) {
+    /*
+      In the spirit of SKIP LOCKED, Deadlock and Busy are also skipped as the
+      goal is to skip conflicting rows and only lock the rows that can be
+      updated later
+     */
+    if (s.IsDeadlock() || s.IsTimedOut() || s.IsBusy()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Indicating snapshot needs to be re-created and retrying seek again,
  * instead of returning errors or empty set. This is normally applicable

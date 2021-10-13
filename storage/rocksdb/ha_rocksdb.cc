@@ -3081,6 +3081,21 @@ class Rdb_transaction {
                        bool print_client_error = true,
                        TABLE *table_arg = nullptr,
                        char *table_name_arg = nullptr) {
+    if (m_curr_bulk_load.size() == 0) {
+      if (is_critical_error) {
+        *is_critical_error = false;
+      }
+      return HA_EXIT_SUCCESS;
+    }
+
+    if (THDVAR(m_thd, trace_sst_api)) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(
+          INFORMATION_LEVEL, 0,
+          "SST Tracing : Finishing bulk loading operation for table '%s'",
+          m_curr_bulk_load_tablename.c_str());
+    }
+
     Ensure_cleanup cleanup([&]() {
       // Always clear everything regardless of success/failure
       m_curr_bulk_load.clear();
@@ -3095,6 +3110,13 @@ class Rdb_transaction {
 
     // PREPARE phase: finish all on-going bulk loading Rdb_sst_info and
     // collect all Rdb_sst_commit_info containing (SST files, cf)
+    if (THDVAR(m_thd, trace_sst_api)) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "SST Tracing : Finishing '%zu' active SST files",
+                      m_curr_bulk_load.size());
+    }
+
     int rc2 = 0;
     std::vector<Rdb_sst_info::Rdb_sst_commit_info> sst_commit_list;
     sst_commit_list.reserve(m_curr_bulk_load.size());
@@ -3117,6 +3139,12 @@ class Rdb_transaction {
       }
     }
 
+    if (THDVAR(m_thd, trace_sst_api)) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "SST Tracing : All active SST files finished");
+    }
+
     if (rc) {
       return rc;
     }
@@ -3125,6 +3153,13 @@ class Rdb_transaction {
     // Rdb_sst_info and collect all Rdb_sst_commit_info containing
     // (SST files, cf)
     if (!m_key_merge.empty()) {
+      if (THDVAR(m_thd, trace_sst_api)) {
+        // NO_LINT_DEBUG
+        LogPluginErrMsg(
+            INFORMATION_LEVEL, 0,
+            "SST Tracing : Started flushing index_merge sort buffer");
+      }
+
       Ensure_cleanup malloc_cleanup([]() {
         /*
           Explicitly tell jemalloc to clean up any unused dirty pages at this
@@ -3182,6 +3217,22 @@ class Rdb_transaction {
             table_arg->key_info[keydef->get_keyno()].flags & HA_NOSAME;
 
         const std::string &index_name = keydef->get_name();
+
+        if (THDVAR(m_thd, trace_sst_api)) {
+          std::string full_name;
+          int err = rdb_normalize_tablename(table_name, &full_name);
+          if (err != HA_EXIT_SUCCESS) {
+            full_name = table_name;
+          }
+
+          // NO_LINT_DEBUG
+          LogPluginErrMsg(
+              INFORMATION_LEVEL, 0,
+              "SST Tracing : Flushing index_merge sort buffer for table '%s' "
+              "and index '%s'",
+              full_name.c_str(), index_name.c_str());
+        }
+
         Rdb_index_merge &rdb_merge = it->second;
 
         auto sst_info = std::make_shared<Rdb_sst_info>(
@@ -3339,6 +3390,13 @@ class Rdb_transaction {
           assert(!commit_info.has_work());
         }
       }
+
+      if (THDVAR(m_thd, trace_sst_api)) {
+        // NO_LINT_DEBUG
+        LogPluginErrMsg(
+            INFORMATION_LEVEL, 0,
+            "SST Tracing : Flushing index_merge sort buffer completed");
+      }
     }
 
     // Early return in case we lost the race completely and end up with no
@@ -3382,6 +3440,13 @@ class Rdb_transaction {
       file_count += cf_files_pair.second.external_files.size();
     }
 
+    if (THDVAR(m_thd, trace_sst_api)) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(
+          INFORMATION_LEVEL, 0,
+          "SST Tracing: Calling IngestExternalFile with '%zu' files",
+          file_count);
+    }
     const rocksdb::Status s = rdb->IngestExternalFiles(args);
     if (THDVAR(m_thd, trace_sst_api)) {
       LogPluginErrMsg(INFORMATION_LEVEL, 0,
@@ -3401,6 +3466,14 @@ class Rdb_transaction {
     // entire operation is aborted
     for (auto &commit_info : sst_commit_list) {
       commit_info.commit();
+    }
+
+    if (THDVAR(m_thd, trace_sst_api)) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(
+          INFORMATION_LEVEL, 0,
+          "SST Tracing : Bulk loading operation completed for table '%s'",
+          m_curr_bulk_load_tablename.c_str());
     }
 
     return rc;
@@ -3460,6 +3533,14 @@ class Rdb_transaction {
       if (res != HA_EXIT_SUCCESS) {
         return res;
       }
+    }
+
+    if (THDVAR(m_thd, trace_sst_api)) {
+      // NO_LINT_DEBUG
+      LogPluginErrMsg(
+          INFORMATION_LEVEL, 0,
+          "SST Tracing : Starting bulk loading operation for table '%s'",
+          bulk_load->get_table_basename().c_str());
     }
 
     /*

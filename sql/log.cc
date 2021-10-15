@@ -894,12 +894,14 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
   sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
   if (my_b_printf(&log_file,
-                  "# Schema: %s  Last_errno: %u  Killed: %u\n"
+                  "# Schema: %s  Last_errno: %lu  Killed: %u\n"
                   "# Query_time: %s  Lock_time: %s  Rows_sent: %llu"
                   "  Rows_examined: %llu  Rows_affected: %llu"
                   "  Bytes_sent: %lu\n",
                   (thd->db().str ? thd->db().str : ""),
-                  thd->last_errno, (uint) thd->killed,
+                  static_cast<ulong>(
+                      thd->is_error() ? thd->get_stmt_da()->mysql_errno() : 0),
+                  (uint) thd->killed,
                   query_time_buff, lock_time_buff,
                   (ulonglong) thd->get_sent_row_count(),
                   (ulonglong) thd->get_examined_row_count(),

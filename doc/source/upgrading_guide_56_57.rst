@@ -52,13 +52,13 @@ Then install the new server with:
 
 .. code-block:: bash
 
-  $ apt-get install percona-server-server-5.7
+  $ apt install percona-server-server-5.7
 
 If you're using |Percona Server| 5.6 with TokuDB you'll need to specify the TokuDB package as well:
 
 .. code-block:: bash
 
-  $ apt-get install percona-server-server-5.7 percona-server-tokudb-5.7
+  $ apt install percona-server-server-5.7 percona-server-tokudb-5.7
 
 The installation script will *NOT* run automatically :command:`mysql_upgrade` as it was the case in previous versions. You'll need to run the command manually and restart the service after it's finished.
 
@@ -181,7 +181,7 @@ Having done the full backup (and dump if possible), stop the server: ::
 
 and remove the installed packages with their dependencies: ::
 
-  $ sudo apt-get autoremove percona-server-server-5.6 percona-server-client-5.6
+  $ sudo apt autoremove percona-server-server-5.6 percona-server-client-5.6
 
 Once removed, proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
 

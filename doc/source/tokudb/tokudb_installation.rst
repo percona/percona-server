@@ -64,7 +64,7 @@ or
 
 .. code-block:: bash
 
- root@wheezy:~# apt-get install percona-server-tokudb-5.7
+ root@wheezy:~# apt install percona-server-tokudb-5.7
 
 .. _tokudb_quick_install:
 

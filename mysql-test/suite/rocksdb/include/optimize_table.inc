@@ -52,12 +52,16 @@ if (!$rocksdb_zenfs_disabled)
 
 --exec $size_cmd
 optimize table t1;
+--sleep 5
 --exec $size_cmd
 optimize table t3;
+--sleep 5
 --exec $size_cmd
 optimize table t4;
+--sleep 5
 --exec $size_cmd
 optimize table t6;
+--sleep 5
 --exec $size_cmd
 
 select count(*) from t1;

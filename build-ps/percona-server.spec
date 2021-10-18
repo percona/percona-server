@@ -500,6 +500,7 @@ mkdir debug
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
            -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_PROTOBUF=bundled \
            -DWITH_RAPIDJSON=bundled \
@@ -546,6 +547,7 @@ mkdir release
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
            -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \

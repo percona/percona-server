@@ -46,6 +46,11 @@ explain
 select * from t2 force index (a) where a=3 and pk=33;
 select * from t2 force index (a) where a=3 and pk=33;
 
+--replace_column 10 # 11 #
+explain 
+select * from t2 force index (a) where a=3 and pk in (33, 34);
+select * from t2 force index (a) where a=3 and pk in (33, 34);
+
 select * from t2 force index (a) where a=99 and pk=99;
 select * from t2 force index (a) where a=0 and pk=0;
 select * from t2 force index (a) where a=-1;

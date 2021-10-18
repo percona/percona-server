@@ -327,7 +327,7 @@ fi
 # Check if TokuDB plugin available on the system
 if [ ${ENABLE_TOKUDB} = 1 ]; then
   # Warn about TokuDB deprecation
-  STATUS_ENABLE_TOKUDB_MYCNF=$(${MYSQL_DEFAULTS_BIN} mysqld ${DEFAULTS_FILE_OPTION}| grep -v '#' | egrep -i tokudb[_-]enabled | egrep -ic '=1|=true')
+  STATUS_ENABLE_TOKUDB_MYCNF=$(${MYSQL_DEFAULTS_BIN} mysqld ${DEFAULTS_FILE_OPTION}| grep -v '#' | egrep -i tokudb[_-]enabled | egrep -ic '=1|=true|=on')
   if [ ${STATUS_ENABLE_TOKUDB_MYCNF} = 0 ]; then
     print_tokudb_deprecation
     exit 1;
@@ -386,7 +386,7 @@ fi
 # Check location for libHotBackup.so
 if [ ${ENABLE_TOKUBACKUP} = 1 ]; then
   # Warn about TokuDB deprecation
-  STATUS_ENABLE_HOTBACKUP_MYCNF=$(${MYSQL_DEFAULTS_BIN} mysqld ${DEFAULTS_FILE_OPTION}| grep -v '#' | egrep -i tokudb[_-]backup[_-]enabled | egrep -ic '=1|=true')
+  STATUS_ENABLE_HOTBACKUP_MYCNF=$(${MYSQL_DEFAULTS_BIN} mysqld ${DEFAULTS_FILE_OPTION}| grep -v '#' | egrep -i tokudb[_-]backup[_-]enabled | egrep -ic '=1|=true|=on')
   if [ ${STATUS_ENABLE_HOTBACKUP_MYCNF} = 0 ]; then
     print_tokudb_deprecation
     exit 1;

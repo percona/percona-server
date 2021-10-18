@@ -4,7 +4,7 @@
 Installing |Percona Server| |release|
 =====================================
 
-This page provides the information on how to you can install |Percona Server|. Following options are available: 
+This page provides the information on how to you can install |Percona Server|. Following options are available:
 
 * :ref:`installing_from_binaries` (recommended)
 * Installing |Percona Server| from Downloaded :ref:`rpm <standalone_rpm>` or :ref:`apt <standalone_deb>` Packages
@@ -29,8 +29,8 @@ Following guides describe the installation process for using the official Percon
    :maxdepth: 1
    :titlesonly:
 
-   installation/apt_repo 
-   installation/yum_repo 
+   installation/apt_repo
+   installation/yum_repo
 
 .. _installing_from_binary_tarball:
 
@@ -48,13 +48,37 @@ In |Percona Server| 8.0.20-11 and later, the multiple binary tarballs have been 
      - Name
      - Description
    * - Full
-     - Percona-Server-<version number>-Linux.x86_64.glibc2.12.tar.gz 
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.12.tar.gz
      - Contains binaries, libraries, test files, and debug symbols
    * - Minimal
      - Percona-Server-<version number>-Linux.x86_64.glibc2.12-minimal.tar.gz
      - Contains binaries, and libraries but does not include test files, or debug symbols
 
 Select the |Percona Server| 8.0 version number and type of tarball for your installation. Both binary tarballs support all distributions.
+
+Implemented in *Percona for MySQL* 8.0.26-16, the following binary tarballs
+are available for the MyRocks ZenFS installations on an SSD with
+Ubuntu 20.04 if the operating system has NVMe ZNS kernel support,
+the ``libzbd`` libary, and the necessary tools. These installations
+are in the **TECH PREVIEW** mode.
+**Do not install these binary tarballs in a production environment**.
+
+See :ref:`zenfs` for more information.
+
+.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
+
+.. list-table::
+   :header-rows: 1
+
+   * - Type
+     - Name
+     - Description
+   * - Full
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.31-zenfs.tar.gz
+     - **TECH PREVIEW**. Contains the binaries, libraries, test files, and debug symbols
+   * - Minimal
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.31-zenfs-minimal.tar.gz
+     - **TECH PREVIEW**. Contains the binaries, and libraries but does not include test files, or debug symbols
 
 In |Percona Server| before 8.0.20-11, multiple tarballs are provided based on the  *OpenSSL* library available in the distribution:
 
@@ -65,7 +89,7 @@ In |Percona Server| before 8.0.20-11, multiple tarballs are provided based on th
 
 You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-8.0/LATEST/binary/tarball/>`_ on the download page.
 
-Fetch and extract the correct binary tarball. For example for *Debian Wheezy*: 
+Fetch and extract the correct binary tarball. For example for *Debian Wheezy*:
 
 .. code-block:: bash
 
@@ -92,7 +116,7 @@ Percona uses the `Github <http://github.com/>`_ revision
 control system for development. To build the latest |Percona Server|
 from the source tree you will need ``git`` installed on your system.
 
-You can now fetch the latest |Percona Server| 8.0 sources. 
+You can now fetch the latest |Percona Server| 8.0 sources.
 
 .. code-block:: bash
 
@@ -192,4 +216,3 @@ Docker images of Percona Server for MySQL are hosted publicly on Docker Hub at h
 .. seealso::
 
     :ref:`docker`
- 

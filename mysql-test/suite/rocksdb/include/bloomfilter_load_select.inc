@@ -4,8 +4,6 @@
 --disable_query_log
 --source $MYSQLTEST_VARDIR/tmp/insert_t1.sql
 --source $MYSQLTEST_VARDIR/tmp/insert_t2.sql
---remove_file $MYSQLTEST_VARDIR/tmp/insert_t1.sql
---remove_file $MYSQLTEST_VARDIR/tmp/insert_t2.sql
 --enable_query_log
 
 # BF conditions (prefix short(4B)|medium(20B)|long(240B))
@@ -189,3 +187,5 @@ call bloom_start();
 select count(*) from t2 force index (id3_id5) where id3='240' and id5=1200;
 call bloom_end();
 
+--remove_file $MYSQLTEST_VARDIR/tmp/insert_t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/insert_t2.sql

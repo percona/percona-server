@@ -31,6 +31,8 @@
 
 namespace myrocks {
 
+class Rdb_tbl_def;
+
 enum RDB_IO_ERROR_TYPE {
   RDB_IO_ERROR_TX_COMMIT,
   RDB_IO_ERROR_DICT_COMMIT,
@@ -98,7 +100,7 @@ bool rdb_sync_wal_supported();
 
 enum operation_type : int;
 void rdb_update_global_stats(const operation_type &type, uint count,
-                             bool is_system_table = false);
+                             Rdb_tbl_def *td = nullptr);
 
 class Rdb_dict_manager;
 Rdb_dict_manager *rdb_get_dict_manager(void)

@@ -295,12 +295,14 @@ Variable_name	Value
 rocksdb_bulk_load	ON
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 show session variables like 'rocksdb_bulk_load%';
 Variable_name	Value
 rocksdb_bulk_load	ON
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i)) ENGINE = ROCKSDB;
 INSERT INTO t1 VALUES (1,1);
@@ -345,6 +347,7 @@ Variable_name	Value
 rocksdb_bulk_load	OFF
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 CREATE TABLE t1 (a VARCHAR(30)) ENGINE=RocksDB;
 INSERT INTO t1 (a) VALUES (REPEAT("a", 30));
@@ -483,7 +486,7 @@ index kb(b(5))
 ) ENGINE = ROCKSDB charset utf8 collate utf8_bin;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 (a,b) VALUES (1,'1111122222');
 INSERT INTO t1 (a,b) VALUES (2,'2222233333');
 INSERT INTO t1 (a,b) VALUES (3,'3333344444');
@@ -492,19 +495,19 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
+  `b` varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(5)) /*!80000 INVISIBLE */
-) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
 ALTER TABLE t1 ALTER INDEX kb VISIBLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
+  `b` varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(5))
-) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
 include/assert.inc [No new index ids allocated]
 DROP TABLE t1;
 SET global rocksdb_table_stats_sampling_pct = @prior_rocksdb_table_stats_sampling_pct;

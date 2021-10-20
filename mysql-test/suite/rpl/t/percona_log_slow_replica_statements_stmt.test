@@ -1,5 +1,5 @@
 #
-# Test log_slow_replica_statements
+# Test log_slow_replica_statements with statement based replication
 #
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
@@ -17,13 +17,13 @@ SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
 SET GLOBAL log_slow_replica_statements=OFF;
 --source include/restart_slave_sql.inc
 
---let log_file=percona.slow_extended.log_slow_replica_statements
+--let log_file=percona.slow_extended.log_slow_replica_statements_sbr
 --source include/log_start.inc
 
 #
 # A statement that should not be slow-logged
 #
-connection master;
+--source include/rpl_connection_master.inc
 INSERT INTO t VALUES (1);
 --source include/sync_slave_sql_with_master.inc
 
@@ -31,7 +31,7 @@ INSERT INTO t VALUES (1);
 # A statement that should be slow-logged
 #
 SET GLOBAL log_slow_replica_statements=ON;
-connection master;
+--source include/rpl_connection_master.inc
 # Explicit transaction to avoid slow-logging implicit BEGIN/COMMIT
 BEGIN;
 INSERT INTO t VALUES (2);
@@ -42,7 +42,7 @@ COMMIT;
 # A statement that should not be slow-logged
 #
 SET GLOBAL log_slow_replica_statements=OFF;
-connection master;
+--source include/rpl_connection_master.inc
 INSERT INTO t VALUES (3);
 --source include/sync_slave_sql_with_master.inc
 
@@ -57,10 +57,10 @@ INSERT INTO t VALUES (3);
 --let grep_pattern= ^# User@Host: skip-grants user\[SQL_SLAVE\] @  \[\]
 --source include/log_grep.inc
 
-connection master;
+--source include/rpl_connection_master.inc
 DROP TABLE t;
 
-connection slave;
+--source include/rpl_connection_slave.inc
 SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
 SET GLOBAL long_query_time=@saved_long_query_time;
 SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;

@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -10198,6 +10199,18 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
   }
 
 end:
+  if (table != nullptr && (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+                           thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)) {
+    thd->update_slow_query_status();
+
+    if (log_slow_applicable(thd)) {
+      std::ostringstream log_query;
+      log_query << get_type_str() << " `" << table->s->db.str << "`.`"
+                << table->s->table_name.str << "`";
+      log_slow_do(thd, log_query.str());
+    }
+  }
+
   if (get_flags(STMT_END_F)) {
     if ((error = rows_event_stmt_cleanup(rli, thd))) {
       if (table)

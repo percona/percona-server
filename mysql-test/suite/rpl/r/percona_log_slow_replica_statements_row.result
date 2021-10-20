@@ -1,0 +1,66 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION binlog_rows_query_log_events=1;
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+INSERT INTO t2 VALUES (1),(2),(3);
+UPDATE t2 SET id=4 WHERE id=3;
+DELETE FROM t2;
+RETURN 1;
+END|
+include/sync_slave_sql_with_master.inc
+SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
+SET GLOBAL min_examined_row_limit=0;
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
+SET GLOBAL long_query_time=0;
+SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
+SET GLOBAL log_slow_replica_statements=OFF;
+include/restart_slave.inc
+[log_start.inc] percona.slow_extended.log_slow_replica_statements_rbr
+[connection master]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+SET GLOBAL log_slow_replica_statements=ON;
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (2);
+UPDATE t1 SET id = 3 WHERE id = 2;
+DELETE FROM t1;
+COMMIT;
+SELECT f1();
+f1()
+1
+include/sync_slave_sql_with_master.inc
+SET GLOBAL log_slow_replica_statements=OFF;
+[connection master]
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
+[log_stop.inc] percona.slow_extended.log_slow_replica_statements_rbr
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: Write_rows `test`.`t1`
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: Update_rows `test`.`t1`
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: Delete_rows `test`.`t1`
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: Write_rows `test`.`t2`
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: Update_rows `test`.`t2`
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: Delete_rows `test`.`t2`
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_replica_statements_rbr pattern: ^# User@Host: skip-grants user\[SQL_SLAVE\] @  \[\]
+[log_grep.inc] lines:   7
+[connection master]
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP TABLE t2;
+[connection slave]
+SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
+SET GLOBAL long_query_time=@saved_long_query_time;
+SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;
+include/rpl_end.inc

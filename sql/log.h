@@ -473,6 +473,8 @@ bool log_slow_applicable(THD *thd, int sp_sql_command = -1);
 */
 void log_slow_do(THD *thd, struct System_status_var *query_start_status);
 
+void log_slow_do(THD *thd, const std::string &query);
+
 /**
   Check whether we need to write the current statement to the slow query
   log. If so, do so. This is a wrapper for the two functions above;

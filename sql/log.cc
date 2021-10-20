@@ -725,6 +725,23 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   sprintf(lock_time_buff, "%.6f", ulonglong2double(lock_utime) / 1000000.0);
 
   /*
+    For replica server using RBR log only some basic info.
+   */
+  if ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+       thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) &&
+      thd->is_current_stmt_binlog_format_row()) {
+    if (my_b_printf(&log_file, "# Query_time: %s\n", query_time_buff) ==
+            (uint)-1 ||
+        my_b_write(&log_file, pointer_cast<const uchar *>(sql_text),
+                   sql_text_len) ||
+        my_b_write(&log_file, pointer_cast<const uchar *>(";\n"), 2) ||
+        flush_io_cache(&log_file))
+      goto err;
+    mysql_mutex_unlock(&LOCK_log);
+    return false;
+  }
+
+  /*
     As a general rule, if opt_log_slow_extra is set, the caller will
     have saved state at the beginning of execution, and passed in a
     pointer to that state in query_start. As there are exceptions to
@@ -1853,6 +1870,13 @@ void log_slow_do(THD *thd, struct System_status_var *query_start_status) {
   else
     query_logger.slow_log_write(thd, thd->query().str, thd->query().length,
                                 query_start_status);
+}
+
+void log_slow_do(THD *thd, const std::string &query) {
+  thd_proc_info(thd, "logging slow query");
+  THD_STAGE_INFO(thd, stage_logging_slow_query);
+  thd->status_var.long_query_count++;
+  query_logger.slow_log_write(thd, query.c_str(), query.length(), nullptr);
 }
 
 /**

@@ -60,7 +60,7 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :variable:`rocksdb_allow_unsafe_alter`
-     - No
+     - Yes
      - No
      - Global
    * - :variable:`rocksdb_alter_column_default_inplace`

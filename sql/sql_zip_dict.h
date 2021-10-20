@@ -29,7 +29,7 @@ struct TABLE_SHARE;
 
 namespace compression_dict {
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Skip creating compression dictionary tables during bootstrap.
 This is used simulate upgrade from mysql datadir to percona server
 datadir and verify if compression dictionary tables are created

@@ -41,7 +41,7 @@ The installation adds the following variables:
       -
       - global
       - Yes
-      - String
+      - string
     * - authentication_ldap_simple_bind_root_dn
       - Root distinguished name (DN)
       -
@@ -52,7 +52,7 @@ The installation adds the following variables:
       - string
     * - authentication_ldap_simple_bind_root_pwd
       - Password for the root distinguished name
-      -
+      - 
       -
       -
       - global
@@ -176,7 +176,7 @@ or ::
 
 If a MySQL user `rshimek` has the following entry in the LDAP directory:
 
-.. code-block:: guess
+.. code-block:: text
 
     uid=rshimek, ou=users, dc=hr, dc=com
 

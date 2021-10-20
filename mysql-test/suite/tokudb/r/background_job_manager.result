@@ -26,7 +26,7 @@ TokuDB_background_job_status	CREATE TEMPORARY TABLE `TokuDB_background_job_statu
   `scheduled_time` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `started_time` datetime DEFAULT NULL,
   `status` varchar(1024) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 create table t1 (a int not null auto_increment, b int, c int, primary key(a), key kb(b), key kc(c), key kabc(a,b,c), key kab(a,b), key kbc(b,c));
 insert into t1(b,c) values(0,0), (1,1), (2,2), (3,3);
 select database_name, table_name, job_type, job_params, scheduler from information_schema.tokudb_background_job_status;

@@ -147,7 +147,8 @@ static ST_FIELD_INFO view_fields[] = {
     {0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0}};
 
 static MYSQL_SYSVAR_STR(files_spec, files_spec,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOPERSIST,
                         "List of files and directories accessable to users "
                         "with ACCESS_PROCFS privilege.",
                         nullptr, nullptr, DEFAULT_FILES_SPEC);

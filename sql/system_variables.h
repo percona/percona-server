@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -339,8 +339,9 @@ struct System_variables {
 
   bool sysdate_is_now;
   bool binlog_rows_query_log_events;
+  bool binlog_ddl_skip_rewrite;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulonglong query_exec_time;
   double query_exec_time_double;
 #endif

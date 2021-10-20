@@ -35,7 +35,7 @@ A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_TABLESPACES`` has bit number
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +-------+-----------+-------+-----------+
       | space | name      | flag  | encrypted |

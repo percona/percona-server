@@ -1,3 +1,5 @@
+CREATE USER 'drop_cf_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+GRANT ALL ON *.* TO 'drop_cf_test'@'localhost';
 CREATE TABLE tables (
 table_id int NOT NULL,
 created BOOLEAN NOT NULL,
@@ -39,3 +41,4 @@ INSERT INTO cfs VALUES(6, 0, 0);
 INSERT INTO cfs VALUES(7, 0, 0);
 DROP TABLE tables;
 DROP TABLE cfs;
+DROP USER 'drop_cf_test'@'localhost';

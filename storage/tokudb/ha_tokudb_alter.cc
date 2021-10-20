@@ -1290,7 +1290,7 @@ int ha_tokudb::alter_table_add_or_drop_column(
       memset(&column_dbt, 0, sizeof column_dbt);
       column_dbt.data = column_extra;
       column_dbt.size = num_column_extra;
-      DBUG_ASSERT(num_column_extra <= max_column_extra_size);
+      assert(num_column_extra <= max_column_extra_size);
       error = share->key_file[i]->update_broadcast(
           share->key_file[i], ctx->alter_txn, &column_dbt, DB_IS_RESETTING_OP);
       if (error) {

@@ -11,7 +11,7 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
        - A partition management operation only supports the ``COPY`` algorithms, which rebuilds the partition table and moves the data based on the new ``PARTITION ... VALUE`` definition. In the case of ``DROP PARTITION``, the data not moved to another partition is deleted.
    * `ALTER TABLE .. EXCHANGE PARTITION <https://dev.mysql.com/doc/refman/8.0/en/partitioning-management-exchange.html>`_. 
    * `SAVEPOINT <https://dev.mysql.com/doc/refman/8.0/en/savepoint.html>`_
-   * `Transportable tablespace <https://dev.mysql.com/doc/refman/8.0/en/innodb-transportable-tablespace-examples.html>`_
+   * `Transportable tablespace <https://dev.mysql.com/doc/refman/8.0/en/innodb-table-import.html>`_
    * `Foreign keys <https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html>`_
    * `Spatial indexes <https://dev.mysql.com/doc/refman/8.0/en/using-spatial-indexes.html>`_
    * `Fulltext indexes <https://dev.mysql.com/doc/refman/8.0/en/innodb-fulltext-index.html>`_

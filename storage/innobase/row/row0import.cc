@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2020, Oracle and/or its affiliates.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2411,9 +2411,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   n_rows_in_table = cfg.get_n_rows(index->name);
 
-  DBUG_EXECUTE_IF("ib_import_sec_rec_count_mismatch_failure",
-                  n_rows_in_table++;);
-
   /* Adjust the root pages of the secondary indexes only. */
   while ((index = index->next()) != nullptr) {
     ut_a(!index->is_clustered());
@@ -3645,9 +3642,6 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   mutex_exit(&trx->undo_mutex);
 
-  DBUG_EXECUTE_IF("ib_import_undo_assign_failure",
-                  err = DB_TOO_MANY_CONCURRENT_TRXS;);
-
   if (err != DB_SUCCESS) {
     return (row_import_cleanup(prebuilt, trx, err));
 
@@ -3716,9 +3710,6 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     }
 
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
-
-    DBUG_EXECUTE_IF("ib_import_set_index_root_failure",
-                    err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
   } else if (cfg.m_missing) {
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
@@ -3871,8 +3862,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   dict_name::convert_to_space(tablespace_name);
 
   err = fil_ibd_open(true, FIL_TYPE_IMPORT, table->space, fsp_flags,
-                     tablespace_name.c_str(), table->name.m_name, filepath,
-                     true, false, keyring_encryption_info);
+                     tablespace_name.c_str(), filepath, true, false,
+                     keyring_encryption_info);
 
   if (err == DB_SUCCESS && cfg.m_is_keyring_encrypted &&
       (!keyring_encryption_info.page0_has_crypt_data ||

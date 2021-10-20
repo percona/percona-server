@@ -109,12 +109,6 @@ struct Rdb_table_handler {
   /* Stores cumulative table statistics */
   my_io_perf_atomic_t m_io_perf_read;
   Rdb_atomic_perf_counters m_table_perf_context;
-
-  /* Stores cached memtable estimate statistics */
-  std::atomic_uint m_mtcache_lock;
-  uint64_t m_mtcache_count;
-  uint64_t m_mtcache_size;
-  uint64_t m_mtcache_last_update;
 };
 
 }  // namespace myrocks
@@ -175,12 +169,6 @@ class ha_rocksdb : public my_core::handler {
                                     uint part, bool all_parts);
 
   /*
-    Number of key parts in PK. This is the same as
-      table->key_info[table->s->primary_key].keyparts
-  */
-  uint m_pk_key_parts;
-
-  /*
     true <=> Primary Key columns can be decoded from the index. It should be
     enabled by default and may be disabled in init_with_fields() after initial
     keys info is loaded and it turns out the feature isn't supported for
@@ -188,7 +176,6 @@ class ha_rocksdb : public my_core::handler {
   */
   mutable bool m_pk_can_be_decoded;
 
-  uchar *m_pk_tuple;        /* Buffer for storing PK in KeyTupleFormat */
   uchar *m_pk_packed_tuple; /* Buffer for storing PK in StorageFormat */
   // ^^ todo: change it to 'char*'? TODO: ^ can we join this with last_rowkey?
 
@@ -213,9 +200,6 @@ class ha_rocksdb : public my_core::handler {
   */
   uchar *m_sk_match_prefix;
   uint m_sk_match_length;
-
-  /* Buffer space for the above */
-  uchar *m_sk_match_prefix_buf;
 
   /* Second buffers, used by UPDATE. */
   uchar *m_sk_packed_tuple_old;
@@ -287,10 +271,10 @@ class ha_rocksdb : public my_core::handler {
   /* true means we're doing an index-only read. false means otherwise. */
   bool m_keyread_only;
 
-  bool m_skip_scan_it_next_call;
+  /* We only iterate but don't need to decode anything */
+  bool m_iteration_only;
 
-  /* true means we are accessing the first row after a snapshot was created */
-  bool m_rnd_scan_is_new_snapshot;
+  bool m_rnd_scan_started;
 
   /*
     TRUE means INSERT ON DUPLICATE KEY UPDATE. In such case we can optimize by
@@ -306,7 +290,7 @@ class ha_rocksdb : public my_core::handler {
   */
   bool m_dup_key_found;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Index tuple (for duplicate PK/unique SK). Used for sanity checking.
   */
@@ -338,10 +322,6 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   int secondary_index_read(const int keyno, uchar *const buf)
       MY_ATTRIBUTE((__warn_unused_result__));
-  void setup_iterator_for_rnd_scan();
-  bool is_ascending(const Rdb_key_def &keydef,
-                    enum ha_rkey_function find_flag) const
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   void setup_iterator_bounds(const Rdb_key_def &kd,
                              const rocksdb::Slice &eq_cond, size_t bound_len,
                              uchar *const lower_bound, uchar *const upper_bound,
@@ -369,15 +349,15 @@ class ha_rocksdb : public my_core::handler {
   int fill_virtual_columns();
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true,
-                       const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_lookup = false,
+                       const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true,
-                       const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_lookup = false,
+                       const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
     return get_row_by_rowid(buf, reinterpret_cast<const char *>(rowid),
-                            rowid_size, skip_ttl_check, skip_lookup);
+                            rowid_size, skip_lookup, skip_ttl_check);
   }
 
   void load_auto_incr_value();
@@ -401,16 +381,9 @@ class ha_rocksdb : public my_core::handler {
   bool has_hidden_pk(const TABLE *const table) const
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  void update_row_stats(const operation_type &type);
+  void update_row_stats(const operation_type &type, ulonglong count = 1);
 
   void set_last_rowkey(const uchar *const old_data);
-
-  /*
-    For the active index, indicates which columns must be covered for the
-    current lookup to be covered. If the bitmap field is null, that means this
-    index does not cover the current lookup for any record.
-   */
-  MY_BITMAP m_lookup_bitmap;
 
   int alloc_key_buffers(const TABLE *const table_arg,
                         const Rdb_tbl_def *const tbl_def_arg,
@@ -421,17 +394,24 @@ class ha_rocksdb : public my_core::handler {
   // the buffer size should be at least 2*Rdb_key_def::INDEX_NUMBER_SIZE
   rocksdb::Range get_range(const int i, uchar buf[]) const;
 
+  void records_in_range_internal(uint inx, key_range *const min_key,
+                                 key_range *const max_key, int64 disk_size,
+                                 int64 rows, ulonglong *total_size,
+                                 ulonglong *row_count);
+
   /*
     Perf timers for data reads
   */
   Rdb_io_perf m_io_perf;
 
+ public:
+  static rocksdb::Range get_range(const Rdb_key_def &kd, uchar buf[]);
+
   /*
     Update stats
   */
-  void update_stats(void);
+  static int update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def);
 
- public:
   /*
     Controls whether writes include checksums. This is updated from the session
     variable
@@ -557,6 +537,8 @@ class ha_rocksdb : public my_core::handler {
                        const Rdb_tbl_def *const tbl_def_arg)
       MY_ATTRIBUTE((__warn_unused_result__));
 
+  uint active_index_pos() MY_ATTRIBUTE((__warn_unused_result__));
+
   static bool is_pk(const uint index, const TABLE *table_arg,
                     const Rdb_tbl_def *tbl_def_arg)
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -614,26 +596,13 @@ class ha_rocksdb : public my_core::handler {
     DBUG_RETURN(HA_POS_ERROR);
   }
 
-  /* At the moment, we're ok with default handler::index_init() implementation.
-   */
   int index_read_map(uchar *const buf, const uchar *const key,
                      key_part_map keypart_map,
                      enum ha_rkey_function find_flag) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  int index_read_map_impl(uchar *const buf, const uchar *const key,
-                          key_part_map keypart_map,
-                          enum ha_rkey_function find_flag,
-                          const key_range *end_key)
-      MY_ATTRIBUTE((__warn_unused_result__));
-
   int index_read_last_map(uchar *const buf, const uchar *const key,
                           key_part_map keypart_map) override
-      MY_ATTRIBUTE((__warn_unused_result__));
-
-  int read_range_first(const key_range *const start_key,
-                       const key_range *const end_key, bool eq_range,
-                       bool sorted) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
   virtual double scan_time() override {
@@ -664,8 +633,6 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
 
   int index_next(uchar *const buf) override
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int index_next_with_direction(uchar *const buf, bool move_forward)
       MY_ATTRIBUTE((__warn_unused_result__));
   int index_prev(uchar *const buf) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -762,16 +729,18 @@ class ha_rocksdb : public my_core::handler {
                            const rocksdb::Slice &ttl_rec_val,
                            const int64_t curr_ts)
       MY_ATTRIBUTE((__warn_unused_result__));
-  int rocksdb_skip_expired_records(const Rdb_key_def &kd,
-                                   rocksdb::Iterator *const iter,
-                                   bool seek_backward);
 
-  int index_first_intern(uchar *buf) MY_ATTRIBUTE((__warn_unused_result__));
-  int index_last_intern(uchar *buf) MY_ATTRIBUTE((__warn_unused_result__));
+  int index_read_intern(uchar *const buf, const uchar *const key,
+                        key_part_map keypart_map,
+                        enum ha_rkey_function find_flag)
+      MY_ATTRIBUTE((__warn_unused_result__));
+  int index_read_intern(uchar *buf, bool first)
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+  int index_next_with_direction_intern(uchar *const buf, bool forward,
+                                       bool skip_next)
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   enum icp_result check_index_cond() const;
-  int find_icp_matching_index_rec(const bool move_forward, uchar *const buf)
-      MY_ATTRIBUTE((__warn_unused_result__));
 
   void calc_updated_indexes();
   int update_write_row(const uchar *const old_data, const uchar *const new_data,
@@ -812,37 +781,26 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
 
   int read_key_exact(const Rdb_key_def &kd, rocksdb::Iterator *const iter,
-                     const bool using_full_key, const rocksdb::Slice &key_slice,
+                     const rocksdb::Slice &key_slice,
                      const int64_t ttl_filter_ts)
       MY_ATTRIBUTE((__warn_unused_result__));
   int read_before_key(const Rdb_key_def &kd, const bool using_full_key,
-                      const rocksdb::Slice &key_slice,
-                      const int64_t ttl_filter_ts)
+                      const rocksdb::Slice &key_slice)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-  int read_after_key(const Rdb_key_def &kd, const rocksdb::Slice &key_slice,
-                     const int64_t ttl_filter_ts)
+  int read_after_key(const Rdb_key_def &kd, const rocksdb::Slice &key_slice)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int position_to_correct_key(const Rdb_key_def &kd,
                               const enum ha_rkey_function &find_flag,
-                              const bool full_key_match, const uchar *const key,
-                              const key_part_map &keypart_map,
+                              const bool full_key_match,
                               const rocksdb::Slice &key_slice,
-                              bool *const move_forward,
-                              const int64_t ttl_filter_ts)
-      MY_ATTRIBUTE((__warn_unused_result__));
-
-  int read_row_from_primary_key(uchar *const buf)
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int read_row_from_secondary_key(uchar *const buf, const Rdb_key_def &kd,
-                                  bool move_forward)
+                              bool *const move_forward)
       MY_ATTRIBUTE((__warn_unused_result__));
 
   int calc_eq_cond_len(const Rdb_key_def &kd,
                        const enum ha_rkey_function &find_flag,
                        const rocksdb::Slice &slice,
                        const int bytes_changed_by_succ,
-                       const key_range *const end_key,
-                       uint *const end_key_packed_size)
+                       const key_range *const end_key)
       MY_ATTRIBUTE((__warn_unused_result__));
 
   Rdb_tbl_def *get_table_if_exists(const char *const tablename)
@@ -886,10 +844,7 @@ class ha_rocksdb : public my_core::handler {
   */
   int rnd_init(bool scan) override MY_ATTRIBUTE((__warn_unused_result__));
   int rnd_end() override MY_ATTRIBUTE((__warn_unused_result__));
-
   int rnd_next(uchar *const buf) override
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int rnd_next_with_direction(uchar *const buf, bool move_forward)
       MY_ATTRIBUTE((__warn_unused_result__));
 
   int rnd_pos(uchar *const buf, uchar *const pos) override
@@ -937,7 +892,7 @@ class ha_rocksdb : public my_core::handler {
                    dd::Table *table_def);
   int truncate_table(Rdb_tbl_def *tbl_def,
                      const std::string &actual_user_table_name,
-                     const TABLE *table_arg, ulonglong auto_increment_value,
+                     TABLE *table_arg, ulonglong auto_increment_value,
                      dd::Table *table_def);
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
@@ -983,8 +938,20 @@ class ha_rocksdb : public my_core::handler {
       const dd::Table *old_table_def, dd::Table *new_table_def) override;
 
   bool is_read_free_rpl_table() const;
-  int adjust_handler_stats_sst_and_memtable();
-  int adjust_handler_stats_table_scan();
+  static int adjust_handler_stats_sst_and_memtable(ha_statistics *ha_stats,
+                                                   Rdb_tbl_def *tbl_def);
+  static int adjust_handler_stats_table_scan(ha_statistics *ha_stats,
+                                             Rdb_tbl_def *tbl_def);
+
+  void update_row_read(ulonglong count);
+  static void inc_covered_sk_lookup();
+
+  void build_decoder();
+  void check_build_decoder();
+
+ protected:
+  int records(ha_rows *num_rows) override;
+  int records_from_index(ha_rows *num_rows, uint index) override;
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
  public:
@@ -1019,6 +986,9 @@ class ha_rocksdb : public my_core::handler {
   bool m_in_rpl_delete_rows;
   bool m_in_rpl_update_rows;
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+
+  /* Need to build decoder on next read operation */
+  bool m_need_build_decoder;
 };
 
 /*

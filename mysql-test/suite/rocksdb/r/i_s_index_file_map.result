@@ -11,7 +11,7 @@ ROCKSDB_INDEX_FILE_MAP	CREATE TEMPORARY TABLE `ROCKSDB_INDEX_FILE_MAP` (
   `ENTRY_MERGES` bigint NOT NULL DEFAULT '0',
   `ENTRY_OTHERS` bigint NOT NULL DEFAULT '0',
   `DISTINCT_KEYS_PREFIX` varchar(400) NOT NULL DEFAULT ''
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_index_file_map;
 ERROR HY000: Plugin 'ROCKSDB' is not loaded

@@ -52,12 +52,12 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
                       const rocksdb::Slice &existing_value,
                       std::string *new_value,
                       bool *value_changed) const override {
-    DBUG_ASSERT(key.size() >= sizeof(uint32));
+    assert(key.size() >= sizeof(uint32));
 
     GL_INDEX_ID gl_index_id;
     gl_index_id.cf_id = m_cf_id;
     gl_index_id.index_id = rdb_netbuf_to_uint32((const uchar *)key.data());
-    DBUG_ASSERT(gl_index_id.index_id >= 1);
+    assert(gl_index_id.index_id >= 1);
 
     if (gl_index_id != m_prev_index) {
       m_should_delete =
@@ -79,13 +79,13 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
             m_snapshot_timestamp = static_cast<uint64_t>(std::time(nullptr));
           }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
           int snapshot_ts = rdb_dbug_set_ttl_snapshot_ts();
           if (snapshot_ts) {
             m_snapshot_timestamp =
                 static_cast<uint64_t>(std::time(nullptr)) + snapshot_ts;
           }
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
         }
       }
 
@@ -111,7 +111,7 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
   void get_ttl_duration_and_offset(const GL_INDEX_ID &gl_index_id,
                                    uint64 *ttl_duration,
                                    uint32 *ttl_offset) const {
-    DBUG_ASSERT(ttl_duration != nullptr);
+    assert(ttl_duration != nullptr);
     /*
       If TTL is disabled set ttl_duration to 0.  This prevents the compaction
       filter from dropping expired records.
@@ -138,13 +138,13 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
           gl_index_id.cf_id, gl_index_id.index_id);
     }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     if (rdb_dbug_set_ttl_ignore_pk() &&
         index_info.m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY) {
       *ttl_duration = 0;
       return;
     }
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
     *ttl_duration = index_info.m_ttl_duration;
     if (Rdb_key_def::has_index_flag(index_info.m_index_flags,

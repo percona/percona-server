@@ -31,7 +31,7 @@ include/sync_slave_sql_with_master.inc
 [log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(3\)
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: ^# User@Host: skip-grants user\[SQL_SLAVE\] @  \[\]
-[log_grep.inc] lines:   2
+[log_grep.inc] lines:   1
 DROP TABLE t;
 SET GLOBAL log_slow_slave_statements=@saved_log_slow_slave_statements;
 SET GLOBAL long_query_time=@saved_long_query_time;

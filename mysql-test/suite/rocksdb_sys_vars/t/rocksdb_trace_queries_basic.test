@@ -36,6 +36,7 @@ set global rocksdb_trace_queries='1:1024:test_trace_file_1';
 # Incorrect types
 --error ER_WRONG_TYPE_FOR_VAR
 set global rocksdb_trace_queries=1.1;
+--error ER_WRONG_VALUE_FOR_VAR
 set global rocksdb_trace_queries=NULL;
 
 # Incorrect arguments

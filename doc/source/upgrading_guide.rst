@@ -147,7 +147,7 @@ Having done the full backup (and dump if possible), stop the server:
 
 .. admonition:: Output of :bash:`rpm -qa | grep Percona-Server`
 
-   .. code-block:: guess
+   .. code-block:: bash
 
       Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64
       Percona-Server-client-57-5.7.10-3.1.el7.x86_64
@@ -238,7 +238,7 @@ indexes needed and do the modifications needed:
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: bash
 
       Checking if update is needed.
       Checking server version.
@@ -389,7 +389,7 @@ After you unpack the bundle you should see the following packages: :bash:`ls *.r
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: bash
 
       percona-server-debuginfo-8.0.13-3.1.el7.x86_64.rpm
       percona-server-client-8.0.13-3.1.el7.x86_64.rpm
@@ -469,7 +469,7 @@ If such tables are found |mysqlcheck| issues a warning:
 
 .. admonition:: Output of |mysqlcheck| detecting a table that do not use the native partitioning
 
-   .. code-block:: guess
+   .. code-block:: bash
 
       | comp_test.t1_RocksDB_lz4     OK
       | warning  : The partition engine, used by table 'comp_test.t1_RocksDB_lz4',
@@ -491,7 +491,7 @@ partitioning. Unless you complete these steps for each table that |mysqlcheck|
 complained about, the upgrade to |MySQL| |version| will fail and your error log
 will contain messages like:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    2018-12-17T18:34:14.152660Z 2 [ERROR] [MY-013140] [Server] The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
    2018-12-17T18:34:14.152679Z 2 [ERROR] [MY-013140] [Server] Can't find file: './comp_test/t1_RocksDB_lz4.frm' (errno: 0 - Success)

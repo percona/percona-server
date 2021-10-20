@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1373,7 +1373,7 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
     }
 
     // For tables in cache check if they contain crypt_data in page0
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, NULL, 0)) {
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
         mtr_commit(&mtr);
         return std::make_pair(true, 0);  // will cause upgrade to fail
@@ -1400,8 +1400,8 @@ std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
 
     /* Check that the .ibd file exists. */
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, space_name, filepath,
-                               true, true, keyring_encryption_info);
+                               fsp_flags, space_name, filepath, true, true,
+                               keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
@@ -1623,8 +1623,7 @@ std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
     whether it is a shared tablespace or a single table
     tablespace, look to see if it is already in the tablespace
     cache. */
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
-                                0)) {
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
       ut_free(table_name.m_name);
       ut_free(space_name_from_dict);
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
@@ -1676,8 +1675,8 @@ std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
     // We do not need to validate tablespace for online encryption as encryption
     // threads do not work in 5.7. Only ENCRYPTION='KEYRING' works.
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, tbl_name, filepath, true,
-                               true, keyring_encryption_info);
+                               fsp_flags, space_name, filepath, true, true,
+                               keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
@@ -2375,8 +2374,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   }
 
   /* The tablespace may already be open. */
-  if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
-                              table->id)) {
+  if (fil_space_exists_in_mem(table->space, space_name, false, true)) {
     ut_free(shared_space_name);
     return;
   }
@@ -2429,7 +2427,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   upgrade */
   Keyring_encryption_info keyring_encryption_info;
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-                             space_name, tbl_name, filepath, true, true,
+                             space_name, filepath, true, true,
                              keyring_encryption_info);
 
   if (err != DB_SUCCESS) {

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2020 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,29 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifndef os0enc_h
 #define os0enc_h
 
+#include <mysql/components/my_service.h>
+
 #include "keyring_encryption_key_info.h"
 #include "template_utils.h"
 
 #include "univ.i"
+
+namespace innobase {
+namespace encryption {
+
+bool init_keyring_services(SERVICE_TYPE(registry) * reg_srv);
+
+void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv);
+
+bool generate_key(const char *key_id, const char *key_type, size_t key_length);
+void remove_key(const char *key_id);
+bool store_key(const char *key_id, const unsigned char *key, size_t key_length,
+               const char *key_type);
+int read_key(const char *key_id, unsigned char **key, size_t *key_length,
+             char **key_type);
+
+}  // namespace encryption
+}  // namespace innobase
 
 // Forward declaration.
 class IORequest;

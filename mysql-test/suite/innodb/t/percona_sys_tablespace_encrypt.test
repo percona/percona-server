@@ -155,7 +155,7 @@ EOF
 --echo # Start encrypted system without early-plugin-load and only --plugin-load
 --error 1
 --exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
---let $grep_pattern= Encryption can't find master key, please check the keyring plugin is loaded
+--let $grep_pattern= Encryption can't find master key, please check the keyring is loaded
 --let $grep_file= $ERROR_LOG
 --let $grep_output= boolean
 --source include/grep_pattern.inc
@@ -164,7 +164,7 @@ EOF
 --echo # Start encrypted system without keyring_data
 --error 1
 --exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD > $ERROR_LOG 2>&1
---let $grep_pattern= Encryption can't find master key, please check the keyring plugin is loaded
+--let $grep_pattern= Encryption can't find master key, please check the keyring is loaded
 --let $grep_file= $ERROR_LOG
 --let $grep_output= boolean
 --source include/grep_pattern.inc

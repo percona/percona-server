@@ -10,14 +10,14 @@
 # IO thread right after queuing an event of a given type, starting the IO
 # thread again to fully retrieve the partially received transaction.
 #
-# Additionally, this test also tests partial transactions with MASTER_DELAY
-# configured and verifies that the applier thread doesn't wait for MASTER_DELAY
+# Additionally, this test also tests partial transactions with SOURCE_DELAY
+# configured and verifies that the applier thread doesn't wait for SOURCE_DELAY
 # when the receiver thread is restarted in the middle of a transaction, if MTS
-# and GTID autoposition protocol. To test this, set $master_delay_test=1 and
+# and GTID autoposition protocol. To test this, set $source_delay_test=1 and
 # source this file.
 ####
 # param: $using_mts         1 if the test is running with multi-threaded slave
-# param: $master_delay_test 1 to test with MASTER_DELAY
+# param: $source_delay_test 1 to test with SOURCE_DELAY
 
 # As this test depends on the use of a User_var_log_event in a DML statement
 # we have to use statement based replication.
@@ -40,11 +40,11 @@ CREATE TABLE t1(i INT) ENGINE=InnoDB;
 FLUSH LOGS;
 --source include/sync_slave_sql_with_master.inc
 
-# Test for MASTER_DELAY with partial transactions.
-if ($master_delay_test)
+# Test for SOURCE_DELAY with partial transactions.
+if ($source_delay_test)
 {
   --source include/stop_slave.inc
-  CHANGE MASTER TO MASTER_DELAY=5;
+  CHANGE REPLICATION SOURCE TO SOURCE_DELAY=5;
   --source include/start_slave.inc
 }
 SET @save_debug=@@global.debug;
@@ -100,28 +100,28 @@ while ($i <= 5)
   }
   --source include/wait_for_slave_io_to_stop.inc
 
-  if ($master_delay_test)
+  if ($source_delay_test)
   {
     # Add a debug point to simulate older implementation, since PS-7498 cannot
     # happen when we are replicating from 8.0 server (Fixed by WL#7318).
     --let $debug_point= sql_delay_without_timestamps
     --source include/add_debug_point.inc
 
-    # Sleep for slightly more than MASTER_DELAY seconds.
+    # Sleep for slightly more than SOURCE_DELAY seconds.
     --sleep 8
 
-    # When MASTER_DELAY is set we don't expect the applier thread to
+    # When SOURCE_DELAY is set we don't expect the applier thread to
     # wait while it is processing the source's Format_description_event
     # as part of handling partial transaction in the relay log.
     START REPLICA IO_THREAD;
 
-    --let $assert_text= Assert that the applier thread is not waiting for MASTER_DELAY seconds.
-    --let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "Waiting until MASTER_DELAY seconds after master executed event"] = 0
+    --let $assert_text= Assert that the applier thread is not waiting for SOURCE_DELAY seconds.
+    --let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "Waiting until SOURCE_DELAY seconds after master executed event"] = 0
     --source include/assert.inc
 
-    # Reset MASTER_DELAY and remove debug point.
+    # Reset SOURCE_DELAY and remove debug point.
     --source include/stop_slave.inc
-    CHANGE MASTER TO MASTER_DELAY=0;
+    CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
     --source include/remove_debug_point.inc
 
     # Start only the applier thread

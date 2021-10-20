@@ -51,11 +51,15 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/adaptive_network_buffers
    performance/aio_page_requests
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
    performance/prefix_index_queries_optimization
    performance/query_limit_records
+   performance/jemalloc-profiling
+   performance/procfs-plugin
+
 
 Flexibility Improvements
 ================================================================================
@@ -185,10 +189,12 @@ Percona MyRocks
    MyRocks Installation <myrocks/install>
    MyRocks Limitations <myrocks/limitations>
    MyRocks Differences <myrocks/differences>
+   MyRocks Information Schema Tables <myrocks/information-schema-tables>
    MyRocks Server Variables <myrocks/variables>
    MyRocks Status Variables <myrocks/status_variables>
    MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
    MyRocks Data Loading <myrocks/data_loading>
+   MyRocks ZenFS <myrocks/zenfs>
 
 Reference
 ================================================================================
@@ -197,6 +203,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   release-notes/release-notes_index
    upstream-bug-fixes
    ps-variables
    development
@@ -204,7 +211,6 @@ Reference
    index_info_schema_tables
    faq
    copyright
-   release-notes/release-notes_index
    glossary
 
 * :ref:`genindex`

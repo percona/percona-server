@@ -131,11 +131,11 @@ int table_malloc_stats_totals::read_row_values(TABLE *table, unsigned char *,
   if (unlikely(!m_row_exists)) return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
-      DBUG_ASSERT(f->field_index() < NUM_SUMMARY_STAT);
+      assert(f->field_index() < NUM_SUMMARY_STAT);
       set_field_ulonglong(f, m_row.stat[f->field_index()]);
     }  // if
   }    // for
@@ -251,7 +251,7 @@ int table_malloc_stats::read_row_values(TABLE *table, unsigned char *,
 
   /* Set the null bits. If table has at least one VARCHAR and no nullable fields
    * this should be checked against 0 instead of 1 */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -262,7 +262,7 @@ int table_malloc_stats::read_row_values(TABLE *table, unsigned char *,
                  NUM_STAT) /* ALLOCATED, NMALLOC, NDALLOC, NREQUESTS */
         set_field_ulonglong(f, m_row.stat[f->field_index() - 1]);
       else
-        DBUG_ASSERT(false);
+        assert(false);
     }  // if
   }    // for
 

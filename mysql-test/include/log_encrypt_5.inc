@@ -7,9 +7,9 @@
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
 call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("InnoDB: Resizing redo log from");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");

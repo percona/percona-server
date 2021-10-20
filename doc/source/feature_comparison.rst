@@ -2,22 +2,9 @@
  |Percona Server| Feature Comparison
 =====================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona
-Server|,
+|Percona Server| is a free, fully compatible, enhanced, and open source drop-in replacement for any MySQL database. It provides superior performance, scalability, and instrumentation.
 
-  * Your queries will run faster and more consistently.
-
-  * You will consolidate servers on powerful hardware.
-
-  * You will delay sharding, or avoid it entirely.
-
-  * You will save money on hosting fees and power.
-
-  * You will spend less time tuning and administering.
-
-  * You will achieve higher uptime.
-
-  * You will troubleshoot without guesswork.
+|Percona Server| is trusted by thousands of enterprises to provide better performance and concurrency for their most demanding workloads. It delivers higher value to MySQL server users with optimized performance, greater performance scalability and availability, enhanced backups, and increased visibility.
 
 We provide these benefits by significantly enhancing |Percona Server| as
 compared to the standard |MySQL| database server:

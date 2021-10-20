@@ -36,7 +36,7 @@ a
 4
 # Show that connection conn1 has been killed
 SELECT * FROM t1;
-ERROR HY000: MySQL server has gone away
+ERROR HY000: The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior.
 # connection default
 # Cleanup
 DROP TABLE t1;

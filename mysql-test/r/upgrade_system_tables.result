@@ -1,3 +1,127 @@
+
+# Dump system table information for the newly initialized data directory
+# Adding debug point 'skip_dd_table_access_check' to @@GLOBAL.debug
+
+# Dump all tables in newly initialized mysql schema
+include/write_result_to_file.inc [connection=default statement=SELECT t.* FROM mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" ORDER BY t.name]
+include/filter_file.inc
+
+# Dump all columns in newly initialized mysql schema
+include/write_result_to_file.inc [connection=default statement=SELECT t.name, c.* FROM mysql.columns c JOIN mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE c.table_id = t.id AND t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" AND t.name != "ndb_binlog_index" ORDER BY t.name, c.name]
+include/filter_file.inc
+# Removing debug point 'skip_dd_table_access_check' from @@GLOBAL.debug
+
+# Upgrade a data directory from 5.7
+
+# Copy the 5.7 data zip file to working directory and check it exists.
+# Unzip 5.7 data directory.
+# Set data directory and log file
+# Restart server to trigger upgrade.
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG
+
+# Dump system table information for the upgraded data directory
+# Adding debug point 'skip_dd_table_access_check' to @@GLOBAL.debug
+
+# Dump all tables in upgraded mysql schema
+include/write_result_to_file.inc [connection=default statement=SELECT t.* FROM mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" ORDER BY t.name]
+include/filter_file.inc
+
+# Dump all columns in upgraded mysql schema
+include/write_result_to_file.inc [connection=default statement=SELECT t.name, c.* FROM mysql.columns c JOIN mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE c.table_id = t.id AND t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" AND t.name != "ndb_binlog_index" ORDER BY t.name, c.name]
+include/filter_file.inc
+# Removing debug point 'skip_dd_table_access_check' from @@GLOBAL.debug
+
+########################################################################
+# NOTE: If this test fails, there is a possible inconsistency introduced
+#       in the system table/column definition of an upgraded mysql
+#       tablespace as compared to that of a newly initialized one.
+#
+# There are 2 possibilities:
+#
+# a) If the failure shows a new inconsistency in the table/column
+#    properties, add the appropriate ALTER TABLE statements to
+#    scripts/mysql_system_tables_fix.sql
+#    to ensure that the metadata of the upgraded table/column is the
+#    same as that of the newly created one.
+#
+# b) If the inconsistency is unavoidable, modify the regular expressions
+#    above, re-record and update documentation if required.
+#
+########################################################################
+
+# Compare fresh and upgraded tables
+9c9
+< #	#	columns_priv	BASE TABLE	InnoDB	#	Dynamic	83	Column privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	columns_priv	BASE TABLE	InnoDB	#	Dynamic	83	Column privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+13c13
+< #	#	db	BASE TABLE	InnoDB	#	Dynamic	83	Database privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	db	BASE TABLE	InnoDB	#	Dynamic	83	Database privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+16c16
+< #	#	engine_cost	BASE TABLE	InnoDB	#	Dynamic	33		Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	engine_cost	BASE TABLE	InnoDB	#	Dynamic	33		Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+20c20
+< #	#	func	BASE TABLE	InnoDB	#	Dynamic	83	User defined functions	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	func	BASE TABLE	InnoDB	#	Dynamic	83	User defined functions	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+22,26c22,26
+< #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	help_category	BASE TABLE	InnoDB	#	Dynamic	33	help categories	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	help_keyword	BASE TABLE	InnoDB	#	Dynamic	33	help keywords	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	help_relation	BASE TABLE	InnoDB	#	Dynamic	33	keyword-topic relation	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	help_topic	BASE TABLE	InnoDB	#	Dynamic	33	help topics	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	help_category	BASE TABLE	InnoDB	#	Dynamic	33	help categories	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	help_keyword	BASE TABLE	InnoDB	#	Dynamic	33	help keywords	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	help_relation	BASE TABLE	InnoDB	#	Dynamic	33	keyword-topic relation	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	help_topic	BASE TABLE	InnoDB	#	Dynamic	33	help topics	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+38,40c38,40
+< #	#	plugin	BASE TABLE	InnoDB	#	Dynamic	33	MySQL plugins	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	procs_priv	BASE TABLE	InnoDB	#	Dynamic	83	Procedure privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	proxies_priv	BASE TABLE	InnoDB	#	Dynamic	83	User proxy privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	plugin	BASE TABLE	InnoDB	#	Dynamic	33	MySQL plugins	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	procs_priv	BASE TABLE	InnoDB	#	Dynamic	83	Procedure privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	proxies_priv	BASE TABLE	InnoDB	#	Dynamic	83	User proxy privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+47,51c47,51
+< #	#	server_cost	BASE TABLE	InnoDB	#	Dynamic	33		Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	servers	BASE TABLE	InnoDB	#	Dynamic	33	MySQL Foreign Servers table	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	slave_master_info	BASE TABLE	InnoDB	#	Dynamic	33	Master Information	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	slave_relay_log_info	BASE TABLE	InnoDB	#	Dynamic	33	Relay Log Information	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	slave_worker_info	BASE TABLE	InnoDB	#	Dynamic	33	Worker Information	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	server_cost	BASE TABLE	InnoDB	#	Dynamic	33		Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	servers	BASE TABLE	InnoDB	#	Dynamic	33	MySQL Foreign Servers table	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	slave_master_info	BASE TABLE	InnoDB	#	Dynamic	33	Master Information	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	slave_relay_log_info	BASE TABLE	InnoDB	#	Dynamic	33	Relay Log Information	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	slave_worker_info	BASE TABLE	InnoDB	#	Dynamic	33	Worker Information	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+57c57
+< #	#	tables_priv	BASE TABLE	InnoDB	#	Dynamic	83	Table privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	tables_priv	BASE TABLE	InnoDB	#	Dynamic	83	Table privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+60,64c60,64
+< #	#	time_zone	BASE TABLE	InnoDB	#	Dynamic	33	Time zones	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	time_zone_leap_second	BASE TABLE	InnoDB	#	Dynamic	33	Leap seconds information for time zones	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	time_zone_name	BASE TABLE	InnoDB	#	Dynamic	33	Time zone names	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	time_zone_transition	BASE TABLE	InnoDB	#	Dynamic	33	Time zone transitions	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+< #	#	time_zone_transition_type	BASE TABLE	InnoDB	#	Dynamic	33	Time zone transition types	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	time_zone	BASE TABLE	InnoDB	#	Dynamic	33	Time zones	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	time_zone_leap_second	BASE TABLE	InnoDB	#	Dynamic	33	Leap seconds information for time zones	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	time_zone_name	BASE TABLE	InnoDB	#	Dynamic	33	Time zone names	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	time_zone_transition	BASE TABLE	InnoDB	#	Dynamic	33	Time zone transitions	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+> #	#	time_zone_transition_type	BASE TABLE	InnoDB	#	Dynamic	33	Time zone transition types	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+66c66
+< #	#	user	BASE TABLE	InnoDB	#	Dynamic	83	Users and global privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=1;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+---
+> #	#	user	BASE TABLE	InnoDB	#	Dynamic	83	Users and global privileges	Visible	avg_row_length=0;encrypt_type=N;explicit_encryption=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
+
+# Compare fresh and upgraded columns
+
+# Cleanup.
 # Copy the 5.7 data zip file to working directory and check it exists.
 # Unzip 5.7 data directory.
 # Set data directory and log file

@@ -29,11 +29,11 @@ if (!$vault_conf_mount_point_directory)
 --disable_query_log
 call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open credentials file.'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("Can't generate new master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.'");
-call mtr.add_suppression("Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
-call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key, please check the keyring is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.'");
+call mtr.add_suppression("Slave: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
+call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 call mtr.add_suppression("keyring_vault initialization failure");
 call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
@@ -50,6 +50,8 @@ eval SET @@global.keyring_vault_config='$conf_file2';
 --echo [On Master]
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$conf_file1';
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 100;
 
 --echo
 ALTER INSTANCE ROTATE INNODB MASTER KEY;

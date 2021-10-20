@@ -20,6 +20,8 @@ WITH_JEMALLOC=''
 WITH_MECAB_OPTION=''
 DEBUG_EXTRA=''
 WITH_SSL='/usr'
+WITH_ZENFS='OFF'
+ZENFS_EXTRA=''
 OPENSSL_INCLUDE=''
 OPENSSL_LIBRARY=''
 CRYPTO_LIBRARY=''
@@ -39,7 +41,7 @@ TAR=${TAR:-tar}
 if ! getopt --test
 then
     go_out="$(getopt --options=iqdvj:m:t: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-ssl:,tag: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-zenfs,with-mecab:,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -103,6 +105,12 @@ do
             echo >&2 "Cannot find libssl.a in $WITH_SSL"
             exit 3
         fi
+        ;;
+    --with-zenfs )
+        shift
+        TARBALL_SUFFIX="-zenfs"
+        WITH_ZENFS="ON"
+        ZENFS_EXTRA="-DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON"
         ;;
     -t | --tag )
         shift
@@ -254,6 +262,7 @@ fi
     cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTRA \
+        $ZENFS_EXTRA \
         -DFEATURE_SET=community \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
@@ -423,15 +432,19 @@ fi
     fi
 
     # NORMAL TARBALL
-    cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
-    link
+    if [[ ${WITH_ZENFS} != "ON" ]]; then
+        cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
+        link
+    fi
 
     # MIN TARBALL
     if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
         cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
         rm -rf mysql-test 2> /dev/null
         find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
-        link
+        if [[ ${WITH_ZENFS} != "ON" ]]; then
+            link
+        fi
     fi
 )
 

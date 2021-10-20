@@ -236,11 +236,7 @@ mounts the ``/local/datadir`` directory on the host
 to ``/var/lib/mysql`` in the container,
 which is the default data directory used by |Percona Server|.
 
-.. note:: If you the Percona Server container instance
-   with a data directory that already contains data
-   (the ``mysql`` subdirectory where all our system tables are stored),
-   the :variable:`MYSQL_ROOT_PASSWORD` variable should be omitted
-   from the ``docker run`` command.
+.. note:: If the data directory contains subdirectories, files, or data, do not add :variable:`MYSQL_ROOT_PASSWORD` to the ``docker run`` command.
 
 .. note:: If you have SELinux enabled,
    assign the relevant policy type to the new data directory,

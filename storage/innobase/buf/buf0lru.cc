@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -271,7 +271,7 @@ scan_again:
     ut_a(buf_page_in_file(bpage));
 
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
-        bpage->id.space() != space_id || bpage->io_fix != BUF_IO_NONE) {
+        bpage->id.space() != space_id || bpage->was_io_fixed()) {
       /* Compressed pages are never hashed.
       Skip blocks of other tablespaces.
       Skip I/O-fixed blocks (to be dealt with later). */
@@ -376,7 +376,7 @@ static void buf_flush_yield(buf_pool_t *buf_pool, buf_page_t *bpage) {
 
   mutex_exit(block_mutex);
   /* Try and force a context switch. */
-  os_thread_yield();
+  std::this_thread::yield();
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -403,10 +403,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_try_yield(
   loop we release buf_pool->LRU_list_mutex to let other threads
   do their job but only if the block is not IO fixed. This
   ensures that the block stays in its position in the
-  flush_list. */
+  flush_list.
+  We read io_fix without block_mutex, because we will recheck with block_mutex.
+  And in case io_fixed is not NONE now we do the same thing as when is not NONE
+  later: return false.
+  */
 
   if (bpage != nullptr && processed >= BUF_LRU_DROP_SEARCH_SIZE &&
-      buf_page_get_io_fix_unlocked(bpage) == BUF_IO_NONE) {
+      bpage->was_io_fix_none()) {
     BPageMutex *block_mutex = buf_page_get_mutex(bpage);
 
     buf_flush_list_mutex_exit(buf_pool);
@@ -464,9 +468,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_or_remove_page(
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
   /* It is safe to check bpage->space and bpage->io_fix while holding
-  buf_pool->LRU_list_mutex only. */
+  buf_pool->LRU_list_mutex only.
+  We will repeat the check of io_fix under block_mutex later, this is just an
+  optimization to avoid the mutex acquisition if its likely io_fix is not NONE.
+  */
 
-  if (buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+  if (bpage->was_io_fixed()) {
     /* We cannot remove this page during this scan
     yet; maybe the system is currently reading it
     in, or flushing the modifications to the file */
@@ -579,7 +586,7 @@ rescan:
       /* Remove was unsuccessful, we have to try again
       by scanning the entire list from the end.
       This also means that we never released the
-      flust list mutex. Therefore we can trust the prev
+      flush list mutex. Therefore we can trust the prev
       pointer.
       buf_flush_or_remove_page() released the
       flush list mutex but not the LRU list mutex.
@@ -671,7 +678,7 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
     ut_ad(buf_flush_validate(buf_pool));
 
     if (err == DB_FAIL) {
-      os_thread_sleep(2000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 
     if (err == DB_INTERRUPTED && observer != nullptr) {
@@ -724,7 +731,7 @@ scan_again:
       /* Skip this block, as it does not belong to
       the space that is being invalidated. */
       goto next_page;
-    } else if (buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+    } else if (bpage->was_io_fixed()) {
       /* We cannot remove this page during this scan
       yet; maybe the system is currently reading it
       in, or flushing the modifications to the file */
@@ -759,9 +766,9 @@ scan_again:
 
     ut_ad(mutex_own(block_mutex));
 
-    DBUG_PRINT("ib_buf",
-               ("evict page " UINT32PF ":" UINT32PF " state %u",
-                bpage->id.space(), bpage->id.page_no(), bpage->state));
+    DBUG_PRINT("ib_buf", ("evict page " UINT32PF ":" UINT32PF " state %u",
+                          bpage->id.space(), bpage->id.page_no(),
+                          static_cast<unsigned>(bpage->state)));
 
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
       /* Do nothing, because the adaptive hash index
@@ -822,7 +829,7 @@ scan_again:
   mutex_exit(&buf_pool->LRU_list_mutex);
 
   if (!all_freed) {
-    os_thread_sleep(20000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     goto scan_again;
   }
@@ -1326,6 +1333,7 @@ loop:
   }
 
   if (block != nullptr) {
+    ut_ad(!block->page.someone_has_io_responsibility());
     ut_ad(buf_pool_from_block(block) == buf_pool);
     memset(&block->page.zip, 0, sizeof block->page.zip);
 
@@ -1352,9 +1360,9 @@ loop:
     const auto priority = srv_current_thread_priority;
 
     if (n_iterations < 3) {
-      os_thread_yield();
+      std::this_thread::yield();
       if (!priority) {
-        os_thread_yield();
+        std::this_thread::yield();
       }
     } else {
       ulint i, b;
@@ -1372,8 +1380,9 @@ loop:
       if (b > MAX_FREE_LIST_BACKOFF_SLEEP) {
         b = MAX_FREE_LIST_BACKOFF_SLEEP;
       }
-      os_thread_sleep(b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
-                                    : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER));
+      std::this_thread::sleep_for(std::chrono::microseconds(
+          b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
+                        : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER)));
     }
 
     buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time,
@@ -1446,7 +1455,7 @@ loop:
 
   if (n_iterations > 1) {
     MONITOR_INC(MONITOR_LRU_GET_FREE_WAITS);
-    os_thread_sleep(10000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   /* No free block was found: try to flush the LRU list.
@@ -1832,7 +1841,7 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
 
   mutex_exit(block_mutex);
   DBUG_EXECUTE_IF("buf_lru_free_page_delay_block_mutex_reacquisition",
-                  os_thread_sleep(100););
+                  std::this_thread::sleep_for(std::chrono::microseconds(100)););
 
   rw_lock_x_lock(hash_lock);
   mutex_enter(block_mutex);
@@ -2095,6 +2104,7 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block) {
     mutex_enter(&buf_pool->free_list_mutex);
     UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
     ut_d(block->page.in_free_list = TRUE);
+    ut_ad(!block->page.someone_has_io_responsibility());
     mutex_exit(&buf_pool->free_list_mutex);
   }
 }

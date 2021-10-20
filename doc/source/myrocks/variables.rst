@@ -247,6 +247,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Local
+   * - :variable:`rocksdb_enable_pipelined_write`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
      - Yes
      - Yes
@@ -1272,7 +1276,7 @@ This variable is a no-op in non-debug builds.
   :vartype: Numeric
   :default: ``0``
 
-For debugging purposes only.  Sets the snapshot during
+For debugging purposes only. Sets the snapshot during
 compaction to ``now()`` + :variable:`rocksdb_debug_set_ttl_snapshot_ts`.
 The value can be +/- to simulate a snapshot in the past vs a
 snapshot created in the  future . A value of ``0`` denotes
@@ -1397,6 +1401,19 @@ failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.
   :default: ``TRUE``
 
 Enables the rocksdb iterator upper bounds and lower bounds in read options.
+
+.. variable:: rocksdb_enable_pipelined_write
+
+    :version 8.0.25-15: Implemented
+    :cli: ``--rocksdb-enable-pipelined-write``
+    :dyn: No
+    :scope: Global
+    :vartype: Boolean
+    :default: ``OFF``
+
+DBOptions::enable_pipelined_write for RocksDB.
+
+If ``enable_pipelined_write`` is ``true``, a separate write thread is maintained for WAL write and memtable write. A write thread first enters the WAL writer queue and then the memtable writer queue. A pending thread on the WAL writer queue only waits for the previous WAL write operations but does not wait for memtable write operations. Enabling the feature may improve write throughput and reduce latency of the prepare phase of a two-phase commit.
 
 .. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
 

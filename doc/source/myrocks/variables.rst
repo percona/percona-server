@@ -351,6 +351,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_manual_compaction_bottommost_level`
+     - Yes
+     - Yes
+     - Local
    * - :variable:`rocksdb_manual_wal_flush`
      - Yes
      - No
@@ -1756,6 +1760,24 @@ Allowed range is up to ``18446744073709551615``.
 .. note::
 
    A value of ``4194304`` (4 MB) is reasonable to reduce random I/O on XFS.
+
+.. variable:: rocksdb_manual_compaction_bottommost_level
+
+  :cli: ``--rocksdb-manual-compaction-bottommost-level``
+  :dyn: Yes
+  :scope: Local
+  :vartype: Enum  
+  :default: kForceOptimized
+
+Option for bottommost level compaction during manual compaction:
+  
+  * kSkip - Skip bottommost level compaction
+
+  * kIfHaveCompactionFilter - Only compact bottommost level if there is a compaction filter
+
+  * kForce - Always compact bottommost level
+
+  * kForceOptimized -  Always compact bottommost level but in bottommost level avoid double-compacting files created in the same compaction
 
 .. variable:: rocksdb_manual_wal_flush
 

@@ -182,7 +182,7 @@ Specifies how much information to include in your slow log. The value is a comma
     Equivalent to enabling just ``microtime``.
 
   * ``standard``:
-    Equivalent to enabling ``microtime,innodb``.
+    Equivalent to enabling ``microtime,query_plan``.
 
   * ``full``:
     Equivalent to all other values OR'ed together without the ``profiling`` and ``profiling_use_getrusage`` options.

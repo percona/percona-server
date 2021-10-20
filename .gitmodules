@@ -13,3 +13,6 @@
 [submodule "storage/rocksdb/rocksdb_plugins/zenfs"]
 	path = storage/rocksdb/rocksdb_plugins/zenfs
 	url = https://github.com/westerndigitalcorporation/zenfs.git
+[submodule "extra/libzbd"]
+	path = extra/libzbd
+	url = https://github.com/westerndigitalcorporation/libzbd.git

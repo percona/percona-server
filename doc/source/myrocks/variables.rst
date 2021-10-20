@@ -60,7 +60,7 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :variable:`rocksdb_allow_unsafe_alter`
-     - Yes
+     - No
      - No
      - Global
    * - :variable:`rocksdb_alter_column_default_inplace`
@@ -596,7 +596,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Global, Session
    * - :variable:`rocksdb_track_and_verify_wals_in_manifest`
-     - Yes
+     - No
      - No
      - Global
    * - :variable:`rocksdb_unsafe_for_binlog`
@@ -772,6 +772,7 @@ Disabled by default.
   :vartype: Boolean
   :default: ``OFF``
 
+
 Enable crash unsafe INPLACE ADD|DROP partition.
 
 .. variable:: rocksdb_alter_column_default_inplace
@@ -782,7 +783,8 @@ Enable crash unsafe INPLACE ADD|DROP partition.
   :vartype: Boolean
   :default: ON
 
-Allows inplace alter for alter column default operation.
+Allows an inplace alter for the ``ALTER COLUMN`` default operation.
+
 
 .. variable:: rocksdb_base_background_compactions
 
@@ -2549,7 +2551,6 @@ Specifies the path to the directory for temporary files during DDL operations.
 Defines the block cache trace option string. The format is sampling frequency: max_trace_file_size:trace_file_name. The sampling frequency value and max_trace_file_size value are positive integers. The block accesses are saved to the ``rocksdb_datadir/block_cache_traces/trace_file_name``. The default value is an empty string.
 
 .. variable:: rocksdb_trace_queries
-
    :cli: ``--rocksdb-trace-queries``
    :dyn: Yes
    :scope: Global
@@ -2578,8 +2579,8 @@ Disabled by default.
   :vartype: Boolean
   :default: ON
 
-DBOptions::rocksdb_track_and_verify_wals_in_manifest for RocksDB.
 
+DBOptions::track_and_verify_wals_in_manifest for RocksDB.
 
 .. variable:: rocksdb_two_write_queues
 
@@ -2796,6 +2797,7 @@ Make sure that lookups use the whole key for matching.
   :default: 0
 
 This variable specifies the maximum size of the write batch in bytes before flushing. Only valid if ``rockdb_write_policy`` is WRITE_UNPREPARED. There is no limit if the variable is set to the default setting. 
+
 
 .. variable:: rocksdb_write_batch_max_bytes
 

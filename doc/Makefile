@@ -39,16 +39,8 @@ help:
 clean:
 	-rm -rf $(BUILDDIR)/*
 
-ext:
-	@echo "Downloading Percona documentation utils from repository..."
-	@mkdir -p $(BUILDDIR) && wget -O - $(UTILS_REPO) | tar xz -C $(BUILDDIR) && cp -r $(BUILDDIR)/$(UTILS_DIR)/sphinx/ext source
 
-netlify:  ext
-	$(SPHINXBUILD) -b html -d sphinx-build/doctrees source -c source/conf-netlify build/html
-	@echo
-	@echo "Netlify build finished. The HTML pages are in $(BUILDDIR)/html."
-
-html:   ext
+html:   
 	@echo "Downloading percona-theme ..."
 	@wget -O percona-theme.tar.gz https://www.percona.com/docs/theme-1-4/percona-server/5.6
 	@echo "Extracting theme."
@@ -123,7 +115,7 @@ latex:
 	@echo "Run \`make' in that directory to run these through (pdf)latex" \
 	      "(use \`make latexpdf' here to do that automatically)."
 
-latexpdf: ext
+latexpdf: 
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 	@echo "Running LaTeX files through pdflatex..."
 	make -C $(BUILDDIR)/latex all-pdf
@@ -156,13 +148,13 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 				
 thtml:
-		@echo "Building themed html doc"
-		$(SPHINXBUILD) -D html_theme=alabaster -D html_theme_path='' -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-		@echo
-		@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+	@echo "Building themed html doc"
+	$(SPHINXBUILD) -D html_theme=alabaster -D html_theme_path='' -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
 livehtml:
-			sphinx-autobuild $(ALLSPHINXOPTS) $(BUILDDIR) $(O)
+	sphinx-autobuild $(ALLSPHINXOPTS) $(BUILDDIR) $(O)
 
 livethtml:
-			sphinx-autobuild -D html_theme=alabaster -D html_theme_path='' $(ALLSPHINXOPTS) $(BUILDDIR) $(O)
+	sphinx-autobuild -D html_theme=alabaster -D html_theme_path='' $(ALLSPHINXOPTS) $(BUILDDIR) $(O)

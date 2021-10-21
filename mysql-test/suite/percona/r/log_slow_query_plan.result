@@ -136,7 +136,7 @@ COUNT(*)
 [log_grep.inc] lines:   0
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	48
+Select_scan	20
 SET SESSION log_slow_filter=default;
 CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (1), (2), (3);
@@ -216,7 +216,7 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_9
-[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^# Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [0-9]*$ expected_matches: 1
+[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^# Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$ expected_matches: 1
 [log_grep.inc] found expected match count: 1
 [log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$ expected_matches: 1
 [log_grep.inc] found expected match count: 1

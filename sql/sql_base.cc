@@ -106,15 +106,15 @@
 #include "sql/lock.h"  // mysql_lock_remove
 #include "sql/log.h"
 #include "sql/log_event.h"  // Query_log_event
-#include "sql/mysqld.h"     // slave_open_temp_tables
+#include "sql/mysqld.h"     // replica_open_temp_tables
 #include "sql/nested_join.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"  // key_memory_TABLE
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"                     // RUN_HOOK
-#include "sql/rpl_rli.h"                         //Relay_log_information
-#include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
+#include "sql/rpl_handler.h"                       // RUN_HOOK
+#include "sql/rpl_replica_commit_order_manager.h"  // has_commit_order_manager
+#include "sql/rpl_rli.h"                           //Relay_log_information
 #include "sql/session_tracker.h"
 #include "sql/sp.h"               // Sroutine_hash_entry
 #include "sql/sp_cache.h"         // sp_cache_version
@@ -1768,11 +1768,11 @@ static inline uint tmpkeyval(TABLE *table) {
   creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread.
 
   TODO: In future, we should have temporary_table= 0 and
-        slave_open_temp_tables.fetch_add() at one place instead of repeating
+        replica_open_temp_tables.fetch_add() at one place instead of repeating
         it all across the function. An alternative would be to use
         close_temporary_table() instead of close_temporary() that maintains
         the correct invariant regarding empty list of temporary tables
-        and zero slave_open_temp_tables already.
+        and zero replica_open_temp_tables already.
 */
 
 bool close_temporary_tables(THD *thd) {
@@ -1815,7 +1815,7 @@ bool close_temporary_tables(THD *thd) {
     thd->temporary_tables = nullptr;
     mysql_mutex_unlock(&thd->LOCK_temporary_tables);
     if (thd->slave_thread) {
-      atomic_slave_open_temp_tables -= slave_closed_temp_tables;
+      atomic_replica_open_temp_tables -= slave_closed_temp_tables;
       thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -=
           slave_closed_temp_tables;
     }
@@ -2039,7 +2039,7 @@ bool close_temporary_tables(THD *thd) {
         ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
   if (thd->slave_thread) {
-    atomic_slave_open_temp_tables -= slave_closed_temp_tables;
+    atomic_replica_open_temp_tables -= slave_closed_temp_tables;
     thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables -=
         slave_closed_temp_tables;
   }
@@ -2374,7 +2374,7 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
     /* natural invariant of temporary_tables */
     assert(thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables ||
            !thd->temporary_tables);
-    --atomic_slave_open_temp_tables;
+    --atomic_replica_open_temp_tables;
     --thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
   }
   close_temporary(thd, table, free_share, delete_table);
@@ -6011,7 +6011,8 @@ restart:
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
   if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+      (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true) ||
+       thd->get_transaction()->xid_state()->xa_trans_rolled_back()))
     return true;
 
   /*
@@ -6625,10 +6626,10 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy)) goto err;
 
   DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
-    const char *old_proc_info = thd->proc_info;
-    thd->proc_info = "DBUG sleep";
+    const char *old_proc_info = thd->proc_info();
+    thd->set_proc_info("DBUG sleep");
     my_sleep(6000000);
-    thd->proc_info = old_proc_info;
+    thd->set_proc_info(old_proc_info);
   });
 
   if (lock_tables(thd, tables, counter, flags)) goto err;
@@ -6704,7 +6705,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // secondary tables. However, do not disable use of secondary
   // storage engines for future executions of the statement, since the
   // environment may change before the next execution.
-  if (!thd->secondary_storage_engine_eligible()) return false;
+  if (!thd->is_secondary_storage_engine_eligible()) return false;
 
   auto hton = plugin_data<const handlerton *>(secondary_engine_plugin);
   sql_cmd->use_secondary_storage_engine(hton);
@@ -6712,9 +6713,11 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
   TABLE_LIST *tl = lex->query_tables;
-  // For INSERT INTO SELECT statements, the table to insert into does not have
-  // to have a secondary engine. This table is always first in the list.
-  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr)
+  // For INSERT INTO SELECT and CTAS statements, the table to insert into does
+  // not have to have a secondary engine. This table is always first in the list
+  if ((lex->sql_command == SQLCOM_INSERT_SELECT ||
+       lex->sql_command == SQLCOM_CREATE_TABLE) &&
+      tl != nullptr)
     tl = tl->next_global;
   for (; tl != nullptr; tl = tl->next_global) {
     if (tl->is_placeholder()) continue;
@@ -7057,6 +7060,55 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
 }
 
 /**
+  Simplified version of lock_tables() call to be used for locking
+  data-dictionary tables when reading or storing data-dictionary
+  objects.
+
+  @note The main reason why this function exists is that it avoids
+        allocating temporary buffer on memory root of statement.
+        As result it can be called many times (e.g. thousands)
+        during DDL statement execution without hogging memory.
+*/
+
+bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
+                            uint flags) {
+  DBUG_TRACE;
+
+  // We always open at least one DD table.
+  assert(tables);
+  /*
+    This function is supposed to be called after backing up and resetting
+    to clean state Open_tables_state and Query_table_lists contexts.
+  */
+  assert(thd->locked_tables_mode == LTM_NONE);
+  assert(!thd->lex->requires_prelocking());
+  assert(thd->lex->lock_tables_state == Query_tables_list::LTS_NOT_LOCKED);
+  assert(thd->lock == nullptr);
+
+  TABLE **start, **ptr;
+  if (!(ptr = start = (TABLE **)my_alloca(sizeof(TABLE *) * count)))
+    return true;
+
+  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+    // Data-dictionary tables must be base tables.
+    assert(!table->is_placeholder());
+    assert(table->table->s->tmp_table == NO_TMP_TABLE);
+    // There should be no prelocking when DD code uses this call.
+    assert(!table->prelocking_placeholder);
+    *(ptr++) = table->table;
+  }
+
+  DEBUG_SYNC(thd, "before_lock_dictionary_tables_takes_lock");
+
+  if (!(thd->lock = mysql_lock_tables(thd, start, (uint)(ptr - start), flags)))
+    return true;
+
+  thd->lex->lock_tables_state = Query_tables_list::LTS_LOCKED;
+
+  return false;
+}
+
+/**
   Prepare statement for reopening of tables and recalculation of set of
   prelocked tables.
 
@@ -7228,7 +7280,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     thd->temporary_tables = tmp_table;
     thd->temporary_tables->prev = nullptr;
     if (thd->slave_thread) {
-      ++atomic_slave_open_temp_tables;
+      ++atomic_replica_open_temp_tables;
       ++thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
     }
     mysql_mutex_unlock(&thd->LOCK_temporary_tables);
@@ -9058,6 +9110,14 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
       Item_field *const field = item->field_for_view_update();
       if (field == nullptr) {
         my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        return true;
+      }
+      if (item->type() == Item::TRIGGER_FIELD_ITEM) {
+        char buff[NAME_LEN * 2];
+        String str(buff, sizeof(buff), &my_charset_bin);
+        str.length(0);
+        item->print(thd, &str, QT_ORDINARY);
+        my_error(ER_INVALID_ASSIGNMENT_TARGET, MYF(0), str.c_ptr());
         return true;
       }
       TABLE_LIST *tr = field->table_ref;

@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 15
+#define PERCONA_INNODB_VERSION 16
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -271,12 +271,6 @@ rarely invoked function for size instead for speed. */
 #else
 #define UNIV_COLD /* empty */
 #endif
-
-#ifdef UNIV_HOTBACKUP
-#define UNIV_INLINE inline
-#else /* UNIV_HOTBACKUP */
-#define UNIV_INLINE static inline
-#endif /* UNIV_HOTBACKUP */
 
 #ifdef _WIN32
 #ifdef _WIN64

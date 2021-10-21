@@ -17,7 +17,7 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because i
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --disable_warnings

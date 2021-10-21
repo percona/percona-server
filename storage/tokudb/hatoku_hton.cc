@@ -228,13 +228,6 @@ static int tokudb_init_func(void *p) {
                  ? S_IRUSR | S_IRGRP | S_IROTH
                  : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 
-  if (force_recovery != 0 && (!read_only || !super_read_only)) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Not initialized because tokudb_force_only requires "
-                    "read_only and super_read_only");
-    goto error;
-  }
-
   // 3938: lock the handlerton's initialized status flag for writing
   rwlock_t_lock_write(tokudb_hton_initialized_lock);
 
@@ -242,6 +235,29 @@ static int tokudb_init_func(void *p) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
     tokudb_hton_initialized_lock.unlock();
     DBUG_RETURN(true);
+  }
+
+  if (!tokudb::sysvars::enabled) {
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0,
+        "As of Percona Server 8.0.26-16, the TokuDB storage engine and backup "
+        "plugins have been deprecated. They will be completely removed in a "
+        "future release. If you need to continue to use them in order to "
+        "migrate to another storage engine, set the loose-tokudb_enabled and "
+        "loose-tokudb_backup_enabled options to TRUE in your my.cnf file. "
+        "Please see this blog post for more "
+        "information "
+        "https://www.percona.com/blog/2021/05/21/"
+        "tokudb-support-changes-and-future-removal-from-percona-server-for-"
+        "mysql-8-0");
+    goto error;
+  }
+
+  if (force_recovery != 0 && (!read_only || !super_read_only)) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Not initialized because tokudb_force_only requires "
+                    "read_only and super_read_only");
+    goto error;
   }
 
 #if defined(HAVE_PSI_INTERFACE)

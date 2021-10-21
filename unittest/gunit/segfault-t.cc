@@ -68,6 +68,13 @@ TEST_F(FatalSignalDeathTest, Segfault) {
 /* Newer versions of ASAN give other error message, disable it */
   int *pint = nullptr;
   EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*(AddressSanitizer|ASAN):(DEADLYSIGNAL|SIGSEGV).*");
+#elif defined(__APPLE__) && defined(__aarch64__) && defined(NDEBUG)
+  // Disable also in non-debug mode on MacOS 11 arm, with -O1 or above, we get
+  // Result: died but not with expected error.
+  // Expected: contains regular expression ".* UTC - mysqld got signal .*"
+  // Actual msg:
+  // We do get: "Trace/BPT trap: 5" but not as part of the matcher input in
+  // EXPECT_DEATH(statement, matcher);
 #elif defined(HANDLE_FATAL_SIGNALS)
   int *pint = nullptr;
   /*

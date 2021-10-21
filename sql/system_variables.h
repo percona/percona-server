@@ -358,7 +358,7 @@ struct System_variables {
 
   double long_query_time_double;
 
-  bool pseudo_slave_mode;
+  bool pseudo_replica_mode;
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
@@ -471,6 +471,10 @@ struct System_variables {
     @sa Sys_select_disk_sync_delay
   */
   uint select_into_disk_sync_delay;
+  /**
+    @sa Sys_terminology_use_previous
+  */
+  ulong terminology_use_previous;
 };
 
 /**

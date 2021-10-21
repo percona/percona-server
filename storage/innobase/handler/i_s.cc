@@ -1171,7 +1171,7 @@ static int i_s_cmp_per_index_fill_low(
   page_zip_stat_per_index_t snap(page_zip_stat_per_index);
   mutex_exit(&page_zip_stat_per_index_mutex);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   page_zip_stat_per_index_t::iterator iter;
   ulint i;
@@ -1215,12 +1215,12 @@ static int i_s_cmp_per_index_fill_low(
                                        true);
 
     if ((error = schema_table_store_record2(thd, table, false))) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       if (convert_heap_table_to_ondisk(thd, table, error) != 0) {
         status = 1;
         goto err;
       }
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     }
 
     /* Release and reacquire the dict mutex to allow other
@@ -1228,12 +1228,12 @@ static int i_s_cmp_per_index_fill_low(
     contents of INFORMATION_SCHEMA.innodb_cmp_per_index being
     inconsistent, but it is an acceptable compromise. */
     if (i % 1000 == 0) {
-      mutex_exit(&dict_sys->mutex);
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_exit();
+      dict_sys_mutex_enter();
     }
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 err:
 
   if (reset) {
@@ -3501,7 +3501,6 @@ static int i_s_innodb_temp_table_info_fill_table(
     Item *)             /*!< in: condition (ignored) */
 {
   int status = 0;
-  dict_table_t *table = nullptr;
 
   DBUG_TRACE;
 
@@ -3518,9 +3517,8 @@ static int i_s_innodb_temp_table_info_fill_table(
   temp_table_info_cache_t all_temp_info_cache;
   all_temp_info_cache.reserve(UT_LIST_GET_LEN(dict_sys->table_non_LRU));
 
-  mutex_enter(&dict_sys->mutex);
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  dict_sys_mutex_enter();
+  for (auto table : dict_sys->table_non_LRU) {
     if (!table->is_temporary()) {
       continue;
     }
@@ -3531,13 +3529,11 @@ static int i_s_innodb_temp_table_info_fill_table(
 
     all_temp_info_cache.push_back(current_temp_table_info);
   }
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* Now populate the info to MySQL table */
-  temp_table_info_cache_t::const_iterator end = all_temp_info_cache.end();
-  for (temp_table_info_cache_t::const_iterator it = all_temp_info_cache.begin();
-       it != end; it++) {
-    status = i_s_innodb_temp_table_info_fill(thd, tables, &(*it));
+  for (const auto &info : all_temp_info_cache) {
+    status = i_s_innodb_temp_table_info_fill(thd, tables, &info);
     if (status) {
       break;
     }
@@ -4283,7 +4279,7 @@ static int i_s_innodb_buffer_page_fill(
       case I_S_PAGE_TYPE_SDI: {
         index_id_t id(page_info->space_id, page_info->index_id);
 
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
         index = dict_index_find(id);
       }
 
@@ -4301,7 +4297,7 @@ static int i_s_innodb_buffer_page_fill(
                                     index->name));
         }
 
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
     }
 
     OK(fields[IDX_BUFFER_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -4926,7 +4922,7 @@ static int i_s_innodb_buf_page_lru_fill(
       index_id_t id(page_info->space_id, page_info->index_id);
       const dict_index_t *index;
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       index = dict_index_find(id);
 
       if (index) {
@@ -4943,7 +4939,7 @@ static int i_s_innodb_buf_page_lru_fill(
                                   index->name));
       }
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     OK(fields[IDX_BUF_LRU_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -5348,7 +5344,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
 
   rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
@@ -5363,7 +5359,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     dd_process_dd_tables_rec_and_mtr_commit(heap, rec, &table_rec, dd_tables,
                                             &mdl_on_tab, &mtr);
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
     }
@@ -5371,7 +5367,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
@@ -5400,7 +5396,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     dd_process_dd_partitions_rec_and_mtr_commit(heap, rec, &table_rec,
                                                 dd_tables, &mdl_on_tab, &mtr);
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
     }
@@ -5408,7 +5404,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
@@ -5420,7 +5416,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
 
   mtr_commit(&mtr);
   dd_table_close(dd_tables, thd, &mdl, true);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   mem_heap_free(heap);
 
@@ -5652,7 +5648,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
   heap = mem_heap_create(1000);
 
   /* Prevent DDL to drop tables. */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
   rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
                             &dd_tables);
@@ -5675,7 +5671,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
       ref_count = table_rec->get_ref_count();
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (table_rec != nullptr) {
       i_s_dict_fill_innodb_tablestats(thd, table_rec, ref_count, tables->table);
@@ -5684,7 +5680,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (table_rec != nullptr
 #ifdef UNIV_DEBUG
@@ -5700,7 +5696,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
 
   mtr_commit(&mtr);
   dd_table_close(dd_tables, thd, &mdl, true);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return 0;
@@ -5903,7 +5899,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
 
   /* Start scan the mysql.indexes */
@@ -5922,7 +5918,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     ret = dd_process_dd_indexes_rec(heap, rec, &index_rec, &mdl_on_tab, &parent,
                                     &mdl_on_parent, dd_indexes, &mtr);
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (ret) {
       i_s_dict_fill_innodb_indexes(thd, index_rec, tables->table);
@@ -5931,7 +5927,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (index_rec != nullptr) {
       dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
@@ -5948,7 +5944,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
 
   mtr_commit(&mtr);
   dd_table_close(dd_indexes, thd, &mdl, true);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return 0;
@@ -6164,7 +6160,7 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
 static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
                          dict_table_t *dd_table, btr_pcur_t &pcur, mtr_t &mtr,
                          mem_heap_t *heap, bool is_partition) {
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   while (rec) {
     dict_table_t *table_rec = nullptr;
@@ -6189,7 +6185,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
       continue;
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     /* For each column in the table, fill in innodb_columns. */
     dict_col_t *column = table_rec->cols;
@@ -6242,7 +6238,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
 
     /* Get the next record */
     mem_heap_empty(heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dd_table_close(table_rec, thd, &mdl_on_tab, true);
     mtr_start(&mtr);
     rec = dd_getnext_system_rec(&pcur, &mtr);
@@ -6270,7 +6266,7 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* Scan mysql.tables table */
   mtr_start(&mtr);
@@ -6293,7 +6289,7 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   mtr_commit(&mtr);
   dd_table_close(dd_tables, thd, &mdl, true);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return 0;
@@ -6451,7 +6447,7 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
   heap = mem_heap_create(1000);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
 
   /* Start scan the mysql.columns */
@@ -6469,7 +6465,7 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     ret = dd_process_dd_virtual_columns_rec(
         heap, rec, &table_id, &pos, &base_pos, &n_row, dd_columns, &mtr);
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (ret) {
       for (ulint i = 0; i < n_row; i++) {
@@ -6481,14 +6477,14 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     mtr_start(&mtr);
     rec = dd_getnext_system_rec(&pcur, &mtr);
   }
 
   mtr_commit(&mtr);
   dd_table_close(dd_columns, thd, &mdl, true);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return 0;
@@ -6774,9 +6770,9 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   char *filepath = nullptr;
   if (!fsp_is_system_tablespace(space_id)) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (filepath == nullptr) {
       filepath = Fil_path::make_ibd_from_table_name(name);
@@ -6858,7 +6854,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
   }
 
   heap = mem_heap_create(1000);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
 
   for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
@@ -6880,7 +6876,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
         &is_encrypted, &autoextend_size, &state, dd_spaces);
 
     mtr_commit(&mtr);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (ret) {
       i_s_dict_fill_innodb_tablespaces(
@@ -6891,13 +6887,13 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     mtr_start(&mtr);
   }
 
   mtr_commit(&mtr);
   dd_table_close(dd_spaces, thd, &mdl, true);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return 0;
@@ -7056,7 +7052,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
 
   mem_heap_t *heap = mem_heap_create(1000);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   mtr_t mtr;
 
@@ -7076,7 +7072,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
 
     mtr_commit(&mtr);
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (ret) {
       i_s_fill_innodb_cached_indexes_row(thd, space_id, index_id,
@@ -7086,7 +7082,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
     mem_heap_empty(heap);
 
     /* Get the next record. */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     mtr_start(&mtr);
 
@@ -7097,7 +7093,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
 
   dd_table_close(dd_indexes, thd, &mdl, true);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   mem_heap_free(heap);
 
@@ -7848,7 +7844,7 @@ static int i_s_tablespaces_encryption_fill_table(
   }
 
   heap = mem_heap_create(1000);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
 
   for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
@@ -7870,7 +7866,7 @@ static int i_s_tablespaces_encryption_fill_table(
         &is_encrypted, &autoextend_size, &state, dd_spaces);
 
     mtr_commit(&mtr);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     fil_space_t *space = fil_space_acquire_silent(space_id);
 
@@ -7888,13 +7884,13 @@ static int i_s_tablespaces_encryption_fill_table(
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     mtr_start(&mtr);
   }
 
   mtr_commit(&mtr);
   dd_table_close(dd_spaces, thd, &mdl, true);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   DBUG_RETURN(0);

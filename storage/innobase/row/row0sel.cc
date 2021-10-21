@@ -245,9 +245,9 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
-         * read-uncommited isolation and value (like json function)
-         * depends on an externally stored lob (like json) which
-         * was not written yet. */
+        read-uncommited isolation and value (like json function)
+        depends on an externally stored lob (like json) which
+        was not written yet. */
         err = DB_COMPUTE_VALUE_FAILED;
         goto func_exit;
       }
@@ -385,8 +385,8 @@ void sel_node_free_private(sel_node_t *node) /*!< in: select node struct */
 
 /** Evaluates the values in a select list. If there are aggregate functions,
  their argument value is added to the aggregate total. */
-UNIV_INLINE
-void sel_eval_select_list(sel_node_t *node) /*!< in: select node */
+static inline void sel_eval_select_list(
+    sel_node_t *node) /*!< in: select node */
 {
   que_node_t *exp;
 
@@ -401,10 +401,10 @@ void sel_eval_select_list(sel_node_t *node) /*!< in: select node */
 
 /** Assigns the values in the select list to the possible into-variables in
  SELECT ... INTO ... */
-UNIV_INLINE
-void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
-                                                  list of  variables */
-                                sel_node_t *node) /*!< in: select node */
+static inline void sel_assign_into_var_values(
+    sym_node_t *var,  /*!< in: first variable in a
+                      list of  variables */
+    sel_node_t *node) /*!< in: select node */
 {
   que_node_t *exp;
 
@@ -424,8 +424,8 @@ void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
 
 /** Resets the aggregate value totals in the select list of an aggregate type
  query. */
-UNIV_INLINE
-void sel_reset_aggregate_vals(sel_node_t *node) /*!< in: select node */
+static inline void sel_reset_aggregate_vals(
+    sel_node_t *node) /*!< in: select node */
 {
   func_node_t *func_node;
 
@@ -441,19 +441,13 @@ void sel_reset_aggregate_vals(sel_node_t *node) /*!< in: select node */
 }
 
 /** Copies the input variable values when an explicit cursor is opened. */
-UNIV_INLINE
-void row_sel_copy_input_variable_vals(sel_node_t *node) /*!< in: select node */
+static inline void row_sel_copy_input_variable_vals(
+    sel_node_t *node) /*!< in: select node */
 {
-  sym_node_t *var;
-
-  var = UT_LIST_GET_FIRST(node->copy_variables);
-
-  while (var) {
+  for (auto var : node->copy_variables) {
     eval_node_copy_val(var, var->alias);
 
     var->indirection = nullptr;
-
-    var = UT_LIST_GET_NEXT(col_var_list, var);
   }
 }
 
@@ -503,9 +497,9 @@ static void row_sel_fetch_columns(trx_t *trx, dict_index_t *index,
         if (data == nullptr) {
           /* This means that the externally stored field was not written yet.
           This record should only be seen by following situations:
-           * Read uncommitted transactions (TRX_ISO_READ_UNCOMMITTED)
-           * During crash recovery [trx_rollback_or_clean_all_recovered().]
-           * During lock-less consistent read, when the trx reads LOB even
+          - Read uncommitted transactions (TRX_ISO_READ_UNCOMMITTED)
+          - During crash recovery [trx_rollback_or_clean_all_recovered().]
+          - During lock-less consistent read, when the trx reads LOB even
              though the clust_rec is not to be seen. */
           ut_ad(allow_null_lob);
           len = UNIV_SQL_NULL;
@@ -581,7 +575,6 @@ void sel_col_prefetch_buf_free(
 static void sel_dequeue_prefetched_row(
     plan_t *plan) /*!< in: plan node for a table */
 {
-  sym_node_t *column;
   sel_buf_t *sel_buf;
   dfield_t *val;
   byte *data;
@@ -590,9 +583,7 @@ static void sel_dequeue_prefetched_row(
 
   ut_ad(plan->n_rows_prefetched > 0);
 
-  column = UT_LIST_GET_FIRST(plan->columns);
-
-  while (column) {
+  for (auto column : plan->columns) {
     val = que_node_get_val(column);
 
     if (!column->copy_val) {
@@ -603,7 +594,7 @@ static void sel_dequeue_prefetched_row(
       ut_ad(que_node_get_val_buf_size(column) == 0);
       ut_d(dfield_set_null(val));
 
-      goto next_col;
+      continue;
     }
 
     ut_ad(column->prefetch_buf);
@@ -625,8 +616,6 @@ static void sel_dequeue_prefetched_row(
 
     dfield_set_data(val, data, len);
     que_node_set_val_buf_size(column, val_buf_size);
-  next_col:
-    column = UT_LIST_GET_NEXT(col_var_list, column);
   }
 
   plan->n_rows_prefetched--;
@@ -636,10 +625,9 @@ static void sel_dequeue_prefetched_row(
 
 /** Pushes the column values for a prefetched, cached row to the column prefetch
  buffers from the val fields in the column nodes. */
-UNIV_INLINE
-void sel_enqueue_prefetched_row(plan_t *plan) /*!< in: plan node for a table */
+static inline void sel_enqueue_prefetched_row(
+    plan_t *plan) /*!< in: plan node for a table */
 {
-  sym_node_t *column;
   sel_buf_t *sel_buf;
   dfield_t *val;
   byte *data;
@@ -663,8 +651,7 @@ void sel_enqueue_prefetched_row(plan_t *plan) /*!< in: plan node for a table */
 
   ut_ad(pos < SEL_MAX_N_PREFETCH);
 
-  for (column = UT_LIST_GET_FIRST(plan->columns); column != nullptr;
-       column = UT_LIST_GET_NEXT(col_var_list, column)) {
+  for (auto column : plan->columns) {
     if (!column->copy_val) {
       /* There is no sense to push pointers to database
       page fields when we do not keep latch on the page! */
@@ -761,19 +748,15 @@ static void row_sel_build_committed_vers_for_mysql(
 /** Tests the conditions which determine when the index segment we are searching
  through has been exhausted.
  @return true if row passed the tests */
-UNIV_INLINE
-ibool row_sel_test_end_conds(
+static inline ibool row_sel_test_end_conds(
     plan_t *plan) /*!< in: plan for the table; the column values must
                   already have been retrieved and the right sides of
                   comparisons evaluated */
 {
-  func_node_t *cond;
-
   /* All conditions in end_conds are comparisons of a column to an
   expression */
 
-  for (cond = UT_LIST_GET_FIRST(plan->end_conds); cond != nullptr;
-       cond = UT_LIST_GET_NEXT(cond_list, cond)) {
+  for (auto cond : plan->end_conds) {
     /* Evaluate the left side of the comparison, i.e., get the
     column value if there is an indirection */
 
@@ -791,23 +774,16 @@ ibool row_sel_test_end_conds(
 
 /** Tests the other conditions.
  @return true if row passed the tests */
-UNIV_INLINE
-ibool row_sel_test_other_conds(
+static inline ibool row_sel_test_other_conds(
     plan_t *plan) /*!< in: plan for the table; the column values must
                   already have been retrieved */
 {
-  func_node_t *cond;
-
-  cond = UT_LIST_GET_FIRST(plan->other_conds);
-
-  while (cond) {
+  for (auto cond : plan->other_conds) {
     eval_exp(cond);
 
     if (!eval_node_get_ibool_val(cond)) {
       return (FALSE);
     }
-
-    cond = UT_LIST_GET_NEXT(cond_list, cond);
   }
 
   return (TRUE);
@@ -982,11 +958,10 @@ nature of splitting)
 @param[in]	thr		query thread
 @param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-UNIV_INLINE
-dberr_t sel_set_rtr_rec_lock(btr_pcur_t *pcur, const rec_t *first_rec,
-                             dict_index_t *index, const ulint *offsets,
-                             select_mode sel_mode, ulint mode, ulint type,
-                             que_thr_t *thr, mtr_t *mtr) {
+static inline dberr_t sel_set_rtr_rec_lock(
+    btr_pcur_t *pcur, const rec_t *first_rec, dict_index_t *index,
+    const ulint *offsets, select_mode sel_mode, ulint mode, ulint type,
+    que_thr_t *thr, mtr_t *mtr) {
   matched_rec_t *match = pcur->m_btr_cur.rtr_info->matches;
   mem_heap_t *heap = nullptr;
   dberr_t err = DB_SUCCESS;
@@ -1158,11 +1133,11 @@ nature of splitting)
 @param[in]	thr		query thread
 @param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-UNIV_INLINE
-dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
-                         dict_index_t *index, const ulint *offsets,
-                         select_mode sel_mode, ulint mode, ulint type,
-                         que_thr_t *thr, mtr_t *mtr) {
+static inline dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
+                                       dict_index_t *index,
+                                       const ulint *offsets,
+                                       select_mode sel_mode, ulint mode,
+                                       ulint type, que_thr_t *thr, mtr_t *mtr) {
   trx_t *trx;
   dberr_t err = DB_SUCCESS;
   const buf_block_t *block;
@@ -1170,12 +1145,9 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
   block = btr_pcur_get_block(pcur);
 
   trx = thr_get_trx(thr);
-  trx_mutex_enter(trx);
   ut_ad(trx_can_be_handled_by_current_thread(trx));
-  bool too_many_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000);
-  trx_mutex_exit(trx);
 
-  if (too_many_locks) {
+  if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
     if (buf_LRU_buf_pool_running_out()) {
       return (DB_LOCK_TABLE_FULL);
     }
@@ -1214,7 +1186,6 @@ static void row_sel_open_pcur(plan_t *plan, /*!< in: table plan */
                               mtr_t *mtr) /*!< in: mtr */
 {
   dict_index_t *index;
-  func_node_t *cond;
   que_node_t *exp;
   ulint n_fields;
   ulint has_search_latch = 0; /* RW_S_LATCH or 0 */
@@ -1230,12 +1201,8 @@ static void row_sel_open_pcur(plan_t *plan, /*!< in: table plan */
   get their expressions evaluated when we evaluate the right sides of
   end_conds */
 
-  cond = UT_LIST_GET_FIRST(plan->end_conds);
-
-  while (cond) {
+  for (auto cond : plan->end_conds) {
     eval_exp(que_node_get_next(cond->args));
-
-    cond = UT_LIST_GET_NEXT(cond_list, cond);
   }
 
   if (plan->tuple) {
@@ -1360,8 +1327,7 @@ static ibool row_sel_restore_pcur_pos(plan_t *plan, /*!< in: table plan */
 }
 
 /** Resets a plan cursor to a closed state. */
-UNIV_INLINE
-void plan_reset_cursor(plan_t *plan) /*!< in: plan */
+static inline void plan_reset_cursor(plan_t *plan) /*!< in: plan */
 {
   plan->pcur_is_open = FALSE;
   plan->cursor_at_end = FALSE;
@@ -3622,8 +3588,7 @@ static Record_buffer *row_sel_get_record_buffer(
 }
 
 /** Pops a cached row for MySQL from the fetch cache. */
-UNIV_INLINE
-void row_sel_dequeue_cached_row_for_mysql(
+static inline void row_sel_dequeue_cached_row_for_mysql(
     byte *buf,                /*!< in/out: buffer where to copy the
                               row */
     row_prebuilt_t *prebuilt) /*!< in: prebuilt struct */
@@ -3685,8 +3650,7 @@ void row_sel_dequeue_cached_row_for_mysql(
 }
 
 /** Initialise the prefetch cache. */
-UNIV_INLINE
-void row_sel_prefetch_cache_init(
+static inline void row_sel_prefetch_cache_init(
     row_prebuilt_t *prebuilt) /*!< in/out: prebuilt struct */
 {
   ulint i;
@@ -3719,8 +3683,7 @@ void row_sel_prefetch_cache_init(
 
 /** Get the last fetch cache buffer from the queue.
  @return pointer to buffer. */
-UNIV_INLINE
-byte *row_sel_fetch_last_buf(
+static inline byte *row_sel_fetch_last_buf(
     row_prebuilt_t *prebuilt) /*!< in/out: prebuilt struct */
 {
   const auto record_buffer = row_sel_get_record_buffer(prebuilt);
@@ -3753,8 +3716,7 @@ byte *row_sel_fetch_last_buf(
 }
 
 /** Pushes a row for MySQL to the fetch cache. */
-UNIV_INLINE
-void row_sel_enqueue_cache_row_for_mysql(
+static inline void row_sel_enqueue_cache_row_for_mysql(
     byte *mysql_rec,          /*!< in/out: MySQL record */
     row_prebuilt_t *prebuilt) /*!< in/out: prebuilt struct */
 {
@@ -4822,9 +4784,12 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   thread that is currently serving the transaction. Because we
   are that thread, we can read trx->state without holding any
   mutex. */
-  ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-  ut_ad(!trx_is_started(trx) || trx->state == TRX_STATE_ACTIVE);
+  ut_ad(prebuilt->sql_stat_start ||
+        trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
+
+  ut_ad(!trx_is_started(trx) ||
+        trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   ut_ad(prebuilt->sql_stat_start || prebuilt->select_lock_type != LOCK_NONE ||
         MVCC::is_view_active(trx->read_view) || srv_read_only_mode);

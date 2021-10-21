@@ -34,11 +34,31 @@ IF(HAVE_EXTERNAL_ROCKSDB)
 ELSE()
   MESSAGE(STATUS "MyRocks: Using local RocksDB")
 
-  IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
+  SET(ROCKSDB_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb)
+
+  FIND_PACKAGE(Git)
+
+  IF (GIT_FOUND AND EXISTS "${ROCKSDB_ROOT}/.git")
+    EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_SHA COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD)
+    EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" RESULT_VARIABLE GIT_MOD COMMAND "${GIT_EXECUTABLE}" diff-index HEAD --quiet)
+    EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_DATE COMMAND "${GIT_EXECUTABLE}" log -1 --date=format:"%Y-%m-%d %T" --format="%ad")
+    EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_TAG RESULT_VARIABLE rv COMMAND "${GIT_EXECUTABLE}" symbolic-ref -q --short HEAD OUTPUT_STRIP_TRAILING_WHITESPACE)
+    IF (rv AND NOT rv EQUAL 0)
+      EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_TAG COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match OUTPUT_STRIP_TRAILING_WHITESPACE)
+    ENDIF()
+  ELSE()
+    SET(GIT_SHA 0)
+    SET(GIT_MOD 1)
+  ENDIF()
+  STRING(REGEX REPLACE "[^0-9a-fA-F]+" "" GIT_SHA "${GIT_SHA}")
+  STRING(REGEX REPLACE "[^0-9: /-]+" "" GIT_DATE "${GIT_DATE}")
+
+  SET(BUILD_VERSION_CC ${ROCKSDB_ROOT}/util/build_version.cc)
+  CONFIGURE_FILE(${ROCKSDB_ROOT}/util/build_version.cc.in ${BUILD_VERSION_CC} @ONLY)
+
+  IF (NOT EXISTS "${ROCKSDB_ROOT}/Makefile")
     MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
   ENDIF()
-
-  SET(ROCKSDB_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb)
 
   # get a list of rocksdb library source files
   # run with env -i to avoid passing variables
@@ -50,9 +70,38 @@ ELSE()
   # split the list into lines
   STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 
+  SET(ROCKSDB_PLUGINS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins)
+
+  LIST(APPEND PLUGINS ${ROCKSDB_PLUGINS})
+  FOREACH(PLUGIN IN LISTS PLUGINS)
+    SET(PLUGIN_ROOT "${ROCKSDB_PLUGINS_ROOT}/${PLUGIN}/")
+    MESSAGE(STATUS "MyRocks: Building RocksDB plugin: ${PLUGIN}")
+    FILE(GLOB PLUGINMKFILE "${PLUGIN_ROOT}${PLUGIN}*.mk")
+    SET(CURRENT_PLUGIN_SOURCES)
+    IF (NOT EXISTS ${PLUGINMKFILE})
+      MESSAGE(SEND_ERROR "Missing RocksDB plugin makefile in ${PLUGIN_ROOT}")
+    ELSE()
+      FILE(READ ${PLUGINMKFILE} PLUGINMK)
+      STRING(REGEX MATCH "SOURCES[ ]*=[ ]*([^\n]*)" FOO ${PLUGINMK})
+      SET(MK_SOURCES ${CMAKE_MATCH_1})
+      SEPARATE_ARGUMENTS(MK_SOURCES)
+      FOREACH(MK_FILE IN LISTS MK_SOURCES)
+        LIST(APPEND CURRENT_PLUGIN_SOURCES "${PLUGIN_ROOT}${MK_FILE}")
+      ENDFOREACH()
+      STRING(REGEX MATCH "LDFLAGS[ ]*=[ ]*([^\n]*)" FOO ${PLUGINMK})
+      LIST(APPEND PLUGIN_LD ${CMAKE_MATCH_1} )
+    ENDIF()
+    LIST(APPEND PLUGIN_SOURCES ${CURRENT_PLUGIN_SOURCES})
+    IF (PLUGIN STREQUAL "zenfs")
+      OPTION(WITH_ZENFS_UTILITY "Build with ZenFS utility" OFF)
+      SET(ZENFS_PLUGIN_SOURCES ${CURRENT_PLUGIN_SOURCES})
+    ENDIF()
+  ENDFOREACH()
+
   # Statically include all RocksDB source
   SET(ROCKSDB_SOURCES
     ${ROCKSDB_LIB_SOURCES}
+    ${PLUGIN_SOURCES}
   )
 ENDIF()
 
@@ -120,12 +169,12 @@ message(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
 
 # Suppress warnings for all compilers
 append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
-# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
-remove_compile_flags(-Wcast-qual -Wundef)
+# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef -Wextra-semi" which cause warnings with RocksDB
+remove_compile_flags(-Wcast-qual -Wundef -Wextra-semi)
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wextra-semi -Wnon-virtual-dtor)
+  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wnon-virtual-dtor)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
 ENDIF()
@@ -179,9 +228,7 @@ IF(BUILD_BUNDLED_ZSTD)
 ENDIF()
 
 # add bundled compression code
-SET(ZSTD_SOURCES
-  ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
-)
+SET(ZSTD_SOURCES ${BUNDLED_LZ4_PATH}/xxhash.c)
 
 IF(DEFINED WITH_UBSAN)
   add_definitions(-DROCKSDB_UBSAN_RUN)
@@ -220,7 +267,7 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-lrt" "-ldl" ${PLUGIN_LD})
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}
@@ -243,4 +290,13 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
 
   MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_CURRENT_SOURCE_DIR}/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
   TARGET_LINK_LIBRARIES(mysql_ldb ${rocksdb_static_libs})
+
+  IF (WITH_ZENFS_UTILITY)
+    MYSQL_ADD_EXECUTABLE(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs/util/zenfs.cc ${ROCKSDB_LIB_SOURCES} ${ZENFS_PLUGIN_SOURCES} ${ZSTD_SOURCES})
+    TARGET_LINK_LIBRARIES(zenfs ${rocksdb_static_libs} "-lgflags")
+
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin")
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs" "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin/zenfs")
+    TARGET_INCLUDE_DIRECTORIES(zenfs SYSTEM PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen")
+  ENDIF()
 ENDIF()

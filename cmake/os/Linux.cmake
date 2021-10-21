@@ -32,10 +32,6 @@ SET(TARGET_OS_LINUX 1)
 # Used by the test suite to ignore bugs on some platforms.
 SET(SYSTEM_TYPE "Linux")
 
-IF(EXISTS "/etc/SuSE-release")
-  SET(LINUX_SUSE 1)
-ENDIF()
-
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
@@ -53,23 +49,16 @@ IF(EXISTS "/etc/fedora-release")
   ENDIF()
 ENDIF()
 
-IF(EXISTS "/etc/os-release")
-  FILE(READ "/etc/os-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "Ubuntu")
-    SET(LINUX_UBUNTU 1)
-    IF(MY_OS_RELEASE MATCHES "16.04")
-      SET(LINUX_UBUNTU_16_04 1)
-    ENDIF()
-  ENDIF()
-  IF(MY_OS_RELEASE MATCHES "Debian")
-    SET(LINUX_DEBIAN 1)
-    IF(MY_OS_RELEASE MATCHES "jessie")
-      SET(LINUX_DEBIAN_8 1)
-    ENDIF()
-    IF(MY_OS_RELEASE MATCHES "stretch")
-      SET(LINUX_DEBIAN_9 1)
-    ENDIF()
-  ENDIF()
+# Use dpkg-buildflags --get CPPFLAGS | CFLAGS | CXXFLAGS | LDFLAGS
+# to get flags for this platform.
+IF(LINUX_DEBIAN OR LINUX_UBUNTU)
+  SET(LINUX_DEB_PLATFORM 1)
+ENDIF()
+
+# Use CMAKE_C_FLAGS | CMAKE_CXX_FLAGS = rpm --eval %optflags
+# to get flags for this platform.
+IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
+  SET(LINUX_RPM_PLATFORM 1)
 ENDIF()
 
 # We require at least GCC 5.3 or Clang 3.4.

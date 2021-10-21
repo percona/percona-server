@@ -5,7 +5,7 @@
 # mysqldump supports start-sql-file/finish-sql-file options needed for MTR only in debug build
 --source include/have_debug.inc
 
---let $MYSQLDUMP_OPTS=--single-transaction --master-data
+--let $MYSQLDUMP_OPTS=--single-transaction --source-data
 --source t/mysqldump_gtid_purged.inc
 
 --let $MYSQLDUMP_OPTS=--single-transaction

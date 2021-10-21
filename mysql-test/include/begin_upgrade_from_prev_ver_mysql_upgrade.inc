@@ -39,7 +39,7 @@
 --remove_file $DATA_ARCH_PATH
 
 --let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 $ADDITIONAL_OPTS"
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/start_mysqld.inc
 
 --echo #########

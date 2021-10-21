@@ -146,7 +146,7 @@ DROP TABLE t2;
 --source include/shutdown_mysqld.inc
 
 --echo # Make sure that log contains t2 decryption errors
---let SEARCH_PATTERN=\[InnoDB\] Tablespace id 5 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id 7 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$test_error_log
 --source include/search_pattern_in_file.inc

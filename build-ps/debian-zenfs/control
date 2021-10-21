@@ -58,7 +58,7 @@ Description: MyRocks storage engine plugin for Percona Server
  .
  This package includes the MyRocks/RocksDB plugin library.
 
-Package: libperconaserverclient21
+Package: libperconaserverclient21-zenfs
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
@@ -73,10 +73,10 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libperconaserverclient21-dev
+Package: libperconaserverclient21-zenfs-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient21 (= ${binary:Version}),
+Depends: libperconaserverclient21-zenfs (= ${binary:Version}),
          zlib1g-dev, ${misc:Depends}
 Breaks: libperconaserverclient20-dev,
         libperconaserverclient18.1-dev,
@@ -250,7 +250,7 @@ Package: percona-server-test-zenfs
 Architecture: any
 Depends: percona-server-client-zenfs (= ${binary:Version}),
          percona-server-server-zenfs (= ${binary:Version}),
-         libperconaserverclient21-dev (= ${binary:Version}),
+         libperconaserverclient21-zenfs-dev (= ${binary:Version}),
          perl, python, ${misc:Depends}, ${shlibs:Depends}
 Replaces: percona-server-server-zenfs, percona-server-client-zenfs
 Description: Percona Server database test suite

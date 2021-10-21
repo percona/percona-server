@@ -213,7 +213,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   qbuf.length(0);
   const char *cur = query_str.str;
   int prev_pos = 0;
-  bool res = 0;
+  bool res = false;
   thd->query_name_consts = 0;
 
   for (Item_splocal **splocal = sp_vars_uses.begin();
@@ -684,8 +684,6 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
   Reprepare_observer reprepare_observer;
-  int reprepare_attempt = 0;
-  const int MAX_REPREPARE_ATTEMPTS = 3;
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
@@ -751,13 +749,11 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       return true;
 
     /*
-      We take only 3 attempts to reprepare the query, otherwise we might end
-      up in the endless loop.
+      Reprepare_observer ensures that the statement is retried a maximum number
+      of times, to avoid an endless loop.
     */
     assert(stmt_reprepare_observer->is_invalidated());
-    if ((reprepare_attempt++ >= MAX_REPREPARE_ATTEMPTS) ||
-        DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", true,
-                         false)) {
+    if (!stmt_reprepare_observer->can_retry()) {
       /*
         Reprepare_observer sets error status in DA but Sql_condition is not
         added. Please check Reprepare_observer::report_error(). Pushing
@@ -927,10 +923,11 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     thd->send_statement_status();
   }
 
+  const std::string &cn = Command_names::str_notranslate(COM_QUERY);
   mysql_audit_notify(
       thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
       thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
-      command_name[COM_QUERY].str, command_name[COM_QUERY].length);
+      cn.c_str(), cn.length());
 
   if (!rc && unlikely(log_slow_applicable(thd, get_command()))) {
     /*

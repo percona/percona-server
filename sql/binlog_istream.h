@@ -75,7 +75,7 @@ class Binlog_read_error {
     DECRYPT_PRE_8_0_14_INIT_FAILURE
   };
 
-  Binlog_read_error() {}
+  Binlog_read_error() = default;
   Binlog_read_error(Error_type type) : m_type(type) {}
 
   bool has_error() { return m_type != SUCCESS; }

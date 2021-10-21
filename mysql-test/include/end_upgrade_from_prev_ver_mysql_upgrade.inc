@@ -6,7 +6,7 @@
 --source include/shutdown_mysqld.inc
 
 --let $restart_parameters =
---let $restart_hide_args =
+--let $do_not_echo_parameters =
 
 --echo # Remove temp datadir
 --force-rmdir $MYSQLD_DATADIR1

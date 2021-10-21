@@ -56,7 +56,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/table.h"
-#include "sql_parse.h"  // command_name
+#include "sql_parse.h"  // Command_names
 #include "sql_string.h"
 #include "thr_mutex.h"
 
@@ -387,36 +387,29 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_external_user = sctx->external_user();
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
   if (thd->lex->sql_command == SQLCOM_END && msg_len > 0 && error_code == 0) {
-    int found_index = -1;
-    for (size_t i = 0; i < get_command_name_len(); ++i) {
-      if (!strcmp(command_name[i].str, msg)) {
-        found_index = i;
-        break;
-      }
-    }
+    enum_server_command found_index = Command_names::get_index_by_str_name(msg);
 
-    if (found_index == -1) {
-      event.general_sql_command = sql_statement_names[thd->lex->sql_command];
-    } else {
-      switch (found_index) {
-        case COM_STMT_PREPARE:
-          event.general_sql_command = sql_statement_names[SQLCOM_PREPARE];
-          break;
-        case COM_STMT_EXECUTE:
-          event.general_sql_command = sql_statement_names[SQLCOM_EXECUTE];
-          break;
-        case COM_STMT_RESET:
-          event.general_sql_command = sql_statement_names[SQLCOM_RESET];
-          break;
-        default:
-          cmd_class_lowercase = msg;
-          std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
-                         cmd_class_lowercase.begin(), ::tolower);
-          MYSQL_LEX_CSTRING command_class = {
-              STRING_WITH_LEN(cmd_class_lowercase.c_str())};
-          event.general_sql_command = command_class;
-          break;
-      }
+    switch (found_index) {
+      case COM_STMT_PREPARE:
+        event.general_sql_command = sql_statement_names[SQLCOM_PREPARE];
+        break;
+      case COM_STMT_EXECUTE:
+        event.general_sql_command = sql_statement_names[SQLCOM_EXECUTE];
+        break;
+      case COM_STMT_RESET:
+        event.general_sql_command = sql_statement_names[SQLCOM_RESET];
+        break;
+      case COM_END:
+        event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+        break;
+      default:
+        cmd_class_lowercase = msg;
+        std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
+                       cmd_class_lowercase.begin(), ::tolower);
+        MYSQL_LEX_CSTRING command_class = {
+            STRING_WITH_LEN(cmd_class_lowercase.c_str())};
+        event.general_sql_command = command_class;
+        break;
     }
   } else {
     event.general_sql_command = sql_statement_names[thd->lex->sql_command];

@@ -40,7 +40,7 @@ let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 --echo # Starting server with keyring plugin  
 --let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 #------------------------------------------------------------------------------
@@ -183,7 +183,7 @@ eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLU
 --echo # Test 1 : Restart with same keyring option , all tables accesible
 --echo # restart with --early-plugin-load 
 --let $restart_parameters = $keyring1_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
@@ -191,7 +191,7 @@ eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLU
 call tde_db.init_setup();
 --echo # restart with same --early-plugin-load and keyring_file_data option
 --let $restart_parameters = $keyring1_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 # All tables accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -269,7 +269,7 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_
 --echo # restart with --early-plugin-load to load initial data
 
 --let $restart_parameters = $keyring1_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
@@ -332,7 +332,7 @@ DROP DATABASE tde_db;
 --echo # Starting server with keyring plugin 
 
 --let $restart_parameters = $keyring1_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --disable_warnings
@@ -425,7 +425,7 @@ eval $select_keyring_variable_statement;
 --echo # init tables
 call tde_db.init_setup();
 --let $restart_parameters = $keyring_setup_without_plugin_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --echo # Install keyring plugin
@@ -531,14 +531,14 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 #------------------------------------------------------------------------------
 --echo # restart with --early-plugin-load to load initial data
 --let $restart_parameters = $keyring1_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
 --echo # restart with with different keyring_file_data file
 --let $restart_parameters = $keyring2_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --echo # encrypt table not accessible

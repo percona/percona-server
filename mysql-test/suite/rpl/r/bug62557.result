@@ -7,11 +7,11 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 
-SELECT @@global.log_slave_updates;
-@@global.log_slave_updates
+SELECT @@global.log_replica_updates;
+@@global.log_replica_updates
 1
-SELECT @@global.log_slave_updates;
-@@global.log_slave_updates
+SELECT @@global.log_replica_updates;
+@@global.log_replica_updates
 1
 CREATE TABLE t1(a INT);
 SET @var:=0;

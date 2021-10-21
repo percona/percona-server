@@ -89,14 +89,14 @@ ENDIF()
 # Suppress warnings for all compilers
 append_cflags_if_supported(-Wno-missing-field-initializers -Wno-suggest-override)
 
-# "cmake/maintainer.cmake" sets "-Wvla" and "-Wmissing-include-dirs" which
-# causes warnings with PerconaFT
-remove_compile_flags(-Wvla -Wmissing-include-dirs)
+# "cmake/maintainer.cmake" sets "-Wvla", "-Wmissing-include-dirs" and
+# "-Wextra-semi" which causes warnings with PerconaFT
+remove_compile_flags(-Wvla -Wmissing-include-dirs -Wextra-semi)
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   append_cflags_if_supported(-Wno-deprecated-dynamic-exception-spec -Wno-inconsistent-missing-override)
-  remove_compile_flags(-Wextra-semi -Wheader-hygiene -Wconditional-uninitialized -Winconsistent-missing-destructor-override)
+  remove_compile_flags(-Wheader-hygiene -Wconditional-uninitialized -Winconsistent-missing-destructor-override)
 ENDIF()
 
 # Suppress warnings for clang-8 or newer

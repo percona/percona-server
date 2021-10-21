@@ -59,7 +59,7 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 FLUSH LOGS;
 
 --let $restart_parameters = restart: $KEYRING_PARAMS
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/kill_and_restart_mysqld.inc
 
 SELECT

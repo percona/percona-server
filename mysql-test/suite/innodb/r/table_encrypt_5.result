@@ -522,7 +522,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart without --early-plugin-load and keyring_file_data
-# restart:
+# restart:<hidden args>
 # encrypt table not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
@@ -1035,5 +1035,5 @@ DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ,tde_db.t_encrypt_4;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4;
 DROP DATABASE tde_db;
 # Starting server without keyring
-# restart:
+# restart:<hidden args>
 SET GLOBAL innodb_file_per_table=1;

@@ -4091,7 +4091,8 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, const char *uuid,
   char *key_type = nullptr;
   byte *rkey = nullptr;
 
-  std::string redo_key_with_ver{get_key_name(uuid, version)};
+  std::string redo_key_with_ver{get_key_name(
+      version != REDO_LOG_ENCRYPT_NO_VERSION ? uuid : "", version)};
   if (innobase::encryption::read_key(redo_key_with_ver.c_str(), &rkey, &klen,
                                      &key_type) != 1 ||
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
@@ -4200,7 +4201,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
 redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   ut_ad(m_keys.empty());
   std::string default_key_name{get_key_name("", 0)};
-  ut_ad(strlen(server_uuid) == 0);
+  ut_ad(strlen(server_uuid) != 0);
   ut_ad(default_key_name.length() == strlen("percona_redo:0") &&
         memcmp(default_key_name.c_str(), "percona_redo:0",
                default_key_name.length()) == 0);
@@ -4248,19 +4249,6 @@ redo_log_key *redo_log_keys::fetch_or_generate_default_key(THD *thd) {
   rk->version = 0;
   rk->present = true;
   return rk;
-}
-
-void redo_log_keys::unload_old_keys() noexcept {
-  if (m_keys.size() == 0) {
-    return;
-  }
-  redo_log_key *last = &(--m_keys.end())->second;
-  for (auto &item : m_keys) {
-    if (&item.second != last) {
-      item.second.present = false;
-      memset(item.second.key, 0, Encryption::KEY_LEN);
-    }
-  }
 }
 
 redo_log_keys redo_log_key_mgr;

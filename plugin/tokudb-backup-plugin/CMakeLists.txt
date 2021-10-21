@@ -29,13 +29,13 @@ ENDIF()
 
 
 # Suppress warnings for all compilers
-remove_compile_flags(-Wvla)
+remove_compile_flags(-Wvla -Wextra-semi)
 
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   append_cflags_if_supported(-Wno-deprecated-dynamic-exception-spec)
-  remove_compile_flags(-Wextra-semi -Wconditional-uninitialized)
+  remove_compile_flags(-Wconditional-uninitialized)
 ENDIF()
 
 

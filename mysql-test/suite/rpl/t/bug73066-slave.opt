@@ -1,4 +1,4 @@
---slave-parallel-workers=2
+--replica-parallel-workers=2
 --gtid-mode=ON
 --enforce-gtid-consistency=true
---slave-transaction-retries=0
+--replica-transaction-retries=0

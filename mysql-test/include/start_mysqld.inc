@@ -5,14 +5,14 @@ if (!$restart_parameters)
 
 # We use --exec echo instead of simple "--echo" because
 # replace_result works on --exec
-if (!$restart_hide_args)
+if (!$do_not_echo_parameters)
 {
   --exec echo "# $restart_parameters"
 }
-if ($restart_hide_args)
+if ($do_not_echo_parameters)
 {
   --echo # restart:<hidden args>
-  let $restart_hide_args=;
+  let $do_not_echo_parameters=;
 }
 
 # Include this script only after using shutdown_mysqld.inc

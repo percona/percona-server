@@ -395,8 +395,6 @@ class redo_log_keys final {
   MY_NODISCARD
   redo_log_key *fetch_or_generate_default_key(THD *thd);
 
-  void unload_old_keys() noexcept;
-
  private:
   /**
   Get KEYRING encryption redo key name

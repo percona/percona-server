@@ -3604,7 +3604,7 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
   }
 
   /* Create B-tree */
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   dict_build_index_def(table, index, trx);
 
@@ -3613,7 +3613,7 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
 
   if (err != DB_SUCCESS) {
     trx->error_state = err;
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     return nullptr;
   }
 
@@ -3623,7 +3623,7 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
 
   err = dict_create_index_tree_in_mem(index, trx);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (err != DB_SUCCESS) {
     if ((index->type & DICT_FTS) && table->fts) {
@@ -3742,8 +3742,6 @@ dberr_t row_merge_build_indexes(
     struct TABLE *eval_table, row_prebuilt_t *prebuilt) {
   merge_file_t *merge_files;
   row_merge_block_t *block;
-  ut_new_pfx_t block_pfx;
-  ut_new_pfx_t crypt_pfx;
   ulint i;
   ulint j;
   dberr_t error;
@@ -3769,7 +3767,7 @@ dberr_t row_merge_build_indexes(
 
   /* This will allocate "3 * srv_sort_buf_size" elements of type
   row_merge_block_t. The latter is defined as byte. */
-  block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx, false);
+  block = alloc.allocate_large(3 * srv_sort_buf_size, false);
 
   if (block == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -3781,7 +3779,7 @@ dberr_t row_merge_build_indexes(
 
   if (log_tmp_is_encrypted()) {
     crypt_block = static_cast<row_merge_block_t *>(
-        alloc.allocate_large(3 * srv_sort_buf_size, &crypt_pfx, false));
+        alloc.allocate_large(3 * srv_sort_buf_size, false));
 
     if (crypt_block == nullptr) {
       return DB_OUT_OF_MEMORY;
@@ -4026,10 +4024,10 @@ func_exit:
 
   ut_free(merge_files);
 
-  alloc.deallocate_large(block, &block_pfx);
+  alloc.deallocate_large(block);
 
   if (crypt_block) {
-    alloc.deallocate_large(crypt_block, &crypt_pfx);
+    alloc.deallocate_large(crypt_block);
   }
 
   DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);

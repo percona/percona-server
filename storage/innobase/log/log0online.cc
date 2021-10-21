@@ -599,8 +599,8 @@ static void log_online_set_page_bit(space_id_t space, page_no_t page_no) {
 /** Calculate a bitmap block checksum.  Algorithm borrowed from
 log_block_calc_checksum.
 @return checksum */
-UNIV_INLINE
-ulint log_online_calc_checksum(const byte *block) /*!<in: bitmap block */
+static inline ulint log_online_calc_checksum(
+    const byte *block) /*!<in: bitmap block */
     noexcept {
   ulint sum = 1;
   ulint sh = 0;

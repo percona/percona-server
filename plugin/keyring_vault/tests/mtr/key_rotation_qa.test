@@ -68,7 +68,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo
 # Restarting mysql server with keyring_vault plugin.
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --error ER_UDF_EXISTS
@@ -141,7 +141,7 @@ UNINSTALL PLUGIN keyring_vault;
 # After restart encrypted table/s should be accessible
 # when using same Vault server.
 let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file1;
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -149,7 +149,7 @@ SELECT * FROM t2;
 # After restart old encrypted tables will not be not accessible,
 # since we changed Vault we are connecting to
 let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file2;
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1;
@@ -163,7 +163,7 @@ SELECT * FROM t12;
 
 # Test keyring_file with early-plugin-load and plugin-load.
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD $KEYRING_VAULT_PLUGIN_LOAD --keyring_vault_config=$conf_file2
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS

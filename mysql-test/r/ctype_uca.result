@@ -6498,16 +6498,16 @@ INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
 SELECT ch FROM t1 WHERE ch='admin𝌆';
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 DELETE FROM t1;
 INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
@@ -6523,20 +6523,20 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch
@@ -6558,7 +6558,7 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
 ch
 a
@@ -6579,7 +6579,7 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch
 a
@@ -6600,7 +6600,7 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
 ch
@@ -6622,48 +6622,48 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 ALTER TABLE t1 DROP KEY ch;
 # 0xD18F would be a good 2-byte character, 0xD1 is an incomplete sequence
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'''');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D1'
+Warning	1300	Invalid utf8mb3 character string: 'D1'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'b''');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D162'
+Warning	1300	Invalid utf8mb3 character string: 'D162'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch<''a', 0xD1,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D1'
+Warning	1300	Invalid utf8mb3 character string: 'D1'
 EXECUTE stmt;
 ch
 a
@@ -6686,7 +6686,7 @@ aր
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch>''a', 0xD1,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D1'
+Warning	1300	Invalid utf8mb3 character string: 'D1'
 EXECUTE stmt;
 ch
 z
@@ -6694,39 +6694,39 @@ z
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'EA9A'
+Warning	1300	Invalid utf8mb3 character string: 'EA9A'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,'b'' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'EA9A62'
+Warning	1300	Invalid utf8mb3 character string: 'EA9A62'
 EXECUTE stmt;
 ch
 # 0x8F is a bad byte sequence (an mb2tail without mb2head)
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F'
+Warning	1300	Invalid utf8mb3 character string: '8F'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,'b'' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F62'
+Warning	1300	Invalid utf8mb3 character string: '8F62'
 EXECUTE stmt;
 ch
 # 0x8F8F is a bad byte sequence (an mb2tail without mb2head, two times)
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F8F'
+Warning	1300	Invalid utf8mb3 character string: '8F8F'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,'b'' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F8F62'
+Warning	1300	Invalid utf8mb3 character string: '8F8F62'
 EXECUTE stmt;
 ch
 DROP TABLE t1;
@@ -6752,16 +6752,16 @@ INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
 SELECT ch FROM t1 WHERE ch='admin𝌆';
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 DELETE FROM t1;
 INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
@@ -6777,20 +6777,20 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
 ch
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch
@@ -6812,7 +6812,7 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
 ch
 a
@@ -6833,7 +6833,7 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch
 a
@@ -6854,7 +6854,7 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
 ch
 a
@@ -6875,45 +6875,45 @@ az
 aЀ
 aր
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
 ch
 z
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09D8C'
+Warning	1300	Invalid utf8mb3 character string: 'F09D8C'
 ALTER TABLE t1 DROP KEY ch;
 # 0xD18F would be a good 2-byte character, 0xD1 is an incomplete sequence
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'''');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D1'
+Warning	1300	Invalid utf8mb3 character string: 'D1'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'b''');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D162'
+Warning	1300	Invalid utf8mb3 character string: 'D162'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch<''a', 0xD1,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D1'
+Warning	1300	Invalid utf8mb3 character string: 'D1'
 EXECUTE stmt;
 ch
 a
@@ -6936,7 +6936,7 @@ aր
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch>''a', 0xD1,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'D1'
+Warning	1300	Invalid utf8mb3 character string: 'D1'
 EXECUTE stmt;
 ch
 z
@@ -6944,39 +6944,39 @@ z
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'EA9A'
+Warning	1300	Invalid utf8mb3 character string: 'EA9A'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,'b'' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: 'EA9A62'
+Warning	1300	Invalid utf8mb3 character string: 'EA9A62'
 EXECUTE stmt;
 ch
 # 0x8F is a bad byte sequence (an mb2tail without mb2head)
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F'
+Warning	1300	Invalid utf8mb3 character string: '8F'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,'b'' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F62'
+Warning	1300	Invalid utf8mb3 character string: '8F62'
 EXECUTE stmt;
 ch
 # 0x8F8F is a bad byte sequence (an mb2tail without mb2head, two times)
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,''' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F8F'
+Warning	1300	Invalid utf8mb3 character string: '8F8F'
 EXECUTE stmt;
 ch
 SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,'b'' ORDER BY ch');
 PREPARE stmt FROM @query;
 Warnings:
-Warning	1300	Invalid utf8 character string: '8F8F62'
+Warning	1300	Invalid utf8mb3 character string: '8F8F62'
 EXECUTE stmt;
 ch
 DROP TABLE t1;

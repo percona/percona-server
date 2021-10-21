@@ -6,14 +6,14 @@ if (!$restart_parameters)
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 
-if (!$restart_hide_args)
+if (!$do_not_echo_parameters)
 {
   --exec echo "# Kill and $restart_parameters"
 }
-if ($restart_hide_args)
+if ($do_not_echo_parameters)
 {
   --exec echo "# Kill and restart:<hidden args>"
-  let $restart_hide_args=;
+  let $do_not_echo_parameters=;
 }
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0

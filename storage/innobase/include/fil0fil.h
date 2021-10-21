@@ -511,8 +511,10 @@ struct fil_space_t {
   // them acquiring any locks.
   std::atomic<bool> exclude_from_rotation;
 
-  UT_LIST_NODE_T(fil_space_t) space_list; /*!< list of all spaces */
-  UT_LIST_NODE_T(fil_space_t) rotation_list;
+  // List of all spaces
+  List_node space_list;
+  List_node rotation_list;
+
   /** whether this tablespace needs key rotation */
   bool is_in_rotation_list;
 
@@ -1819,10 +1821,12 @@ for this table in the buffer pool.
 dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Open a single-table tablespace and optionally check the space id is
-right in it. If not successful, print an error message to the error log. This
-function is used to open a tablespace when we start up mysqld, and also in
-IMPORT TABLESPACE.
+/** Open a single-table tablespace and optionally do some validation such
+as checking that the space id is correct. If the file is already open,
+the validation will be done before reporting success.
+If not successful, print an error message to the error log.
+This function is used to open a tablespace when we start up mysqld,
+and also in IMPORT TABLESPACE.
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
 race here.
@@ -2063,7 +2067,7 @@ struct PageCallback {
   /** Default constructor */
   PageCallback() : m_page_size(0, 0, false), m_filepath() UNIV_NOTHROW {}
 
-  virtual ~PageCallback() UNIV_NOTHROW {}
+  virtual ~PageCallback() UNIV_NOTHROW = default;
 
   /** Called for page 0 in the tablespace file at the start.
   @param file_size size of the file in bytes
@@ -2219,6 +2223,9 @@ dberr_t fil_reset_encryption(space_id_t space_id)
 /** Rotate the tablespace keys by new master key.
 @return the number of tablespaces that failed to rotate. */
 size_t fil_encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
+
+/** Roencrypt the tablespace keys by current master key. */
+void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector);
 
 /** During crash recovery, open a tablespace if it had not been opened
 yet, to get valid size and flags.

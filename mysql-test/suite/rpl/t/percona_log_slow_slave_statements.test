@@ -1,5 +1,5 @@
 #
-# Test log_slow_slave_statements
+# Test log_slow_replica_statements
 #
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
@@ -13,11 +13,11 @@ SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
 SET GLOBAL min_examined_row_limit=0;
 SET @saved_long_query_time=@@GLOBAL.long_query_time;
 SET GLOBAL long_query_time=0;
-SET @saved_log_slow_slave_statements=@@GLOBAL.log_slow_slave_statements;
-SET GLOBAL log_slow_slave_statements=OFF;
+SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
+SET GLOBAL log_slow_replica_statements=OFF;
 --source include/restart_slave_sql.inc
 
---let log_file=percona.slow_extended.log_slow_slave_statements
+--let log_file=percona.slow_extended.log_slow_replica_statements
 --source include/log_start.inc
 
 #
@@ -30,7 +30,7 @@ INSERT INTO t VALUES (1);
 #
 # A statement that should be slow-logged
 #
-SET GLOBAL log_slow_slave_statements=ON;
+SET GLOBAL log_slow_replica_statements=ON;
 connection master;
 # Explicit transaction to avoid slow-logging implicit BEGIN/COMMIT
 BEGIN;
@@ -41,7 +41,7 @@ COMMIT;
 #
 # A statement that should not be slow-logged
 #
-SET GLOBAL log_slow_slave_statements=OFF;
+SET GLOBAL log_slow_replica_statements=OFF;
 connection master;
 INSERT INTO t VALUES (3);
 --source include/sync_slave_sql_with_master.inc
@@ -61,7 +61,7 @@ connection master;
 DROP TABLE t;
 
 connection slave;
-SET GLOBAL log_slow_slave_statements=@saved_log_slow_slave_statements;
+SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
 SET GLOBAL long_query_time=@saved_long_query_time;
 SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;
 

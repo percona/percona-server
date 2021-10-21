@@ -5,7 +5,7 @@
 --source include/have_debug.inc
 
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 
@@ -92,7 +92,7 @@ if($source_db != $dest_db) {
 }
 
 --let $restart_parameters = $keyring_restart_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --source include/wait_until_connected_again.inc

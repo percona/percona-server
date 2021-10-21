@@ -15,7 +15,7 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 SET DEBUG_SYNC= 'after_show_binlog_events SIGNAL on_show_binlog_events WAIT_FOR end';
 --send SHOW BINLOG EVENTS
 

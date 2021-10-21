@@ -5,7 +5,7 @@ call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, 
 --let $MYSQL_DATA_DIR= `select @@datadir`
 
 # we need restart to make sure keyring settings are picked up
-let $restart_hide_args = 1;
+let $do_not_echo_parameters = 1;
 let $restart_parameters = $KEYRING_RESTART_PARAM --innodb_max_dirty_pages_pct=0 --innodb_max_dirty_pages_pct_lwm=0;
 --source include/restart_mysqld.inc
 
@@ -92,14 +92,14 @@ CREATE INDEX t10_b ON t10 (b) ALGORITHM=COPY;
 DROP INDEX t10_b ON t10 ALGORITHM=COPY;
 
 # and able to startup without keyring plugin
-let $restart_hide_args = 1;
+let $do_not_echo_parameters = 1;
 let $restart_parameters = ;
 --source include/restart_mysqld.inc
 
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 
-let $restart_hide_args = 1;
+let $do_not_echo_parameters = 1;
 let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0 --innodb_max_dirty_pages_pct_lwm=0;
 --source include/restart_mysqld.inc
 
@@ -117,7 +117,7 @@ DROP TABLE t10;
 # when innodb_temp_tablespace_encrypt=ON but keyring isn't set up
 #
 
-let $restart_hide_args = 1;
+let $do_not_echo_parameters = 1;
 let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt;
 --source include/restart_mysqld.inc
 

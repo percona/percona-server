@@ -39,7 +39,7 @@ class Alter_instance {
   explicit Alter_instance(THD *thd) : m_thd(thd) {}
   virtual bool execute() = 0;
   bool log_to_binlog();
-  virtual ~Alter_instance() {}
+  virtual ~Alter_instance() = default;
 };
 
 class Rotate_innodb_key : public Alter_instance {
@@ -77,7 +77,7 @@ class Rotate_innodb_master_key final : public Rotate_innodb_key {
   explicit Rotate_innodb_master_key(THD *thd) : Rotate_innodb_key(thd) {}
 
   bool execute() override;
-  ~Rotate_innodb_master_key() override {}
+  ~Rotate_innodb_master_key() override = default;
 };
 
 class Rotate_innodb_system_key final : public Rotate_innodb_key {

@@ -70,6 +70,8 @@ class Table {
 
   size_t number_of_rows() const;
 
+  uint64_t get_mem_counter() const;
+
   const Index &index(size_t i) const;
 
   const Column &column(size_t i) const;
@@ -187,6 +189,10 @@ inline size_t Table::number_of_columns() const { return m_columns.size(); }
 inline const Columns &Table::columns() const { return m_columns; }
 
 inline size_t Table::number_of_rows() const { return m_rows.size(); }
+
+inline uint64_t Table::get_mem_counter() const {
+  return m_allocator.get_allocated_mem_counter();
+}
 
 inline const Index &Table::index(size_t i) const {
   return *m_index_entries[i].m_index;

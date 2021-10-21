@@ -205,6 +205,8 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
     ret = Result::OUT_OF_MEM;
   }
 
+  info(HA_STATUS_VARIABLE);
+
   DBUG_PRINT("temptable_api", ("this=%p %s; return=%s", this, table_name,
                                result_to_string(ret)));
 
@@ -650,6 +652,8 @@ int Handler::write_row(uchar *mysql_row) {
 
   const Result ret = m_opened_table->insert(mysql_row);
 
+  info(HA_STATUS_VARIABLE);
+
   DBUG_RET(ret);
 }
 
@@ -672,6 +676,8 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
 
   const Result ret =
       m_opened_table->update(mysql_row_old, mysql_row_new, target_row);
+
+  info(HA_STATUS_VARIABLE);
 
   DBUG_RET(ret);
 }
@@ -736,6 +742,7 @@ int Handler::info(uint) {
   stats.deleted = m_deleted_rows;
   stats.records = m_opened_table->number_of_rows();
   stats.table_in_mem_estimate = 1.0;
+  stats.data_file_length = m_opened_table->get_mem_counter();
 
   for (uint i = 0; i < table->s->keys; ++i) {
     KEY *key = &table->key_info[i];

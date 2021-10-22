@@ -36,7 +36,7 @@ IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R AND HAVE_DLFCN_H)
   MYSQL_ADD_PLUGIN(dialog
                    src/dialog.cc
                    ../../sql-common/get_password.cc
-                   LINK_LIBRARIES perconaserverclient
+                   LINK_LIBRARIES mysqlclient
                    MODULE_ONLY)
 
   IF(UNIX)

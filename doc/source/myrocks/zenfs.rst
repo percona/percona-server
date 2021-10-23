@@ -6,11 +6,27 @@ MyRocks with ZenFS
 
 Implemented in Percona Server for MySQL 8.0.26-16.
 
-`ZenFS <https://zonedstorage.io/projects/zenfs/>`__ is a file system plugin which places files into zones on a raw zoned block device (ZBD) using the MyRocks File System interface. ZenFS depends on ``libzbd`` and requires a Linux kernel implementation which supports NVMe Zoned Namespaces. The kernel must be configured with `zone block device support enabled <https://zonedstorage.io/linux/config/#kernel-configuration>`__.
+`ZenFS <https://zonedstorage.io/projects/zenfs/>`__ is a file system plugin
+which places files into zones on a raw zoned block device (ZBD) using
+the MyRocks File System interface. ZenFS depends on ``libzbd`` and requires
+a Linux kernel implementation which supports NVMe Zoned Namespaces. The kernel
+must be configured with `zone block device support
+enabled <https://zonedstorage.io/linux/config/#kernel-configuration>`__.
 
-The ``libzbd`` library provides functions and manages the state of the zones of zoned block devices. You can download the library `here <https://ubuntu.pkgs.org/21.04/ubuntu-universe-amd64/libzbd1_1.2.0-1_amd64.deb.html>`__ and follow the installation instructions on the Web site. For more information, see `libzbd User Library <https://zonedstorage.io/projects/libzbd/>`__. 
+The ``libzbd`` library provides functions and manages the state of the zones
+of zoned block devices. You can download the
+library `here <https://ubuntu.pkgs.org/21.04/ubuntu-universe-amd64/libzbd1_1.2.0-1_amd64.deb.html>`__ and follow the installation instructions on the Web site. For more information, see `libzbd User Library <https://zonedstorage.io/projects/libzbd/>`__.
 
-For more information, see `Western Digital and Percona deliver Utrastar DC ZN540 Zoned Namespace SSD support for Percona Server for MySQL <https://documents.westerndigital.com/content/dam/doc-library/en_us/assets/public/western-digital/collateral/company/western-digital-zns-ssd-perconal-blogpost.pdf>`__.
+For more information, see `Western Digital and Percona deliver
+Utrastar DC ZN540 Zoned Namespace SSD support for Percona Server for
+MySQL <https://documents.westerndigital.com/content/dam/doc-library/en_us/assets/public/western-digital/collateral/company/western-digital-zns-ssd-perconal-blogpost.pdf>`__.
+
+To install the packages with :ref:`zenfs` support, run the following command:
+   
+.. code-block:: bash
+    
+    $ sudo apt install percona-server-server-zenfs
+    $ sudo apt install percona-server-rocksdb-zenfs
 
 The following steps successfully run Percona Server with MySQL on the  ``--rocksdb-fs-uri=zenfs://dev:<short_block_device_name>``:
 

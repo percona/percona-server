@@ -29,12 +29,21 @@ It is recommended to install Percona software from official repositories:
 
    * For Debian or Ubuntu::
 
-      $ sudo apt install percona-server-rocksdb-8.0
+      $ sudo apt install percona-server-rocksdb
+      
 
    * For RHEL or CentOS::
 
       $ sudo yum install percona-server-rocksdb
-
+      
+   * To install packages with :ref:`zenfs` support, run the following command
+   on Debian 11:
+   
+    .. code-block:: bash
+    
+        $ sudo apt install percona-server-server-zenfs
+        $ sudo apt install percona-server-rocksdb-zenfs
+      
 After you install the Percona MyRocks package,
 you should see the following output::
 

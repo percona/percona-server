@@ -8576,7 +8576,6 @@ int ha_rocksdb::index_read_intern(uchar *const buf, const uchar *const key,
       Handle some special cases when we do exact key lookups.
     */
     if (find_flag == HA_READ_KEY_EXACT && using_full_key) {
-      m_full_key_lookup = true;
       if (active_index == table->s->primary_key) {
         /*
           Equality lookup over primary key, using full tuple.
@@ -8604,6 +8603,7 @@ int ha_rocksdb::index_read_intern(uchar *const buf, const uchar *const key,
           next/prev anyway. To avoid correctness issues, just free the
           iterator.
         */
+        m_full_key_lookup = true;
         m_iterator->reset();
         DBUG_RETURN(rc);
       } else {
@@ -8659,6 +8659,7 @@ int ha_rocksdb::index_read_intern(uchar *const buf, const uchar *const key,
             update_row_stats(ROWS_READ);
           }
 
+          m_full_key_lookup = true;
           m_iterator->reset();
           DBUG_RETURN(rc);
         }

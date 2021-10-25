@@ -36,8 +36,7 @@ It is recommended to install Percona software from official repositories:
 
       $ sudo yum install percona-server-rocksdb
       
-   * To install packages with :ref:`zenfs` support, run the following command
-   on Debian 11:
+   * To install packages with :ref:`zenfs` support, run the following command:
    
     .. code-block:: bash
     

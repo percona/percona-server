@@ -63,7 +63,8 @@ the ``libzbd`` libary, and the necessary tools. These installations
 are in the **TECH PREVIEW** mode.
 **Do not install these binary tarballs in a production environment**.
 
-See :ref:`zenfs` for more information.
+See :ref:`zenfs` for more information and :ref:`zenfs-install` for the
+installation commands.
 
 .. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
 
@@ -89,11 +90,11 @@ In |Percona Server| before 8.0.20-11, multiple tarballs are provided based on th
 
 You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-8.0/LATEST/binary/tarball/>`_ on the download page.
 
-Fetch and extract the correct binary tarball. For example for *Debian Wheezy*:
+Fetch and extract the correct binary tarball. For example for *Debian 10*:
 
 .. code-block:: bash
 
-  $ wget https://www.percona.com/downloads/Percona-Server-LATEST/Percona-Server-8.0.13-3/binary/tarball/Percona-Server-8.0.13-3-Linux.x86_64.ssl102.tar.gz
+  $ wget https://downloads.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.26-16/binary/tarball/Percona-Server-8.0.26-16-Linux.x86_64.glibc2.12.tar.gz
 
 .. _installing_from_source_tarball:
 
@@ -102,8 +103,8 @@ Installing |Percona Server| from a Source Tarball
 
 Fetch and extract the source tarball. For example: ::
 
-  $ wget https://www.percona.com/downloads/Percona-Server-LATEST/Percona-Server-8.0.13-3/source/tarball/Percona-Server-8.0.13-3-Linux.x86_64.ssl102.tar.gz
-  $ tar xfz percona-server-8.0.13-3.tar.gz
+  $ wget https://downloads.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.26-16/binary/tarball/Percona-Server-8.0.26-16-Linux.x86_64.glibc2.12.tar.gz
+  $ tar xfz Percona-Server-8.0.26-16-Linux.x86_64.glibc2.12.tar.gz
 
 Next, follow the instructions in :ref:`compile_from_source` below.
 

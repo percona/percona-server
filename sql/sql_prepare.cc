@@ -4118,6 +4118,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
+  /*
+    Use alloc_query() to make sure the query is allocated on
+    the correct MEM_ROOT, since otherwise THD::query_string could end
+    up as a dangling pointer (i.e. pointer to freed memory) once the PS
+    MEM_ROOT is freed.
+  */
+  alloc_query(thd, thd->query(), thd->query_length());
+
   if (state == Query_arena::STMT_PREPARED)
     state= Query_arena::STMT_EXECUTED;
 

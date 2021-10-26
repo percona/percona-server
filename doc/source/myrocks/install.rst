@@ -31,20 +31,16 @@ It is recommended to install Percona software from official repositories:
 
       $ sudo apt install percona-server-rocksdb
       
-
+     .. note::
+     
+        The :ref:`zenfs-install` section contains the :ref:`zenfs` installation commands.
+     
+      
    * For RHEL or CentOS::
 
       $ sudo yum install percona-server-rocksdb
       
-   * To install packages with :ref:`zenfs` support, run the following command:
-   
-    .. code-block:: bash
-    
-        $ sudo apt install percona-server-server-zenfs
-        $ sudo apt install percona-server-rocksdb-zenfs
-      
-After you install the Percona MyRocks package,
-you should see the following output::
+After installation, you should see the following output::
 
 * This release of |Percona Server| is distributed with RocksDB storage engine.
 * Run the following script to enable the RocksDB storage engine in Percona Server:

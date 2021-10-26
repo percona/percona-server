@@ -21,12 +21,23 @@ For more information, see `Western Digital and Percona deliver
 Utrastar DC ZN540 Zoned Namespace SSD support for Percona Server for
 MySQL <https://documents.westerndigital.com/content/dam/doc-library/en_us/assets/public/western-digital/collateral/company/western-digital-zns-ssd-perconal-blogpost.pdf>`__.
 
-To install the packages with :ref:`zenfs` support, run the following command:
+.. _zenfs-install:
+
+Installing MyRocks with ZenFS packages
+------------------------------------------
+
+The MyRocks with ZenFS packages are listed in
+the :ref:`installing_from_binary_tarball` section.
+
+To install the packages, run the following command:
    
 .. code-block:: bash
     
     $ sudo apt install percona-server-server-zenfs
     $ sudo apt install percona-server-rocksdb-zenfs
+
+Running the Installation
+----------------------------
 
 The following steps successfully run Percona Server with MySQL on the  ``--rocksdb-fs-uri=zenfs://dev:<short_block_device_name>``:
 

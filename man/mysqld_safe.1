@@ -2,12 +2,12 @@
 .\"     Title: mysqld_safe
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2021
+.\"      Date: 09/06/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQLD_SAFE" "1" "06/07/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLD_SAFE" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -57,6 +57,14 @@ For some Linux platforms, MySQL installation from RPM or Debian packages include
 \fBmysqld_safe\fR
 is not installed because it is unnecessary\&. For more information, see
 Section\ \&2.5.10, \(lqManaging MySQL Server with systemd\(rq\&.
+.PP
+One implication of the non\-use of
+\fBmysqld_safe\fR
+on platforms that use systemd for server management is that use of
+[mysqld_safe]
+or
+[safe_mysqld]
+sections in option files is not supported and might lead to unexpected behavior\&.
 .sp .5v
 .RE
 .PP

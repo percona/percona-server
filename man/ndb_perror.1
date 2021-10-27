@@ -2,12 +2,12 @@
 .\"     Title: ndb_perror
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2021
+.\"      Date: 09/06/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_PERROR" "1" "06/07/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_PERROR" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,7 +35,7 @@ ndb_perror \- obtain NDB error message information
 .SH "DESCRIPTION"
 .PP
 \fBndb_perror\fR
-shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. Added to the MySQL NDB Cluster distribution in NDB 7\&.6\&.4, it is intended as a drop\-in replacement for
+shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. Added to the MySQL NDB Cluster distribution in NDB 7\&.6, it is intended as a drop\-in replacement for
 \fBperror\fR
 \fB\-\-ndb\fR\&.
 Usage
@@ -106,7 +106,7 @@ are described later in this section\&.
 \fBndb_perror\fR
 replaces
 \fBperror\fR
-\fB\-\-ndb\fR, which is deprecated as of NDB 7\&.6\&.4 and subject to removal in a future release of MySQL NDB Cluster\&. To make substitution easier in scripts and other applications that might depend on
+\fB\-\-ndb\fR, which is deprecated in NDB 7\&.6 and subject to removal in a future release of MySQL NDB Cluster\&. To make substitution easier in scripts and other applications that might depend on
 \fBperror\fR
 for obtaining NDB error information,
 \fBndb_perror\fR

@@ -303,8 +303,16 @@ IF (NOT HAVE_EXTERNAL_ROCKSDB)
   TARGET_LINK_LIBRARIES(mysql_ldb ${rocksdb_static_libs})
 
   IF (WITH_ZENFS_UTILITY)
+    FIND_PATH(GFLAGS_INCLUDE_DIR
+      NAMES gflags/gflags.h)
+    FIND_LIBRARY(GFLAGS_SYSTEM_LIBRARY
+      NAMES gflags)
+    IF (NOT GFLAGS_INCLUDE_DIR OR NOT GFLAGS_SYSTEM_LIBRARY)
+      MESSAGE(FATAL_ERROR "Cannot find system gflags library.")
+    ENDIF()
+
     MYSQL_ADD_EXECUTABLE(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs/util/zenfs.cc ${ROCKSDB_LIB_SOURCES} ${ZENFS_PLUGIN_SOURCES} ${ZSTD_SOURCES})
-    TARGET_LINK_LIBRARIES(zenfs ${rocksdb_static_libs} "-lgflags")
+    TARGET_LINK_LIBRARIES(zenfs ${rocksdb_static_libs} ${GFLAGS_SYSTEM_LIBRARY})
 
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin")
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb_plugins/zenfs" "${CMAKE_CURRENT_BINARY_DIR}/tmp_gen/rocksdb/plugin/zenfs")

@@ -84,7 +84,6 @@ The following steps successfully run Percona Server with MySQL on the  ``--rocks
     .. sourcecode:: text
 
         [mysqld]
-        rocksdb
         ...
         rocksdb-fs-uri=zenfs://dev:nvme1n2
         ...

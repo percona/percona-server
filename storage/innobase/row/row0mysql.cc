@@ -2030,6 +2030,9 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
 
   row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec, &blob_heap);
 
+  if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
+    mem_heap_empty(prebuilt->compress_heap);
+
   savept = trx_savept_take(trx);
 
   thr = que_fork_get_first_thr(prebuilt->ins_graph);

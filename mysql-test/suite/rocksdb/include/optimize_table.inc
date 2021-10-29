@@ -1,3 +1,5 @@
+--source parse_rocksdb_fs_uri.inc
+
 let $datadir = `SELECT @@datadir`;
 
 create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
@@ -37,7 +39,17 @@ delete from t4 where id <= 9900;
 delete from t5 where id <= 9900;
 delete from t6 where id <= 9900;
 
---let $size_cmd = du -ks $datadir/.rocksdb/*.sst | awk '{t=t+\$1} END{print t}' >> $MYSQL_TMP_DIR/sst_size.dat
+if ($rocksdb_zenfs_disabled)
+{
+  --let $size_cmd = du -b $datadir/.rocksdb/*.sst
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --file_exists $MYSQL_ZENFS
+  --let $size_cmd = $MYSQL_ZENFS list --zbd=$extracted_zenfs_device --path=./.rocksdb/ | grep '\\.sst'
+}
+--let $size_cmd = $size_cmd | awk '{t=t+\$1} END{print int(t/1024)}' >> $MYSQL_TMP_DIR/sst_size.dat
+
 --exec $size_cmd
 optimize table t1;
 --exec $size_cmd

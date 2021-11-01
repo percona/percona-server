@@ -388,7 +388,7 @@ jobs:
           CMAKE_OPT+="
             -DWITH_READLINE=system
             -DWITH_ICU=system
-            -DWITH_LZ4=system
+            -DWITH_LZ4=bundled
             -DWITH_PROTOBUF=system
             -DWITH_ZLIB=system
             -DWITH_NUMA=ON

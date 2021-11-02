@@ -427,7 +427,7 @@ jobs:
   - script: |
       df -Th
       cd bin
-      make -j2 || exit 1
+      make VERBOSE=1 -j2 || exit 1
       ccache --show-stats
 
       BUILD_TIME=$SECONDS

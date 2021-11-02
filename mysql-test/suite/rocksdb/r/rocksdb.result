@@ -904,12 +904,14 @@ rocksdb_block_size_deviation	10
 rocksdb_bulk_load	OFF
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 rocksdb_bytes_per_sync	0
 rocksdb_cache_dump	ON
 rocksdb_cache_high_pri_pool_ratio	0.000000
 rocksdb_cache_index_and_filter_blocks	ON
 rocksdb_cache_index_and_filter_with_high_priority	ON
+rocksdb_cancel_manual_compactions	OFF
 rocksdb_checksums_pct	100
 rocksdb_collect_sst_properties	ON
 rocksdb_commit_in_the_middle	OFF
@@ -994,6 +996,7 @@ rocksdb_no_block_cache	OFF
 rocksdb_no_create_column_family	OFF
 rocksdb_override_cf_options	
 rocksdb_paranoid_checks	ON
+rocksdb_partial_index_sort_max_mem	0
 rocksdb_pause_background_work	ON
 rocksdb_perf_context_level	0
 rocksdb_persistent_cache_path	
@@ -1616,6 +1619,8 @@ rocksdb_get_hit_l1	#
 rocksdb_get_hit_l2_and_up	#
 rocksdb_get_updates_since_calls	#
 rocksdb_iter_bytes_read	#
+rocksdb_manual_compactions_cancelled	#
+rocksdb_manual_compactions_pending	#
 rocksdb_manual_compactions_processed	#
 rocksdb_manual_compactions_running	#
 rocksdb_memtable_hit	#
@@ -1648,6 +1653,10 @@ rocksdb_number_sst_entry_singledelete	#
 rocksdb_number_superversion_acquires	#
 rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
+rocksdb_partial_index_groups_materialized	#
+rocksdb_partial_index_groups_sorted	#
+rocksdb_partial_index_rows_materialized	#
+rocksdb_partial_index_rows_sorted	#
 rocksdb_row_lock_deadlocks	#
 rocksdb_row_lock_wait_timeouts	#
 rocksdb_snapshot_conflict_errors	#
@@ -1732,6 +1741,8 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_manual_compactions_cancelled
+rocksdb_manual_compactions_pending
 rocksdb_manual_compactions_processed
 rocksdb_manual_compactions_running
 rocksdb_memtable_hit
@@ -1764,6 +1775,10 @@ rocksdb_number_sst_entry_singledelete
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
+rocksdb_partial_index_groups_materialized
+rocksdb_partial_index_groups_sorted
+rocksdb_partial_index_rows_materialized
+rocksdb_partial_index_rows_sorted
 rocksdb_row_lock_deadlocks
 rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors
@@ -1850,6 +1865,8 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_manual_compactions_cancelled
+rocksdb_manual_compactions_pending
 rocksdb_manual_compactions_processed
 rocksdb_manual_compactions_running
 rocksdb_memtable_hit
@@ -1882,6 +1899,10 @@ rocksdb_number_sst_entry_singledelete
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
+rocksdb_partial_index_groups_materialized
+rocksdb_partial_index_groups_sorted
+rocksdb_partial_index_rows_materialized
+rocksdb_partial_index_rows_sorted
 rocksdb_row_lock_deadlocks
 rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors

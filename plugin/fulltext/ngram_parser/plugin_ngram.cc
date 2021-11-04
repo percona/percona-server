@@ -69,8 +69,10 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     if (next + char_len > end || char_len == 0) {
       break;
     } else {
-      /* Skip SPACE */
-      if (char_len == 1 && *next == ' ') {
+      /* Skip SPACE and control characters */
+      int ctype = 0;
+      cs->cset->ctype(cs, &ctype, (uchar *)next, (uchar *)end);
+      if (char_len == 1 && (*next == ' ' || ctype & MY_CHAR_CTR)) {
         start = next + 1;
         next = start;
         n_chars = 0;

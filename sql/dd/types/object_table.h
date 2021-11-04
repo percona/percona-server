@@ -184,11 +184,7 @@ class Object_table {
   virtual void set_actual_encrypted() const = 0;
 
  public:
-#ifdef __SUNPRO_CC
-  virtual ~Object_table() {}
-#else
   virtual ~Object_table() = default;
-#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////

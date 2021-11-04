@@ -74,7 +74,10 @@ MYSQL_ADD_EXECUTABLE(gen_lex_token
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
 IF(HAS_MISSING_PROFILE)
-  ADD_COMPILE_FLAGS(gen_lex_token.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
+  ADD_COMPILE_FLAGS(
+    binlog_reader.cc  # In case we did not profile replication.
+    gen_lex_token.cc  # This is a compile-time tool.
+    COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -102,8 +105,11 @@ ENDIF()
 
 # ICU headers for WIN32 need extra info about their libs state
 IF(WIN32)
-  ADD_COMPILE_DEFINITIONS(gen_keyword_list.cc COMPILE_DEFINITIONS
+  MY_ADD_COMPILE_DEFINITIONS(gen_keyword_list.cc COMPILE_DEFINITIONS
     U_STATIC_IMPLEMENTATION)
+
+  # Activate necessary dllexport/dllimport declarations.
+  ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -114,6 +120,7 @@ ADD_CUSTOM_COMMAND(
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
 ADD_SUBDIRECTORY(server_component)
+ADD_SUBDIRECTORY(protobuf)
 
 SET(DD_SOURCES
   dd/collection.cc
@@ -291,7 +298,6 @@ SET(DD_SOURCES
 )
 
 SET(SQL_GIS_SOURCES
-  geometry_rtree.cc
   gis/area.cc
   gis/buffer.cc
   gis/covered_by.cc
@@ -307,6 +313,8 @@ SET(SQL_GIS_SOURCES
   gis/gc_utils.cc
   gis/geometries.cc
   gis/hausdorff_distance.cc
+  gis/intersection.cc
+  gis/intersection_functor.cc
   gis/intersects.cc
   gis/is_simple.cc
   gis/is_valid.cc
@@ -321,6 +329,8 @@ SET(SQL_GIS_SOURCES
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/st_units_of_measure.cc
+  gis/symdifference.cc
+  gis/symdifference_functor.cc
   gis/touches.cc
   gis/transform.cc
   gis/union.cc
@@ -333,8 +343,6 @@ SET(SQL_GIS_SOURCES
   item_geofunc_buffer.cc
   item_geofunc_internal.cc
   item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
   options_parser.cc
 )
 
@@ -348,6 +356,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
+  auth/sql_mfa.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/partial_revokes.cc
@@ -413,13 +422,19 @@ SET(SQL_SHARED_SOURCES
   item_xmlfunc.cc
   item_inetfunc.cc
   join_optimizer/access_path.cc
+  join_optimizer/build_interesting_orders.cc
+  join_optimizer/common_subexpression_elimination.cc
+  join_optimizer/cost_model.cc
   join_optimizer/estimate_selectivity.cc
   join_optimizer/explain_access_path.cc
+  join_optimizer/finalize_plan.cc
   join_optimizer/hypergraph.cc
   join_optimizer/interesting_orders.cc
   join_optimizer/join_optimizer.cc
   join_optimizer/make_join_hypergraph.cc
+  join_optimizer/overflow_bitset.cc
   join_optimizer/print_utils.cc
+  join_optimizer/replace_item.cc
   json_binary.cc
   json_diff.cc
   json_dom.cc
@@ -449,7 +464,6 @@ SET(SQL_SHARED_SOURCES
   opt_explain_traditional.cc
   opt_explain_json.cc
   opt_hints.cc
-  opt_range.cc
   opt_statistics.cc
   opt_sum.cc
   opt_trace.cc
@@ -472,6 +486,22 @@ SET(SQL_SHARED_SOURCES
   protocol_classic.cc
   psi_memory_key.cc
   query_result.cc
+  range_optimizer/geometry.cc
+  range_optimizer/group_min_max.cc
+  range_optimizer/group_min_max_plan.cc
+  range_optimizer/index_merge.cc
+  range_optimizer/index_merge_plan.cc
+  range_optimizer/partition_pruning.cc
+  range_optimizer/range_analysis.cc
+  range_optimizer/range_optimizer.cc
+  range_optimizer/range_scan.cc
+  range_optimizer/range_scan_desc.cc
+  range_optimizer/range_scan_plan.cc
+  range_optimizer/rowid_ordered_retrieval.cc
+  range_optimizer/rowid_ordered_retrieval_plan.cc
+  range_optimizer/skip_scan.cc
+  range_optimizer/skip_scan_plan.cc
+  range_optimizer/tree.cc
   records.cc
   regexp/errors.cc
   regexp/regexp_engine.cc
@@ -604,7 +634,19 @@ SET(SQL_SHARED_SOURCES
   window_iterators.cc
   xa.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
-)
+  )
+
+IF(BUILD_IS_SINGLE_CONFIG)
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  IF(NOT CMAKE_CXX_FLAGS MATCHES "DENABLED_DEBUG_SYNC" AND
+      NOT CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DENABLED_DEBUG_SYNC" AND
+      NOT CWD_DEFINITIONS MATCHES "ENABLED_DEBUG_SYNC")
+    # This has ifdef ENABLED_DEBUG_SYNC
+    LIST(REMOVE_ITEM SQL_SHARED_SOURCES
+      debug_sync.cc
+      )
+  ENDIF()
+ENDIF()
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
 #              [COMPILE_FLAGS <flags>]
@@ -732,6 +774,8 @@ SET(SQL_SOURCE
   ../sql-common/my_path_permissions.cc
   ../sql-common/net_ns.cc
   ../sql-common/net_serv.cc
+  ../sql-common/oci/signing_key.cc
+  ../sql-common/oci/ssl.cc
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
   command_service.cc
@@ -756,6 +800,10 @@ SET(SQL_SOURCE
   srv_session_service.cc
   )
 
+IF(NOT HAVE_SETNS)
+  LIST(REMOVE_ITEM SQL_SOURCE ../sql-common/net_ns.cc)
+ENDIF()
+
 IF(NOT WIN32)
   LIST(APPEND SQL_SOURCE mysqld_daemon.cc)
 ENDIF()
@@ -769,14 +817,7 @@ IF(WIN32)
       )
 ENDIF()
 
-# Segfault in boost::geometry code at high optimization levels
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-  IF(CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
-  ENDIF()
-ENDIF()
-
-ADD_COMPILE_DEFINITIONS(
+MY_ADD_COMPILE_DEFINITIONS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
   )
@@ -794,13 +835,13 @@ IF(WIN32)
     gis/difference.cc
     gis/difference_functor.cc
     gis/intersection_functor.cc
+    gis/symdifference_functor.cc
     gis/touches.cc
     gis/union.cc
     gis/union_functor.cc
     gis/within.cc
     item_geofunc.cc
     item_geofunc_relchecks.cc
-    item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")
 ENDIF()
 
@@ -810,8 +851,13 @@ IF(MY_COMPILER_IS_GNU)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
       geometry_rtree.cc
+<<<<<<< HEAD
       item_geofunc_relchecks_bgwrap.cc
       join_optimizer/access_path.cc
+||||||| beb865a960b
+      item_geofunc_relchecks_bgwrap.cc
+=======
+>>>>>>> mysql-8.0.27
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
   ENDIF()
@@ -880,6 +926,7 @@ IF(COMPRESS_DEBUG_SECTIONS)
   ENDIF()
 ENDIF()
 
+<<<<<<< HEAD
 # A class with a reference member lacks a user-defined constructor,
 # which can lead to errors.
 # Constexpr function return type is not a literal type.
@@ -909,6 +956,31 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
+||||||| beb865a960b
+# A class with a reference member lacks a user-defined constructor,
+# which can lead to errors.
+# Constexpr function return type is not a literal type.
+IF(MY_COMPILER_IS_SUNPRO)
+  SET_TARGET_PROPERTIES(sql_gis PROPERTIES
+    COMPILE_FLAGS "-erroff=refmemnoconstr,w_constexprnonlitret")
+  ADD_COMPILE_FLAGS(
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-erroff=refmemnoconstr")
+ENDIF()
+
+# -g0 is the same as -g, except that inlining is enabled.
+# With Studio 12.6 we may get linking errors for large binaries,
+# so we add -g0 here to enable inlining of boost/geometry.
+# This also cuts link time by almost one hour for large binaries ....
+IF(MY_COMPILER_IS_SUNPRO)
+  ADD_COMPILE_FLAGS(
+    ${SQL_GIS_SOURCES}
+    sql_exception_handler.cc
+    COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
+ENDIF()
+
+=======
+>>>>>>> mysql-8.0.27
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)
@@ -928,7 +1000,7 @@ IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   TARGET_LINK_LIBRARIES(sql_main auth_win_client)
   IF(OPENSSL_APPLINK_C)
-    ADD_COMPILE_DEFINITIONS(
+    MY_ADD_COMPILE_DEFINITIONS(
       ../sql-common/client_authentication.cc
       COMPILE_DEFINITIONS HAVE_OPENSSL_APPLINK_C)
   ENDIF()
@@ -986,6 +1058,7 @@ TARGET_LINK_LIBRARIES(master binlog sql_main)
 SET (SLAVE_SOURCE
   dynamic_ids.cc
   changestreams/apply/commit_order_queue.cc
+  changestreams/apply/replication_thread_status.cc
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc
   rpl_async_conn_failover_table_operations.cc
@@ -993,6 +1066,8 @@ SET (SLAVE_SOURCE
   rpl_async_conn_failover_add_source_udf.cc
   rpl_async_conn_failover_delete_managed_udf.cc
   rpl_async_conn_failover_delete_source_udf.cc
+  rpl_async_conn_failover_configuration_propagation.cc
+  rpl_async_conn_failover_reset_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
   rpl_info.cc
@@ -1022,7 +1097,15 @@ SET (SLAVE_SOURCE
   )
 ADD_LIBRARY(slave STATIC ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-TARGET_LINK_LIBRARIES(slave binlog sql_main)
+TARGET_LINK_LIBRARIES(slave
+  binlog sql_main ${PROTOBUF_LITE_LIBRARY} ${RPL_PROTOBUF_LITE_LIB})
+
+# Includes code generated by protobuf, and version 3.12 will generate extra ';'.
+MY_CHECK_CXX_COMPILER_WARNING("-Wextra-semi" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  TARGET_COMPILE_OPTIONS(slave PRIVATE "${HAS_WARN_FLAG}")
+  ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS ${HAS_WARN_FLAG})
+ENDIF()
 
 # All these libraries depend on each other.
 TARGET_LINK_LIBRARIES(sql_main rpl master slave binlog)
@@ -1042,7 +1125,7 @@ MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
   )
 
-# We depend on protobuf because of the mysqlx plugin.
+# We depend on protobuf because of the mysqlx plugin and replication.
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
   ADD_INSTALL_RPATH_FOR_PROTOBUF(mysqld)
 ENDIF()
@@ -1067,7 +1150,7 @@ IF(APPLE)
     TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES})
   ENDIF()
   IF(APPLE_XCODE)
-    ADD_COMPILE_DEFINITIONS(mysqld.cc COMPILE_DEFINITIONS APPLE_XCODE)
+    MY_ADD_COMPILE_DEFINITIONS(mysqld.cc COMPILE_DEFINITIONS APPLE_XCODE)
   ENDIF()
 ENDIF()
 
@@ -1170,19 +1253,12 @@ IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)
   TARGET_LINK_LIBRARIES(mysqld ${LDAP_LIBRARY})
 ENDIF()
 
+IF(SOLARIS)
+  TARGET_LINK_LIBRARIES(mysqld mtmalloc)
+ENDIF()
+
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
-
-SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
-MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
-IF(WITH_MYSQLD_LDFLAGS)
-  GET_TARGET_PROPERTY(MYSQLD_LINK_FLAGS mysqld LINK_FLAGS)
-  IF(NOT MYSQLD_LINK_FLAGS)
-    SET(MYSQLD_LINK_FLAGS)
-  ENDIF()
-  SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS
-     "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
-ENDIF()
 
 # See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
 # and the rename is a no-op. If it is called 'mysqld' we rename it.

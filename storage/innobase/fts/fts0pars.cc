@@ -738,11 +738,6 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep)
 # else
   YYUSE (yyoutput);
 # endif
-  switch (yytype)
-    {
-      default:
-	break;
-    }
 }
 
 
@@ -947,7 +942,7 @@ yytnamerr (char *yyres, const char *yystr)
 	  case '\\':
 	    if (*++yyp != '\\')
 	      goto do_not_strip_quotes;
-	    /* Fall through.  */
+	    [[fallthrough]];
 	  default:
 	    if (yyres)
 	      yyres[yyn] = *yyp;
@@ -1128,13 +1123,6 @@ yydestruct (yymsg, yytype, yyvaluep)
   if (!yymsg)
     yymsg = "Deleting";
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
-
-  switch (yytype)
-    {
-
-      default:
-	break;
-    }
 }
 
 
@@ -1938,6 +1926,7 @@ fts_lexer_create(
 	const byte*	query,
 	ulint		query_len)
 {
+<<<<<<< HEAD
 	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
 		ut_malloc_nokey(sizeof(fts_lexer_t)));
 
@@ -1958,8 +1947,47 @@ fts_lexer_create(
 			fts_lexer->yyscanner);
 		fts_lexer->scanner = fts_tlexer;
 	}
+||||||| beb865a960b
+	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
+		ut_malloc_nokey(sizeof(fts_lexer_t)));
 
-	return(fts_lexer);
+	if (boolean_mode) {
+		fts0blex_init(&fts_lexer->yyscanner);
+		fts0b_scan_bytes(
+			reinterpret_cast<const char*>(query),
+			static_cast<int>(query_len),
+			fts_lexer->yyscanner);
+		fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
+		/* FIXME: Debugging */
+		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
+	} else {
+		fts0tlex_init(&fts_lexer->yyscanner);
+		fts0t_scan_bytes(
+			reinterpret_cast<const char*>(query),
+			static_cast<int>(query_len),
+			fts_lexer->yyscanner);
+		fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_tlexer);
+	}
+=======
+  fts_lexer_t *fts_lexer = static_cast<fts_lexer_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_lexer_t)));
+
+  if (boolean_mode) {
+    fts0blex_init(&fts_lexer->yyscanner);
+    fts0b_scan_bytes(reinterpret_cast<const char *>(query),
+                     static_cast<int>(query_len), fts_lexer->yyscanner);
+    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
+    /* FIXME: Debugging */
+    /* fts0bset_debug(1 , fts_lexer->yyscanner); */
+  } else {
+    fts0tlex_init(&fts_lexer->yyscanner);
+    fts0t_scan_bytes(reinterpret_cast<const char *>(query),
+                     static_cast<int>(query_len), fts_lexer->yyscanner);
+    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_tlexer);
+  }
+>>>>>>> mysql-8.0.27
+
+  return (fts_lexer);
 }
 
 /********************************************************************
@@ -1976,7 +2004,7 @@ fts_lexer_free(
 		fts0tlex_destroy(fts_lexer->yyscanner);
 	}
 
-	ut_free(fts_lexer);
+        ut::free(fts_lexer);
 }
 
 /********************************************************************

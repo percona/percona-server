@@ -184,6 +184,7 @@ my %opts_extern;
 
 my $auth_plugin;            # The path to the authentication test plugin
 my $baseport;
+my $ctest_parallel;         # Number of parallel jobs to run unit tests
 my $ctest_report;           # Unit test report stored here for delayed printing
 my $current_config_name;    # The currently running config file template
 my $exe_ndb_mgm;
@@ -689,6 +690,9 @@ sub main {
   my $all_tests;
   @$all_tests = @$tests;
   mark_time_used('collect');
+  # A copy of the tests list, that will not be modified even after the tests
+  # are executed.
+  my @tests_list = @{$tests};
 
   check_secondary_engine_option($tests) if $secondary_engine_support;
 
@@ -712,7 +716,12 @@ sub main {
 
   initialize_servers();
 
-  # Limit parallel workers to number of tests to avoid idle workers
+  # Run unit tests in parallel with the same number of workers as
+  # specified to MTR.
+  $ctest_parallel = $opt_parallel;
+
+  # Limit parallel workers to the number of regular tests to avoid
+  # idle workers.
   $opt_parallel = $num_tests if $opt_parallel > $num_tests;
   $ENV{MTR_PARALLEL} = $opt_parallel;
   mtr_report("Using parallel: $opt_parallel");
@@ -802,6 +811,7 @@ sub main {
 
   # Create child processes
   my %children;
+
   $parent_pid = $$;
   for my $child_num (1 .. $opt_parallel) {
     my $child_pid = My::SafeProcess::Base::_safe_fork();
@@ -878,6 +888,7 @@ sub main {
     # Not all tests completed
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
+<<<<<<< HEAD
     mtr_report("Not all tests completed. This means that a test scheduled for a worker did not report anything, the worker most likely crashed.");
 
     my %comp;
@@ -892,6 +903,25 @@ sub main {
       }
     }
 
+||||||| beb865a960b
+    mtr_error("Not all tests completed");
+=======
+    foreach (@tests_list) {
+      $_->{key} = "$_" unless defined $_->{key};
+    }
+    my %is_completed_map = map { $_->{key} => 1 } @$completed;
+    my @not_completed;
+    foreach (@tests_list) {
+      if (!exists $is_completed_map{$_->{key}}) {
+        push (@not_completed, $_->{name});
+      }
+    }
+    if (int(@not_completed) <= 100) {
+      mtr_error("Not all tests completed:", join(" ", @not_completed));
+    } else {
+      mtr_error("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
+    }
+>>>>>>> mysql-8.0.27
   }
 
   mark_time_used('init');
@@ -1416,8 +1446,8 @@ sub run_worker ($) {
       # A sanity check. Should this happen often we need to look at it.
       if (defined $test->{reserved} && $test->{reserved} != $thread_num) {
         my $tres = $test->{reserved};
-	my $name = $test->{name};
-	mtr_warning("Test $name reserved for w$tres picked up by w$thread_num");
+        my $name = $test->{name};
+        mtr_warning("Test $name reserved for w$tres picked up by w$thread_num");
       }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
@@ -2402,6 +2432,23 @@ sub command_line_setup {
   check_ndbcluster_support(\%mysqld_variables);
 
   executable_setup();
+
+  check_fips_support();
+}
+
+sub check_fips_support() {
+  # Run $exe_mysqltest to see if FIPS mode is supported.
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--test-ssl-fips-mode");
+  my $cmd = join(" ", $exe_mysqltest, @$args);
+  my $result= `$cmd`;
+  mtr_verbose("Testing FIPS: $result");
+  if($result =~ /Success$/) {
+    $ENV{'OPENSSL_FIPS_INSTALLED'} = 1;
+  } else {
+    $ENV{'OPENSSL_FIPS_INSTALLED'} = 0;
+  }
 }
 
 # Create global manifest file
@@ -3276,7 +3323,8 @@ sub environment_setup {
 
   # mysql clients
   $ENV{'EXE_MYSQL'}           = $exe_mysql;
-  $ENV{'MYSQL'}               = client_arguments("mysql");
+  $ENV{'MYSQL'}               = my $mysql_cmd = client_arguments("mysql");
+  $ENV{'MYSQL_OPTIONS'}       = substr($mysql_cmd, index($mysql_cmd, " "));
   $ENV{'MYSQL_BINLOG'}        = client_arguments("mysqlbinlog");
   $ENV{'MYSQL_CHECK'}         = client_arguments("mysqlcheck");
   $ENV{'MYSQL_CLIENT_TEST'}   = mysql_client_test_arguments();
@@ -7674,11 +7722,23 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may
   # not have it. Now, run ctest and collect output.
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
+<<<<<<< HEAD
   # Run unit tests in parallel with the same number of threads as
   # the MTR tests.
   mtr_report("Running ctest parallel=$opt_parallel");
   $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
 
+||||||| beb865a960b
+  # Run unit tests in parallel with the same number of threads as
+  # the MTR tests.
+  mtr_report("Running ctest parallel=$opt_parallel");
+  $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
+=======
+
+  $ENV{CTEST_PARALLEL_LEVEL} = $ctest_parallel;
+  mtr_report("Running ctest parallel=$ctest_parallel");
+
+>>>>>>> mysql-8.0.27
   my $ctest_opts = "";
   if ($ndbcluster_only) {
     # Run only tests with label NDB

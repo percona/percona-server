@@ -314,7 +314,7 @@ THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd)
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func MY_ATTRIBUTE((unused)),
+                      const char *calling_func [[maybe_unused]],
                       const char *calling_file,
                       const unsigned int calling_line) {
   DBUG_PRINT("THD::enter_stage",
@@ -538,8 +538,6 @@ THD::THD(bool enable_plugins)
   mysql_audit_init_thd(this);
   net.vio = nullptr;
   system_thread = NON_SYSTEM_THREAD;
-  cleanup_done = false;
-  m_release_resources_done = false;
   peer_port = 0;  // For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled = true;
   m_resource_group_ctx.m_cur_resource_group = nullptr;
@@ -558,6 +556,13 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
+
+  /*Initialize connection delegation mutex and cond*/
+  mysql_mutex_init(key_LOCK_group_replication_connection_mutex,
+                   &LOCK_group_replication_connection_mutex,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_group_replication_connection_cond_var,
+                  &COND_group_replication_connection_cond_var);
 
   /* Variables with default values */
   set_proc_info("login");
@@ -938,7 +943,7 @@ void THD::cleanup_connection(void) {
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
   running_explain_analyze = false;
-  cleanup_done = false;
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE;
   init();
   stmt_map.reset();
   user_vars.clear();
@@ -975,6 +980,12 @@ void THD::cleanup_connection(void) {
 #endif
 }
 
+bool THD::is_cleanup_done() {
+  return (m_thd_life_cycle_stage ==
+              enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN ||
+          m_thd_life_cycle_stage >= enum_thd_life_cycle_stages::CLEANED_UP);
+}
+
 /*
   Do what's needed when one invokes change user.
   Also used during THD::release_resources, i.e. prior to THD destruction.
@@ -984,7 +995,7 @@ void THD::cleanup(void) {
   XID_STATE *xs = trn_ctx->xid_state();
 
   DBUG_TRACE;
-  assert(cleanup_done == 0);
+  assert(!is_cleanup_done());
   DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed = KILL_CONNECTION;
@@ -1072,20 +1083,47 @@ void THD::cleanup(void) {
     If we have a Security_context, make sure it is "logged out"
   */
 
-  cleanup_done = true;
+  if (m_thd_life_cycle_stage == enum_thd_life_cycle_stages::ACTIVE)
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN;
+  else
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::CLEANED_UP;
+}
+
+bool THD::release_resources_done() const {
+  return m_thd_life_cycle_stage ==
+         enum_thd_life_cycle_stages::RESOURCES_RELEASED;
+}
+
+bool THD::is_being_disposed() const {
+#ifndef NDEBUG
+  if (current_thd != this) mysql_mutex_assert_owner(&LOCK_thd_data);
+#endif
+  return (m_thd_life_cycle_stage >=
+          enum_thd_life_cycle_stages::SCHEDULED_FOR_DISPOSAL);
+}
+
+void THD::start_disposal() {
+  mysql_mutex_assert_owner(&LOCK_thd_data);
+  assert(!is_being_disposed());
+
+  if (m_thd_life_cycle_stage == enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN)
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::CLEANED_UP;
+  else
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::SCHEDULED_FOR_DISPOSAL;
 }
 
 /**
   Release most resources, prior to THD destruction.
  */
 void THD::release_resources() {
-  assert(m_release_resources_done == false);
-
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   /* Ensure that no one is using THD */
-  mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_query_plan);
+  mysql_mutex_lock(&LOCK_thd_data);
+
+  // Mark THD life cycle state as "SCHEDULED_FOR_DISPOSAL".
+  start_disposal();
 
   /* Close connection */
   if (is_classic_protocol() && get_protocol_classic()->get_vio()) {
@@ -1095,13 +1133,13 @@ void THD::release_resources() {
 
   /* modification plan for UPDATE/DELETE should be freed. */
   assert(query_plan.get_modification_plan() == nullptr);
-  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
   stmt_map.reset(); /* close all prepared statements */
-  if (!cleanup_done) cleanup();
+  if (!is_cleanup_done()) cleanup();
 
   mdl_context.destroy();
   ha_close_connection(this);
@@ -1146,7 +1184,7 @@ void THD::release_resources() {
 
   mysql_mutex_unlock(&LOCK_status);
 
-  m_release_resources_done = true;
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::RESOURCES_RELEASED;
 }
 
 THD::~THD() {
@@ -1154,7 +1192,7 @@ THD::~THD() {
   DBUG_TRACE;
   DBUG_PRINT("info", ("THD dtor, this %p", this));
 
-  if (!m_release_resources_done) release_resources();
+  if (!release_resources_done()) release_resources();
 
   clear_next_event_pos();
 
@@ -1168,7 +1206,7 @@ THD::~THD() {
 
   my_free(const_cast<char *>(m_db.str));
   m_db = NULL_CSTR;
-  get_transaction()->free_memory(MYF(0));
+  get_transaction()->free_memory();
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
@@ -1176,7 +1214,10 @@ THD::~THD() {
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_thd_protocol);
   mysql_mutex_destroy(&LOCK_current_cond);
+  mysql_mutex_destroy(&LOCK_group_replication_connection_mutex);
+
   mysql_cond_destroy(&COND_thr_lock);
+  mysql_cond_destroy(&COND_group_replication_connection_cond_var);
 #ifndef NDEBUG
   dbug_sentry = THD_SENTRY_GONE;
 #endif
@@ -1199,11 +1240,13 @@ THD::~THD() {
   */
   unregister_slave(this, true, true);
 
-  free_root(&main_mem_root, MYF(0));
+  main_mem_root.Clear();
 
   if (m_token_array != nullptr) {
     my_free(m_token_array);
   }
+
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
 }
 
 extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
@@ -1298,7 +1341,64 @@ void THD::awake(THD::killed_state state_to_set) {
     if (this != current_thd || kill_immunizer) {
       assert(!kill_immunizer || !kill_immunizer->is_active());
 
+<<<<<<< HEAD
       if (active_vio) vio_cancel(active_vio, SHUT_RDWR);
+||||||| beb865a960b
+      /*
+        Before sending a signal, let's close the socket of the thread
+        that is being killed ("this", which is not the current thread).
+        This is to make sure it does not block if the signal is lost.
+        This needs to be done only on platforms where signals are not
+        a reliable interruption mechanism.
+
+        Note that the downside of this mechanism is that we could close
+        the connection while "this" target thread is in the middle of
+        sending a result to the application, thus violating the client-
+        server protocol.
+
+        On the other hand, without closing the socket we have a race
+        condition. If "this" target thread passes the check of
+        thd->killed, and then the current thread runs through
+        THD::awake(), sets the 'killed' flag and completes the
+        signaling, and then the target thread runs into read(), it will
+        block on the socket. As a result of the discussions around
+        Bug#37780, it has been decided that we accept the race
+        condition. A second KILL awakes the target from read().
+
+        If we are killing ourselves, we know that we are not blocked.
+        We also know that we will check thd->killed before we go for
+        reading the next statement.
+      */
+
+      shutdown_active_vio();
+=======
+      /*
+        Before sending a signal, let's close the socket of the thread
+        that is being killed ("this", which is not the current thread).
+        This is to make sure it does not block if the signal is lost.
+        This needs to be done only on platforms where signals are not
+        a reliable interruption mechanism.
+
+        Note that the downside of this mechanism is that we could close
+        the connection while "this" target thread is in the middle of
+        sending a result to the application, thus violating the client-
+        server protocol.
+
+        On the other hand, without closing the socket we have a race
+        condition. If "this" target thread passes the check of
+        thd->killed, and then the current thread runs through
+        THD::awake(), sets the 'killed' flag and completes the
+        signaling, and then the target thread runs into read(), it will
+        block on the socket. As a result of the discussions around
+        Bug#37780, it has been decided that we accept the race
+        condition. A second KILL awakes the target from read().
+
+        If we are killing ourselves, we know that we are not blocked.
+        We also know that we will check thd->killed before we go for
+        reading the next statement.
+      */
+      shutdown_active_vio();
+>>>>>>> mysql-8.0.27
     }
 
     /* Send an event to the scheduler that a thread should be killed. */
@@ -1712,13 +1812,15 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                          from_length, from_cs, 6);
     if (report_error) {
       my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff,
-               from_cs->csname, to_cs->csname);
+               replace_utf8_utf8mb3(from_cs->csname),
+               replace_utf8_utf8mb3(to_cs->csname));
       return true;
     } else {
       push_warning_printf(this, Sql_condition::SL_WARNING,
                           ER_INVALID_CHARACTER_STRING,
                           ER_THD(this, ER_CANNOT_CONVERT_STRING),
-                          printable_buff, from_cs->csname, to_cs->csname);
+                          printable_buff, replace_utf8_utf8mb3(from_cs->csname),
+                          replace_utf8_utf8mb3(to_cs->csname));
     }
   }
 
@@ -2480,10 +2582,8 @@ void THD::get_definer(LEX_USER *definer) {
   if (slave_thread && has_invoker()) {
     definer->user = m_invoker_user;
     definer->host = m_invoker_host;
-    definer->plugin.str = "";
-    definer->plugin.length = 0;
-    definer->auth.str = nullptr;
-    definer->auth.length = 0;
+    definer->first_factor_auth_info.plugin = EMPTY_CSTR;
+    definer->first_factor_auth_info.auth = {};
   } else
     get_default_definer(this, definer);
 }
@@ -2864,7 +2964,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {
+void THD::claim_memory_ownership(bool claim [[maybe_unused]]) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
     Ownership of the THD object is transfered to this thread.

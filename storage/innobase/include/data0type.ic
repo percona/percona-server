@@ -433,8 +433,8 @@ static inline ulint dtype_get_fixed_size_low(
           ut_ad(0);
           return (0);
       }
+      [[fallthrough]];
 #endif /* UNIV_DEBUG */
-    // Fall through.
     case DATA_CHAR:
     case DATA_FIXBINARY:
     case DATA_INT:
@@ -466,8 +466,15 @@ static inline ulint dtype_get_fixed_size_low(
 #else  /* !UNIV_LIBRARY */
       return (len);
 #endif /* !UNIV_LIBRARY */
+<<<<<<< HEAD
       // fallthrough
       // for variable-length charsets
+||||||| beb865a960b
+       /* fall through for variable-length charsets */
+=======
+      /* fall through for variable-length charsets */
+      [[fallthrough]];
+>>>>>>> mysql-8.0.27
     case DATA_VARCHAR:
     case DATA_BINARY:
     case DATA_DECIMAL:
@@ -508,7 +515,7 @@ static inline ulint dtype_get_min_size_low(
           return (0);
       }
 #endif /* UNIV_DEBUG */
-    // Fall through.
+      [[fallthrough]];
     case DATA_CHAR:
     case DATA_FIXBINARY:
     case DATA_INT:

@@ -82,8 +82,9 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // and_conds
 #include "sql/item_json_func.h"  // Item_func_array_cast
-#include "sql/json_diff.h"       // Json_diff_vector
-#include "sql/json_dom.h"        // Json_wrapper
+#include "sql/join_optimizer/bit_utils.h"
+#include "sql/json_diff.h"  // Json_diff_vector
+#include "sql/json_dom.h"   // Json_wrapper
 #include "sql/json_path.h"
 #include "sql/key.h"  // find_ref_key
 #include "sql/log.h"
@@ -552,8 +553,6 @@ void TABLE_SHARE::destroy() {
   }
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE) mysql_mutex_destroy(&LOCK_ha_data);
-  delete name_hash;
-  name_hash = nullptr;
 
   delete m_histograms;
   m_histograms = nullptr;
@@ -584,10 +583,10 @@ void TABLE_SHARE::destroy() {
 
   /*
     Make a copy since the share is allocated in its own root,
-    and free_root() updates its argument after freeing the memory.
+    and ~MEM_ROOT() updates its argument after freeing the memory.
   */
   MEM_ROOT own_root = std::move(mem_root);
-  free_root(&own_root, MYF(0));
+  own_root.Clear();
 }
 
 /**
@@ -771,8 +770,9 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
     contains prefix keys.
     Note that prefix keys in the extended PK key parts
     (part_of_key_not_extended is false) are not considered.
+    Full-text keys are not considered prefix keys.
   */
-  if (full_length_key_part) {
+  if (full_length_key_part || Overlaps(keyinfo->flags, HA_FULLTEXT)) {
     field->part_of_key.set_bit(key_n);
     if (part_of_key_not_extended)
       field->part_of_key_not_extended.set_bit(key_n);
@@ -1169,8 +1169,6 @@ static ulong get_form_pos(File file, uchar *head) {
   @param         frm_context           FRM_context for the structures removed
                                        from TABLE_SHARE.
   @param         new_frm_ver           .FRM file version.
-  @param         use_hash              Indicates whether we use hash or linear
-                                       search to lookup fields by name.
   @param         field_idx             Field index in TABLE_SHARE::field array.
   @param         strpos                Pointer to part of .FRM's screens
                                        section describing the field to be
@@ -1203,7 +1201,7 @@ static ulong get_form_pos(File file, uchar *head) {
 
 static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                                FRM_context *frm_context, uint new_frm_ver,
-                               bool use_hash, uint field_idx, uchar *strpos,
+                               uint field_idx, uchar *strpos,
                                uchar *format_section_fields, char **comment_pos,
                                char **gcol_screen_pos, uchar **null_pos,
                                uint *null_bit_pos, int *errarg) {
@@ -1386,11 +1384,6 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
   if (unireg == FRM_context::NEXT_NUMBER)
     share->found_next_number_field = share->field + field_idx;
 
-  if (use_hash) {
-    Field **field = share->field + field_idx;
-    share->name_hash->emplace((*field)->field_name, field);
-  }
-
   if (format_section_fields) {
     const uchar field_flags = format_section_fields[field_idx];
     const uchar field_storage = (field_flags & STORAGE_TYPE_MASK);
@@ -1441,7 +1434,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   uint extra_rec_buf_length;
   uint i, j;
   bool use_extended_sk;  // Supported extending of secondary keys with PK parts
-  bool use_hash;
   char *keynames, *names, *comment_pos, *gcol_screen_pos;
   char *orig_comment_pos, *orig_gcol_screen_pos;
   uchar forminfo[288];
@@ -1998,11 +1990,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     null_bit_pos = 0;
   }
 
-  use_hash = share->fields >= MAX_FIELDS_BEFORE_HASH;
-  if (use_hash)
-    share->name_hash = new collation_unordered_map<std::string, Field **>(
-        system_charset_info, PSI_INSTRUMENT_ME);
-
   for (i = 0; i < share->fields; i++, strpos += field_pack_length) {
     if (new_frm_ver >= 3 &&
         (strpos[10] &
@@ -2019,10 +2006,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       gcol_screen_pos += uint2korr(gcol_screen_pos + 1) + FRM_GCOL_HEADER_SIZE;
       has_vgc = true;
     } else {
-      if ((error = make_field_from_frm(
-               thd, share, frm_context, new_frm_ver, use_hash, i, strpos,
-               format_section_fields, &comment_pos, &gcol_screen_pos, &null_pos,
-               &null_bit_pos, &errarg)))
+      if ((error = make_field_from_frm(thd, share, frm_context, new_frm_ver, i,
+                                       strpos, format_section_fields,
+                                       &comment_pos, &gcol_screen_pos,
+                                       &null_pos, &null_bit_pos, &errarg)))
         goto err;
     }
   }
@@ -2043,10 +2030,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
            FRM_context::GENERATED_FIELD) &&   // former Field::unireg_check
           !(bool)(uint)(gcol_screen_pos[3]))  // Field::stored_in_db
       {
-        if ((error = make_field_from_frm(
-                 thd, share, frm_context, new_frm_ver, use_hash, i, strpos,
-                 format_section_fields, &comment_pos, &gcol_screen_pos,
-                 &null_pos, &null_bit_pos, &errarg)))
+        if ((error = make_field_from_frm(thd, share, frm_context, new_frm_ver,
+                                         i, strpos, format_section_fields,
+                                         &comment_pos, &gcol_screen_pos,
+                                         &null_pos, &null_bit_pos, &errarg)))
           goto err;
       } else {
         /*
@@ -2340,8 +2327,6 @@ err:
   share->fields = 0;
   share->field = 0;
   destroy(handler_file);
-  delete share->name_hash;
-  share->name_hash = nullptr;
 
   open_table_error(thd, share, error, my_errno());
   return error;
@@ -3175,7 +3160,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                    (*field_ptr)->field_name, *field_ptr,
                                    is_create_table, &error_reported)) {
           *vfield_ptr = nullptr;
-          error = 4;  // in case no error is reported
+          if (thd->is_error())
+            error_reported = true;
+          else
+            error = 4;  // in case no error is reported
           goto err;
         }
 
@@ -3374,7 +3362,7 @@ err:
   }
   outparam->file = nullptr;  // For easier error checking
   outparam->db_stat = 0;
-  if (!internal_tmp) free_root(root, MYF(0));
+  if (!internal_tmp) root->Clear();
   my_free(const_cast<char *>(outparam->alias));
   return error;
 }
@@ -3422,7 +3410,7 @@ int closefrm(TABLE *table, bool free_share) {
     else
       free_table_share(table->s);
   }
-  free_root(&table->mem_root, MYF(0));
+  table->mem_root.Clear();
   return error;
 }
 
@@ -3811,7 +3799,7 @@ bool check_column_name(const char *name) {
   return last_char_is_space || (name_length > NAME_CHAR_LEN);
 }
 
-bool Table_check_intact::check(THD *thd MY_ATTRIBUTE((unused)), TABLE *table,
+bool Table_check_intact::check(THD *thd [[maybe_unused]], TABLE *table,
                                const TABLE_FIELD_DEF *table_def) {
   uint i;
   bool error = false;
@@ -4154,12 +4142,11 @@ ulonglong TABLE_SHARE::get_table_ref_version() const {
   return table_map_id.id();
 }
 
-Blob_mem_storage::Blob_mem_storage() : truncated_value(false) {
-  init_alloc_root(key_memory_blob_mem_storage, &storage,
-                  MAX_FIELD_VARCHARLENGTH, 0);
-}
+Blob_mem_storage::Blob_mem_storage()
+    : storage(key_memory_blob_mem_storage, MAX_FIELD_VARCHARLENGTH),
+      truncated_value(false) {}
 
-Blob_mem_storage::~Blob_mem_storage() { free_root(&storage, MYF(0)); }
+Blob_mem_storage::~Blob_mem_storage() { storage.Clear(); }
 
 /**
   Initialize TABLE instance (newly created, or coming either from table
@@ -4184,6 +4171,9 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   if (thd->lex->need_correct_ident())
     alias_name_used =
         my_strcasecmp(table_alias_charset, s->table_name.str, tl->alias);
+  else
+    alias_name_used = false;
+
   /* Fix alias if table name changes. */
   if (strcmp(alias, tl->alias)) {
     size_t length = strlen(tl->alias) + 1;
@@ -7416,6 +7406,55 @@ bool TABLE_LIST::set_recursive_reference() {
   return false;
 }
 
+void LEX_MFA::copy(LEX_MFA *m, MEM_ROOT *alloc) {
+  nth_factor = m->nth_factor;
+  uses_identified_by_clause = m->uses_identified_by_clause;
+  uses_authentication_string_clause = m->uses_authentication_string_clause;
+  uses_identified_with_clause = m->uses_identified_with_clause;
+  has_password_generator = m->has_password_generator;
+  passwordless = m->passwordless;
+  add_factor = m->add_factor;
+  modify_factor = m->modify_factor;
+  drop_factor = m->drop_factor;
+  requires_registration = m->requires_registration;
+  unregister = m->unregister;
+  init_registration = m->init_registration;
+  finish_registration = m->finish_registration;
+
+  auto alloc_str = [&](size_t len, LEX_CSTRING &dest, const LEX_CSTRING &src) {
+    dest.length = len;
+    dest.str = static_cast<const char *>(alloc->Alloc(dest.length + 1));
+    memset(const_cast<char *>(dest.str), 0, dest.length + 1);
+    memcpy(const_cast<char *>(dest.str), const_cast<char *>(src.str),
+           src.length);
+  };
+  if (m->plugin.length) alloc_str(m->plugin.length, plugin, m->plugin);
+  if (m->auth.length)
+    alloc_str(m->auth.length, auth, m->auth);
+  else
+    auth = EMPTY_CSTR;
+  if (m->challenge_response.length)
+    alloc_str(m->challenge_response.length, challenge_response,
+              m->challenge_response);
+
+  if (m->generated_password.length)
+    alloc_str(m->generated_password.length, generated_password,
+              m->generated_password);
+}
+
+LEX_USER *LEX_USER::alloc(THD *thd) {
+  LEX_USER *ret = static_cast<LEX_USER *>(thd->alloc(sizeof(LEX_USER)));
+  if (ret == nullptr) return nullptr;
+  ret->init();
+  return ret;
+}
+
+bool LEX_USER::add_mfa_identifications(LEX_MFA *factor2, LEX_MFA *factor3) {
+  if (factor2 != nullptr && mfa_list.push_back(factor2)) return true;  // OOM
+  if (factor3 != nullptr && mfa_list.push_back(factor3)) return true;  // OOM
+  return false;
+}
+
 LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
                           LEX_STRING *host_arg) {
   LEX_USER *ret = static_cast<LEX_USER *>(thd->alloc(sizeof(LEX_USER)));
@@ -7425,6 +7464,7 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
 
 LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd, LEX_STRING *user_arg,
                          LEX_STRING *host_arg) {
+  ret->init();
   /*
     Trim whitespace as the values will go to a CHAR field
     when stored.
@@ -7436,31 +7476,6 @@ LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd, LEX_STRING *user_arg,
   ret->user.length = user_arg->length;
   ret->host.str = host_arg ? host_arg->str : "%";
   ret->host.length = host_arg ? host_arg->length : 1;
-  ret->plugin = EMPTY_CSTR;
-  ret->auth = NULL_CSTR;
-  ret->current_auth = NULL_CSTR;
-  ret->uses_replace_clause = false;
-  ret->uses_identified_by_clause = false;
-  ret->uses_identified_with_clause = false;
-  ret->uses_authentication_string_clause = false;
-  ret->has_password_generator = false;
-  ret->retain_current_password = false;
-  ret->discard_old_password = false;
-  ret->alter_status.account_locked = false;
-  ret->alter_status.expire_after_days = 0;
-  ret->alter_status.update_account_locked_column = false;
-  ret->alter_status.update_password_expired_column = false;
-  ret->alter_status.update_password_expired_fields = false;
-  ret->alter_status.use_default_password_lifetime = true;
-  ret->alter_status.use_default_password_history = true;
-  ret->alter_status.update_password_require_current =
-      Lex_acl_attrib_udyn::UNCHANGED;
-  ret->alter_status.password_history_length = 0;
-  ret->alter_status.password_reuse_interval = 0;
-  ret->alter_status.failed_login_attempts = 0;
-  ret->alter_status.password_lock_time = 0;
-  ret->alter_status.update_failed_login_attempts = false;
-  ret->alter_status.update_password_lock_time = false;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
                                USERNAME_CHAR_LENGTH, system_charset_info,
                                false) ||

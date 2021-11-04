@@ -42,7 +42,13 @@ include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are
 
 # Test SET PERSIST
 
+<<<<<<< HEAD
 include/assert.inc [Expect 492 persisted variables in the table.]
+||||||| beb865a960b
+include/assert.inc [Expect 435 persisted variables in the table.]
+=======
+include/assert.inc [Expect 438 persisted variables in the table.]
+>>>>>>> mysql-8.0.27
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -50,9 +56,19 @@ include/assert.inc [Expect 492 persisted variables in the table.]
 ************************************************************
 # restart
 
+<<<<<<< HEAD
 include/assert.inc [Expect 492 persisted variables in persisted_variables table.]
 include/assert.inc [Expect 492 persisted variables shown as PERSISTED in variables_info table.]
 include/assert.inc [Expect 492 persisted variables with matching peristed and global values.]
+||||||| beb865a960b
+include/assert.inc [Expect 435 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 435 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 435 persisted variables with matching peristed and global values.]
+=======
+include/assert.inc [Expect 438 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 438 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 438 persisted variables with matching peristed and global values.]
+>>>>>>> mysql-8.0.27
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

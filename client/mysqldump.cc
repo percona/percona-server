@@ -119,9 +119,8 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_lock_all_tables = false, opt_set_charset = false,
             opt_dump_date = true, opt_autocommit = false,
             opt_disable_keys = true, opt_xml = false,
-            opt_delete_master_logs = false, tty_password = false,
-            opt_single_transaction = false, opt_comments = false,
-            opt_compact = false, opt_hex_blob = false,
+            opt_delete_master_logs = false, opt_single_transaction = false,
+            opt_comments = false, opt_compact = false, opt_hex_blob = false,
             opt_order_by_primary = false, opt_ignore = false,
             opt_complete_insert = false, opt_drop_database = false,
             opt_replace_into = false, opt_dump_triggers = false,
@@ -142,8 +141,7 @@ static bool insert_pat_inited = false, debug_info_flag = false,
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection, *mysql = nullptr;
 static DYNAMIC_STRING insert_pat;
-static char *opt_password = nullptr, *current_user = nullptr,
-            *current_host = nullptr, *path = nullptr,
+static char *current_user = nullptr, *current_host = nullptr, *path = nullptr,
             *fields_terminated = nullptr, *lines_terminated = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
@@ -177,6 +175,7 @@ static char *opt_mysql_unix_port = nullptr;
 static char *opt_bind_addr = nullptr;
 static int first_error = 0;
 #include "caching_sha2_passwordopt-vars.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
 FILE *md_result_file = nullptr;
@@ -550,6 +549,7 @@ static struct my_option my_long_options[] = {
      "InnoDB table, but will make the dump itself take considerably longer.",
      &opt_order_by_primary, &opt_order_by_primary, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
+<<<<<<< HEAD
     {"order-by-primary-desc", OPT_ORDER_BY_PRIMARY_DESC,
      "Taking backup ORDER BY primary key DESC.", &opt_order_by_primary_desc,
      &opt_order_by_primary_desc, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
@@ -559,6 +559,15 @@ static struct my_option my_long_options[] = {
      "solicited on the tty.",
      nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+||||||| beb865a960b
+    {"password", 'p',
+     "Password to use when connecting to server. If password is not given it's "
+     "solicited on the tty.",
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+=======
+#include "multi_factor_passwordopt-longopts.h"
+>>>>>>> mysql-8.0.27
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -949,24 +958,7 @@ static void write_footer(FILE *sql_file) {
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   switch (optid) {
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        assert(empty_password[0] ==
-               '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x'; /* Destroy argument */
-        if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = false;
-      } else
-        tty_password = true;
-      break;
+    PARSE_COMMAND_LINE_PASSWORD_OPTION;
     case 'r':
       if (!(md_result_file =
                 my_fopen(argument, O_WRONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
@@ -1017,7 +1009,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       exit(0);
     case (int)OPT_MASTER_DATA_DEPRECATED:
       CLIENT_WARN_DEPRECATED("--master-data", "--source-data");
-      // FALLTHROUGH
+      [[fallthrough]];
     case (int)OPT_SOURCE_DATA:
       if (!argument) /* work like in old versions */
         opt_master_data = MYSQL_OPT_SOURCE_DATA_EFFECTIVE_SQL;
@@ -1031,7 +1023,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case (int)OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED:
       CLIENT_WARN_DEPRECATED("--dump-slave", "--dump-replica");
-      // FALLTHROUGH
+      [[fallthrough]];
     case (int)OPT_MYSQLDUMP_REPLICA_DATA:
       if (!argument) /* work like in old versions */
         opt_slave_data = MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL;
@@ -1216,7 +1208,6 @@ static int get_options(int *argc, char ***argv) {
     short_usage();
     return EX_USAGE;
   }
-  if (tty_password) opt_password = get_tty_password(NullS);
   return (0);
 } /* get_options */
 
@@ -1657,7 +1648,7 @@ static FILE *open_sql_file_for_table(const char *table, int flags) {
 static void free_resources() {
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
-  my_free(opt_password);
+  free_passwords();
   if (ignore_table != nullptr) {
     delete ignore_table;
     ignore_table = nullptr;
@@ -1747,7 +1738,7 @@ static void maybe_exit(int error) {
   db_connect -- connects to the host and selects DB.
 */
 
-static int connect_to_db(char *host, char *user, char *passwd) {
+static int connect_to_db(char *host, char *user) {
   char buff[20 + FN_REFLEN];
   DBUG_TRACE;
 
@@ -1784,6 +1775,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
                  "mysqldump");
   set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
+  set_password_options(&mysql_connection);
 
   if (opt_compress_algorithm)
     mysql_options(&mysql_connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,
@@ -1804,7 +1796,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
   }
 
   if (!(mysql =
-            mysql_real_connect(&mysql_connection, host, user, passwd, nullptr,
+            mysql_real_connect(&mysql_connection, host, user, nullptr, nullptr,
                                opt_mysql_port, opt_mysql_unix_port, 0))) {
     DB_error(&mysql_connection, "when trying to connect");
     return 1;
@@ -1881,6 +1873,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
           mysql, nullptr,
           "/*!80018 SET SESSION show_create_table_skip_secondary_engine=1 */"))
     return 1;
+
   return 0;
 } /* connect_to_db */
 
@@ -2062,7 +2055,7 @@ static void print_quoted_xml(FILE *xml_file, const char *str, size_t len,
           fputs("_", xml_file);
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         fputc(*str, xml_file);
         break;
@@ -2188,7 +2181,7 @@ static void print_xml_cdata(FILE *xml_file, const char *str, ulong len) {
           str += 2;
           continue;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         fputc(*str, xml_file);
         break;
@@ -2284,7 +2277,7 @@ static void print_xml_comment(FILE *xml_file, size_t len,
       case '-':
         if (*(comment_string + 1) == '-') /* Only one hyphen allowed. */
           break;
-        // Fall through.
+        [[fallthrough]];
       default:
         fputc(*comment_string, xml_file);
         break;
@@ -5252,7 +5245,7 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
-int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused))) {
+int init_dumping_views(char *qdatabase [[maybe_unused]]) {
   return 0;
 } /* init_dumping_views */
 
@@ -5599,7 +5592,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
 static int dump_selected_tables(char *db, char **table_names, int tables) {
   char table_buff[NAME_LEN * 2 + 3];
   DYNAMIC_STRING lock_tables_query;
-  MEM_ROOT root;
+  MEM_ROOT root(PSI_NOT_INSTRUMENTED, 8192);
   char **dump_tables, **pos, **end;
   DBUG_TRACE;
 
@@ -5608,7 +5601,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
 
   if (init_dumping(db, init_dumping_tables)) return 1;
 
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &root, 8192, 0);
   if (!(dump_tables = pos = (char **)root.Alloc(tables * sizeof(char *))))
     die(EX_EOM, "alloc_root failure.");
 
@@ -5626,7 +5618,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
     } else {
       if (!opt_force) {
         dynstr_free(&lock_tables_query);
-        free_root(&root, MYF(0));
+        root.Clear();
       }
       maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
       /* We shall continue here, if --force was given */
@@ -5644,7 +5636,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
                          (ulong)(lock_tables_query.length - 1))) {
       if (!opt_force) {
         dynstr_free(&lock_tables_query);
-        free_root(&root, MYF(0));
+        root.Clear();
       }
       DB_error(mysql, "when doing LOCK TABLES");
       /* We shall continue here, if --force was given */
@@ -5653,7 +5645,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   dynstr_free(&lock_tables_query);
   if (flush_logs) {
     if (mysql_refresh(mysql, REFRESH_LOG)) {
-      if (!opt_force) free_root(&root, MYF(0));
+      if (!opt_force) root.Clear();
       DB_error(mysql, "when doing refresh");
     }
     /* We shall continue here, if --force was given */
@@ -5723,7 +5715,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
     DBUG_PRINT("info", ("Dumping routines for database %s", db));
     dump_routines_for_db(db);
   }
-  free_root(&root, MYF(0));
+  root.Clear();
   if (opt_xml) {
     fputs("</database>\n", md_result_file);
     check_io(md_result_file);
@@ -6816,7 +6808,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (connect_to_db(current_host, current_user, opt_password)) {
+  if (connect_to_db(current_host, current_user)) {
     free_resources();
     exit(EX_MYSQLERR);
   }

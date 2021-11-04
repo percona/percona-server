@@ -98,8 +98,17 @@ static THD_timer_info *thd_timer_create(void) {
 */
 
 static bool timer_notify(THD_timer_info *thd_timer) {
+<<<<<<< HEAD
   Find_thd_with_id find_thd_with_id(thd_timer->thread_id, false);
   THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+||||||| beb865a960b
+  Find_thd_with_id find_thd_with_id(thd_timer->thread_id);
+  THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+=======
+  Find_thd_with_id find_thd_with_id(thd_timer->thread_id);
+  THD_ptr thd_ptr =
+      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+>>>>>>> mysql-8.0.27
 
   assert(!thd_timer->destroy || !thd_timer->thread_id);
   /*
@@ -107,12 +116,11 @@ static bool timer_notify(THD_timer_info *thd_timer) {
     was being delivered. If this is the case, the timer object
     was detached (orphaned) and has no associated session (thd).
   */
-  if (thd) {
+  if (thd_ptr) {
     /* process only if thread is not already undergoing any kill connection. */
-    if (thd->killed != THD::KILL_CONNECTION) {
-      thd->awake(THD::KILL_TIMEOUT);
+    if (thd_ptr->killed != THD::KILL_CONNECTION) {
+      thd_ptr->awake(THD::KILL_TIMEOUT);
     }
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   /* Mark the object as unreachable. */

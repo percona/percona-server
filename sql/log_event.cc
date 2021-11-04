@@ -555,7 +555,7 @@ inline int idempotent_error_code(int err_code) {
 
       Note that HA_ERR_RECORD_DELETED is not in the list since
       do_exec_row() should not return that error code.
-    */
+     */
     case HA_ERR_RECORD_CHANGED:
     case HA_ERR_KEY_NOT_FOUND:
     case HA_ERR_END_OF_FILE:
@@ -1404,8 +1404,14 @@ bool Log_event::is_valid() {
 */
 
 void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
+<<<<<<< HEAD
                              bool is_more MY_ATTRIBUTE((unused))) const {
   MY_ATTRIBUTE((unused)) int write_res;
+||||||| beb865a960b
+                             bool is_more MY_ATTRIBUTE((unused))) const {
+=======
+                             bool is_more [[maybe_unused]]) const {
+>>>>>>> mysql-8.0.27
   char llbuff[22];
   my_off_t hexdump_from = print_event_info->hexdump_from;
   DBUG_TRACE;
@@ -3075,7 +3081,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       That concludes the memroot reset can't harm anything in SQL thread roles
       after Coordinator has finished its current scheduling.
     */
-    free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd->mem_root->ClearForReuse();
 
 #ifndef NDEBUG
     w_rr++;
@@ -4574,6 +4580,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           is preferable at a common with other event pre-execution point
   */
   clear_all_errors(thd, const_cast<Relay_log_info *>(rli));
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_statement_cond_count();
+
   if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock != nullptr) {
     /*
       Cleaning-up the last statement context:
@@ -4588,8 +4597,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           ERROR_LEVEL, error,
           "Error in cleaning up after an event preceding the commit; "
           "the group log file/position: %s %s",
-          const_cast<Relay_log_info *>(rli)->get_group_master_log_name(),
-          llstr(const_cast<Relay_log_info *>(rli)->get_group_master_log_pos(),
+          const_cast<Relay_log_info *>(rli)->get_group_master_log_name_info(),
+          llstr(const_cast<Relay_log_info *>(rli)
+                    ->get_group_master_log_pos_info(),
                 llbuff));
     }
     /*
@@ -4826,6 +4836,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query().str, thd->query().length)) {
+        parser_state.m_input.m_has_digest = true;
         assert(thd->m_digest == nullptr);
         thd->m_digest = &thd->m_digest_state;
         assert(thd->m_statement_psi == nullptr);
@@ -5113,21 +5124,27 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
   {
     /**
-      The following failure injecion works in cooperation with tests
+      The following failure injection works in cooperation with tests
       setting @@global.debug= 'd,stop_replica_middle_group'.
       The sql thread receives the killed status and will proceed
       to shutdown trying to finish incomplete events group.
-    */
+     */
 
     // TODO: address the middle-group killing in MTS case
 
-    DBUG_EXECUTE_IF(
-        "stop_replica_middle_group",
-        if (strcmp("COMMIT", query) != 0 && strcmp("BEGIN", query) != 0) {
-          if (thd->get_transaction()->cannot_safely_rollback(
-                  Transaction_ctx::SESSION))
-            const_cast<Relay_log_info *>(rli)->abort_slave = 1;
-        };);
+    DBUG_EXECUTE_IF("stop_replica_middle_group", {
+      if (strcmp("COMMIT", query) != 0 && strcmp("BEGIN", query) != 0) {
+        if (thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::SESSION)) {
+          auto thd_rli = (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL
+                              ? const_cast<Relay_log_info *>(rli)
+                              : static_cast<Slave_worker *>(
+                                    const_cast<Relay_log_info *>(rli))
+                                    ->c_rli);
+          thd_rli->abort_slave = 1;
+        }
+      }
+    };);
   }
 
 end:
@@ -5176,7 +5193,7 @@ end:
   thd->first_successful_insert_id_in_prev_stmt_for_binlog = 0;
   thd->first_successful_insert_id_in_prev_stmt = 0;
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
-  free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+  thd->mem_root->ClearForReuse();
   return thd->is_slave_error;
 }
 
@@ -5186,7 +5203,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli) {
   DBUG_EXECUTE_IF(
       "crash_after_commit_and_update_pos", if (!strcmp("COMMIT", query)) {
         sql_print_information("Crashing crash_after_commit_and_update_pos.");
-        rli->flush_info(true);
+        rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
         ha_flush_logs(0);
         DBUG_SUICIDE();
       });
@@ -5864,7 +5881,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
       happens from Query_log_event::do_apply_event or
       Rows_log_event::do_apply_event when they find end of the group event).
     */
-    if (server_id == 0) free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    if (server_id == 0) thd->mem_root->ClearForReuse();
   } else
     rli->inc_event_relay_log_pos();
 
@@ -6230,6 +6247,10 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
                   sql_print_information("Crashing crash_before_update_pos.");
                   DBUG_SUICIDE(););
 
+  DBUG_EXECUTE_IF("simulate_commit_failure", {
+    thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_IDLE);
+  });
+
   ulong gaq_idx = mts_group_idx;
   Slave_job_group *ptr_group = coordinator_gaq->get_job_group(gaq_idx);
 
@@ -6262,8 +6283,15 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
   error = do_commit(thd);
   if (error) {
     if (!skipped_commit_pos) w->rollback_positions(ptr_group);
-  } else if (skipped_commit_pos)
-    error = w->commit_positions(this, ptr_group, w->is_transactional());
+  } else {
+    DBUG_EXECUTE_IF(
+        "crash_after_commit_before_update_pos",
+        sql_print_information("Crashing "
+                              "crash_after_commit_before_update_pos.");
+        DBUG_SUICIDE(););
+    if (skipped_commit_pos)
+      error = w->commit_positions(this, ptr_group, w->is_transactional());
+  }
 err:
   return error;
 }
@@ -6341,8 +6369,18 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
     XA transactional does not actually commit so has to defer its flush_info().
    */
   if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
+<<<<<<< HEAD
       rli_ptr->is_transactional() && !already_logged_transaction) {
     if ((error = rli_ptr->flush_info(true))) goto err;
+||||||| beb865a960b
+      rli_ptr->is_transactional()) {
+    if ((error = rli_ptr->flush_info(true))) goto err;
+=======
+      rli_ptr->is_transactional()) {
+    if ((error =
+             rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)))
+      goto err;
+>>>>>>> mysql-8.0.27
   }
 
   DBUG_PRINT(
@@ -6426,8 +6464,15 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
       Where as for non transactional rli repository the positions are flushed
       only on succesful commit.
      */
+<<<<<<< HEAD
     if (!rli_ptr->is_transactional() && !already_logged_transaction)
       rli_ptr->flush_info(false);
+||||||| beb865a960b
+    if (!rli_ptr->is_transactional()) rli_ptr->flush_info(false);
+=======
+    if (!rli_ptr->is_transactional())
+      rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_NO_OPTION);
+>>>>>>> mysql-8.0.27
   }
 err:
   // This is Bug#24588741 fix:
@@ -6943,7 +6988,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
   e->update_hash(val, val_len, (Item_result)type, charset, DERIVATION_IMPLICIT,
                  (flags & binary_log::User_var_event::UNSIGNED_F));
   if (!is_deferred())
-    free_root(thd->mem_root, 0);
+    thd->mem_root->Clear();
   else
     current_thd->query_id = sav_query_id; /* restore current query's context */
 
@@ -7032,7 +7077,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli) {
     rli->inc_event_relay_log_pos();
   else {
     error_inc = rli->inc_group_relay_log_pos(0, true /*need_data_lock=true*/);
-    error_flush = rli->flush_info(true);
+    error_flush = rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
   }
   return (error_inc || error_flush);
 }
@@ -8597,6 +8642,10 @@ bool Rows_log_event::is_auto_inc_in_extra_columns() {
               m_table->next_number_field->field_index()) >= m_width);
 }
 
+bool Rows_log_event::is_trx_retryable_upon_engine_error(int error) {
+  return (error == HA_ERR_LOCK_DEADLOCK || error == HA_ERR_LOCK_WAIT_TIMEOUT);
+}
+
 /*
   Compares table->record[0] and table->record[1]
 
@@ -8901,8 +8950,10 @@ int Rows_log_event::next_record_scan(bool first_read) {
             m_key = *m_itr;
             m_itr++;
             first_read = true;
-          } else
-            error = HA_ERR_KEY_NOT_FOUND;
+          } else {
+            if (!is_trx_retryable_upon_engine_error(error))
+              error = HA_ERR_KEY_NOT_FOUND;
+          }
         }
       }
     }
@@ -8911,7 +8962,8 @@ int Rows_log_event::next_record_scan(bool first_read) {
       if ((error = table->file->ha_index_read_map(
                table->record[0], m_key, HA_WHOLE_KEY, HA_READ_KEY_EXACT))) {
         DBUG_PRINT("info", ("no record matching the key found in the table"));
-        error = HA_ERR_KEY_NOT_FOUND;
+        if (!is_trx_retryable_upon_engine_error(error))
+          error = HA_ERR_KEY_NOT_FOUND;
       }
   }
 
@@ -9280,12 +9332,12 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
     store_record(m_table, record[1]);
 
     /*
-     This is the situation after hashing the BI:
+      This is the situation after hashing the BI:
 
-     ===|=== before image ====|=== after image ===|===
-        ^                     ^
-        m_curr_row            m_curr_row_end
-   */
+      ===|=== before image ====|=== after image ===|===
+         ^                     ^
+         m_curr_row            m_curr_row_end
+     */
 
     /* Set the position to the start of the record to be unpacked. */
     m_curr_row = m_curr_row_end;
@@ -9301,7 +9353,7 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
       ===|=== before image ====|=== after image ===|===
                                ^                   ^
                                m_curr_row          m_curr_row_end
-    */
+     */
 
     /* Restore back the copy of the BI. */
     restore_record(m_table, record[1]);
@@ -10154,17 +10206,24 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     */
     thd->variables.sql_mode = saved_sql_mode;
 
-    { /*
-          The following failure injecion works in cooperation with tests
-          setting @@global.debug= 'd,stop_replica_middle_group'.
-          The sql thread receives the killed status and will proceed
-          to shutdown trying to finish incomplete events group.
-      */
-      DBUG_EXECUTE_IF(
-          "stop_replica_middle_group",
-          if (thd->get_transaction()->cannot_safely_rollback(
-                  Transaction_ctx::SESSION)) const_cast<Relay_log_info *>(rli)
-              ->abort_slave = 1;);
+    {
+      /*
+        The following failure injecion works in cooperation with tests
+        setting @@global.debug= 'd,stop_replica_middle_group'.
+        The sql thread receives the killed status and will proceed
+        to shutdown trying to finish incomplete events group.
+       */
+      DBUG_EXECUTE_IF("stop_replica_middle_group", {
+        if (thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::SESSION)) {
+          auto thd_rli = (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL
+                              ? const_cast<Relay_log_info *>(rli)
+                              : static_cast<Slave_worker *>(
+                                    const_cast<Relay_log_info *>(rli))
+                                    ->c_rli);
+          thd_rli->abort_slave = 1;
+        }
+      };);
     }
 
     if ((error = do_after_row_operations(rli, error)) &&
@@ -10227,7 +10286,7 @@ end:
       *not* try to free the memory here. It will be done latter
       in dispatch_command() after command execution is completed.
      */
-    if (thd->slave_thread) free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    if (thd->slave_thread) thd->mem_root->ClearForReuse();
   }
   return error;
 }
@@ -11005,7 +11064,7 @@ bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
   /*
     Store the size of the field metadata.
   */
-  uchar mbuf[sizeof(m_field_metadata_size)];
+  uchar mbuf[2 * sizeof(m_field_metadata_size)];
   uchar *const mbuf_end = net_store_length(mbuf, m_field_metadata_size);
 
   return (wrapper_my_b_safe_write(ostream, dbuf, sizeof(dbuf)) ||
@@ -11032,7 +11091,7 @@ bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
  */
 static inline void store_compressed_length(String &str_buf, ulonglong length) {
   // Store Type and packed length
-  uchar buf[4];
+  uchar buf[16];
   uchar *buf_ptr = net_store_length(buf, length);
 
   str_buf.append(reinterpret_cast<char *>(buf), buf_ptr - buf);
@@ -11858,8 +11917,7 @@ Write_rows_log_event::Write_rows_log_event(
 
 bool Write_rows_log_event::binlog_row_logging_function(
     THD *thd_arg, TABLE *table, bool is_transactional,
-    const uchar *before_record MY_ATTRIBUTE((unused)),
-    const uchar *after_record) {
+    const uchar *before_record [[maybe_unused]], const uchar *after_record) {
   return thd_arg->binlog_write_row(table, is_transactional, after_record,
                                    nullptr);
 }
@@ -12351,8 +12409,7 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 
 bool Delete_rows_log_event::binlog_row_logging_function(
     THD *thd_arg, TABLE *table, bool is_transactional,
-    const uchar *before_record,
-    const uchar *after_record MY_ATTRIBUTE((unused))) {
+    const uchar *before_record, const uchar *after_record [[maybe_unused]]) {
   return thd_arg->binlog_delete_row(table, is_transactional, before_record,
                                     nullptr);
 }
@@ -13933,8 +13990,9 @@ size_t Transaction_payload_log_event::get_data_size() {
 }
 
 #ifdef MYSQL_SERVER
-uint8 Transaction_payload_log_event::get_mts_dbs(
-    Mts_db_names *arg, Rpl_filter *rpl_filter MY_ATTRIBUTE((unused))) {
+uint8 Transaction_payload_log_event::get_mts_dbs(Mts_db_names *arg,
+                                                 Rpl_filter *rpl_filter
+                                                 [[maybe_unused]]) {
   Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
   if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
     arg->name[0] = 0;
@@ -14001,7 +14059,7 @@ static bool shall_delete_event_after_apply(Log_event *ev) {
         thread terminates.
       */
 
-      /* fall through */
+      [[fallthrough]];
     case binary_log::ROWS_QUERY_LOG_EVENT:
       /*
          ROWS_QUERY_LOG_EVENT is destroyed at the end of the current statement

@@ -23,12 +23,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <optional>
+
 #include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"
@@ -176,7 +177,7 @@ class Create_field {
 
   /// Holds the expression to be used to generate default values.
   Value_generator *m_default_val_expr{nullptr};
-  Nullable<gis::srid_t> m_srid;
+  std::optional<gis::srid_t> m_srid;
 
   // Whether the field is actually an array of the field's type;
   bool is_array{false};
@@ -232,9 +233,19 @@ class Create_field {
             const LEX_CSTRING *comment, const char *change,
             List<String> *interval_list, const CHARSET_INFO *cs,
             bool has_explicit_collation, uint uint_geom_type,
+<<<<<<< HEAD
             const LEX_CSTRING *zip_dict_name, Value_generator *gcol_info,
             Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
             dd::Column::enum_hidden_type hidden, bool is_array = false);
+||||||| beb865a960b
+            Value_generator *gcol_info, Value_generator *default_val_expr,
+            Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
+            bool is_array = false);
+=======
+            Value_generator *gcol_info, Value_generator *default_val_expr,
+            std::optional<gis::srid_t> srid,
+            dd::Column::enum_hidden_type hidden, bool is_array = false);
+>>>>>>> mysql-8.0.27
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);

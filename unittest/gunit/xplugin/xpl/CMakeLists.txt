@@ -36,21 +36,6 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-# This compiler fails to handle some of the mock functions involved.
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM XPL_TEST_SRC
-    account_verification_handler_t.cc
-    admin_cmd_index_t.cc
-    index_field_t.cc
-    listener_tcp_t.cc
-    listener_unix_socket_t.cc
-    protocol_decoder_t.cc
-    sql_data_context_t.cc
-    socket_acceptor_task_t.cc
-    timeouts_t.cc
-  )
-ENDIF()
-
 # googlemock uses GTEST_DISALLOW_ASSIGN_ which will generate:
 # definition of implicit copy constructor for  ....
 # is deprecated because it has a user-declared copy assignment operator
@@ -84,7 +69,7 @@ ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
 )
 
 IF(DISABLE_MYSQLX_PROTOBUF_LITE)
-  ADD_COMPILE_DEFINITIONS(${XPL_TEST_SRC}
+  MY_ADD_COMPILE_DEFINITIONS(${XPL_TEST_SRC}
     COMPILE_DEFINITIONS USE_MYSQLX_FULL_PROTO)
 ENDIF()
 
@@ -99,6 +84,7 @@ IF(WIN32)
   SET_TARGET_PROPERTIES(${XPL_UNIT_TESTS} PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
+<<<<<<< HEAD
 IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
@@ -111,6 +97,17 @@ IF(MY_COMPILER_IS_SUNPRO)
     COMPILE_FLAGS "-xO2")
 ENDIF()
 
+||||||| beb865a960b
+# assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
+# Segfault in the unit test, so lower optimization level there as well
+IF(MY_COMPILER_IS_SUNPRO)
+  ADD_COMPILE_FLAGS(
+    callback_command_delegate_t.cc
+    COMPILE_FLAGS "-xO2")
+ENDIF()
+
+=======
+>>>>>>> mysql-8.0.27
 TARGET_LINK_LIBRARIES(${XPL_UNIT_TESTS}
   ${GCOV_LDFLAGS}
   ${MYSQLX_CLIENT_LIB}

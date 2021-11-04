@@ -930,6 +930,7 @@ extern mysql_pfs_key_t buf_lru_manager_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
 extern mysql_pfs_key_t clone_ddl_thread_key;
 extern mysql_pfs_key_t clone_gtid_thread_key;
+extern mysql_pfs_key_t ddl_thread_key;
 extern mysql_pfs_key_t dict_stats_thread_key;
 extern mysql_pfs_key_t fts_optimize_thread_key;
 extern mysql_pfs_key_t fts_parallel_merge_thread_key;

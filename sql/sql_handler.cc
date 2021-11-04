@@ -637,6 +637,7 @@ retry:
           natural order, or, vice versa, trying to read next row in natural
           order after reading previous rows in index order.
         */
+        [[fallthrough]];
       case enum_ha_read_modes::RFIRST:
         if (m_key_name) {
           if (!(error = table->file->ha_index_or_rnd_end()) &&
@@ -657,8 +658,17 @@ retry:
           error = table->file->ha_index_prev(table->record[0]);
           break;
         }
+<<<<<<< HEAD
         // fallthrough
         // for more info, see comment before 'case RFIRST'.
+||||||| beb865a960b
+        /* else fall through, for more info, see comment before 'case RFIRST'.
+         */
+=======
+        /* else fall through, for more info, see comment before 'case RFIRST'.
+         */
+        [[fallthrough]];
+>>>>>>> mysql-8.0.27
       case enum_ha_read_modes::RLAST:
         assert(m_key_name != nullptr);
         if (!(error = table->file->ha_index_or_rnd_end()) &&

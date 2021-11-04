@@ -637,7 +637,7 @@ static void rbt_free_node(ib_rbt_node_t *node, /*!< in: node to free */
     rbt_free_node(node->left, nil);
     rbt_free_node(node->right, nil);
 
-    ut_free(node);
+    ut::free(node);
   }
 }
 
@@ -645,8 +645,8 @@ static void rbt_free_node(ib_rbt_node_t *node, /*!< in: node to free */
 void rbt_free(ib_rbt_t *tree) /*!< in: rb tree to free */
 {
   rbt_free_node(tree->root, tree->nil);
-  ut_free(tree->nil);
-  ut_free(tree);
+  ut::free(tree->nil);
+  ut::free(tree);
 }
 
 /** Create an instance of a red black tree, whose comparison function takes
@@ -676,19 +676,22 @@ ib_rbt_t *rbt_create(size_t sizeof_value,    /*!< in: sizeof data item */
   ib_rbt_t *tree;
   ib_rbt_node_t *node;
 
-  tree = (ib_rbt_t *)ut_zalloc_nokey(sizeof(*tree));
+  tree =
+      (ib_rbt_t *)ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*tree));
 
   tree->sizeof_value = sizeof_value;
 
   /* Create the sentinel (NIL) node. */
-  node = tree->nil = (ib_rbt_node_t *)ut_zalloc_nokey(sizeof(*node));
+  node = tree->nil = (ib_rbt_node_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*node));
 
   node->color = IB_RBT_BLACK;
   node->parent = node->left = node->right = node;
 
   /* Create the "fake" root, the real root node will be the
   left child of this node. */
-  node = tree->root = (ib_rbt_node_t *)ut_zalloc_nokey(sizeof(*node));
+  node = tree->root = (ib_rbt_node_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*node));
 
   node->color = IB_RBT_BLACK;
   node->parent = node->left = node->right = tree->nil;
@@ -709,7 +712,8 @@ const ib_rbt_node_t *rbt_insert(
   ib_rbt_node_t *node;
 
   /* Create the node that will hold the value data. */
-  node = (ib_rbt_node_t *)ut_malloc_nokey(SIZEOF_NODE(tree));
+  node = (ib_rbt_node_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
   node->parent = node->left = node->right = tree->nil;
@@ -733,7 +737,8 @@ const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
   ib_rbt_node_t *node;
 
   /* Create the node that will hold the value data */
-  node = (ib_rbt_node_t *)ut_malloc_nokey(SIZEOF_NODE(tree));
+  node = (ib_rbt_node_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
   rbt_add_preallocated_node(tree, parent, node);
@@ -807,7 +812,7 @@ ibool rbt_delete(ib_rbt_t *tree,  /*!< in: rb tree */
   if (node) {
     rbt_remove_node_and_rebalance(tree, node);
 
-    ut_free(node);
+    ut::free(node);
     deleted = TRUE;
   }
 
@@ -828,7 +833,7 @@ ib_rbt_node_t *rbt_remove_node(
   rbt_remove_node_and_rebalance(tree, (ib_rbt_node_t *)const_node);
 
   /* This is to make it easier to do something like this:
-          ut_free(rbt_remove_node(node));
+          ut::free(rbt_remove_node(node));
   */
 
   return ((ib_rbt_node_t *)const_node);

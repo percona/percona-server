@@ -220,8 +220,26 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
         }
         switch (keyinfo->seg[j].type) {
           case HA_KEYTYPE_VARBINARY1:
+<<<<<<< HEAD
+||||||| beb865a960b
+            /* Case-insensitiveness is handled in coll->hash_sort */
+            keyinfo->seg[j].type = HA_KEYTYPE_VARTEXT1;
+            /* Fall through. */
+=======
+            /* Case-insensitiveness is handled in coll->hash_sort */
+            keyinfo->seg[j].type = HA_KEYTYPE_VARTEXT1;
+            [[fallthrough]];
+>>>>>>> mysql-8.0.27
           case HA_KEYTYPE_VARTEXT1:
           case HA_KEYTYPE_VARBINARY2:
+<<<<<<< HEAD
+||||||| beb865a960b
+            /* Case-insensitiveness is handled in coll->hash_sort */
+            /* fall_through */
+=======
+            /* Case-insensitiveness is handled in coll->hash_sort */
+            [[fallthrough]];
+>>>>>>> mysql-8.0.27
           case HA_KEYTYPE_VARTEXT2:
             /*
               For BTREE algorithm, key length, greater than or equal

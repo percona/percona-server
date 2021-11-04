@@ -28,26 +28,40 @@ jobs:
           BuildType: Debug
 
       # clang-6 and newer compilers
-      Ubuntu Focal clang-12 Release:
+      Ubuntu Focal clang-13 Release:
         imageName: 'ubuntu-20.04'
         Compiler: clang
-        CompilerVer: 12
+        CompilerVer: 13
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Focal clang-12 Release INVERTED=ON:
+        Ubuntu Focal clang-13 Release INVERTED=ON:
+          imageName: 'ubuntu-20.04'
+          Compiler: clang
+          CompilerVer: 13
+          BuildType: RelWithDebInfo
+          Inverted: ON
+
+      Ubuntu Focal clang-13 Debug INVERTED=ON:
+        imageName: 'ubuntu-20.04'
+        Compiler: clang
+        CompilerVer: 13
+        BuildType: Debug
+        Inverted: ON
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Focal clang-13 Debug:
+          imageName: 'ubuntu-20.04'
+          Compiler: clang
+          CompilerVer: 13
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Ubuntu Focal clang-12 Release:
           imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 12
           BuildType: RelWithDebInfo
-          Inverted: ON
-
-      Ubuntu Focal clang-12 Debug INVERTED=ON:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 12
-        BuildType: Debug
-        Inverted: ON
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
         Ubuntu Focal clang-12 Debug:

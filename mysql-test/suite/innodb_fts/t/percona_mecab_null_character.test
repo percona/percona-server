@@ -1,0 +1,44 @@
+--source include/have_mecab.inc
+
+eval INSTALL PLUGIN mecab SONAME '$MECAB';
+
+let $ipadic_charset=utf-8;
+let $mysql_charset=utf8mb4;
+let $mecab_charset=`SELECT variable_value FROM performance_schema.global_status WHERE VARIABLE_NAME='mecab_charset'`;
+
+if ($mecab_charset == '') {
+  # Restart with package dictionary.
+  let $MYSQL_DATADIR=`select @@datadir`;
+  let $MYSQL_BASEDIR=`select @@basedir`;
+
+  let $mecabrc = $MYSQL_DATADIR/mecabrc;
+  let $dicdir  = $MYSQL_BASEDIR/lib/mecab/dic/ipadic_$ipadic_charset;
+
+  -- exec echo "dicdir=$dicdir" > $mecabrc
+
+  -- source include/shutdown_mysqld.inc
+  -- exec echo "restart: --loose_mecab_rc_file=$mecabrc $MECAB_OPT --innodb_ft_min_token_size=2" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+  -- enable_reconnect
+  -- source include/wait_until_connected_again.inc
+  -- disable_reconnect
+
+  eval INSTALL PLUGIN mecab SONAME '$MECAB';
+
+  let $mecab_charset=`SELECT variable_value FROM performance_schema.global_status WHERE VARIABLE_NAME='mecab_charset'`;
+}
+
+if ($mecab_charset == '') {
+  -- skip Test fail to load mecab parser, please set correct 'loose_mecab_rc_file'.
+}
+
+if ($mecab_charset != $mysql_charset) {
+  UNINSTALL PLUGIN mecab;
+  -- skip Test mecab charset mismatch (mecab_charset=$mecab_charset, mysql_charset=$mysql_charset).
+}
+
+SHOW STATUS LIKE 'mecab_charset';
+
+--let $PARSER=WITH PARSER MECAB
+--source suite/innodb_fts/include/percona_null_character.inc
+
+UNINSTALL PLUGIN mecab;

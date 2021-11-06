@@ -45,17 +45,9 @@ FOREACH(test ${TESTS})
     ENABLE_EXPORTS
     LINK_LIBRARIES
     gr_unit_test_resource
-<<<<<<< HEAD
-    gunit_small
-    perconaserverclient
-||||||| beb865a960b
-    gunit_small
-    mysqlclient
-=======
     gunit_large
     server_unittest_library
-    mysqlclient
->>>>>>> mysql-8.0.27
+    perconaserverclient
     mysqlgcs
     )
 ENDFOREACH()

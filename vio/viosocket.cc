@@ -74,7 +74,6 @@
 
 #include "mysql/psi/mysql_socket.h"
 
-<<<<<<< HEAD
 /* Network io wait callbacks  for threadpool */
 static void (*before_io_wait)(void) = nullptr;
 static void (*after_io_wait)(void) = nullptr;
@@ -102,12 +101,7 @@ void vio_set_wait_callback(void (*before_wait)(void),
 static struct st_vio_network *vio_pp_networks = nullptr;
 static size_t vio_pp_networks_nb = 0;
 
-int vio_errno(Vio *vio MY_ATTRIBUTE((unused))) {
-||||||| beb865a960b
-int vio_errno(Vio *vio MY_ATTRIBUTE((unused))) {
-=======
 int vio_errno(Vio *vio [[maybe_unused]]) {
->>>>>>> mysql-8.0.27
 /* These transport types are not Winsock based. */
 #ifdef _WIN32
   if (vio->type == VIO_TYPE_NAMEDPIPE || vio->type == VIO_TYPE_SHARED_MEMORY)

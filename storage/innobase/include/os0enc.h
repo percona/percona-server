@@ -519,20 +519,8 @@ class Encryption {
   @param[in]  type  encryption type **/
   void set_type(Type type);
 
-<<<<<<< HEAD
-  /** Get encryption key
-  @return encryption key **/
-  byte *get_key() const;
-
   std::map<uint, byte *> *get_key_versions_cache() const;
 
-||||||| beb865a960b
-  /** Get encryption key
-  @return encryption key **/
-  byte *get_key() const;
-
-=======
->>>>>>> mysql-8.0.27
   /** Set encryption key
   @param[in]  key  encryption key **/
   void set_key(const byte *key);
@@ -603,16 +591,9 @@ class Encryption {
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return true if operation successful, false otherwise. */
-<<<<<<< HEAD
-  bool encrypt_low(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                   ulint *dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  bool encrypt_low(byte *src, ulint src_len, byte *dst, ulint *dst_len) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
-=======
-  [[nodiscard]] bool encrypt_low(byte *src, ulint src_len, byte *dst,
+  [[nodiscard]] bool encrypt_low(const IORequest &type, byte *src,
+                                 ulint src_len, byte *dst,
                                  ulint *dst_len) noexcept;
->>>>>>> mysql-8.0.27
 
   /** Encrypt type */
   Type m_type;

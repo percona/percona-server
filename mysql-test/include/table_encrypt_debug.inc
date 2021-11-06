@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 ## InnoDB transparent tablespace data encryption
 ## This test case will test basic recovery from known DBUG_SUICIDE point .
@@ -240,7 +239,21 @@ if ($keyring_file_test)
 
 SELECT COUNT(*) FROM tde_db.test_tbl;
 
-
 # Cleanup
 DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+
+# Clean up
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/t1.cfg_back
+--remove_file $MYSQLD_DATADIR/t1.cfp_back
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
+
+# Tests above might leave this in bad state
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--source include/start_mysqld.inc
+
+# Verify normal operation
+CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+DROP TABLE test.t1;
+

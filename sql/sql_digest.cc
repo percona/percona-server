@@ -453,15 +453,8 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
         }
       } while (found_unary);
     }
-<<<<<<< HEAD
-    // fallthrough
-    // for case NULL_SYM below
-||||||| beb865a960b
-    /* fall through, for case NULL_SYM below */
-=======
       /* fall through, for case NULL_SYM below */
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case LEX_HOSTNAME:
     case TEXT_STRING:
     case NCHAR_STRING:

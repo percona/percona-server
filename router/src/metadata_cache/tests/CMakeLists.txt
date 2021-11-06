@@ -55,14 +55,8 @@ IF(WIN32)
   ADD_LIBRARY(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
   TARGET_LINK_LIBRARIES(metadata_cache_tests
     router_lib
-<<<<<<< HEAD
-    perconaserverclient
-||||||| beb865a960b
-    mysqlclient
-=======
     metadata_cache
-    mysqlclient
->>>>>>> mysql-8.0.27
+    perconaserverclient
     mysqlxclient_lite
     mysqlxmessages_lite
     ${PROTOBUF_LITE_LIBRARY}
@@ -75,15 +69,7 @@ ELSE()
   ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
   TARGET_LINK_LIBRARIES(metadata_cache_tests
     router_lib
-<<<<<<< HEAD
-    metadata_cache
     perconaserverclient
-||||||| beb865a960b
-    metadata_cache
-    mysqlclient
-=======
-    mysqlclient
->>>>>>> mysql-8.0.27
     mysqlxclient_lite
     mysqlxmessages_lite
     ${PROTOBUF_LITE_LIBRARY}

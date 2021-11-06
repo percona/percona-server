@@ -248,20 +248,10 @@ Requires buf_page_get_mutex(bpage).
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
 ulint buf_pool_get_dirty_pages_count(
-<<<<<<< HEAD
-    buf_pool_t *buf_pool,     /*!< in: buffer pool */
-    space_id_t id,            /*!< in: space id to check */
-    FlushObserver *observer); /*!< in: flush observer to check */
-#endif
-||||||| beb865a960b
-    buf_pool_t *buf_pool,     /*!< in: buffer pool */
-    space_id_t id,            /*!< in: space id to check */
-    FlushObserver *observer); /*!< in: flush observer to check */
-=======
     buf_pool_t *buf_pool,      /*!< in: buffer pool */
     space_id_t id,             /*!< in: space id to check */
     Flush_observer *observer); /*!< in: flush observer to check */
->>>>>>> mysql-8.0.27
+#endif
 
 /** Synchronously flush dirty blocks from the end of the flush list of all
  buffer pool instances. NOTE: The calling thread is not allowed to own any

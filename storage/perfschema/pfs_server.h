@@ -55,13 +55,7 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-<<<<<<< HEAD
-#define PFS_MAX_MUTEX_CLASS 340
-||||||| beb865a960b
-#define PFS_MAX_MUTEX_CLASS 300
-=======
 #define PFS_MAX_MUTEX_CLASS 350
->>>>>>> mysql-8.0.27
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
 #define PFS_MAX_RWLOCK_CLASS 70

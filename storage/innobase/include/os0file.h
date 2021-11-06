@@ -128,20 +128,12 @@ the OS actually supports it: Win 95 does not, NT does. */
 /** Use unbuffered I/O */
 #define UNIV_NON_BUFFERED_IO
 
-<<<<<<< HEAD
 static const constexpr auto SRV_PATH_SEPARATOR = '\\';
 
-/** File handle */
-#define os_file_t HANDLE
-||||||| beb865a960b
-/** File handle */
-#define os_file_t HANDLE
-=======
 /** Windows file handle */
 using os_file_t = HANDLE;
 
 static const os_file_t OS_FILE_CLOSED = INVALID_HANDLE_VALUE;
->>>>>>> mysql-8.0.27
 
 /** Convert a C file descriptor to a native file handle
 @param fd file descriptor
@@ -184,8 +176,6 @@ static constexpr os_fd_t OS_FILE_CLOSED = OS_FD_CLOSED;
 
 #endif /* _WIN32 */
 
-static const constexpr os_file_t OS_FILE_CLOSED = os_file_t(~0);
-
 /** Common file descriptor for file IO instrumentation with PFS
 on windows and other platforms */
 struct pfs_os_file_t {
@@ -200,17 +190,11 @@ struct pfs_os_file_t {
 
   os_file_t m_file;
 
-<<<<<<< HEAD
   bool is_closed() const noexcept { return m_file == OS_FILE_CLOSED; }
 
   void set_closed() noexcept { m_file = OS_FILE_CLOSED; }
 };
 
-||||||| beb865a960b
-static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
-
-=======
->>>>>>> mysql-8.0.27
 /** The next value should be smaller or equal to the smallest sector size used
 on any disk. A log block is required to be a portion of disk which is written
 so that if the start and the end of a block get written to disk, then the
@@ -553,9 +537,9 @@ class IORequest {
   @param[in] key		The encryption key to use
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
-<<<<<<< HEAD
-  void encryption_key(byte *key, ulint key_len, byte *iv, uint key_version,
-                      uint key_id, byte *tablespace_key, const char *uuid,
+  void encryption_key(const byte *key, ulint key_len, const byte *iv,
+                      uint key_version, uint key_id, byte *tablespace_key,
+                      const char *uuid,
                       std::map<uint, byte *> *key_versions_cache) {
     m_encryption.set_key(key, key_len);
     m_encryption.set_key_versions_cache(key_versions_cache);
@@ -574,12 +558,7 @@ class IORequest {
   @param[in] key		The encryption key to use
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
-  void encryption_key(byte *key, ulint key_len, byte *iv) {
-||||||| beb865a960b
-  void encryption_key(byte *key, ulint key_len, byte *iv) {
-=======
   void encryption_key(const byte *key, ulint key_len, const byte *iv) {
->>>>>>> mysql-8.0.27
     m_encryption.set_key(key);
     m_encryption.set_key_length(key_len);
     m_encryption.set_initial_vector(iv);
@@ -1723,20 +1702,9 @@ Requests a synchronous read operation of page 0 of IBD file.
 @param[in]	offset		file offset where to read
 @param[in]	n		number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-<<<<<<< HEAD
-dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                          os_file_t file, void *buf, os_offset_t offset,
-                          ulint n, trx_t *trx)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                          os_file_t file, void *buf, os_offset_t offset,
-                          ulint n) MY_ATTRIBUTE((warn_unused_result));
-=======
 [[nodiscard]] dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                                        os_file_t file, void *buf,
-                                        os_offset_t offset, ulint n);
->>>>>>> mysql-8.0.27
+                          os_file_t file, void *buf, os_offset_t offset,
+                          ulint n, trx_t *trx);
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1748,21 +1716,10 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]	n		number of bytes to read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-<<<<<<< HEAD
-dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                     os_file_t file, void *buf, ulint n,
-                                     bool exit_on_err)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                     os_file_t file, void *buf, ulint n)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
 [[nodiscard]] dberr_t os_file_read_first_page_func(IORequest &type,
-                                                   const char *file_name,
-                                                   os_file_t file, void *buf,
-                                                   ulint n);
->>>>>>> mysql-8.0.27
+                                                  const char *file_name,
+                                                  os_file_t file, void *buf,
+                                                  ulint n, bool exit_on_err);
 
 /** Copy data from one file to another file. Data is read/written
 at current file offset.

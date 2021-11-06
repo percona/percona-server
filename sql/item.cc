@@ -6011,15 +6011,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
             max_length, m_nullable, item_name.ptr(), collation.collation);
         break;
       }
-<<<<<<< HEAD
-    // fallthrough
-    // to make_string_field()
-||||||| beb865a960b
-      /* Fall through to make_string_field() */
-=======
       /* Fall through to make_string_field() */
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_VAR_STRING:

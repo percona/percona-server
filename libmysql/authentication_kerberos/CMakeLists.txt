@@ -62,12 +62,6 @@ IF(NOT KERBEROS_LIB_SSPI)
       "Skipping the KERBEROS client authentication plugin.")
     RETURN()
   ENDIF()
-<<<<<<< HEAD
-  SET(MY_SQL "perconaserverclient")
-||||||| beb865a960b
-  SET(MY_SQL "mysqlclient")
-=======
->>>>>>> mysql-8.0.27
 ELSE()
   SET(AUTH_CLIENT "sspi_authentication_client.cc")
   SET(UTILITY "sspi_utility.cc")
@@ -75,7 +69,7 @@ ELSE()
   SET(KERBEROS_LIB  "")
 ENDIF()
 
-SET(MY_SQL "mysqlclient")
+SET(MY_SQL "perconaserverclient")
 
 DISABLE_MISSING_PROFILE_WARNING()
 

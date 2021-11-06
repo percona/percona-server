@@ -145,14 +145,8 @@ void meb_print_page_header(const page_t *page) {
 //#ifndef UNIV_HOTBACKUP
 PSI_memory_key mem_log_recv_page_hash_key;
 PSI_memory_key mem_log_recv_space_hash_key;
-<<<<<<< HEAD
 PSI_memory_key mem_log_recv_crypt_data_hash_key;
-#endif /* !UNIV_HOTBACKUP */
-||||||| beb865a960b
-#endif /* !UNIV_HOTBACKUP */
-=======
 //#endif /* !UNIV_HOTBACKUP */
->>>>>>> mysql-8.0.27
 
 /** true when recv_init_crash_recovery() has been called. */
 bool recv_needed_recovery;
@@ -487,23 +481,7 @@ void recv_sys_close() {
 
   mutex_free(&recv_sys->mutex);
 
-<<<<<<< HEAD
-  ut_free(recv_sys);
-||||||| beb865a960b
-#ifndef UNIV_HOTBACKUP
-  ut_ad(!recv_writer_is_active());
-#endif /* !UNIV_HOTBACKUP */
-  mutex_free(&recv_sys->writer_mutex);
-
-  ut_free(recv_sys);
-=======
-#ifndef UNIV_HOTBACKUP
-  ut_ad(!recv_writer_is_active());
-#endif /* !UNIV_HOTBACKUP */
-  mutex_free(&recv_sys->writer_mutex);
-
   ut::free(recv_sys);
->>>>>>> mysql-8.0.27
   recv_sys = nullptr;
 }
 
@@ -650,17 +628,11 @@ void recv_sys_init(ulint max_mem) {
 
   recv_sys->saved_recs.resize(recv_sys_t::MAX_SAVED_MLOG_RECS);
 
-<<<<<<< HEAD
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover(false));
+  recv_sys->metadata_recover =
+      ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY, false);
 
   using CryptDatas = recv_sys_t::CryptDatas;
   recv_sys->crypt_datas = UT_NEW(CryptDatas(), mem_log_recv_space_hash_key);
-||||||| beb865a960b
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
-=======
-  recv_sys->metadata_recover =
-      ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY);
->>>>>>> mysql-8.0.27
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -3796,30 +3768,6 @@ static void recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_727);
 
   recv_sys->dblwr->recover();
-<<<<<<< HEAD
-||||||| beb865a960b
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
-=======
-
-  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-    /* Spawn the background thread to flush dirty pages
-    from the buffer pools. */
-
-    srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
-
-    srv_threads.m_recv_writer.start();
-  }
->>>>>>> mysql-8.0.27
 }
 #endif /* !UNIV_HOTBACKUP */
 

@@ -378,18 +378,11 @@ class StatementReaderBase {
 
   virtual void set_session_ssl_info(const SSL *ssl) = 0;
 
-<<<<<<< HEAD
   StatementReaderBase() = default;
   StatementReaderBase(const StatementReaderBase &) = default;
   StatementReaderBase &operator=(const StatementReaderBase &) noexcept = default;
   StatementReaderBase &operator=(StatementReaderBase &&) noexcept = default;
-||||||| beb865a960b
-=======
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated")
->>>>>>> mysql-8.0.27
   virtual ~StatementReaderBase() = default;
-  MY_COMPILER_DIAGNOSTIC_POP()
 };
 
 }  // namespace server_mock

@@ -553,17 +553,9 @@ if possible.
           success = false;
         }
       }
-<<<<<<< HEAD
-      // fallthrough
-      // (the index entry is still needed, or the deletion succeeded)
-||||||| beb865a960b
-      /* fall through (the index entry is still needed,
-      or the deletion succeeded) */
-=======
       /* fall through (the index entry is still needed,
       or the deletion succeeded) */
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case ROW_NOT_DELETED_REF:
       /* The index entry is still needed. */
     case ROW_BUFFERED:

@@ -5153,15 +5153,8 @@ loop:
                                   " table "
                                << index->table->name << " returned " << ret;
     }
-<<<<<<< HEAD
-      /* Fall through */
-      /* (this error is ignored by CHECK TABLE) */
-||||||| beb865a960b
-    /* fall through (this error is ignored by CHECK TABLE) */
-=======
       /* fall through (this error is ignored by CHECK TABLE) */
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case DB_END_OF_INDEX:
       ret = DB_SUCCESS;
     func_exit:

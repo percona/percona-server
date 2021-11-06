@@ -744,16 +744,8 @@ class Clone_Snapshot {
 
   /** Check if state transition is in progress
   @return true during state transition */
-<<<<<<< HEAD
-  bool in_transit_state() {
-    ut_ad(mutex_own(&m_snapshot_mutex));
-||||||| beb865a960b
-  bool in_transit_state() {
-    mutex_own(&m_snapshot_mutex);
-=======
   bool in_transit_state() const {
-    mutex_own(&m_snapshot_mutex);
->>>>>>> mysql-8.0.27
+    ut_ad(mutex_own(&m_snapshot_mutex));
     return (m_snapshot_next_state != CLONE_SNAPSHOT_NONE);
   }
 

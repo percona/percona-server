@@ -210,22 +210,14 @@ extern PSI_memory_key mem_key_undo_spaces;
 extern PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
-<<<<<<< HEAD
 extern PSI_memory_key mem_key_log_online_modified_pages;
 extern PSI_memory_key mem_key_log_online_sys;
 extern PSI_memory_key mem_key_log_online_read_buf;
 extern PSI_memory_key mem_key_log_online_iterator_files;
 extern PSI_memory_key mem_key_log_online_iterator_page;
 
-/** Setup the internal objects needed for UT_NEW() to operate.
-This must be called before the first call to UT_NEW(). */
-||||||| beb865a960b
-/** Setup the internal objects needed for UT_NEW() to operate.
-This must be called before the first call to UT_NEW(). */
-=======
 /** Setup the internal objects needed for ut::*_withkey() to operate.
 This must be called before the first call to ut::*_withkey(). */
->>>>>>> mysql-8.0.27
 void ut_new_boot();
 
 /** Setup the internal objects needed for ut::*_withkey() to operate.
@@ -690,19 +682,6 @@ inline void *realloc_withkey(PSI_memory_key_t key, void *ptr,
     @return Pointer to the reallocated storage. nullptr if dynamic storage
     allocation failed.
 
-<<<<<<< HEAD
-  /** Construct an object. */
-  template <typename... Args>
-  void construct(T *p, Args &&...args) {
-    ::new ((void *)p) T(std::forward<Args>(args)...);
-  }
-
-  /** Destroy an object pointed by 'p'. */
-  void destroy(pointer p) { p->~T(); }
-||||||| beb865a960b
-  /** Destroy an object pointed by 'p'. */
-  void destroy(pointer p) { p->~T(); }
-=======
     Example:
      int *x = static_cast<int*>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
    10*sizeof(int)); x = static_cast<int*>(ut::realloc(key, ptr,
@@ -712,7 +691,6 @@ inline void *realloc(void *ptr, std::size_t size) noexcept {
   return ut::realloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), ptr,
                              size);
 }
->>>>>>> mysql-8.0.27
 
 /** Releases storage which has been dynamically allocated through any of
     the ut::malloc*(), ut::realloc* or ut::zalloc*() variants.
@@ -910,42 +888,15 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
     respective instance of T shall be wrapped into a std::tuple. See examples
     down below.
 
-<<<<<<< HEAD
-  /** Allocate a large chunk of memory that can hold 'n_elements'
-  objects of type 'T' and trace the allocation.
-  @param[in]	n_elements	number of elements
-  @return pointer to the allocated memory or NULL */
-  pointer allocate_large(size_type n_elements, bool populate) {
-    if (n_elements == 0 || n_elements > max_size()) {
-      return (nullptr);
-    }
-||||||| beb865a960b
-  /** Allocate a large chunk of memory that can hold 'n_elements'
-  objects of type 'T' and trace the allocation.
-  @param[in]	n_elements	number of elements
-  @return pointer to the allocated memory or NULL */
-  pointer allocate_large(size_type n_elements) {
-    if (n_elements == 0 || n_elements > max_size()) {
-      return (nullptr);
-    }
-=======
     To create an array of default-intialized T's, one can use this function
     template but for convenience purposes one can achieve the same by using
     the ut::new_arr_withkey with ut::Count overload.
->>>>>>> mysql-8.0.27
 
     NOTE: Given that this function will _NOT_ be instrumenting the allocation
     through PFS, observability for particular parts of the system which want to
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-<<<<<<< HEAD
-    auto ptr = os_mem_alloc_large(&n_bytes, populate);
-    if (unlikely(!ptr)) return nullptr;
-||||||| beb865a960b
-    auto ptr = os_mem_alloc_large(&n_bytes);
-    if (unlikely(!ptr)) return nullptr;
-=======
     @param[in] args Tuples of arguments one wishes to pass over to T
     constructor(s).
     @return Pointer to the first element of allocated storage. Throws
@@ -954,7 +905,6 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
     construction of any instance of T, in which case it automatically destroys
     successfully constructed objects till that moment (if any), and finally
     cleans up the raw memory allocated for T instances.
->>>>>>> mysql-8.0.27
 
     Example 1:
      int *ptr = ut::new_arr_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY,
@@ -1159,19 +1109,6 @@ inline void delete_arr(T *ptr) noexcept {
 /** Returns number of bytes that ut::malloc_*, ut::zalloc_*, ut::realloc_* and
     ut::new_* variants will be using to store the necessary metadata for PFS.
 
-<<<<<<< HEAD
-#ifdef UNIV_PFS_MEMORY
-  /** Performance schema key. */
-  PSI_memory_key m_key;
-#endif /* UNIV_PFS_MEMORY */
-};
-||||||| beb865a960b
-#ifdef UNIV_PFS_MEMORY
-  /** Performance schema key. */
-  const PSI_memory_key m_key;
-#endif /* UNIV_PFS_MEMORY */
-};
-=======
     @return Size of the PFS metadata.
 */
 inline size_t pfs_overhead() noexcept {
@@ -1179,7 +1116,6 @@ inline size_t pfs_overhead() noexcept {
   using malloc_impl = detail::Alloc_<impl>;
   return malloc_impl::pfs_overhead();
 }
->>>>>>> mysql-8.0.27
 
 /** Dynamically allocates system page-aligned storage of given size. Instruments
     the memory with given PSI memory key in case PFS memory support is enabled.
@@ -1385,7 +1321,6 @@ inline void *malloc_large_page_withkey(
   return large_page_mem ? large_page_mem : malloc_page_withkey(key, size);
 }
 
-<<<<<<< HEAD
 inline void ut_free_func(byte *buf) { ut_free(buf); }
 
 using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
@@ -1395,15 +1330,10 @@ inline ut_unique_ptr ut_make_unique_ptr_nokey(const size_t size) {
                        ut_free_func);
 }
 
-namespace ut {
-||||||| beb865a960b
-namespace ut {
-=======
 /** Dynamically allocates memory backed up by large (huge) pages. In the event
     that large (huge) pages are unavailable or disabled explicitly through
     os_use_large_pages, it will fallback to dynamic allocation backed by
     page-aligned memory.
->>>>>>> mysql-8.0.27
 
     NOTE: Given that this function will _NOT_ be instrumenting the allocation
     through PFS, observability for particular parts of the system which want to

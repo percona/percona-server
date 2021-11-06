@@ -138,16 +138,10 @@ const char *globerrs[GLOBERRS] = {
     "Shift character out of range: %s.",
     "Reset character out of range: %s.",
     "Unknown LDML tag: '%.*s'.",
-<<<<<<< HEAD
     "Failed to reset before a secondary ignorable character %s.",
+    "Stopped processing the '%s' directive in file %s at line %d.",
     "Can't create socket '%s' (Errcode: %d)",
     "File name '%s' is too long (max: %d)"};
-||||||| beb865a960b
-    "Failed to reset before a secondary ignorable character %s."};
-=======
-    "Failed to reset before a secondary ignorable character %s.",
-    "Stopped processing the '%s' directive in file %s at line %d."};
->>>>>>> mysql-8.0.27
 
 /*
  We cannot call my_error/my_printf_error here in this function.

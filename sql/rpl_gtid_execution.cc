@@ -302,31 +302,7 @@ int gtid_acquire_ownership_multiple(THD *thd) {
 }
 #endif
 
-<<<<<<< HEAD
-/**
-  Check if current transaction should be skipped, that is, if GTID_NEXT
-  was already logged.
-
-  @param  thd    The calling thread.
-
-  @retval true   Transaction was already logged.
-  @retval false  Transaction must be executed.
-*/
 bool is_already_logged_transaction(const THD *thd) {
-||||||| beb865a960b
-/**
-  Check if current transaction should be skipped, that is, if GTID_NEXT
-  was already logged.
-
-  @param  thd    The calling thread.
-
-  @retval true   Transaction was already logged.
-  @retval false  Transaction must be executed.
-*/
-static inline bool is_already_logged_transaction(const THD *thd) {
-=======
-bool is_already_logged_transaction(const THD *thd) {
->>>>>>> mysql-8.0.27
   DBUG_TRACE;
 
   const Gtid_specification *gtid_next = &thd->variables.gtid_next;

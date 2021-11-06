@@ -12527,15 +12527,8 @@ static bool alter_table_manage_keys(
       break;
     case Alter_info::LEAVE_AS_IS:
       if (!indexes_were_disabled) break;
-<<<<<<< HEAD
-      // fallthrough
-      // disabled indexes
-||||||| beb865a960b
-      /* fall-through: disabled indexes */
-=======
       /* fall-through: disabled indexes */
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case Alter_info::DISABLE:
       error = table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }
@@ -18513,20 +18506,10 @@ bool mysql_trans_commit_alter_copy_data(THD *thd) {
 }
 
 static int copy_data_between_tables(
-<<<<<<< HEAD
-    THD *thd, PSI_stage_progress *psi MY_ATTRIBUTE((unused)), TABLE *from,
-    TABLE *to, List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx,
-    bool expand_fast_index_creation) {
-||||||| beb865a960b
-    THD *thd, PSI_stage_progress *psi MY_ATTRIBUTE((unused)), TABLE *from,
-    TABLE *to, List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
-=======
     THD *thd, PSI_stage_progress *psi [[maybe_unused]], TABLE *from, TABLE *to,
     List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
->>>>>>> mysql-8.0.27
+    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx,
+    bool expand_fast_index_creation) {
   DBUG_TRACE;
 
   int error;

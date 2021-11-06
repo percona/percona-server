@@ -648,17 +648,9 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
 @param[in]  old_table the table we are changing
 @param[in]  is_file_per_table true if table is file_per_table
 @return whether it is necessary to rebuild the table */
-<<<<<<< HEAD
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
+[[nodiscard]] static bool innobase_need_rebuild(
     const Alter_inplace_info *ha_alter_info, const TABLE *old_table,
     bool is_file_per_table) {
-||||||| beb865a960b
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
-    const Alter_inplace_info *ha_alter_info) {
-=======
-[[nodiscard]] static bool innobase_need_rebuild(
-    const Alter_inplace_info *ha_alter_info) {
->>>>>>> mysql-8.0.27
   if (is_instant(ha_alter_info)) {
     return (false);
   }
@@ -6241,18 +6233,10 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
   if (((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
-<<<<<<< HEAD
        !innobase_need_rebuild(
            ha_alter_info, table,
            dict_table_is_file_per_table(m_prebuilt->table)))) {
-    goto ok_exit;
-||||||| beb865a960b
-       !innobase_need_rebuild(ha_alter_info))) {
-    goto ok_exit;
-=======
-       !innobase_need_rebuild(ha_alter_info))) {
     return all_ok();
->>>>>>> mysql-8.0.27
   }
 
   ha_innobase_inplace_ctx *ctx =
@@ -6333,33 +6317,8 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     eval_table = table;
   }
 
-<<<<<<< HEAD
-  /* Read the clustered index of the table and build
-  indexes based on this information using temporary
-  files and merge sort. */
-  DBUG_EXECUTE_IF("innodb_OOM_inplace_alter", error = DB_OUT_OF_MEMORY;
-                  goto oom;);
-  error = row_merge_build_indexes(
-      m_prebuilt->trx, m_prebuilt->table, ctx->new_table, ctx->online,
-      ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
-      altered_table, ctx->add_cols, ctx->col_map, ctx->add_autoinc,
-      ctx->sequence, ctx->skip_pk_sort, ctx->m_stage, add_v, eval_table,
-      m_prebuilt);
-||||||| beb865a960b
-  /* Read the clustered index of the table and build
-  indexes based on this information using temporary
-  files and merge sort. */
-  DBUG_EXECUTE_IF("innodb_OOM_inplace_alter", error = DB_OUT_OF_MEMORY;
-                  goto oom;);
-  error = row_merge_build_indexes(
-      m_prebuilt->trx, m_prebuilt->table, ctx->new_table, ctx->online,
-      ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
-      altered_table, ctx->add_cols, ctx->col_map, ctx->add_autoinc,
-      ctx->sequence, ctx->skip_pk_sort, ctx->m_stage, add_v, eval_table);
-=======
   auto clean_up = [&](dberr_t err) -> bool {
     DEBUG_SYNC_C("alter_table_update_log");
->>>>>>> mysql-8.0.27
 
     if (err == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
       DEBUG_SYNC_C("row_log_table_apply1_before");

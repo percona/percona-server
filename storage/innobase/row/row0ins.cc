@@ -918,7 +918,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
         }
         dfield_t *new_vfield = innobase_get_computed_value(
             update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-            nullptr, nullptr, node->update, foreign);
+            nullptr, nullptr, node->update, foreign, prebuilt);
         dfield_copy(&(upd_field->new_val), new_vfield);
       }
     }

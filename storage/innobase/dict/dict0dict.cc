@@ -714,13 +714,7 @@ This function must not be called concurrently on the same table object.
 static void dict_table_autoinc_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-<<<<<<< HEAD
-  table->autoinc_mutex = UT_NEW_NOKEY(AutoIncMutex());
-||||||| beb865a960b
-  table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
-=======
-  table->autoinc_mutex = ut::new_withkey<ib_mutex_t>(UT_NEW_THIS_FILE_PSI_KEY);
->>>>>>> mysql-8.0.27
+  table->autoinc_mutex = ut::new_withkey<AutoIncMutex>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_a(table->autoinc_mutex != nullptr);
   mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 

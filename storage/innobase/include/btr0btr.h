@@ -568,16 +568,9 @@ void btr_print_index(dict_index_t *index, /*!< in: index */
                               should print hex dump of
                               record and page on error */
 /** Checks the consistency of an index tree.
-<<<<<<< HEAD
-@return	true if ok, error code if not */
-bool btr_validate_index(
-||||||| beb865a960b
- @return true if ok */
-bool btr_validate_index(
 =======
  @return true if ok */
 [[nodiscard]] bool btr_validate_index(
->>>>>>> mysql-8.0.27
     dict_index_t *index, /*!< in: index */
     const trx_t *trx,    /*!< in: transaction or 0 */
     bool lockout);       /*!< in: true if X-latch index is intended */

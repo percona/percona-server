@@ -46,15 +46,9 @@ MYSQL_ADD_EXECUTABLE(mysql
   pattern_matcher.cc
   readline.cc
   client_query_attributes.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
-=======
   multi_factor_passwordopt-vars.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
-  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
   )
 
 IF(NOT WITHOUT_SERVER)
@@ -83,47 +77,23 @@ MYSQL_ADD_EXECUTABLE(mysqltest
 MYSQL_ADD_EXECUTABLE(mysqlcheck
   check/mysqlcheck.cc
   check/mysqlcheck_core.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient
-=======
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqldump
   mysqldump.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient
-=======
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlimport
   mysqlimport.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient
-=======
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlshow
   mysqlshow.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient
-=======
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient
   )
 
 OPTION(WITH_JSON_BINLOG_LIBRARY
@@ -288,25 +258,13 @@ TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin
   mysqladmin.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient
-=======
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlslap
   mysqlslap.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| beb865a960b
-  LINK_LIBRARIES mysqlclient
-=======
   multi_factor_passwordopt-vars.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.0.27
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_config_editor
   mysql_config_editor.cc

@@ -1926,49 +1926,6 @@ fts_lexer_create(
 	const byte*	query,
 	ulint		query_len)
 {
-<<<<<<< HEAD
-	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
-		ut_malloc_nokey(sizeof(fts_lexer_t)));
-
-	if (boolean_mode) {
-		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes(
-			reinterpret_cast<const char*>(query),
-			static_cast<int>(query_len),
-			fts_lexer->yyscanner);
-		fts_lexer->scanner = fts_blexer;
-		/* FIXME: Debugging */
-		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
-	} else {
-		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes(
-			reinterpret_cast<const char*>(query),
-			static_cast<int>(query_len),
-			fts_lexer->yyscanner);
-		fts_lexer->scanner = fts_tlexer;
-	}
-||||||| beb865a960b
-	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
-		ut_malloc_nokey(sizeof(fts_lexer_t)));
-
-	if (boolean_mode) {
-		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes(
-			reinterpret_cast<const char*>(query),
-			static_cast<int>(query_len),
-			fts_lexer->yyscanner);
-		fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
-		/* FIXME: Debugging */
-		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
-	} else {
-		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes(
-			reinterpret_cast<const char*>(query),
-			static_cast<int>(query_len),
-			fts_lexer->yyscanner);
-		fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_tlexer);
-	}
-=======
   fts_lexer_t *fts_lexer = static_cast<fts_lexer_t *>(
       ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_lexer_t)));
 
@@ -1976,16 +1933,15 @@ fts_lexer_create(
     fts0blex_init(&fts_lexer->yyscanner);
     fts0b_scan_bytes(reinterpret_cast<const char *>(query),
                      static_cast<int>(query_len), fts_lexer->yyscanner);
-    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
+    fts_lexer->scanner = fts_blexer;
     /* FIXME: Debugging */
     /* fts0bset_debug(1 , fts_lexer->yyscanner); */
   } else {
     fts0tlex_init(&fts_lexer->yyscanner);
     fts0t_scan_bytes(reinterpret_cast<const char *>(query),
                      static_cast<int>(query_len), fts_lexer->yyscanner);
-    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_tlexer);
+    fts_lexer->scanner = fts_tlexer;
   }
->>>>>>> mysql-8.0.27
 
   return (fts_lexer);
 }

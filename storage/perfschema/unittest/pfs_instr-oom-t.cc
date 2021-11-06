@@ -268,23 +268,7 @@ static void test_oom() {
   file_2 =
       find_or_create_file(&fake_thread, &dummy_file_class, "dummy2", 6, true);
   ok(file_2 == nullptr, "oom (create file)");
-<<<<<<< HEAD
-
-  stub_alloc_always_fails = false;
-  file_1 =
-      find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_1 != nullptr, "create file");
-  release_file(file_1);
   cleanup_file_hash();
-||||||| beb865a960b
-
-  stub_alloc_always_fails = false;
-  file_1 =
-      find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_1 != nullptr, "create file");
-  release_file(file_1);
-=======
->>>>>>> mysql-8.0.27
   cleanup_instruments();
 
   /* Create socket. */

@@ -466,15 +466,8 @@ static inline ulint dtype_get_fixed_size_low(
 #else  /* !UNIV_LIBRARY */
       return (len);
 #endif /* !UNIV_LIBRARY */
-<<<<<<< HEAD
-      // fallthrough
-      // for variable-length charsets
-||||||| beb865a960b
-       /* fall through for variable-length charsets */
-=======
       /* fall through for variable-length charsets */
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case DATA_VARCHAR:
     case DATA_BINARY:
     case DATA_DECIMAL:

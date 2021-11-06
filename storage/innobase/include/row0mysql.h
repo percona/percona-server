@@ -394,24 +394,12 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	mode		keyring encryption mode
 @param[in]	keyring_encryption_key_id	keyring encryption info
 @return error code or DB_SUCCESS */
-<<<<<<< HEAD
-dberr_t row_create_table_for_mysql(
+[[nodiscard]] dberr_t row_create_table_for_mysql(
     dict_table_t *table, const char *compression,
     const HA_CREATE_INFO *create_info, trx_t *trx,
     const fil_encryption_t mode, /*!< in: encryption mode */
     const KeyringEncryptionKeyIdInfo
-        &keyring_encryption_key_id) /*!< in: encryption key_id */
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
-                                   const HA_CREATE_INFO *create_info,
-                                   trx_t *trx)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
-[[nodiscard]] dberr_t row_create_table_for_mysql(
-    dict_table_t *table, const char *compression,
-    const HA_CREATE_INFO *create_info, trx_t *trx);
->>>>>>> mysql-8.0.27
+        &keyring_encryption_key_id); /*!< in: encryption key_id */
 
 /** Does an index creation operation for MySQL. TODO: currently failure
  to create an index results in dropping the whole table! This is no problem

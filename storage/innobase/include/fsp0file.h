@@ -280,30 +280,9 @@ class Datafile {
   @param[in]	for_import	if it is for importing
   @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
   m_is_valid is also set true on success, else false. */
-<<<<<<< HEAD
-  ValidateOutput validate_to_dd(space_id_t space_id, uint32_t flags,
-                                bool for_import)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] ValidateOutput validate_to_dd(space_id_t space_id,
+                                              uint32_t flags, bool for_import);
 
-  /** Validates this datafile for the purpose of recovery.
-  The file should exist and be successfully opened. We initially
-  open it in read-only mode because we just want to read the SpaceID.
-  However, if the first page is corrupt and needs to be restored
-  from the doublewrite buffer, we will reopen it in write mode and
-  ry to restore that page.
-||||||| beb865a960b
-  dberr_t validate_to_dd(space_id_t space_id, uint32_t flags, bool for_import)
-      MY_ATTRIBUTE((warn_unused_result));
-
-  /** Validates this datafile for the purpose of recovery.
-  The file should exist and be successfully opened. We initially
-  open it in read-only mode because we just want to read the SpaceID.
-  However, if the first page is corrupt and needs to be restored
-  from the doublewrite buffer, we will reopen it in write mode and
-  ry to restore that page.
-=======
-  [[nodiscard]] dberr_t validate_to_dd(space_id_t space_id, uint32_t flags,
-                                       bool for_import);
 
   /** Validates this datafile for the purpose of recovery.  The file should
   exist and be successfully opened. We initially open it in read-only mode
@@ -311,19 +290,10 @@ class Datafile {
   corrupt and needs to be restored from the doublewrite buffer, we will reopen
   it in write mode and try to restore that page. The file will be closed when
   returning from this method.
->>>>>>> mysql-8.0.27
   @param[in]	space_id	Expected space ID
   @retval DB_SUCCESS on success
   m_is_valid is also set true on success, else false. */
-<<<<<<< HEAD
-  ValidateOutput validate_for_recovery(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  dberr_t validate_for_recovery(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
-=======
-  [[nodiscard]] dberr_t validate_for_recovery(space_id_t space_id);
->>>>>>> mysql-8.0.27
+  [[nodiscard]] ValidateOutput validate_for_recovery(space_id_t space_id);
 
   /**  Checks the consistency of the first page of a datafile when the
   tablespace is opened. This occurs before the fil_space_t is created so the
@@ -341,18 +311,9 @@ class Datafile {
   @retval DB_INVALID_ENCRYPTION_META if the encryption meta data
           is not readable
   @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-<<<<<<< HEAD
-  ValidateOutput validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
-                                     bool for_import)
-      MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  dberr_t validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
-                              bool for_import)
-      MY_ATTRIBUTE((warn_unused_result));
-=======
-  [[nodiscard]] dberr_t validate_first_page(space_id_t space_id,
-                                            lsn_t *flush_lsn, bool for_import);
->>>>>>> mysql-8.0.27
+  [[nodiscard]] ValidateOutput validate_first_page(space_id_t space_id,
+                                                   lsn_t *flush_lsn,
+                                                   bool for_import);
 
   /** Get LSN of first page */
   lsn_t get_flush_lsn() {

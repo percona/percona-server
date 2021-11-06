@@ -3248,37 +3248,13 @@ bool subselect_hash_sj_engine::setup(
     iterator into the materialized subquery result.
   */
 
-<<<<<<< HEAD
-  QEP_TAB_standalone *tmp_tab_st = new (thd->mem_root) QEP_TAB_standalone;
-  if (tmp_tab_st == nullptr) return true;
-  tab = &tmp_tab_st->as_QEP_TAB();
-  tab->set_table(tmp_table);
-  tab->set_idx(0);
-  tab->ref().key = 0; /* The only temp table index. */
-  tab->ref().key_length = tmp_key->key_length;
-  tab->set_type((tmp_table->key_info[0].flags & HA_NOSAME) ? JT_EQ_REF
-                                                           : JT_REF);
-  if (!(tab->ref().key_buff = (uchar *)thd->mem_calloc(key_length)) ||
-      !(tab->ref().key_copy =
-||||||| beb865a960b
-  QEP_TAB_standalone *tmp_tab_st = new (thd->mem_root) QEP_TAB_standalone;
-  if (tmp_tab_st == nullptr) return true;
-  tab = &tmp_tab_st->as_QEP_TAB();
-  tab->set_table(tmp_table);
-  tab->ref().key = 0; /* The only temp table index. */
-  tab->ref().key_length = tmp_key->key_length;
-  tab->set_type((tmp_table->key_info[0].flags & HA_NOSAME) ? JT_EQ_REF
-                                                           : JT_REF);
-  if (!(tab->ref().key_buff = (uchar *)thd->mem_calloc(key_length)) ||
-      !(tab->ref().key_copy =
-=======
   table = tmp_table;
+  // TODOLUIS see if necessary 9ce492fe7214  tab->set_idx(0);
   ref.key = 0; /* The only temp table index. */
   ref.key_length = tmp_key->key_length;
   type = (tmp_table->key_info[0].flags & HA_NOSAME) ? JT_EQ_REF : JT_REF;
   if (!(ref.key_buff = (uchar *)thd->mem_calloc(key_length)) ||
       !(ref.key_copy =
->>>>>>> mysql-8.0.27
             (store_key **)thd->alloc((sizeof(store_key *) * tmp_key_parts))) ||
       !(ref.items = (Item **)thd->alloc(sizeof(Item *) * tmp_key_parts)))
     return true;

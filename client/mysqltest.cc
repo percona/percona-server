@@ -10489,15 +10489,8 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING *result,
           to 1.2000000
         */
         if (size1 < (size_t)r) r = size1;
-<<<<<<< HEAD
-        // fallthrough
-        // all cases till next break are executed
-||||||| beb865a960b
-      // fallthrough: all cases till next break are executed
-=======
         // fallthrough: all cases till next break are executed
         [[fallthrough]];
->>>>>>> mysql-8.0.27
       case 'e':
       case 'E':
         if (isdigit(*(from + size + 1))) {

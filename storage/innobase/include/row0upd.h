@@ -198,27 +198,10 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[out]	error		error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
-<<<<<<< HEAD
-upd_t *row_upd_build_difference_binary(dict_index_t *index,
-                                       const dtuple_t *entry, const rec_t *rec,
-                                       const ulint *offsets, bool no_sys,
-                                       trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table,
-                                       row_prebuilt_t *prebuilt, dberr_t *error)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-upd_t *row_upd_build_difference_binary(dict_index_t *index,
-                                       const dtuple_t *entry, const rec_t *rec,
-                                       const ulint *offsets, bool no_sys,
-                                       trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table, dberr_t *error)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
 [[nodiscard]] upd_t *row_upd_build_difference_binary(
     dict_index_t *index, const dtuple_t *entry, const rec_t *rec,
     const ulint *offsets, bool no_sys, trx_t *trx, mem_heap_t *heap,
-    TABLE *mysql_table, dberr_t *error);
->>>>>>> mysql-8.0.27
+    TABLE *mysql_table, row_prebuilt_t *prebuilt, dberr_t *error);
 
 /** Replaces the new column values stored in the update vector to the index
  entry given.

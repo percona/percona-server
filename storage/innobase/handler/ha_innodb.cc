@@ -843,79 +843,6 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info all_innodb_threads[] = {
-<<<<<<< HEAD
-    PSI_KEY(log_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(page_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(buf_dump_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(clone_ddl_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(clone_gtid_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(dict_stats_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_handler_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_ibuf_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_log_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_read_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_write_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(buf_resize_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_writer_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_checkpointer_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_flusher_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_write_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_flush_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(buf_lru_manager_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_error_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_lock_timeout_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_log_tracking_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_master_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_purge_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_worker_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(trx_recovery_rollback_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(page_flush_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(page_flush_coordinator_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_optimize_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_ts_alter_encrypt_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_scrub_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(parallel_read_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(parallel_rseg_init_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(meb::redo_log_archive_consumer_thread, 0, 0, PSI_DOCUMENT_ME)};
-||||||| beb865a960b
-    PSI_KEY(log_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(page_archiver_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(buf_dump_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(clone_ddl_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(clone_gtid_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(dict_stats_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_handler_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_ibuf_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_log_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_read_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(io_write_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(buf_resize_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_writer_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_checkpointer_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_flusher_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_write_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_flush_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(recv_writer_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_error_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_lock_timeout_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_master_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_purge_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_worker_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(trx_recovery_rollback_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(page_flush_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(page_flush_coordinator_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_optimize_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_ts_alter_encrypt_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(parallel_read_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(parallel_rseg_init_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(meb::redo_log_archive_consumer_thread, 0, 0, PSI_DOCUMENT_ME)};
-=======
     PSI_THREAD_KEY(log_archiver_thread, "ib_log_arch", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(page_archiver_thread, "ib_page_arch", PSI_FLAG_SINGLETON, 0,
@@ -949,12 +876,14 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_flush_notifier_thread, "ib_log_fl_notif",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(recv_writer_thread, "ib_recv_write", PSI_FLAG_SINGLETON, 0,
+    PSI_THREAD_KEY(buf_lru_manager_thread, "ib_buf_lru", 0, 0,
                    PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err_mon",
+    PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_lock_timeout_thread, "ib_srv_lock_to",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(srv_log_tracking_thread, "ib_srv_log", 0, 0,
+                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_master_thread, "ib_src_main", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_monitor_thread, "ib_srv_mon", PSI_FLAG_SINGLETON, 0,
@@ -975,12 +904,12 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_ts_alter_encrypt_thread, "ib_ts_encrypt",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(log_scrub_thread, "ib_log_scr", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(parallel_read_thread, "ib_par_rd", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(parallel_rseg_init_thread, "ib_par_rseg", 0, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(meb::redo_log_archive_consumer_thread, "ib_meb_rl",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME)};
->>>>>>> mysql-8.0.27
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_IO
@@ -2293,17 +2222,10 @@ const char *thd_innodb_tmpdir(THD *thd) {
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
-<<<<<<< HEAD
-MY_ATTRIBUTE((warn_unused_result))
-innodb_session_t *&thd_to_innodb_session(THD *thd) {
-  assert(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
-||||||| beb865a960b
-MY_ATTRIBUTE((warn_unused_result))
-innodb_session_t *&thd_to_innodb_session(THD *thd) {
-=======
 
 [[nodiscard]] innodb_session_t *&thd_to_innodb_session(THD *thd) {
->>>>>>> mysql-8.0.27
+  assert(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
+
   innodb_session_t *&innodb_session =
       *(innodb_session_t **)thd_ha_data(thd, innodb_hton_ptr);
 
@@ -3634,20 +3556,10 @@ static int innodb_init_abort() {
 @param[in]	dict_init_mode	whether to create or open the files
 @param[in,out]	tablespaces	predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
-<<<<<<< HEAD
-static int innobase_init_files(dict_init_mode_t dict_init_mode,
-                               List<const Plugin_tablespace> *tablespaces,
-                               bool &is_dd_encrypted)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-static int innobase_init_files(dict_init_mode_t dict_init_mode,
-                               List<const Plugin_tablespace> *tablespaces)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
 [[nodiscard]] static int innobase_init_files(
     dict_init_mode_t dict_init_mode,
-    List<const Plugin_tablespace> *tablespaces);
->>>>>>> mysql-8.0.27
+    List<const Plugin_tablespace> *tablespaces,
+    bool &is_dd_encrypted);
 
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
@@ -22654,26 +22566,8 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
 
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write REDO encrypted from now on. */
-<<<<<<< HEAD
   if (use == REDO_LOG_ENCRYPT_OFF) {
-    /* Check and exit if concurrent clone in progress. */
-    if (clone_check_active()) {
-      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-      return (ER_CLONE_IN_PROGRESS);
-    }
     *static_cast<ulong *>(save) = REDO_LOG_ENCRYPT_OFF;
-||||||| beb865a960b
-  if (target == false) {
-    /* Check and exit if concurrent clone in progress. */
-    if (clone_check_active()) {
-      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-      return (ER_CLONE_IN_PROGRESS);
-    }
-    *static_cast<bool *>(save) = false;
-=======
-  if (target == false) {
-    *static_cast<bool *>(save) = false;
->>>>>>> mysql-8.0.27
     return (0);
   }
 
@@ -22682,30 +22576,7 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
     return (ER_IB_MSG_1242);
   }
 
-<<<<<<< HEAD
-  /* Check and exit if concurrent clone in progress. The mark ensures
-  that any new clone waits while we set encryption information. */
-  if (!clone_mark_wait()) {
-    my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-    return (ER_CLONE_IN_PROGRESS);
-  }
-
-  clone_mark_free();
   *static_cast<ulong *>(save) = use;
-||||||| beb865a960b
-  /* Check and exit if concurrent clone in progress. The mark ensures
-  that any new clone waits while we set encryption information. */
-  if (!clone_mark_wait()) {
-    my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-    return (ER_CLONE_IN_PROGRESS);
-  }
-
-  /* Enable encryption for REDO tablespaces */
-  bool ret = srv_enable_redo_encryption(false);
-=======
-  /* Enable encryption for REDO tablespaces */
-  bool ret = srv_enable_redo_encryption(false);
->>>>>>> mysql-8.0.27
 
   return 0;
 }
@@ -22734,7 +22605,6 @@ static int innodb_sys_tablespace_encyption_validate(
       break;
     }
   }
-<<<<<<< HEAD
   // It is possible that enum value was provided as the integer, not literal
   if (!legit_value) {
     int error = 0;
@@ -22831,12 +22701,6 @@ static int innodb_sys_tablespace_encyption_validate(
   *static_cast<ulong *>(save) = use;
 
   return 0;
-||||||| beb865a960b
-  clone_mark_free();
-  return (0);
-=======
-  return (0);
->>>>>>> mysql-8.0.27
 }
 
 /** Update the number of rollback segments per tablespace when the

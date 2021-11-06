@@ -1487,13 +1487,6 @@ char server_version_suffix[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
-<<<<<<< HEAD
-bool encrypt_tmp_files;
-
-ulonglong tf_sequence_table_max_upper_bound = 0;
-
-||||||| beb865a960b
-=======
 char *opt_authentication_policy;
 std::vector<std::string> authentication_policy_list;
 /*
@@ -1503,7 +1496,10 @@ std::vector<std::string> authentication_policy_list;
 */
 std::vector<plugin_ref> authentication_policy_plugin_ref;
 
->>>>>>> mysql-8.0.27
+bool encrypt_tmp_files;
+
+ulonglong tf_sequence_table_max_upper_bound = 0;
+
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
 
@@ -10354,13 +10350,7 @@ bool mysqld_get_one_option(int optid,
       break;
     case 'L':
       push_deprecated_warn(nullptr, "--language/-l", "'--lc-messages-dir'");
-<<<<<<< HEAD
-    // fallthrough
-||||||| beb865a960b
-      /* Note:  fall-through */
-=======
       [[fallthrough]];
->>>>>>> mysql-8.0.27
     case OPT_LC_MESSAGES_DIRECTORY:
       strmake(lc_messages_dir, argument, sizeof(lc_messages_dir) - 1);
       lc_messages_dir_ptr = lc_messages_dir;
@@ -12080,12 +12070,8 @@ PSI_stage_info stage_binlog_transaction_decompress= { 0, "Decompressing transact
 PSI_stage_info stage_rpl_failover_fetching_source_member_details= { 0, "Fetching source member details from connected source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_failover_updating_source_member_details= { 0, "Updating fetched source member details on receiver", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_failover_wait_before_next_fetch= { 0, "Wait before trying to fetch next membership changes from source", 0, PSI_DOCUMENT_ME};
-<<<<<<< HEAD
-PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
-||||||| beb865a960b
-=======
 PSI_stage_info stage_communication_delegation= { 0, "Connection delegated to Group Replication", 0, PSI_DOCUMENT_ME};
->>>>>>> mysql-8.0.27
+PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0, PSI_DOCUMENT_ME};
 /* clang-format on */
 
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -12188,15 +12174,9 @@ PSI_stage_info *all_server_stages[] = {
     &stage_binlog_transaction_decompress,
     &stage_rpl_failover_fetching_source_member_details,
     &stage_rpl_failover_updating_source_member_details,
-<<<<<<< HEAD
     &stage_rpl_failover_wait_before_next_fetch,
+    &stage_communication_delegation,
     &stage_restoring_secondary_keys};
-||||||| beb865a960b
-    &stage_rpl_failover_wait_before_next_fetch};
-=======
-    &stage_rpl_failover_wait_before_next_fetch,
-    &stage_communication_delegation};
->>>>>>> mysql-8.0.27
 
 PSI_socket_key key_socket_tcpip;
 PSI_socket_key key_socket_unix;

@@ -71,13 +71,7 @@ SET(INNOBASE_SOURCES
   btr/btr0cur.cc
   btr/btr0pcur.cc
   btr/btr0sea.cc
-<<<<<<< HEAD
-  btr/btr0bulk.cc
   btr/btr0scrub.cc
-||||||| beb865a960b
-  btr/btr0bulk.cc
-=======
->>>>>>> mysql-8.0.27
   buf/buf0block_hint.cc
   buf/buf0buddy.cc
   buf/buf0buf.cc

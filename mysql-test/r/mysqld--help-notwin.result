@@ -1961,13 +1961,7 @@ performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 530
 performance-schema-max-metadata-locks -1
-<<<<<<< HEAD
-performance-schema-max-mutex-classes 340
-||||||| beb865a960b
-performance-schema-max-mutex-classes 300
-=======
 performance-schema-max-mutex-classes 350
->>>>>>> mysql-8.0.27
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
@@ -1977,13 +1971,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 175
-<<<<<<< HEAD
-performance-schema-max-statement-classes 226
-||||||| beb865a960b
-performance-schema-max-statement-classes 218
-=======
-performance-schema-max-statement-classes 219
->>>>>>> mysql-8.0.27
+performance-schema-max-statement-classes 227
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -2116,14 +2104,8 @@ terminology-use-previous NONE
 tf-sequence-table-max-upper-bound 1048576
 thread-cache-size 9
 thread-handling one-thread-per-connection
-<<<<<<< HEAD
-thread-stack 262144
-thread-statistics FALSE
-||||||| beb865a960b
-thread-stack 262144
-=======
 thread-stack 1048576
->>>>>>> mysql-8.0.27
+thread-statistics FALSE
 tls-ciphersuites (No default value)
 tmp-table-size 16777216
 transaction-alloc-block-size 8192

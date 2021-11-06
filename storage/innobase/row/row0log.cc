@@ -182,34 +182,6 @@ When head.blocks == tail.blocks, the reader will access tail.block
 directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_t {
-<<<<<<< HEAD
-  int fd;              /*!< file descriptor */
-  ib_mutex_t mutex;    /*!< mutex protecting error,
-                       max_trx and tail */
-  page_no_map *blobs;  /*!< map of page numbers of off-page columns
-                       that have been freed during table-rebuilding
-                       ALTER TABLE (row_log_table_*); protected by
-                       index->lock X-latch only */
-  dict_table_t *table; /*!< table that is being rebuilt,
-                       or NULL when this is a secondary
-                       index that is being created online */
-  dict_index_t *index; /*!< index to be built */
-  bool same_pk;        /*!< whether the definition of the PRIMARY KEY
-                       has remained the same */
-||||||| beb865a960b
-  int fd;              /*!< file descriptor */
-  ib_mutex_t mutex;    /*!< mutex protecting error,
-                       max_trx and tail */
-  page_no_map *blobs;  /*!< map of page numbers of off-page columns
-                       that have been freed during table-rebuilding
-                       ALTER TABLE (row_log_table_*); protected by
-                       index->lock X-latch only */
-  dict_table_t *table; /*!< table that is being rebuilt,
-                       or NULL when this is a secondary
-                       index that is being created online */
-  bool same_pk;        /*!< whether the definition of the PRIMARY KEY
-                       has remained the same */
-=======
   /** File descriptor */
   os_fd_t fd;
 
@@ -225,63 +197,14 @@ struct row_log_t {
   is being created online */
   dict_table_t *table;
 
+ /** index to be built */
+  dict_index_t *index;
+
   /** Whether the definition of the PRIMARY KEY has remained the same */
   bool same_pk;
 
   /** Default values of added columns, or NULL */
->>>>>>> mysql-8.0.27
   const dtuple_t *add_cols;
-<<<<<<< HEAD
-  /*!< default values of added columns, or NULL */
-  const ulint *col_map; /*!< mapping of old column numbers to
-                        new ones, or NULL if !table */
-  dberr_t error;        /*!< error that occurred during online
-                        table rebuild */
-  trx_id_t max_trx;     /*!< biggest observed trx_id in
-                        row_log_online_op();
-                        protected by mutex and index->lock S-latch,
-                        or by index->lock X-latch only */
-  row_log_buf_t tail;   /*!< writer context;
-                        protected by mutex and index->lock S-latch,
-                        or by index->lock X-latch only */
-  byte *crypt_tail;     /*!< writer context;
-                    temporary buffer used in encryption,
-                    decryption or NULL*/
-  row_log_buf_t head;   /*!< reader context; protected by MDL only;
-                        modifiable by row_log_apply_ops() */
-  byte *crypt_head;     /*!< reader context;
-                    temporary buffer used in encryption,
-                    decryption or NULL */
-  ulint n_old_col;
-  /*!< number of non-virtual column in
-  old table */
-  ulint n_old_vcol;
-  /*!< number of virtual column in old table */
-  const char *path; /*!< where to create temporary file during
-                    log operation */
-||||||| beb865a960b
-  /*!< default values of added columns, or NULL */
-  const ulint *col_map; /*!< mapping of old column numbers to
-                        new ones, or NULL if !table */
-  dberr_t error;        /*!< error that occurred during online
-                        table rebuild */
-  trx_id_t max_trx;     /*!< biggest observed trx_id in
-                        row_log_online_op();
-                        protected by mutex and index->lock S-latch,
-                        or by index->lock X-latch only */
-  row_log_buf_t tail;   /*!< writer context;
-                        protected by mutex and index->lock S-latch,
-                        or by index->lock X-latch only */
-  row_log_buf_t head;   /*!< reader context; protected by MDL only;
-                        modifiable by row_log_apply_ops() */
-  ulint n_old_col;
-  /*!< number of non-virtual column in
-  old table */
-  ulint n_old_vcol;
-  /*!< number of virtual column in old table */
-  const char *path; /*!< where to create temporary file during
-                    log operation */
-=======
 
   /** Mapping of old column numbers to new ones, or NULL if !table */
   const ulint *col_map;
@@ -297,9 +220,15 @@ struct row_log_t {
   index->lock X-latch only */
   row_log_buf_t tail;
 
+  /** writer context; temporary buffer used in encryption, decryption or NULL */
+  byte *crypt_tail;
+
   /** Reader context; protected by MDL only; modifiable by
   row_log_apply_ops() */
   row_log_buf_t head;
+
+   /** reader context; temporary buffer used in encryption, decryption or NULL */
+  byte *crypt_head;
 
   /** number of non-virtual column in old table */
   size_t n_old_col;
@@ -309,7 +238,6 @@ struct row_log_t {
 
   /** Where to create temporary file during log operation */
   const char *path;
->>>>>>> mysql-8.0.27
 };
 
 struct crypt_info_t {
@@ -462,17 +390,9 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
   if (log_buf.block == nullptr) {
     DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
-<<<<<<< HEAD
-    log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
-                        .allocate_large(srv_sort_buf_size, false);
-||||||| beb865a960b
-    log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
-                        .allocate_large(srv_sort_buf_size);
-=======
     log_buf.block = static_cast<uint8_t *>(ut::malloc_large_page_withkey(
         ut::make_psi_memory_key(mem_key_row_log_buf), srv_sort_buf_size,
         ut::fallback_to_normal_page_t{}));
->>>>>>> mysql-8.0.27
 
     if (log_buf.block == nullptr) {
       return false;
@@ -2408,13 +2328,7 @@ flag_ok:
                                               ROW_BUILD_FOR_INSERT);
   upd_t *update = row_upd_build_difference_binary(
       index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, nullptr, heap,
-<<<<<<< HEAD
-      dup->table, thr->prebuilt, &error);
-||||||| beb865a960b
-      dup->table, &error);
-=======
-      dup->m_table, &error);
->>>>>>> mysql-8.0.27
+      dup->m_table, thr->prebuilt, &error);
   if (error != DB_SUCCESS) {
     goto func_exit;
   }
@@ -3387,8 +3301,7 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
   ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
-<<<<<<< HEAD
-  row_merge_file_destroy_low(log->fd);
+  ddl::file_destroy_low(log->fd);
 
   if (log->crypt_head) {
     os_mem_free_large(log->crypt_head, srv_sort_buf_size);
@@ -3398,11 +3311,6 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
     os_mem_free_large(log->crypt_tail, srv_sort_buf_size);
   }
 
-||||||| beb865a960b
-  row_merge_file_destroy_low(log->fd);
-=======
-  ddl::file_destroy_low(log->fd);
->>>>>>> mysql-8.0.27
   mutex_free(&log->mutex);
   ut::free(log);
   log = nullptr;

@@ -549,25 +549,11 @@ static struct my_option my_long_options[] = {
      "InnoDB table, but will make the dump itself take considerably longer.",
      &opt_order_by_primary, &opt_order_by_primary, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-<<<<<<< HEAD
     {"order-by-primary-desc", OPT_ORDER_BY_PRIMARY_DESC,
      "Taking backup ORDER BY primary key DESC.", &opt_order_by_primary_desc,
      &opt_order_by_primary_desc, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "solicited on the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
-||||||| beb865a960b
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "solicited on the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
-=======
 #include "multi_factor_passwordopt-longopts.h"
->>>>>>> mysql-8.0.27
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},

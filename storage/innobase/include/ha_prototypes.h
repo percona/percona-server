@@ -414,7 +414,6 @@ trx_t *check_trx_exists(THD *thd);
 @param[in]	trx	Transaction handle. */
 void innobase_commit_low(trx_t *trx);
 
-<<<<<<< HEAD
 /** Get the transaction of the current connection handle, if either exists.
 @return transaction of the current connection handle or NULL. */
 MY_NODISCARD
@@ -427,8 +426,7 @@ MY_NODISCARD
 trx_t *innobase_get_trx_for_slow_log(void) noexcept;
 
 extern bool innodb_inited;
-||||||| beb865a960b
-=======
+
 /** Return the number of read threads for this session.
 @param[in]      thd       Session instance, or nullptr to query the global
                           innodb_parallel_read_threads value. */
@@ -446,5 +444,4 @@ ulong thd_parallel_read_threads(THD *thd);
 /** @return the number of DDL threads to use (global/session). */
 [[nodiscard]] size_t thd_ddl_threads(THD *thd) noexcept;
 
->>>>>>> mysql-8.0.27
 #endif /* HA_INNODB_PROTOTYPES_H */

@@ -326,25 +326,11 @@ static bool check_session_admin_no_super(sys_var *self, THD *thd,
  */
 static bool check_session_admin(sys_var *self, THD *thd, set_var *setv) {
   Security_context *sctx = thd->security_context();
-<<<<<<< HEAD
 
   /* Skip ACL checks for SET commands */
   DBUG_EXECUTE_IF("skip_session_admin_check", return false;);
 
-  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
-           .first &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-           .first &&
-||||||| beb865a960b
-  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
-           .first &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-           .first &&
-=======
   if (check_session_admin_privileges_only(self, thd, setv) &&
->>>>>>> mysql-8.0.27
       !sctx->check_access(SUPER_ACL)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
@@ -3566,17 +3552,9 @@ static Sys_var_uint Sys_port(
 static Sys_var_ulong Sys_preload_buff_size(
     "preload_buffer_size",
     "The size of the buffer that is allocated when preloading indexes",
-<<<<<<< HEAD
     HINT_UPDATEABLE SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1));
-||||||| beb865a960b
-    SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1));
-=======
-    SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
->>>>>>> mysql-8.0.27
 
 static Sys_var_uint Sys_protocol_version(
     "protocol_version",
@@ -7674,7 +7652,6 @@ static Sys_var_uint Sys_immediate_server_version(
     BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_session_admin_or_replication_applier));
 
-<<<<<<< HEAD
 static bool check_set_default_table_encryption_exclusions(THD *thd,
                                                           set_var *var) {
   longlong val = static_cast<longlong>(var->save_result.ulonglong_value);
@@ -7697,16 +7674,9 @@ static bool check_set_default_table_encryption_exclusions(THD *thd,
   return false;
 }
 
-static bool check_set_default_table_encryption_access(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
-||||||| beb865a960b
-static bool check_set_default_table_encryption_access(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
-=======
 static bool check_set_default_table_encryption_access(sys_var *self
                                                       [[maybe_unused]],
                                                       THD *thd, set_var *var) {
->>>>>>> mysql-8.0.27
   DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
                   { return false; });
   if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
@@ -7926,7 +7896,6 @@ static Sys_var_bool Sys_skip_replica_start(
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
 
-<<<<<<< HEAD
 static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
     "tf_sequence_table_max_upper_bound",
     "Maximum number of records SEQUENCE_TABLE() table function "
@@ -7934,8 +7903,6 @@ static Sys_var_ulonglong Sys_tf_sequence_table_max_upper_bound(
     GLOBAL_VAR(tf_sequence_table_max_upper_bound), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, ULLONG_MAX), DEFAULT(1048576), BLOCK_SIZE(1));
 
-||||||| beb865a960b
-=======
 static bool check_authentication_policy(sys_var *, THD *, set_var *var) {
   if (!(var->save_result.string_value.str)) return true;
   return validate_authentication_policy(var->save_result.string_value.str);
@@ -7976,7 +7943,6 @@ static Sys_var_charptr Sys_authentication_policy(
     ON_CHECK(check_authentication_policy),
     ON_UPDATE(fix_authentication_policy));
 
->>>>>>> mysql-8.0.27
 static Sys_var_deprecated_alias Sys_skip_slave_start("skip_slave_start",
                                                      Sys_skip_replica_start);
 

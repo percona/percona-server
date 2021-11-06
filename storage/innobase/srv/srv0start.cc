@@ -2270,17 +2270,10 @@ dberr_t srv_start(bool create_new_db) {
 
   srv_boot();
 
-<<<<<<< HEAD
   extern ib_mutex_t master_key_id_mutex;
   /* Create mutex to protect encryption master_key_id. */
   mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
 
-  ib::info(ER_IB_MSG_1126) << (ut_crc32_cpu_enabled ? "Using" : "Not using")
-                           << " CPU crc32 instructions";
-||||||| beb865a960b
-  ib::info(ER_IB_MSG_1126) << (ut_crc32_cpu_enabled ? "Using" : "Not using")
-                           << " CPU crc32 instructions";
-=======
   ib::info(ER_IB_MSG_1126)
       << "Using "
       << (ut_crc32_cpu_enabled ? (ut_poly_mul_cpu_enabled
@@ -2289,7 +2282,6 @@ dberr_t srv_start(bool create_new_db) {
                                       : "hardware accelerated crc32 and "
                                         "software polynomial multiplication.")
                                : "software crc32.");
->>>>>>> mysql-8.0.27
 
   os_create_block_cache();
 
@@ -3193,17 +3185,9 @@ files_checked:
     srv_threads.m_error_monitor.start();
 
     /* Create the thread which prints InnoDB monitor info */
-<<<<<<< HEAD
     if (!srv_start_state_is_set(SRV_START_STATE_MONITOR)) {
       srv_threads.m_monitor =
-          os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
-||||||| beb865a960b
-    srv_threads.m_monitor =
-        os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
-=======
-    srv_threads.m_monitor =
-        os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
->>>>>>> mysql-8.0.27
+          os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
       srv_threads.m_monitor.start();
     }

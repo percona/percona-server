@@ -675,13 +675,6 @@ TEST(ut0new_new_delete_arr,
   ut::delete_arr(ptr);
 }
 
-<<<<<<< HEAD
-  ret = alloc1.allocate_large(0, false);
-  EXPECT_EQ(null_ptr, ret);
-||||||| beb865a960b
-  ret = alloc1.allocate_large(0);
-  EXPECT_EQ(null_ptr, ret);
-=======
 TEST(
     ut0new_new_delete_arr,
     demo_with_type_that_is_both_default_constructible_and_constructible_through_user_provided_ctr) {
@@ -690,7 +683,6 @@ TEST(
     Type(int _x, int _y) : x(_x), y(_y) {}
     int x, y;
   };
->>>>>>> mysql-8.0.27
 
   auto ptr = ut::new_arr_withkey<Type>(
       ut::make_psi_memory_key(pfs_key), std::forward_as_tuple(1, 2),

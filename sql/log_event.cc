@@ -1404,14 +1404,8 @@ bool Log_event::is_valid() {
 */
 
 void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
-<<<<<<< HEAD
-                             bool is_more MY_ATTRIBUTE((unused))) const {
-  MY_ATTRIBUTE((unused)) int write_res;
-||||||| beb865a960b
-                             bool is_more MY_ATTRIBUTE((unused))) const {
-=======
                              bool is_more [[maybe_unused]]) const {
->>>>>>> mysql-8.0.27
+  MY_ATTRIBUTE((unused)) int write_res;
   char llbuff[22];
   my_off_t hexdump_from = print_event_info->hexdump_from;
   DBUG_TRACE;
@@ -6369,18 +6363,10 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
     XA transactional does not actually commit so has to defer its flush_info().
    */
   if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
-<<<<<<< HEAD
       rli_ptr->is_transactional() && !already_logged_transaction) {
-    if ((error = rli_ptr->flush_info(true))) goto err;
-||||||| beb865a960b
-      rli_ptr->is_transactional()) {
-    if ((error = rli_ptr->flush_info(true))) goto err;
-=======
-      rli_ptr->is_transactional()) {
     if ((error =
              rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)))
       goto err;
->>>>>>> mysql-8.0.27
   }
 
   DBUG_PRINT(
@@ -6464,15 +6450,8 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
       Where as for non transactional rli repository the positions are flushed
       only on succesful commit.
      */
-<<<<<<< HEAD
     if (!rli_ptr->is_transactional() && !already_logged_transaction)
-      rli_ptr->flush_info(false);
-||||||| beb865a960b
-    if (!rli_ptr->is_transactional()) rli_ptr->flush_info(false);
-=======
-    if (!rli_ptr->is_transactional())
       rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_NO_OPTION);
->>>>>>> mysql-8.0.27
   }
 err:
   // This is Bug#24588741 fix:

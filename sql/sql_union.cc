@@ -703,18 +703,10 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
 
   if (query_result() != nullptr) query_result()->estimated_rowcount = 0;
 
-<<<<<<< HEAD
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
-    assert(cleaned == UC_DIRTY);
-    thd->lex->set_current_query_block(sl);
-||||||| beb865a960b
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
-    thd->lex->set_current_query_block(sl);
-=======
   for (Query_block *query_block = first_query_block(); query_block != nullptr;
        query_block = query_block->next_query_block()) {
+    assert(cleaned == UC_DIRTY);
     thd->lex->set_current_query_block(query_block);
->>>>>>> mysql-8.0.27
 
     // LIMIT is required for optimization
     if (set_limit(thd, query_block)) return true; /* purecov: inspected */

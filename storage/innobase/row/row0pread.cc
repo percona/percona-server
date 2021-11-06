@@ -188,14 +188,8 @@ Parallel_reader::Parallel_reader(size_t max_threads)
     : m_max_threads(max_threads),
       m_n_threads(max_threads),
       m_ctxs(),
-<<<<<<< HEAD
-      m_sync(sync),
+      m_sync(max_threads == 0),
       m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
-||||||| beb865a960b
-      m_sync(sync) {
-=======
-      m_sync(max_threads == 0) {
->>>>>>> mysql-8.0.27
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);

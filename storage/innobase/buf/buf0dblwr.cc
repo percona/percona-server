@@ -1667,8 +1667,7 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
   }
 
   fil_space_t *space = bpage->get_space();
-<<<<<<< HEAD
-  if (space->encryption_op_in_progress == DECRYPTION ||
+  if (space->encryption_op_in_progress == Encryption::Progress::DECRYPTION ||
       (!space->is_encrypted() && (space->crypt_data == nullptr ||
                                   space->crypt_data->max_key_version ==
                                       ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED))) {
@@ -1679,13 +1678,6 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
   doublewrite buffer header is on TRX_SYS_PAGE */
   if (fsp_is_system_tablespace(space_id) && space->crypt_data == nullptr &&
       page_no <= FSP_TRX_SYS_PAGE_NO) {
-||||||| beb865a960b
-  if (space->encryption_op_in_progress == DECRYPTION ||
-      !space->is_encrypted()) {
-=======
-  if (space->encryption_op_in_progress == Encryption::Progress::DECRYPTION ||
-      !space->is_encrypted()) {
->>>>>>> mysql-8.0.27
     return nullptr;
   }
 

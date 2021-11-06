@@ -61,13 +61,7 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
-<<<<<<< HEAD
 #include "mysql_com.h"
-#include "nullable.h"          // Nullable
-||||||| beb865a960b
-#include "nullable.h"          // Nullable
-=======
->>>>>>> mysql-8.0.27
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/init_mode.h"
@@ -5617,22 +5611,14 @@ class handler {
     @param    create_info         Create info from ALTER TABLE.
   */
 
-<<<<<<< HEAD
   /*
     This function allows the storage engine to adust the create_info before
     it is stored in the data dictionary.
     This can be used for example to modify the create statement based on a
     storage engine specific setting.
   */
-  virtual void update_create_info(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
-||||||| beb865a960b
-  virtual void update_create_info(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
-=======
   virtual void update_create_info(HA_CREATE_INFO *create_info
                                   [[maybe_unused]]) {}
->>>>>>> mysql-8.0.27
   virtual int assign_to_keycache(THD *, HA_CHECK_OPT *) {
     return HA_ADMIN_NOT_IMPLEMENTED;
   }

@@ -1083,20 +1083,10 @@ class Fil_shard {
   @param[in]	purpose		Tablespace purpose
   @return pointer to created tablespace, to be filled in with fil_node_create()
   @retval nullptr on failure (such as when the same tablespace exists) */
-<<<<<<< HEAD
-  fil_space_t *space_create(const char *name, space_id_t space_id,
-                            uint32_t flags, fil_type_t purpose,
-                            fil_space_crypt_t *crypt_data,
-                            fil_encryption_t mode = FIL_ENCRYPTION_DEFAULT)
-      MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  fil_space_t *space_create(const char *name, space_id_t space_id,
-                            uint32_t flags, fil_type_t purpose)
-      MY_ATTRIBUTE((warn_unused_result));
-=======
-  [[nodiscard]] fil_space_t *space_create(const char *name, space_id_t space_id,
-                                          uint32_t flags, fil_type_t purpose);
->>>>>>> mysql-8.0.27
+  [[nodiscard]] fil_space_t *space_create(
+      const char *name, space_id_t space_id, uint32_t flags, fil_type_t purpose,
+      fil_space_crypt_t *crypt_data,
+      fil_encryption_t mode = FIL_ENCRYPTION_DEFAULT);
 
   /** Adjust temporary auto-generated names created during
   file discovery with correct tablespace names from the DD.
@@ -1161,21 +1151,11 @@ class Fil_shard {
   @return error code
   @retval DB_SUCCESS on success
   @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-<<<<<<< HEAD
-  dberr_t do_io(const IORequest &type, bool sync, const page_id_t &page_id,
-                const page_size_t &page_size, ulint byte_offset, ulint len,
-                void *buf, void *message, trx_t *trx, bool should_buffer)
-      MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  dberr_t do_io(const IORequest &type, bool sync, const page_id_t &page_id,
-                const page_size_t &page_size, ulint byte_offset, ulint len,
-                void *buf, void *message) MY_ATTRIBUTE((warn_unused_result));
-=======
   [[nodiscard]] dberr_t do_io(const IORequest &type, bool sync,
                               const page_id_t &page_id,
                               const page_size_t &page_size, ulint byte_offset,
-                              ulint len, void *buf, void *message);
->>>>>>> mysql-8.0.27
+                              ulint len, void *buf, void *message, trx_t *trx,
+                              bool should_buffer);
 
   /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
   returning the nodes via callback function cbk.
@@ -1739,15 +1719,8 @@ class Fil_system {
   /** Fil_shard by space ID.
   @param[in]	space_id	Tablespace ID
   @return reference to the shard */
-<<<<<<< HEAD
-  Fil_shard *shard_by_id(space_id_t space_id, uint *index = nullptr) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-||||||| beb865a960b
-  Fil_shard *shard_by_id(space_id_t space_id) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-=======
-  [[nodiscard]] Fil_shard *shard_by_id(space_id_t space_id) const {
->>>>>>> mysql-8.0.27
+  [[nodiscard]] Fil_shard *shard_by_id(space_id_t space_id,
+                                       uint *index = nullptr) const {
 #ifndef UNIV_HOTBACKUP
     if (space_id == dict_sys_t::s_log_space_first_id) {
       if (index) *index = REDO_SHARD;
@@ -1869,119 +1842,6 @@ class Fil_system {
 }
 #endif /* UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
-private :
-    /** Open an ibd tablespace and add it to the InnoDB data structures.
-    This is similar to fil_ibd_open() except that it is used while
-    processing the redo log, so the data dictionary is not available
-    and very little validation is done. The tablespace name is extracted
-    from the dbname/tablename.ibd portion of the filename, which assumes
-    that the file is a file-per-table tablespace.  Any name will do for
-    now.  General tablespace names will be read from the dictionary after
-    it has been recovered.  The tablespace flags are read at this time
-    from the first page of the file in validate_for_recovery().
-    @param[in]	space_id	tablespace ID
-    @param[in]	path		path/to/databasename/tablename.ibd
-    @param[out]	space		the tablespace, or nullptr on error
-    @return status of the operation */
-    fil_load_status
-    ibd_open_for_recovery(space_id_t space_id, const std::string &path,
-                          fil_space_t *&space)
-        MY_ATTRIBUTE((warn_unused_result));
-
-private:
-/** Fil_shards managed */
-Fil_shards m_shards;
-
-/** n_open is not allowed to exceed this */
-const size_t m_max_n_open;
-
-/** Maximum space id in the existing tables, or assigned during
-the time mysqld has been up; at an InnoDB startup we scan the
-data dictionary and set here the maximum of the space id's of
-the tables there */
-space_id_t m_max_assigned_id;
-
-/** true if fil_space_create() has issued a warning about
-potential space_id reuse */
-bool m_space_id_reuse_warned;
-
-/** List of tablespaces that have been relocated. We need to
-update the DD when it is safe to do so. */
-dd_fil::Tablespaces m_moved;
-
-/** Tablespace directories scanned at startup */
-Tablespace_dirs m_dirs;
-
-/** Old file paths during 5.7 upgrade. */
-std::vector<std::string> m_old_paths;
-
-// Disable copying
-Fil_system(Fil_system &&) = delete;
-Fil_system(const Fil_system &) = delete;
-Fil_system &operator=(const Fil_system &) = delete;
-
-friend class Fil_shard;
-
-/** Wait for redo log tracker to catch up, if enabled */
-static void wait_for_changed_page_tracker() noexcept;
-}
-;
-||||||| beb865a960b
- private:
-  /** Open an ibd tablespace and add it to the InnoDB data structures.
-  This is similar to fil_ibd_open() except that it is used while
-  processing the redo log, so the data dictionary is not available
-  and very little validation is done. The tablespace name is extracted
-  from the dbname/tablename.ibd portion of the filename, which assumes
-  that the file is a file-per-table tablespace.  Any name will do for
-  now.  General tablespace names will be read from the dictionary after
-  it has been recovered.  The tablespace flags are read at this time
-  from the first page of the file in validate_for_recovery().
-  @param[in]	space_id	tablespace ID
-  @param[in]	path		path/to/databasename/tablename.ibd
-  @param[out]	space		the tablespace, or nullptr on error
-  @return status of the operation */
-  fil_load_status ibd_open_for_recovery(space_id_t space_id,
-                                        const std::string &path,
-                                        fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
-
- private:
-  /** Fil_shards managed */
-  Fil_shards m_shards;
-
-  /** n_open is not allowed to exceed this */
-  const size_t m_max_n_open;
-
-  /** Maximum space id in the existing tables, or assigned during
-  the time mysqld has been up; at an InnoDB startup we scan the
-  data dictionary and set here the maximum of the space id's of
-  the tables there */
-  space_id_t m_max_assigned_id;
-
-  /** true if fil_space_create() has issued a warning about
-  potential space_id reuse */
-  bool m_space_id_reuse_warned;
-
-  /** List of tablespaces that have been relocated. We need to
-  update the DD when it is safe to do so. */
-  dd_fil::Tablespaces m_moved;
-
-  /** Tablespace directories scanned at startup */
-  Tablespace_dirs m_dirs;
-
-  /** Old file paths during 5.7 upgrade. */
-  std::vector<std::string> m_old_paths;
-
-  // Disable copying
-  Fil_system(Fil_system &&) = delete;
-  Fil_system(const Fil_system &) = delete;
-  Fil_system &operator=(const Fil_system &) = delete;
-
-  friend class Fil_shard;
-};
-=======
  private:
   /** Open an ibd tablespace and add it to the InnoDB data structures.
   This is similar to fil_ibd_open() except that it is used while
@@ -2036,8 +1896,10 @@ static void wait_for_changed_page_tracker() noexcept;
   Fil_system &operator=(const Fil_system &) = delete;
 
   friend class Fil_shard;
+
+  /** Wait for redo log tracker to catch up, if enabled */
+  static void wait_for_changed_page_tracker() noexcept;
 };
->>>>>>> mysql-8.0.27
 
 /** The tablespace memory cache. This variable is nullptr before the module is
 initialized. */
@@ -3466,20 +3328,12 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
   ut_ad(space->size == 0);
 
   rw_lock_free(&space->latch);
-<<<<<<< HEAD
 
   fil_space_destroy_crypt_data(&space->crypt_data);
   space->encryption_redo_key_uuid.reset(nullptr);
 
-  ut_free(space->name);
-  ut_free(space);
-||||||| beb865a960b
-  ut_free(space->name);
-  ut_free(space);
-=======
   ut::free(space->name);
   ut::free(space);
->>>>>>> mysql-8.0.27
 
   space = nullptr;
 }
@@ -3993,16 +3847,10 @@ void fil_init(ulint max_n_open) {
 
   ut_a(max_n_open > 0);
 
-<<<<<<< HEAD
-  fil_system = UT_NEW_NOKEY(Fil_system(MAX_SHARDS, max_n_open));
-
-  fil_space_crypt_init();
-||||||| beb865a960b
-  fil_system = UT_NEW_NOKEY(Fil_system(MAX_SHARDS, max_n_open));
-=======
   fil_system = ut::new_withkey<Fil_system>(UT_NEW_THIS_FILE_PSI_KEY, MAX_SHARDS,
                                            max_n_open);
->>>>>>> mysql-8.0.27
+
+  fil_space_crypt_init();
 }
 
 /** Open all the system files.
@@ -6070,152 +5918,6 @@ dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
   return fil_system->rename_tablespace_name(space_id, old_name, new_name);
 }
 
-<<<<<<< HEAD
-/** Create a tablespace (an IBD or IBT) file
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name in dbname/tablename format.
-                                For general tablespaces, the 'dbname/' part
-                                may be missing.
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBD_FILE_INITIAL_SIZE
-@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in]	mode		keyring encryption mode
-@param[in]	keyring_encryption_key_id info on keyring encryption key
-@return DB_SUCCESS or error code */
-static dberr_t fil_create_tablespace(
-    space_id_t space_id, const char *name, const char *path, uint32_t flags,
-    page_no_t size, fil_type_t type, const fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-  pfs_os_file_t file;
-  dberr_t err;
-  byte *page;
-  bool success;
-  bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
-  fil_space_t *space = nullptr;
-  fil_space_crypt_t *crypt_data = nullptr;
-
-  ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_a(fsp_flags_is_valid(flags));
-  ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
-
-  const page_size_t page_size(flags);
-
-  /* Create the subdirectories in the path, if they are
-  not there already. */
-  if (!has_shared_space) {
-    err = os_file_create_subdirs_if_needed(path);
-
-    if (err != DB_SUCCESS) {
-      return err;
-    }
-  }
-
-  file = os_file_create(
-      type == FIL_TYPE_TEMPORARY ? innodb_temp_file_key : innodb_data_file_key,
-      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode && (type != FIL_TYPE_TEMPORARY),
-      &success);
-
-  if (!success) {
-    /* The following call will print an error message */
-    ulint error = os_file_get_last_error(true);
-
-    ib::error(ER_IB_MSG_301, path);
-
-    switch (error) {
-      case OS_FILE_ALREADY_EXISTS:
-#ifndef UNIV_HOTBACKUP
-        ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, path, path);
-        return DB_TABLESPACE_EXISTS;
-#else  /* !UNIV_HOTBACKUP */
-        return DB_SUCCESS; /* Already existing file not an error here. */
-#endif /* !UNIV_HOTBACKUP */
-
-      case OS_FILE_NAME_TOO_LONG:
-        ib::error(ER_IB_MSG_TOO_LONG_PATH, path);
-        return DB_TOO_LONG_PATH;
-
-      case OS_FILE_DISK_FULL:
-        return DB_OUT_OF_DISK_SPACE;
-
-      default:
-        return DB_ERROR;
-    }
-  }
-||||||| beb865a960b
-/** Create a tablespace (an IBD or IBT) file
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name in dbname/tablename format.
-                                For general tablespaces, the 'dbname/' part
-                                may be missing.
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBD_FILE_INITIAL_SIZE
-@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@return DB_SUCCESS or error code */
-static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
-                                     const char *path, uint32_t flags,
-                                     page_no_t size, fil_type_t type) {
-  pfs_os_file_t file;
-  dberr_t err;
-  byte *page;
-  bool success;
-  bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
-  fil_space_t *space = nullptr;
-
-  ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_ad(!fsp_is_global_temporary(space_id));
-  ut_a(fsp_flags_is_valid(flags));
-  ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
-
-  const page_size_t page_size(flags);
-
-  /* Create the subdirectories in the path, if they are
-  not there already. */
-  if (!has_shared_space) {
-    err = os_file_create_subdirs_if_needed(path);
-
-    if (err != DB_SUCCESS) {
-      return err;
-    }
-  }
-
-  file = os_file_create(
-      type == FIL_TYPE_TEMPORARY ? innodb_temp_file_key : innodb_data_file_key,
-      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode && (type != FIL_TYPE_TEMPORARY),
-      &success);
-
-  if (!success) {
-    /* The following call will print an error message */
-    ulint error = os_file_get_last_error(true);
-
-    ib::error(ER_IB_MSG_301, path);
-
-    switch (error) {
-      case OS_FILE_ALREADY_EXISTS:
-#ifndef UNIV_HOTBACKUP
-        ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, path, path);
-        return DB_TABLESPACE_EXISTS;
-#else  /* !UNIV_HOTBACKUP */
-        return DB_SUCCESS; /* Already existing file not an error here. */
-#endif /* !UNIV_HOTBACKUP */
-
-      case OS_FILE_NAME_TOO_LONG:
-        ib::error(ER_IB_MSG_TOO_LONG_PATH, path);
-        return DB_TOO_LONG_PATH;
-
-      case OS_FILE_DISK_FULL:
-        return DB_OUT_OF_DISK_SPACE;
-
-      default:
-        return DB_ERROR;
-    }
-  }
-=======
 dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
                                 fil_type_t type, page_no_t size,
                                 const byte *encrypt_info, space_id_t space_id,
@@ -6224,7 +5926,6 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
   bool success = false;
   atomic_write = false;
   punch_hole = false;
->>>>>>> mysql-8.0.27
 
   const page_size_t page_size(space_flags);
   const auto sz = ulonglong{size * page_size.physical()};
@@ -6360,12 +6061,16 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
 @param[in]	size		Initial size of the tablespace file in pages,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
+@param[in]	mode		keyring encryption mode
+@param[in]	keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
-static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
-                                     const char *path, uint32_t flags,
-                                     page_no_t size, fil_type_t type) {
+static dberr_t fil_create_tablespace(
+    space_id_t space_id, const char *name, const char *path, uint32_t flags,
+    page_no_t size, fil_type_t type, const fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
+  fil_space_crypt_t *crypt_data = nullptr;
+
   ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_ad(!fsp_is_global_temporary(space_id));
   ut_a(fsp_flags_is_valid(flags));
   ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
 
@@ -6441,7 +6146,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     return DB_ERROR;
   }
 
-<<<<<<< HEAD
   // Create crypt data if the tablespace is either encrypted or user has
   // requested it to remain unencrypted. */
   if (mode == FIL_ENCRYPTION_ON || mode == FIL_ENCRYPTION_OFF ||
@@ -6453,10 +6157,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     if (crypt_data->should_encrypt()) crypt_data->load_keys_to_local_cache();
   }
 
-  space = fil_space_create(name, space_id, flags, type, crypt_data, mode);
-||||||| beb865a960b
-  space = fil_space_create(name, space_id, flags, type);
-=======
 #ifndef UNIV_HOTBACKUP
   /* Notifier block covers space creation and initialization. */
   Clone_notify notifier(Clone_notify::Type::SPACE_CREATE, space_id, false);
@@ -6467,8 +6167,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   }
 #endif /* !UNIV_HOTBACKUP */
 
-  auto space = fil_space_create(name, space_id, flags, type);
->>>>>>> mysql-8.0.27
+  auto space = fil_space_create(name, space_id, flags, type, crypt_data, mode);
 
   if (space == nullptr) {
     os_file_close(file);
@@ -6887,23 +6586,13 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
   ut_ad(df.is_open());
 
-<<<<<<< HEAD
-  /* Read and validate the first page of the tablespace.
-  Assign a tablespace name based on the tablespace type. */
-  dberr_t err = df.validate_for_recovery(space_id).error;
-||||||| beb865a960b
-  /* Read and validate the first page of the tablespace.
-  Assign a tablespace name based on the tablespace type. */
-  dberr_t err = df.validate_for_recovery(space_id);
-=======
   /* Get and test the file size. */
   os_offset_t size = os_file_get_size(df.handle());
 
   /* Read and validate the first page of the tablespace. Assign a tablespace
   name based on the tablespace type. This will close the file, but will leave
   the flags and names to be queried. */
-  dberr_t err = df.validate_for_recovery(space_id);
->>>>>>> mysql-8.0.27
+  dberr_t err = df.validate_for_recovery(space_id).error;
 
   ut_a(err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META);
   if (err == DB_INVALID_ENCRYPTION_META) {
@@ -8555,7 +8244,6 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-<<<<<<< HEAD
   /* For writing temporary tablespace, if encryption for temporary
   tablespace is disabled, skip setting encryption.
   Encryption of session temporary tablespaces is independent of
@@ -8566,12 +8254,7 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-  /* For writting undo log, if encryption for undo log is disabled,
-||||||| beb865a960b
-  /* For writting undo log, if encryption for undo log is disabled,
-=======
   /* For writing undo log, if encryption for undo log is disabled,
->>>>>>> mysql-8.0.27
   skip set encryption. */
   if (fsp_is_undo_tablespace(space->id) && !srv_undo_log_encrypt &&
       req_type.is_write()) {
@@ -12424,18 +12107,10 @@ void Tablespace_dirs::add_paths(const std::string &str,
 @param[in]	df		Target file that exists on disk
 @return DB_SUCCESS if all OK */
 static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
-<<<<<<< HEAD
-                                   Datafile &df) {
-  dberr_t err = df.validate_for_recovery(space->id).error;
-||||||| beb865a960b
-                                   Datafile &df) {
-  dberr_t err = df.validate_for_recovery(space->id);
-=======
                                    Datafile &&df) {
-  dberr_t err = df.validate_for_recovery(space->id);
+  dberr_t err = df.validate_for_recovery(space->id).error;
   /* The validate_for_recovery will set space_id, but will close the file. It is
   safe to access filepath and space_id. */
->>>>>>> mysql-8.0.27
 
   if (err == DB_TABLESPACE_NOT_FOUND) {
     /* Tablespace header doesn't contain the expected

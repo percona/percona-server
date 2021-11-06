@@ -1015,23 +1015,11 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
   DBUG_TRACE;
   int result = -1;
 
-<<<<<<< HEAD
   Find_thd_with_id find_thd_with_id(thread_id, false);
-  THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd) {
-    if (thd->get_current_stage_key() ==
-||||||| beb865a960b
-  Find_thd_with_id find_thd_with_id(thread_id);
-  THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd) {
-    if (thd->get_current_stage_key() ==
-=======
-  Find_thd_with_id find_thd_with_id(thread_id);
   THD_ptr thd_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd_ptr) {
     if (thd_ptr->get_current_stage_key() ==
->>>>>>> mysql-8.0.27
         (worker ? stage_replica_waiting_event_from_coordinator
                 : stage_replica_has_read_all_relay_log)
             .m_key)

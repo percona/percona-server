@@ -1622,21 +1622,13 @@ static inline std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
     tablespace, look to see if it is already in the tablespace
     cache. */
     if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
-<<<<<<< HEAD
-      ut_free(table_name.m_name);
-      ut_free(space_name_from_dict);
+      ut::free(table_name.m_name);
+      ut::free(space_name_from_dict);
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
         mtr_commit(&mtr);
         return std::make_pair(true, 0);  // will cause upgrade to fail
       }
 
-||||||| beb865a960b
-      ut_free(table_name.m_name);
-      ut_free(space_name_from_dict);
-=======
-      ut::free(table_name.m_name);
-      ut::free(space_name_from_dict);
->>>>>>> mysql-8.0.27
       continue;
     }
 
@@ -2441,18 +2433,10 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
     table->ibd_file_missing = true;
   }
 
-<<<<<<< HEAD
   table->keyring_encryption_info = keyring_encryption_info;
 
-  ut_free(shared_space_name);
-  ut_free(filepath);
-||||||| beb865a960b
-  ut_free(shared_space_name);
-  ut_free(filepath);
-=======
   ut::free(shared_space_name);
   ut::free(filepath);
->>>>>>> mysql-8.0.27
 }
 
 static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,

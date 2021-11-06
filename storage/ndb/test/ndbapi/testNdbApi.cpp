@@ -291,19 +291,11 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
       default:
         result = NDBT_FAILED;
-<<<<<<< HEAD
-        // Fall through - to '233' which also terminate test, but not 'FAILED'
-      case 233:  // Out of operation records in transaction coordinator
-||||||| beb865a960b
-        // Fall through - to '233' which also terminate test, but not 'FAILED'
-      case 233:  // Out of operation records in transaction coordinator  
-=======
         //  261: //Increased beyond MaxDMLOperationsPerTransaction or MaxNoOfConcurrentOperations
         ndbout_c("Got unexpected error %u %s for non DML transaction", err.code, err.message);
         [[fallthrough]];
       case 233:  // Out of operation records in transaction coordinator - SharedGlobalMemory
       case 234:  // Out of operation records in transaction coordinator - MaxNoOfConcurrentOperations
->>>>>>> mysql-8.0.27
       case 1217:  // Out of operation records in local data manager (increase MaxNoOfLocalOperations)
 
         /* Ok, check that error is temporary */

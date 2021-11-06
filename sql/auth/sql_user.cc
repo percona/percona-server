@@ -3351,23 +3351,20 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       bool dummy_row_existed = false;
       I_multi_factor_auth *mfa = nullptr;
 
-<<<<<<< HEAD
-    if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
-                            nullptr)) {
-      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
-        result = 1;
-        continue;
-    }
-
-||||||| beb865a960b
-=======
       LEX_MFA *tmp_lex_mfa;
       List_iterator<LEX_MFA> mfa_list_it(tmp_user_from->mfa_list);
       while ((tmp_lex_mfa = mfa_list_it++)) {
         /* do not write INITIATE REGISTRATION step to binlog. */
         if (tmp_lex_mfa->init_registration) write_to_binlog = false;
       }
->>>>>>> mysql-8.0.27
+
+      if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
+                              nullptr)) {
+        log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
+        result = 1;
+        continue;
+      }
+
       /* add the defaults where needed */
       if (!(user_from = get_current_user(thd, tmp_user_from))) {
         log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);

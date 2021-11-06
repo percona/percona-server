@@ -851,13 +851,7 @@ IF(MY_COMPILER_IS_GNU)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
       geometry_rtree.cc
-<<<<<<< HEAD
-      item_geofunc_relchecks_bgwrap.cc
       join_optimizer/access_path.cc
-||||||| beb865a960b
-      item_geofunc_relchecks_bgwrap.cc
-=======
->>>>>>> mysql-8.0.27
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
   ENDIF()
@@ -926,29 +920,6 @@ IF(COMPRESS_DEBUG_SECTIONS)
   ENDIF()
 ENDIF()
 
-<<<<<<< HEAD
-# A class with a reference member lacks a user-defined constructor,
-# which can lead to errors.
-# Constexpr function return type is not a literal type.
-IF(MY_COMPILER_IS_SUNPRO)
-  SET_TARGET_PROPERTIES(sql_gis PROPERTIES
-    COMPILE_FLAGS "-erroff=refmemnoconstr,w_constexprnonlitret")
-  ADD_COMPILE_FLAGS(
-    item_geofunc_setops.cc
-    COMPILE_FLAGS "-erroff=refmemnoconstr")
-ENDIF()
-
-# -g0 is the same as -g, except that inlining is enabled.
-# With Studio 12.6 we may get linking errors for large binaries,
-# so we add -g0 here to enable inlining of boost/geometry.
-# This also cuts link time by almost one hour for large binaries ....
-IF(MY_COMPILER_IS_SUNPRO)
-  ADD_COMPILE_FLAGS(
-    ${SQL_GIS_SOURCES}
-    sql_exception_handler.cc
-    COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
-ENDIF()
-
 # Suppress warnings for gcc-11 or newer
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-mismatched-new-delete FILES sql_cursor.cc sql_prepare.cc)
@@ -956,31 +927,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
-||||||| beb865a960b
-# A class with a reference member lacks a user-defined constructor,
-# which can lead to errors.
-# Constexpr function return type is not a literal type.
-IF(MY_COMPILER_IS_SUNPRO)
-  SET_TARGET_PROPERTIES(sql_gis PROPERTIES
-    COMPILE_FLAGS "-erroff=refmemnoconstr,w_constexprnonlitret")
-  ADD_COMPILE_FLAGS(
-    item_geofunc_setops.cc
-    COMPILE_FLAGS "-erroff=refmemnoconstr")
-ENDIF()
-
-# -g0 is the same as -g, except that inlining is enabled.
-# With Studio 12.6 we may get linking errors for large binaries,
-# so we add -g0 here to enable inlining of boost/geometry.
-# This also cuts link time by almost one hour for large binaries ....
-IF(MY_COMPILER_IS_SUNPRO)
-  ADD_COMPILE_FLAGS(
-    ${SQL_GIS_SOURCES}
-    sql_exception_handler.cc
-    COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
-ENDIF()
-
-=======
->>>>>>> mysql-8.0.27
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)

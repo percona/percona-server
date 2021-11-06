@@ -30,13 +30,9 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
-<<<<<<< HEAD
 #include <utility>
-||||||| beb865a960b
-=======
 #include <string>
 #include <vector>
->>>>>>> mysql-8.0.27
 
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
@@ -359,13 +355,9 @@ enum enum_binlog_error_action {
   ABORT_SERVER = 1
 };
 extern const char *binlog_error_action_list[];
-<<<<<<< HEAD
 extern bool opt_binlog_skip_flush_commands;
-||||||| beb865a960b
-=======
 extern char *opt_authentication_policy;
 extern std::vector<std::string> authentication_policy_list;
->>>>>>> mysql-8.0.27
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -678,12 +670,8 @@ extern PSI_stage_info stage_binlog_transaction_decompress;
 extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
 extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
 extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
-<<<<<<< HEAD
-extern PSI_stage_info stage_restoring_secondary_keys;
-||||||| beb865a960b
-=======
 extern PSI_stage_info stage_communication_delegation;
->>>>>>> mysql-8.0.27
+extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

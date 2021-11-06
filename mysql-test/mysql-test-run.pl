@@ -888,24 +888,6 @@ sub main {
     # Not all tests completed
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-<<<<<<< HEAD
-    mtr_report("Not all tests completed. This means that a test scheduled for a worker did not report anything, the worker most likely crashed.");
-
-    my %comp;
-
-    foreach ( @$completed ) {
-      $comp{$_->{name}} = 1;
-    }
-    for (my $i = 0 ; $i <= @$all_tests ; $i++) {
-      my $t = $all_tests->[$i];
-      if (exists $t->{name} && !exists $comp{$t->{name}}) {
-        mtr_report("Missing result for testcase: ", $t->{name});
-      }
-    }
-
-||||||| beb865a960b
-    mtr_error("Not all tests completed");
-=======
     foreach (@tests_list) {
       $_->{key} = "$_" unless defined $_->{key};
     }
@@ -921,7 +903,6 @@ sub main {
     } else {
       mtr_error("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
     }
->>>>>>> mysql-8.0.27
   }
 
   mark_time_used('init');
@@ -7722,23 +7703,10 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may
   # not have it. Now, run ctest and collect output.
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
-<<<<<<< HEAD
-  # Run unit tests in parallel with the same number of threads as
-  # the MTR tests.
-  mtr_report("Running ctest parallel=$opt_parallel");
-  $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
-
-||||||| beb865a960b
-  # Run unit tests in parallel with the same number of threads as
-  # the MTR tests.
-  mtr_report("Running ctest parallel=$opt_parallel");
-  $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
-=======
 
   $ENV{CTEST_PARALLEL_LEVEL} = $ctest_parallel;
   mtr_report("Running ctest parallel=$ctest_parallel");
 
->>>>>>> mysql-8.0.27
   my $ctest_opts = "";
   if ($ndbcluster_only) {
     # Run only tests with label NDB

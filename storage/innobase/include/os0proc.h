@@ -53,29 +53,4 @@ extern ulint os_large_page_size;
 @return process id as a number */
 ulint os_proc_get_number(void);
 
-<<<<<<< HEAD
-/** Allocates large pages memory.
-@param[in,out]	n	Number of bytes to allocate
-@param[in] populate virtual page preallocation
-@return allocated memory */
-void *os_mem_alloc_large(ulint *n, bool populate);
-
-/** Frees large pages memory.
-@param[in]	ptr	pointer returned by os_mem_alloc_large()
-@param[in]	size	size returned by os_mem_alloc_large() */
-void os_mem_free_large(void *ptr, ulint size);
-
-||||||| beb865a960b
-/** Allocates large pages memory.
-@param[in,out]	n	Number of bytes to allocate
-@return allocated memory */
-void *os_mem_alloc_large(ulint *n);
-
-/** Frees large pages memory.
-@param[in]	ptr	pointer returned by os_mem_alloc_large()
-@param[in]	size	size returned by os_mem_alloc_large() */
-void os_mem_free_large(void *ptr, ulint size);
-
-=======
->>>>>>> mysql-8.0.27
 #endif

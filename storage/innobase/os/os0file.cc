@@ -455,22 +455,11 @@ class AIO {
   @param[in]	len	        length of the block to read or write
   @param[in]	e_block         Encrypted block or nullptr.
   @return pointer to slot */
-<<<<<<< HEAD
-  Slot *reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
-                     pfs_os_file_t file, const char *name, void *buf,
-                     os_offset_t offset, ulint len, const file::Block *e_block,
-                     space_id_t space_id) MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  Slot *reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
-                     pfs_os_file_t file, const char *name, void *buf,
-                     os_offset_t offset, ulint len, const file::Block *e_block)
-      MY_ATTRIBUTE((warn_unused_result));
-=======
   [[nodiscard]] Slot *reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                                    pfs_os_file_t file, const char *name,
                                    void *buf, os_offset_t offset, ulint len,
-                                   const file::Block *e_block);
->>>>>>> mysql-8.0.27
+                                   const file::Block *e_block,
+                                   space_id_t space_id);
 
   /** @return number of reserved slots */
   ulint pending_io_count() const;
@@ -540,14 +529,7 @@ class AIO {
         @param[in]	should_buffer	should buffer the request
                                         rather than submit
   @return true on success. */
-<<<<<<< HEAD
-  bool linux_dispatch(Slot *slot, bool should_buffer)
-      MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-  bool linux_dispatch(Slot *slot) MY_ATTRIBUTE((warn_unused_result));
-=======
-  [[nodiscard]] bool linux_dispatch(Slot *slot);
->>>>>>> mysql-8.0.27
+ [[nodiscard]] bool linux_dispatch(Slot *slot, bool should_buffer);
 
   /** Accessor for an AIO event
   @param[in]	index	Index into the array
@@ -3207,24 +3189,13 @@ static int os_file_fsync_posix(os_file_t file) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         break;
 
-<<<<<<< HEAD
       case EIO: {
         const auto fd_path = os_file_find_path_for_fd(file);
         if (!fd_path.empty())
-          ib::fatal(ER_IB_MSG_1358)
+          ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358)
               << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
         else
-          ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
-||||||| beb865a960b
-      case EIO:
-
-        ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
-=======
-      case EIO:
-
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358)
-            << "fsync() returned EIO, aborting.";
->>>>>>> mysql-8.0.27
+          ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
         break;
       }
 
@@ -5603,19 +5574,10 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]	n		number of bytes to read, starting from offset
 @param[out]	err		DB_SUCCESS or error code
 @return number of bytes read, -1 if error */
-<<<<<<< HEAD
-static MY_ATTRIBUTE((warn_unused_result)) ssize_t
-    os_file_pread(IORequest &type, os_file_t file, void *buf, ulint n,
-                  os_offset_t offset, trx_t *trx, dberr_t *err) {
-||||||| beb865a960b
-static MY_ATTRIBUTE((warn_unused_result)) ssize_t
-    os_file_pread(IORequest &type, os_file_t file, void *buf, ulint n,
-                  os_offset_t offset, dberr_t *err) {
-=======
 [[nodiscard]] static ssize_t os_file_pread(IORequest &type, os_file_t file,
                                            void *buf, ulint n,
-                                           os_offset_t offset, dberr_t *err) {
->>>>>>> mysql-8.0.27
+                                           os_offset_t offset, trx_t *trx,
+                                           dberr_t *err) {
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
 
@@ -5652,23 +5614,9 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 @param[out]	o		number of bytes actually read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    os_file_read_page(IORequest &type, const char *file_name, os_file_t file,
-                      void *buf, os_offset_t offset, ulint n, ulint *o,
-                      bool exit_on_err, trx_t *trx) {
-||||||| beb865a960b
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    os_file_read_page(IORequest &type, const char *file_name, os_file_t file,
-                      void *buf, os_offset_t offset, ulint n, ulint *o,
-                      bool exit_on_err) {
-=======
-[[nodiscard]] static dberr_t os_file_read_page(IORequest &type,
-                                               const char *file_name,
-                                               os_file_t file, void *buf,
-                                               os_offset_t offset, ulint n,
-                                               ulint *o, bool exit_on_err) {
->>>>>>> mysql-8.0.27
+[[nodiscard]] static dberr_t os_file_read_page(
+    IORequest &type, const char *file_name, os_file_t file, void *buf,
+    os_offset_t offset, ulint n, ulint *o, bool exit_on_err, trx_t *trx) {
   dberr_t err(DB_ERROR_UNSET);
 
 #ifdef UNIV_HOTBACKUP
@@ -5880,23 +5828,11 @@ static bool os_file_handle_error_no_exit(const char *name,
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	operation_name	"open" or "create"; used in the diagnostic
-<<<<<<< HEAD
                                 message
 @return true if operation is success and false */
-bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
-                         const char *file_name MY_ATTRIBUTE((unused)),
-                         const char *operation_name MY_ATTRIBUTE((unused))) {
-||||||| beb865a960b
-                                message */
-void os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
-                         const char *file_name MY_ATTRIBUTE((unused)),
-                         const char *operation_name MY_ATTRIBUTE((unused))) {
-=======
-                                message */
-void os_file_set_nocache(int fd [[maybe_unused]],
+bool os_file_set_nocache(int fd [[maybe_unused]],
                          const char *file_name [[maybe_unused]],
                          const char *operation_name [[maybe_unused]]) {
->>>>>>> mysql-8.0.27
 /* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
   if (directio(fd, DIRECTIO_ON) == -1) {
@@ -6167,18 +6103,6 @@ dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
   if (err == DB_SUCCESS) {
     uint32_t flags = fsp_header_get_flags(static_cast<byte *>(buf));
     const page_size_t page_size(flags);
-<<<<<<< HEAD
-    ut_ad(page_size.physical() <= n);
-    err = os_file_read_page(type, file_name, file, buf, 0, page_size.physical(),
-                            nullptr, true, nullptr);
-    if (err == DB_SUCCESS) {
-      srv_stats.page0_read.add(1);
-    }
-||||||| beb865a960b
-    ut_ad(page_size.physical() <= n);
-    err = os_file_read_page(type, file_name, file, buf, 0, page_size.physical(),
-                            nullptr, true);
-=======
     /* TODO: Revert to single page access.
     Temporally, accepting multiple pages for Fil_shard::get_file_size() during
     recovery phase, until we can get consistent DD flag at the time.
@@ -6187,8 +6111,10 @@ dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
     const size_t read_size = page_size.physical() * (n >> UNIV_PAGE_SIZE_SHIFT);
     ut_ad(read_size > 0);
     err = os_file_read_page(type, file_name, file, buf, 0, read_size, nullptr,
-                            true);
->>>>>>> mysql-8.0.27
+                            true, nullptr);
+    if (err == DB_SUCCESS) {
+      srv_stats.page0_read.add(1);
+    }
   }
   return (err);
 }
@@ -6758,8 +6684,7 @@ AIO::~AIO() {
 #if defined(LINUX_NATIVE_AIO)
   if (srv_use_native_aio) {
     m_events.clear();
-<<<<<<< HEAD
-    ut_free(m_aio_ctx);
+    ut::free(m_aio_ctx);
 #ifdef UNIV_DEBUG
     if (m_pending) {
       for (size_t idx = 0; idx < m_slots.size(); ++idx)
@@ -6769,13 +6694,8 @@ AIO::~AIO() {
       for (size_t idx = 0; idx < m_n_segments; ++idx) ut_ad(m_count[idx] == 0);
     }
 #endif
-    ut_free(m_pending);
-    ut_free(m_count);
-||||||| beb865a960b
-    ut_free(m_aio_ctx);
-=======
-    ut::free(m_aio_ctx);
->>>>>>> mysql-8.0.27
+    ut::free(m_pending);
+    ut::free(m_count);
   }
 #endif /* LINUX_NATIVE_AIO */
 

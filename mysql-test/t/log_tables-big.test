@@ -35,19 +35,9 @@ connection default;
 disconnect con1;
 disconnect con2;
 
-<<<<<<< HEAD
 --source include/wait_until_count_sessions.inc
 
-TRUNCATE mysql.slow_log;
-
-set @@global.log_output=default;
-||||||| beb865a960b
-TRUNCATE mysql.slow_log;
-
-set @@global.log_output=default;
-=======
 set @@global.log_output=default;
 
 TRUNCATE mysql.general_log;
 TRUNCATE mysql.slow_log;
->>>>>>> mysql-8.0.27

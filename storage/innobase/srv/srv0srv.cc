@@ -1190,19 +1190,13 @@ static void srv_init(void) {
       UT_NEW_THIS_FILE_PSI_KEY,
       ut::Count{srv_threads.m_page_cleaner_workers_n});
 
-<<<<<<< HEAD
   srv_threads.m_lru_managers_n = srv_buf_pool_instances;
 
   srv_threads.m_lru_managers =
       UT_NEW_ARRAY_NOKEY(IB_thread, srv_threads.m_lru_managers_n);
 
-  srv_sys = static_cast<srv_sys_t *>(ut_zalloc_nokey(srv_sys_sz));
-||||||| beb865a960b
-  srv_sys = static_cast<srv_sys_t *>(ut_zalloc_nokey(srv_sys_sz));
-=======
   srv_sys = static_cast<srv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, srv_sys_sz));
->>>>>>> mysql-8.0.27
 
   srv_sys->n_sys_threads = n_sys_threads;
 
@@ -2954,18 +2948,12 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
     return false;
   }
 
-<<<<<<< HEAD
-||||||| beb865a960b
-  dberr_t err;
-=======
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
                         dict_sys_t::s_log_space_first_id, false);
   if (notifier.failed()) {
     return true;
   }
 
-  dberr_t err;
->>>>>>> mysql-8.0.27
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
   uint version;
@@ -3217,31 +3205,9 @@ static void srv_master_main_loop(srv_slot_t *slot) {
       srv_master_do_idle_tasks();
     }
 
-<<<<<<< HEAD
     /* Enable undo log encryption if it is set */
     undo_rotate_default_master_key();
 
-    /* Let clone wait when redo/undo log encryption is set. If clone is already
-    in progress we skip the check and come back later. */
-    if (!clone_mark_wait()) {
-      continue;
-    }
-
-    /* Allow any blocking clone to progress. */
-    clone_mark_free();
-
-||||||| beb865a960b
-    /* Let clone wait when redo/undo log encryption is set. If clone is already
-    in progress we skip the check and come back later. */
-    if (!clone_mark_wait()) {
-      continue;
-    }
-
-    /* Allow any blocking clone to progress. */
-    clone_mark_free();
-
-=======
->>>>>>> mysql-8.0.27
     /* Purge any deleted tablespace pages. */
     fil_purge();
 

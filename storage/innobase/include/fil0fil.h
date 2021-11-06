@@ -1419,21 +1419,10 @@ Error messages are issued to the server log.
 @param[in]	purpose		Tablespace purpose
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
-<<<<<<< HEAD
-fil_space_t *fil_space_create(const char *name, space_id_t space_id,
-                              uint32_t flags, fil_type_t purpose,
-                              fil_space_crypt_t *crypt_data,
-                              fil_encryption_t mode = FIL_ENCRYPTION_DEFAULT)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-fil_space_t *fil_space_create(const char *name, space_id_t space_id,
-                              uint32_t flags, fil_type_t purpose)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
-[[nodiscard]] fil_space_t *fil_space_create(const char *name,
-                                            space_id_t space_id, uint32_t flags,
-                                            fil_type_t purpose);
->>>>>>> mysql-8.0.27
+[[nodiscard]] fil_space_t *fil_space_create(
+    const char *name, space_id_t space_id, uint32_t flags, fil_type_t purpose,
+    fil_space_crypt_t *crypt_data,
+    fil_encryption_t mode = FIL_ENCRYPTION_DEFAULT);
 
 /** Assigns a new space id for a new single-table tablespace. This works
 simply by incrementing the global counter. If 4 billion id's is not enough,
@@ -1765,21 +1754,10 @@ the normal data directory
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
-dberr_t fil_ibd_create(
+[[nodiscard]] dberr_t fil_ibd_create(
     space_id_t space_id, const char *name, const char *path, uint32_t flags,
     page_no_t size, fil_encryption_t mode,
-    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
-                       uint32_t flags, page_no_t size)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
-[[nodiscard]] dberr_t fil_ibd_create(space_id_t space_id, const char *name,
-                                     const char *path, uint32_t flags,
-                                     page_no_t size);
->>>>>>> mysql-8.0.27
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Create a session temporary tablespace (IBT) file.
 @param[in]	space_id	Tablespace ID
@@ -1829,23 +1807,10 @@ The fil_node_t::handle will not be left open.
 @param[in]	old_space	whether it is a 5.7 tablespace opening
                                 by upgrade
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
-dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
-                     uint32_t flags, const char *space_name,
-                     const char *path_in, bool strict, bool old_space,
-                     Keyring_encryption_info &keyring_encryption_info)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
-                     uint32_t flags, const char *space_name,
-                     const char *path_in, bool strict, bool old_space)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
-[[nodiscard]] dberr_t fil_ibd_open(bool validate, fil_type_t purpose,
-                                   space_id_t space_id, uint32_t flags,
-                                   const char *space_name, const char *path_in,
-                                   bool strict, bool old_space);
->>>>>>> mysql-8.0.27
+[[nodiscard]] dberr_t fil_ibd_open(
+    bool validate, fil_type_t purpose, space_id_t space_id, uint32_t flags,
+    const char *space_name, const char *path_in, bool strict, bool old_space,
+    Keyring_encryption_info &keyring_encryption_info);
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache.
@@ -1925,25 +1890,13 @@ number should be zero.
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-<<<<<<< HEAD
-dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
+[[nodiscard]] dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
                 const page_size_t &page_size, ulint byte_offset, ulint len,
-                void *buf, void *message, trx_t *trx, bool should_buffer)
-    MY_ATTRIBUTE((warn_unused_result));
+                void *buf, void *message, trx_t *trx, bool should_buffer);
 
 #define fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message) \
   _fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message,      \
           NULL, false)
-||||||| beb865a960b
-dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
-               const page_size_t &page_size, ulint byte_offset, ulint len,
-               void *buf, void *message) MY_ATTRIBUTE((warn_unused_result));
-=======
-[[nodiscard]] dberr_t fil_io(const IORequest &type, bool sync,
-                             const page_id_t &page_id,
-                             const page_size_t &page_size, ulint byte_offset,
-                             ulint len, void *buf, void *message);
->>>>>>> mysql-8.0.27
 
 /** Waits for an AIO operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -2199,19 +2152,8 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
 @param[in] iv			Encryption iv
 @param[in] acquire_mutex  if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
-dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
-                           byte *key, byte *iv, bool aquire_mutex = true)
-    MY_ATTRIBUTE((warn_unused_result));
-||||||| beb865a960b
-dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
-                           byte *key, byte *iv)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
-[[nodiscard]] dberr_t fil_set_encryption(space_id_t space_id,
-                                         Encryption::Type algorithm, byte *key,
-                                         byte *iv);
->>>>>>> mysql-8.0.27
+[[nodiscard]] dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
+                           byte *key, byte *iv, bool aquire_mutex = true);
 
 /** Set the autoextend_size attribute for the tablespace
 @param[in] space_id		Space ID of tablespace for which to set

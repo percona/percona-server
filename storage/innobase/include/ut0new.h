@@ -1321,7 +1321,7 @@ inline void *malloc_large_page_withkey(
   return large_page_mem ? large_page_mem : malloc_page_withkey(key, size);
 }
 
-inline void ut_free_func(byte *buf) { ut_free(buf); }
+inline void ut_free_func(byte *buf) { ut::free(buf); }
 
 using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
 

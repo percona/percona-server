@@ -175,7 +175,7 @@ struct fil_space_crypt_t {
   ~fil_space_crypt_t() {
     mutex_free(&mutex);
     mutex_free(&start_rotate_mutex);
-    if (tablespace_key != nullptr) ut_free(tablespace_key);
+    if (tablespace_key != nullptr) ut::free(tablespace_key);
 
     unload_keys_from_local_cache();
 
@@ -225,7 +225,7 @@ struct fil_space_crypt_t {
 
   void set_tablespace_key(const uchar *tablespace_key) {
     if (tablespace_key == NULL) {
-      if (this->tablespace_key != NULL) ut_free(this->tablespace_key);
+      if (this->tablespace_key != NULL) ut::free(this->tablespace_key);
       this->tablespace_key = NULL;
     } else {
       if (this->tablespace_key == NULL)

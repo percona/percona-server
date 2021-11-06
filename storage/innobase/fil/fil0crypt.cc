@@ -846,7 +846,7 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data) {
     }
     if (c) {
       c->~fil_space_crypt_t();
-      ut_free(c);
+      ut::free(c);
     } else {
       ut_ad(0);
     }

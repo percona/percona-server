@@ -1033,11 +1033,11 @@ void log_online_read_shutdown(void) noexcept {
 
   while (free_list_node) {
     ib_rbt_node_t *next = free_list_node->left;
-    ut_free(free_list_node);
+    ut::free(free_list_node);
     free_list_node = next;
   }
 
-  ut_free(log_bmp_sys_unaligned);
+  ut::free(log_bmp_sys_unaligned);
   log_bmp_sys = nullptr;
   log_bmp_sys_unaligned = nullptr;
 
@@ -1389,7 +1389,7 @@ static void log_online_diagnose_inconsistent_dir(
     noexcept {
   ib::warn() << "Inconsistent bitmap file directory for a "
                 "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query";
-  ut_free(bitmap_files->files);
+  ut::free(bitmap_files->files);
   bitmap_files->files = nullptr;
 }
 
@@ -1679,7 +1679,7 @@ bool log_online_bitmap_iterator_init(
   if (UNIV_UNLIKELY(!log_online_open_bitmap_file_read_only(
           i->in_files.files[i->in_i].name, &i->in))) {
     i->in_i = i->in_files.count;
-    ut_free(i->in_files.files);
+    ut::free(i->in_files.files);
     i->failed = true;
     return false;
   }
@@ -1708,10 +1708,10 @@ void log_online_bitmap_iterator_release(
     i->in.file.set_closed();
   }
   if (i->in_files.files) {
-    ut_free(i->in_files.files);
+    ut::free(i->in_files.files);
   }
   if (i->page) {
-    ut_free(i->page);
+    ut::free(i->page);
   }
   i->failed = true;
 }
@@ -1916,6 +1916,6 @@ bool log_online_purge_changed_page_bitmaps(
     mutex_exit(&log_bmp_sys_mutex);
   }
 
-  ut_free(bitmap_files.files);
+  ut::free(bitmap_files.files);
   return result;
 }

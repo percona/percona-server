@@ -277,7 +277,7 @@ Encryption::Encryption(const Encryption &other) noexcept
 Encryption::~Encryption() {
 }
 
-void Encryption::set_key(byte *key, ulint key_len) noexcept {
+void Encryption::set_key(const byte *key, ulint key_len) noexcept {
   m_key = key;
   m_klen = key_len;
 }

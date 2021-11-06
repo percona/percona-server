@@ -1304,7 +1304,7 @@ void srv_free(void) {
     for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
       srv_threads.m_lru_managers[i] = {};
     }
-    ut_free(srv_threads.m_lru_managers);
+    ut::free(srv_threads.m_lru_managers);
     srv_threads.m_lru_managers = nullptr;
   }
 

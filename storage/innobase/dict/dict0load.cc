@@ -1407,7 +1407,7 @@ static inline std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool valida
                               << " because it could not be opened.";
     } else {
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
-        ut_free(filepath);
+        ut::free(filepath);
         mtr_commit(&mtr);
         return std::make_pair(true, 0);  // will cause upgrade to fail
       }
@@ -1681,9 +1681,9 @@ static inline std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
                               << " because it could not be opened.";
     } else {
       if (is_space_keyring_pre_v3_encrypted(space_id)) {
-        ut_free(table_name.m_name);
-        ut_free(space_name_from_dict);
-        ut_free(filepath);
+        ut::free(table_name.m_name);
+        ut::free(space_name_from_dict);
+        ut::free(filepath);
         mtr_commit(&mtr);
         return std::make_pair(true, 0);
       }

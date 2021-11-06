@@ -275,7 +275,7 @@ class Encryption {
 
   ~Encryption();
 
-  void set_key(byte *key, ulint key_len) noexcept;
+  void set_key(const byte *key, ulint key_len) noexcept;
 
   void set_key_versions_cache(
       std::map<uint, byte *> *key_versions_cache) noexcept;

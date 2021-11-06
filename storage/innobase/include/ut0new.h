@@ -1326,8 +1326,9 @@ inline void ut_free_func(byte *buf) { ut::free(buf); }
 using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
 
 inline ut_unique_ptr ut_make_unique_ptr_nokey(const size_t size) {
-  return ut_unique_ptr(static_cast<byte *>(ut_malloc_nokey(size)),
-                       ut_free_func);
+  return ut_unique_ptr(
+      static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size)),
+      ut_free_func);
 }
 
 /** Dynamically allocates memory backed up by large (huge) pages. In the event

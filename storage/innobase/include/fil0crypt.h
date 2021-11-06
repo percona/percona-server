@@ -229,7 +229,7 @@ struct fil_space_crypt_t {
       this->tablespace_key = NULL;
     } else {
       if (this->tablespace_key == NULL)
-        this->tablespace_key = (byte *)ut_malloc_nokey(Encryption::KEY_LEN);
+        this->tablespace_key = static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
       memcpy(this->tablespace_key, tablespace_key, Encryption::KEY_LEN);
     }
   }

@@ -173,6 +173,12 @@ set_thread_command_v1_t set_thread_command;
 set_connection_type_v1_t set_connection_type;
 /** @sa set_thread_start_time_v1_t. */
 set_thread_start_time_v1_t set_thread_start_time;
+/** @sa set_thread_start_time_usec_v4_t. */
+set_thread_start_time_usec_v4_t set_thread_start_time_usec;
+/** @sa set_thread_rows_sent_v4_t. */
+set_thread_rows_sent_v4_t set_thread_rows_sent;
+/** @sa set_thread_rows_examined_v4_t. */
+set_thread_rows_examined_v4_t set_thread_rows_examined;
 /** @sa set_thread_info_v1_t. */
 set_thread_info_v1_t set_thread_info;
 /** @sa set_thread_v1_t. */

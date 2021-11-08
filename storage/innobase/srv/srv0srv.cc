@@ -1192,8 +1192,8 @@ static void srv_init(void) {
 
   srv_threads.m_lru_managers_n = srv_buf_pool_instances;
 
-  srv_threads.m_lru_managers =
-      UT_NEW_ARRAY_NOKEY(IB_thread, srv_threads.m_lru_managers_n);
+  srv_threads.m_lru_managers = ut::new_arr_withkey<IB_thread>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{srv_threads.m_lru_managers_n});
 
   srv_sys = static_cast<srv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, srv_sys_sz));

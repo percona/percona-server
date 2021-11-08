@@ -418,7 +418,9 @@ static fil_space_crypt_t *fil_space_create_crypt_data(
     Crypt_key_operation key_operation =
         Crypt_key_operation::FETCH_OR_GENERATE_KEY) {
   fil_space_crypt_t *crypt_data = NULL;
-  if (void *buf = ut_zalloc_nokey(sizeof(fil_space_crypt_t))) {
+
+  if (void *buf = ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                     sizeof(fil_space_crypt_t))) {
     crypt_data = new (buf) fil_space_crypt_t(min_key_version, key_id, uuid,
                                              encrypt_mode, key_operation);
   }
@@ -429,7 +431,8 @@ static fil_space_crypt_t *fil_space_create_crypt_data(
 void fil_space_rotate_state_t::create_flush_observer(space_id_t space_id) {
   destroy_flush_observer();
   trx = trx_allocate_for_background();
-  flush_observer = UT_NEW_NOKEY(Flush_observer(space_id, trx, nullptr));
+  flush_observer = ut::new_withkey<Flush_observer>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                   space_id, trx, nullptr);
   trx_set_flush_observer(trx, flush_observer);
 }
 
@@ -440,7 +443,7 @@ void fil_space_rotate_state_t::create_flush_observer(space_id_t space_id) {
 void fil_space_rotate_state_t::destroy_flush_observer() {
   if (flush_observer != nullptr) {
     flush_observer->flush();
-    UT_DELETE(flush_observer);
+    ut::delete_(flush_observer);
     flush_observer = nullptr;
   }
   if (trx != nullptr) {

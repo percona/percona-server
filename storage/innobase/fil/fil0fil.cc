@@ -11108,7 +11108,7 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
       discovered is unencrypted, we shouldn't set crypt_data to tablespace */
       if (FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
           crypt_data->type == CRYPT_SCHEME_UNENCRYPTED) {
-        UT_DELETE(crypt_data);
+        ut::delete_(crypt_data);
         recv_sys->crypt_datas->erase(space_id);
         return (true);
       }

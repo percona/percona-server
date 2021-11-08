@@ -429,7 +429,7 @@ static fil_space_crypt_t *fil_space_create_crypt_data(
 void fil_space_rotate_state_t::create_flush_observer(space_id_t space_id) {
   destroy_flush_observer();
   trx = trx_allocate_for_background();
-  flush_observer = UT_NEW_NOKEY(FlushObserver(space_id, trx, NULL));
+  flush_observer = UT_NEW_NOKEY(Flush_observer(space_id, trx, nullptr));
   trx_set_flush_observer(trx, flush_observer);
 }
 
@@ -1726,7 +1726,7 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
   do {
     trx_t *trx = trx_allocate_for_background();
-    FlushObserver flush_observer(space->id, trx, nullptr);
+    Flush_observer flush_observer(space->id, trx, nullptr);
     trx_set_flush_observer(trx, &flush_observer);
 
     mtr_t mtr;

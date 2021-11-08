@@ -146,7 +146,7 @@ struct fil_space_rotate_state_t {
   } scrubbing;
 
   trx_t *trx;
-  FlushObserver *flush_observer;
+  Flush_observer *flush_observer;
 
   void create_flush_observer(space_id_t space_id);
 

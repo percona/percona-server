@@ -142,7 +142,7 @@ int threadpool_add_connection(THD *thd) {
 
   /* Create new PSI thread for use with the THD. */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  thd->set_psi(PSI_THREAD_CALL(new_thread)(key_thread_one_connection, thd,
+  thd->set_psi(PSI_THREAD_CALL(new_thread)(key_thread_one_connection, 0, thd,
                                            thd->thread_id()));
 #endif
 

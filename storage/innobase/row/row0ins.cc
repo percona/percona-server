@@ -1151,8 +1151,14 @@ func_exit:
   if (table->fts) {
     doc_id = fts_get_doc_id_from_rec(table, clust_rec, clust_index, tmp_heap);
   }
-  if (cascade->is_delete && foreign->v_cols != nullptr &&
-      foreign->v_cols->size() > 0 && table->vc_templ == nullptr) {
+  /* A cascade delete from the parent table triggers delete on the child
+  table. Before a clustered index record is deleted in the child table,
+  a copy of row is built to remove secondary index records. This copy of
+  the row requires virtual columns to be materialized. Hence, if child
+  table has any virtual columns, we have to initialize virtual column
+  template */
+  if (cascade->is_delete && dict_table_get_n_v_cols(table) > 0 &&
+      table->vc_templ == nullptr) {
     innobase_init_vc_templ(table);
   }
 

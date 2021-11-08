@@ -632,7 +632,8 @@ void recv_sys_init(ulint max_mem) {
       ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY, false);
 
   using CryptDatas = recv_sys_t::CryptDatas;
-  recv_sys->crypt_datas = UT_NEW(CryptDatas(), mem_log_recv_space_hash_key);
+  recv_sys->crypt_datas = ut::new_withkey<CryptDatas>(
+      ut::make_psi_memory_key(mem_log_recv_space_hash_key));
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -805,10 +806,10 @@ void recv_sys_free() {
   }
 
   for (auto &crypt_data : *recv_sys->crypt_datas) {
-    UT_DELETE(crypt_data.second);
+    ut::delete_(crypt_data.second);
   }
 
-  UT_DELETE(recv_sys->crypt_datas);
+  ut::delete_(recv_sys->crypt_datas);
   recv_sys->crypt_datas = nullptr;
 
   mutex_exit(&recv_sys->mutex);

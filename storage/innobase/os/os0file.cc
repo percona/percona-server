@@ -6601,9 +6601,10 @@ dberr_t AIO::init_linux_native_aio() {
     }
   }
 
-  m_pending = static_cast<struct iocb **>(
-      ut_zalloc_nokey(m_slots.size() * sizeof(struct iocb *)));
-  m_count = static_cast<ulint *>(ut_zalloc_nokey(m_n_segments * sizeof(ulint)));
+  m_pending = static_cast<struct iocb **>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, m_slots.size() * sizeof(struct iocb *)));
+  m_count = static_cast<ulint *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, m_n_segments * sizeof(ulint)));
 
   return (DB_SUCCESS);
 }

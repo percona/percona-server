@@ -204,7 +204,7 @@ bool log_read_buffer::is_current_block_valid() const noexcept {
 
     const auto no = log_block_get_hdr_no(ccurrent());
     const auto expected_no = log_block_convert_lsn_to_no(current_lsn);
-    ib::fatal() << "Log block checksum mismatch: LSN " << current_lsn
+    ib::fatal(UT_LOCATION_HERE) << "Log block checksum mismatch: LSN " << current_lsn
                 << ", expected " << log_block_get_checksum(ccurrent()) << ", "
                 << "calculated checksum " << log_block_calc_checksum(ccurrent())
                 << ", "
@@ -730,7 +730,7 @@ file, handle this too. */
 
   if ((last_tracked_lsn > tracking_start_lsn) &&
       (last_tracked_lsn % OS_FILE_LOG_BLOCK_SIZE > LOG_BLOCK_HDR_SIZE)) {
-    ib::fatal() << "Last tracked LSN " << last_tracked_lsn
+    ib::fatal(UT_LOCATION_HERE) << "Last tracked LSN " << last_tracked_lsn
                 << " is ahead of tracking start LSN " << tracking_start_lsn
                 << ".  This can be caused "
                    "by mismatched bitmap files.";

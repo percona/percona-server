@@ -1242,7 +1242,7 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
 
       msg.seekp(0);
       ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-      ib::fatal() << msg.str();
+      ib::fatal(UT_LOCATION_HERE) << msg.str();
     }
     ut::free(buf2);
     ut::free(check_buf);

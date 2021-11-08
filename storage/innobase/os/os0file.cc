@@ -2804,7 +2804,7 @@ void AIO::os_aio_dispatch_read_array_submit_low_for_array(
       if (submitted < 0) {
         /* Terminating with fatal error */
         const char *errmsg = strerror(-submitted);
-        ib::fatal() << "Trying to sumbit " << count
+        ib::fatal(UT_LOCATION_HERE) << "Trying to sumbit " << count
                     << " aio requests, io_submit() set "
                     << "errno to " << -submitted << ": "
                     << (errmsg ? errmsg : "<unknown>");

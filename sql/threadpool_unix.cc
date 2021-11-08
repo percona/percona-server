@@ -82,8 +82,8 @@ static PSI_cond_info cond_list[] = {
 static PSI_thread_key key_worker_thread;
 static PSI_thread_key key_timer_thread;
 static PSI_thread_info thread_list[] = {
-    {&key_worker_thread, "worker_thread", 0, 0, PSI_DOCUMENT_ME},
-    {&key_timer_thread, "timer_thread", PSI_FLAG_SINGLETON, 0,
+    {&key_worker_thread, "worker_thread", "worker_th", 0, 0, PSI_DOCUMENT_ME},
+    {&key_timer_thread, "timer_thread", "timer_th", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 #endif  // HAVE_PSI_INTERFACE
 

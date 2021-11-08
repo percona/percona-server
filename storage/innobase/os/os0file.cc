@@ -2150,7 +2150,7 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
       type.compression_algorithm(), type.block_size(),
       reinterpret_cast<byte *>(buf), *n, compressed_page, &compressed_len,
       type.encryption_algorithm().get_type() == Encryption::KEYRING &&
-          type.encryption_algorithm().get_key() != NULL);
+          type.encryption_algorithm().has_key());
 
   if (buf_ptr != buf) {
     /* Set new compressed size to uncompressed page. */
@@ -5377,7 +5377,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   or low compression rate. */
   if ((type.is_encrypted() || e_block != nullptr) && type.is_write() &&
       (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
-       (type.encryption_algorithm().get_key() != NULL &&
+       (type.encryption_algorithm().has_key() &&
         Encryption::can_page_be_keyring_encrypted(
             reinterpret_cast<byte *>(buf))))) {
     if (!type.is_log()) {
@@ -5390,7 +5390,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       written to the dblwr file and the data file. During importing an
       encrypted tablespace, we reach here. */
       if (e_block == nullptr) {
-        ut_ad(type.encryption_algorithm().get_key() != NULL);
+        ut_ad(type.encryption_algorithm().has_key());
         block = os_file_encrypt_page(type, buf, &n);
       } else {
         block = const_cast<file::Block *>(e_block);
@@ -7242,7 +7242,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
       (type.is_encrypted() || e_block != nullptr) &&
       (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
-       (type.encryption_algorithm().get_key() != NULL &&
+       (type.encryption_algorithm().has_key() &&
         Encryption::can_page_be_keyring_encrypted(slot->buf)))) {
     ulint encrypted_len = slot->len;
     file::Block *encrypted_block;

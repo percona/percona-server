@@ -525,6 +525,8 @@ class Encryption {
   @param[in]  key  encryption key **/
   void set_key(const byte *key);
 
+  bool has_key() const noexcept { return m_key != nullptr; }
+
   /** Get key length
   @return  key length **/
   ulint get_key_length() const;

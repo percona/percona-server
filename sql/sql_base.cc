@@ -10751,14 +10751,18 @@ void Join_node::add_const_equi_columns(Item *cond) {
     return;
   }
   if (is_cond_mult_equal(cond)) {
-    bool has_const = ((Item_equal *)cond)->get_const();
-    Item_equal_iterator it(*((Item_equal *)cond));
-    Item_field *item;
-    if (has_const) {
-      while ((item = it++)) add_const_column(item->field);
+    auto equal = down_cast<Item_equal *>(cond);
+
+    if (equal->get_const()) {
+      for (Item_field &field : equal->get_fields()) {
+        add_const_column(field.field);
+      }
     } else {
-      Item_field *first_item = it++;
-      while ((item = it++)) add_equi_column(first_item->field, item->field);
+      auto it = equal->get_fields().begin();
+      Item_field& first_item = *it++;
+      for (; it != equal->get_fields().end(); ++it) {
+        add_equi_column(first_item.field, it->field);
+      }
     }
   }
   return;

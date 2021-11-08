@@ -2873,7 +2873,7 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
             thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
             log_encrypt_name(existing_redo_encryption_mode), "master_key");
       } else {
-        ib::fatal(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                   log_encrypt_name(existing_redo_encryption_mode),
                   "master_key");
       }
@@ -2899,7 +2899,7 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
       ib::error(ER_IB_MSG_1243);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
     } else {
-      ib::fatal(ER_IB_MSG_1243);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
     }
     return true;
   }
@@ -2912,7 +2912,7 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
       ib::error(ER_IB_MSG_1244);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
     } else {
-      ib::fatal(ER_IB_MSG_1244);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
     }
     return true;
   }
@@ -2934,7 +2934,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
             thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
             log_encrypt_name(existing_redo_encryption_mode), "keyring_key");
       } else {
-        ib::fatal(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+        ib::fatal(UT_LOCATION_HERE, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                   log_encrypt_name(existing_redo_encryption_mode),
                   "keyring_key");
       }
@@ -2989,7 +2989,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
       ib::error(ER_IB_MSG_1243);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
     } else {
-      ib::fatal(ER_IB_MSG_1243);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1243);
     }
     return true;
   }
@@ -3004,7 +3004,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
       ib::error(ER_IB_MSG_1244);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
     } else {
-      ib::fatal(ER_IB_MSG_1244);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
     }
   }
 
@@ -3017,7 +3017,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
       ib::error(ER_IB_MSG_1244);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
     } else {
-      ib::fatal(ER_IB_MSG_1244);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1244);
     }
     return true;
   }

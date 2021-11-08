@@ -6229,7 +6229,7 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
   auto result = std::make_tuple(false, false);
 
   /* page0 of mysql.ibd is not in the buffer, try direct io */
-  auto buf = ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
+  auto buf = ut::ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
 
   bool successfully_opened = false;
 

@@ -3919,7 +3919,7 @@ void Flush_observer::flush() {
 
 /** Increase the estimate of dirty pages by this observer
 @param[in]	block		buffer pool block */
-void FlushObserver::inc_estimate(const buf_block_t &block) noexcept {
+void Flush_observer::inc_estimate(const buf_block_t &block) noexcept {
   if (block.page.get_oldest_lsn() == 0 || block.page.get_newest_lsn() < m_lsn)
     m_estimate.fetch_add(1, std::memory_order_relaxed);
 }

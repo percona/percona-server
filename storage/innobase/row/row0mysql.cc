@@ -513,11 +513,11 @@ const byte *row_decompress_column(const byte *data, ulint *len,
                              &reserved);
 
   if (reserved != default_zip_column_reserved_value) {
-    ib::fatal() << "unsupported compressed BLOB header format\n";
+    ib::fatal(UT_LOCATION_HERE) << "unsupported compressed BLOB header format\n";
   }
 
   if (alg != default_zip_column_algorithm_value) {
-    ib::fatal() << "unsupported 'algorithm' value in the compressed BLOB "
+    ib::fatal(UT_LOCATION_HERE) << "unsupported 'algorithm' value in the compressed BLOB "
                    "header\n";
   }
 
@@ -595,15 +595,15 @@ const byte *row_decompress_column(const byte *data, ulint *len,
     case Z_OK:
       break;
     case Z_BUF_ERROR:
-      ib::fatal() << "zlib buf error, this shouldn't happen\n";
+      ib::fatal(UT_LOCATION_HERE) << "zlib buf error, this shouldn't happen\n";
       break;
     default:
-      ib::fatal() << "failed to decompress column, error: " << err << '\n';
+      ib::fatal(UT_LOCATION_HERE) << "failed to decompress column, error: " << err << '\n';
   }
 
   if (err == Z_OK) {
     if (buf_len != uncomp_len) {
-      ib::fatal() << "failed to decompress blob column, may be corrupted\n";
+      ib::fatal(UT_LOCATION_HERE) << "failed to decompress blob column, may be corrupted\n";
     }
     *len = buf_len;
     return buf;

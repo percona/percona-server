@@ -2468,7 +2468,7 @@ static bool clone_snapshot_handlerton(THD *thd, plugin_ref plugin, void *arg) {
 }
 
 static int ha_clone_consistent_snapshot(THD *thd) {
-  THD *from_thd;
+  THD_ptr from_thd_ptr;
   ulong id;
   Item *val = thd->lex->donor_transaction_id;
   assert(val);
@@ -2493,9 +2493,9 @@ static int ha_clone_consistent_snapshot(THD *thd) {
 
   {
     Find_thd_with_id find_thd_with_id(id, true);
-    from_thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+    from_thd_ptr = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
 
-    if (!from_thd) {
+    if (!from_thd_ptr) {
       my_error(ER_NO_SUCH_THREAD, MYF(0), id);
       goto error;
     }
@@ -2510,11 +2510,9 @@ static int ha_clone_consistent_snapshot(THD *thd) {
   tc_log->xlock();
 
   plugin_foreach(thd, clone_snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
-                 from_thd);
+                 from_thd_ptr.get());
 
   tc_log->xunlock();
-
-  mysql_mutex_unlock(&from_thd->LOCK_thd_data);
 
   return 0;
 

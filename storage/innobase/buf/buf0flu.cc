@@ -2888,7 +2888,7 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
 
   for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
     srv_threads.m_lru_managers[i] =
-        os_thread_create(buf_lru_manager_thread_key, buf_lru_manager_thread, i);
+        os_thread_create(buf_lru_manager_thread_key, i, buf_lru_manager_thread, i);
     srv_threads.m_lru_managers[i].start();
   }
 

@@ -3550,7 +3550,7 @@ void fil_crypt_thread() {
   //#ifdef UNIV_PFS_THREAD
   // pfs_register_thread(page_cleaner_thread_key);
   //#endif
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_thd(false, true, true, 0, 0);
 
   mutex_enter(&fil_crypt_threads_mutex);
   uint thread_no = srv_threads.m_crypt_threads_n;
@@ -3701,7 +3701,7 @@ void fil_crypt_set_thread_cnt(const uint new_cnt) {
     uint add = new_cnt - srv_n_fil_crypt_threads_requested;
     srv_n_fil_crypt_threads_requested = new_cnt;
     for (uint i = 0; i < add; i++) {
-      auto thread = os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
+      auto thread = os_thread_create(PSI_NOT_INSTRUMENTED, 0, fil_crypt_thread);
       ib::info() << "Creating #" << i + 1 << " encryption thread"
                  << " total threads " << new_cnt << ".";
       thread.start();

@@ -1668,7 +1668,7 @@ void srv_init_log_online(void) {
     /* Create the thread that follows the redo log to output the
        changed page bitmap */
     srv_threads.m_changed_page_tracker = os_thread_create(
-        srv_log_tracking_thread_key, srv_redo_log_follow_thread);
+        srv_log_tracking_thread_key, 0, srv_redo_log_follow_thread);
     srv_threads.m_changed_page_tracker.start();
   }
 }
@@ -2797,7 +2797,7 @@ files_checked:
     if (!srv_read_only_mode) {
       /* Create the thread which prints InnoDB monitor info */
       srv_threads.m_monitor =
-          os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
+          os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
       srv_threads.m_monitor.start();
       srv_start_state_set(SRV_START_STATE_MONITOR);
     }
@@ -4182,7 +4182,7 @@ void log_ensure_scrubbing_thread(void) {
   log_scrub_thread_active = srv_scrub_log;
   if (log_scrub_thread_active) {
     log_scrub_event = os_event_create();
-    auto thread = os_thread_create(log_scrub_thread_key, log_scrub_thread);
+    auto thread = os_thread_create(log_scrub_thread_key, 0, log_scrub_thread);
     thread.start();
   }
 }

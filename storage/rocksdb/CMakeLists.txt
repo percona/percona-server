@@ -235,7 +235,7 @@ INCLUDE_DIRECTORIES(
 
 IF(BUILD_BUNDLED_ZSTD)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zstd/lib/dictBuilder)
+    ${ZSTD_INCLUDE_DIR}/dictBuilder)
 ENDIF()
 
 # add bundled compression code

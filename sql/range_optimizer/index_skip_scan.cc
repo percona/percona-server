@@ -271,6 +271,9 @@ int IndexSkipScanIterator::Read() {
   table()->column_bitmaps_set_no_signal(&column_bitmap, table()->write_set);
   do {
     if (!is_prefix_valid) {
+      // This change is necessary for MyRocks PS-7116.
+      table()->file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
+
       if (!seen_first_key) {
         if (eq_prefix_key_parts == 0) {
           result = table()->file->ha_index_first(table()->record[0]);

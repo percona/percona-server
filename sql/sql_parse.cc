@@ -3438,7 +3438,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         break;
       }
     }
-    // fallthrough
+    [[fallthrough]];
     case SQLCOM_PURGE_BEFORE: {
       Item *it;
       Security_context *sctx = thd->security_context();

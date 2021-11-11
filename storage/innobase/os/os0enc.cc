@@ -1562,7 +1562,7 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
         m_key = reinterpret_cast<unsigned char *>(mkey->key);
       }
     }
-      /* FALLTHROUGH */
+    [[fallthrough]];
 
     case AES: {
       lint elen;

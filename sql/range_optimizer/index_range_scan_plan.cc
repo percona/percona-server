@@ -910,6 +910,11 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
               .add_alnum("cost", "not applicable");
         } else {
           trace_idx.add("rows", found_records).add("cost", cost);
+          if (thd->optimizer_switch_flag(
+                  OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN)) {
+            trace_idx.add("revised_cost", cost.total_cost() * 0.1);
+            cost.multiply(0.1);
+          }
         }
       }
 

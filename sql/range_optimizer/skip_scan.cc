@@ -355,6 +355,9 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
   m_table->column_bitmaps_set_no_signal(&column_bitmap, m_table->write_set);
   do {
     if (!is_prefix_valid) {
+      // This change is necessary for MyRocks PS-7116.
+      m_table->file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
+
       if (!seen_first_key) {
         if (eq_prefix_key_parts == 0) {
           result = m_table->file->ha_index_first(record);

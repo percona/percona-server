@@ -132,6 +132,17 @@ int QUICK_SELECT_DESC::get_next() {
       }
     }
 
+    key_range prepare_range_start;
+    key_range prepare_range_end;
+
+    last_range->make_min_endpoint(&prepare_range_start);
+    last_range->make_max_endpoint(&prepare_range_end);
+    result = file->prepare_range_scan(
+        (last_range->flag & NO_MIN_RANGE) ? nullptr : &prepare_range_start,
+        (last_range->flag & NO_MAX_RANGE) ? nullptr : &prepare_range_end);
+
+    if (result) return result;
+
     if (last_range->flag & NO_MAX_RANGE)  // Read last record
     {
       int local_error;

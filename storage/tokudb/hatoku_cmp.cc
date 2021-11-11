@@ -2035,7 +2035,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
     case (toku_type_fixstring):
       field_length = field->pack_length();
       key_part_length = std::min(key_part_length, field_length);
-      // fallthrough
+      [[fallthrough]];
     case (toku_type_varbinary):
     case (toku_type_varstring):
     case (toku_type_blob):

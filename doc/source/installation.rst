@@ -4,6 +4,11 @@
 Installing |Percona Server| 5.6
 ===============================
 
+.. important::
+
+	Percona Server for MySQL 5.6 has reached end-of-life (EOL). There are no updates or security fixes from MySQL. Percona offers `MySQL 5.6 Post EOL support <https://www.percona.com/services/support/mysql-support/5-6-eol-support>`__. This support provides critical fixes for security issues and bug fixes.
+	
+	
 This page provides the information on how to you can install |Percona Server|. Following options are available: 
 
 * :ref:`installing_from_binaries` (recommended)

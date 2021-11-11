@@ -59,7 +59,7 @@ SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 
 SEL_ARG *rb_delete_fixup(SEL_ARG *root, SEL_ARG *key, SEL_ARG *par);
 #ifndef NDEBUG
-int test_rb_tree(SEL_ARG *element, SEL_ARG *parent);
+int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
 #endif
 
 static bool eq_tree(const SEL_ROOT *a, const SEL_ROOT *b);
@@ -814,6 +814,7 @@ static SEL_ROOT *and_all_keys(RANGE_OPT_PARAM *param, SEL_ROOT *key1,
                               SEL_ROOT *key2) {
   SEL_ARG *next;
 
+  assert(key1->elements > 0);
   // We will be modifying key1, so clone it if we need to.
   if (key1->use_count > 0) {
     if (!(key1 = key1->clone_tree(param))) return nullptr;  // OOM
@@ -2004,7 +2005,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root, SEL_ARG *key, SEL_ARG *par) {
 #ifndef NDEBUG
 /* Test that the properties for a red-black tree hold */
 
-int test_rb_tree(SEL_ARG *element, SEL_ARG *parent) {
+int test_rb_subtree(const SEL_ARG *element, const SEL_ARG *parent) {
   int count_l, count_r;
 
   if (element == null_element) return 0;  // Found end of tree
@@ -2027,14 +2028,22 @@ int test_rb_tree(SEL_ARG *element, SEL_ARG *parent) {
     LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_RIGHT_IS_LEFT);
     return -1;
   }
-  count_l = test_rb_tree(element->left, element);
-  count_r = test_rb_tree(element->right, element);
+  count_l = test_rb_subtree(element->left, element);
+  count_r = test_rb_subtree(element->right, element);
   if (count_l >= 0 && count_r >= 0) {
     if (count_l == count_r) return count_l + (element->color == SEL_ARG::BLACK);
     LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_INCORRECT_BLACK_COUNT, count_l,
            count_r);
   }
   return -1;  // Error, no more warnings
+}
+
+int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent) {
+  if (element->color == SEL_ARG::RED) {
+    sql_print_error("Wrong tree: root node is red");
+    return -1;
+  }
+  return test_rb_subtree(element, parent);
 }
 #endif
 

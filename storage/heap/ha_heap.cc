@@ -679,7 +679,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         case HA_KEYTYPE_VARBINARY1:
           /* Case-insensitiveness is handled in coll->hash_sort */
           seg->type = HA_KEYTYPE_VARTEXT1;
-          /* fall through */
+          [[fallthrough]];
         case HA_KEYTYPE_VARTEXT1:
           keydef[key].flag |= HA_VAR_LENGTH_KEY;
           /* Save number of bytes used to store length */

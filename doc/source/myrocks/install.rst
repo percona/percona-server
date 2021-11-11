@@ -16,6 +16,8 @@ plugin for |Percona Server| 8.0 and later versions.
 .. contents::
    :local:
 
+.. _myrocks-install:
+
 Installing Percona MyRocks
 ==========================
 

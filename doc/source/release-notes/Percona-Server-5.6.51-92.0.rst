@@ -4,15 +4,12 @@
 *Percona Server for MySQL* 5.6.51-92.0
 ================================================================================
 
-:Date: |date|
-
+:Date: November 11, 2021
 
 `Percona Server for MySQL <https://www.percona.com/software/mysql-database/percona-server>`_ 5.6.51-92.0
 includes all the features and bug fixes available in
 `MySQL 5.6.51 Community Edition <https://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-51.html>`_
 in addition to enterprise-grade features developed by Percona. 
-
-
 
 Percona Server for MySQL 5.6.51-92.0 is an update of the Percona Server for MySQL 5.6 series. This update is only available to `MySQL 5.6 Post EOL Support <https://www.percona.com/services/support/mysql-support/5-6-eol-support>`_ subscribers. 
 

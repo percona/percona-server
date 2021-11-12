@@ -34,8 +34,8 @@ select * from t1 where upper(a)='AAA';
 select * from t1 where lower(a)='aaa';
 select * from t1 where upper(b)='BBB';
 select * from t1 where lower(b)='bbb';
-select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
-select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
+select charset(a), charset(b), charset(cast('ccc' as binary)) from t1 limit 1;
+select collation(a), collation(b), collation(cast('ccc' as binary)) from t1 limit 1;
 drop table t1;
 
 # Test for BUG#8560

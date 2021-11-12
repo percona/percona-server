@@ -25057,7 +25057,7 @@ static MYSQL_SYSVAR_ENUM(
 
 static MYSQL_SYSVAR_STR(
     parallel_doublewrite_path, srv_parallel_doublewrite_path_deprecated,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
     "Deprecated Percona-specific variable that was used to set path to the "
     "parallel doublewrite file and has no effect now. "
     "Use --innodb-doublewrite-dir instead.",
@@ -25065,7 +25065,7 @@ static MYSQL_SYSVAR_STR(
 
 static MYSQL_SYSVAR_BOOL(
     parallel_dblwr_encrypt, srv_parallel_dblwr_encrypt_deprecated,
-    PLUGIN_VAR_OPCMDARG,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
     "Deprecated Percona-specific variable that was used to enable or "
     "disable encryption of parallel doublewrite buffer file and has no "
     "effect now.",

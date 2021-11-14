@@ -32,6 +32,7 @@ The tablespace memory cache */
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <scope_guard.h>
 
 #include "mysqld.h"  // server_uuid
 
@@ -6348,18 +6349,33 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
   }
 
-  ut_ad(!is_encrypted || df.is_open());
+  fil_space_crypt_t *crypt_data = nullptr;
 
-  const byte *first_page = df.is_open() ? df.get_first_page() : nullptr;
-  fil_space_crypt_t *crypt_data =
-      first_page ? fil_space_read_crypt_data(page_size_t(flags), first_page)
-                 : nullptr;
+  {  // Read keyring encryption data
+    bool close_df = false;
+    auto guard = create_scope_guard([&close_df, &df]() {
+      if (close_df) df.close();
+    });
 
-  keyring_encryption_info.page0_has_crypt_data = crypt_data != nullptr;
-  keyring_encryption_info.is_mk_to_keyring_rotation =
-      crypt_data != nullptr ? crypt_data->encryption_rotation ==
-                                  Encryption_rotation::MASTER_KEY_TO_KEYRING
-                            : false;
+    if (is_encrypted && !df.is_open()) {
+      // df.validate_to_dd closes df
+      if (df.open_read_only(strict) != DB_SUCCESS) {
+        ut_ad(!df.is_open());
+        return DB_CANNOT_OPEN_FILE;
+      }
+      close_df = true;
+    }
+
+    const byte *first_page = df.is_open() ? df.get_first_page() : nullptr;
+    crypt_data = first_page
+                     ? fil_space_read_crypt_data(page_size_t(flags), first_page)
+                     : nullptr;
+
+    keyring_encryption_info.page0_has_crypt_data = crypt_data != nullptr;
+    keyring_encryption_info.is_mk_to_keyring_rotation =
+        crypt_data != nullptr && crypt_data->encryption_rotation ==
+                                     Encryption_rotation::MASTER_KEY_TO_KEYRING;
+  }
 
   space = fil_space_create(space_name, space_id, flags, purpose, crypt_data);
 

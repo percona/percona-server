@@ -28,12 +28,6 @@
 
 #include <string.h>
 
-#define bfill please_use_memset_rather_than_bfill
-#define bzero please_use_memset_rather_than_bzero
-#define bmove please_use_memmove_rather_than_bmove
-#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
-#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
-
 #include "mysql/service_my_snprintf.h"
 
 #if defined(__cplusplus)

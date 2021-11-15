@@ -1942,3 +1942,69 @@
    fun:*mysqld_main*
    fun:*main*
 }
+
+#
+# RcoksDB submodule, ignore 'still reachable' notifications on
+# static variables
+#
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb14ThreadLocalPtr10StaticMeta10SetHandlerEjPFvPvE
+   fun:_ZN7rocksdb14ThreadLocalPtrC1EPFvPvE
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb19ThreadStatusUpdater14RegisterThreadENS_12ThreadStatus10ThreadTypeEm
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb19ThreadStatusUpdater19NewColumnFamilyInfoEPKvRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEES2_SA_
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb24RegisterCacheDeleterRoleEPFvRKNS_5SliceEPvENS_14CacheEntryRoleE
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb24CacheEntryStatsCollectorINS_13InternalStats19CacheEntryRoleStatsEE9GetSharedEPNS_5CacheEPNS_11SystemClockEPSt10shared_ptrIS3_E
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZN7rocksdb12_GLOBAL__N_111GetRegistryEv
+}
+{
+   RocksDB still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_Z41__static_initialization_and_destruction_0ii
+}
+{
+   rocksdb tls_variables
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:allocate_dtv_entry
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+   fun:__tls_get_addr
+}

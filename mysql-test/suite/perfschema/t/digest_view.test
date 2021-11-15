@@ -39,6 +39,7 @@ SELECT b, a from test.v1;
 --echo # DIGESTS SEEN ON TABLE
 --echo #
 
+--replace_column 2 ?
 SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR
   FROM performance_schema.events_statements_summary_by_digest
   ORDER BY DIGEST_TEXT;
@@ -67,6 +68,7 @@ SELECT b, a from test.v1;
 --echo # DIGESTS SEEN ON VIEW
 --echo #
 
+--replace_column 2 ?
 SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR
   FROM performance_schema.events_statements_summary_by_digest
   ORDER BY DIGEST_TEXT;

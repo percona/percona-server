@@ -33,6 +33,18 @@ INSERT INTO t2(f1) VALUES (31.400191);
 --let grep_pattern = ^.*Last_errno: 0 .*\$
 --source include/log_grep.inc
 
+--echo
+--echo # PS-6774 - Unexpected error in Last_errno in case internal DD tables are
+--echo             accessed. Statement des not fail in case DD table names
+--echo             are submitted as strings in WHERE clause.
+--echo
+--let log_file=percona.slow_extended.log_error_4
+--source include/log_start.inc
+SELECT SCHEMA_NAME as Test FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema');
+--source include/log_stop.inc
+--let grep_pattern = ^.*Last_errno: 0 .*\$
+--source include/log_grep.inc
+
 DROP TABLE t1, t2;
 
 --source include/log_cleanup.inc

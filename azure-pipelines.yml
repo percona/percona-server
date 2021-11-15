@@ -5,10 +5,8 @@ jobs:
 
   steps:
   - checkout: self
-    fetchDepth: 32
 
   - script: |
-      git fetch origin 5.7
       python $(Build.SourcesDirectory)/scripts/find_unicode_control.py -p bidi -v $(git diff --name-only --relative --diff-filter AMR origin/5.7 -- . | tr '\n' ' ')
 
 - job:

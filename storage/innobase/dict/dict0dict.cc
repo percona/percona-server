@@ -7253,7 +7253,6 @@ dict_table_extent_size(
 
 	return(pages_in_extent);
 }
-<<<<<<< HEAD
 
 /** Insert a records into SYS_ZIP_DICT.
 @retval	DB_SUCCESS	if OK
@@ -7432,8 +7431,6 @@ dict_drop_zip_dict(
 
 	return err;
 }
-||||||| 89713bf41c3
-=======
 
 /** @return number of base columns of virtual column in foreign key column
 @param[in]      vcol    in-memory virtual column
@@ -7456,4 +7453,3 @@ uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
 	}
 	return foreign_col_count;
 }
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^

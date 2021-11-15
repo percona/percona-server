@@ -1043,7 +1043,7 @@ row_ins_foreign_fill_virtual(
 				dfield_t *new_vfield = innobase_get_computed_value(
 				    update->old_vrow, col, index, &v_heap,
 				    update->heap, NULL, thd, NULL,
-				    NULL, node->update, foreign);
+				    NULL, node->update, foreign, prebuilt);
 				dfield_copy(&(upd_field->new_val), new_vfield);
 			}
 

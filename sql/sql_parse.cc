@@ -1541,15 +1541,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (parser_state.init(thd, thd->query().str, thd->query().length))
       break;
 
-<<<<<<< HEAD
-    mysql_parse(thd, &parser_state, false);
-||||||| 89713bf41c3
-    mysql_parse(thd, &parser_state);
-=======
     parser_state.m_input.m_has_digest = true;
 
-    mysql_parse(thd, &parser_state);
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
+    mysql_parse(thd, &parser_state, false);
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())

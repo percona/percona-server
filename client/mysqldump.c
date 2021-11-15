@@ -131,18 +131,11 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-<<<<<<< HEAD
-                opt_secure_auth= TRUE,
                 opt_compressed_columns= 0,
                 opt_compressed_columns_with_dictionaries= 0,
                 opt_drop_compression_dictionary= 1,
-                opt_order_by_primary_desc= 0;
-
-||||||| 89713bf41c3
-                opt_secure_auth= TRUE;
-=======
+                opt_order_by_primary_desc= 0,
                 opt_skip_mysql_schema=0, opt_secure_auth= TRUE;
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -6833,17 +6826,11 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   {
     if (opt_comments)
       fprintf(md_result_file,
-<<<<<<< HEAD
-              "\n--\n-- GTID state at the beginning of the backup"
+              "\n--\n-- GTID state at the end of the backup"
               "\n-- (origin: %s)"
               "\n--\n\n",
               capture_raw_gtid_executed ? "@@global.gtid_executed"
                                         : "Binlog_snapshot_gtid_executed");
-||||||| 89713bf41c3
-          "\n--\n-- GTID state at the beginning of the backup \n--\n\n");
-=======
-          "\n--\n-- GTID state at the end of the backup \n--\n\n");
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
 
     fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED='");
 
@@ -6873,30 +6860,21 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   session binlog is restored if disabled previously.
 
   @param[in]          mysql_con     the connection to the server
-<<<<<<< HEAD
   @param[in]		  ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
-||||||| 89713bf41c3
-=======
   @param[in]          flag          If FALSE, just disable binlog and not
                                     set the gtid purged as it will be set
                                     at a later point of time.
                                     If TRUE, set the gtid purged and
                                     restore the session binlog if disabled
                                     previously.
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
 
   @retval             FALSE         successful according to the value
                                     of opt_set_gtid_purged.
   @retval             TRUE          fail.
 */
 
-<<<<<<< HEAD
-static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done)
-||||||| 89713bf41c3
-static my_bool process_set_gtid_purged(MYSQL* mysql_con)
-=======
-static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag)
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
+static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
+                                       my_bool flag)
 {
   MYSQL_RES   *gtid_mode_res;
   MYSQL_ROW   gtid_mode_row;
@@ -6956,22 +6934,8 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag)
                        "--all-databases --triggers --routines --events. \n");
       }
 
-<<<<<<< HEAD
-    set_session_binlog(FALSE);
-    if (add_set_gtid_purged(mysql_con, ftwrl_done))
-    {
-      mysql_free_result(gtid_mode_res);
-      return TRUE;
-||||||| 89713bf41c3
-    set_session_binlog(FALSE);
-    if (add_set_gtid_purged(mysql_con))
-    {
-      mysql_free_result(gtid_mode_res);
-      return TRUE;
-=======
-      if (add_set_gtid_purged(mysql_con))
+      if (add_set_gtid_purged(mysql_con, ftwrl_done))
         return TRUE;
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
     }
   }
   else /* gtid_mode is off */
@@ -7512,29 +7476,12 @@ int main(int argc, char **argv)
   if (opt_slave_apply && add_stop_slave())
     goto err;
 
-<<<<<<< HEAD
-
-  /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
-  if (process_set_gtid_purged(mysql, ftwrl_done))
-||||||| 89713bf41c3
-
-  /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
-  if (process_set_gtid_purged(mysql))
-=======
   /* Process opt_set_gtid_purged and add SET disable binlog if required. */
-  if (process_set_gtid_purged(mysql, FALSE))
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
+  if (process_set_gtid_purged(mysql, ftwrl_done, FALSE))
     goto err;
 
-<<<<<<< HEAD
 
   if (opt_master_data && do_show_master_status(mysql, has_consistent_binlog_pos))
-||||||| 89713bf41c3
-
-  if (opt_master_data && do_show_master_status(mysql))
-=======
-  if (opt_master_data && do_show_master_status(mysql))
->>>>>>> 0ed6d65f4c60a38e77a672fc528efd3f44bc7701^
     goto err;
   if (opt_slave_data && do_show_slave_status(mysql))
     goto err;
@@ -7612,7 +7559,7 @@ int main(int argc, char **argv)
     goto err;
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
-   if (process_set_gtid_purged(mysql, TRUE))
+   if (process_set_gtid_purged(mysql, ftwrl_done, TRUE))
      goto err;
 
   /* add 'START SLAVE' to end of dump */

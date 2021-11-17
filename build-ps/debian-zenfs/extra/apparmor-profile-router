@@ -29,8 +29,7 @@
   /etc/ssl/openssl.conf r,
 
 # Allow runtime files such as PID-file
-  /var/run/mysqlrouter/** rw,
-  /run/mysqlrouter/** rw,
+  /{,var/}run/mysqlrouter/** rw,
 
 # Allow systemd notify messages
   /{,var/}run/systemd/notify w,

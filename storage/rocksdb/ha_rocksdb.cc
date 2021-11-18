@@ -5584,8 +5584,8 @@ static int rocksdb_done_func(void *const p) {
 
 // Disown the cache data since we're shutting down.
 // This results in memory leaks but it improved the shutdown time.
-// Don't disown when running under valgrind
-#ifndef HAVE_VALGRIND
+// Don't disown when running under valgrind or ASAN
+#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
   if (rocksdb_tbl_options->block_cache) {
     rocksdb_tbl_options->block_cache->DisownData();
   }

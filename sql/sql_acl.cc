@@ -966,21 +966,22 @@ public:
   }
 
 
-  void print_grant(String *str)
+  void print_grant(THD *thd, String *str)
   {
-    str->append(STRING_WITH_LEN("GRANT PROXY ON '"));
-    if (proxied_user)
-      str->append(proxied_user, strlen(proxied_user));
-    str->append(STRING_WITH_LEN("'@'"));
-    if (proxied_host.get_host())
-      str->append(proxied_host.get_host(), strlen(proxied_host.get_host()));
-    str->append(STRING_WITH_LEN("' TO '"));
-    if (user)
-      str->append(user, strlen(user));
-    str->append(STRING_WITH_LEN("'@'"));
-    if (host.get_host())
-      str->append(host.get_host(), strlen(host.get_host()));
-    str->append(STRING_WITH_LEN("'"));
+    str->append(STRING_WITH_LEN("GRANT PROXY ON "));
+    String proxied_user_str(proxied_user, get_proxied_user_length(),
+                            system_charset_info);
+    append_query_string(thd, system_charset_info, &proxied_user_str, str);
+    str->append(STRING_WITH_LEN("@"));
+    String proxied_host_str(proxied_host.get_host(), proxied_host.get_host_len(),
+                            system_charset_info);
+    append_query_string(thd, system_charset_info, &proxied_host_str, str);
+    str->append(STRING_WITH_LEN(" TO "));
+    String user_str(user, get_user_length(), system_charset_info);
+    append_query_string(thd, system_charset_info, &user_str, str);
+    str->append(STRING_WITH_LEN("@"));
+    String host_str(host.get_host(), host.get_host_len(), system_charset_info);
+    append_query_string(thd, system_charset_info, &host_str, str);
     if (with_grant)
       str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
   }
@@ -1043,6 +1044,12 @@ public:
       DBUG_RETURN(TRUE);
 
     DBUG_RETURN(FALSE);
+  }
+
+  size_t get_user_length() const { return user ? strlen(user) : 0; }
+
+  size_t get_proxied_user_length() const {
+    return proxied_user ? strlen(proxied_user) : 0;
   }
 };
 
@@ -7214,13 +7221,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	}
       }
     }
-    global.append (STRING_WITH_LEN(" ON *.* TO '"));
-    global.append(lex_user->user.str, lex_user->user.length,
-		  system_charset_info);
-    global.append (STRING_WITH_LEN("'@'"));
-    global.append(lex_user->host.str,lex_user->host.length,
-		  system_charset_info);
-    global.append ('\'');
+    global.append (STRING_WITH_LEN(" ON *.* TO "));
+    String user_str(lex_user->user.str, lex_user->user.length,
+                    system_charset_info);
+    append_query_string(thd, system_charset_info, &user_str, &global);
+    global.append(STRING_WITH_LEN("@"));
+    String host_str(lex_user->host.str, lex_user->host.length,
+                    system_charset_info);
+    append_query_string(thd, system_charset_info, &host_str, &global);
 #if defined(HAVE_OPENSSL)
     if (acl_user->plugin.str == sha256_password_plugin_name.str &&
         acl_user->auth_string.length > 0)
@@ -7364,13 +7372,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	}
 	db.append (STRING_WITH_LEN(" ON "));
 	append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
-	db.append (STRING_WITH_LEN(".* TO '"));
-	db.append(lex_user->user.str, lex_user->user.length,
-		  system_charset_info);
-	db.append (STRING_WITH_LEN("'@'"));
+	db.append (STRING_WITH_LEN(".* TO "));
+	String user_str(lex_user->user.str, lex_user->user.length,
+					system_charset_info);
+	append_query_string(thd, system_charset_info, &user_str, &db);
+	db.append(STRING_WITH_LEN("@"));
 	// host and lex_user->host are equal except for case
-	db.append(host, strlen(host), system_charset_info);
-	db.append ('\'');
+	String host_str(host, strlen(host), system_charset_info);
+	append_query_string(thd, system_charset_info, &host_str, &db);
 	if (want_access & GRANT_ACL)
 	  db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 	protocol->prepare_for_resend();
@@ -7480,13 +7489,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append('.');
 	append_identifier(thd, &global, grant_table->tname,
 			  strlen(grant_table->tname));
-	global.append(STRING_WITH_LEN(" TO '"));
-	global.append(lex_user->user.str, lex_user->user.length,
-		      system_charset_info);
-	global.append(STRING_WITH_LEN("'@'"));
+	global.append(STRING_WITH_LEN(" TO "));
+	String user_str(lex_user->user.str, lex_user->user.length,
+					system_charset_info);
+	append_query_string(thd, system_charset_info, &user_str, &global);
+	global.append(STRING_WITH_LEN("@"));
 	// host and lex_user->host are equal except for case
-	global.append(host, strlen(host), system_charset_info);
-	global.append('\'');
+	String host_str(host, strlen(host), system_charset_info);
+	append_query_string(thd, system_charset_info, &host_str, &global);
 	if (table_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 	protocol->prepare_for_resend();
@@ -7593,13 +7603,14 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 	global.append('.');
 	append_identifier(thd, &global, grant_proc->tname,
 			  strlen(grant_proc->tname));
-	global.append(STRING_WITH_LEN(" TO '"));
-	global.append(lex_user->user.str, lex_user->user.length,
-		      system_charset_info);
-	global.append(STRING_WITH_LEN("'@'"));
+	global.append(STRING_WITH_LEN(" TO "));
+	String user_str(lex_user->user.str, lex_user->user.length,
+					system_charset_info);
+	append_query_string(thd, system_charset_info, &user_str, &global);
+	global.append(STRING_WITH_LEN("@"));
 	// host and lex_user->host are equal except for case
-	global.append(host, strlen(host), system_charset_info);
-	global.append('\'');
+	String host_str(host, strlen(host), system_charset_info);
+	append_query_string(thd, system_charset_info, &host_str, &global);
 	if (proc_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 	protocol->prepare_for_resend();
@@ -9589,7 +9600,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
     {
       String global(buff, buffsize, system_charset_info);
       global.length(0);
-      proxy->print_grant(&global);
+      proxy->print_grant(thd, &global);
       protocol->prepare_for_resend();
       protocol->store(global.ptr(), global.length(), global.charset());
       if (protocol->write())

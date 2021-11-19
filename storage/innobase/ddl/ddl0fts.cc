@@ -160,6 +160,8 @@ struct FTS::Parser {
     /** Buffer to use for temporary file writes. */
     Aligned_buffer m_aligned_buffer;
 
+    Aligned_buffer m_aligned_buffer_crypt;
+
     /** Record list start offsets. */
     Merge_offsets m_offsets{};
   };
@@ -178,7 +180,7 @@ struct FTS::Parser {
 
   /** Function performs parallel tokenization of the incoming doc strings.
   @param[in,out] builder        Index builder instance. */
-  void parse(Builder *builder) noexcept;
+  void parse(Builder *builder, uint32_t space_id) noexcept;
 
   /** Set the parent thread state.
   @param[in] state              The parent state. */
@@ -370,6 +372,12 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
 
     if (!handler->m_aligned_buffer.allocate(buffer_size.first)) {
       return DB_OUT_OF_MEMORY;
+    }
+
+    if (log_tmp_is_encrypted()) {
+      if (!handler->m_aligned_buffer_crypt.allocate(buffer_size.first)) {
+        return DB_OUT_OF_MEMORY;
+      }
     }
 
     if (file_create(&handler->m_file, path) < 0) {
@@ -807,7 +815,7 @@ void FTS::Parser::get_next_doc_item(FTS::Doc_item *&doc_item) noexcept {
   }
 }
 
-void FTS::Parser::parse(Builder *builder) noexcept {
+void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
   fts_doc_t doc;
   size_t retried{};
   dtype_t word_dtype;
@@ -882,7 +890,9 @@ void FTS::Parser::parse(Builder *builder) noexcept {
         handler->m_offsets.push_back(file.m_size);
 
         auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
-          return builder->append(file, io_buffer);
+          return builder->append(
+              file, io_buffer,
+              handler->m_aligned_buffer_crypt.io_buffer().first, space_id);
         };
 
         err = key_buffer->serialize(io_buffer, persistor);
@@ -998,7 +1008,9 @@ void FTS::Parser::parse(Builder *builder) noexcept {
       handler->m_offsets.push_back(file.m_size);
 
       auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
-        return builder->append(file, io_buffer);
+        return builder->append(
+            file, io_buffer, handler->m_aligned_buffer_crypt.io_buffer().first,
+            space_id);
       };
 
       err = key_buffer->serialize(io_buffer, persistor);
@@ -1501,7 +1513,7 @@ dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
 
     current_thd = m_ctx.thd();
 
-    parser->parse(builder);
+    parser->parse(builder, m_ctx.new_table()->space);
 
     current_thd = old_thd;
   };

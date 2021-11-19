@@ -113,8 +113,14 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   @param[in,out] ctx            DDL context.
   @param[in] fd                 File to write to.
   @param[in] io_buffer          Buffer to store records and write to file. */
-  Output_file(ddl::Context &ctx, os_fd_t fd, IO_buffer io_buffer) noexcept
-      : m_ctx(ctx), m_fd(fd), m_buffer(io_buffer), m_ptr(m_buffer.first) {}
+  Output_file(ddl::Context &ctx, os_fd_t fd, IO_buffer io_buffer,
+              IO_buffer crypt_buffer) noexcept
+      : m_ctx(ctx),
+        m_fd(fd),
+        m_buffer(io_buffer),
+        m_ptr(m_buffer.first),
+        m_crypt_buffer(crypt_buffer),
+        m_space_id(ctx.new_table()->space) {}
 
   /** Destructor. */
   ~Output_file() = default;
@@ -196,6 +202,10 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
 
   /** Counter for checking trx_is_interrupted. */
   uint64_t m_interrupt_check{};
+
+  IO_buffer m_crypt_buffer;
+
+  uint32_t m_space_id;
 };
 
 dberr_t Merge_file_sort::Cursor::prepare(Range range,
@@ -320,7 +330,8 @@ dberr_t Merge_file_sort::Output_file::write(const mrec_t *mrec,
   if (unlikely(m_ptr + rec_size + need >= m_buffer.first + m_buffer.second)) {
     const size_t n_write = m_ptr - m_buffer.first;
     const auto len = ut_uint64_align_down(n_write, IO_BLOCK_SIZE);
-    auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset);
+    auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset,
+                           m_crypt_buffer.first, m_space_id);
 
     if (err != DB_SUCCESS) {
       return err;
@@ -364,7 +375,8 @@ dberr_t Merge_file_sort::Output_file::flush() noexcept {
   }
 
   const auto len = ut_uint64_align_up(m_ptr - m_buffer.first, IO_BLOCK_SIZE);
-  const auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset);
+  const auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset,
+                               m_crypt_buffer.first, m_space_id);
 
   m_offset += len;
 
@@ -484,6 +496,14 @@ dberr_t Merge_file_sort::sort(Builder *builder,
   /* Buffer for writing the merged rows to the output file. */
   auto io_buffer = aligned_buffer.io_buffer();
 
+  Aligned_buffer aligned_buffer_crypt{};
+
+  if (log_tmp_is_encrypted()) {
+    if (!aligned_buffer_crypt.allocate(io_buffer_size)) {
+      return DB_OUT_OF_MEMORY;
+    }
+  }
+
   /* This is the output file for the first pass. */
   auto tmpfd = ddl::file_create_low(builder->tmpdir());
 
@@ -497,7 +517,8 @@ dberr_t Merge_file_sort::sort(Builder *builder,
 
   /* Merge until there is a single list of rows in the file. */
   while (offsets.size() > 1) {
-    Output_file output_file(ctx, tmpfd, io_buffer);
+    Output_file output_file(ctx, tmpfd, io_buffer,
+                            aligned_buffer_crypt.io_buffer());
     Cursor cursor{builder, file, m_merge_ctx->m_dup, m_merge_ctx->m_stage};
 
     err = merge_ranges(cursor, offsets, output_file, io_buffer_size);

@@ -731,6 +731,15 @@ fts_drop_index_tables(
 	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /******************************************************************//**
+Add the table to add to the OPTIMIZER's list. */
+UNIV_INTERN
+void
+fts_optimize_add_table(
+/*===================*/
+	dict_table_t*	table)		/*!< in: table to add */
+	MY_ATTRIBUTE((nonnull));
+
+/******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
 UNIV_INTERN

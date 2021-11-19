@@ -3891,6 +3891,13 @@ row_truncate_table_for_mysql(
 #endif /* UNIV_SYNC_DEBUG */
 
 	dict_stats_wait_bg_to_stop_using_table(table, trx);
+	if (table->fts) {
+		/* Remove from FTS optimize thread. Unlock is needed to allow
+		finishing background operations in progress. */
+		row_mysql_unlock_data_dictionary(trx);
+		fts_optimize_remove_table(table);
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -4282,6 +4289,9 @@ next_rec:
 
 		/* Reset the Doc ID in cache to 0 */
 		if (has_internal_doc_id && table->fts->cache) {
+			DBUG_EXECUTE_IF("ib_trunc_sleep_before_fts_cache_clear",
+					os_thread_sleep(10000000););
+
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(trx, table, NULL, 0);
 			fts_cache_clear(table->fts->cache);
@@ -4304,6 +4314,11 @@ funct_exit:
                 memcached operationse. */
                 table->memcached_sync_count = 0;
         }
+
+  /* Add the table back to FTS optimize background thread. */
+	if (table->fts) {
+		fts_optimize_add_table(table);
+	}
 
 	row_mysql_unlock_data_dictionary(trx);
 

@@ -3111,6 +3111,10 @@ fts_optimize_thread(
 				break;
 
 			case FTS_MSG_SYNC_TABLE:
+				DBUG_EXECUTE_IF("fts_instrument_msg_sync_sleep",
+					os_thread_sleep(300000);
+				);
+
 				fts_optimize_sync_table(
 					*static_cast<table_id_t*>(msg->ptr));
 				break;

@@ -1265,6 +1265,13 @@ public:
   { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
 
   /**
+    @returns true if this item is non-deterministic, which means that a
+             has a component that must be evaluated once per row in
+             execution of a JOIN query.
+  */
+  bool is_non_deterministic() const { return used_tables() & RAND_TABLE_BIT; }
+
+  /**
     This method is used for to:
       - to generate a view definition query (SELECT-statement);
       - to generate a SQL-query for EXPLAIN EXTENDED;

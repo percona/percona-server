@@ -146,6 +146,12 @@ struct File_reader : private ut::Non_copyable {
   /** File buffer for reading. */
   IO_buffer m_io_buffer{};
 
+  /** Aligned buffer for cryptography. */
+  Aligned_buffer m_aligned_buffer_crypt{};
+
+  /** File buffer for cryptography. */
+  IO_buffer m_crypt_buffer{};
+
   /** Number of rows read from the file. */
   uint64_t m_n_rows_read{};
 

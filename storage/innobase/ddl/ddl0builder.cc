@@ -584,7 +584,8 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
       m_ctx(ctx),
       m_loader(loader),
       m_index(ctx.m_indexes[m_id]),
-      m_clust_dup({ctx.m_indexes[0], ctx.m_table, ctx.m_col_map, 0}) {
+      m_clust_dup({ctx.m_indexes[0], ctx.m_table, ctx.m_col_map, 0}),
+      m_prebuilt(nullptr) {  // todoluis if this the correct prebuilt
   m_tmpdir = thd_innodb_tmpdir(m_ctx.thd());
 
   m_sort_index = is_fts_index() ? m_ctx.m_fts.m_ptr->sort_index() : m_index;
@@ -660,6 +661,10 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     m_thread_ctxs.push_back(thread_ctx);
 
     if (!thread_ctx->m_aligned_buffer.allocate(buffer_size.second)) {
+      return DB_OUT_OF_MEMORY;
+    }
+
+    if (!thread_ctx->m_aligned_buffer_crypt.allocate(buffer_size.second)) {
       return DB_OUT_OF_MEMORY;
     }
 
@@ -789,7 +794,8 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
 
       src_field = innobase_get_computed_value(
           ctx.m_row.m_ptr, v_col, clust_index, &p, key_buffer->heap(), ifield,
-          m_ctx.thd(), ctx.m_my_table, m_ctx.m_old_table, nullptr, nullptr);
+          m_ctx.thd(), ctx.m_my_table, m_ctx.m_old_table, nullptr, nullptr,
+          m_prebuilt);
 
       m_v_heap.reset(p);
 
@@ -820,7 +826,7 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
 
     src_field = innobase_get_computed_value(
         ctx.m_row.m_ptr, v_col, clust_index, &p, nullptr, ifield, m_ctx.thd(),
-        ctx.m_my_table, m_ctx.m_old_table, nullptr, nullptr);
+        ctx.m_my_table, m_ctx.m_old_table, nullptr, nullptr, m_prebuilt);
 
     m_v_heap.reset(p);
 
@@ -974,7 +980,11 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
     }
 
     ut_a(len <= col->len || DATA_LARGE_MTYPE(col->mtype) ||
-         (col->mtype == DATA_POINT && len == DATA_MBR_LEN));
+         (col->mtype == DATA_POINT && len == DATA_MBR_LEN) ||
+         ((col->mtype == DATA_VARCHAR || col->mtype == DATA_BINARY ||
+           col->mtype == DATA_VARMYSQL) &&
+          (col->len == 0 ||
+           len <= col->len + prtype_get_compression_extra(col->prtype))));
 
     auto fixed_len = ifield->fixed_len;
 
@@ -1156,9 +1166,11 @@ os_fd_t Builder::create_file(ddl::file_t &file) noexcept {
   }
 }
 
-dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer) noexcept {
+dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer,
+                        void *crypt_buffer, uint32_t space_id) noexcept {
   const auto fd = file.m_fd;
-  auto err = ddl::pwrite(fd, io_buffer.first, io_buffer.second, file.m_size);
+  auto err = ddl::pwrite(fd, io_buffer.first, io_buffer.second, file.m_size,
+                         crypt_buffer, space_id);
 
   if (err != DB_SUCCESS) {
     set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1494,7 +1506,9 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       }
       ut_a(n >= IO_BLOCK_SIZE);
 
-      auto err = ddl::pwrite(file.m_fd, io_buffer.first, n, file.m_size);
+      auto crypt_buffer = thread_ctx->m_aligned_buffer_crypt.io_buffer();
+      auto err = ddl::pwrite(file.m_fd, io_buffer.first, n, file.m_size,
+                             crypt_buffer.first, get_space_id());
 
       if (err != DB_SUCCESS) {
         set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1912,6 +1926,12 @@ dberr_t Builder::fts_sort_and_build() noexcept {
   }
 }
 
+space_id_t Builder::get_space_id() {
+  auto new_table = m_ctx.m_new_table;
+  return new_table != nullptr ? new_table->space
+                              : dict_sys_t::s_invalid_space_id;
+}
+
 dberr_t Builder::finalize() noexcept {
   ut_a(m_ctx.m_need_observer);
   ut_a(get_state() == State::FINISH);
@@ -1921,9 +1941,7 @@ dberr_t Builder::finalize() noexcept {
   observer->flush();
 
   dberr_t err = DB_SUCCESS;
-  auto new_table = m_ctx.m_new_table;
-  auto space_id =
-      new_table != nullptr ? new_table->space : dict_sys_t::s_invalid_space_id;
+  auto space_id = get_space_id();
 
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_INPLACE_BULK, space_id,
                         false);

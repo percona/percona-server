@@ -315,6 +315,8 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
     return false;
   }
 
+  ut_ad(dst_len == size);
+
   return true;
 }
 
@@ -354,12 +356,13 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
 
   if (res != MY_AES_OK) {
     ib::error() << "Unable to decrypt data block src: "
-                << static_cast<const void *>(src_block)
-                << " srclen: " << srv_sort_buf_size
+                << static_cast<const void *>(src_block) << " srclen: " << size
                 << " buf: " << static_cast<const void *>(dst_block)
                 << " buflen: " << dst_len << ".";
     return false;
   }
+
+  ut_ad(dst_len == size);
 
   return true;
 }

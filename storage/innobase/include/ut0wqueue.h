@@ -73,7 +73,13 @@ ib_wqueue_add(
 	void*		item,	/*!< in: work item */
 	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
 				list node */
-
+/****************************************************************//**
+read total number of work item to the queue.
+@return total count of work item in the queue */
+uint64_t
+ib_wqueue_get_count(
+/*==========*/
+	ib_wqueue_t *wq);		/*!< in: work queue */
 /********************************************************************
 Check if queue is empty. */
 
@@ -107,6 +113,7 @@ ib_wqueue_timedwait(
 struct ib_wqueue_t {
 	ib_mutex_t		mutex;	/*!< mutex protecting everything */
 	ib_list_t*	items;	/*!< work item list */
+	uint64_t	count;	/*!< total number of work items */
 	os_event_t	event;	/*!< event we use to signal additions to list */
 };
 

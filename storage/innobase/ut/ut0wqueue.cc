@@ -49,6 +49,7 @@ ib_wqueue_create(void)
 
 	wq->items = ib_list_create();
 	wq->event = os_event_create();
+	wq->count = 0;
 
 	return(wq);
 }
@@ -82,6 +83,7 @@ ib_wqueue_add(
 	mutex_enter(&wq->mutex);
 
 	ib_list_add_last(wq->items, item, heap);
+	wq->count++;
 	os_event_set(wq->event);
 
 	mutex_exit(&wq->mutex);
@@ -107,7 +109,7 @@ ib_wqueue_wait(
 
 		if (node) {
 			ib_list_remove(wq->items, node);
-
+			wq->count--;
 			if (!ib_list_get_first(wq->items)) {
 				/* We must reset the event when the list
 				gets emptied. */
@@ -125,6 +127,20 @@ ib_wqueue_wait(
 	return(node->data);
 }
 
+/********************************************************************
+read total number of work item to the queue.
+@return total count of work item in the queue */
+uint64_t
+ib_wqueue_get_count(
+/*==========*/
+	ib_wqueue_t *wq)		/*!< in: work queue */
+{
+	uint64_t count;
+	mutex_enter(&wq->mutex);
+	count = wq->count;
+	mutex_exit(&wq->mutex);
+	return count;
+}
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
@@ -148,7 +164,7 @@ ib_wqueue_timedwait(
 
 		if (node) {
 			ib_list_remove(wq->items, node);
-
+			wq->count--;
 			mutex_exit(&wq->mutex);
 			break;
 		}

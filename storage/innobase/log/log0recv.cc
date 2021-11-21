@@ -1593,12 +1593,20 @@ static inline bool check_encryption(page_no_t page_no, space_id_t space_id,
   information as of today. Ideally we should have a separate redo type. */
   if (offset == encryption_offset) {
     auto len = mach_read_from_2(start + 2);
-    ut_ad(len == Encryption::INFO_SIZE);
+    ut_ad(len == Encryption::INFO_SIZE ||
+          len == KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 ||
+          len == KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 ||
+          len == KERYING_ENCRYPTION_INFO_MAX_SIZE);
 
-    if (len != Encryption::INFO_SIZE) {
+    if (len != Encryption::INFO_SIZE &&
+        len != KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 &&
+        len != KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 && 
+        len != KERYING_ENCRYPTION_INFO_MAX_SIZE) {
       /* purecov: begin inspected */
       ib::warn(ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH, size_t{len},
-               Encryption::INFO_SIZE);
+               Encryption::INFO_SIZE, KERYING_ENCRYPTION_INFO_MAX_SIZE_V1,
+               KERYING_ENCRYPTION_INFO_MAX_SIZE_V2,
+               KERYING_ENCRYPTION_INFO_MAX_SIZE);
       return false;
       /* purecov: end */
     }

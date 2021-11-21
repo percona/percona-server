@@ -83,6 +83,10 @@ extern os_event_t fil_crypt_threads_event;
 #define CRYPT_SCHEME_1_IV_LEN 16
 //#define CRYPT_SCHEME_UNENCRYPTED 0
 
+extern const uint KERYING_ENCRYPTION_INFO_MAX_SIZE;
+extern const uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2;
+extern const uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1;
+
 // TODO:Robert:Those are mine
 //#define MY_AES_MAX_KEY_LENGTH 16
 //#define ENCRYPTION_SCHEME_BLOCK_LENGTH 16

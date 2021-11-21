@@ -11465,7 +11465,7 @@ ER_IB_MSG_UNDO_ENCRYPTION_INFO_LOADED
   eng "Encryption key is loaded for undo tablespace '%s'."
 
 ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH
-  eng "Ignoring encryption INFO size in redo log: %zu, expected: %zu"
+  eng "Ignoring encryption INFO size in redo log: %zu, expected: %zu, %u, %u or %u"
 
 ER_INVALID_AUTHENTICATION_POLICY
   eng "Option --authentication-policy is set to an invalid value. Please check if the specified authentication plugins are valid."

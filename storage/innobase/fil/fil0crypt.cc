@@ -132,7 +132,7 @@ static constexpr uint ENCRYPTION_SERVER_UUID_HEX_LEN = 16;
 
 #define DEBUG_KEYROTATION_THROTTLING 0
 
-static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
+const uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
     Encryption::MAGIC_SIZE + 1                 // type
     + 4                                        // min_key_version
     + 4                                        // max_key_version
@@ -144,7 +144,7 @@ static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
     + Encryption::SERVER_UUID_HEX_LEN          // server's UUID written in hex
     + ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE;  // validation tag
 
-static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
+const uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
     Encryption::MAGIC_SIZE + 1      // type
     + 4                             // min_key_version
     + 4                             // key_id
@@ -154,7 +154,7 @@ static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
     + Encryption::KEY_LEN           // tablespace key
     + Encryption::SERVER_UUID_LEN;  // server's UUID
 
-static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
+const uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
     Encryption::MAGIC_SIZE + 2  // length of iv
     + 4                         // space id
     + 2                         // offset

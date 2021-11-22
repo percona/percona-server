@@ -126,7 +126,7 @@ case "$1" in
 		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" -o -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
 			db_input high percona-server-server/existing_profile_file || true
 			db_go
-			db_get percona-server-server/existing_config_file && PROFILE_ACTION=${RET}
+			db_get percona-server-server/existing_profile_file && PROFILE_ACTION=${RET}
 		fi
 		if [ "${PROFILE_ACTION}" = "Use NEW AppArmor profile" ]; then
 			DATE=`date +%Y-%m-%d-%H:%m:%S`

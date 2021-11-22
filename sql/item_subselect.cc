@@ -3249,7 +3249,6 @@ bool subselect_hash_sj_engine::setup(
   */
 
   table = tmp_table;
-  // TODOLUIS see if necessary 9ce492fe7214  tab->set_idx(0);
   ref.key = 0; /* The only temp table index. */
   ref.key_length = tmp_key->key_length;
   type = (tmp_table->key_info[0].flags & HA_NOSAME) ? JT_EQ_REF : JT_REF;

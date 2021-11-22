@@ -1,9 +1,9 @@
 [submodule "PerconaFT"]
 	path = storage/tokudb/PerconaFT
-	url = https://github.com/percona/PerconaFT.git
+	url = https://github.com/ldonoso/PerconaFT.git
 [submodule "Percona-TokuBackup"]
 	path = plugin/tokudb-backup-plugin/Percona-TokuBackup
-	url = https://github.com/percona/Percona-TokuBackup.git
+	url = https://github.com/ldonoso/Percona-TokuBackup.git
 [submodule "storage/rocksdb/rocksdb"]
 	path = storage/rocksdb/rocksdb
 	url = https://github.com/facebook/rocksdb.git

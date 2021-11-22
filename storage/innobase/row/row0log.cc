@@ -3276,8 +3276,10 @@ bool row_log_allocate(
 
   if (log_tmp_is_encrypted()) {
     auto size = srv_sort_buf_size;
-    log->crypt_head = static_cast<byte *>(os_mem_alloc_large(&size, false));
-    log->crypt_tail = static_cast<byte *>(os_mem_alloc_large(&size, false));
+    log->crypt_head = static_cast<byte *>(ut::malloc_large_page_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, size, ut::fallback_to_normal_page_t{}));
+    log->crypt_tail = static_cast<byte *>(ut::malloc_large_page_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, size, ut::fallback_to_normal_page_t{}));
 
     if (!log->crypt_head || !log->crypt_tail) {
       row_log_free(log);
@@ -3304,11 +3306,13 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
   ddl::file_destroy_low(log->fd);
 
   if (log->crypt_head) {
-    os_mem_free_large(log->crypt_head, srv_sort_buf_size);
+    ut::free_large_page(log->crypt_head, ut::fallback_to_normal_page_t{});
+    log->crypt_head = nullptr;
   }
 
   if (log->crypt_tail) {
-    os_mem_free_large(log->crypt_tail, srv_sort_buf_size);
+    ut::free_large_page(log->crypt_tail, ut::fallback_to_normal_page_t{});
+    log->crypt_tail = nullptr;
   }
 
   mutex_free(&log->mutex);

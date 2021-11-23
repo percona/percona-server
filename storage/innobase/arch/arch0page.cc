@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "arch0page.h"
 #include "arch0recv.h"
 #include "clone0clone.h"
+#include "raii/sentry.h"
 #include "srv0start.h"
 
 #ifdef UNIV_DEBUG
@@ -1716,9 +1717,10 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
   }
 
   /* We need to track this page. */
-  arch_oper_mutex_enter();
 
   while (true) {
+    arch_oper_mutex_enter();
+    raii::Sentry<> arch_oper_mutex_guard{[&]() { arch_oper_mutex_exit(); }};
     if (m_state != ARCH_STATE_ACTIVE) {
       break;
     }
@@ -1726,7 +1728,6 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
     /* Can possibly loop only two times. */
     if (count >= 2) {
       if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
-        arch_oper_mutex_exit();
         return;
       }
 
@@ -1735,7 +1736,6 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
                              << " Space ID: " << bpage->id.space();
 
       m_state = ARCH_STATE_ABORT;
-      arch_oper_mutex_exit();
       return;
     }
 
@@ -1795,7 +1795,6 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
       continue;
     }
   }
-  arch_oper_mutex_exit();
 }
 
 /** Get page IDs from a specific position.

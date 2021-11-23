@@ -177,6 +177,7 @@ call mtr.add_suppression("Slave I/O for channel 'ch3_2': Fatal error: Failed to 
 call mtr.add_suppression("Slave SQL for channel 'ch3_2': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+--source ../include/gr_clone_integration_suppression_ps_5824.inc
 set session sql_log_bin=1;
 
 UNINSTALL PLUGIN clone;

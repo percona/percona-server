@@ -16,4 +16,5 @@
 # 7. Cleanup
 #
 
+--source ../include/gr_clone_integration_suppression_ps_5824.inc
 --source ../include/gr_clone_integration_basics_with_ssl.inc

@@ -134,6 +134,7 @@ call mtr.add_suppression("Due to a critical cloning error or lack of donors, dis
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error while Group Replication was provisoning with Clone.");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+--source ../include/gr_clone_integration_suppression_ps_5824.inc
 SET SESSION sql_log_bin=1;
 
 --source include/group_replication_end.inc

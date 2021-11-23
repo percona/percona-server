@@ -174,6 +174,7 @@ call mtr.add_suppression(".*The member contains transactions not present *.*");
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+--source ../include/gr_clone_integration_suppression_ps_5824.inc
 set session sql_log_bin=1;
 
 --source include/clean_monitoring_process.inc

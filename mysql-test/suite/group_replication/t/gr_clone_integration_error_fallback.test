@@ -122,6 +122,7 @@ call mtr.add_suppression("This member will start distributed recovery using clon
 call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number: 3868");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3868 Error message: Clone Configuration character_set_server: Donor value: utf8mb4 is different from Recipient value: latin5.");
 call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery.");
+--source ../include/gr_clone_integration_suppression_ps_5824.inc
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server1

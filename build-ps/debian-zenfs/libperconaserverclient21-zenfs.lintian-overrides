@@ -1,2 +1,0 @@
-# Due to static linking this cannot be avoided and hence being overridden
-libperconaserverclient20: embedded-library

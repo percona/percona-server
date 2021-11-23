@@ -27,6 +27,8 @@
 #include "log_event.h"
 #include "log.h"
 
+#include <string>
+
 class Relay_log_info;
 class Master_info;
 
@@ -481,7 +483,7 @@ public:
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
                                       Gtid *first_gtid,
-                                      const char **errmsg);
+                                      std::string &errmsg);
 
   /**
     Reads the set of all GTIDs in the binary log, and the set of all
@@ -726,7 +728,7 @@ public:
     @return void
   */
   void report_missing_purged_gtids(const Gtid_set* slave_executed_gtid_set,
-                                   const char** errmsg);
+                                   std::string &errmsg);
 
   /**
     Function to report the missing GTIDs.
@@ -752,7 +754,7 @@ public:
   */
   void report_missing_gtids(const Gtid_set* previous_gtid_set,
                             const Gtid_set* slave_executed_gtid_set,
-                            const char** errmsg);
+                            std::string &errmsg);
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
 private:
   void publish_coordinates_for_global_status(void) const;

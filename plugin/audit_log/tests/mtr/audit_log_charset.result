@@ -6,7 +6,7 @@ Warnings:
 Warning	1366	Incorrect string value: '\xF0\xA6\x89\x98\xF0\xA6...' for column 'txt' at row 1
 CREATE DATABASE 𦉘𦟌𦧲;
 Warnings:
-Warning	1300	Cannot convert string '\xF0\xA6\x89\x98\xF0\xA6...' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\xA6\x89\x98\xF0\xA6...' from utf8mb4 to utf8mb3
 SHOW DATABASES;
 Database
 ???
@@ -19,7 +19,7 @@ test
 ฐานข้อมูล
 use 𦉘𦟌𦧲;
 Warnings:
-Warning	1300	Cannot convert string '\xF0\xA6\x89\x98\xF0\xA6...' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\xA6\x89\x98\xF0\xA6...' from utf8mb4 to utf8mb3
 use ฐานข้อมูล;
 SET NAMES utf8;
 Warnings:

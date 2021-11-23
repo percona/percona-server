@@ -14956,7 +14956,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           optimization.
         */
         skip_secondary = false;
-        delayed_key_list.empty();
+        delayed_key_list.clear();
       }
     }
   }

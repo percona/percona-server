@@ -4237,13 +4237,13 @@ static int store_temporary_table_record(THD *thd, TABLE *table,
     table->field[8]->store(static_cast<longlong>(file->stats.index_file_length),
                            true);
     if (file->stats.create_time) {
-      thd->variables.time_zone->gmt_sec_to_TIME(
+      thd->time_zone()->gmt_sec_to_TIME(
           &time, static_cast<my_time_t>(file->stats.create_time));
       table->field[9]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[9]->set_notnull();
     }
     if (file->stats.update_time) {
-      thd->variables.time_zone->gmt_sec_to_TIME(
+      thd->time_zone()->gmt_sec_to_TIME(
           &time, static_cast<my_time_t>(file->stats.update_time));
       table->field[10]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[10]->set_notnull();

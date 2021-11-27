@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <memoryapi.h>
 
 #include "storage/innobase/include/detail/ut/helper.h"
+#include "storage/innobase/include/os0populate.h"
 
 extern const size_t large_page_default_size;
 
@@ -48,13 +49,15 @@ namespace detail {
     @param[in] n_bytes Size of storage (in bytes) requested to be allocated.
     @return Pointer to the allocated storage. nullptr if allocation failed.
 */
-inline void *large_page_aligned_alloc(size_t n_bytes) {
+inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
   // VirtualAlloc requires for n_bytes to be a multiple of large-page size
   void *ptr =
       VirtualAlloc(nullptr,
                    pow2_round(n_bytes + (large_page_default_size - 1),
                               large_page_default_size),
                    MEM_COMMIT | MEM_RESERVE | MEM_LARGE_PAGES, PAGE_READWRITE);
+  if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes);
+
   return ptr;
 }
 

@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 
 #include "storage/innobase/include/detail/ut/helper.h"
+#include "storage/innobase/include/os0populate.h"
 
 extern const size_t large_page_default_size;
 
@@ -50,13 +51,18 @@ static constexpr auto SUPER_PAGE_SIZE = VM_FLAGS_SUPERPAGE_SIZE_2MB;
     @param[in] n_bytes Size of storage (in bytes) requested to be allocated.
     @return Pointer to the allocated storage. nullptr if allocation failed.
 */
-inline void *large_page_aligned_alloc(size_t n_bytes) {
-  void *ptr =
-      mmap(0,
-           pow2_round(n_bytes + (large_page_default_size - 1),
-                      large_page_default_size),
-           PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, SUPER_PAGE_SIZE, 0);
-  return (ptr != (void *)-1) ? ptr : nullptr;
+inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
+  void *ptr = mmap(0,
+                   pow2_round(n_bytes + (large_page_default_size - 1),
+                              large_page_default_size),
+                   PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANON | (populate ? OS_MAP_POPULATE : 0),
+                   SUPER_PAGE_SIZE, 0);
+  if (ptr == (void *)-1) return nullptr;
+
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes);
+
+  return ptr;
 }
 
 /** Releases memory backed by large (huge) pages.

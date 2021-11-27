@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 
 #include "storage/innobase/include/detail/ut/helper.h"
+#include "storage/innobase/include/os0populate.h"
 
 extern const size_t large_page_default_size;
 
@@ -46,19 +47,25 @@ namespace detail {
     @param[in] n_bytes Size of storage (in bytes) requested to be allocated.
     @return Pointer to the allocated storage. nullptr if allocation failed.
 */
-inline void *large_page_aligned_alloc(size_t n_bytes) {
+inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
   // mmap on Solaris requires for n_bytes to be a multiple of large-page size
   size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
                                       large_page_default_size);
-  void *ptr = mmap(nullptr, n_bytes_rounded, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON, -1, 0);
+  void *ptr =
+      mmap(nullptr, n_bytes_rounded, PROT_READ | PROT_WRITE,
+           MAP_PRIVATE | MAP_ANON | (populate ? OS_MAP_POPULATE : 0), -1, 0);
   // We also must do additional step to make it happen
   struct memcntl_mha m = {};
   m.mha_cmd = MHA_MAPSIZE_VA;
   m.mha_pagesize = large_page_default_size;
   if (memcntl(ptr, n_bytes_rounded, MC_HAT_ADVISE, (caddr_t)&m, 0, 0) == -1)
     return nullptr;
-  return (ptr != (void *)-1) ? ptr : nullptr;
+
+  if (ptr == (void *)-1) return nullptr;
+
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes);
+
+  return ptr;
 }
 
 /** Releases memory backed by large (huge) pages.

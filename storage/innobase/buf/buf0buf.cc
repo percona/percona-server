@@ -875,12 +875,9 @@ bool buf_chunk_t::madvise_dont_dump() {
 bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk,
                                 bool populate) {
   ut_ad(mutex_own(&chunks_mutex));
-  // TODOLUIS: deal with the populate
-  // <<<<<<< ours chunk->mem = allocator.allocate_large(mem_size, populate);
-  // ||||||| base chunk->mem = allocator.allocate_large(mem_size);
   chunk->mem = static_cast<uint8_t *>(ut::malloc_large_page_withkey(
       ut::make_psi_memory_key(mem_key_buf_buf_pool), mem_size,
-      ut::fallback_to_normal_page_t{}));
+      ut::fallback_to_normal_page_t{}, os_use_large_pages, populate));
   if (chunk->mem == nullptr) {
     return false;
   }

@@ -179,6 +179,7 @@ SET(INNOBASE_SOURCES
   os/os0file.cc
   os/os0enc.cc
   os/os0proc.cc
+  os/os0populate.cc
   os/os0event.cc
   page/page0cur.cc
   page/page0page.cc

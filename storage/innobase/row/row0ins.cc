@@ -880,7 +880,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
 
     dfield_t *vfield = innobase_get_computed_value(
         update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-        nullptr, nullptr, nullptr, nullptr, prebuilt);
+        nullptr, nullptr, nullptr, nullptr, &prebuilt->compress_heap);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -918,7 +918,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
         }
         dfield_t *new_vfield = innobase_get_computed_value(
             update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-            nullptr, nullptr, node->update, foreign, prebuilt);
+            nullptr, nullptr, node->update, foreign, &prebuilt->compress_heap);
         dfield_copy(&(upd_field->new_val), new_vfield);
       }
     }
@@ -926,7 +926,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
     if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
       dfield_t *new_vfield = innobase_get_computed_value(
           update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-          nullptr, nullptr, node->update, foreign, prebuilt);
+          nullptr, nullptr, node->update, foreign, &prebuilt->compress_heap);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;

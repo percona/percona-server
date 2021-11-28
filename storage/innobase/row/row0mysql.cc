@@ -384,11 +384,11 @@ static void column_zip_set_alloc(void *stream, mem_heap_t *heap) noexcept {
 @param[in]      lenlen          bytes used to store the length of data
 @param[in]      dict_data       optional dictionary data used for compression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      prebuilt        use prebuilt->compress only here
+@param[in]      compress_heap
 @return pointer to the compressed data */
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
-                          row_prebuilt_t *prebuilt) {
+                          mem_heap_t **compress_heap) {
   int err = 0;
   ulint comp_len = *len;
   ulint buf_len = *len + zip_column_prefix_max_length;
@@ -399,10 +399,10 @@ byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
 
   int window_bits = wrap ? MAX_WBITS : -MAX_WBITS;
 
-  if (!prebuilt->compress_heap)
-    prebuilt->compress_heap = mem_heap_create(ut_max(UNIV_PAGE_SIZE, buf_len));
+  if (!*compress_heap)
+    *compress_heap = mem_heap_create(ut_max(UNIV_PAGE_SIZE, buf_len));
 
-  buf = static_cast<byte *>(mem_heap_zalloc(prebuilt->compress_heap, buf_len));
+  buf = static_cast<byte *>(mem_heap_zalloc(*compress_heap, buf_len));
 
   if (*len < srv_compressed_columns_threshold ||
       srv_compressed_columns_zip_level == Z_NO_COMPRESSION)
@@ -416,7 +416,7 @@ byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
   c_stream.next_out = ptr;
   c_stream.avail_out = comp_len;
 
-  column_zip_set_alloc(&c_stream, prebuilt->compress_heap);
+  column_zip_set_alloc(&c_stream, *compress_heap);
 
   err = deflateInit2(&c_stream, srv_compressed_columns_zip_level, Z_DEFLATED,
                      window_bits, MAX_MEM_LEVEL,
@@ -490,11 +490,11 @@ do_not_compress:
 @param[in,out]  len     in: data length; out: length of decompressed data
 @param[in]      dict_data       optional dictionary data used for decompression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      prebuilt        use prebuilt->compress_heap only here
+@param[in]      compress_heap
 @return pointer to the uncompressed data */
 const byte *row_decompress_column(const byte *data, ulint *len,
                                   const byte *dict_data, ulint dict_data_len,
-                                  row_prebuilt_t *prebuilt) {
+                                  mem_heap_t **compress_heap) {
   ulint buf_len = 0;
   byte *buf;
   int err = 0;
@@ -554,13 +554,13 @@ const byte *row_decompress_column(const byte *data, ulint *len,
   data += lenlen;
 
   /* data is compressed, decompress it*/
-  if (!prebuilt->compress_heap) {
-    prebuilt->compress_heap =
+  if (!*compress_heap) {
+    *compress_heap =
         mem_heap_create(ut_max(UNIV_PAGE_SIZE, uncomp_len));
   }
 
   buf_len = uncomp_len;
-  buf = static_cast<byte *>(mem_heap_zalloc(prebuilt->compress_heap, buf_len));
+  buf = static_cast<byte *>(mem_heap_zalloc(*compress_heap, buf_len));
 
   /* init d_stream */
   d_stream.next_in = const_cast<Bytef *>(data);
@@ -568,7 +568,7 @@ const byte *row_decompress_column(const byte *data, ulint *len,
   d_stream.next_out = buf;
   d_stream.avail_out = buf_len;
 
-  column_zip_set_alloc(&d_stream, prebuilt->compress_heap);
+  column_zip_set_alloc(&d_stream, *compress_heap);
 
   window_bits = wrap ? MAX_WBITS : -MAX_WBITS;
   err = inflateInit2(&d_stream, window_bits);
@@ -624,11 +624,11 @@ remember also to set the null bit in the mysql record header!
 @param[in] need_decompression If the data need to be compressed
 @param[in] dict_data Optional compression dictionary
 @param[in] dict_data_len Optional compression dictionary data
-@param[in] prebuilt Use prebuilt->compress_heap only here */
+@param[in] compress_heap */
 void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
                               ulint len, bool need_decompression,
                               const byte *dict_data, ulint dict_data_len,
-                              row_prebuilt_t *prebuilt) {
+                              mem_heap_t **compress_heap) {
   /* MySQL might assume the field is set to zero except the length and
   the pointer fields */
 
@@ -651,7 +651,7 @@ void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
 
   if (need_decompression)
     ptr = row_decompress_column((const byte *)data, &len, dict_data,
-                                dict_data_len, prebuilt);
+                                dict_data_len, compress_heap);
 
   if (ptr)
     memcpy(dest + col_len - 8, &ptr, sizeof ptr);
@@ -664,7 +664,7 @@ void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
 const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
                                     bool need_compression,
                                     const byte *dict_data, ulint dict_data_len,
-                                    row_prebuilt_t *prebuilt) {
+                                    mem_heap_t **compress_heap) {
   byte *data = nullptr;
   byte *ptr = nullptr;
 
@@ -674,7 +674,7 @@ const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
 
   if (need_compression) {
     ptr = row_compress_column(data, len, col_len - 8, dict_data, dict_data_len,
-                              prebuilt);
+                              compress_heap);
     if (ptr) data = ptr;
   }
 
@@ -848,8 +848,7 @@ byte *row_mysql_store_col_in_innobase_format(
                               dictionary data */
     ulint dict_data_len,      /*!< in: optional compression
                               dictionary data length */
-    row_prebuilt_t *prebuilt) /*!< in: use prebuilt->compress_heap
-                              only here */
+    mem_heap_t **compress_heap) /*!< in: compress_heap */
 {
   const byte *ptr = mysql_data;
   const dtype_t *dtype;
@@ -903,7 +902,7 @@ byte *row_mysql_store_col_in_innobase_format(
           row_mysql_read_true_varchar(&col_len, mysql_data, lenlen);
       if (need_compression)
         ptr = row_compress_column(tmp_ptr, &col_len, lenlen, dict_data,
-                                  dict_data_len, prebuilt);
+                                  dict_data_len, compress_heap);
       else
         ptr = tmp_ptr;
     } else {
@@ -988,7 +987,7 @@ byte *row_mysql_store_col_in_innobase_format(
   } else if (type == DATA_BLOB) {
     ptr =
         row_mysql_read_blob_ref(&col_len, mysql_data, col_len, need_compression,
-                                dict_data, dict_data_len, prebuilt);
+                                dict_data, dict_data_len, compress_heap);
   } else if (DATA_GEOMETRY_MTYPE(type)) {
     /* We use blob to store geometry data except DATA_POINT
     internally, but in MySQL Layer the datatype is always blob. */
@@ -1080,7 +1079,7 @@ static void row_mysql_convert_row_to_innobase(
           mysql_rec + templ->mysql_col_offset, templ->mysql_col_len,
           dict_table_is_comp(prebuilt->table), templ->compressed,
           reinterpret_cast<const byte *>(templ->zip_dict_data.str),
-          templ->zip_dict_data.length, prebuilt);
+          templ->zip_dict_data.length, &prebuilt->compress_heap);
 
       /* server has issue regarding handling BLOB virtual fields,
       and we need to duplicate it with our own memory here */

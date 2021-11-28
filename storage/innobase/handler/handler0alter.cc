@@ -3057,7 +3057,7 @@ static void innobase_build_col_map_add(mem_heap_t *heap, dfield_t *dfield,
       dfield, buf, true, mysql_data, size, comp,
       field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
       reinterpret_cast<const byte *>(field->zip_dict_data.str),
-      field->zip_dict_data.length, prebuilt);
+      field->zip_dict_data.length, &prebuilt->compress_heap);
 }
 
 /** Construct the translation table for reordering, dropping or

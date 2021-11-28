@@ -425,14 +425,14 @@ enum row_sel_match_mode {
 #ifdef UNIV_DEBUG
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 #define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            prebuilt, sec)                     \
+                                            compress_heap, sec)                     \
   row_sel_field_store_in_mysql_format_func(dest, templ, idx, field, src, len,  \
-                                           prebuilt, sec)
+                                           compress_heap, sec)
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 #define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            prebuilt, sec)                     \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len, prebuilt)
+                                            compress_heap, sec)                     \
+  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len, compress_heap)
 #endif /* UNIV_DEBUG */
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
@@ -469,7 +469,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               ulint field_no,
 #endif /* UNIV_DEBUG */
                                               const byte *data, ulint len,
-                                              row_prebuilt_t *prebuilt
+                                              mem_heap_t **compress_heap
 #ifdef UNIV_DEBUG
                                               ,
                                               ulint sec_field

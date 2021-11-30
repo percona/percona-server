@@ -698,13 +698,11 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
 }
 
 static void hex_to_uuid(const uchar *hex, char *uuid) {
-  char uuid_string[Encryption::SERVER_UUID_LEN + 1];
   snprintf(
-      uuid_string, Encryption::SERVER_UUID_LEN + 1,
+      uuid, Encryption::SERVER_UUID_LEN + 1,
       "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
       hex[0], hex[1], hex[2], hex[3], hex[4], hex[5], hex[6], hex[7], hex[8],
       hex[9], hex[10], hex[11], hex[12], hex[13], hex[14], hex[15]);
-  memcpy(uuid, uuid_string, Encryption::SERVER_UUID_LEN);
 }
 
 static fil_space_crypt_t *fil_space_read_crypt_data_v3(
@@ -755,8 +753,7 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v3(
 
   bytes_read += ENCRYPTION_SERVER_UUID_HEX_LEN;
 
-  static char uuid[Encryption::SERVER_UUID_LEN];
-  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  static char uuid[Encryption::SERVER_UUID_LEN + 1];
   hex_to_uuid(uuid_hex, uuid);
 
   ut_ad(strlen(uuid) > 0);
@@ -1025,8 +1022,7 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
 
   ptr += ENCRYPTION_SERVER_UUID_HEX_LEN;
 
-  static char uuid[Encryption::SERVER_UUID_LEN];
-  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  static char uuid[Encryption::SERVER_UUID_LEN + 1];
   hex_to_uuid(uuid_hex, uuid);
 
   ut_ad(strlen(uuid) > 0);

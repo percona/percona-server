@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <type_traits>
 
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
@@ -1723,16 +1724,15 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
   return res;
 }
 
-static void copy_global_to_session(THD *thd, ulong flag, const ulong *val) {
-  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
-  if (opt_slow_query_log_use_global_control & (1ULL << flag))
-    *(ulong *)((char *)&thd->variables + offset) = *val;
-}
+template <typename Val>
+static void copy_global_to_session(THD *thd, ulong flag, const Val *val) {
+  static_assert(std::is_same<Query_errors_set, Val>::value ||
+                    std::is_unsigned<Val>::value,
+                "Check value type passed to copy_global_to_session template");
 
-static void copy_global_to_session(THD *thd, ulong flag, const ulonglong *val) {
   const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
-    *(ulonglong *)((char *)&thd->variables + offset) = *val;
+    *(Val *)((char *)&thd->variables + offset) = *val;
 }
 
 bool log_slow_applicable(THD *thd, int sp_sql_command) {
@@ -1774,6 +1774,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME, &g.long_query_time);
   copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
                          &g.min_examined_row_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_QUERY_ERRORS, &g.log_query_errors);
 
   /* Follow the slow log filter configuration. */
   if (thd->variables.log_slow_filter != 0 &&
@@ -1818,15 +1819,21 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
 	  return false;
   }
 
+  /* Log queries failing with predefined error */
+  bool warn_failed_query =
+      thd->is_error() && thd->variables.log_query_errors.check_error_set(
+                             thd->get_stmt_da()->mysql_errno());
   bool warn_no_index =
       ((thd->server_status &
         (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
        opt_log_queries_not_using_indexes &&
        !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
   bool log_this_query =
-      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
+      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index ||
+       warn_failed_query) &&
       (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
-  bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
+  bool suppress_logging =
+      log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
   if (!suppress_logging && log_this_query) return true;
 

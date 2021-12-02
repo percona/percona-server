@@ -282,6 +282,10 @@ void log_tmp_enable_encryption_if_set() {
 @return whether the operation succeeded */
 bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
                            os_offset_t offs, space_id_t space_id) {
+  // todoluis
+  memcpy(dst_block, src_block, size);
+  return true;
+
   size_t dst_len;
   byte iv[MY_AES_BLOCK_SIZE];
 
@@ -329,6 +333,11 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
 @return whether the operation succeeded */
 bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
                            os_offset_t offs, space_id_t space_id) {
+  // todoluis - size, offs are not the same use in log_tmp_block_encrypt
+  // also size might not be multiple of MY_AES_BLOCK_SIZE
+  memcpy(dst_block, src_block, size);
+  return true;
+
   size_t dst_len;
   byte iv[MY_AES_BLOCK_SIZE];
 

@@ -323,22 +323,6 @@ buf_read_ahead_random(
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
 	do not try to read outside the bounds of the tablespace! */
 	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
-
-#ifdef UNIV_DEBUG
-		if (srv_file_per_table) {
-			ulint	size = 0;
-
-			for (const fil_node_t*	node =
-				UT_LIST_GET_FIRST(space->chain);
-			     node != NULL;
-			     node = UT_LIST_GET_NEXT(chain, node)) {
-
-				size += os_file_get_size(node->handle)
-					/ page_size.physical();
-			}
-		}
-#endif /* UNIV_DEBUG */
-
 		if (high > space->size) {
 			high = space->size;
 		}

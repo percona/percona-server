@@ -2,12 +2,12 @@
 .\"     Title: ndb_import
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2021
+.\"      Date: 09/06/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_IMPORT" "1" "06/07/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_IMPORT" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -3556,11 +3556,24 @@ T}:T{
 T}
 .TE
 .sp 1
-NDB 7\&.6\&.4 and later: Enable verbose output\&.
+Enable verbose output\&.
+.if n \{\
 .sp
-Previously, this option controlled the internal logging level for debugging messages\&. In NDB 7\&.6\&.4 and later, use the
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Previously, this option controlled the internal logging level for debugging messages\&. In NDB 7\&.6, use the
 \fB\-\-log\-level\fR
 option for this purpose instead\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -3600,7 +3613,7 @@ STARTING WITH
 option\&.
 .PP
 \fBndb_import\fR
-was added in NDB 7\&.6\&.2\&.
+was added in NDB 7\&.6\&.
 .SH "COPYRIGHT"
 .br
 .PP

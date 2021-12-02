@@ -55,6 +55,9 @@ IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
   ENDIF()
 ENDIF()
 
+# Suppress 'sigignore' deprecation error
+ADD_COMPILE_FLAGS("daemon/memcached.c" COMPILE_FLAGS "-Wno-deprecated-declarations")
+
 SET(LIBMEMCACHED_UTILITIES_SOURCES
 		include/memcached/config_parser.h
 		include/memcached/genhash.h

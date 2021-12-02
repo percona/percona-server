@@ -3,13 +3,13 @@ call mtr.add_suppression("Couldn't load plugin named 'keyring_file' with soname 
 call mtr.add_suppression("Plugin keyring_file reported");
 # restart:<hidden args>
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, credit_card VARCHAR(200), private VARCHAR(50)) ENGINE=InnoDB ENCRYPTION='y';
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR rotated';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR rotated';
 ALTER TABLE t1 ADD INDEX secret (credit_card), ALGORITHM=INPLACE, LOCK=NONE;
 SET DEBUG_SYNC= 'now WAIT_FOR opened';
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SET DEBUG_SYNC= 'now SIGNAL rotated';
 CREATE TABLE t2(id int) ENGINE=InnoDB;
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR updated';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR updated';
 ALTER TABLE t1 ADD INDEX secret2 (private), ALGORITHM=INPLACE, LOCK=NONE;
 SET DEBUG_SYNC= 'now WAIT_FOR opened';
 INSERT INTO t1(credit_card) SELECT credit_card FROM t1;

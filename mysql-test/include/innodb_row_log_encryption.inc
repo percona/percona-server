@@ -26,7 +26,7 @@ COMMIT;
 # Now we create secondary index for credit_card column in parallel we create new rows
 # forcing alter table to wait so that row log is used.
 #
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR rotated';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR rotated';
 send ALTER TABLE t1 ADD INDEX secret (credit_card), ALGORITHM=INPLACE, LOCK=NONE;
 #
 # Force key rotation and create second index for same table
@@ -46,7 +46,7 @@ SET DEBUG_SYNC= 'now SIGNAL rotated';
 connection con2;
 reap;
 CREATE TABLE t2(id int) ENGINE=InnoDB;
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR updated';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR updated';
 send ALTER TABLE t1 ADD INDEX secret2 (private), ALGORITHM=INPLACE, LOCK=NONE;
 #
 # Create new rows to row log

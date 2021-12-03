@@ -66,7 +66,34 @@ innodb_table_stats	CREATE TABLE `innodb_table_stats` (
   `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+#
+# PS-7990: mysqldump make a non-consistent backup
+#               with --single-transaction option
+#
+# Restart server.
+# restart: --enforce-gtid-consistency=ON --gtid-mode=ON --log-bin
+CREATE PROCEDURE test_data()
+BEGIN
+DECLARE v_max_rows INT UNSIGNED DEFAULT 1000;
+DECLARE v_counter INT UNSIGNED DEFAULT 1;
+while v_counter <= v_max_rows do
+INSERT INTO t VALUES (v_counter, 1);
+SET v_counter=v_counter+1;
+end while;
+end |
+TRUNCATE TABLE t;
+RESET MASTER;
+USE test;
+call test_data;;
+# Waiting until background connection has executed some inserts
+# Waiting until background connection has executed all inserts
+# RESET
+RESET MASTER;
+# DUMP RESTORE WITH THE DUMP FILE HAVING DATA WRITTEN IN BACKGROUND.
+# Checking rows vs gtid seqno
+include/assert.inc [Committed rows vs gtid seqno]
 #CLEANUP
 DROP TABLE t;
+DROP PROCEDURE test_data;
 RESET MASTER;
-# restart
+# restart: --enforce-gtid-consistency=ON --gtid-mode=ON --log-bin

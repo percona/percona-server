@@ -1,0 +1,12 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+** [DH][4096] generating parameters with openssl binary
+SET @dh_params = TRIM(TRAILING '\n' FROM LOAD_FILE('<PARAMETERS_FILE_PATH>'));
+** [DH][4096] generating private/public keys from parameters with openssl binary
+SET @dh_priv1 = TRIM(TRAILING '\n' FROM LOAD_FILE('<PRIVATE_KEY1_FILE_PATH>'));
+SET @dh_pub1 = TRIM(TRAILING '\n' FROM LOAD_FILE('<PUBLIC_KEY1_FILE_PATH>'));
+SET @dh_priv2 = TRIM(TRAILING '\n' FROM LOAD_FILE('<PRIVATE_KEY2_FILE_PATH>'));
+SET @dh_pub2 = TRIM(TRAILING '\n' FROM LOAD_FILE('<PUBLIC_KEY2_FILE_PATH>'));
+** [DH][4096] verifying shared key generation
+SET @shared1 = asymmetric_derive(@dh_pub1, @dh_priv2);
+SET @shared2 = asymmetric_derive(@dh_pub2, @dh_priv1);
+UNINSTALL COMPONENT 'file://component_encryption_udf';

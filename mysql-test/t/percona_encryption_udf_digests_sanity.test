@@ -1,0 +1,26 @@
+--source include/have_encryption_udf_component.inc
+
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+SET @message = 'message';
+SET @digest_type = 'SHA224';
+
+--echo
+--echo ** checking 'create_digest()' function basics
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_digest();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_digest(@digest_type);
+
+--error ER_UDF_ERROR
+SELECT create_digest(@digest_type, NULL);
+
+--error ER_UDF_ERROR
+SELECT create_digest('FOO', @message);
+
+#
+# Dropping functions from encryption_udf
+#
+UNINSTALL COMPONENT 'file://component_encryption_udf';

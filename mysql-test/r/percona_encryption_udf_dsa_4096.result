@@ -1,0 +1,17 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
+
+** [DSA] checking asymmertic algorithm functions
+** [DSA][4096] checking asymmetric algorithm functions
+**** [DSA][4096] generating private key
+**** [DSA][4096] deriving public key
+**** [DSA][4096][message_len=0] checking operations
+****** [DSA][4096][message_len=0] checking sign/verify functionality
+**** [DSA][4096][message_len=1] checking operations
+****** [DSA][4096][message_len=1] checking sign/verify functionality
+**** [DSA][4096][message_len=256] checking operations
+****** [DSA][4096][message_len=256] checking sign/verify functionality
+**** [DSA][4096][message_len=512] checking operations
+****** [DSA][4096][message_len=512] checking sign/verify functionality
+UNINSTALL COMPONENT 'file://component_encryption_udf';

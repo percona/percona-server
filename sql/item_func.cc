@@ -4862,6 +4862,8 @@ String *udf_handler::val_str(String *str, String *save_str) {
   assert(is_initialized());
 
   if (get_arguments()) return nullptr;
+
+  DEBUG_SYNC(current_thd, "before_string_udf_execution");
   Udf_func_string func = reinterpret_cast<Udf_func_string>(u_d->func);
 
   if ((res_length = str->alloced_length()) <

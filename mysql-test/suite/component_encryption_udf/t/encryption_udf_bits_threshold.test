@@ -1,0 +1,120 @@
+--source include/have_encryption_udf_component.inc
+
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+--echo **
+--echo ** checking rsa_bits_threshold
+--let $assert_text = default rsa_bits_threshold must be 16384
+--let $assert_cond = @@global.encryption_udf.rsa_bits_threshold = 16384
+--source include/assert.inc
+SET GLOBAL encryption_udf.rsa_bits_threshold = 1024;
+--let $assert_text = after changing to min rsa_bits_threshold must be 1024
+--let $assert_cond = @@global.encryption_udf.rsa_bits_threshold = 1024
+--source include/assert.inc
+SET GLOBAL encryption_udf.rsa_bits_threshold = 1023;
+--let $assert_text = after changing to (min - 1) rsa_bits_threshold must still be 1024
+--let $assert_cond = @@global.encryption_udf.rsa_bits_threshold = 1024
+--source include/assert.inc
+SET GLOBAL encryption_udf.rsa_bits_threshold = 16384;
+--let $assert_text = after changing to max rsa_bits_threshold must be 16384
+--let $assert_cond = @@global.encryption_udf.rsa_bits_threshold = 16384
+--source include/assert.inc
+SET GLOBAL encryption_udf.rsa_bits_threshold = 16385;
+--let $assert_text = after changing to (max + 1) rsa_bits_threshold must still be 16384
+--let $assert_cond = @@global.encryption_udf.rsa_bits_threshold = 16384
+--source include/assert.inc
+--error ER_GLOBAL_VARIABLE
+SET SESSION encryption_udf.rsa_bits_threshold = 4096;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.encryption_udf.rsa_bits_threshold;
+
+SET GLOBAL encryption_udf.rsa_bits_threshold = 1536;
+SET @priv_key = create_asymmetric_priv_key('RSA', @@global.encryption_udf.rsa_bits_threshold);
+--error ER_UDF_ERROR
+SET @priv_key = create_asymmetric_priv_key('RSA', @@global.encryption_udf.rsa_bits_threshold + 1);
+
+--echo **
+--echo ** checking dsa_bits_threshold
+--let $assert_text = default dsa_bits_threshold must be 9984
+--let $assert_cond = @@global.encryption_udf.dsa_bits_threshold = 9984
+--source include/assert.inc
+SET GLOBAL encryption_udf.dsa_bits_threshold = 1024;
+--let $assert_text = after changing to min dsa_bits_threshold must be 1024
+--let $assert_cond = @@global.encryption_udf.dsa_bits_threshold = 1024
+--source include/assert.inc
+SET GLOBAL encryption_udf.dsa_bits_threshold = 1023;
+--let $assert_text = after changing to (min - 1) dsa_bits_threshold must still be 1024
+--let $assert_cond = @@global.encryption_udf.dsa_bits_threshold = 1024
+--source include/assert.inc
+SET GLOBAL encryption_udf.dsa_bits_threshold = 9984;
+--let $assert_text = after changing to max dsa_bits_threshold must be 9984
+--let $assert_cond = @@global.encryption_udf.dsa_bits_threshold = 9984
+--source include/assert.inc
+SET GLOBAL encryption_udf.dsa_bits_threshold = 9985;
+--let $assert_text = after changing to (max + 1) dsa_bits_threshold must still be 9984
+--let $assert_cond = @@global.encryption_udf.dsa_bits_threshold = 9984
+--source include/assert.inc
+--error ER_GLOBAL_VARIABLE
+SET SESSION encryption_udf.dsa_bits_threshold = 4096;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.encryption_udf.dsa_bits_threshold;
+
+SET GLOBAL encryption_udf.dsa_bits_threshold = 1536;
+SET @priv_key = create_asymmetric_priv_key('DSA', @@global.encryption_udf.dsa_bits_threshold);
+--error ER_UDF_ERROR
+SET @priv_key = create_asymmetric_priv_key('DSA', @@global.encryption_udf.dsa_bits_threshold + 1);
+
+--echo **
+--echo ** checking dh_bits_threshold
+--let $assert_text = default dh_bits_threshold must be 10000
+--let $assert_cond = @@global.encryption_udf.dh_bits_threshold = 10000
+--source include/assert.inc
+SET GLOBAL encryption_udf.dh_bits_threshold = 1024;
+--let $assert_text = after changing to min dh_bits_threshold must be 1024
+--let $assert_cond = @@global.encryption_udf.dh_bits_threshold = 1024
+--source include/assert.inc
+SET GLOBAL encryption_udf.dh_bits_threshold = 1023;
+--let $assert_text = after changing to (min - 1) dh_bits_threshold must still be 1024
+--let $assert_cond = @@global.encryption_udf.dh_bits_threshold = 1024
+--source include/assert.inc
+SET GLOBAL encryption_udf.dh_bits_threshold = 10000;
+--let $assert_text = after changing to max dh_bits_threshold must be 10000
+--let $assert_cond = @@global.encryption_udf.dh_bits_threshold = 10000
+--source include/assert.inc
+SET GLOBAL encryption_udf.dh_bits_threshold = 10001;
+--let $assert_text = after changing to (max + 1) dh_bits_threshold must still be 10000
+--let $assert_cond = @@global.encryption_udf.dh_bits_threshold = 10000
+--source include/assert.inc
+--error ER_GLOBAL_VARIABLE
+SET SESSION encryption_udf.dh_bits_threshold = 4096;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.encryption_udf.dh_bits_threshold;
+
+SET GLOBAL encryption_udf.dh_bits_threshold = 1536;
+SET @priv_key = create_dh_parameters(@@global.encryption_udf.dh_bits_threshold);
+--error ER_UDF_ERROR
+SET @priv_key = create_dh_parameters(@@global.encryption_udf.dh_bits_threshold + 1);
+
+--echo **
+--echo ** checking that non-privileged users cannot change xxx_bits_threshold variables
+--source include/count_sessions.inc
+CREATE USER 'usr' IDENTIFIED BY 'password';
+--connect (con1, localhost, usr, password)
+--connection con1
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL encryption_udf.rsa_bits_threshold = 2048;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL encryption_udf.dsa_bits_threshold = 2048;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL encryption_udf.dh_bits_threshold = 2048;
+
+--disconnect con1
+--connection default
+DROP USER 'usr';
+--source include/wait_until_count_sessions.inc
+
+#
+# Dropping functions from encryption_udf
+#
+UNINSTALL COMPONENT 'file://component_encryption_udf';

@@ -1,0 +1,4 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+** checking digests calculation
+SET @random_pattern = REPEAT(MD5(42), 16 * 7 DIV 32 + 1);
+UNINSTALL COMPONENT 'file://component_encryption_udf';

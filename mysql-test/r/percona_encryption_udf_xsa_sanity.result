@@ -1,0 +1,141 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+SET @algorithm = 'RSA';
+SET @message = 'message';
+SET @digest_type = 'SHA224';
+
+** checking 'create_asymmetric_priv_key()' function basics
+SELECT create_asymmetric_priv_key();
+ERROR HY000: Can't initialize function 'create_asymmetric_priv_key'; Function requires exactly two arguments
+SELECT create_asymmetric_priv_key(@algorithm);
+ERROR HY000: Can't initialize function 'create_asymmetric_priv_key'; Function requires exactly two arguments
+SELECT create_asymmetric_priv_key(@algorithm, NULL);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; argument 2 cannot be null
+SELECT create_asymmetric_priv_key(@algorithm, 0);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid RSA key length specified
+SELECT create_asymmetric_priv_key(@algorithm, -1);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid RSA key length specified
+SELECT create_asymmetric_priv_key(@algorithm, 'blah');
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Key length is not a numeric value
+SELECT create_asymmetric_priv_key('RSA', 1023);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid RSA key length specified
+SELECT create_asymmetric_priv_key('DSA', 1023);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid DSA key length specified
+SELECT create_asymmetric_priv_key('RSA', 16385);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid RSA key length specified
+SELECT create_asymmetric_priv_key('DSA', 9985);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid DSA key length specified
+
+** checking 'create_asymmetric_pub_key()' function basics
+SELECT create_asymmetric_pub_key();
+ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function requires exactly two arguments
+SELECT create_asymmetric_pub_key(@algorithm);
+ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function requires exactly two arguments
+SELECT create_asymmetric_pub_key(@algorithm, NULL);
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; argument 2 cannot be null
+SELECT create_asymmetric_pub_key(@algorithm, 42);
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+SELECT create_asymmetric_priv_key('FOO', 2048);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid algorithm specified
+
+** checking 'asymmetric_encrypt()' function basics
+SELECT asymmetric_encrypt();
+ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires exactly three arguments
+SELECT asymmetric_encrypt(@algorithm);
+ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires exactly three arguments
+SELECT asymmetric_encrypt(@algorithm, @message);
+ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires exactly three arguments
+SELECT asymmetric_encrypt(@algorithm, @message, NULL);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 3 cannot be null
+SELECT asymmetric_encrypt(@algorithm, @message, 42);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+SELECT asymmetric_encrypt(@algorithm, @message, 'blah-blah');
+ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+SELECT asymmetric_encrypt(@algorithm, NULL, NULL);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+
+** checking 'asymmetric_decrypt()' function basics
+SELECT asymmetric_decrypt();
+ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires exactly three arguments
+SELECT asymmetric_decrypt(@algorithm);
+ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires exactly three arguments
+SELECT asymmetric_decrypt(@algorithm, @message);
+ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires exactly three arguments
+SELECT asymmetric_decrypt(@algorithm, @message, NULL);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; argument 3 cannot be null
+SELECT asymmetric_decrypt(@algorithm, @message, 42);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+SELECT asymmetric_decrypt(@algorithm, @message, 'blah-blah');
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; argument 2 cannot be null
+
+** checking 'asymmetric_sign()' function basics
+SET @message_digest = create_digest(@digest_type, @message);
+SET @priv = create_asymmetric_priv_key(@algorithm, 1024);
+SELECT asymmetric_sign();
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+SELECT asymmetric_sign(@algorithm);
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+SELECT asymmetric_sign(@algorithm, @message_digest);
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv);
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+SELECT asymmetric_sign(NULL, @message_digest, @priv, @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; argument 1 cannot be null
+SELECT asymmetric_sign(42, @message_digest, @priv, @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; Invalid algorithm specified
+SELECT asymmetric_sign('XSA', @message_digest, @priv, @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; Invalid algorithm specified
+SELECT asymmetric_sign(@algorithm, NULL, @priv, @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; argument 2 cannot be null
+SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; argument 3 cannot be null
+SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
+ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, NULL);
+ERROR HY000: asymmetric_sign<string> UDF failed; argument 4 cannot be null
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 42);
+ERROR HY000: asymmetric_sign<string> UDF failed; unknown digest name
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 'SHAX');
+ERROR HY000: asymmetric_sign<string> UDF failed; unknown digest name
+
+** checking 'asymmetric_verify()' function basics
+SET @signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+SET @pub = create_asymmetric_pub_key(@algorithm, @priv);
+SELECT asymmetric_verify();
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+SELECT asymmetric_verify(@algorithm);
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+SELECT asymmetric_verify(@algorithm, @message_digest);
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature);
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub);
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+SELECT asymmetric_verify(NULL, @message_digest, @signature, @pub, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; argument 1 cannot be null
+SELECT asymmetric_verify(42, @message_digest, @signature, @pub, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; Invalid algorithm specified
+SELECT asymmetric_verify('XSA', @message_digest, @signature, @pub, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; Invalid algorithm specified
+SELECT asymmetric_verify(@algorithm, NULL, @signature, @pub, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; argument 2 cannot be null
+SELECT asymmetric_verify(@algorithm, @message_digest, NULL, @pub, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; argument 3 cannot be null
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; argument 4 cannot be null
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
+ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, NULL);
+ERROR HY000: asymmetric_verify<int> UDF failed; argument 5 cannot be null
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 42);
+ERROR HY000: asymmetric_verify<int> UDF failed; unknown digest name
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 'SHAX');
+ERROR HY000: asymmetric_verify<int> UDF failed; unknown digest name
+UNINSTALL COMPONENT 'file://component_encryption_udf';

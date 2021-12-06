@@ -21,6 +21,7 @@
 #include <bitset>
 #include <chrono>
 #include <cstddef>
+#include <memory>
 #include <thread>
 
 #include <mysql/components/service.h>
@@ -127,9 +128,11 @@ void unregister_udfs(SERVICE_TYPE(udf_registration) * service,
 
 }  // namespace mysqlpp
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define DECLARE_UDF_INFO(NAME, TYPE)                               \
   mysqlpp::udf_info {                                              \
-    #NAME, TYPE, (Udf_func_any)&NAME, &NAME##_init, &NAME##_deinit \
+    #NAME, TYPE, (Udf_func_any)std::addressof(NAME),               \
+        std::addressof(NAME##_init), std::addressof(NAME##_deinit) \
   }
 
 // A simplified version of the DECLARE_UDF_INFO macro that relies on the
@@ -138,5 +141,6 @@ void unregister_udfs(SERVICE_TYPE(udf_registration) * service,
 #define DECLARE_UDF_INFO_AUTO(NAME) \
   DECLARE_UDF_INFO(NAME,            \
                    ::mysqlpp::udf_impl_meta_info<NAME##_impl>::item_result)
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 #endif

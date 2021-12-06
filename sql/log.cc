@@ -64,6 +64,7 @@
 #include <string>
 #include <utility>
 
+#include "binlog.h"
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -121,6 +122,9 @@
 
 using std::max;
 using std::min;
+
+ulong max_slowlog_size;
+ulong max_slowlog_files;
 
 enum enum_slow_query_log_table_field {
   SQLT_FIELD_START_TIME = 0,
@@ -360,6 +364,14 @@ class File_query_log {
                   size_t sql_text_len);
 
  private:
+  /** slow log rotation and purging functions */
+  bool set_rotated_name(bool need_lock);
+  bool rotate(ulong max_size);
+  bool purge_logs();
+
+  ulong cur_log_ext;
+  ulong last_removed_ext;
+
   /** Type of log file. */
   const enum_log_table_type m_log_type;
 
@@ -393,7 +405,12 @@ class File_query_log {
 };
 
 File_query_log::File_query_log(enum_log_table_type log_type)
-    : m_log_type(log_type), name(nullptr), write_error(false), log_open(false) {
+    : cur_log_ext(0),
+      last_removed_ext(0),
+      m_log_type(log_type),
+      name(nullptr),
+      write_error(false),
+      log_open(false) {
   mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 #ifdef HAVE_PSI_INTERFACE
   if (log_type == QUERY_LOG_GENERAL)
@@ -496,10 +513,13 @@ bool File_query_log::set_file(const char *new_name) {
 
   name = nn;
 
-  // We can do this here since we're not actually resolving symlinks etc.
-  fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+  mysql_mutex_lock(&LOCK_log);
+  cur_log_ext = 0;
+  last_removed_ext = 0;
+  bool res = set_rotated_name(false) || purge_logs();
+  mysql_mutex_unlock(&LOCK_log);
 
-  return false;
+  return res;
 }
 
 bool File_query_log::open() {
@@ -709,6 +729,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 
   mysql_mutex_lock(&LOCK_log);
   assert(is_open());
+
+  if (max_slowlog_size > 0 && rotate(max_slowlog_size)) goto err;
 
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT)) {
     char my_timestamp[iso8601_size];
@@ -946,6 +968,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       my_b_write(&log_file, pointer_cast<const uchar *>(";\n"), 2) ||
       flush_io_cache(&log_file))
     goto err;
+
+  if (purge_logs()) goto err;
 
   mysql_mutex_unlock(&LOCK_log);
   return false;
@@ -2009,6 +2033,192 @@ bool Slow_log_throttle::log(THD *thd, bool eligible) {
   }
 
   return suppress_current;
+}
+
+/**
+ * Check if string is a n-digit number.
+ *
+ * @param str String to check
+ * @param n_digit Expected number of digits
+ * @param res Returns actual number contained in provided string
+ * @return True in case string is a n-digit number, False otherwise
+ */
+static bool is_n_digit_number(const char *str, int n_digit, ulong *res) {
+  if (!isdigit(*str)) return false;
+
+  const char *start = str++;
+  while (isdigit(*str)) str++;
+  if (*str != 0 || str - start != n_digit) return false;
+
+  if (res) *res = atol(start);
+  return true;
+}
+
+/**
+ * Get biggest known numeric extension for a file name.
+ *
+ * Provided with the full path to the file it searches file's directory for
+ * files with the same name and six digit extension which is preceded by a dot.
+ * Max found extension number is returned. Extension equal to zero is returned
+ * in case there is no such file or there is no such files with numeric
+ * extension yet.
+ *
+ * @param name Full path to the log file name
+ * @return Biggest known numeric extension for the log file name
+ *         or 0 if not found
+ */
+static size_t get_last_extension(const char *const name) {
+  DBUG_ENTER("get_last_extension");
+  char buff[FN_REFLEN];
+  ulong max_found = 0;
+  ulong number = 0;
+  size_t buf_length;
+  size_t length;
+
+  length = dirname_part(buff, name, &buf_length);
+  const char *const start = name + length;
+  const char *const end = strend(start);
+  length = (size_t)(end - start);
+
+  MY_DIR *const dir_info = my_dir(buff, MYF(MY_DONT_SORT));
+  const struct fileinfo *file_info = dir_info->dir_entry;
+
+  for (uint i = dir_info->number_off_files; i--; file_info++) {
+    if (strncmp(file_info->name, start, length) == 0 &&
+        file_info->name[length] == '.' &&
+        is_n_digit_number(file_info->name + length + 1, 6, &number)) {
+      max_found = std::max(max_found, number);
+    }
+  }
+  my_dirend(dir_info);
+  DBUG_RETURN(max_found);
+}
+
+/**
+ * Set rotated log file name.
+ *
+ * Path to log file name updated according to current log file rotation
+ * settings. Numeric extension is added to log file name if needed.
+ * The opt_slow_logname is updated in case log file name has a numeric extension
+ * for the whole server to use proper log file name.
+ *
+ * @param need_lock Shows if LOCK_log mutex should be locked before
+ *                  updating opt_slow_logname
+ * @return False in case log file name updated successfully, True otherwise
+ */
+bool File_query_log::set_rotated_name(const bool need_lock) {
+  DBUG_ENTER("File_query_log::set_rotated_name");
+  if (need_lock) mysql_mutex_assert_owner(&LOCK_log);
+
+  if (!max_slowlog_size) {
+    fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+    DBUG_RETURN(false);
+  }
+
+  if (cur_log_ext == 0) {
+    fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+    cur_log_ext = get_last_extension(log_file_name) + 1;
+  } else {
+    cur_log_ext++;
+  }
+
+  if (cur_log_ext > 0) {
+    /* check if reached the maximum possible extension number */
+    if (cur_log_ext >= MAX_LOG_UNIQUE_FN_EXT) {
+      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_EXTENSION_NUMBER_EXHAUSTED,
+             cur_log_ext);
+      DBUG_RETURN(true);
+    }
+
+    if (snprintf(log_file_name, sizeof(log_file_name), "%s.%06lu", name,
+                 cur_log_ext) >= static_cast<int>(sizeof(log_file_name))) {
+      my_printf_error(ER_NO_UNIQUE_LOGFILE,
+                      ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
+                      MYF(ME_FATALERROR), name);
+      LogErr(ERROR_LEVEL, ER_NO_UNIQUE_LOGFILE, name);
+      DBUG_RETURN(true);
+    }
+
+    if (need_lock) mysql_mutex_lock(&LOCK_global_system_variables);
+    opt_slow_logname =
+        my_strdup(key_memory_LOG_name, log_file_name, MYF(MY_WME));
+    if (need_lock) mysql_mutex_unlock(&LOCK_global_system_variables);
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
+ * Rotate log file in case its size exceeds provided value.
+ *
+ * @param max_size Max allowed log file size
+ * @return False in case log is rotated successfully, True otherwise
+ */
+bool File_query_log::rotate(const ulong max_size) {
+  DBUG_ENTER("File_query_log::rotate");
+  mysql_mutex_assert_owner(&LOCK_log);
+
+  if (my_b_tell(&log_file) > max_size) {
+    if (set_rotated_name(true)) DBUG_RETURN(true);
+    close();
+    if (open()) DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
+ * Purge log files depending on max configured number of log files.
+ *
+ * @return False in case logs purged successfully, True otherwise
+ */
+bool File_query_log::purge_logs() {
+  DBUG_ENTER("File_query_log::purge_logs");
+  mysql_mutex_assert_owner(&LOCK_log);
+
+  if (max_slowlog_files == 0 || cur_log_ext < 1 ||
+      last_removed_ext == cur_log_ext - 1)
+    DBUG_RETURN(false);
+
+  char buff[FN_REFLEN];
+  MY_STAT stat_area;
+  long iter_log_ext = cur_log_ext - 1;
+  ulong total_slowlog_files_count = 1;
+
+  while (true) {
+    if (iter_log_ext > 0) {
+      snprintf(buff, sizeof(buff), "%s.%06lu", name, iter_log_ext);
+    } else {
+      snprintf(buff, sizeof(buff), "%s", name);
+    }
+
+    if (!mysql_file_stat(m_log_file_key, buff, &stat_area, MYF(0))) {
+      last_removed_ext = iter_log_ext;
+      DBUG_RETURN(false);
+    }
+
+    if (++total_slowlog_files_count >= max_slowlog_files) break;
+    if (--iter_log_ext < 0) DBUG_RETURN(false);
+  };
+
+  bool error = false;
+  if (max_slowlog_files > 1) --iter_log_ext;
+
+  while (iter_log_ext >= 0) {
+    if (iter_log_ext > 0) {
+      snprintf(buff, sizeof(buff), "%s.%06lu", name, iter_log_ext);
+    } else {
+      snprintf(buff, sizeof(buff), "%s", name);
+    }
+
+    if ((error = (unlink(buff) != 0))) {
+      if (my_errno() == ENOENT) error = false;
+      break;
+    }
+    --iter_log_ext;
+  }
+
+  DBUG_RETURN(error);
 }
 
 bool Error_log_throttle::log() {

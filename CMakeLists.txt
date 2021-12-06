@@ -2218,6 +2218,10 @@ OPTION(WITH_HYPERGRAPH_OPTIMIZER
   ${WITH_HYPERGRAPH_OPTIMIZER_DEFAULT}
   )
 
+OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
+IF(WITH_ENCRYPTION_UDF)
+  ADD_SUBDIRECTORY(extra/opensslpp)
+ENDIF()
 
 option(WITH_PERCONA_PROBUILD "Build Percona Server Pro variant" OFF)
 option(PROBUILD "Build Percona Server Pro variant (an alias for WITH_PERCONA_PROBUILD)" OFF)

@@ -34,7 +34,8 @@ struct wrapped_t {
 
 template <typename MixinType, typename ImplType>
 struct impl_with_mixin : public MixinType {
-  impl_with_mixin(udf_context &ctx) : MixinType{}, impl{ctx} {}
+  explicit impl_with_mixin(udf_context &ctx) : MixinType{}, impl{ctx} {}
+  // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   ImplType impl;
 };
 

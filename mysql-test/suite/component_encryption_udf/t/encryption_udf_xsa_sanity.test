@@ -1,0 +1,210 @@
+--source include/have_encryption_udf_component.inc
+
+#
+# Creating functions from encryption_udf
+#
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+SET @algorithm = 'RSA';
+SET @message = 'message';
+SET @digest_type = 'SHA224';
+
+# to support different versions of openssl library (1.0.2, 1.1.x and 3.0.x),
+# we need to unify recorded error messages via --replace_regex
+
+--echo
+--echo ** checking 'create_asymmetric_priv_key()' function basics
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_priv_key();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_priv_key(@algorithm);
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, NULL);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, 0);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, -1);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, 'blah');
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('RSA', 1023);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('DSA', 1023);
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('RSA', 16385);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('DSA', 9985);
+
+
+--echo
+--echo ** checking 'create_asymmetric_pub_key()' function basics
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_pub_key();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_pub_key(@algorithm);
+
+--replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT create_asymmetric_pub_key(@algorithm, NULL);
+--replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT create_asymmetric_pub_key(@algorithm, 42);
+--replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('FOO', 2048);
+
+
+--echo
+--echo ** checking 'asymmetric_encrypt()' function basics
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_encrypt();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_encrypt(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_encrypt(@algorithm, @message);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, @message, NULL);
+--replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, @message, 42);
+--replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, @message, 'blah-blah');
+
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, NULL, NULL);
+
+
+--echo
+--echo ** checking 'asymmetric_decrypt()' function basics
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_decrypt();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_decrypt(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_decrypt(@algorithm, @message);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, @message, NULL);
+--replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, @message, 42);
+--replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, @message, 'blah-blah');
+
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
+
+
+--echo
+--echo ** checking 'asymmetric_sign()' function basics
+SET @message_digest = create_digest(@digest_type, @message);
+SET @priv = create_asymmetric_priv_key(@algorithm, 1024);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign(@algorithm, @message_digest);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(NULL, @message_digest, @priv, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(42, @message_digest, @priv, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign('XSA', @message_digest, @priv, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, NULL, @priv, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
+--replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
+--replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 'SHAX');
+
+
+--echo
+--echo ** checking 'asymmetric_verify()' function basics
+SET @signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+SET @pub = create_asymmetric_pub_key(@algorithm, @priv);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm, @message_digest);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(NULL, @message_digest, @signature, @pub, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(42, @message_digest, @signature, @pub, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify('XSA', @message_digest, @signature, @pub, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, NULL, @signature, @pub, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, NULL, @pub, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
+--replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_type);
+--replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 'SHAX');
+
+
+#
+# Dropping functions from encryption_udf
+#
+UNINSTALL COMPONENT 'file://component_encryption_udf';

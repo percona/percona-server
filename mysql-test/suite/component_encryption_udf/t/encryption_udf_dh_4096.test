@@ -1,0 +1,6 @@
+--source include/big_test.inc
+--source include/have_encryption_udf_component.inc
+
+--let $key_length = 4096
+
+--source ../include/encryption_udf_dh.inc

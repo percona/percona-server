@@ -2761,7 +2761,7 @@ ER_FAILED_TO_FIND_DL_ENTRY
   eng "Can't find symbol '%-.128s' in library."
 
 ER_FAILED_TO_OPEN_SHARED_LIBRARY
-  eng "Can't open shared library '%-.192s' (errno: %d %-.128s)."
+  eng "Can't open shared library '%-.192s' (errno: %d %-.192s)."
 
 ER_THREAD_PRIORITY_IGNORED
   eng "Thread priority attribute setting in Resource Group SQL shall be ignored due to unsupported platform or insufficient privilege."

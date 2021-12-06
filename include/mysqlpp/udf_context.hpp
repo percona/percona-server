@@ -94,7 +94,7 @@ class udf_context {
   }
 
   void mark_arg_nullable(std::size_t index, bool nullable) noexcept {
-    args_->maybe_null[index] = (nullable ? 1 : 0);
+    args_->maybe_null[index] = (nullable ? '\1' : '\0');
   }
 
   void mark_result_nullable(bool nullable) noexcept {

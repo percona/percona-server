@@ -1,0 +1,81 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+**
+** checking rsa_bits_threshold
+include/assert.inc [default rsa_bits_threshold must be 16384]
+SET GLOBAL encryption_udf.rsa_bits_threshold = 1024;
+include/assert.inc [after changing to min rsa_bits_threshold must be 1024]
+SET GLOBAL encryption_udf.rsa_bits_threshold = 1023;
+Warnings:
+Warning	1292	Truncated incorrect encryption_udf.rsa_bits_threshold value: '1023'
+include/assert.inc [after changing to (min - 1) rsa_bits_threshold must still be 1024]
+SET GLOBAL encryption_udf.rsa_bits_threshold = 16384;
+include/assert.inc [after changing to max rsa_bits_threshold must be 16384]
+SET GLOBAL encryption_udf.rsa_bits_threshold = 16385;
+Warnings:
+Warning	1292	Truncated incorrect encryption_udf.rsa_bits_threshold value: '16385'
+include/assert.inc [after changing to (max + 1) rsa_bits_threshold must still be 16384]
+SET SESSION encryption_udf.rsa_bits_threshold = 4096;
+ERROR HY000: Variable 'encryption_udf.rsa_bits_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.encryption_udf.rsa_bits_threshold;
+ERROR HY000: Variable 'encryption_udf.rsa_bits_threshold' is a GLOBAL variable
+SET GLOBAL encryption_udf.rsa_bits_threshold = 1536;
+SET @priv_key = create_asymmetric_priv_key('RSA', @@global.encryption_udf.rsa_bits_threshold);
+SET @priv_key = create_asymmetric_priv_key('RSA', @@global.encryption_udf.rsa_bits_threshold + 1);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid RSA key length specified
+**
+** checking dsa_bits_threshold
+include/assert.inc [default dsa_bits_threshold must be 9984]
+SET GLOBAL encryption_udf.dsa_bits_threshold = 1024;
+include/assert.inc [after changing to min dsa_bits_threshold must be 1024]
+SET GLOBAL encryption_udf.dsa_bits_threshold = 1023;
+Warnings:
+Warning	1292	Truncated incorrect encryption_udf.dsa_bits_threshold value: '1023'
+include/assert.inc [after changing to (min - 1) dsa_bits_threshold must still be 1024]
+SET GLOBAL encryption_udf.dsa_bits_threshold = 9984;
+include/assert.inc [after changing to max dsa_bits_threshold must be 9984]
+SET GLOBAL encryption_udf.dsa_bits_threshold = 9985;
+Warnings:
+Warning	1292	Truncated incorrect encryption_udf.dsa_bits_threshold value: '9985'
+include/assert.inc [after changing to (max + 1) dsa_bits_threshold must still be 9984]
+SET SESSION encryption_udf.dsa_bits_threshold = 4096;
+ERROR HY000: Variable 'encryption_udf.dsa_bits_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.encryption_udf.dsa_bits_threshold;
+ERROR HY000: Variable 'encryption_udf.dsa_bits_threshold' is a GLOBAL variable
+SET GLOBAL encryption_udf.dsa_bits_threshold = 1536;
+SET @priv_key = create_asymmetric_priv_key('DSA', @@global.encryption_udf.dsa_bits_threshold);
+SET @priv_key = create_asymmetric_priv_key('DSA', @@global.encryption_udf.dsa_bits_threshold + 1);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid DSA key length specified
+**
+** checking dh_bits_threshold
+include/assert.inc [default dh_bits_threshold must be 10000]
+SET GLOBAL encryption_udf.dh_bits_threshold = 1024;
+include/assert.inc [after changing to min dh_bits_threshold must be 1024]
+SET GLOBAL encryption_udf.dh_bits_threshold = 1023;
+Warnings:
+Warning	1292	Truncated incorrect encryption_udf.dh_bits_threshold value: '1023'
+include/assert.inc [after changing to (min - 1) dh_bits_threshold must still be 1024]
+SET GLOBAL encryption_udf.dh_bits_threshold = 10000;
+include/assert.inc [after changing to max dh_bits_threshold must be 10000]
+SET GLOBAL encryption_udf.dh_bits_threshold = 10001;
+Warnings:
+Warning	1292	Truncated incorrect encryption_udf.dh_bits_threshold value: '10001'
+include/assert.inc [after changing to (max + 1) dh_bits_threshold must still be 10000]
+SET SESSION encryption_udf.dh_bits_threshold = 4096;
+ERROR HY000: Variable 'encryption_udf.dh_bits_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.encryption_udf.dh_bits_threshold;
+ERROR HY000: Variable 'encryption_udf.dh_bits_threshold' is a GLOBAL variable
+SET GLOBAL encryption_udf.dh_bits_threshold = 1536;
+SET @priv_key = create_dh_parameters(@@global.encryption_udf.dh_bits_threshold);
+SET @priv_key = create_dh_parameters(@@global.encryption_udf.dh_bits_threshold + 1);
+ERROR HY000: create_dh_parameters<string> UDF failed; Invalid DH parameters length specified
+**
+** checking that non-privileged users cannot change xxx_bits_threshold variables
+CREATE USER 'usr' IDENTIFIED BY 'password';
+SET GLOBAL encryption_udf.rsa_bits_threshold = 2048;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL encryption_udf.dsa_bits_threshold = 2048;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL encryption_udf.dh_bits_threshold = 2048;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER 'usr';
+UNINSTALL COMPONENT 'file://component_encryption_udf';

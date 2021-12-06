@@ -898,6 +898,8 @@ extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
                                        enum mysql_trx_stat_type type,
                                        unsigned long long       value)
 {
+  if (thd_log_slow_verbosity(thd) && (thd->innodb_trx_id != trx_id)) thd->innodb_trx_id = 0;
+
   thd->mark_innodb_used(trx_id);
   switch (type)
   {

@@ -1,0 +1,273 @@
+SET @algorithm = 'RSA';
+SET @message = 'message';
+
+** checking 'create_asymmetric_priv_key()' function basics
+CREATE FUNCTION create_asymmetric_priv_key RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+SELECT create_asymmetric_priv_key();
+ERROR HY000: Can't initialize function 'create_asymmetric_priv_key'; Function requires exactly two arguments
+SELECT create_asymmetric_priv_key(@algorithm);
+ERROR HY000: Can't initialize function 'create_asymmetric_priv_key'; Function requires exactly two arguments
+SELECT create_asymmetric_priv_key(@algorithm, NULL);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Key length cannot be NULL
+SELECT create_asymmetric_priv_key(@algorithm, 0);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid key length specified
+SELECT create_asymmetric_priv_key(@algorithm, -1);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid key length specified
+SELECT create_asymmetric_priv_key(@algorithm, 'blah');
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid key length specified
+SELECT create_asymmetric_priv_key(@algorithm, 1023);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid key length specified
+SELECT create_asymmetric_priv_key(@algorithm, 16385);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid key length specified
+
+** checking 'create_asymmetric_pub_key()' function basics
+CREATE FUNCTION create_asymmetric_pub_key RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+SELECT create_asymmetric_pub_key();
+ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function requires exactly two arguments
+SELECT create_asymmetric_pub_key(@algorithm);
+ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function requires exactly two arguments
+SELECT create_asymmetric_pub_key(@algorithm, NULL);
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT create_asymmetric_pub_key(@algorithm, 42);
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT create_asymmetric_priv_key('FOO', 2048);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid algorithm specified
+
+** checking 'asymmetric_encrypt()' function basics
+CREATE FUNCTION asymmetric_encrypt RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+SELECT asymmetric_encrypt();
+ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires exactly three arguments
+SELECT asymmetric_encrypt(@algorithm);
+ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires exactly three arguments
+SELECT asymmetric_encrypt(@algorithm, @message);
+ERROR HY000: Can't initialize function 'asymmetric_encrypt'; Function requires exactly three arguments
+SELECT asymmetric_encrypt(@algorithm, @message, NULL);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; key_str cannot be NULL
+SELECT asymmetric_encrypt(@algorithm, @message, 42);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT asymmetric_encrypt(@algorithm, @message, 'blah-blah');
+ERROR HY000: asymmetric_encrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT asymmetric_encrypt(@algorithm, NULL, NULL);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+
+** checking 'asymmetric_decrypt()' function basics
+CREATE FUNCTION asymmetric_decrypt RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+SELECT asymmetric_decrypt();
+ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires exactly three arguments
+SELECT asymmetric_decrypt(@algorithm);
+ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires exactly three arguments
+SELECT asymmetric_decrypt(@algorithm, @message);
+ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires exactly three arguments
+SELECT asymmetric_decrypt(@algorithm, @message, NULL);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; key_str cannot be NULL
+SELECT asymmetric_decrypt(@algorithm, @message, 42);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT asymmetric_decrypt(@algorithm, @message, 'blah-blah');
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot import RSA key from PEM PUBLIC KEY: error:0909006C:PEM routines:get_name:no start line
+SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; Message cannot be NULL
+
+** checking private key generation, public key derivation and encryption/decryption functionality
+**** generating 1024 - bit private key
+SET @rsa_priv = create_asymmetric_priv_key(@algorithm, 1024);
+**** deriving 1024 - bit public key
+SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+SET @random_pattern = REPEAT(MD5(42), 117 DIV 32 + 1);
+**** checking operations on NULL message
+SET @message = NULL;
+****** checking encryption of NULL message with public key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+****** checking encryption of NULL message with private key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+SET @message = LEFT(@random_pattern, 0);
+**** checking operations on 0 - byte(s) message
+****** checking encryption of 0 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 0 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 0 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 0 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 0 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 1);
+**** checking operations on 1 - byte(s) message
+****** checking encryption of 1 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 1 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 1 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 1 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 1 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 58);
+**** checking operations on 58 - byte(s) message
+****** checking encryption of 58 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 58 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 58 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 58 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 58 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 117);
+**** checking operations on 117 - byte(s) message
+****** checking encryption of 117 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 117 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 117 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 117 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 117 - byte(s) decrypted with public key must match the original one]
+**** checking operations on oversize message
+SET @message = LEFT(@random_pattern, 117 + 1);
+****** checking encryption of oversize message with public key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** checking encryption of oversize message with private key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+**** generating 4096 - bit private key
+SET @rsa_priv = create_asymmetric_priv_key(@algorithm, 4096);
+**** deriving 4096 - bit public key
+SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+SET @random_pattern = REPEAT(MD5(42), 501 DIV 32 + 1);
+**** checking operations on NULL message
+SET @message = NULL;
+****** checking encryption of NULL message with public key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+****** checking encryption of NULL message with private key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+SET @message = LEFT(@random_pattern, 0);
+**** checking operations on 0 - byte(s) message
+****** checking encryption of 0 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 0 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 0 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 0 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 0 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 1);
+**** checking operations on 1 - byte(s) message
+****** checking encryption of 1 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 1 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 1 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 1 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 1 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 250);
+**** checking operations on 250 - byte(s) message
+****** checking encryption of 250 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 250 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 250 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 250 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 250 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 501);
+**** checking operations on 501 - byte(s) message
+****** checking encryption of 501 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 501 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 501 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 501 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 501 - byte(s) decrypted with public key must match the original one]
+**** checking operations on oversize message
+SET @message = LEFT(@random_pattern, 501 + 1);
+****** checking encryption of oversize message with public key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** checking encryption of oversize message with private key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+**** generating 16384 - bit private key
+SET @rsa_priv = create_asymmetric_priv_key(@algorithm, 16384);
+**** deriving 16384 - bit public key
+SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+SET @random_pattern = REPEAT(MD5(42), 2037 DIV 32 + 1);
+**** checking operations on NULL message
+SET @message = NULL;
+****** checking encryption of NULL message with public key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+****** checking encryption of NULL message with private key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+SET @message = LEFT(@random_pattern, 0);
+**** checking operations on 0 - byte(s) message
+****** checking encryption of 0 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 0 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 0 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 0 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 0 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 1);
+**** checking operations on 1 - byte(s) message
+****** checking encryption of 1 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 1 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 1 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 1 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 1 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 1018);
+**** checking operations on 1018 - byte(s) message
+****** checking encryption of 1018 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 1018 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 1018 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 1018 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 1018 - byte(s) decrypted with public key must match the original one]
+SET @message = LEFT(@random_pattern, 2037);
+**** checking operations on 2037 - byte(s) message
+****** checking encryption of 2037 - byte(s) message with public key
+SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+****** checking decryption of 2037 - byte(s) message with private key
+SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+****** checking encryption of 2037 - byte(s) message with private key
+SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+****** checking decryption of 2037 - byte(s) message with public key
+SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+include/assert.inc [message of length 2037 - byte(s) decrypted with public key must match the original one]
+**** checking operations on oversize message
+SET @message = LEFT(@random_pattern, 2037 + 1);
+****** checking encryption of oversize message with public key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** checking encryption of oversize message with private key
+SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+SELECT create_asymmetric_priv_key('DSA', 2048);
+ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid algorithm specified
+DROP FUNCTION asymmetric_decrypt;
+DROP FUNCTION asymmetric_encrypt;
+DROP FUNCTION create_asymmetric_pub_key;
+DROP FUNCTION create_asymmetric_priv_key;

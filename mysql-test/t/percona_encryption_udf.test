@@ -1,0 +1,183 @@
+--source include/have_udf.inc
+
+#
+# Creating functions from encryption_udf
+#
+SET @algorithm = 'RSA';
+SET @message = 'message';
+
+
+--echo
+--echo ** checking 'create_asymmetric_priv_key()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION create_asymmetric_priv_key RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_priv_key();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_priv_key(@algorithm);
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, NULL);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, 0);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, -1);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, 'blah');
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, 1023);
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key(@algorithm, 16385);
+
+
+--echo
+--echo ** checking 'create_asymmetric_pub_key()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION create_asymmetric_pub_key RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_pub_key();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_asymmetric_pub_key(@algorithm);
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_pub_key(@algorithm, NULL);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_pub_key(@algorithm, 42);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
+
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('FOO', 2048);
+
+
+--echo
+--echo ** checking 'asymmetric_encrypt()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION asymmetric_encrypt RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_encrypt();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_encrypt(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_encrypt(@algorithm, @message);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, @message, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, @message, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, @message, 'blah-blah');
+
+--error ER_UDF_ERROR
+SELECT asymmetric_encrypt(@algorithm, NULL, NULL);
+
+
+--echo
+--echo ** checking 'asymmetric_decrypt()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION asymmetric_decrypt RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_decrypt();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_decrypt(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_decrypt(@algorithm, @message);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, @message, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, @message, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, @message, 'blah-blah');
+
+--error ER_UDF_ERROR
+SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
+
+
+--echo
+--echo ** checking private key generation, public key derivation and encryption/decryption functionality
+--let $key_length_index = 1
+while ($key_length_index <= 3)
+{
+  --let $key_length = `SELECT ELT($key_length_index, 1024, 4096, 16384)`
+  --echo **** generating $key_length - bit private key
+  eval SET @rsa_priv = create_asymmetric_priv_key(@algorithm, $key_length);
+  --echo **** deriving $key_length - bit public key
+  SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+
+  # <max message size> = <key length in bytes> - <pkcs1 padding>
+  --let $max_message_size = `SELECT $key_length DIV 8 - 11`
+
+  # size of MD5 hash in bytes is 32
+  eval SET @random_pattern = REPEAT(MD5(42), $max_message_size DIV 32 + 1);
+
+  --echo **** checking operations on NULL message
+  SET @message = NULL;
+  --echo ****** checking encryption of NULL message with public key
+  --error ER_UDF_ERROR
+  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+  --echo ****** checking encryption of NULL message with private key
+  --error ER_UDF_ERROR
+  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+
+  --let $message_index = 1
+  while ($message_index <= 4)
+  {
+    --let $message_length = `SELECT ELT($message_index, 0, 1, $max_message_size DIV 2, $max_message_size)`
+    eval SET @message = LEFT(@random_pattern, $message_length);
+    --echo **** checking operations on $message_length - byte(s) message
+
+    --echo ****** checking encryption of $message_length - byte(s) message with public key
+    SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+    --echo ****** checking decryption of $message_length - byte(s) message with private key
+    SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+    --let $assert_text = message of length $message_length - byte(s) decrypted with private key must match the original one
+    --let $assert_cond = @message_dec_with_rsa_priv = @message
+    #--source include/assert.inc
+
+    --echo ****** checking encryption of $message_length - byte(s) message with private key
+    SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+    --echo ****** checking decryption of $message_length - byte(s) message with public key
+    SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
+    --let $assert_text = message of length $message_length - byte(s) decrypted with public key must match the original one
+    --let $assert_cond = @message_dec_with_rsa_pub = @message
+    --source include/assert.inc
+
+    --inc $message_index
+  }
+  --let $message_length = $max_message_size + 1
+  --echo **** checking operations on oversize message
+  eval SET @message = LEFT(@random_pattern, $message_length);
+  --echo ****** checking encryption of oversize message with public key
+  --error ER_UDF_ERROR
+  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
+  --echo ****** checking encryption of oversize message with private key
+  --error ER_UDF_ERROR
+  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
+
+  --inc $key_length_index
+}
+
+# not implemented yet
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('DSA', 2048);
+
+#
+# Dropping functions from encryption_udf
+#
+DROP FUNCTION asymmetric_decrypt;
+DROP FUNCTION asymmetric_encrypt;
+DROP FUNCTION create_asymmetric_pub_key;
+DROP FUNCTION create_asymmetric_priv_key;

@@ -1,0 +1,9 @@
+--source include/have_encryption_udf_component.inc
+--let $openssl_binary_version = 1\\.0\\.2|1\\.1\\.\\d+|3\\.0\\.\\d+
+--source include/have_openssl_binary_version.inc
+
+--let $algorithm = RSA
+--let $key_length = 4096
+--let $use_openssl_binary = 1
+
+--source ../include/encryption_udf_xsa.inc

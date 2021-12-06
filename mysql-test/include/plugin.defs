@@ -207,5 +207,6 @@ component_keyring_vault         plugin_output_directory  yes  KEYRING_VAULT_COMP
 test_udf_wrappers  plugin_output_directory  no  TEST_UDF_WRAPPERS_LIB
 procfs             plugin_output_directory  no  PROCFS_PLUGIN procfs
 component_binlog_utils_udf          plugin_output_directory  no  BINLOG_UTILS_UDF_LIB
+component_encryption_udf            plugin_output_directory  no  ENCRYPTION_UDF_COMPONENT
 component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIONS_COMPONENT
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT

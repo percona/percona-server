@@ -1,0 +1,260 @@
+#
+# Test slowlog size limiting and rotation
+#
+
+SET @old_slow_query_log = @@global.slow_query_log;
+SET @old_log_output = @@global.log_output;
+SET @old_slow_query_log_file = @@global.slow_query_log_file;
+SET @old_max_slowlog_size = @@global.max_slowlog_size;
+SET @old_max_slowlog_files = @@global.max_slowlog_files;
+SET @old_long_query_time = @@long_query_time;
+
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL log_output = FILE;
+SET long_query_time = 0;
+
+--echo # Case 1 (PS-1484): Test if max_slowlog_files is working correctly
+--echo #                   with the default slow query log name
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 3;
+
+# avoid 100 selects 1 in .result
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+--enable_query_log
+--enable_result_log
+
+--let slow_query_base = `SELECT @old_slow_query_log_file`
+--let file_spec = $slow_query_base.*
+--let expected_number = 3
+--source include/assert_number_of_files.inc
+
+--echo # Case 2 (Bug 1416582): Slow query log is rotated before it should
+--echo #                       when using max_slowlog_size
+SET GLOBAL max_slowlog_size = 10240000;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+# start/stop slog log should not cause log number increment
+SET GLOBAL slow_query_log = 0;
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL slow_query_log = 0;
+SET GLOBAL slow_query_log = 1;
+
+# FLUSH LOGS should not cause log number increment
+FLUSH LOGS;
+FLUSH LOGS;
+FLUSH LOGS;
+
+--let $assert_text = Slow query log number should not be incremented and log should be abcd.000001
+--let $assert_cond = @@GLOBAL.slow_query_log_file = "$MYSQLTEST_VARDIR/abcd.000001"
+--source include/assert.inc
+
+--echo # Case 3: Test if each slow_query_log_file call rotates slow log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/zxcv'
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/zxcv'
+
+--let $assert_text = Slow query log should be zxcv.000002
+--let $assert_cond = @@GLOBAL.slow_query_log_file = "$MYSQLTEST_VARDIR/zxcv.000002"
+--source include/assert.inc
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+--let $assert_text = Slow query log should be abcd.000003
+--let $assert_cond = @@GLOBAL.slow_query_log_file = "$MYSQLTEST_VARDIR/abcd.000003"
+--source include/assert.inc
+
+--echo # Case 4: Test if max_slowlog_files is working correctly
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 5;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+# avoid 100 selects 1 in .result
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+--enable_query_log
+--enable_result_log
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 5
+--source include/assert_number_of_files.inc
+ 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/zxcv'
+
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+--enable_query_log
+--enable_result_log
+
+--let file_spec = $MYSQLTEST_VARDIR/zxcv*
+--let expected_number = 5
+--source include/assert_number_of_files.inc
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+# avoid 100 selects 1 in .result
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+
+--enable_query_log
+--enable_result_log
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 5
+--source include/assert_number_of_files.inc
+
+--echo # Case 5: Rotating log but should not delete previous logs
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 5
+--source include/assert_number_of_files.inc
+
+--echo # Case 6: Calling "SET max_slowlog_files" should reduce number of logs
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 2;
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 2
+--source include/assert_number_of_files.inc
+
+--echo # Case 7: Delete all small logs with max_slowlog_size = 0
+SET GLOBAL max_slowlog_size = 0;
+SET GLOBAL max_slowlog_files = 1;
+
+# avoid 100 selects 1 in .result
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+--enable_query_log
+--enable_result_log
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 1
+--source include/assert_number_of_files.inc
+
+--echo # Case 8: Rotate log should delete previous log
+SET GLOBAL max_slowlog_size = 10240000;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 1
+--source include/assert_number_of_files.inc
+
+--echo # Case 9: Check if disable max_slowlog_size is working correctly
+SET GLOBAL max_slowlog_size = 0;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/abcd'
+
+# avoid 100 selects 1 in .result
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+--enable_query_log
+--enable_result_log
+
+--let file_spec = $MYSQLTEST_VARDIR/abcd*
+--let expected_number = 2
+--source include/assert_number_of_files.inc
+
+--let $assert_text= Slow query log should stay as abcd
+--let $assert_cond= @@GLOBAL.slow_query_log_file = "$MYSQLTEST_VARDIR/abcd"
+--source include/assert.inc
+
+--echo # Case 10: Multiple dots in slow query log file name
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 3;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/slow.query.log'
+
+# avoid 100 selects 1 in .result
+--let $i = 100
+--disable_query_log
+--disable_result_log
+while($i) {
+  --eval select $i
+  --dec $i
+}
+--enable_query_log
+--enable_result_log
+
+--let file_spec = $MYSQLTEST_VARDIR/slow.query.log*
+--let expected_number = 3
+--source include/assert_number_of_files.inc
+
+--echo # Case 11 (Bug 1704056): Enabling and disabling slow query log rotation
+--echo #                        spuriously adds version suffix to the next
+--echo #                        slow query log file name
+SET GLOBAL max_slowlog_size = 10240000;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/bug1704056_1';
+
+SET GLOBAL max_slowlog_size = @old_max_slowlog_size;
+SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file = '$MYSQLTEST_VARDIR/bug1704056.slog';
+
+SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
+
+# With the bug present bug1704056.slog.00001 will be created
+list_files $MYSQLTEST_VARDIR bug1704056.slog*;
+
+SET @@global.slow_query_log = @old_slow_query_log;
+SET @@global.log_output = @old_log_output;
+SET @@global.slow_query_log_file = @old_slow_query_log_file;
+SET @@global.max_slowlog_size = @old_max_slowlog_size;
+SET @@global.max_slowlog_files = @old_max_slowlog_files;
+SET @@long_query_time = @old_long_query_time;
+
+--remove_files_wildcard $MYSQLTEST_VARDIR abcd*
+--remove_files_wildcard $MYSQLTEST_VARDIR zxcv*
+--remove_files_wildcard $MYSQLTEST_VARDIR bug1704056*
+--remove_files_wildcard $MYSQLTEST_VARDIR slow.query.log*

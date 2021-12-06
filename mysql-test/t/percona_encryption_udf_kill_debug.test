@@ -1,0 +1,73 @@
+--source include/have_encryption_udf_component.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+--source include/count_sessions.inc
+
+--connect (con1,localhost,root,,)
+--connection con1
+
+--let $statement_index = 1
+while($statement_index <= 3)
+{
+  --let $keygen_connection_id = `SELECT CONNECTION_ID()`
+  if($statement_index == 1)
+  {
+    --echo *** Checking RSA key generation cancellation
+    --let $keygen_statement = SET @pem = create_asymmetric_priv_key('RSA', 16384)
+  }
+  if($statement_index == 2)
+  {
+    --echo *** Checking DSA key generation cancellation
+    --let $keygen_statement = SET @pem = create_asymmetric_priv_key('DSA', 9984)
+  }
+  if($statement_index == 3)
+  {
+    --echo *** Checking DH parameters generation cancellation
+    --let $keygen_statement = SET @pem = create_dh_parameters(10000)
+  }
+
+  SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+  send_eval $keygen_statement;
+
+  --connection default
+  SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+  --replace_result $keygen_connection_id <CONNECTION_ID>
+  eval KILL QUERY $keygen_connection_id;
+  # no need to execute "SET debug_sync = 'now SIGNAL resume_udf_execution';" here as
+  # DEBUG SYNC point 'before_string_udf_execution' waiting for the 'resume_udf_execution'
+  # signal will automatically resume operation when the query / connection is killed
+
+  --connection con1
+  --error ER_QUERY_INTERRUPTED
+  reap;
+
+  SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+  send_eval $keygen_statement;
+
+  --connection default
+  SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+  --replace_result $keygen_connection_id <CONNECTION_ID>
+  eval KILL CONNECTION $keygen_connection_id;
+
+  --connection con1
+  --error CR_SERVER_LOST
+  reap;
+
+  --enable_reconnect
+  SELECT 'Connection restored' AS status;
+  --disable_reconnect
+
+  --inc $statement_index
+}
+
+--disconnect con1
+--connection default
+--source include/wait_until_count_sessions.inc
+
+#
+# Dropping functions from encryption_udf
+#
+UNINSTALL COMPONENT 'file://component_encryption_udf';

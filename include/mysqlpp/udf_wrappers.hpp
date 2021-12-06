@@ -36,7 +36,7 @@
 #ifdef WIN32
 #define MYSQLPP_UDF_EXPORT extern "C" __declspec(dllexport)
 #else
-#define MYSQLPP_UDF_EXPORT extern "C"
+#define MYSQLPP_UDF_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
 namespace mysqlpp {

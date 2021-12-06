@@ -205,4 +205,4 @@ authentication_ldap_sasl          plugin_output_directory  no  AUTH_LDAP_SASL   
 keyring_vault      plugin_output_directory  no  KEYRING_VAULT_PLUGIN keyring_vault
 test_udf_wrappers  plugin_output_directory  no  TEST_UDF_WRAPPERS_LIB
 procfs             plugin_output_directory  no  PROCFS_PLUGIN procfs
-
+component_encryption_udf            plugin_output_directory  no  ENCRYPTION_UDF_COMPONENT

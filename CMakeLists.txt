@@ -2193,6 +2193,11 @@ OPTION(WITH_SHOW_PARSE_TREE
   ${WITH_SHOW_PARSE_TREE_DEFAULT}
   )
 
+OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
+IF(WITH_ENCRYPTION_UDF)
+  ADD_SUBDIRECTORY(extra/opensslpp)
+ENDIF()
+
 # Utility target to build every executable tagged with ADD_TEST.
 ADD_CUSTOM_TARGET(unittest_all)
 

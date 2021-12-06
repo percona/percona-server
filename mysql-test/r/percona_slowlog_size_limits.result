@@ -1,0 +1,84 @@
+SET @old_slow_query_log = @@global.slow_query_log;
+SET @old_log_output = @@global.log_output;
+SET @old_slow_query_log_file = @@global.slow_query_log_file;
+SET @old_max_slowlog_size = @@global.max_slowlog_size;
+SET @old_max_slowlog_files = @@global.max_slowlog_files;
+SET @old_long_query_time = @@long_query_time;
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL log_output = FILE;
+SET long_query_time = 0;
+# Case 1 (PS-1484): Test if max_slowlog_files is working correctly
+#                   with the default slow query log name
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 3;
+include/assert_number_of_files.inc [The number of files matches expected 3]
+# Case 2 (Bug 1416582): Slow query log is rotated before it should
+#                       when using max_slowlog_size
+SET GLOBAL max_slowlog_size = 10240000;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+SET GLOBAL slow_query_log = 0;
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL slow_query_log = 0;
+SET GLOBAL slow_query_log = 1;
+FLUSH LOGS;
+FLUSH LOGS;
+FLUSH LOGS;
+include/assert.inc [Slow query log number should not be incremented and log should be abcd.000001]
+# Case 3: Test if each slow_query_log_file call rotates slow log
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/zxcv';
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/zxcv';
+include/assert.inc [Slow query log should be zxcv.000002]
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+include/assert.inc [Slow query log should be abcd.000003]
+# Case 4: Test if max_slowlog_files is working correctly
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 5;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+include/assert_number_of_files.inc [The number of files matches expected 5]
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/zxcv';
+include/assert_number_of_files.inc [The number of files matches expected 5]
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+include/assert_number_of_files.inc [The number of files matches expected 5]
+# Case 5: Rotating log but should not delete previous logs
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+include/assert_number_of_files.inc [The number of files matches expected 5]
+# Case 6: Calling "SET max_slowlog_files" should reduce number of logs
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 2;
+include/assert_number_of_files.inc [The number of files matches expected 2]
+# Case 7: Delete all small logs with max_slowlog_size = 0
+SET GLOBAL max_slowlog_size = 0;
+SET GLOBAL max_slowlog_files = 1;
+include/assert_number_of_files.inc [The number of files matches expected 1]
+# Case 8: Rotate log should delete previous log
+SET GLOBAL max_slowlog_size = 10240000;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+include/assert_number_of_files.inc [The number of files matches expected 1]
+# Case 9: Check if disable max_slowlog_size is working correctly
+SET GLOBAL max_slowlog_size = 0;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/abcd';
+include/assert_number_of_files.inc [The number of files matches expected 2]
+include/assert.inc [Slow query log should stay as abcd]
+# Case 10: Multiple dots in slow query log file name
+SET GLOBAL max_slowlog_size = 4096;
+SET GLOBAL max_slowlog_files = 3;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/slow.query.log';
+include/assert_number_of_files.inc [The number of files matches expected 3]
+# Case 11 (Bug 1704056): Enabling and disabling slow query log rotation
+#                        spuriously adds version suffix to the next
+#                        slow query log file name
+SET GLOBAL max_slowlog_size = 10240000;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/bug1704056_1';;
+SET GLOBAL max_slowlog_size = @old_max_slowlog_size;
+SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
+SET GLOBAL slow_query_log_file = 'MYSQLTEST_VARDIR/bug1704056.slog';;
+SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
+bug1704056.slog
+SET @@global.slow_query_log = @old_slow_query_log;
+SET @@global.log_output = @old_log_output;
+SET @@global.slow_query_log_file = @old_slow_query_log_file;
+SET @@global.max_slowlog_size = @old_max_slowlog_size;
+SET @@global.max_slowlog_files = @old_max_slowlog_files;
+SET @@long_query_time = @old_long_query_time;

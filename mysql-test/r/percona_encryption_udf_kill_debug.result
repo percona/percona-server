@@ -1,0 +1,44 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+*** Checking RSA key generation cancellation
+SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+SET @pem = create_asymmetric_priv_key('RSA', 16384);
+SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+KILL QUERY <CONNECTION_ID>;
+ERROR 70100: Query execution was interrupted
+SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+SET @pem = create_asymmetric_priv_key('RSA', 16384);
+SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+KILL CONNECTION <CONNECTION_ID>;
+ERROR HY000: Lost connection to MySQL server during query
+SELECT 'Connection restored' AS status;
+status
+Connection restored
+*** Checking DSA key generation cancellation
+SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+SET @pem = create_asymmetric_priv_key('DSA', 9984);
+SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+KILL QUERY <CONNECTION_ID>;
+ERROR 70100: Query execution was interrupted
+SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+SET @pem = create_asymmetric_priv_key('DSA', 9984);
+SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+KILL CONNECTION <CONNECTION_ID>;
+ERROR HY000: Lost connection to MySQL server during query
+SELECT 'Connection restored' AS status;
+status
+Connection restored
+*** Checking DH parameters generation cancellation
+SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+SET @pem = create_dh_parameters(10000);
+SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+KILL QUERY <CONNECTION_ID>;
+ERROR 70100: Query execution was interrupted
+SET debug_sync = 'before_string_udf_execution SIGNAL udf_execution_reached WAIT_FOR resume_udf_execution';
+SET @pem = create_dh_parameters(10000);
+SET debug_sync = 'now WAIT_FOR udf_execution_reached';
+KILL CONNECTION <CONNECTION_ID>;
+ERROR HY000: Lost connection to MySQL server during query
+SELECT 'Connection restored' AS status;
+status
+Connection restored
+UNINSTALL COMPONENT 'file://component_encryption_udf';

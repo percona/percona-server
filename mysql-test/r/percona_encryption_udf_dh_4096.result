@@ -1,0 +1,12 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+** [DH][4096] generating parameters
+SET @dh_params = create_dh_parameters(4096);
+** [DH][4096] generating private/public keys from parameters
+SET @dh_priv1 = create_asymmetric_priv_key('DH', @dh_params);
+SET @dh_pub1 =  create_asymmetric_pub_key('DH', @dh_priv1);
+SET @dh_priv2 = create_asymmetric_priv_key('DH', @dh_params);
+SET @dh_pub2 =  create_asymmetric_pub_key('DH', @dh_priv2);
+** [DH][4096] verifying shared key generation
+SET @shared1 = asymmetric_derive(@dh_pub1, @dh_priv2);
+SET @shared2 = asymmetric_derive(@dh_pub2, @dh_priv1);
+UNINSTALL COMPONENT 'file://component_encryption_udf';

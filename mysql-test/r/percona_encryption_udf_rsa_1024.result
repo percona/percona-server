@@ -1,0 +1,43 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
+
+** [RSA] checking asymmertic algorithm functions
+** [RSA][1024] checking asymmetric algorithm functions
+**** [RSA][1024] generating private key
+**** [RSA][1024] deriving public key
+**** [RSA][1024] checking operations on NULL message
+****** [RSA][1024] checking encryption with public key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+****** [RSA][1024] checking encryption with private key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+**** [RSA][1024][message_len=0] checking operations
+****** [RSA][1024][message_len=0] checking encryption with public key
+****** [RSA][1024][message_len=0] checking decryption with private key
+****** [RSA][1024][message_len=0] checking encryption with private key
+****** [RSA][1024][message_len=0] checking decryption with public key
+****** [RSA][1024][message_len=0] checking sign/verify functionality
+**** [RSA][1024][message_len=1] checking operations
+****** [RSA][1024][message_len=1] checking encryption with public key
+****** [RSA][1024][message_len=1] checking decryption with private key
+****** [RSA][1024][message_len=1] checking encryption with private key
+****** [RSA][1024][message_len=1] checking decryption with public key
+****** [RSA][1024][message_len=1] checking sign/verify functionality
+**** [RSA][1024][message_len=58] checking operations
+****** [RSA][1024][message_len=58] checking encryption with public key
+****** [RSA][1024][message_len=58] checking decryption with private key
+****** [RSA][1024][message_len=58] checking encryption with private key
+****** [RSA][1024][message_len=58] checking decryption with public key
+****** [RSA][1024][message_len=58] checking sign/verify functionality
+**** [RSA][1024][message_len=117] checking operations
+****** [RSA][1024][message_len=117] checking encryption with public key
+****** [RSA][1024][message_len=117] checking decryption with private key
+****** [RSA][1024][message_len=117] checking encryption with private key
+****** [RSA][1024][message_len=117] checking decryption with public key
+****** [RSA][1024][message_len=117] checking sign/verify functionality
+**** [RSA][1024] checking operations on oversize message
+****** [RSA][1024] checking encryption of oversize message with public key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** [RSA][1024] checking encryption of oversize message with private key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+UNINSTALL COMPONENT 'file://component_encryption_udf';

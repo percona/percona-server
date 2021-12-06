@@ -1,0 +1,6 @@
+--source include/have_encryption_udf_component.inc
+
+--let $algorithm = RSA
+--let $key_length = 1024
+
+--source ../include/encryption_udf_xsa.inc

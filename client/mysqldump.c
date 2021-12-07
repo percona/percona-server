@@ -219,6 +219,8 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
 /* have we seen any VIEWs during table scanning? */
 my_bool seen_views= 0;
+static DYNAMIC_STRING gtid_executed_buffer;
+static my_bool gtid_executed_buffer_inited= 0;
 const char *compatible_mode_names[]=
 {
   "MYSQL323", "MYSQL40", "POSTGRESQL", "ORACLE", "MSSQL", "DB2",
@@ -1790,6 +1792,8 @@ static void free_resources()
   if (opt_ignore_error)
     my_free(opt_ignore_error);
   delete_dynamic(&ignore_error);
+  if (gtid_executed_buffer_inited)
+    dynstr_free(&gtid_executed_buffer);
   my_end(my_end_arg);
 }
 
@@ -6775,7 +6779,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   ulonglong  num_sets, idx;
   int        value_idx= 1;
   int        capture_raw_gtid_executed= TRUE;
-
+  char       gtid_buffer[128];
   /*
    Check if we didn't already acquire FTWRL
    and we are in transaction with consistent snapshot.
@@ -6824,26 +6828,29 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   /* Proceed only if gtid_purged_res is non empty */
   if ((num_sets= mysql_num_rows(gtid_purged_res)) > 0)
   {
+    gtid_executed_buffer_inited= 1;
+    init_dynamic_string_checked(&gtid_executed_buffer, "", 1024, 1024);
     if (opt_comments)
-      fprintf(md_result_file,
+    {
+      my_snprintf(gtid_buffer, 128,
               "\n--\n-- GTID state at the end of the backup"
               "\n-- (origin: %s)"
               "\n--\n\n",
               capture_raw_gtid_executed ? "@@global.gtid_executed"
                                         : "Binlog_snapshot_gtid_executed");
+      dynstr_append_checked(&gtid_executed_buffer, gtid_buffer);
+    }
 
-    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED='");
+    dynstr_append_checked(&gtid_executed_buffer, "SET @@GLOBAL.GTID_PURGED='");
 
     /* formatting is not required, even for multiple gtid sets */
-    for (idx= 0; idx< num_sets-1; idx++)
+    for (idx= 0; idx< num_sets; idx++)
     {
       gtid_set= mysql_fetch_row(gtid_purged_res);
-      fprintf(md_result_file, "%s,", (char *)gtid_set[value_idx]);
+      dynstr_append_checked(&gtid_executed_buffer, (char *)gtid_set[value_idx]);
     }
-    /* for the last set */
-    gtid_set= mysql_fetch_row(gtid_purged_res);
-    /* close the SET expression */
-    fprintf(md_result_file, "%s';\n", (char *)gtid_set[value_idx]);
+    /* for the last set close the SET expression */
+    dynstr_append_checked(&gtid_executed_buffer, "';\n");
   }
   mysql_free_result(gtid_purged_res);
 
@@ -6920,7 +6927,12 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
        being AUTO or ON,  add GTID_PURGED in the output.
     */
     if (!flag)
+    {
       set_session_binlog();
+      if (add_set_gtid_purged(mysql_con, ftwrl_done))
+        return TRUE;
+    }
+
     else
     {
       if (flag && (opt_databases || !opt_alldbs || !opt_dump_triggers
@@ -6934,8 +6946,7 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool ftwrl_done,
                        "--all-databases --triggers --routines --events. \n");
       }
 
-      if (add_set_gtid_purged(mysql_con, ftwrl_done))
-        return TRUE;
+      fputs(gtid_executed_buffer.str, md_result_file);
     }
   }
   else /* gtid_mode is off */

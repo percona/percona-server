@@ -13,10 +13,9 @@ jobs:
 
       if [ -z "${CHANGED_FILES}" ]; then
           echo --- No changed files
-          ##vso[task.complete result=Succeeded;]DONE
+      else
+          python $(Build.SourcesDirectory)/scripts/find_unicode_control.py -p bidi -v ${CHANGED_FILES}
       fi
-
-      python $(Build.SourcesDirectory)/scripts/find_unicode_control.py -p bidi -v ${CHANGED_FILES}
 
 - job:
   timeoutInMinutes: 240

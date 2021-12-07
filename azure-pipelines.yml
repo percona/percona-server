@@ -9,7 +9,14 @@ jobs:
 
   - script: |
       git fetch origin 5.7
-      python $(Build.SourcesDirectory)/scripts/find_unicode_control.py -p bidi -v $(git diff --name-only --relative --diff-filter AMR origin/5.7 -- . | tr '\n' ' ')
+      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/5.7 -- . | tr '\n' ' ')
+
+      if [ -z "${CHANGED_FILES}" ]; then
+          echo --- No changed files
+          ##vso[task.complete result=Succeeded;]DONE
+      fi
+
+      python $(Build.SourcesDirectory)/scripts/find_unicode_control.py -p bidi -v ${CHANGED_FILES}
 
 - job:
   timeoutInMinutes: 240

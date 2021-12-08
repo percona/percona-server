@@ -377,6 +377,7 @@ jobs:
           -DWITH_SYSTEM_LIBS=ON
           -DWITH_ICU=/usr/local/opt/icu4c
           -DWITH_SSL=/usr/local/opt/openssl@1.1
+          -DWITH_FIDO=bundled
         "
       else
         CMAKE_OPT+="

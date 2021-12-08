@@ -249,34 +249,6 @@ jobs:
         CompilerVer: 7
         BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-6 Release:
-          imageName: 'ubuntu-18.04'
-          Compiler: gcc
-          CompilerVer: 6
-          BuildType: RelWithDebInfo
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-6 Debug:
-          imageName: 'ubuntu-18.04'
-          Compiler: gcc
-          CompilerVer: 6
-          BuildType: Debug
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-5 Release:
-          imageName: 'ubuntu-18.04'
-          Compiler: gcc
-          CompilerVer: 5
-          BuildType: RelWithDebInfo
-
-      Ubuntu Bionic gcc-5 Debug:
-        imageName: 'ubuntu-18.04'
-        Compiler: gcc
-        CompilerVer: 5
-        BuildType: Debug
-
-
   steps:
   - script: |
       uname -r

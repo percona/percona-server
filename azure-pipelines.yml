@@ -36,14 +36,14 @@ jobs:
 
   strategy:
     matrix:
-      macOS 10.14 Release:
-        imageName: 'macOS-10.14'
+      macOS 10.15 Release:
+        imageName: 'macOS-10.15'
         Compiler: clang
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        macOS 10.14 Debug:
-          imageName: 'macOS-10.14'
+        macOS 10.15 Debug:
+          imageName: 'macOS-10.15'
           Compiler: clang
           BuildType: Debug
 

@@ -8,7 +8,7 @@ Percona Server for MySQL is trusted by thousands of enterprises to provide bette
 
 ## Installation
 
-You can install Percona XtraBackup using the following methods:
+You can install Percona Server for MySQL using the following methods:
 - from the Percona repository 
 - Build from the [source code](https://github.com/percona/percona-server)
 
@@ -16,7 +16,7 @@ The installation instructions in the official documentation are [here](https://w
 
 ## Submit a bug report or a feature request
 
-If you find a bug in Percona XtraDB Cluster, you can submit a report to the project's [Jira issue tracker](https://jira.percona.com/projects/PS/issues)
+If you find a bug in Percona Server for MySQL, you can submit a report to the project's [Jira issue tracker](https://jira.percona.com/projects/PS/issues)
 
 As a general rule of thumb, please try to create a bug report that is:
 

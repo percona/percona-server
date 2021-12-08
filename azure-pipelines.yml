@@ -404,13 +404,13 @@ jobs:
           -DWITH_RAPIDJSON=bundled
           -DWITH_SSL=system
           -DWITH_LIBEVENT=bundled
+          -DWITH_PROTOBUF=bundled
         "
         if [[ "$(Inverted)" != "ON" ]]; then
           CMAKE_OPT+="
             -DWITH_READLINE=system
             -DWITH_ICU=system
             -DWITH_LZ4=bundled
-            -DWITH_PROTOBUF=system
             -DWITH_ZLIB=system
             -DWITH_NUMA=ON
           "
@@ -419,7 +419,6 @@ jobs:
             -DWITH_EDITLINE=bundled
             -DWITH_ICU=bundled
             -DWITH_LZ4=bundled
-            -DWITH_PROTOBUF=bundled
             -DWITH_ZLIB=bundled
             -DWITH_NUMA=OFF
             -DWITH_ARCHIVE_STORAGE_ENGINE=OFF

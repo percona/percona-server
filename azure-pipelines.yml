@@ -36,14 +36,14 @@ jobs:
 
   strategy:
     matrix:
-      macOS 10.14 Release:
-        imageName: 'macOS-10.14'
+      macOS 10.15 Release:
+        imageName: 'macOS-10.15'
         Compiler: clang
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        macOS 10.14 Debug:
-          imageName: 'macOS-10.14'
+        macOS 10.15 Debug:
+          imageName: 'macOS-10.15'
           Compiler: clang
           BuildType: Debug
 
@@ -316,7 +316,7 @@ jobs:
         fi
       else
          brew update
-         brew install ccache protobuf lz4 re2 rapidjson
+         brew install ccache protobuf lz4 re2 rapidjson openssl@1.1
       fi
 
       UPDATE_TIME=$SECONDS
@@ -404,6 +404,7 @@ jobs:
           -DWITH_PROTOBUF=system
           -DWITH_SYSTEM_LIBS=ON
           -DWITH_ICU=/usr/local/opt/icu4c
+          -DWITH_SSL=/usr/local/opt/openssl@1.1
         "
       else
         CMAKE_OPT+="

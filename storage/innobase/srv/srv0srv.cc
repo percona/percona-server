@@ -2888,6 +2888,13 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;
   }
+
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
+                        dict_sys_t::s_log_space_first_id, false);
+  if (notifier.failed()) {
+    return true;
+  }
+
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
 
@@ -2904,8 +2911,7 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
     return true;
   }
 
-  space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-
+  fsp_flags_set_encryption(space->flags);
   const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
   if (err != DB_SUCCESS) {
     if (thd != nullptr) {

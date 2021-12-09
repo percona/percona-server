@@ -1,4 +1,24 @@
 --echo #
+--echo # PS-7865: Dropping a table with discarded tablespace crashes the server
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=innodb;
+
+--disable_query_log
+--let $n=2048
+BEGIN;
+while ($n)
+{
+INSERT INTO t1 VALUES (10);
+--dec $n
+}
+COMMIT;
+--enable_query_log
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug #29793800 ASSERT AFTER DISCARD TABLESPACE, RENAME TABLE AND
 --echo # CREATE TABLE USING SAME NAME.
 --echo #

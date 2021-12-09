@@ -1,4 +1,10 @@
 #
+# PS-7865: Dropping a table with discarded tablespace crashes the server
+#
+CREATE TABLE t1(a INT)ENGINE=innodb;
+ALTER TABLE t1 DISCARD TABLESPACE;
+DROP TABLE t1;
+#
 # Bug #29793800 ASSERT AFTER DISCARD TABLESPACE, RENAME TABLE AND
 # CREATE TABLE USING SAME NAME.
 #

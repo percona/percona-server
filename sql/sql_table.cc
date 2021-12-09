@@ -16802,6 +16802,31 @@ static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
   return false;
 }
 
+class Diagnostics_area_man {
+  THD *m_thd;
+  Diagnostics_area *da_prev;
+  Diagnostics_area da;
+
+ public:
+  Diagnostics_area_man(THD *thd)
+      : m_thd(thd), da_prev(thd->get_stmt_da()), da(false) {
+    // Don't copy existing conditions from the old DA so we don't get them
+    // twice when we call copy_non_errors_from_da below.
+    m_thd->push_diagnostics_area(&da, false);
+  }
+
+  ~Diagnostics_area_man() {
+    m_thd->pop_diagnostics_area();
+
+    if (da.is_error()) {
+      da_prev->set_error_status(da.mysql_errno(), da.message_text(),
+                                da.returned_sqlstate());
+      da_prev->push_warning(m_thd, da.mysql_errno(), da.returned_sqlstate(),
+                            Sql_condition::SL_ERROR, da.message_text());
+    }
+  }
+};
+
 /**
   Alter table
 
@@ -18385,33 +18410,37 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* List of dd::Indexes (secondary non-unique) in table_def that are marked
     as hidden. These indexes are temporarily disabled */
     std::vector<dd::Index *> dd_disabled_sec_keys;
+    bool err_remove_keys = false;
 
     if (optimize_keys) new_table->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
     if (optimize_keys) {
-      /* ignore the error */
-      remove_secondary_keys(
+      err_remove_keys = remove_secondary_keys(
           thd, create_info, new_table, alter_info,
           is_tmp_table ? table->s->tmp_table_def : old_table_def, table_def,
           &dd_disabled_sec_keys);
     }
 
-    bool error2 = false;
-    if (copy_data_between_tables(thd, thd->m_stage_progress_psi, table,
-                                 new_table, alter_info->create_list, &copied,
-                                 &deleted, alter_info->keys_onoff, &alter_ctx,
-                                 optimize_keys)) {
-      error2 = true;
-    }
+    bool err_copy = copy_data_between_tables(
+        thd, thd->m_stage_progress_psi, table, new_table,
+        alter_info->create_list, &copied, &deleted, alter_info->keys_onoff,
+        &alter_ctx, optimize_keys);
 
-    if (optimize_keys &&
-        restore_secondary_keys(thd, create_info, new_table, alter_info,
-                               table_def, &dd_disabled_sec_keys)) {
-      error2 = true;
+    bool err_restore_keys = false;
+    if (optimize_keys && !err_remove_keys) {
+      // Use a clean diagnostic area so restore_secondary_keys can be executed
+      // whatever the previous results
+      auto da_man = thd->is_error()
+                        ? std::make_optional<Diagnostics_area_man>(thd)
+                        : std::nullopt;
+
+      err_restore_keys =
+          restore_secondary_keys(thd, create_info, new_table, alter_info,
+                                 table_def, &dd_disabled_sec_keys);
     }
 
     if (optimize_keys) new_table->file->ha_extra(HA_EXTRA_END_ALTER_COPY);
 
-    if (error2) {
+    if (err_copy || err_restore_keys) {
       goto err_new_table_cleanup;
     }
 

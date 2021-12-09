@@ -269,7 +269,11 @@ Loader::~Loader() noexcept {
     Alter_stages alter_stages{};
 
     for (auto &builder : m_builders) {
-      alter_stages.push_back(builder->stage());
+      auto stage = builder->stage();
+      ut_a(stage != nullptr);
+      if (stage) {
+        alter_stages.push_back(stage);
+      }
     }
 
     m_ctx.m_stage->aggregate(alter_stages);

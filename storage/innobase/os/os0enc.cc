@@ -1945,9 +1945,8 @@ bool Encryption::check_keyring() noexcept {
     char *key_type = nullptr;
     char key_name[MASTER_KEY_NAME_MAX_LEN];
 
-    key_name[sizeof(DEFAULT_MASTER_KEY)] = 0;
-
     strncpy(key_name, DEFAULT_MASTER_KEY, sizeof(key_name));
+    key_name[sizeof(key_name) - 1] = 0;
 
     /*
       We call keyring API to generate master key here.

@@ -6164,6 +6164,7 @@ static dberr_t fil_create_tablespace(
 
   if (notifier.failed()) {
     os_file_close(file);
+    fil_space_destroy_crypt_data(&crypt_data);
     return DB_ERROR;
   }
 #endif /* !UNIV_HOTBACKUP */

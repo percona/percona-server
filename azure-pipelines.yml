@@ -1,29 +1,11 @@
 jobs:
-- job: BiDiScan
-  pool:
-    vmImage: 'ubuntu-18.04'
-
-  steps:
-  - checkout: self
-    fetchDepth: 32
-
-  - script: |
-      git fetch origin 8.0
-      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/8.0 -- . | tr '\n' ' ')
-
-      if [ -z "${CHANGED_FILES}" ]; then
-          echo --- No changed files
-      else
-          python $(Build.SourcesDirectory)/scripts/find_unicode_control.py -p bidi -v ${CHANGED_FILES}
-      fi
-
 - job:
   timeoutInMinutes: 240
   pool:
     vmImage: $(imageName)
 
   variables:
-    UBUNTU_CODE_NAME: bionic
+    UBUNTU_CODE_NAME: focal
     BOOST_VERSION: boost_1_73_0
     BOOST_DIR: $(Pipeline.Workspace)/boost
     USE_CCACHE: 1
@@ -47,206 +29,179 @@ jobs:
           Compiler: clang
           BuildType: Debug
 
-      # clang-5 and newer compilers
-      Ubuntu Bionic clang-13 Release:
-        imageName: 'ubuntu-18.04'
+      # clang-6 and newer compilers
+      Ubuntu Focal clang-12 Release:
+        imageName: 'ubuntu-20.04'
         Compiler: clang
-        CompilerVer: 13
+        CompilerVer: 12
         BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-13 Release INVERTED=ON:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-12 Release INVERTED=ON:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
-          CompilerVer: 13
+          CompilerVer: 12
           BuildType: RelWithDebInfo
           Inverted: ON
 
-      Ubuntu Bionic clang-13 Debug INVERTED=ON:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal clang-12 Debug INVERTED=ON:
+        imageName: 'ubuntu-20.04'
         Compiler: clang
-        CompilerVer: 13
+        CompilerVer: 12
         BuildType: Debug
         Inverted: ON
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-13 Debug:
-          imageName: 'ubuntu-18.04'
-          Compiler: clang
-          CompilerVer: 13
-          BuildType: Debug
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-12 Release:
-          imageName: 'ubuntu-18.04'
-          Compiler: clang
-          CompilerVer: 12
-          BuildType: RelWithDebInfo
-
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-12 Debug:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-12 Debug:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 12
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-11 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-11 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
-      Ubuntu Bionic clang-11 Debug:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal clang-11 Debug:
+        imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 11
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-10 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-10 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-10 Debug:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-10 Debug:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 10
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-9 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-9 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      Ubuntu Bionic clang-9 Debug:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal clang-9 Debug:
+        imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 9
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-8 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-8 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-8 Debug:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-8 Debug:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 8
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-7 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-7 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
-      Ubuntu Bionic clang-7 Debug:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal clang-7 Debug:
+        imageName: 'ubuntu-20.04'
         Compiler: clang
         CompilerVer: 7
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-6 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-6 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 6.0
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-6 Debug:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal clang-6 Debug:
+          imageName: 'ubuntu-20.04'
           Compiler: clang
           CompilerVer: 6.0
           BuildType: Debug
 
-      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic clang-5 Release:
-          imageName: 'ubuntu-18.04'
-          Compiler: clang
-          CompilerVer: 5.0
-          BuildType: RelWithDebInfo
-
-      Ubuntu Bionic clang-5 Debug:
-        imageName: 'ubuntu-18.04'
-        Compiler: clang
-        CompilerVer: 5.0
-        BuildType: Debug
-
-      # gcc-5 and newer compilers
-      Ubuntu Bionic gcc-11 Release:
-        imageName: 'ubuntu-18.04'
+      # gcc-7 and newer compilers
+      Ubuntu Focal gcc-11 Release:
+        imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 11
         BuildType: RelWithDebInfo
 
-      Ubuntu Bionic gcc-11 Debug:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal gcc-11 Debug:
+        imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 11
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-10 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal gcc-10 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-10 Debug:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal gcc-10 Debug:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 10
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-9 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal gcc-9 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      Ubuntu Bionic gcc-9 Debug:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal gcc-9 Debug:
+        imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 9
         BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-8 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal gcc-8 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 8
           BuildType: RelWithDebInfo
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-8 Debug:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal gcc-8 Debug:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 8
           BuildType: Debug
 
       ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
-        Ubuntu Bionic gcc-7 Release:
-          imageName: 'ubuntu-18.04'
+        Ubuntu Focal gcc-7 Release:
+          imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 7
           BuildType: RelWithDebInfo
 
-      Ubuntu Bionic gcc-7 Debug:
-        imageName: 'ubuntu-18.04'
+      Ubuntu Focal gcc-7 Debug:
+        imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 7
         BuildType: Debug
@@ -348,7 +303,7 @@ jobs:
         '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
       )
 
-      if [[ "$CC" =~ clang-(5.0|6.0|7|8)$ ]]; then
+      if [[ "$CC" =~ clang-(6.0|7|8)$ ]]; then
         COMPILE_OPT+=(
           '-DCMAKE_C_FLAGS=-isystem /usr/include/c++/9 -isystem /usr/include'
           '-DCMAKE_CXX_FLAGS=-isystem /usr/include/c++/9 -isystem /usr/include'

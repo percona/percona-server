@@ -349,8 +349,8 @@ install_deps() {
                 if [ $(uname -m) = x86_64 ]; then
                             yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
                 else
-                            wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
-                            wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
+                            wget --no-check-certificate -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+                            wget --no-check-certificate -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
                             yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
                 fi
             elif [[ ${RHEL} = 7 ]]; then
@@ -474,7 +474,7 @@ build_srpm(){
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget --no-check-certificate http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -504,7 +504,7 @@ build_mecab_lib(){
     rm -rf ${MECAB_DIR}
     rm -rf ${MECAB_INSTALL_DIR}
     mkdir ${MECAB_INSTALL_DIR}
-    wget ${MECAB_LINK}
+    wget --no-check-certificate ${MECAB_LINK}
     tar xf ${MECAB_TARBAL}
     cd ${MECAB_DIR}
     ./configure --with-pic --prefix=/usr
@@ -525,7 +525,7 @@ build_mecab_dict(){
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
-    wget ${MECAB_IPADIC_LINK}
+    wget --no-check-certificate ${MECAB_IPADIC_LINK}
     tar xf ${MECAB_IPADIC_TARBAL}
     cd ${MECAB_IPADIC_DIR}
     # these two lines should be removed if proper packages are created and used for builds

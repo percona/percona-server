@@ -11032,16 +11032,16 @@ bool THD::is_ddl_gtid_compatible() {
       mysql_bin_log.is_open() == false)
     return true;
 
-  DBUG_PRINT(
-      "info",
-      ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%zu SQLCOM_DROP:%d "
-       "DROP-TMP:%d trx:%d",
-       lex->sql_command == SQLCOM_CREATE_TABLE,
-       (lex->sql_command == SQLCOM_CREATE_TABLE &&
-        (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-       lex->query_block->fields.size(), lex->sql_command == SQLCOM_DROP_TABLE,
-       (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
-       in_multi_stmt_transaction_mode()));
+  DBUG_PRINT("info",
+             ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%zu SQLCOM_DROP:%d "
+              "DROP-TMP:%d trx:%d",
+              lex->sql_command == SQLCOM_CREATE_TABLE,
+              (lex->sql_command == SQLCOM_CREATE_TABLE &&
+               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
+              lex->query_block ? lex->query_block->fields.size() : 0,
+              lex->sql_command == SQLCOM_DROP_TABLE,
+              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
+              in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&

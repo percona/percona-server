@@ -1813,7 +1813,6 @@ dberr_t Builder::create_merge_sort_tasks() noexcept {
 
   ut_a(!m_thread_ctxs.empty());
 
-  os_offset_t size{};
   Thread_ctxs dupcheck{};
   size_t n_runs_to_merge{};
   Dup dup = {m_index, m_ctx.m_table, m_ctx.m_col_map, 0};
@@ -1830,8 +1829,6 @@ dberr_t Builder::create_merge_sort_tasks() noexcept {
       /* We have to check these files using a merge cursor. */
       dupcheck.push_back(thread_ctx);
     }
-
-    size += thread_ctx->m_file.m_size;
   }
 
   if (!dupcheck.empty()) {

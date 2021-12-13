@@ -44,6 +44,11 @@
   };
 #endif
 
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ == 7)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 /* workaround default-constructor of std::unique_ptr<T, D> triggering a
  * static-exception when it is tested for "std::is_default_constructible"
  *
@@ -1051,5 +1056,9 @@ bool operator!=(const unexpected<E2> &a, const expected<T1, E1> &b) {
 }
 
 }  // namespace stdx
+
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ == 7)
+#pragma GCC diagnostic pop
+#endif
 
 #endif

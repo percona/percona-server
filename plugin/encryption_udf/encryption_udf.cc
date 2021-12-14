@@ -22,6 +22,7 @@
 #include <mysqlpp/udf_wrappers.hpp>
 
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/digest_context.hpp>
 #include <opensslpp/rsa_key.hpp>
 #include <opensslpp/rsa_padding.hpp>
 
@@ -266,9 +267,60 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
                                  message, key, opensslpp::rsa_padding::pkcs1)};
 }
 
+//
+// CREATE_DIGEST(@digest_type, @str)
+// Creates a digest from the given string using the given digest type, and
+// returns the digest as a binary string.
+// If digest generation fails, the result is NULL.
+// Supported @digest_type values: 'SHA224', 'SHA256', 'SHA384', 'SHA512'
+//
+class create_digest_impl {
+ public:
+  create_digest_impl(mysqlpp::udf_context &ctx) {
+    DBUG_TRACE;
+
+    if (ctx.get_number_of_args() != 2)
+      throw std::invalid_argument("Function requires exactly two arguments");
+
+    // result
+    ctx.mark_result_const(false);
+    ctx.mark_result_nullable(true);
+
+    // arg0 - @digest_type
+    ctx.mark_arg_nullable(0, false);
+    ctx.set_arg_type(0, STRING_RESULT);
+
+    // arg1 - @str
+    ctx.mark_arg_nullable(1, false);
+    ctx.set_arg_type(1, STRING_RESULT);
+  }
+  ~create_digest_impl() { DBUG_TRACE; }
+
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context &args);
+};
+
+mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
+    const mysqlpp::udf_context &ctx) {
+  DBUG_TRACE;
+
+  auto digest_type_sv = ctx.get_arg<STRING_RESULT>(0);
+  if (digest_type_sv.data() == nullptr)
+    throw std::invalid_argument("Digest type cannot be NULL");
+  auto digest_type = static_cast<std::string>(digest_type_sv);
+
+  auto message_sv = ctx.get_arg<STRING_RESULT>(1);
+  if (message_sv.data() == nullptr)
+    throw std::invalid_argument("Message cannot be NULL");
+  auto message = static_cast<std::string>(message_sv);
+
+  return {opensslpp::calculate_digest(digest_type, message)};
+}
+
 }  // end of anonymous namespace
 
 DECLARE_STRING_UDF(create_asymmetric_priv_key_impl, create_asymmetric_priv_key)
 DECLARE_STRING_UDF(create_asymmetric_pub_key_impl, create_asymmetric_pub_key)
 DECLARE_STRING_UDF(asymmetric_encrypt_impl, asymmetric_encrypt)
 DECLARE_STRING_UDF(asymmetric_decrypt_impl, asymmetric_decrypt)
+DECLARE_STRING_UDF(create_digest_impl, create_digest)

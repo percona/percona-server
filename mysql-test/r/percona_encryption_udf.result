@@ -279,6 +279,878 @@ SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
 SELECT create_asymmetric_priv_key('DSA', 2048);
 ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid algorithm specified
+SET @digest_type = 'SHA224';
+SET @message = 'message';
+
+** checking 'create_digest()' function basics
+CREATE FUNCTION create_digest RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+SELECT create_digest();
+ERROR HY000: Can't initialize function 'create_digest'; Function requires exactly two arguments
+SELECT create_digest(@algorithm);
+ERROR HY000: Can't initialize function 'create_digest'; Function requires exactly two arguments
+SELECT create_digest(@algorithm, NULL);
+ERROR HY000: create_digest<string> UDF failed; Message cannot be NULL
+SELECT create_digest('FOO', @message);
+ERROR HY000: create_digest<string> UDF failed; unknown digest name
+SET @random_pattern = REPEAT(MD5(42), 16 * 7 DIV 32 + 1);
+** checking digests calculation
+CREATE TEMPORARY TABLE digest_type(
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+udf_template VARCHAR(64) NOT NULL,
+builtin_template VARCHAR(64),
+PRIMARY KEY(id)
+);
+INSERT INTO digest_type(udf_template, builtin_template) VALUES
+('HEX(create_digest("MD5"   , @message))', 'MD5(@message)'),
+('HEX(create_digest("SHA1"  , @message))', 'SHA(@message)'),
+('HEX(create_digest("SHA224", @message))', 'SHA2(@message, 224)'),
+('HEX(create_digest("SHA256", @message))', 'SHA2(@message, 256)'),
+('HEX(create_digest("SHA384", @message))', 'SHA2(@message, 384)'),
+('HEX(create_digest("SHA512", @message))', 'SHA2(@message, 512)'),
+('HEX(create_digest("BLAKE2B512", @message))', NULL),
+('HEX(create_digest("BLAKE2S256", @message))', NULL),
+('HEX(create_digest("MD4"       , @message))', NULL),
+('HEX(create_digest("RIPEMD"    , @message))', NULL),
+('HEX(create_digest("RIPEMD160" , @message))', NULL),
+('HEX(create_digest("RMD160"    , @message))', NULL),
+('HEX(create_digest("SHAKE128"  , @message))', NULL),
+('HEX(create_digest("SHAKE256"  , @message))', NULL),
+('HEX(create_digest("SM3"       , @message))', NULL),
+('HEX(create_digest("WHIRLPOOL" , @message))', NULL)
+;
+**** checking HEX(create_digest("MD5"   , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF should match built-in function result]
+**** checking HEX(create_digest("SHA1"  , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF should match built-in function result]
+**** checking HEX(create_digest("SHA224", @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF should match built-in function result]
+**** checking HEX(create_digest("SHA256", @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF should match built-in function result]
+**** checking HEX(create_digest("SHA384", @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF should match built-in function result]
+**** checking HEX(create_digest("SHA512", @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF should match built-in function result]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF should match built-in function result]
+**** checking HEX(create_digest("BLAKE2B512", @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("BLAKE2S256", @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("MD4"       , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("RIPEMD"    , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("RIPEMD160" , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("RMD160"    , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("SHAKE128"  , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("SHAKE256"  , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("SM3"       , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+**** checking HEX(create_digest("WHIRLPOOL" , @message)) digest
+****** checking digest calculation on 0 - byte(s) message
+SET @message = LEFT(@random_pattern, 0);
+include/assert.inc [digest of a message of length 0 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 7 - byte(s) message
+SET @message = LEFT(@random_pattern, 7);
+include/assert.inc [digest of a message of length 7 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 14 - byte(s) message
+SET @message = LEFT(@random_pattern, 14);
+include/assert.inc [digest of a message of length 14 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 21 - byte(s) message
+SET @message = LEFT(@random_pattern, 21);
+include/assert.inc [digest of a message of length 21 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 28 - byte(s) message
+SET @message = LEFT(@random_pattern, 28);
+include/assert.inc [digest of a message of length 28 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 35 - byte(s) message
+SET @message = LEFT(@random_pattern, 35);
+include/assert.inc [digest of a message of length 35 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 42 - byte(s) message
+SET @message = LEFT(@random_pattern, 42);
+include/assert.inc [digest of a message of length 42 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 49 - byte(s) message
+SET @message = LEFT(@random_pattern, 49);
+include/assert.inc [digest of a message of length 49 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 56 - byte(s) message
+SET @message = LEFT(@random_pattern, 56);
+include/assert.inc [digest of a message of length 56 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 63 - byte(s) message
+SET @message = LEFT(@random_pattern, 63);
+include/assert.inc [digest of a message of length 63 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 70 - byte(s) message
+SET @message = LEFT(@random_pattern, 70);
+include/assert.inc [digest of a message of length 70 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 77 - byte(s) message
+SET @message = LEFT(@random_pattern, 77);
+include/assert.inc [digest of a message of length 77 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 84 - byte(s) message
+SET @message = LEFT(@random_pattern, 84);
+include/assert.inc [digest of a message of length 84 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 91 - byte(s) message
+SET @message = LEFT(@random_pattern, 91);
+include/assert.inc [digest of a message of length 91 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 98 - byte(s) message
+SET @message = LEFT(@random_pattern, 98);
+include/assert.inc [digest of a message of length 98 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 105 - byte(s) message
+SET @message = LEFT(@random_pattern, 105);
+include/assert.inc [digest of a message of length 105 - byte(s) calculated via UDF is not NULL]
+****** checking digest calculation on 112 - byte(s) message
+SET @message = LEFT(@random_pattern, 112);
+include/assert.inc [digest of a message of length 112 - byte(s) calculated via UDF is not NULL]
+DROP FUNCTION create_digest;
 DROP FUNCTION asymmetric_decrypt;
 DROP FUNCTION asymmetric_encrypt;
 DROP FUNCTION create_asymmetric_pub_key;

@@ -46,6 +46,8 @@ set(
   big_number_fwd.hpp
   core_error.hpp
   core_error_fwd.hpp
+  digest_context.hpp
+  digest_context_fwd.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
   rsa_padding.hpp
@@ -60,6 +62,7 @@ set(
   bio_accessor.hpp
   bio_fwd.hpp
   core_allocated_buffer.hpp
+  digest_context_accessor.hpp
   rsa_key_accessor.hpp
   typed_accessor.hpp
 )
@@ -70,6 +73,7 @@ set(
   bio.cpp
   core_error.cpp
   core_allocated_buffer.cpp
+  digest_context.cpp
   rsa_key.cpp
 )
 list(TRANSFORM SOURCE_LIST PREPEND "${SRC_DIR_EX}/")

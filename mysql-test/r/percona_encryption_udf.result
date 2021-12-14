@@ -89,6 +89,7 @@ SET @message = LEFT(@random_pattern, 0);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 0 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 0 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 0 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 0 - byte(s) message with public key
@@ -100,6 +101,7 @@ SET @message = LEFT(@random_pattern, 1);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 1 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 1 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 1 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 1 - byte(s) message with public key
@@ -111,6 +113,7 @@ SET @message = LEFT(@random_pattern, 58);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 58 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 58 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 58 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 58 - byte(s) message with public key
@@ -122,6 +125,7 @@ SET @message = LEFT(@random_pattern, 117);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 117 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 117 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 117 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 117 - byte(s) message with public key
@@ -154,6 +158,7 @@ SET @message = LEFT(@random_pattern, 0);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 0 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 0 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 0 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 0 - byte(s) message with public key
@@ -165,6 +170,7 @@ SET @message = LEFT(@random_pattern, 1);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 1 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 1 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 1 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 1 - byte(s) message with public key
@@ -176,6 +182,7 @@ SET @message = LEFT(@random_pattern, 250);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 250 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 250 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 250 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 250 - byte(s) message with public key
@@ -187,6 +194,7 @@ SET @message = LEFT(@random_pattern, 501);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 501 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 501 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 501 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 501 - byte(s) message with public key
@@ -219,6 +227,7 @@ SET @message = LEFT(@random_pattern, 0);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 0 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 0 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 0 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 0 - byte(s) message with public key
@@ -230,6 +239,7 @@ SET @message = LEFT(@random_pattern, 1);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 1 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 1 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 1 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 1 - byte(s) message with public key
@@ -241,6 +251,7 @@ SET @message = LEFT(@random_pattern, 1018);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 1018 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 1018 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 1018 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 1018 - byte(s) message with public key
@@ -252,6 +263,7 @@ SET @message = LEFT(@random_pattern, 2037);
 SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
 ****** checking decryption of 2037 - byte(s) message with private key
 SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
+include/assert.inc [message of length 2037 - byte(s) decrypted with private key must match the original one]
 ****** checking encryption of 2037 - byte(s) message with private key
 SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 ****** checking decryption of 2037 - byte(s) message with public key

@@ -145,7 +145,7 @@ while ($key_length_index <= 3)
     SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
     --let $assert_text = message of length $message_length - byte(s) decrypted with private key must match the original one
     --let $assert_cond = @message_dec_with_rsa_priv = @message
-    #--source include/assert.inc
+    --source include/assert.inc
 
     --echo ****** checking encryption of $message_length - byte(s) message with private key
     SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);

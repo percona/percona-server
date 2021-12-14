@@ -23,6 +23,7 @@
 #include "opensslpp/accessor_fwd.hpp"
 
 namespace opensslpp {
+
 class bio final {
   friend class accessor<bio>;
 

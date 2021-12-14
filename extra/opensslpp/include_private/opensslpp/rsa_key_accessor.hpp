@@ -23,7 +23,9 @@
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {
+
 using rsa_key_accessor = typed_accessor<rsa_key, RSA>;
+
 }  // namespace opensslpp
 
 #endif

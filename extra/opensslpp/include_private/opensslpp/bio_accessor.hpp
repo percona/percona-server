@@ -23,7 +23,9 @@
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {
+
 using bio_accessor = typed_accessor<bio, BIO>;
+
 }  // namespace opensslpp
 
 #endif

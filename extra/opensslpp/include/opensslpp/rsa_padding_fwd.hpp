@@ -18,7 +18,9 @@
 #define OPENSSLPP_RSA_PADDING_FWD_HPP
 
 namespace opensslpp {
+
 enum class rsa_padding;
+
 }  // namespace opensslpp
 
 #endif

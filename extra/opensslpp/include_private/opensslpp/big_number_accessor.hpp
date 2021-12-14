@@ -23,7 +23,9 @@
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {
+
 using big_number_accessor = typed_accessor<big_number, BIGNUM>;
+
 }  // namespace opensslpp
 
 #endif

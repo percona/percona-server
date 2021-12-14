@@ -21,6 +21,7 @@
 #include <memory>
 
 namespace opensslpp {
+
 class core_allocated_buffer final {
  private:
   static constexpr std::size_t nlength = ~static_cast<std::size_t>(0);

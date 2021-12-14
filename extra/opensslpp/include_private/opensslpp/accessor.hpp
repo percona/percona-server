@@ -20,6 +20,7 @@
 #include "opensslpp/accessor_fwd.hpp"
 
 namespace opensslpp {
+
 template <typename WrapperType>
 class accessor {
  protected:
@@ -28,6 +29,7 @@ class accessor {
     return obj.impl_.get();
   }
 };
+
 }  // namespace opensslpp
 
 #endif

@@ -21,6 +21,7 @@
 #include <string>
 
 namespace opensslpp {
+
 class core_error : public std::runtime_error {
  public:
   core_error(const char *message) : std::runtime_error{message} {}

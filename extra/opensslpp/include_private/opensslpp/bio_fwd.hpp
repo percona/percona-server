@@ -18,7 +18,9 @@
 #define OPENSSLPP_BIO_FWD_HPP
 
 namespace opensslpp {
+
 class bio;
+
 }  // namespace opensslpp
 
 #endif

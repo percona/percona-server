@@ -19,7 +19,9 @@
 #include "opensslpp/core_allocated_buffer.hpp"
 
 namespace opensslpp {
+
 void core_allocated_buffer::core_deleter::operator()(void *ptr) const noexcept {
   if (ptr != nullptr) OPENSSL_free(ptr);
 }
+
 }  // namespace opensslpp

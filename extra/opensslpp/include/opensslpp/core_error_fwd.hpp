@@ -18,7 +18,9 @@
 #define OPENSSLPP_CORE_ERROR_FWD_HPP
 
 namespace opensslpp {
+
 class core_error;
+
 }  // namespace opensslpp
 
 #endif

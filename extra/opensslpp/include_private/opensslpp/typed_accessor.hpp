@@ -20,6 +20,7 @@
 #include "opensslpp/accessor.hpp"
 
 namespace opensslpp {
+
 template <typename WrapperType, typename UnderlyingType>
 class typed_accessor : private accessor<WrapperType> {
  private:
@@ -38,6 +39,7 @@ class typed_accessor : private accessor<WrapperType> {
     return const_cast<UnderlyingType *>(this_type::get_impl(obj));
   }
 };
+
 }  // namespace opensslpp
 
 #endif

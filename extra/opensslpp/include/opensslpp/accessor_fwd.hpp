@@ -18,8 +18,10 @@
 #define OPENSSLPP_ACCESSOR_FWD_HPP
 
 namespace opensslpp {
+
 template <typename WrapperType>
 class accessor;
+
 }  // namespace opensslpp
 
 #endif

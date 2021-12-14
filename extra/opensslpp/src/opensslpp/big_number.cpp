@@ -25,6 +25,7 @@
 #include "opensslpp/core_error.hpp"
 
 namespace opensslpp {
+
 void big_number::bignum_deleter::operator()(void *bn) const noexcept {
   if (bn != nullptr) BN_free(static_cast<BIGNUM *>(bn));
 }
@@ -103,4 +104,5 @@ void big_number::set_primitive_value_internal(std::uintmax_t value) {
   if (BN_set_word(big_number_accessor::get_impl(*this), value) == 0)
     throw core_error{"cannot set big number value"};
 }
+
 }  // namespace opensslpp

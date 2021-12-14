@@ -33,6 +33,7 @@
 #include "opensslpp/rsa_padding.hpp"
 
 namespace opensslpp {
+
 void rsa_key::rsa_deleter::operator()(void *rsa) const noexcept {
   if (rsa != nullptr) RSA_free(static_cast<RSA *>(rsa));
 }

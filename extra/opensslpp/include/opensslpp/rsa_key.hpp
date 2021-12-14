@@ -28,6 +28,7 @@
 #include "opensslpp/rsa_padding_fwd.hpp"
 
 namespace opensslpp {
+
 class rsa_key final {
   friend class accessor<rsa_key>;
 

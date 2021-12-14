@@ -26,6 +26,7 @@
 #include "opensslpp/accessor_fwd.hpp"
 
 namespace opensslpp {
+
 class big_number final {
   friend class accessor<big_number>;
 
@@ -79,6 +80,7 @@ class big_number final {
 
   void set_primitive_value_internal(std::uintmax_t value);
 };
+
 }  // namespace opensslpp
 
 #endif

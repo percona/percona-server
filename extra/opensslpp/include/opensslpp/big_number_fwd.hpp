@@ -18,7 +18,9 @@
 #define OPENSSLPP_BIG_NUMBER_FWD_HPP
 
 namespace opensslpp {
+
 class big_number;
+
 }  // namespace opensslpp
 
 #endif

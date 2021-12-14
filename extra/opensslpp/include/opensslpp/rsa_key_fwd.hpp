@@ -18,6 +18,7 @@
 #define OPENSSLPP_RSA_KEY_FWD_HPP
 
 namespace opensslpp {
+
 class rsa_key;
 
 }  // namespace opensslpp

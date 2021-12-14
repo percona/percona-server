@@ -23,6 +23,7 @@
 #include "opensslpp/core_error.hpp"
 
 namespace opensslpp {
+
 void bio::bio_deleter::operator()(void *b) const noexcept {
   if (b != nullptr) BIO_free_all(static_cast<BIO *>(b));
 }
@@ -44,4 +45,5 @@ std::string bio::str() const {
     throw core_error{"cannot convert bio to string"};
   return {bio_mem_ptr, static_cast<std::size_t>(bio_mem_len - 1L)};
 }
+
 }  // namespace opensslpp

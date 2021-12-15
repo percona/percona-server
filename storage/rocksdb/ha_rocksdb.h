@@ -492,9 +492,9 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   }
 
   int rename_table(const char *const from, const char *const to,
-                   const dd::Table *from_table_def,
-                   dd::Table *to_table_def) override
-      MY_ATTRIBUTE((__warn_unused_result__));
+                   const dd::Table *from_table_def MY_ATTRIBUTE((__unused__)),
+                   dd::Table *to_table_def MY_ATTRIBUTE((__unused__))) override
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
                                          const rocksdb::Slice *const value,

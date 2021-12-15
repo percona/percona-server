@@ -11971,9 +11971,6 @@ int ha_rocksdb::rename_table(
     dd::Table *to_table_def MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
-  assert(from != nullptr);
-  assert(to != nullptr);
-
   std::string from_str;
   std::string to_str;
   std::string from_db;

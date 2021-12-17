@@ -639,11 +639,11 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
     index)
     mysql_update does not set table->next_number_field, so we use
     table->found_next_number_field instead.
-    Also checking that the field is marked in the write set.
+    Also checking that the field is marked in the read set.
   */
   if (m_table->found_next_number_field && new_data == m_table->record[0] &&
       !m_table->s->next_number_keypart &&
-      bitmap_is_set(m_table->write_set,
+      bitmap_is_set(m_table->read_set,
                     m_table->found_next_number_field->field_index())) {
     set_auto_increment_if_higher();
   }

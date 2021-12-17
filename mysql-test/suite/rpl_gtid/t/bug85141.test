@@ -59,7 +59,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --let $rpl_skip_sync = 1
 --source include/rpl_diff.inc
 
---let $initial_slave_relay_log_info_waits = `SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = 'mysql' AND object_name = 'slave_relay_log_info'`
+--let $slave_relay_log_info_query = SELECT count_write FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = 'mysql' AND object_name = 'slave_relay_log_info'
+--let $initial_slave_relay_log_info_waits = `$slave_relay_log_info_query`
 --let $initial_slave_master_info = `SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = 'mysql' AND object_name = 'slave_master_info'`
 
 --echo #
@@ -91,7 +92,8 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --let $rpl_skip_sync = 1
 --source include/rpl_diff.inc
 --let $assert_text = number of IO waits for "slave_relay_log_info" must not change
---let $assert_cond = count_star = $initial_slave_relay_log_info_waits FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = "mysql" AND object_name = "slave_relay_log_info"
+--let $assert_cond = count_write = $initial_slave_relay_log_info_waits FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = "mysql" AND object_name = "slave_relay_log_info"
+--let $assert_debug = $slave_relay_log_info_query
 --source include/assert.inc
 --let $assert_text = number of IO waits for "slave_master_info" must not change
 --let $assert_cond = count_star = $initial_slave_master_info FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = "mysql" AND object_name = "slave_master_info"

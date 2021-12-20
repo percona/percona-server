@@ -647,7 +647,8 @@ The following options may be given as the first argument:
  Choose how verbose the messages to your slow log will be.
  Multiple flags allowed in a comma-separated string.
  [microtime, query_plan, innodb, profiling,
- profiling_use_getrusage, minimal, standard, full]
+ profiling_use_getrusage, query_info, minimal, standard,
+ full]
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
  based binary logging. This variable is deprecated and

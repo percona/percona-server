@@ -657,6 +657,18 @@ The following options may be given as the first argument:
  --log-slow-slave-statements 
  This option is deprecated. Use
  log_slow_replica_statements instead.
+ --log-slow-sp-statements[=name] 
+ Choice between logging slow CALL statements, logging
+ individual slow statements inside stored procedures or
+ skipping the logging of stored procedures into the slow
+ log entirely. Values are OFF, ON and OFF_NO_CALLS
+ respectively.
+ --log-slow-verbosity=name 
+ Choose how verbose the messages to your slow log will be.
+ Multiple flags allowed in a comma-separated string.
+ [microtime, query_plan, innodb, profiling,
+ profiling_use_getrusage, query_info, minimal, standard,
+ full]
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
  based binary logging.

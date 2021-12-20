@@ -6173,9 +6173,16 @@ static Sys_var_double sys_slow_query_log_always_write_time(
     VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(update_slow_query_log_always_write_time));
 
-static const char *log_slow_verbosity_name[] = {
-    "microtime", "query_plan", "innodb", "profiling", "profiling_use_getrusage",
-    "minimal",   "standard",   "full",   nullptr};
+static const char *log_slow_verbosity_name[] = {"microtime",
+                                                "query_plan",
+                                                "innodb",
+                                                "profiling",
+                                                "profiling_use_getrusage",
+                                                "query_info",
+                                                "minimal",
+                                                "standard",
+                                                "full",
+                                                nullptr};
 
 static ulonglong update_log_slow_verbosity_replace(ulonglong value,
                                                    ulonglong what,
@@ -6220,8 +6227,8 @@ static Sys_var_set Sys_log_slow_verbosity(
     "log_slow_verbosity",
     "Choose how verbose the messages to your slow log will be. "
     "Multiple flags allowed in a comma-separated string. [microtime, "
-    "query_plan, innodb, profiling, profiling_use_getrusage, minimal, "
-    "standard, full]",
+    "query_plan, innodb, profiling, profiling_use_getrusage, query_info, "
+    "minimal, standard, full]",
     SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
     log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr),

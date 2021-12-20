@@ -920,6 +920,32 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       goto err;
   }
 
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_INFO)) &&
+      thd->get_command() == COM_QUERY) {
+    // Query_tables
+    //
+    // Concept of query table list doesn't apply to most of server commands
+    // other than COM_QUERY. Even if it makes sense, like for COM_STMT_EXECUTE,
+    // it might be not easily available. They might not fully initialize LEX as
+    // well, so LEX::query_tables can contain gargbage from previous statements
+    // for them.
+    std::string tbl_list_str = "";
+    if (thd->lex->query_tables != nullptr) {
+      std::stringstream tbl_list;
+      for (Table_ref *table = thd->lex->query_tables; table;
+           table = table->next_global) {
+        tbl_list << table->get_table_name() << ",";
+      }
+      tbl_list_str = tbl_list.str();
+      tbl_list_str.pop_back();
+    }
+
+    if (my_b_printf(&log_file, "# Query_tables: %s\n", tbl_list_str.c_str()) ==
+        (uint)-1) {
+      goto err;
+    }
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db)) {  // Database changed
     if (my_b_printf(&log_file, "use %s;\n", thd->db().str) == (uint)-1)
       goto err;

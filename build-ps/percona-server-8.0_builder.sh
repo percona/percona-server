@@ -255,6 +255,11 @@ get_sources(){
     fi
     #
     git submodule update
+    cd storage/rocksdb/rocksdb_plugins/zenfs
+    ZEN_VER=$(git describe --abbrev=7 --dirty)
+    sed -i "s/^VERSION=.*/VERSION=$ZEN_VER/" generate-version.sh
+    ./generate-version.sh
+    cd -
     cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DWITH_ZLIB=bundled
     make dist
     #

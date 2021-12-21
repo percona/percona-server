@@ -1,0 +1,71 @@
+--source include/have_rocksdb.inc
+
+--connect(con1, localhost, root,,)
+--connect(con2, localhost, root,,)
+
+--connection con1
+SET @rocksdb_flush_log_at_trx_commit_saved = @@global.rocksdb_flush_log_at_trx_commit;
+SET @rocksdb_write_disable_wal_saved = @@session.rocksdb_write_disable_wal;
+SET @@global.rocksdb_flush_log_at_trx_commit = 2;
+SET @@session.rocksdb_write_disable_wal=ON;
+
+--connection con2
+SET @@session.rocksdb_write_disable_wal=OFF;
+SET @@global.rocksdb_flush_log_at_trx_commit = 1;
+
+--connection con1
+# Now rocksdb_flush_log_at_trx_commit = 1 and rocksdb_write_disable_wal=ON
+# The following statements have caused crash as
+# rocksdb_write_disable_wal=ON is incompatible with
+# synchronous writes (rocksdb_flush_log_at_trx_commit=1).
+# See https://jira.percona.com/browse/PS-7883 for details.
+
+# The incompatible value (ON) is retained until the variable is used and the
+# incompatible value will not be temporarily hidden by the compatible
+SHOW SESSION VARIABLES LIKE "rocksdb_write_disable_wal";
+
+CREATE TABLE tt_12 (ipkey INT AUTO_INCREMENT, i1 INT, d2 DOUBLE,
+                    PRIMARY KEY(ipkey), INDEX tt_12i0(d2, i1 ASC, ipkey),
+                    INDEX tt_12i1(ipkey, i1, d2))
+                   ROW_FORMAT=DYNAMIC ENGINE=RocksDB;
+
+REPLACE INTO tt_12  (ipkey, i1, d2) VALUES(2097, 6145, 0.00000);
+
+call mtr.add_suppression("Sync writes has to enable WAL. Switching to rocksdb_write_disable_wal = false for the time when sync writes are enabled.");
+ALTER TABLE tt_12 MODIFY COLUMN  ipkey INT(14), LOCK=DEFAULT, ALGORITHM=DEFAULT;
+
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=\[Warning\] .* Plugin rocksdb reported: 'Sync writes has to enable WAL. Switching to rocksdb_write_disable_wal = false for the time when sync writes are enabled.'
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+# The compatible value (OFF) hides incompatible (ON) after ALTER TABLE
+SHOW SESSION VARIABLES LIKE "rocksdb_write_disable_wal";
+
+--connection con2
+SET @@global.rocksdb_flush_log_at_trx_commit = 2;
+
+--connection con1
+
+# The compatible value (OFF) that hides a previously incompatible value (ON) is
+# retained until the variable is used
+SHOW SESSION VARIABLES LIKE "rocksdb_write_disable_wal";
+
+call mtr.add_suppression("Sync writes disabled. Switching back to rocksdb_write_disable_wal = true");
+ALTER TABLE tt_12 MODIFY COLUMN  ipkey INT(15), LOCK=DEFAULT, ALGORITHM=DEFAULT;
+
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=\[Warning\] .* Plugin rocksdb reported: 'Sync writes disabled. Switching back to rocksdb_write_disable_wal = true'
+--let $grep_output=boolean
+--source include/grep_pattern.inc
+
+# The originally incompatible value (ON) is now compatible and we see and use it
+SHOW SESSION VARIABLES LIKE "rocksdb_write_disable_wal";
+
+DROP TABLE tt_12;
+
+SET @@session.rocksdb_write_disable_wal = @rocksdb_write_disable_wal_saved;
+SET @@global.rocksdb_flush_log_at_trx_commit = @rocksdb_flush_log_at_trx_commit_saved;
+
+--disconnect con1
+--disconnect con2

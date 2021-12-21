@@ -1,0 +1,1 @@
+--loose-rocksdb_write_disable_wal=ON

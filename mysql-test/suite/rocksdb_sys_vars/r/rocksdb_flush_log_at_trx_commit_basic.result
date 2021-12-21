@@ -1,3 +1,5 @@
+SET @rocksdb_flush_log_at_trx_commit_saved = @@global.rocksdb_flush_log_at_trx_commit;
+SET @rocksdb_write_disable_wal_saved = @@session.rocksdb_write_disable_wal;
 CREATE TABLE valid_values (value varchar(255)) ENGINE=myisam;
 INSERT INTO valid_values VALUES(2);
 INSERT INTO valid_values VALUES(1);
@@ -55,3 +57,9 @@ SELECT @@global.ROCKSDB_FLUSH_LOG_AT_TRX_COMMIT;
 1
 DROP TABLE valid_values;
 DROP TABLE invalid_values;
+SET @@global.rocksdb_flush_log_at_trx_commit=0;
+SET @@session.rocksdb_write_disable_wal = ON;
+SET @@global.rocksdb_flush_log_at_trx_commit=1;
+ERROR HY000: Got error 513 'rocksdb_flush_log_at_trx_commit = 1 and rocksdb_write_disable_wal = ON are not compatible' from ROCKSDB
+SET @@session.rocksdb_write_disable_wal = @rocksdb_write_disable_wal_saved;
+SET @@global.rocksdb_flush_log_at_trx_commit = @rocksdb_flush_log_at_trx_commit_saved;

@@ -1,5 +1,11 @@
 --source include/have_rocksdb.inc
 
+# rocksdb_write_disable_wal=ON is incompatible with
+# synchronous writes (rocksdb_flush_log_at_trx_commit=1).
+# See https://jira.percona.com/browse/PS-7883 for details.
+SET @rocksdb_flush_log_at_trx_commit_saved = @@global.rocksdb_flush_log_at_trx_commit;
+SET @@global.rocksdb_flush_log_at_trx_commit = 2;
+
 let $isolation_level = REPEATABLE READ;
 --source suite/rocksdb/include/locking_issues_case1_1.inc
 
@@ -71,3 +77,5 @@ let $isolation_level = REPEATABLE READ;
 
 let $isolation_level = READ COMMITTED;
 --source suite/rocksdb/include/locking_issues_case7.inc
+
+SET @@global.rocksdb_flush_log_at_trx_commit = @rocksdb_flush_log_at_trx_commit_saved;

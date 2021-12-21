@@ -32,28 +32,36 @@ namespace temptable_storage_unittest {
 TEST(StorageTest, Iterate) {
   std::thread t([]() {
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> allocator(&shared_block);
-    temptable::Storage storage(&allocator);
 
-    storage.element_size(sizeof(uint64_t));
+    {
+      temptable::Allocator<uint8_t> allocator(&shared_block);
+      temptable::Storage storage(&allocator);
 
-    for (uint64_t i = 0; i < 10000; ++i) {
-      *static_cast<uint64_t *>(storage.allocate_back()) = i;
+      storage.element_size(sizeof(uint64_t));
+
+      for (uint64_t i = 0; i < 10000; ++i) {
+        *static_cast<uint64_t *>(storage.allocate_back()) = i;
+      }
+
+      uint64_t i = 0;
+      for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
+        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
+      }
+
+      i = storage.size();
+      auto it = storage.end();
+      for (; it != storage.begin();) {
+        --it;
+        --i;
+        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
+      }
+      EXPECT_EQ(0u, i);
     }
 
-    uint64_t i = 0;
-    for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-
-    i = storage.size();
-    auto it = storage.end();
-    for (; it != storage.begin();) {
-      --it;
-      --i;
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-    EXPECT_EQ(0u, i);
+    // Deallocate the shared-block (allocator keeps it alive
+    // intentionally)
+    // Must be done after storage is destructed
+    shared_block.destroy();
   });
   t.join();
 }
@@ -76,6 +84,10 @@ TEST(StorageTest, AllocatorRebind) {
     rebound_alloc.deallocate(ptr2, 50);
 
     alloc.deallocate(shared_eater, 1048576);
+
+    // Deallocate the shared-block (allocator keeps it alive
+    // intentionally)
+    shared_block.destroy();
   };
   std::thread t(thread_function);
   t.join();

@@ -1,0 +1,8 @@
+call mtr.add_suppression("Plugin rocksdb reported:");
+call mtr.add_suppression("Plugin 'ROCKSDB'");
+CREATE TABLE tt_12 (ipkey INT AUTO_INCREMENT, i1 INT, d2 DOUBLE,
+PRIMARY KEY(ipkey), INDEX tt_12i0(d2, i1 ASC, ipkey),
+INDEX tt_12i1(ipkey, i1, d2))
+ROW_FORMAT=DYNAMIC ENGINE=RocksDB;
+ERROR 42000: Unknown storage engine 'RocksDB'
+Pattern found.

@@ -1,6 +1,9 @@
 --source include/have_rocksdb.inc
 --source include/have_myisam.inc
 
+SET @rocksdb_flush_log_at_trx_commit_saved = @@global.rocksdb_flush_log_at_trx_commit;
+SET @rocksdb_write_disable_wal_saved = @@session.rocksdb_write_disable_wal;
+
 CREATE TABLE valid_values (value varchar(255)) ENGINE=myisam;
 INSERT INTO valid_values VALUES(2);
 INSERT INTO valid_values VALUES(1);
@@ -16,3 +19,17 @@ INSERT INTO invalid_values VALUES('\'aaa\'');
 
 DROP TABLE valid_values;
 DROP TABLE invalid_values;
+
+################################################################################
+# Change the value of rocksdb_flush_log_at_trx_commit to an incompatible value #
+################################################################################
+# rocksdb_write_disable_wal=ON is incompatible with
+# synchronous writes (rocksdb_flush_log_at_trx_commit=1).
+# See https://jira.percona.com/browse/PS-7883 for details.
+SET @@global.rocksdb_flush_log_at_trx_commit=0;
+SET @@session.rocksdb_write_disable_wal = ON;
+--error ER_GET_ERRMSG
+SET @@global.rocksdb_flush_log_at_trx_commit=1;
+
+SET @@session.rocksdb_write_disable_wal = @rocksdb_write_disable_wal_saved;
+SET @@global.rocksdb_flush_log_at_trx_commit = @rocksdb_flush_log_at_trx_commit_saved;

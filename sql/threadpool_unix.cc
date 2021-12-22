@@ -1272,7 +1272,7 @@ void tp_post_kill_notification(THD *thd) noexcept {
   MySQL scheduler callback: wait begin
 */
 
-void tp_wait_begin(THD *thd, int type MY_ATTRIBUTE((unused))) {
+void tp_wait_begin(THD *thd, int type [[maybe_unused]]) {
   DBUG_ENTER("tp_wait_begin");
   assert(thd);
   connection_t *connection = (connection_t *)thd->event_scheduler.data;

@@ -33,7 +33,7 @@ int auth_ldap_common_deinit(mysql::plugin::auth_ldap::Pool *connPool) {
 }
 
 int auth_ldap_common_authenticate_user(
-    MYSQL_PLUGIN_VIO *vio MY_ATTRIBUTE((unused)), MYSQL_SERVER_AUTH_INFO *info,
+    MYSQL_PLUGIN_VIO *vio [[maybe_unused]], MYSQL_SERVER_AUTH_INFO *info,
     const char *password, mysql::plugin::auth_ldap::Pool *pool,
     const char *user_search_attr, const char *group_search_attr,
     const char *group_search_filter, const char *bind_base_dn) {

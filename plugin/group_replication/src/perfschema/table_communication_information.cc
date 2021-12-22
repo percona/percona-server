@@ -99,7 +99,7 @@ static bool fetch_row_data() {
 
 static unsigned long long get_row_count() { return NR_ROWS; }
 
-static int rnd_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static int rnd_next(PSI_table_handle *handle [[maybe_unused]]) {
   if (s_current_pos >= NR_ROWS) {
     return PFS_HA_ERR_END_OF_FILE;
   }
@@ -115,22 +115,22 @@ static int rnd_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
   return SUCCESS;
 }
 
-static int rnd_init(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                    bool scan MY_ATTRIBUTE((unused))) {
+static int rnd_init(PSI_table_handle *handle [[maybe_unused]],
+                    bool scan [[maybe_unused]]) {
   return SUCCESS;
 }
 
-static int rnd_pos(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static int rnd_pos(PSI_table_handle *handle [[maybe_unused]]) {
   return SUCCESS;
 }
 
-static void reset_position(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static void reset_position(PSI_table_handle *handle [[maybe_unused]]) {
   s_current_pos = 0;
 }
 
-static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
+static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
                              PSI_field *field,
-                             unsigned int index MY_ATTRIBUTE((unused))) {
+                             unsigned int index [[maybe_unused]]) {
   Registry_guard guard;
   my_service<SERVICE_TYPE(pfs_plugin_table)> table_service{
       "pfs_plugin_table", guard.get_registry()};
@@ -172,14 +172,14 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
+static PSI_table_handle *open_table(PSI_pos **pos [[maybe_unused]]) {
   auto *dummy = reinterpret_cast<PSI_table_handle *>(&dummy_table_handle);
   reset_position(dummy);
   *pos = reinterpret_cast<PSI_pos *>(&s_current_pos);
   return dummy;
 }
 
-static void close_table(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static void close_table(PSI_table_handle *handle [[maybe_unused]]) {
   for (auto &it : s_preferred_leaders) delete it;
   s_preferred_leaders.clear();
 

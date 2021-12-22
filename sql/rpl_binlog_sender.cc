@@ -1251,7 +1251,7 @@ const char *Binlog_sender::log_read_error_msg(
 
 inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
                                      uint32 *event_len,
-                                     bool readahead MY_ATTRIBUTE((unused))) {
+                                     bool readahead [[maybe_unused]]) {
   DBUG_TRACE;
 
   if (reset_transmit_packet(0, 0)) return 1;

@@ -358,8 +358,8 @@ static void *column_zip_zalloc(void *opaque, uInt items, uInt size) noexcept {
 /** Deallocate memory for zlib.
 @param[in]      opaque  memory heap
 @param[in]      address object to free */
-static void column_zip_free(void *opaque MY_ATTRIBUTE((unused)),
-                            void *address MY_ATTRIBUTE((unused))) noexcept {}
+static void column_zip_free(void *opaque [[maybe_unused]],
+                            void *address [[maybe_unused]]) noexcept {}
 
 /** Configure the zlib allocator to use the given memory heap.
 @param[in,out]  stream  zlib stream

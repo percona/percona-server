@@ -62,8 +62,8 @@ static void handle_unknown_exception(const std::string &message_prefix) {
 static char *keyring_vault_config_file = nullptr;
 static uint keyring_vault_timeout = 0;
 
-int check_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            SYS_VAR *var MY_ATTRIBUTE((unused)), void *save,
+int check_keyring_file_data(MYSQL_THD thd [[maybe_unused]],
+                            SYS_VAR *var [[maybe_unused]], void *save,
                             st_mysql_value *value) {
   char buff[FN_REFLEN + 1];
   const char *keyring_filename;
@@ -112,8 +112,8 @@ static MYSQL_SYSVAR_STR(
     ""                                                  /* default    */
 );
 
-static void update_keyring_vault_timeout(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                         SYS_VAR *var MY_ATTRIBUTE((unused)),
+static void update_keyring_vault_timeout(MYSQL_THD thd [[maybe_unused]],
+                                         SYS_VAR *var [[maybe_unused]],
                                          void *ptr, const void *val) noexcept {
   assert(dynamic_cast<Vault_keys_container *>(keys.get()) != nullptr);
   *reinterpret_cast<uint *>(ptr) = *reinterpret_cast<const uint *>(val);
@@ -141,7 +141,7 @@ static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
-static int keyring_vault_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int keyring_vault_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   try {
 #ifdef HAVE_PSI_INTERFACE
@@ -192,7 +192,7 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
   }
 }
 
-int keyring_vault_deinit(void *arg MY_ATTRIBUTE((unused))) noexcept {
+int keyring_vault_deinit(void *arg [[maybe_unused]]) noexcept {
   keys.reset();
   logger.reset();
   delete_keyring_file_data();

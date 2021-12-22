@@ -2954,7 +2954,7 @@ bool Relay_log_info::is_time_for_mta_checkpoint() {
   return false;
 }
 
-void *Relay_log_info::operator new(size_t request MY_ATTRIBUTE((unused))) {
+void *Relay_log_info::operator new(size_t request [[maybe_unused]]) {
   void *ptr;
   if (posix_memalign(&ptr, __alignof__(Relay_log_info),
                      sizeof(Relay_log_info))) {

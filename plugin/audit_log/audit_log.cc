@@ -874,7 +874,7 @@ validation_error:
   return 1;
 }
 
-static int audit_log_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int audit_log_plugin_deinit(void *arg [[maybe_unused]]) {
   char buf[1024];
   size_t len;
 
@@ -1253,8 +1253,8 @@ static MYSQL_SYSVAR_ULONGLONG(
     NULL, NULL, 1048576UL, 4096UL, ULLONG_MAX, 4096UL);
 
 static void audit_log_rotate_on_size_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) noexcept {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) noexcept {
   ulonglong new_val = *(const ulonglong *)(save);
 
   audit_handler_set_option(log_handler, audit_handler_option_t::ROTATE_ON_SIZE,
@@ -1268,9 +1268,9 @@ static MYSQL_SYSVAR_ULONGLONG(
     "Maximum size of the log to start the rotation, if FILE handler is used.",
     NULL, audit_log_rotate_on_size_update, 0UL, 0UL, ULLONG_MAX, 4096UL);
 
-static void audit_log_rotations_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                       SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                       void *var_ptr MY_ATTRIBUTE((unused)),
+static void audit_log_rotations_update(MYSQL_THD thd [[maybe_unused]],
+                                       SYS_VAR *var [[maybe_unused]],
+                                       void *var_ptr [[maybe_unused]],
                                        const void *save) noexcept {
   ulonglong new_val = *(const ulonglong *)(save);
 
@@ -1285,9 +1285,9 @@ static MYSQL_SYSVAR_ULONGLONG(
     "Maximum number of rotations to keep, if FILE handler is used.", NULL,
     audit_log_rotations_update, 0UL, 0UL, 999UL, 1UL);
 
-static void audit_log_flush_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                   void *var_ptr MY_ATTRIBUTE((unused)),
+static void audit_log_flush_update(MYSQL_THD thd [[maybe_unused]],
+                                   SYS_VAR *var [[maybe_unused]],
+                                   void *var_ptr [[maybe_unused]],
                                    const void *save) {
   char new_val = *(const char *)(save);
 
@@ -1340,7 +1340,7 @@ static MYSQL_THDVAR_STR(query_stack,
                         "Query stack.", nullptr, nullptr, "");
 
 static int audit_log_exclude_accounts_validate(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
     void *save, st_mysql_value *value) {
   if (audit_log_include_accounts) return 1;
 
@@ -1356,8 +1356,8 @@ static int audit_log_exclude_accounts_validate(
 }
 
 static void audit_log_exclude_accounts_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) {
   const char *new_val = *(const char * const*)(save);
 
   assert(audit_log_include_accounts == nullptr);
@@ -1382,7 +1382,7 @@ static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
                         audit_log_exclude_accounts_update, nullptr);
 
 static int audit_log_include_accounts_validate(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
     void *save, st_mysql_value *value) {
   if (audit_log_exclude_accounts) return 1;
 
@@ -1398,8 +1398,8 @@ static int audit_log_include_accounts_validate(
 }
 
 static void audit_log_include_accounts_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) {
   const char *new_val = *(const char * const*)(save);
 
   assert(audit_log_exclude_accounts == nullptr);
@@ -1423,7 +1423,7 @@ static MYSQL_SYSVAR_STR(
     nullptr);
 
 static int audit_log_exclude_databases_validate(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
     void *save, st_mysql_value *value) {
   if (audit_log_include_databases) return 1;
 
@@ -1439,8 +1439,8 @@ static int audit_log_exclude_databases_validate(
 }
 
 static void audit_log_exclude_databases_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) {
   const char *new_val = *(const char * const*)(save);
 
   assert(audit_log_include_databases == nullptr);
@@ -1465,7 +1465,7 @@ static MYSQL_SYSVAR_STR(exclude_databases, audit_log_exclude_databases,
                         audit_log_exclude_databases_update, nullptr);
 
 static int audit_log_include_databases_validate(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
     void *save, st_mysql_value *value) {
   if (audit_log_exclude_databases) return 1;
 
@@ -1481,8 +1481,8 @@ static int audit_log_include_databases_validate(
 }
 
 static void audit_log_include_databases_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) {
   const char *new_val = *(const char * const*)(save);
 
   assert(audit_log_exclude_databases == nullptr);
@@ -1506,7 +1506,7 @@ static MYSQL_SYSVAR_STR(
     nullptr);
 
 static int audit_log_exclude_commands_validate(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
     void *save, st_mysql_value *value) {
   if (audit_log_include_commands) return 1;
 
@@ -1522,8 +1522,8 @@ static int audit_log_exclude_commands_validate(
 }
 
 static void audit_log_exclude_commands_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) {
   const char *new_val = *(const char * const*)(save);
 
   assert(audit_log_include_commands == nullptr);
@@ -1548,7 +1548,7 @@ static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
                         audit_log_exclude_commands_update, nullptr);
 
 static int audit_log_include_commands_validate(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
     void *save, st_mysql_value *value) {
   if (audit_log_exclude_commands) return 1;
 
@@ -1564,8 +1564,8 @@ static int audit_log_include_commands_validate(
 }
 
 static void audit_log_include_commands_update(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]], const void *save) {
   const char *new_val = *(const char * const*)(save);
 
   assert(audit_log_exclude_commands == nullptr);

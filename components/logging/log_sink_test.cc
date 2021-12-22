@@ -670,7 +670,7 @@ static void banner() {
   {
     int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
     const char *label_key = log_bi->wellknown_get_name(wellknown);
-    int wellagain MY_ATTRIBUTE((unused)) =
+    int wellagain [[maybe_unused]] =
         log_bi->wellknown_by_name(label_key, log_bs->length(label_key));
 
     assert(wellknown == wellagain);

@@ -22413,9 +22413,9 @@ This function is registered as a callback with MySQL.
 @param[in]	var_ptr   where the formal string goes
 @param[in]	save      immediate result from check function */
 static void innodb_parallel_doublewrite_path_update(
-    THD *thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)),
-    const void *save MY_ATTRIBUTE((unused))) {
+    THD *thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]],
+    const void *save [[maybe_unused]]) {
   innodb_parallel_doublewrite_path_deprecate();
 }
 
@@ -22426,9 +22426,9 @@ This function is registered as a callback with MySQL.
 @param[in]	var_ptr   where the formal string goes
 @param[in]	save      immediate result from check function */
 static void innodb_parallel_dblwr_encrypt_update(
-    THD *thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)),
-    const void *save MY_ATTRIBUTE((unused))) {
+    THD *thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
+    void *var_ptr [[maybe_unused]],
+    const void *save [[maybe_unused]]) {
   innodb_parallel_dblwr_encrypt_deprecate();
 }
 
@@ -23184,9 +23184,9 @@ static void buf_flush_list_now_set(THD *thd [[maybe_unused]],
 @param[in]	var	pointer to system variable
 @param[in,out]	var_ptr	where the formal string goes
 @param[in]	save	immediate result from check function */
-static void track_redo_log_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                   void *var_ptr MY_ATTRIBUTE((unused)),
+static void track_redo_log_now_set(THD *thd [[maybe_unused]],
+                                   SYS_VAR *var [[maybe_unused]],
+                                   void *var_ptr [[maybe_unused]],
                                    const void *save) {
   if (*static_cast<const bool *>(save) && srv_track_changed_pages)
     log_online_follow_redo_log();

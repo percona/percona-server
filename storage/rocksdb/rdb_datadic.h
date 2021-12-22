@@ -1509,7 +1509,7 @@ class Rdb_ddl_manager : public Ensure_initialized {
 
   /* Helper functions to be passed to my_core::HASH object */
   static const uchar *get_hash_key(Rdb_tbl_def *const rec, size_t *const length,
-                                   bool not_used MY_ATTRIBUTE((unused)));
+                                   bool not_used [[maybe_unused]]);
   static void free_hash_elem(void *const data);
 
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES

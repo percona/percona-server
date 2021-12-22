@@ -211,8 +211,8 @@ typedef char *(*mysql_authentication_dialog_ask_t)(MYSQL *mysql, int type,
 
 static mysql_authentication_dialog_ask_t ask;
 
-static char *builtin_ask(MYSQL *mysql MY_ATTRIBUTE((unused)),
-                         int type MY_ATTRIBUTE((unused)), const char *prompt,
+static char *builtin_ask(MYSQL *mysql [[maybe_unused]],
+                         int type [[maybe_unused]], const char *prompt,
                          char *buf, int buf_len) {
   if (type == 2) /* password */
   {
@@ -312,10 +312,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   or fall back to the default implementation.
 */
 
-static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
-                       size_t unused2 MY_ATTRIBUTE((unused)),
-                       int unused3 MY_ATTRIBUTE((unused)),
-                       va_list unused4 MY_ATTRIBUTE((unused))) {
+static int init_dialog(char *unused1 [[maybe_unused]],
+                       size_t unused2 [[maybe_unused]],
+                       int unused3 [[maybe_unused]],
+                       va_list unused4 [[maybe_unused]]) {
   void *sym = dlsym(RTLD_DEFAULT, "mysql_authentication_dialog_ask");
   ask = sym ? (mysql_authentication_dialog_ask_t)sym : builtin_ask;
   return 0;

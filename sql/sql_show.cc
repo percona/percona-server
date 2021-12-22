@@ -3677,7 +3677,7 @@ static int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
 */
 
 static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
-                                  Item *cond MY_ATTRIBUTE((unused))) noexcept {
+                                  Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_user_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3710,7 +3710,7 @@ static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
 */
 
 static int fill_schema_client_stats(
-    THD *thd, TABLE_LIST *tables, Item *cond MY_ATTRIBUTE((unused))) noexcept {
+    THD *thd, TABLE_LIST *tables, Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_client_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3729,7 +3729,7 @@ static int fill_schema_client_stats(
 }
 
 static int fill_schema_thread_stats(
-    THD *thd, TABLE_LIST *tables, Item *cond MY_ATTRIBUTE((unused))) noexcept {
+    THD *thd, TABLE_LIST *tables, Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_thread_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3748,7 +3748,7 @@ static int fill_schema_thread_stats(
 
 // Sends the global table stats back to the client.
 static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
-                                   Item *cond MY_ATTRIBUTE((unused))) {
+                                   Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_schema_table_stats");
 
   TABLE *const table = tables->table;
@@ -3792,7 +3792,7 @@ static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
 
 // Sends the global index stats back to the client.
 static int fill_schema_index_stats(THD *thd, TABLE_LIST *tables,
-                                   Item *cond MY_ATTRIBUTE((unused))) {
+                                   Item *cond [[maybe_unused]]) {
   TABLE *const table = tables->table;
   DBUG_ENTER("fill_schema_index_stats");
 
@@ -4326,7 +4326,7 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
 };
 
 static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables,
-                                        Item *cond MY_ATTRIBUTE((unused))) {
+                                        Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_global_temporary_tables");
 
   Fill_global_temporary_tables fill_global_temporary_tables(thd, tables);

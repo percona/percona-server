@@ -1620,7 +1620,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
-void *Slave_worker::operator new(size_t request MY_ATTRIBUTE((unused))) {
+void *Slave_worker::operator new(size_t request [[maybe_unused]]) {
   void *ptr;
   if (posix_memalign(&ptr, __alignof__(Slave_worker), sizeof(Slave_worker))) {
     throw std::bad_alloc();

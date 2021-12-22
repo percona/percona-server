@@ -1405,7 +1405,7 @@ bool Log_event::is_valid() {
 
 void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
                              bool is_more [[maybe_unused]]) const {
-  MY_ATTRIBUTE((unused)) int write_res;
+  [[maybe_unused]] int write_res;
   char llbuff[22];
   my_off_t hexdump_from = print_event_info->hexdump_from;
   DBUG_TRACE;
@@ -1584,7 +1584,7 @@ static const uchar *get_quote_table() {
   @retval true Failure
 */
 static bool my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length) {
-  MY_ATTRIBUTE((unused)) int write_res;
+  [[maybe_unused]] int write_res;
   const uchar *s;
   static const uchar *quote_table = get_quote_table();
   my_b_printf(file, "'");
@@ -1609,7 +1609,7 @@ static void my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits) {
   my_b_printf(file, "b'");
   for (bitnum = skip_bits; bitnum < nbits8; bitnum++) {
     int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
-    MY_ATTRIBUTE((unused))
+    [[maybe_unused]]
     int write_res = my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
     assert(write_res == 0);
   }
@@ -4253,7 +4253,7 @@ void Query_log_event::print_query_header(
   end = my_stpcpy(end, print_event_info->delimiter);
   *end++ = '\n';
   assert(end < buff + sizeof(buff));
-  MY_ATTRIBUTE((unused))
+  [[maybe_unused]]
   int write_res = my_b_write(file, (uchar *)buff, (uint)(end - buff));
   assert(write_res == 0);
   if (!print_event_info->require_row_format &&
@@ -4422,7 +4422,7 @@ void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   DBUG_EXECUTE_IF("simulate_file_write_error",
                   { head->write_pos = head->write_end - 500; });
   print_query_header(head, print_event_info);
-  MY_ATTRIBUTE((unused))
+  [[maybe_unused]]
   int write_res = my_b_write(head, pointer_cast<const uchar *>(query), q_len);
   assert(write_res == 0);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
@@ -5603,7 +5603,7 @@ int Start_encryption_log_event::do_update_pos(Relay_log_info *rli) {
 
 #ifndef MYSQL_SERVER
 void Start_encryption_log_event::print(
-    FILE *file MY_ATTRIBUTE((unused)),
+    FILE *file [[maybe_unused]],
     PRINT_EVENT_INFO *print_event_info) const {
   // Need 2 characters per one hex + 2 for 0x + 1 for \0
   char nonce_buf[NONCE_LENGTH * 2 + 2 + 1];
@@ -5655,7 +5655,7 @@ void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   print_header(head, print_event_info, false);
   my_b_printf(head, "\tRotate to ");
   if (new_log_ident) {
-    MY_ATTRIBUTE((unused))
+    [[maybe_unused]]
     int write_res = my_b_write(head, pointer_cast<const uchar *>(new_log_ident),
                                (uint)ident_len);
     assert(write_res == 0);
@@ -6773,7 +6773,7 @@ void User_var_log_event::print(FILE *,
   quoted_len =
       my_strmov_quoted_identifier((char *)quoted_id, (const char *)name_id);
   quoted_id[quoted_len] = '\0';
-  MY_ATTRIBUTE((unused))
+  [[maybe_unused]]
   int write_res = my_b_write(head, (uchar *)quoted_id, quoted_len);
   assert(write_res == 0);
 
@@ -7440,7 +7440,7 @@ void Execute_load_query_log_event::print(
 void Execute_load_query_log_event::print(FILE *,
                                          PRINT_EVENT_INFO *print_event_info,
                                          const char *local_fname) const {
-  MY_ATTRIBUTE((unused)) int write_res;
+  [[maybe_unused]] int write_res;
   IO_CACHE *const head = &print_event_info->head_cache;
 
   print_query_header(head, print_event_info);

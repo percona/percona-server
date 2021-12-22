@@ -590,7 +590,7 @@ class IORequest {
 
   void mark_page_zip_compressed() { m_is_page_zip_compressed = true; }
 
-  bool is_page_zip_compressed() const MY_ATTRIBUTE((warn_unused_result)) {
+  MY_NODISCARD bool is_page_zip_compressed() const {
     return m_is_page_zip_compressed;
   }
 

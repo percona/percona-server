@@ -719,8 +719,7 @@ capacity.
 
 @return true if the missing interval can be tracked or if there's no missing
 data.  */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_can_track_missing(
+MY_NODISCARD static bool log_online_can_track_missing(
     lsn_t last_tracked_lsn,   /*!<in: last tracked LSN */
     lsn_t tracking_start_lsn) /*!<in:	current LSN */
     noexcept {
@@ -1114,8 +1113,7 @@ static void log_online_parse_redo_log_block(
 }
 
 /** Read and parse one redo log chunk and updates the modified page bitmap. */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_follow_log_seg(
+MY_NODISCARD static bool log_online_follow_log_seg(
     lsn_t block_start_lsn, /*!< in: the LSN to read from */
     lsn_t block_end_lsn)   /*!< in: the LSN to read to */
 {
@@ -1160,8 +1158,7 @@ static bool log_online_follow_log_seg(
 
 /** Read and parse the redo log in FOLLOW_SCAN_SIZE-sized chunks and update the
 modified page bitmap. */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_follow_log(
+MY_NODISCARD static bool log_online_follow_log(
     lsn_t contiguous_lsn) /*!< in: the LSN of log block start
                                         containing the log_parse_start_lsn */
 {

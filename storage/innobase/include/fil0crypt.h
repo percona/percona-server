@@ -467,11 +467,10 @@ Create a fil_space_crypt_t object
 
 @param[in]	key_id		Encryption key id
 @return crypt object */
-fil_space_crypt_t *fil_space_create_crypt_data(
+MY_NODISCARD fil_space_crypt_t *fil_space_create_crypt_data(
     fil_encryption_t encrypt_mode, uint key_id, const char *uuid,
     Crypt_key_operation key_operation =
-        Crypt_key_operation::FETCH_OR_GENERATE_KEY)
-    MY_ATTRIBUTE((warn_unused_result));
+        Crypt_key_operation::FETCH_OR_GENERATE_KEY);
 
 /******************************************************************
 Merge fil_space_crypt_t object
@@ -502,9 +501,9 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data);
 @param[in]  end_ptr  Log entry end
 @param[in]  len  Log entry length
 @return position on log buffer */
-byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len, lsn_t lsn)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
+                                                 const byte *end_ptr, ulint len,
+                                                 lsn_t lsn);
 
 /** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
 @param[in]  space_id  id of space that this log entry refers to
@@ -512,9 +511,9 @@ byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
 @param[in]  end_ptr  Log entry end
 @param[in]  len  Log entry length
 @return position on log buffer */
-byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len, lsn_t lsn)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
+                                                 const byte *end_ptr, ulint len,
+                                                 lsn_t lsn);
 
 /** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
 @param[in]  space_id  id of space that this log entry refers to
@@ -523,10 +522,10 @@ byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
 @param[in]  len  Log entry length
 @param[in]  recv_needed_recovery  Missing keys will report an error
 @return position on log buffer */
-byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
-                                    const byte *end_ptr, ulint len,
-                                    bool recv_needed_recovery, lsn_t lsn)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
+                                                 const byte *end_ptr, ulint len,
+                                                 bool recv_needed_recovery,
+                                                 lsn_t lsn);
 
 /**
 Decrypt a page.
@@ -548,9 +547,8 @@ Decrypt a page
 @param[out]	decrypted		true if page was decrypted
 @return decrypted page, or original not encrypted page if decryption is
 not needed.*/
-byte *fil_space_decrypt(const fil_space_t *space, byte *tmp_frame,
-                        byte *src_frame, bool *decrypted)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD byte *fil_space_decrypt(const fil_space_t *space, byte *tmp_frame,
+                                     byte *src_frame, bool *decrypted);
 
 /******************************************************************
 Calculate post encryption checksum
@@ -559,9 +557,8 @@ Calculate post encryption checksum
 @param[in]      is_zip_compressed   is page compressed with old schema
 @return page checksum or BUF_NO_CHECKSUM_MAGIC
 not needed. */
-uint32_t fil_crypt_calculate_checksum(const ulint page_size, const byte *page,
-                                      const bool is_zip_compressed)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD uint32_t fil_crypt_calculate_checksum(
+    const ulint page_size, const byte *page, const bool is_zip_compressed);
 
 /**
 Verify that post encryption checksum match calculated checksum.
@@ -574,10 +571,9 @@ encrypted, or corrupted.
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
 @return true if page is encrypted AND OK, false otherwise */
-bool fil_space_verify_crypt_checksum(byte *page, ulint page_size,
-                                     bool is_zip_compressed,
-                                     bool is_new_schema_compressed)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD bool fil_space_verify_crypt_checksum(
+    byte *page, ulint page_size, bool is_zip_compressed,
+    bool is_new_schema_compressed);
 
 /*********************************************************************
 Adjust thread count for key rotation

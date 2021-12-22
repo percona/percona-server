@@ -2259,8 +2259,7 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   return (n_bytes);
 }
 
-MY_ATTRIBUTE((warn_unused_result))
-static std::string os_file_find_path_for_fd(os_file_t fd) {
+MY_NODISCARD static std::string os_file_find_path_for_fd(os_file_t fd) {
   char fdname[FN_REFLEN];
   snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), fd);
   char filename[FN_REFLEN];

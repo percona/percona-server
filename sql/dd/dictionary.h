@@ -258,11 +258,9 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
   @retval      false          Successful lock acquisition.
 */
 
-bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
-                                      unsigned long int lock_wait_timeout,
-                                      MDL_ticket **ticket = nullptr,
-                                      bool for_trx = true)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool acquire_exclusive_tablespace_mdl(
+    THD *thd, const char *tablespace_name, unsigned long int lock_wait_timeout,
+    MDL_ticket **ticket = nullptr, bool for_trx = true);
 
 /**
   Acquire a shared metadata lock on the given tablespace name with

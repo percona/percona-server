@@ -323,28 +323,23 @@ class Encryption {
                   specified explicitly
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm explicitly requested */
-  static bool none_explicitly_specified(
-      bool explicit_encryption,
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
+  MY_NODISCARD static bool none_explicitly_specified(
+      bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Check if the string is "y" or "Y".
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm requested */
-  static bool is_master_key_encryption(
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
+  MY_NODISCARD static bool is_master_key_encryption(
+      const char *algorithm) noexcept;
 
-  static bool is_empty(const char *algorithm) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  MY_NODISCARD static bool is_empty(const char *algorithm) noexcept;
 
-  static bool is_keyring(const char *algoritm) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  MY_NODISCARD static bool is_keyring(const char *algoritm) noexcept;
 
-  static bool is_online_encryption_on() noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  MY_NODISCARD static bool is_online_encryption_on() noexcept;
 
-  static bool should_be_keyring_encrypted(
-      bool explicit_encryption,
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
+  MY_NODISCARD static bool should_be_keyring_encrypted(
+      bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */

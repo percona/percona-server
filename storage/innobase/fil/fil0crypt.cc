@@ -236,10 +236,10 @@ Check if a key needs rotation given a key_state
 @param[in]	latest_key_version	Latest key version
 @param[in]	rotate_key_age		when to rotate
 @return true if key needs rotation, false if not */
-static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
-                                     uint key_version, uint latest_key_version,
-                                     uint rotate_key_age)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
+                                                  uint key_version,
+                                                  uint latest_key_version,
+                                                  uint rotate_key_age);
 
 static bool encrypt_validation_tag(const byte *secret, const size_t secret_size,
                                    const byte *key, byte *encrypted_secret) {

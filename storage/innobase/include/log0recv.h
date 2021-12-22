@@ -55,9 +55,8 @@ struct fil_space_crypt_t;
 block.
 @param[in]	log block
 @return whether the checksum matches */
-bool log_block_checksum_is_ok(
-    const byte *block) /*!< in: pointer to a log block */
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD bool log_block_checksum_is_ok(
+    const byte *block); /*!< in: pointer to a log block */
 
 /** Calculates the new value for lsn when more data is added to the log. */
 lsn_t recv_calc_lsn_on_data_add(

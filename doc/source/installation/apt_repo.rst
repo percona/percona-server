@@ -34,7 +34,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-      $ sudo apt-get install gnupg2
+      $ sudo apt install gnupg2
 
 2. Fetch the repository packages from Percona web:
 
@@ -53,7 +53,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-      $ sudo apt-get update
+      $ sudo apt update
       
    Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
@@ -61,15 +61,15 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-     $ sudo apt-get install percona-server-server-5.7
+     $ sudo apt install percona-server-server-5.7
 
 .. note::
 
   |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`. These storage engines are installed as plugin.
   
-  For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
+  For information on how to install and configure TokuDB, refer to the :ref:`tokudb_installation` guide.
   
-  For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
+  For information on how to install and configure MyRocks, refer to the :ref:`myrocks_install` guide.
 
   
 The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
@@ -118,7 +118,7 @@ You should then unpack the bundle to get the packages:
 
  .. code-block:: bash
 
-   $ tar xvf Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
+    $ tar xvf Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
 
 After you unpack the bundle you should see the following packages:
 
@@ -142,11 +142,11 @@ Now you can install |Percona Server| by running:
 
     $ sudo dpkg -i *.deb
 
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want |TokuDB| storage engine).
+This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want TokuDB storage engine).
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the TokuDB storage in the :ref:`tokudb_installation` guide.
 
 .. warning::
 
@@ -226,14 +226,14 @@ To uninstall |Percona Server|, you must remove all of the installed packages.
 
 You have the following options:
 
-* Removing packages with :command:`apt-get remove` leaves the configuration and data files. 
-* Removing the packages with :command:`apt-get purge` removes all the packages with configuration files and data files (all the databases). 
+* Removing packages with :command:`apt remove` leaves the configuration and data files. 
+* Removing the packages with :command:`apt purge` removes all the packages with configuration files and data files (all the databases). 
 
 Depending on your needs, you can choose which command better suits you. 
 
 .. seealso:: 
 
-    `apt-get <http://manpages.ubuntu.com/manpages/bionic/man8/apt-get.8.html>`_
+    `apt <https://manpages.ubuntu.com/manpages/bionic/man8/apt.8.html>`_
 
 1. Stop the |Percona Server| service
 
@@ -247,15 +247,15 @@ Depending on your needs, you can choose which command better suits you.
 
    .. code-block:: bash
 
-     $ sudo apt-get remove 'percona-server*'
+     $ sudo apt remove 'percona-server*'
 
    b) Purge the packages. This option deletes packages, configuration, and data files. The option does not delete any configuration or data files stored in your home directory. You may need to delete some files manually.
 
    .. code-block:: bash
 
-     $ sudo apt-get purge 'percona-server*'
-     $ sudo apt-get autoremove -y
-     $ sudo apt-get autoclean
+     $ sudo apt purge 'percona-server*'
+     $ sudo apt autoremove -y
+     $ sudo apt autoclean
      $ sudo rm -rf /etc/mysql
 
 .. note::
@@ -269,7 +269,7 @@ Depending on your needs, you can choose which command better suits you.
       rm -rf /var/lib/mysql
       rm -rf /var/log/mysql
 
-     $ sudo apt-get purge percona-server*
+     $ sudo apt purge percona-server*
 
 .. include:: ../.res/replace.txt
 .. include:: ../.res/replace.program.txt

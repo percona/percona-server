@@ -2,12 +2,12 @@
 .\"     Title: ndb_perror
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2021
+.\"      Date: 09/06/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_PERROR" "1" "03/25/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_PERROR" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,7 +35,7 @@ ndb_perror \- obtain NDB error message information
 .SH "DESCRIPTION"
 .PP
 \fBndb_perror\fR
-shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. Added to the MySQL NDB Cluster distribution in NDB 7\&.6\&.4, it is intended as a drop\-in replacement for
+shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. Added to the MySQL NDB Cluster distribution in NDB 7\&.6, it is intended as a drop\-in replacement for
 \fBperror\fR
 \fB\-\-ndb\fR\&.
 Usage
@@ -106,7 +106,7 @@ are described later in this section\&.
 \fBndb_perror\fR
 replaces
 \fBperror\fR
-\fB\-\-ndb\fR, which is deprecated as of NDB 7\&.6\&.4 and subject to removal in a future release of MySQL NDB Cluster\&. To make substitution easier in scripts and other applications that might depend on
+\fB\-\-ndb\fR, which is deprecated in NDB 7\&.6 and subject to removal in a future release of MySQL NDB Cluster\&. To make substitution easier in scripts and other applications that might depend on
 \fBperror\fR
 for obtaining NDB error information,
 \fBndb_perror\fR
@@ -138,7 +138,40 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
 lB l l.
+T{
+.PP
+\fB \fR\fB\m[blue]\fB--defaults-extra-file=path\fR\m[]\fR\fB \fR
+T}:T{
+Read given file after global files are read
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
+T}
+T{
+.PP
+\fB \fR\fB\m[blue]\fB--defaults-file=path\fR\m[]\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
+T}
+T{
+.PP
+\fB \fR\fB\m[blue]\fB--defaults-group-suffix=string\fR\m[]\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
+T}
 T{
 .PP
 \fB--help\fR,
@@ -152,6 +185,15 @@ ADDED: NDB 7.6.4
 T}
 T{
 .PP
+\fB \fR\fB\m[blue]\fB--login-path=path\fR\m[]\fR\fB \fR
+T}:T{
+Read given path from login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
+T}
+T{
+.PP
 \fB \fR\fB--ndb\fR\fB \fR
 T}:T{
 For compatibility with applications depending on old versions of perror;
@@ -159,6 +201,24 @@ For compatibility with applications depending on old versions of perror;
 T}:T{
 .PP
 ADDED: NDB 7.6.4
+T}
+T{
+.PP
+\fB \fR\fB\m[blue]\fB--no-defaults\fR\m[]\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
+T}
+T{
+.PP
+\fB \fR\fB\m[blue]\fB--print-defaults\fR\m[]\fR\fB \fR
+T}:T{
+Print program argument list and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 5.7)
 T}
 T{
 .PP
@@ -418,6 +478,37 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+--defaults-extra-file=path
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-programs-ndb-perror.html#option_ndb_perror_defaults-extra-file
+.RE
+.IP " 2." 4
+--defaults-file=path
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-programs-ndb-perror.html#option_ndb_perror_defaults-file
+.RE
+.IP " 3." 4
+--defaults-group-suffix=string
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-programs-ndb-perror.html#option_ndb_perror_defaults-group-suffix
+.RE
+.IP " 4." 4
+--login-path=path
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-programs-ndb-perror.html#option_ndb_perror_login-path
+.RE
+.IP " 5." 4
+--no-defaults
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-programs-ndb-perror.html#option_ndb_perror_no-defaults
+.RE
+.IP " 6." 4
+--print-defaults
+.RS 4
+\%https://dev.mysql.com/doc/refman/8.0/en/mysql-cluster-programs-ndb-perror.html#option_ndb_perror_print-defaults
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

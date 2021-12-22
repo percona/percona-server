@@ -24,11 +24,11 @@ New Features
 ================================================================================
 
 - :psbug:`4905`: Upstream MyRocks changes have been merged up to `prod201810` tag
-- :psbug:`4976`: :ref:`InnoDB Undo Log Encryption <data-at-rest-encryption.undo-tablespace>` has been implemented
+- :psbug:`4976`: `InnoDB Undo Log Encryption` has been implemented
 - :psbug:`4946`: Add the ``rocksdb_no_create_column_family`` option to prevent the implicit creation of column families in MyRocks
-- :psbug:`4556`: InnoDB :ref:`ps.data-at-rest-encryption.redo-log` has been implemented
-- :psbug:`3839`: :ref:`InnoDB Data Scrubbing <data-at-rest-encryption.data-scrubbing>` has been implemented
-- :psbug:`3834`: :ref:`InnoDB Log Scrubbing <data-at-rest-encryption.variable.innodb-scrub-log>` has been implemented
+- :psbug:`4556`: `InnoDB Redo log` has been implemented
+- :psbug:`3839`: `InnoDB Data Scrubbing` has been implemented
+- :psbug:`3834`: `InnoDB Log Scrubbing` has been implemented
 
 Bugs Fixed
 ================================================================================

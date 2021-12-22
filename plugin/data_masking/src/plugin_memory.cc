@@ -15,7 +15,7 @@
 
 #include "../include/plugin_memory.h"
 
-void init_data_masking_psi_keys() {
+static void init_data_masking_psi_keys() {
   PSI_rwlock_info all_data_masking_rwlock[] = {
       {&key_data_masking_rwlock, "data_masking::rwlock", PSI_FLAG_GLOBAL}};
 

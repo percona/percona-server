@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.10
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-10.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.10-3 is the current Generally
-Available release in the |Percona Server| 5.7 series. All of |Percona|'s
+Available release in the |Percona Server| 5.7 series. All of Percona's
 software is open-source and free, all the details of the release can be found
 in the `5.7.10-3 milestone at Launchpad
 <https://launchpad.net/percona-server/+milestone/5.7.10-3>`_
@@ -43,7 +43,7 @@ Known Issues
    * Bug :mysqlbug:`79328`, :variable:`super_read_only` set as a server option
      has no effect.
 
- |InnoDB| crash recovery might fail if :variable:`innodb_flush_method` is set
+ InnoDB crash recovery might fail if :variable:`innodb_flush_method` is set
  to ``ALL_O_DIRECT``. The workaround is to set this variable to a different
  value before starting up the crashed instance (bug :bug:`1529885`).
 
@@ -54,7 +54,7 @@ Bugs Fixed
  the log file :file:`/var/log/mysqld.log` during the installation on
  *CentOS 6*. Bug fixed :bug:`1541769`.
 
- Cardinality of partitioned |TokuDB| tables became inaccurate after the changes
+ Cardinality of partitioned TokuDB tables became inaccurate after the changes
  introduced by :ref:`tokudb_background_analyze_table` feature in |Percona
  Server| :rn:`5.7.10-1`. Bug fixed :tokubug:`925`.
 

@@ -40,4 +40,7 @@ extern mysql_rwlock_t g_data_masking_dict_rwlock;
 extern void init_data_masking_memory();
 extern void deinit_data_masking_memory();
 
+// Returns false and populates the msg with an error if the module has not been initialized
+extern bool data_masking_is_inited(char *msg, size_t msg_len);
+
 #endif  //_PLUGIN_DATA_MASKING_PLUGIN_H

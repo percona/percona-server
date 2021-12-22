@@ -9,7 +9,7 @@ In case you want remove the TokuDB storage engine from |Percona Server| without 
 Change the tables from TokuDB to InnoDB
 ---------------------------------------
 
-If you still need the data in the TokuDB tables you must alter the tables to another supported storage engine, i.e., |InnoDB|:
+If you still need the data in the TokuDB tables you must alter the tables to another supported storage engine, i.e., InnoDB:
 
 .. code-block:: mysql
 
@@ -22,7 +22,7 @@ If you still need the data in the TokuDB tables you must alter the tables to ano
 Removing the plugins
 --------------------
 
-One option is to remove the |TokuDB| storage engine with all installed plugins by running the ``ps-admin`` script:
+One option is to remove the TokuDB storage engine with all installed plugins by running the ``ps-admin`` script:
 
 .. code-block:: bash
 
@@ -64,7 +64,7 @@ The script output should look like this:
 
         $ echo always > /sys/kernel/mm/transparent_hugepage/enabled
 
-Another option is to manually remove the |TokuDB| storage engine with all installed plugins:
+Another option is to manually remove the TokuDB storage engine with all installed plugins:
 
 .. code-block:: mysql
 
@@ -87,7 +87,7 @@ or
 
 .. code-block:: bash
 
- root@wheezy:~# apt-get remove percona-server-tokudb-5.7
+ root@wheezy:~# apt remove percona-server-tokudb-5.7
  
 .. note::
 

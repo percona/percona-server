@@ -7,8 +7,7 @@
 System Variables
 ================
 
-.. tabularcolumns:: |p{8.5cm}|p{1.5cm}|p{1.5cm}|p{2cm}|p{1.5cm}|
-
+.. tabularcolumns:: |p{7.5cm}|p{1.5cm}|p{1.5cm}|p{2cm}|p{1.5cm}|p{1.5cm}|
 .. list-table::
    :header-rows: 1
 
@@ -17,387 +16,465 @@ System Variables
      - Option File
      - Var Scope
      - Dynamic
+     - Status
    * - :variable:`audit_log_buffer_size`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_file`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_flush`
      - Yes
      - Yes
      - Global
      - Yes
+     - 
    * - :variable:`audit_log_format`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_handler`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_policy`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`audit_log_rotate_on_size`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_rotations`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_strategy`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_syslog_facility`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_syslog_ident`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`audit_log_syslog_priority`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`binlog_space_limit`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`csv_mode`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`encrypt_binlog`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`encrypt-tmp-files`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`enforce_storage_engine`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`expand_fast_index_creation`
      - Yes
      - No
      - Both
      - Yes
+     -
    * - :variable:`extra_max_connections`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`extra_port`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`ft_query_extra_word_chars`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`have_backup_locks`
      - Yes
      - No
      - Global
      - No
+     -
    * - :variable:`have_backup_safe_binlog_info`
      - Yes
      - No
      - Global
      - No
+     -
    * - :variable:`have_snapshot_cloning`
      - Yes
      - No
      - Global
      - No
+     -
    * - :variable:`innodb_background_scrub_data_compressed`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_background_scrub_data_uncompressed`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_cleaner_lsn_age_factor`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_corrupt_table_action`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_default_encryption_key_id`
      - Yes
      - Yes
      - Session
      - Yes
+     -
    * - :variable:`innodb_empty_free_list_algorithm`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_encrypt_online_alter_logs`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_encrypt_tables`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_kill_idle_transaction`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_max_bitmap_file_size`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_max_changed_pages`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_online_encryption_rotate_key_age`
      - Yes
      - Yes
      - Global
      - Yes
+     - Deprecated
    * - :variable:`innodb_online_encryption_threads`
      - Yes
      - Yes
      - Global
      - Yes
+     - Deprecated
    * - :variable:`innodb_parallel_dblwr_encrypt`
      - Yes
      - Yes
      - Global
      - Yes
+     - Deprecated 5.7.31-34
    * - :variable:`innodb_print_lock_wait_timeout_info`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_redo_log_encrypt`
      - Yes
      - Yes
      - Global
      - Yes
+     - Deprecated: 5.7.31-34
    * - :variable:`innodb_scrub_log`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_scrub_log_speed`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_show_locks_held`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_show_verbose_locks`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`innodb_sys_tablespace_encrypt`
      - Yes
      - Yes
      - Global
      - No
+     - Deprecated
    * - :variable:`innodb_temp_tablespace_encrypt`
      - Yes
      - Yes
      - Global
      - No
+     - Deprecated
    * - :variable:`innodb_track_changed_pages`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`innodb_undo_log_encrypt`
      - Yes
      - Yes
      - Global
      - Yes
+     - Deprecated
    * - :variable:`innodb_use_global_flush_log_at_trx_commit`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`keyring_vault_config`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`keyring_vault_timeout`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`log_slow_filter`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`log_slow_rate_limit`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`log_slow_rate_type`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`log_slow_sp_statements`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`log_slow_verbosity`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`log_warnings_suppress`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`max_binlog_files`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`max_slowlog_files`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`max_slowlog_size`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`proxy_protocol_networks`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`pseudo_server_id`
      - Yes
      - No
      - Session
      - Yes
+     -
    * - :variable:`query_cache_strip_comments`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`query_response_time_flush`
      - Yes
      - No
      - Global
      - No
+     -
    * - :variable:`query_response_time_range_base`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`query_response_time_stats`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`slow_query_log_always_write_time`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`slow_query_log_use_global_control`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`thread_pool_high_prio_mode`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`thread_pool_high_prio_tickets`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`thread_pool_idle_timeout`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`thread_pool_max_threads`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`thread_pool_oversubscribe`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`thread_pool_size`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`thread_pool_stall_limit`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`thread_statistics`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`tokudb_alter_print_error`
+     -
      -
      -
      -
@@ -407,32 +484,39 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_analyze_in_background`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`tokudb_analyze_mode`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`tokudb_analyze_throttle`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`tokudb_analyze_time`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`tokudb_auto_analyze`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`tokudb_block_size`
+     -
      -
      -
      -
@@ -442,7 +526,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_cache_size`
+     -
      -
      -
      -
@@ -452,7 +538,9 @@ System Variables
      - Yes
      - Global
      - No
+     -
    * - :variable:`tokudb_cardinality_scale_percent`
+     -
      -
      -
      -
@@ -462,7 +550,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_checkpoint_lock`
+     -
      -
      -
      -
@@ -472,12 +562,15 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_checkpoint_pool_threads`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`tokudb_checkpointing_period`
+     -
      -
      -
      -
@@ -487,7 +580,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_cleaner_period`
+     -
      -
      -
      -
@@ -497,7 +592,9 @@ System Variables
      - Yes
      - Global
      - No
+     -
    * - :variable:`tokudb_commit_sync`
+     -
      -
      -
      -
@@ -507,7 +604,9 @@ System Variables
      - Yes
      - Global
      - No
+     -
    * - :variable:`tokudb_create_index_online`
+     -
      -
      -
      -
@@ -517,7 +616,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_debug`
+     -
      -
      -
      -
@@ -527,7 +628,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_disable_hot_alter`
+     -
      -
      -
      -
@@ -537,7 +640,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_disable_slow_alter`
+     -
      -
      -
      -
@@ -547,17 +652,21 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_enable_partial_eviction`
      - Yes
      - Yes
      - Global
      - No
+     -
    * - :variable:`tokudb_fanout`
      - Yes
      - Yes
      - Both
      - Yes
+     -
    * - :variable:`tokudb_fs_reserve_percent`
+     -
      -
      -
      -
@@ -567,7 +676,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_hide_default_row_format`
+     -
      -
      -
      -
@@ -577,7 +688,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_last_lock_timeout`
+     -
      -
      -
      -
@@ -587,7 +700,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_loader_memory_size`
+     -
      -
      -
      -
@@ -597,7 +712,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_lock_timeout_debug`
+     -
      -
      -
      -
@@ -607,7 +724,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_max_lock_memory`
+     -
      -
      -
      -
@@ -617,7 +736,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_optimize_index_name`
+     -
      -
      -
      -
@@ -627,7 +748,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_pk_insert_mode`
+     -
      -
      -
      -
@@ -637,7 +760,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_read_block_size`
+     -
      -
      -
      -
@@ -647,7 +772,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_read_status_frequency`
+     -
      -
      -
      -
@@ -657,7 +784,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_rpl_check_readonly`
+     -
      -
      -
      -
@@ -667,7 +796,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_rpl_lookup_rows_delay`
+     -
      -
      -
      -
@@ -677,7 +808,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_rpl_unique_checks_delay`
+     -
      -
      -
      -
@@ -687,7 +820,9 @@ System Variables
      - Yes
      - Global
      - No
+     -
    * - :variable:`tokudb_support_xa`
+     -
      -
      -
      -
@@ -697,7 +832,9 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`tokudb_version`
+     -
      -
      -
      -
@@ -707,21 +844,25 @@ System Variables
      -
      -
      -
+     -
    * - :variable:`userstat`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`version_comment`
      - Yes
      - Yes
      - Global
      - Yes
+     -
    * - :variable:`version_suffix`
      - Yes
      - Yes
      - Global
      - Yes
+     -
 
 Status Variables
 ================

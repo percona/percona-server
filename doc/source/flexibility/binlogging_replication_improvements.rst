@@ -6,7 +6,7 @@ Binlogging and replication improvements
 
 Due to continuous development, |Percona Server| incorporated a number of
 improvements related to replication and binary logs handling. This resulted in
-replication specifics, which distinguishes it from |MySQL|.
+replication specifics, which distinguishes it from MySQL.
 
 Temporary tables and mixed logging format
 =========================================
@@ -15,7 +15,7 @@ Summary of the fix:
 --------------------
 
 As soon as some statement involving a temporary table was met when using the
-MIXED binlog format, |MySQL| was switching to the row-based logging of all
+MIXED binlog format, MySQL was switching to the row-based logging of all
 statements till the end of the session or until all temporary tables used in
 this session were dropped. It is inconvenient in the case of long lasting
 connections, including replication-related ones. |Percona Server| fixes the
@@ -44,9 +44,9 @@ the side effects that temporary tables may produce on non-temporary ones are
 intercepted.
 
 There is no need to use row logging format for any other statements solely
-because of the temp table presence. However |MySQL| was undertaking such an
+because of the temp table presence. However MySQL was undertaking such an
 excessive precaution: once some statement with temporary table had appeared and
-the row-based logging was used, |MySQL| logged unconditionally all
+the row-based logging was used, MySQL logged unconditionally all
 subsequent statements in row format.
 
 Percona Server have implemented more accurate behavior: instead of switching to
@@ -78,7 +78,7 @@ Details:
 
 Even with ``read_only`` mode enabled, the server permits some operations, including
 ones with temporary tables. With the previous fix, temporary table operations
-are not binlogged in row or mixed mode. But |MySQL| doesn’t track what was
+are not binlogged in row or mixed mode. But MySQL doesn’t track what was
 the logging mode when temporary table was created, and therefore
 unconditionally logs ``DROP`` statements for all temporary tables. These
 ``DROP`` statements receive ``IF EXISTS`` addition, which is intended to make
@@ -100,7 +100,7 @@ Safety of statements with a ``LIMIT`` clause
 Summary of the fix:
 --------------------
 
-|MySQL| considers all ``UPDATE/DELETE/INSERT ... SELECT`` statements with
+MySQL considers all ``UPDATE/DELETE/INSERT ... SELECT`` statements with
 ``LIMIT`` clause to be unsafe, no matter wether they are really producing
 non-deterministic result or not, and switches from statement-based logging
 to row-based one. |Percona Server| is more accurate, it acknowledges such
@@ -120,7 +120,7 @@ Performance improvement on relay log position update
 Summary of the fix:
 -------------------
 
-|MySQL| always updated relay log position in multi-source replications setups
+MySQL always updated relay log position in multi-source replications setups
 regardless of whether the committed transaction has already been executed or
 not. Percona Server omitts relay log position updates for the already logged
 GTIDs.
@@ -148,7 +148,7 @@ Summary of the fix:
 
 Replica nodes configured to update source status and connection information
 only on log file rotation did not experience the expected reduction in load.
-|MySQL| was additionaly updating this information in case of multi-source
+MySQL was additionaly updating this information in case of multi-source
 replication when replica had to skip the already executed GTID event.
 
 Version Specific Information
@@ -186,14 +186,14 @@ In addition, the following changes were implemented in the behavior of
 
 - When ``read_only`` is set to **ON**, any ``FLUSH ...`` command executed by a
   normal user (without the ``SUPER`` privilege) are not written to the binary
-  log regardless of the value of the |bsfc| variable.
+  log regardless of the value of the binlog_skip_flush_command variable.
 - When |super-read-only| is set to **ON**, any ``FLUSH ...`` command executed by
   any user (even by those with the ``SUPER`` privilege) are not written to the
-  binary log regardless of the value of the |bsfc| variable.
+  binary log regardless of the value of the binlog_skip_flush_command variable.
 
 An attempt to run a ``FLUSH`` command without either ``SUPER`` or ``RELOAD``
 privileges results in the ``ER_SPECIFIC_ACCESS_DENIED_ERROR`` exception
-regardless of the value of the |bsfc| variable.
+regardless of the value of the binlog_skip_flush_command variable.
 
 .. variable:: binlog_skip_flush_commands
 
@@ -204,7 +204,7 @@ regardless of the value of the |bsfc| variable.
      :dyn: Yes
      :default: OFF
 
-When |bsfc| is set to **ON**, ``FLUSH ...`` commands are not written to the binary
+When binlog_skip_flush_command is set to **ON**, ``FLUSH ...`` commands are not written to the binary
 log. See :ref:`percona-server.binary-log.flush.writing` for more information
 about what else affects the writing of ``FLUSH`` commands to the binary log.
 
@@ -212,16 +212,16 @@ about what else affects the writing of ``FLUSH`` commands to the binary log.
 
    ``FLUSH LOGS``, ``FLUSH BINARY LOGS``, ``FLUSH TABLES WITH READ LOCK``, and
    ``FLUSH TABLES ... FOR EXPORT`` are not written to the binary log no matter
-   what value the |bsfc| variable contains. The ``FLUSH`` command is not
-   recorded to the binary log and the value of |bsfc| is ignored if the
+   what value the binlog_skip_flush_command variable contains. The ``FLUSH`` command is not
+   recorded to the binary log and the value of binlog_skip_flush_command is ignored if the
    ``FLUSH`` command is run with the ``NO_WRITE_TO_BINLOG`` keyword (or its
    alias ``LOCAL``).
 
    .. seealso::
 
-      |MySQL| Documentation: FLUSH Syntax
+      MySQL Documentation: FLUSH Syntax
          https://dev.mysql.com/doc/refman/5.6/en/flush.html
 
 
-.. |bsfc| replace:: :variable:`binlog_skip_flush_command`
+.. binlog_skip_flush_command replace:: :variable:`binlog_skip_flush_command`
 .. |super-read-only| replace:: :variable:`super_read_only`

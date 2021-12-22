@@ -179,6 +179,11 @@ const LEX_STRING command_name[] MY_ATTRIBUTE((unused)) = {
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
+size_t get_command_name_len(void)
+{
+  return sizeof(command_name) / sizeof(command_name[0]);
+}
+
 #ifdef HAVE_REPLICATION
 /**
   Returns true if all tables should be ignored.
@@ -1536,6 +1541,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (parser_state.init(thd, thd->query().str, thd->query().length))
       break;
 
+    parser_state.m_input.m_has_digest = true;
+
     mysql_parse(thd, &parser_state, false);
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
@@ -2009,6 +2016,7 @@ done:
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
+  thd->reset_query_for_display();
 
   /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
   thd->reset_rewritten_query();
@@ -5264,6 +5272,12 @@ error:
 finish:
   THD_STAGE_INFO(thd, stage_query_end);
 
+  if (res && thd->get_reprepare_observer() != NULL &&
+      thd->get_reprepare_observer()->is_invalidated() &&
+      thd->get_reprepare_observer()->can_retry()) {
+    thd->skip_gtid_rollback = true;
+  }
+
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt)
   {
@@ -5443,6 +5457,8 @@ finish:
     gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
     DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
   }
+
+  thd->skip_gtid_rollback = false;
 
   DBUG_RETURN(res || thd->is_error());
 }
@@ -5822,6 +5838,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
       found_semicolon= parser_state->m_lip.found_semicolon;
     }
 
+    DEBUG_SYNC_C("sql_parse_before_rewrite");
+
     if (!err)
     {
       /*
@@ -5877,6 +5895,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
         }
       }
     }
+
+    DEBUG_SYNC_C("sql_parse_after_rewrite");
 
     if (!err)
     {
@@ -7420,6 +7440,7 @@ extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
       ... handle error
     }
 
+    parser_state.m_input.m_has_digest= true;
     parser_state.m_input.m_compute_digest= true;
     
     rc= parse_sql(the, &parser_state, ctx);
@@ -7469,22 +7490,32 @@ bool parse_sql(THD *thd,
   parser_state->m_digest_psi= NULL;
   parser_state->m_lip.m_digest= NULL;
 
-  if (thd->m_digest != NULL)
-  {
-    /* Start Digest */
-    parser_state->m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
-
-    if (parser_state->m_input.m_compute_digest ||
-       (parser_state->m_digest_psi != NULL))
+  /*
+    Only consider statements that are supposed to have a digest,
+    like top level queries.
+  */
+  if (parser_state->m_input.m_has_digest) {
+    /*
+      For these statements,
+      see if the digest computation is required.
+    */
+    if (thd->m_digest != NULL)
     {
-      /*
-        If either:
-        - the caller wants to compute a digest
-        - the performance schema wants to compute a digest
-        set the digest listener in the lexer.
-      */
-      parser_state->m_lip.m_digest= thd->m_digest;
-      parser_state->m_lip.m_digest->m_digest_storage.m_charset_number= thd->charset()->number;
+      /* Start Digest */
+      parser_state->m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+
+      if (parser_state->m_input.m_compute_digest ||
+         (parser_state->m_digest_psi != NULL))
+      {
+        /*
+          If either:
+          - the caller wants to compute a digest
+          - the performance schema wants to compute a digest
+          set the digest listener in the lexer.
+        */
+        parser_state->m_lip.m_digest= thd->m_digest;
+        parser_state->m_lip.m_digest->m_digest_storage.m_charset_number= thd->charset()->number;
+      }
     }
   }
 

@@ -1,0 +1,18 @@
+#
+# Plugin Data Masking: gen_dictionary
+#
+CREATE FUNCTION gen_dictionary_load RETURNS STRING SONAME 'data_masking.so';
+CREATE FUNCTION gen_dictionary_drop RETURNS STRING SONAME 'data_masking.so';
+CREATE FUNCTION gen_dictionary RETURNS STRING SONAME 'data_masking.so';
+SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
+gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities')
+Dictionary load success
+SELECT gen_dictionary('us_cities');
+gen_dictionary('us_cities')
+CITY
+SELECT gen_dictionary_drop('us_cities');
+gen_dictionary_drop('us_cities')
+Dictionary removed
+DROP FUNCTION gen_dictionary_load;
+DROP FUNCTION gen_dictionary_drop;
+DROP FUNCTION gen_dictionary;

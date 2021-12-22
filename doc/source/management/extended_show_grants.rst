@@ -4,7 +4,7 @@
  Extended ``SHOW GRANTS``
 ==========================
 
-In Oracle |MySQL| ``SHOW GRANTS`` displays only the privileges granted explicitly to the named account. Other privileges might be available to the account, but they are not displayed. For example, if an anonymous account exists, the named account might be able to use its privileges, but ``SHOW GRANTS`` will not display them. In |Percona Server| ``SHOW GRANTS`` command was extended to display all the effectively available privileges to the account.
+In Oracle MySQL ``SHOW GRANTS`` displays only the privileges granted explicitly to the named account. Other privileges might be available to the account, but they are not displayed. For example, if an anonymous account exists, the named account might be able to use its privileges, but ``SHOW GRANTS`` will not display them. In |Percona Server| ``SHOW GRANTS`` command was extended to display all the effectively available privileges to the account.
 
 Example
 --------

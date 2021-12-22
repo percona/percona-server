@@ -346,6 +346,7 @@ script:
       -DDOWNLOAD_BOOST=1
       -DWITH_BOOST=../deps
       -DWITH_KEYRING_VAULT=ON
+      -DWITH_KEYRING_VAULT_TEST=ON
       -DWITH_PAM=ON
     ";
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then

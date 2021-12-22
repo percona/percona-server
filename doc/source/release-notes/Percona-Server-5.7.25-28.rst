@@ -1,17 +1,17 @@
 .. rn:: 5.7.25-28
 
 ================================================================================
-|Percona Server| |release|
+|Percona Server| 5.7.25-28
 ================================================================================
 
-Percona is glad to announce the release of |Percona Server| |release| on
-|date|. Downloads are available `here
+Percona is glad to announce the release of |Percona Server| 5.7.25-28 on
+February 18, 2019. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.25-28/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 	
 This release is based on `MySQL 5.7.25
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-25.html>`_ and includes
-all the bug fixes in it. |Percona Server| |release| is now the current GA
+all the bug fixes in it. |Percona Server| 5.7.25-28 is now the current GA
 (Generally Available) release in the 5.7 series.
 	
 All software developed by Percona is open-source and free.
@@ -45,7 +45,7 @@ Bugs Fixed
   materialization-scan that allowed inner tables of different
   semi-join nests to interleave. Bug fixed :psbug:`4907` (upstream bug
   :mysqlbug:`92809`).
-- In some cases, the server using the |MyRocks| storage engine could crash
+- In some cases, the server using the MyRocks storage engine could crash
   when TTL (Time to Live) was defined on a table. Bug fixed :psbug:`4911`.
 - Running the SELECT statement with the ORDER BY and
   LIMIT clauses could result in a less than optimal performance. Bug
@@ -53,15 +53,15 @@ Bugs Fixed
 - There was a typo in ``mysqld_safe.sh``: **trottling** was replaced
   with **throttling**. Bug fixed :psbug:`240`. Thanks to Michael
   Coburn for the patch.
-- |MyRocks| could crash while running ``START TRANSACTION WITH
+- MyRocks could crash while running ``START TRANSACTION WITH
   CONSISTENT SNAPSHOT`` if other transactions were in specific
   states. Bug fixed :psbug:`4705`.
 - In some cases, ``mysqld`` could crash when inserting data into a
   database the name of which contained special characters (CVE-2018-20324). Bug fixed
   :psbug:`5158`.
-- |MyRocks| incorrectly processed transactions in which multiple
+- MyRocks incorrectly processed transactions in which multiple
   statements had to be rolled back.  Bug fixed :psbug:`5219`.
-- In some cases, the |MyRocks| storage engine could crash without triggering the
+- In some cases, the MyRocks storage engine could crash without triggering the
   crash recovery. Bug fixed :psbug:`5366`.
 - When bootstrapped with undo or redo log encryption enabled on a very fast
   storage, the server could fail to start. Bug fixed :psbug:`4958`.
@@ -80,5 +80,5 @@ CVE-2019-2529,
 CVE-2019-2482,
 CVE-2019-2434.
 
-.. |date| replace:: February 18, 2019
-.. |release| replace:: 5.7.25-28
+.. February 18, 2019 replace:: February 18, 2019
+.. 5.7.25-28 replace:: 5.7.25-28

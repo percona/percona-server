@@ -23,7 +23,7 @@ FTS stopword list.
 
 To resolve this issue, in |Percona Server| :rn:`5.7.20-18` a new
 :variable:`innodb_ft_ignore_stopwords` variable has been implemented
-which controls whether |InnoDB| Full-Text Search should ignore stopword list.
+which controls whether InnoDB Full-Text Search should ignore stopword list.
 
 Although this variable is introduced to resolve n-gram issues, it affects
 all Full-Text Search indexes as well.
@@ -51,7 +51,7 @@ System Variables
   :vartype: Boolean
   :default: ``OFF``
 
-When enabled, this variable will instruct |InnoDB| Full Text Search
+When enabled, this variable will instruct InnoDB Full Text Search
 parser to ignore the stopword list when building/updating an FTS index.
 
 .. _punctuation_marks:

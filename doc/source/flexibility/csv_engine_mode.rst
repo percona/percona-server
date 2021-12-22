@@ -4,9 +4,9 @@
  CSV engine mode for standard-compliant quote and comma parsing
 ================================================================
 
-`MySQL CSV Storage Engine <https://dev.mysql.com/doc/refman/5.7/en/csv-storage-engine.html>`_ is non-standard with respect to embedded ``"`` and ``,`` character parsing. Fixing this issue unconditionally would break |MySQL| CSV format compatibility for any pre-existing user tables and for data exchange with other |MySQL| instances, but it would improve compatibility with other CSV producing/consuming tools.
+`MySQL CSV Storage Engine <https://dev.mysql.com/doc/refman/5.7/en/csv-storage-engine.html>`_ is non-standard with respect to embedded ``"`` and ``,`` character parsing. Fixing this issue unconditionally would break MySQL CSV format compatibility for any pre-existing user tables and for data exchange with other MySQL instances, but it would improve compatibility with other CSV producing/consuming tools.
 
-To keep both |MySQL| and other tool compatibility, a new dynamic, global/session server variable :variable:`csv_mode` has been implemented. This variable allows an empty value (the default), and ``IETF_QUOTES``. 
+To keep both MySQL and other tool compatibility, a new dynamic, global/session server variable :variable:`csv_mode` has been implemented. This variable allows an empty value (the default), and ``IETF_QUOTES``. 
 
 If ``IETF_QUOTES`` is set, then embedded commas are accepted in quoted fields as-is, and a quote character is quoted by doubling it. In legacy mode embedded commas terminate the field, and quotes are quoted with a backslash.
 

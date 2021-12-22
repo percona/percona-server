@@ -5877,7 +5877,16 @@ check_if_ok_to_rename:
 		}
 	}
 
-	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
+	/* The copy algorithm uses the default row format while
+	in-place uses the current format. Find the limit for
+	the resulting format.*/
+	if (innobase_need_rebuild(ha_alter_info, table)) {
+		max_col_len =
+			DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
+	} else {
+		max_col_len =
+			DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(m_prebuilt->table->flags);
+	}
 
 	/* Check each index's column length to make sure they do not
 	exceed limit */

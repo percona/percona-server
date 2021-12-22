@@ -1,0 +1,4 @@
+--source include/have_ngram.inc
+
+--let $PARSER=WITH PARSER NGRAM
+--source suite/innodb_fts/include/percona_null_character.inc

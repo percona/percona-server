@@ -31,6 +31,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Default location:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Dictionary location:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 11 means 'Resource temporarily unavailable'");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 22 means 'Invalid argument'");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 35 means 'Resource temporarily unavailable'");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 38 means 'Function not implemented'.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`.*` in the cache. Attempting to load");
@@ -38,6 +39,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, reme
 call mtr.add_suppression("\\[ERROR\\] InnoDB: In file '.*', tablespace id and flags are .* but in the InnoDB data dictionary they are");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 11 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 22 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 35 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 38 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Remote location:");

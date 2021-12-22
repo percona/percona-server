@@ -99,9 +99,10 @@ SET GLOBAL innodb_ft_ignore_stopwords = 'AUTO';
 ERROR 42000: Variable 'innodb_ft_ignore_stopwords' can't be set to the value of 'AUTO'
 SET SESSION innodb_ft_ignore_stopwords = 'AUTO';
 ERROR 42000: Variable 'innodb_ft_ignore_stopwords' can't be set to the value of 'AUTO'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 SET GLOBAL innodb_ft_ignore_stopwords = -3;
+ERROR 42000: Variable 'innodb_ft_ignore_stopwords' can't be set to the value of '-3'
 SET SESSION innodb_ft_ignore_stopwords = -7;
+ERROR 42000: Variable 'innodb_ft_ignore_stopwords' can't be set to the value of '-7'
 SELECT @@global.innodb_ft_ignore_stopwords;
 @@global.innodb_ft_ignore_stopwords
 1

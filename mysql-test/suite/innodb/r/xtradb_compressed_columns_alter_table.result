@@ -1403,3 +1403,51 @@ modified_dictionary_references_cleaned
 
 DROP COMPRESSION_DICTIONARY dict1;
 DROP COMPRESSION_DICTIONARY dict2;
+#
+# Bug PS-1108 : Changing a column from uncompressed to compressed for JSON crashes the server
+#
+CREATE TABLE t1 (json_variables JSON);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED;
+SELECT * FROM t1;
+json_variables
+{"name": "json test"}
+DROP TABLE t1;
+CREATE TABLE t2 (a TEXT);
+INSERT INTO t2 VALUES('test value');
+ALTER TABLE t2 MODIFY a TEXT COLUMN_FORMAT COMPRESSED;
+SELECT * FROM t2;
+a
+test value
+DROP TABLE t2;
+CREATE TABLE t1 (json_variables JSON,t VARCHAR(3) AS (CONCAT(SUBSTRING(json_variables,1,1)))) PARTITION BY KEY(t) PARTITIONS 4;
+INSERT INTO t1 VALUES('{"name":"json test"}',DEFAULT);
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED;
+SELECT json_variables FROM t1;
+json_variables
+{"name": "json test"}
+DROP TABLE t1;
+SET @dictionary_data='"name"';
+CREATE COMPRESSION_DICTIONARY test_dictionary (@dictionary_data);
+CREATE TABLE t1 (json_variables JSON);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY test_dictionary;
+SELECT * FROM t1;
+json_variables
+{"name": "json test"}
+DROP TABLE t1;
+CREATE TABLE t1 (json_variables JSON COLUMN_FORMAT COMPRESSED);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY test_dictionary;
+SELECT * FROM t1;
+json_variables
+{"name": "json test"}
+DROP TABLE t1;
+CREATE TABLE t1 (json_variables JSON COLUMN_FORMAT COMPRESSED);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON;
+SELECT * FROM t1;
+json_variables
+{"name": "json test"}
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY test_dictionary;

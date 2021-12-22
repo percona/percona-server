@@ -2,7 +2,7 @@
  |Percona Server| Feature Comparison
 =====================================
 
-|Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
+|Percona Server| is an enhanced drop-in replacement for MySQL. With |Percona Server|,
 
   * Your queries will run faster and more consistently.
 
@@ -18,7 +18,7 @@
 
   * You will troubleshoot without guesswork.
 
-We provide these benefits by significantly enhancing |Percona Server| as compared to the standard |MySQL| database server:
+We provide these benefits by significantly enhancing |Percona Server| as compared to the standard MySQL database server:
 
 .. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
 
@@ -278,5 +278,3 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
      - Yes
      - No
 
-
-.. [#n-1] Feature available in Enterprise version only

@@ -41,6 +41,7 @@ SET @@session.innodb_temp_tablespace_encrypt = 'some';
 SET GLOBAL innodb_temp_tablespace_encrypt = 1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL innodb_temp_tablespace_encrypt = 'foo';
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL innodb_temp_tablespace_encrypt = -2;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL innodb_temp_tablespace_encrypt = 1e1;

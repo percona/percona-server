@@ -12,7 +12,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 Based on `MySQL 5.7.18
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-18.html>`_, including
 all the bug fixes in it, |Percona Server| 5.7.18-14 is the current GA release
-in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source
+in the |Percona Server| 5.7 series. All of Percona's software is open-source
 and free, all the details of the release can be found in the `5.7.18-14
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-14>`_
@@ -24,11 +24,11 @@ New Features
  Zapus*).
 
  |Percona Server| now supports :ref:`prefix_index_queries_optimization`. This
- feature was ported from a Facebook |MySQL| patch.
+ feature was ported from a Facebook MySQL patch.
 
  |Percona Server| has implemented support for :ref:`gap_locks_detection` for
  transactional storage engines, like *MyRocks*, that do not support gap locks.
- This feature was ported from a Facebook |MySQL| patch.
+ This feature was ported from a Facebook MySQL patch.
 
  :variable:`tokudb_dir_cmd` can now be used to :ref:`edit the TokuDB
  <editing_tokudb_files_with_tokudb_dir_cmd>` directory map. This feature is
@@ -62,7 +62,7 @@ Bugs Fixed
  Fix for a :bug:`1433432` bug caused a performance regression due to suboptimal
  LRU manager thread flushing heuristics. Bug fixed :bug:`1631309`.
 
- Creating :ref:`compressed_columns` in |MyISAM| tables by specifying partition
+ Creating :ref:`compressed_columns` in MyISAM tables by specifying partition
  engines would not result in error. Bug fixed :bug:`1631954`.
 
  It was not possible to configure basedir as a symlink. Bug fixed
@@ -81,14 +81,14 @@ Bugs Fixed
 
  Text/BLOB fields were not handling sorting of the empty string consistently
  between InnoDB and filesort. Bug fixed :bug:`1674867` (upstream
- :mysqlbug:`81810`) by porting a Facebook patch for |MySQL|.
+ :mysqlbug:`81810`) by porting a Facebook patch for MySQL.
 
- |InnoDB| adaptive hash index was using a partitioning algorithm which would
+ InnoDB adaptive hash index was using a partitioning algorithm which would
  produce uneven distribution when the server contained many tables with an
  identical schema. Bug fixed :bug:`1679155` (upstream :mysqlbug:`81814`).
 
  For plugin variables that are signed numbers, doing a ``SHOW VARIABLES`` would
- always show an unsigned number. Fixed by porting a Facebook patch for |MySQL|.
+ always show an unsigned number. Fixed by porting a Facebook patch for MySQL.
 
 Other bugs fixed: :bug:`1629250` (upstream :mysqlbug:`83245`), :bug:`1660828`
 (upstream :mysqlbug:`84786`), :bug:`1664519` (upstream :mysqlbug:`84940`),

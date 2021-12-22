@@ -1613,8 +1613,7 @@ blocks a concurrent operation from dropping the tablespace.
 If NULL, use the first fil_space_t on fil_system->space_list.
 @return pointer to the next fil_space_t.
 @retval NULL if this was the last  */
-fil_space_t *fil_space_next(fil_space_t *prev_space)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD fil_space_t *fil_space_next(fil_space_t *prev_space);
 
 /** Return the next fil_space_t from key rotation list.
 Once started, the caller must keep calling this until it returns NULL.
@@ -1624,8 +1623,7 @@ blocks a concurrent operation from dropping the tablespace.
 If NULL, use the first fil_space_t on fil_system->space_list.
 @return pointer to the next fil_space_t.
 @retval NULL if this was the last*/
-fil_space_t *fil_space_keyrotate_next(fil_space_t *prev_space)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD fil_space_t *fil_space_keyrotate_next(fil_space_t *prev_space);
 
 class FilSpace {
  public:

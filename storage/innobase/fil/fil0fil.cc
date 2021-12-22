@@ -1745,8 +1745,7 @@ class Fil_system {
 #endif /* !UNIV_HOTBACKUP */
   }
 
-  Fil_shard *shard_by_index(const uint index) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  MY_NODISCARD Fil_shard *shard_by_index(const uint index) const {
     ut_ad(index < m_shards.size());
     return m_shards[index];
   }

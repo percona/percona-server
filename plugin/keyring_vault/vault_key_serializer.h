@@ -28,7 +28,7 @@ class Vault_key_serializer final : public ISerializer {
  public:
   ISerialized_object *serialize(
       const collation_unordered_map<std::string, std::unique_ptr<IKey>>
-          &keys_hash MY_ATTRIBUTE((unused)),
+          &keys_hash [[maybe_unused]],
       IKey *key, const Key_operation operation) override {
     Vault_key *vault_key = dynamic_cast<Vault_key *>(key);
     assert(vault_key != nullptr);

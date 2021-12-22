@@ -107,7 +107,7 @@ MyEncryptionCTX::~MyEncryptionCTX() {
 
 int MyEncryptionCTX::init(const my_aes_mode mode, int encrypt, const uchar *key,
                           size_t klen, const uchar *iv,
-                          size_t ivlen MY_ATTRIBUTE((unused))) noexcept {
+                          size_t ivlen [[maybe_unused]]) noexcept {
   if (unlikely(!ciphers[static_cast<int>(mode)](klen)))
     return MY_AES_BAD_KEYSIZE;
 
@@ -330,7 +330,7 @@ int my_aes_crypt(const my_aes_mode mode, int flags, const uchar *src,
   Without padding (ENCRYPTION_FLAG_NOPAD) cyphertext has the same length
   as the plaintext
 */
-size_t my_aes_crypt_get_size(enum my_aes_mode mode MY_ATTRIBUTE((unused)),
+size_t my_aes_crypt_get_size(enum my_aes_mode mode [[maybe_unused]],
                              size_t source_length) noexcept {
 #ifdef HAVE_EncryptAes128Ctr
   if (mode == MY_AES_CTR) return source_length;

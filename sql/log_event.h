@@ -1636,7 +1636,7 @@ class Start_encryption_log_event final
 #ifdef MYSQL_SERVER
   virtual int do_update_pos(Relay_log_info *rli) override;
   virtual enum_skip_reason do_shall_skip(
-      Relay_log_info *rli MY_ATTRIBUTE((unused))) noexcept override {
+      Relay_log_info *rli [[maybe_unused]]) noexcept override {
     return Log_event::EVENT_SKIP_NOT;
   }
 #endif

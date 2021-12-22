@@ -258,7 +258,7 @@ static int tokudb_backup_progress_fun(float progress,
       static_cast<char *>(my_realloc(tokudb_backup_mem_key, be->_the_string,
                                      len, MYF(MY_FAE + MY_ALLOW_ZERO_PTR)));
   float percentage = progress * 100;
-  int r MY_ATTRIBUTE((unused)) =
+  int r [[maybe_unused]] =
       snprintf(be->_the_string, len, "tokudb backup about %.0f%% done: %s",
                percentage, progress_string);
   assert(0 < r && (size_t)r <= len);
@@ -286,7 +286,7 @@ static void tokudb_backup_set_error_string(THD *thd, int error,
   char *error_string =
       static_cast<char *>(my_malloc(tokudb_backup_mem_key, n + 1, MYF(MY_FAE)));
 
-  int r MY_ATTRIBUTE((unused)) =
+  int r [[maybe_unused]] =
       snprintf(error_string, n + 1, error_fmt, s1, s2, s3);
   assert(0 < r && (size_t)r <= n);
   tokudb_backup_set_error(thd, error, error_string);

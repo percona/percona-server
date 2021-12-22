@@ -728,7 +728,7 @@ class AIO {
   @param[in] acquire_mutex specifies whether to lock array mutex
   @param[in] array for which to submit IO */
   static void os_aio_dispatch_read_array_submit_low_for_array(
-      bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO *arr);
+      bool acquire_mutex [[maybe_unused]], const AIO *arr);
 
  private:
   typedef std::vector<Slot> Slots;
@@ -2758,7 +2758,7 @@ static dberr_t os_aio_linux_handler(ulint global_segment, fil_node_t **m1,
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex */
 void AIO::os_aio_dispatch_read_array_submit_low(
-    bool acquire_mutex MY_ATTRIBUTE((unused))) {
+    bool acquire_mutex [[maybe_unused]]) {
   os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_reads);
   if (s_ibuf != nullptr) {
     os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_ibuf);
@@ -2770,7 +2770,7 @@ void AIO::os_aio_dispatch_read_array_submit_low(
 @param[in] acquire_mutex specifies whether to lock array mutex
 @param[in] array for which to submit IO */
 void AIO::os_aio_dispatch_read_array_submit_low_for_array(
-    bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO *arr) {
+    bool acquire_mutex [[maybe_unused]], const AIO *arr) {
   if (!srv_use_native_aio) {
     return;
   }

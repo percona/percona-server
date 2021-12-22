@@ -77,7 +77,7 @@ static void mask_inner_deinit(UDF_INIT *initid) {
  * and the argument is returned unchanged.
  */
 static const char *mask_inner(UDF_INIT *initid, UDF_ARGS *args,
-                              char *result MY_ATTRIBUTE((unused)),
+                              char *result [[maybe_unused]],
                               unsigned long *length, char *is_null, char *) {
   DBUG_ENTER("mask_inner");
 

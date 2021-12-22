@@ -89,16 +89,16 @@ class System_key_adapter : public IKey {
     assert(keyring_key != nullptr);
     keyring_key->set_key_type(key_type);
   }
-  bool load_from_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
-                        size_t *buffer_position MY_ATTRIBUTE((unused)),
+  bool load_from_buffer(uchar *buffer [[maybe_unused]],
+                        size_t *buffer_position [[maybe_unused]],
                         size_t input_buffer_size
-                            MY_ATTRIBUTE((unused))) noexcept override {
+                            [[maybe_unused]]) noexcept override {
     assert(false);
     return false;
   }
-  void store_in_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
+  void store_in_buffer(uchar *buffer [[maybe_unused]],
                        size_t *buffer_position
-                           MY_ATTRIBUTE((unused))) const noexcept override {
+                           [[maybe_unused]]) const noexcept override {
     assert(false);
   }
   bool is_key_type_valid() override {

@@ -40,7 +40,7 @@ class Vault_io final : public IVault_io, private boost::noncopyable {
 
   bool init(const std::string *keyring_storage_url) override;
   bool flush_to_backup(
-      ISerialized_object *serialized_object MY_ATTRIBUTE((unused))) override {
+      ISerialized_object *serialized_object [[maybe_unused]]) override {
     return false;  // we do not have backup storage in vault
   }
   bool flush_to_storage(ISerialized_object *serialized_object) override;

@@ -9517,7 +9517,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
 }
 
 #ifdef HAVE_POOL_OF_THREADS
-static int show_threadpool_idle_threads(THD *thd MY_ATTRIBUTE((unused)),
+static int show_threadpool_idle_threads(THD *thd [[maybe_unused]],
                                         SHOW_VAR *var, char *buff) {
   var->type = SHOW_INT;
   var->value = buff;

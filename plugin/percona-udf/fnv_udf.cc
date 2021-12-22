@@ -159,9 +159,9 @@ bool fnv_64_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   return false;
 }
 
-ulonglong fnv_64(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-                 char *is_null MY_ATTRIBUTE((unused)),
-                 char *error MY_ATTRIBUTE((unused))) {
+ulonglong fnv_64(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
+                 char *is_null [[maybe_unused]],
+                 char *error [[maybe_unused]]) {
   uint null_default = HASH_NULL_DEFAULT;
   ulonglong result = HASH_64_INIT;
   uint i;

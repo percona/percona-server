@@ -1069,10 +1069,10 @@ static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
 static xcom_state_change_cb xcom_expel_cb = 0;
 static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_begin_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_restart_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_init_cb = NULL;
-static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_end_cb = NULL;
+static xcom_recovery_cb recovery_begin_cb [[maybe_unused]] = NULL;
+static xcom_recovery_cb recovery_restart_cb [[maybe_unused]] = NULL;
+static xcom_recovery_cb recovery_init_cb [[maybe_unused]] = NULL;
+static xcom_recovery_cb recovery_end_cb [[maybe_unused]] = NULL;
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
 void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
@@ -1437,7 +1437,7 @@ static bool_t local_server_is_setup() {
 }
 
 static void init_time_queue();
-static int paxos_timer_task(task_arg arg MY_ATTRIBUTE((unused)));
+static int paxos_timer_task(task_arg arg [[maybe_unused]]);
 
 int xcom_taskmain2(xcom_port listen_port) {
   init_xcom_transport(listen_port);
@@ -3124,7 +3124,7 @@ node_no found_active_leaders(site_def *site) {
 
 /* Check if this message belongs to a channel that should be ignored */
 static inline int ignore_message(synode_no x, site_def *site,
-                                 char const *dbg MY_ATTRIBUTE((unused))) {
+                                 char const *dbg [[maybe_unused]]) {
   int retval = !is_active_leader(x.node, site);
   IFDBG(D_BASE, STRLIT(dbg); STRLIT(" "); FN; SYCEXP(x); NUMEXP(retval));
   return retval;
@@ -4102,7 +4102,7 @@ struct fp_name {
   { f, #f }
 
 /* List of fp, name pairs */
-static struct fp_name MY_ATTRIBUTE((unused)) oblist[] = {
+[[maybe_unused]] static struct fp_name oblist[] = {
     NAME(x_fetch), NAME(x_execute), NAME(x_terminate), {0, 0}};
 #undef NAME
 
@@ -8593,7 +8593,7 @@ int xcom_client_get_leaders(connection_descriptor *fd, uint32_t group_id,
 
 #if 0
 /* Called when leader changes */
-static MY_ATTRIBUTE((unused)) xcom_election_cb election_cb = NULL;
+static xcom_election_cb election_cb [[maybe_unused]] = NULL;
 
 void set_xcom_election_cb(xcom_election_cb x) { election_cb = x; }
 #endif
@@ -8670,7 +8670,7 @@ static void paxos_timer_advance() {
 }
 
 /* Fire any expired timer for a Paxos machine */
-static int paxos_timer_task(task_arg arg MY_ATTRIBUTE((unused))) {
+static int paxos_timer_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   double start;
   END_ENV;

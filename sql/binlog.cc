@@ -12003,7 +12003,7 @@ static const binlog_cache_mngr *get_cache_mngr(THD *thd) {
 }
 
 static int show_binlog_vars(THD *thd, SHOW_VAR *var,
-                            char *buff MY_ATTRIBUTE((unused))) {
+                            char *buff [[maybe_unused]]) {
   mysql_mutex_assert_owner(&LOCK_status);
 
   const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);
@@ -12024,7 +12024,7 @@ static int show_binlog_vars(THD *thd, SHOW_VAR *var,
 }
 
 static int show_binlog_snapshot_gtid_executed(
-    THD *thd, SHOW_VAR *var, char *buff MY_ATTRIBUTE((unused))) {
+    THD *thd, SHOW_VAR *var, char *buff [[maybe_unused]]) {
   mysql_mutex_assert_owner(&LOCK_status);
 
   const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);

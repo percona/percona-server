@@ -658,7 +658,7 @@ void Unique::reset() {
   */
   if (elements) {
     file_ptrs.clear();
-    MY_ATTRIBUTE((unused))
+    [[maybe_unused]]
     int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
     assert(reinit_res == 0);
   }
@@ -931,7 +931,7 @@ bool Unique::get(TABLE *table) {
     return true;
   if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return true;
 
-  MY_ATTRIBUTE((unused))
+  [[maybe_unused]]
   int reinit_res = reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);
   assert(reinit_res == 0);
 

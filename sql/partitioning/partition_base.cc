@@ -2390,7 +2390,7 @@ int Partition_base::rnd_init_in_part(uint part_id, bool scan) {
 */
 
 int Partition_base::rnd_end_in_part(uint part_id,
-                                    bool scan MY_ATTRIBUTE((unused))) {
+                                    bool scan [[maybe_unused]]) {
   return m_file[part_id]->ha_rnd_end();
 }
 

@@ -2040,7 +2040,7 @@ export bool fix_delay_key_write(sys_var *, THD *, enum_var_type) {
    Make sure we don't have an active TABLE FOR BACKUP lock when setting
    delay_key_writes=ALL dynamically.
 */
-static bool check_delay_key_write(sys_var *self MY_ATTRIBUTE((unused)),
+static bool check_delay_key_write(sys_var *self [[maybe_unused]],
                                   THD *thd, set_var *var) {
   assert(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
          !thd->backup_tables_lock.is_acquired());
@@ -2816,7 +2816,7 @@ static Sys_var_double Sys_long_query_time(
     ON_CHECK(nullptr), ON_UPDATE(update_cached_long_query_time));
 
 #ifndef NDEBUG
-static bool update_cached_query_exec_time(sys_var *self MY_ATTRIBUTE((unused)),
+static bool update_cached_query_exec_time(sys_var *self [[maybe_unused]],
                                           THD *thd, enum_var_type type) {
   if (type == OPT_SESSION)
     thd->variables.query_exec_time =
@@ -6136,8 +6136,8 @@ static Sys_var_ulong sys_log_slow_rate_limit(
 static double opt_slow_query_log_always_write_time;
 
 static bool update_slow_query_log_always_write_time(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd MY_ATTRIBUTE((unused)),
-    enum_var_type type MY_ATTRIBUTE((unused))) noexcept {
+    sys_var *self [[maybe_unused]], THD *thd [[maybe_unused]],
+    enum_var_type type [[maybe_unused]]) noexcept {
   slow_query_log_always_write_time =
       double2ulonglong(opt_slow_query_log_always_write_time * 1e6);
   return false;
@@ -7710,7 +7710,7 @@ static bool check_set_default_table_encryption_access(sys_var *self
 }
 
 static bool check_set_default_table_encryption(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
+    sys_var *self [[maybe_unused]], THD *thd, set_var *var) {
   return check_set_default_table_encryption_access(self, thd, var) ||
          check_set_default_table_encryption_exclusions(thd, var);
 }

@@ -507,7 +507,7 @@ static const constexpr auto MODIFIED_PAGE_1ST_PAGE_ID =
     24; /* The page ID of the first tracked
                                         page in this block */
 static const constexpr auto MODIFIED_PAGE_BLOCK_UNUSED_1
-    MY_ATTRIBUTE((unused)) = 28; /* Unused in order to align the start
+    [[maybe_unused]] = 28; /* Unused in order to align the start
                 of bitmap at 8 byte boundary */
 static const constexpr auto MODIFIED_PAGE_BLOCK_BITMAP =
     32; /* Start of the bitmap itself */

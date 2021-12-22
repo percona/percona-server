@@ -44,7 +44,7 @@ Bugs Fixed
   stopping the MySQL service. Bugs fixed :bug:`1738742`.
 
 * Blackhole storage engine was incompatible with newer length limit of the 
-  |InnoDB| index key prefixes. Bug fixed :bug:`1733049` (upstream :mysqlbug:`53588`).
+  InnoDB index key prefixes. Bug fixed :bug:`1733049` (upstream :mysqlbug:`53588`).
 
 * Heartbeats received by slave were reacted with :table:`mysql.slave_master_info` table
   sync on each of them even with :variable:`sync_master_info` set to zero, causing huge

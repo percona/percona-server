@@ -1319,6 +1319,17 @@ free_share(
 /*=======*/
 	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
 
+
+/** Calls free_share and assign NULL to share.
+@param[in,out]	share	table share to free */
+static void
+free_share_and_nullify(
+    INNOBASE_SHARE **share) /*!< in/own: table share to free */
+{
+	free_share(*share);
+	*share = NULL;
+}
+
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
 @return 0 or error number */
@@ -1952,13 +1963,12 @@ innobase_srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
 {
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
-	srv_conc.n_active counter. Since there are no locks on instrinsic
-	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	srv_conc.n_active counter.*/
+	if (skip_concurrency_ticket(prebuilt)) {
 		return;
 	}
 
-	trx_t*	trx	= prebuilt->trx;
+	trx_t*  trx     = prebuilt->trx;
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1990,9 +2000,8 @@ innobase_srv_conc_exit_innodb(
 	row_prebuilt_t*	prebuilt)
 {
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
-	srv_conc.n_active counter. Since there are no locks on instrinsic
-	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	srv_conc.n_active counter.*/
+	if (skip_concurrency_ticket(prebuilt)) {
 		return;
 	}
 
@@ -2029,6 +2038,36 @@ innobase_srv_conc_force_exit_innodb(
 	if (trx->declared_to_be_inside_innodb) {
 		srv_conc_force_exit_innodb(trx);
 	}
+}
+
+ibool
+skip_concurrency_ticket(row_prebuilt_t* prebuilt) {
+	/* Since there are no locks on instrinsic tables,
+	we should skip this for intrinsic temporary tables.*/
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return true;
+	}
+
+	THD *thd =  prebuilt->trx->mysql_thd;
+	if (thd == NULL) {
+		thd = current_thd;
+	}
+	/* Skip concurrency ticket in following cases
+	 (a) while implicitly updating GTID table.This
+	 is to avoid deadlock otherwise possible with
+	 low innodb_thread_concurrency.
+	 Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket
+	 -> wait for GTID flush.
+	 GTID Background: Write to GTID table -> wait for innodb ticket.
+         (b) For attachable transaction. If a attachable trx in
+	 thread asks for a ticket while the main transaction
+	 has reserved a ticket. */
+	if (thd && (thd_has_active_attachable_trx(thd)
+		|| thd_is_operating_gtid_table_implicitly(thd))) {
+		return true;
+	}
+
+	return false;
 }
 
 /******************************************************************//**
@@ -7030,8 +7069,8 @@ ha_innobase::open(
 		if (UNIV_UNLIKELY(m_share->ib_table &&
 				  m_share->ib_table->is_corrupt &&
 				  srv_pass_corrupt_table <= 1)) {
-			free_share(m_share);
-
+			free_share_and_nullify(&m_share);
+			dict_table_close(ib_table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 		}
 	}
@@ -7056,7 +7095,7 @@ ha_innobase::open(
 		or force recovery can still use it, but not others. */
 		ib_table->set_file_unreadable();
 		ib_table->corrupted = true;
-		free_share(m_share);
+		free_share_and_nullify(&m_share);
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
@@ -7064,8 +7103,8 @@ ha_innobase::open(
 
 	if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
 			  srv_pass_corrupt_table <= 1)) {
-
-		free_share(m_share);
+		free_share_and_nullify(&m_share);
+		dict_table_close(ib_table, FALSE, FALSE);
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 	}
 
@@ -7098,7 +7137,7 @@ ha_innobase::open(
 			else
 				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
 
-			free_share(m_share);
+			free_share_and_nullify(&m_share);
 			dict_table_close(ib_table, FALSE, FALSE);
 			ib_table = NULL;
 			is_part = NULL;
@@ -7171,7 +7210,7 @@ ha_innobase::open(
 	}
         
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		free_share(m_share);
+		free_share_and_nullify(&m_share);
 		set_my_errno(ENOENT);
 		int ret_err = HA_ERR_TABLESPACE_MISSING;
 
@@ -7586,7 +7625,7 @@ ha_innobase::close()
 	/* No-op in XtraDB */
 	innobase_release_temporary_latches(ht, thd);
 
-	free_share(m_share);
+	free_share_and_nullify(&m_share);
 
 	row_prebuilt_free(m_prebuilt, FALSE);
 
@@ -18086,6 +18125,10 @@ free_share(
 /*=======*/
 	INNOBASE_SHARE*	share)	/*!< in/own: table share to free */
 {
+	if (!share) {
+		return;
+	}
+
 	mysql_mutex_lock(&innobase_share_mutex);
 
 #ifdef UNIV_DEBUG
@@ -23407,20 +23450,19 @@ given col_no.
 @param[in]	update		updated parent vector.
 @param[in]	col_no		base column position of the child table to check
 @return updated field from the parent update vector, else NULL */
-static
 dfield_t*
 innobase_get_field_from_update_vector(
 	dict_foreign_t*	foreign,
 	upd_t*		update,
-	ulint		col_no)
+	uint32_t	col_no)
 {
 	dict_table_t*	parent_table = foreign->referenced_table;
 	dict_index_t*	parent_index = foreign->referenced_index;
-	ulint		parent_field_no;
-	ulint		parent_col_no;
-	ulint		child_col_no;
+	uint32_t	parent_field_no;
+	uint32_t	parent_col_no;
+	uint32_t	child_col_no;
 
-	for (ulint i = 0; i < foreign->n_fields; i++) {
+	for (uint32_t i = 0; i < foreign->n_fields; i++) {
 		child_col_no = dict_index_get_nth_col_no(
 			foreign->foreign_index, i);
 		if (child_col_no != col_no) {
@@ -23430,7 +23472,7 @@ innobase_get_field_from_update_vector(
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table, parent_col_no);
 
-		for (ulint j = 0; j < update->n_fields; j++) {
+		for (uint32_t j = 0; j < update->n_fields; j++) {
 			upd_field_t*	parent_ufield
 				= &update->fields[j];
 
@@ -23512,7 +23554,7 @@ innobase_get_computed_value(
 	for (ulint i = 0; i < col->num_base; i++) {
 		dict_col_t*			base_col = col->base_col[i];
 		const dfield_t*			row_field = NULL;
-		ulint				col_no = base_col->ind;
+		uint32_t			col_no = base_col->ind;
 		const mysql_row_templ_t*	templ
 			= index->table->vc_templ->vtempl[col_no];
 		const byte*			data;

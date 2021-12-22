@@ -4,7 +4,7 @@
  Show Storage Engines
 ======================
 
-This feature changes the comment field displayed when the ``SHOW STORAGE ENGINES`` command is executed and |XtraDB| is the storage engine.
+This feature changes the comment field displayed when the ``SHOW STORAGE ENGINES`` command is executed and XtraDB is the storage engine.
 
 Before the Change: ::
 

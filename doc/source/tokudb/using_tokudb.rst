@@ -6,12 +6,12 @@ Using TokuDB
 
  .. warning:: 
  
-   Do not move or modify any |TokuDB| files. You will break the database, and need to recover the database from a backup.
+   Do not move or modify any TokuDB files. You will break the database, and need to recover the database from a backup.
  
 Fast Insertions and Richer Indexes
 ----------------------------------
 
-TokuDB's fast indexing enables fast queries through the use of rich indexes, such as covering and clustering indexes. It's worth investing some time to optimize index definitions to get the best performance from |MySQL| and |TokuDB|. Here are some resources to get you started:
+TokuDB's fast indexing enables fast queries through the use of rich indexes, such as covering and clustering indexes. It's worth investing some time to optimize index definitions to get the best performance from MySQL and TokuDB. Here are some resources to get you started:
 
 * "Understanding Indexing" by Zardosht Kasheff (`video <http://vimeo.com/26454091>`_) 
 
@@ -34,28 +34,28 @@ Clustering Secondary Indexes
 
 One of the keys to exploiting TokuDB's strength in indexing is to make use of clustering secondary indexes.
 
-|TokuDB| allows a secondary key to be defined as a clustering key. This means that all of the columns in the table are clustered with the secondary key. |Percona Server| parser and query optimizer support Multiple Clustering Keys when |TokuDB| engine is used. This means that the query optimizer will avoid primary clustered index reads and replace them by secondary clustered index reads in certain scenarios.
+TokuDB allows a secondary key to be defined as a clustering key. This means that all of the columns in the table are clustered with the secondary key. |Percona Server| parser and query optimizer support Multiple Clustering Keys when TokuDB engine is used. This means that the query optimizer will avoid primary clustered index reads and replace them by secondary clustered index reads in certain scenarios.
 
 The parser has been extended to support following syntax:
 
-.. code-block:: mysql
+.. code-block:: text
 
-  CREATE TABLE ... ( ..., CLUSTERING KEY identifier (column list), ...
-  CREATE TABLE ... ( ..., UNIQUE CLUSTERING KEY identifier (column list), ...
-  CREATE TABLE ... ( ..., CLUSTERING UNIQUE KEY identifier (column list), ...
-  CREATE TABLE ... ( ..., CONSTRAINT identifier UNIQUE CLUSTERING KEY identifier (column list), ...
-  CREATE TABLE ... ( ..., CONSTRAINT identifier CLUSTERING UNIQUE KEY identifier (column list), ...
+      CREATE TABLE ... ( ..., CLUSTERING KEY identifier (column list), ...
+      CREATE TABLE ... ( ..., UNIQUE CLUSTERING KEY identifier (column list), ...
+      CREATE TABLE ... ( ..., CLUSTERING UNIQUE KEY identifier (column list), ...
+      CREATE TABLE ... ( ..., CONSTRAINT identifier UNIQUE CLUSTERING KEY identifier (column list), ...
+      CREATE TABLE ... ( ..., CONSTRAINT identifier CLUSTERING UNIQUE KEY identifier (column list), ...
 
-  CREATE TABLE ... (... column type CLUSTERING [UNIQUE] [KEY], ...)
-  CREATE TABLE ... (... column type [UNIQUE] CLUSTERING [KEY], ...)
+      CREATE TABLE ... (... column type CLUSTERING [UNIQUE] [KEY], ...)
+      CREATE TABLE ... (... column type [UNIQUE] CLUSTERING [KEY], ...)
 
-  ALTER TABLE ..., ADD CLUSTERING INDEX identifier (column list), ...
-  ALTER TABLE ..., ADD UNIQUE CLUSTERING INDEX identifier (column list), ...
-  ALTER TABLE ..., ADD CLUSTERING UNIQUE INDEX identifier (column list), ...
-  ALTER TABLE ..., ADD CONSTRAINT identifier UNIQUE CLUSTERING INDEX identifier (column list), ...
-  ALTER TABLE ..., ADD CONSTRAINT identifier CLUSTERING UNIQUE INDEX identifier (column list), ...
+      ALTER TABLE ..., ADD CLUSTERING INDEX identifier (column list), ...
+      ALTER TABLE ..., ADD UNIQUE CLUSTERING INDEX identifier (column list), ...
+      ALTER TABLE ..., ADD CLUSTERING UNIQUE INDEX identifier (column list), ...
+      ALTER TABLE ..., ADD CONSTRAINT identifier UNIQUE CLUSTERING INDEX identifier (column list), ...
+      ALTER TABLE ..., ADD CONSTRAINT identifier CLUSTERING UNIQUE INDEX identifier (column list), ...
 
-  CREATE CLUSTERING INDEX identifier ON ...
+      CREATE CLUSTERING INDEX identifier ON ...
 
 To define a secondary index as clustering, simply add the word ``CLUSTERING`` before the key definition. For example:
 
@@ -78,7 +78,7 @@ In the previous example, the primary table is indexed on *column_a*. Additionall
 
 This index is sorted on *column_b*, making the ``WHERE`` clause fast, and includes *column_c*, which avoids lookups in the primary table to satisfy the query.
 
-|TokuDB| makes clustering indexes feasible because of its excellent compression and very high indexing rates. For more information about using clustering indexes, see `Introducing Multiple Clustering Indexes <https://www.percona.com/blog/2009/05/27/introducing_multiple_clustering_indexes/>`_.
+TokuDB makes clustering indexes feasible because of its excellent compression and very high indexing rates. For more information about using clustering indexes, see `Introducing Multiple Clustering Indexes <https://www.percona.com/blog/2009/05/27/introducing_multiple_clustering_indexes/>`_.
 
 Hot Index Creation
 ------------------
@@ -105,13 +105,13 @@ If more than one hot ``CREATE INDEX`` is issued for a particular table, the inde
 Hot Column Add, Delete, Expand, and Rename (HCADER)
 ---------------------------------------------------
 
-|TokuDB| enables you to add or delete columns in an existing table, expand ``char``, ``varchar``, ``varbinary``, and ``integer`` type columns in an existing table, or rename an existing column in a table with little blocking of other updates and queries. HCADER typically blocks other queries with a table lock for no more than a few seconds. After that initial short-term table locking, the system modifies each row (when adding, deleting, or expanding columns) later, when the row is next brought into main memory from disk. For column rename, all the work is done during the seconds of downtime. On-disk rows need not be modified.
+TokuDB enables you to add or delete columns in an existing table, expand ``char``, ``varchar``, ``varbinary``, and ``integer`` type columns in an existing table, or rename an existing column in a table with little blocking of other updates and queries. HCADER typically blocks other queries with a table lock for no more than a few seconds. After that initial short-term table locking, the system modifies each row (when adding, deleting, or expanding columns) later, when the row is next brought into main memory from disk. For column rename, all the work is done during the seconds of downtime. On-disk rows need not be modified.
 
 To get good performance from HCADER, observe the following guidelines:
 
 * The work of altering the table for column addition, deletion, or expansion is performed as subsequent operations touch parts of the Fractal Tree, both in the primary index and secondary indexes.
 
-  You can force the column addition, deletion, or expansion work to be performed all at once using the standard syntax of ``OPTIMIZE TABLE X``, when a column has been added to, deleted from, or expanded in table X. It is important to note that as of |TokuDB| version 7.1.0, ``OPTIMIZE TABLE`` is also hot, so that a table supports updates and queries without blocking while an ``OPTIMIZE TABLE`` is being performed. Also, a hot ``OPTIMIZE TABLE`` does not rebuild the indexes, since |TokuDB| indexes do not age. Rather, they flush all background work, such as that induced by a hot column addition, deletion, or expansion.
+  You can force the column addition, deletion, or expansion work to be performed all at once using the standard syntax of ``OPTIMIZE TABLE X``, when a column has been added to, deleted from, or expanded in table X. It is important to note that as of TokuDB version 7.1.0, ``OPTIMIZE TABLE`` is also hot, so that a table supports updates and queries without blocking while an ``OPTIMIZE TABLE`` is being performed. Also, a hot ``OPTIMIZE TABLE`` does not rebuild the indexes, since TokuDB indexes do not age. Rather, they flush all background work, such as that induced by a hot column addition, deletion, or expansion.
 
 * Each hot column addition, deletion, or expansion operation must be performed individually (with its own SQL statement). If you want to add, delete, or expand multiple columns use multiple statements.
 
@@ -150,9 +150,9 @@ Notice that all of the column attributes must be specified. ``ALTER TABLE table 
 Compression Details
 -------------------
 
-|TokuDB| offers different levels of compression, which trade off between the amount of CPU used and the compression achieved. Standard compression uses less CPU but generally compresses at a lower level, high compression uses more CPU and generally compresses at a higher level. We have seen compression up to 25x on customer data.
+TokuDB offers different levels of compression, which trade off between the amount of CPU used and the compression achieved. Standard compression uses less CPU but generally compresses at a lower level, high compression uses more CPU and generally compresses at a higher level. We have seen compression up to 25x on customer data.
 
-Compression in |TokuDB| occurs on background threads, which means that high compression need not slow down your database. Indeed, in some settings, we've seen higher overall database performance with high compression.
+Compression in TokuDB occurs on background threads, which means that high compression need not slow down your database. Indeed, in some settings, we've seen higher overall database performance with high compression.
 
 .. note:: We recommend that users use standard compression on machines with six or fewer cores, and high compression on machines with more than six cores.
 
@@ -206,7 +206,7 @@ Modify the compression used on a particular table with the following command:
 Read Free Replication
 ---------------------
 
-|TokuDB| replicas can be configured to perform significantly less read IO in order to apply changes from the source. By utilizing the power of Fractal Tree indexes:
+TokuDB replicas can be configured to perform significantly less read IO in order to apply changes from the source. By utilizing the power of Fractal Tree indexes:
 
 * insert/update/delete operations can be configured to eliminate read-modify-write behavior and simply inject messages into the appropriate Fractal Tree indexes
 
@@ -228,33 +228,33 @@ To enable Read Free Replication, the servers must be configured as follows:
 
 .. note:: You can modify one or both behaviors on the replica(s).
 
-.. note:: As long as the source is using row based replication, this optimization is available on a |TokuDB| replica. This means that it's available even if the source is using |InnoDB| or |MyISAM| tables, or running non-TokuDB binaries.
+.. note:: As long as the source is using row based replication, this optimization is available on a TokuDB replica. This means that it's available even if the source is using InnoDB or MyISAM tables, or running non-TokuDB binaries.
 
-.. warning:: |TokuDB| Read Free Replication will not propagate ``UPDATE`` and ``DELETE`` events reliably if |TokuDB| table is missing the primary key which will eventually lead to data inconsistency on the replica.
+.. warning:: TokuDB Read Free Replication will not propagate ``UPDATE`` and ``DELETE`` events reliably if TokuDB table is missing the primary key which will eventually lead to data inconsistency on the replica.
 
 Transactions and ACID-compliant Recovery
 ----------------------------------------
 
-By default, |TokuDB| checkpoints all open tables regularly and logs all changes between checkpoints, so that after a power failure or system crash, |TokuDB| will restore all tables into their fully ACID-compliant state. That is, all committed transactions will be reflected in the tables, and any transaction not committed at the time of failure will be rolled back.
+By default, TokuDB checkpoints all open tables regularly and logs all changes between checkpoints, so that after a power failure or system crash, TokuDB will restore all tables into their fully ACID-compliant state. That is, all committed transactions will be reflected in the tables, and any transaction not committed at the time of failure will be rolled back.
 
 The default checkpoint period is every 60 seconds, and this specifies the time from the beginning of one checkpoint to the beginning of the next. If a checkpoint requires more than the defined checkpoint period to complete, the next checkpoint begins immediately. It is also related to the frequency with which log files are trimmed, as described below. The user can induce a checkpoint at any time by issuing the ``FLUSH LOGS`` command. When a database is shut down normally it is also checkpointed and all open transactions are aborted. The logs are trimmed at startup.
 
 Managing Log Size
 -----------------
 
-|TokuDB| keeps log files back to the most recent checkpoint. Whenever a log file reaches 100 MB, a new log file is started. Whenever there is a checkpoint, all log files older than the checkpoint are discarded. If the checkpoint period is set to be a very large number, logs will get trimmed less frequently. This value is set to 60 seconds by default.
+TokuDB keeps log files back to the most recent checkpoint. Whenever a log file reaches 100 MB, a new log file is started. Whenever there is a checkpoint, all log files older than the checkpoint are discarded. If the checkpoint period is set to be a very large number, logs will get trimmed less frequently. This value is set to 60 seconds by default.
 
-|TokuDB| also keeps rollback logs for each open transaction. The size of each log is proportional to the amount of work done by its transaction and is stored compressed on disk. Rollback logs are trimmed when the associated transaction completes.
+TokuDB also keeps rollback logs for each open transaction. The size of each log is proportional to the amount of work done by its transaction and is stored compressed on disk. Rollback logs are trimmed when the associated transaction completes.
 
 Recovery
 --------
 
-Recovery is fully automatic with |TokuDB|. |TokuDB| uses both the log files and rollback logs to recover from a crash. The time to recover from a crash is proportional to the combined size of the log files and uncompressed size of rollback logs. Thus, if there were no long-standing transactions open at the time of the most recent checkpoint, recovery will take less than a minute.
+Recovery is fully automatic with TokuDB. TokuDB uses both the log files and rollback logs to recover from a crash. The time to recover from a crash is proportional to the combined size of the log files and uncompressed size of rollback logs. Thus, if there were no long-standing transactions open at the time of the most recent checkpoint, recovery will take less than a minute.
 
 Disabling the Write Cache
 -------------------------
 
-When using any transaction-safe database, it is essential that you understand the write-caching characteristics of your hardware. |TokuDB| provides transaction safe (ACID compliant) data storage for |MySQL|. However, if the underlying operating system or hardware does not actually write data to disk when it says it did, the system can corrupt your database when the machine crashes. For example, |TokuDB| can not guarantee proper recovery if it is mounted on an NFS volume. It is always safe to disable the write cache, but you may be giving up some performance.
+When using any transaction-safe database, it is essential that you understand the write-caching characteristics of your hardware. TokuDB provides transaction safe (ACID compliant) data storage for MySQL. However, if the underlying operating system or hardware does not actually write data to disk when it says it did, the system can corrupt your database when the machine crashes. For example, TokuDB can not guarantee proper recovery if it is mounted on an NFS volume. It is always safe to disable the write cache, but you may be giving up some performance.
 
 For most configurations you must disable the write cache on your disk drives. On ATA/SATA drives, the following command should disable the write cache:
 
@@ -289,7 +289,7 @@ In summary, you should disable the write cache, unless you have a very specific 
 Progress Tracking
 -----------------
 
-|TokuDB| has a system for tracking progress of long running statements, thereby removing the need to define triggers to track statement execution, as follows:
+TokuDB has a system for tracking progress of long running statements, thereby removing the need to define triggers to track statement execution, as follows:
 
 * Bulk Load: When loading large tables using ``LOAD DATA INFILE`` commands, doing a ``SHOW PROCESSLIST`` command in a separate client session shows progress. There are two progress stages. The first will state something like ``Inserted about 1000000 rows``. After all rows are processed like this, the next stage tracks progress by showing what fraction of the work is done (e.g. ``Loading of data about 45% done``)
 
@@ -300,6 +300,6 @@ Progress Tracking
 Migrating to TokuDB
 -------------------
 
-To convert an existing table to use the |TokuDB| engine, run ``ALTER TABLE... ENGINE=TokuDB``. If you wish to load from a file, use ``LOAD DATA INFILE`` and not ``mysqldump``. Using ``mysqldump`` will be much slower. To create a file that can be loaded with ``LOAD DATA INFILE``, refer to the ``INTO OUTFILE`` option of the `SELECT Syntax <http://dev.mysql.com/doc/refman/5.7/en/select.html>`_.
+To convert an existing table to use the TokuDB engine, run ``ALTER TABLE... ENGINE=TokuDB``. If you wish to load from a file, use ``LOAD DATA INFILE`` and not ``mysqldump``. Using ``mysqldump`` will be much slower. To create a file that can be loaded with ``LOAD DATA INFILE``, refer to the ``INTO OUTFILE`` option of the `SELECT Syntax <http://dev.mysql.com/doc/refman/5.7/en/select.html>`_.
 
 .. note:: Creating this file does not save the schema of your table, so you may want to create a copy of that as well.

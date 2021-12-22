@@ -19,7 +19,7 @@ Version Specific Information
     Variable :variable:`log_warnings_suppress` ported from |Percona Server| 5.6.
 
   * :rn:`5.7.11-4`:
-    Feature has been removed from |Percona Server| 5.7 because |MySQL| 5.7.11 has implemented a new system variable, `log_statements_unsafe_for_binlog <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_log_statements_unsafe_for_binlog>`_, which implements the same effect.
+    Feature has been removed from |Percona Server| 5.7 because MySQL 5.7.11 has implemented a new system variable, `log_statements_unsafe_for_binlog <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_log_statements_unsafe_for_binlog>`_, which implements the same effect.
 
 System Variables
 ================

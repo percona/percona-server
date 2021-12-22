@@ -21,21 +21,26 @@
 #include "utils_string.h"
 */
 
+#include <my_global.h>
 #include "../../include/plugin.h"
 #include "../../include/udf/udf_utils.h"
 #include "../../include/udf/udf_utils_string.h"
 
 extern "C" {
-  bool  gen_dictionary_drop_init(UDF_INIT *initid, UDF_ARGS *args,
+  my_bool  gen_dictionary_drop_init(UDF_INIT *initid, UDF_ARGS *args,
                                  char *message);
   void  gen_dictionary_drop_deinit(UDF_INIT *initid);
   char *gen_dictionary_drop(UDF_INIT *, UDF_ARGS *args, char *result,
                             unsigned long *length, char *, char *);
 }
 
-bool gen_dictionary_drop_init(UDF_INIT *initid, UDF_ARGS *args,
+my_bool gen_dictionary_drop_init(UDF_INIT *initid, UDF_ARGS *args,
                                      char *message) {
-  DBUG_ENTER("gen_blacklist_init");
+  DBUG_ENTER("gen_dictionary_drop_init");
+
+  if (!data_masking_is_inited(message, MYSQL_ERRMSG_SIZE)) {
+    DBUG_RETURN(true);
+  }
 
   if (args->arg_count != 1) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
@@ -101,8 +106,11 @@ char *gen_dictionary_drop(UDF_INIT *, UDF_ARGS *args, char *result,
   DBUG_ENTER("gen_dictionary_drop");
 
   std::string res = _gen_dictionary_drop(args->args[0]);
-  *length = res.size();
-  strcpy(result, res.c_str());
+  assert(res.size() < *length);
+
+  *length = std::min<unsigned long>(res.size(), *length - 1);
+  strncpy(result, res.c_str(), *length);
+  result[*length]= '\0';
 
   DBUG_RETURN(result);
 }

@@ -581,6 +581,7 @@ fts_cache_init(
 	cache->sync_heap->arg = mem_heap_create(1024);
 
 	cache->total_size = 0;
+	cache->total_size_before_sync = 0;
 
 	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 	cache->deleted_doc_ids = ib_vector_create(
@@ -1330,6 +1331,9 @@ fts_cache_node_add_positions(
 		ptr = ilist + node->ilist_size;
 
 		node->ilist_size_alloc = new_size;
+		if (cache) {
+			cache->total_size += new_size;
+		}
 	}
 
 	ptr_start = ptr;
@@ -1356,16 +1360,15 @@ fts_cache_node_add_positions(
 		if (node->ilist_size > 0) {
 			memcpy(ilist, node->ilist, node->ilist_size);
 			ut_free(node->ilist);
+			if (cache) {
+				cache->total_size -= node->ilist_size;
+			}
 		}
 
 		node->ilist = ilist;
 	}
 
 	node->ilist_size += enc_len;
-
-	if (cache) {
-		cache->total_size += enc_len;
-	}
 
 	if (node->first_doc_id == FTS_NULL_DOC_ID) {
 		node->first_doc_id = doc_id;
@@ -2429,7 +2432,9 @@ fts_trx_table_create(
 	ftt = static_cast<fts_trx_table_t*>(
 		mem_heap_alloc(fts_trx->heap, sizeof(*ftt)));
 
-	memset(ftt, 0x0, sizeof(*ftt));
+	if (ftt != NULL) {
+		memset(ftt, 0x0, sizeof(*ftt));
+	}
 
 	ftt->table = table;
 	ftt->fts_trx = fts_trx;
@@ -3665,10 +3670,13 @@ fts_add_doc_by_id(
 					doc_id, doc.tokens);
 
 				bool	need_sync = false;
-				if ((cache->total_size > fts_max_cache_size / 10
-				     || fts_need_sync)
+				if ((cache->total_size -
+				    cache->total_size_before_sync >
+				    fts_max_cache_size / 10 || fts_need_sync)
 				    && !cache->sync->in_progress) {
 					need_sync = true;
+					cache->total_size_before_sync =
+					    cache->total_size;
 				}
 
 				rw_lock_x_unlock(&table->fts->cache->lock);

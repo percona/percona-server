@@ -6,12 +6,12 @@ Kill Idle Transactions
 
 This feature limits the age of idle transactions, for all transactional storage
 engines. If a transaction is idle for more seconds than the threshold
-specified, it will be killed. This prevents users from blocking |InnoDB| purge
+specified, it will be killed. This prevents users from blocking InnoDB purge
 by mistake.
 
 In |Percona Server| :rn:`5.7.17-11` this feature has been re-implemented by
 setting a connection socket read timeout value instead of periodically scanning
-the internal |InnoDB| transaction list.
+the internal InnoDB transaction list.
 
 Version Specific Information
 ============================

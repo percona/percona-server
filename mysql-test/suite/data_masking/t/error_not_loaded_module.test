@@ -1,0 +1,6 @@
+CREATE FUNCTION gen_blacklist RETURNS STRING SONAME 'data_masking.so';
+
+--error 1123
+select gen_blacklist();
+
+DROP FUNCTION gen_blacklist;

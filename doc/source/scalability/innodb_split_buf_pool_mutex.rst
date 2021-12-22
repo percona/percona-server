@@ -4,7 +4,7 @@
  Improved Buffer Pool Scalability
 ==================================
 
-The |InnoDB| buffer pool is a well known point of contention when many queries are executed concurrently. In |XtraDB|, the global mutex protecting the buffer pool has been split into several mutexes to decrease contention.
+The InnoDB buffer pool is a well known point of contention when many queries are executed concurrently. In XtraDB, the global mutex protecting the buffer pool has been split into several mutexes to decrease contention.
 
 This feature splits the single global InnoDB buffer pool mutex into several mutexes:
 

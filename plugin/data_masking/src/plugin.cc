@@ -15,6 +15,8 @@
 
 #include "../include/plugin.h"
 
+static bool data_masking_init = false;
+
 static int data_masking_plugin_init(void *p) {
   DBUG_ENTER("data_masking_plugin_init");
 
@@ -31,11 +33,16 @@ static int data_masking_plugin_init(void *p) {
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
   plugin->data = (void *)g_data_masking_dict;
 
+  data_masking_init = true;
+
   DBUG_RETURN(0);
 }
 
 static int data_masking_plugin_deinit(void *p) {
   DBUG_ENTER("data_masking_plugin_deinit");
+
+  data_masking_init = false;
+
   sql_print_information(
       "DataMasking Plugin: Deinitializing plugin memory structures");
 
@@ -67,3 +74,15 @@ mysql_declare_plugin(data_masking){
     NULL,                            // config options
     0,                               // flags
 } mysql_declare_plugin_end;
+
+// Returns false and populates the msg with an error if the module has not been initialized
+bool data_masking_is_inited(char *msg, size_t msg_len) {
+  if (!data_masking_init) {
+    std::snprintf(
+        msg,
+        msg_len,
+        "It requires the data_masking plugin installed. Please, install it and try again.");
+  }
+
+  return data_masking_init;
+}

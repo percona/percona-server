@@ -1,7 +1,7 @@
 .. _innodb_show_status:
 
 ====================================
-Extended Show Engine |InnoDB| Status
+Extended Show Engine InnoDB Status
 ====================================
 
 This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for
@@ -16,9 +16,9 @@ This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
     * :variable:`innodb_show_verbose_locks` - Whether to show records locked
 
     * :variable:`innodb_show_locks_held` - Number of locks held to print for
-      each |InnoDB| transaction
+      each InnoDB transaction
 
-  * Added extended information about |InnoDB| internal hash table sizes (in
+  * Added extended information about InnoDB internal hash table sizes (in
     bytes) in the ``BUFFER POOL AND MEMORY`` section; also added buffer pool
     size in bytes.
 
@@ -55,7 +55,7 @@ System Variables
 Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default
 is ``0``, which means only the higher-level information about the lock (which
 table and index is locked, etc.) is printed. If set to ``1``, then traditional
-|InnoDB| behavior is enabled: the records that are locked are dumped to the
+InnoDB behavior is enabled: the records that are locked are dumped to the
 output.
 
 .. variable:: innodb_show_locks_held
@@ -68,7 +68,7 @@ output.
      :default: 10
      :range: 0 - 1000
 
-Specifies the number of locks held to print for each |InnoDB| transaction in
+Specifies the number of locks held to print for each InnoDB transaction in
 ``SHOW ENGINE INNODB STATUS``.
 
 .. variable:: innodb_print_lock_wait_timeout_info
@@ -81,7 +81,7 @@ Specifies the number of locks held to print for each |InnoDB| transaction in
      :vartype: Boolean
      :default: ``OFF``
 
-Makes |InnoDB| to write information about all lock wait timeout errors 
+Makes InnoDB to write information about all lock wait timeout errors 
 into the log file. 
 
 This allows to find out details about the failed transaction, and, most 
@@ -129,7 +129,7 @@ output is: ::
   srv_master_thread loops: 1 srv_active, 0 srv_shutdown, 11844 srv_idle
   srv_master_thread log flush and writes: 11844
 
-|InnoDB| has a source thread which performs background tasks depending on the
+InnoDB has a source thread which performs background tasks depending on the
 server state, once per second. If the server is under workload, the source
 thread runs the following: performs background table drops; performs change
 buffer merge, adaptively; flushes the redo log to disk; evicts tables from the
@@ -160,7 +160,7 @@ for idle server states.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the number of times the |InnoDB| source thread has written
+This variable shows the number of times the InnoDB source thread has written
 and flushed the redo log.
 
 SEMAPHORES
@@ -250,7 +250,7 @@ This variable shows the LSN of the latest completed checkpoint.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the current |InnoDB| checkpoint age, i.e., the difference
+This variable shows the current InnoDB checkpoint age, i.e., the difference
 between the current LSN and the LSN of the last completed checkpoint.
 
 .. variable:: Innodb_checkpoint_max_age
@@ -311,7 +311,7 @@ This variable shows the current size, in bytes, of the adaptive hash index.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the current size, in bytes, of the |InnoDB| in-memory data
+This variable shows the current size, in bytes, of the InnoDB in-memory data
 dictionary info.
 
 .. variable:: Innodb_mem_total
@@ -319,7 +319,7 @@ dictionary info.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the total amount of memory, in bytes, |InnoDB| has
+This variable shows the total amount of memory, in bytes, InnoDB has
 allocated in the process heap memory.
 
 .. variable:: Innodb_buffer_pool_pages_LRU_flushed

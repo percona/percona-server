@@ -127,6 +127,8 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_c
 extern uint sql_command_flags[];
 extern const LEX_STRING command_name[];
 
+size_t get_command_name_len(void);
+
 // Statement timeout function(s)
 void reset_statement_timer(THD *thd);
 

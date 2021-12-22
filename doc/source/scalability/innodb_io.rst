@@ -1,10 +1,10 @@
 .. _innodb_io_page:
 
 ===================================
- Improved |InnoDB| I/O Scalability
+ Improved InnoDB I/O Scalability
 ===================================
 
-Because |InnoDB| is a complex storage engine it must be configured properly in order to perform at its best. Some points are not configurable in standard |InnoDB|. The goal of this feature is to provide a more exhaustive set of options for |XtraDB|.
+Because InnoDB is a complex storage engine it must be configured properly in order to perform at its best. Some points are not configurable in standard InnoDB. The goal of this feature is to provide a more exhaustive set of options for XtraDB.
 
 Version Specific Information
 ============================
@@ -40,7 +40,7 @@ If the global variable `innodb_use_global_flush_log_at_trx_commit` is set to
 ``0``, a user can modify the
 ``innodb_flush_log_at_trx_commit`` per-session using the following command:
 
-.. code-block:: MySQL
+.. code-block:: text
 
     SET SESSION innodb_flush_log_at_trx_commit=0
 
@@ -63,7 +63,7 @@ global `innodb_use_flush_log_at_trx_commit` value.
    :default: ``fdatasync``
    :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
 
-This is an existing |MySQL| 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method |InnoDB| uses to flush its data and log files. (See :variable:`innodb_flush_method` in the |MySQL| 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
+This is an existing MySQL 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method InnoDB uses to flush its data and log files. (See :variable:`innodb_flush_method` in the MySQL 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
 
 The following values are allowed:
 
@@ -77,17 +77,22 @@ The following values are allowed:
     use O_DIRECT to open the data files and ``fsync()`` system call to flush data, log, and parallel doublewrite files.
 
   * ``O_DIRECT_NO_FSYNC``:
-    use ``O_DIRECT`` to open the data files, but don't use ``fsync()`` system call to flush data, log, and parallel doublewrite files.
+    use O_DIRECT to open the data files and parallel doublewrite files, but does not use the ``fsync()`` system call to flush the data files, log files, and parallel doublewrite files. This option isn't suitable for *XFS* file system.
 
-  * ``ALL_O_DIRECT``:
-    use ``O_DIRECT`` to open both data and log files, and use ``fsync()`` to flush the data files but not the log or parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
+  * ``ALL_O_DIRECT``: 
+    use O_DIRECT to open data files, log files, and parallel doublewrite files
+    and use ``fsync()`` to flush the data files but not the log files or 
+    parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), 
+    otherwise, there may be performance degradation. **Note**: When using this option on *ext4* filesystem 
+    variable :variable:`innodb_log_block_size` 
+    should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 Status Variables
 ----------------
 
-The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity:
+The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpoint activity:
 
-.. code-block:: guess
+.. code-block:: bash
 
   The max checkpoint age
   The current checkpoint age target

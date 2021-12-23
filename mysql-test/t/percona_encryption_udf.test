@@ -109,7 +109,7 @@ SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
 --echo
 --echo ** checking private key generation, public key derivation and encryption/decryption functionality
 --let $key_length_index = 1
-while ($key_length_index <= 3)
+while ($key_length_index <= 2)
 {
   --let $key_length = `SELECT ELT($key_length_index, 1024, 4096, 16384)`
   --echo **** generating $key_length - bit private key

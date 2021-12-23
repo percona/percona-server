@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <memory>
 #include <ostream>
+#include <string>
 
 #include "opensslpp/rsa_key_fwd.hpp"
 
@@ -77,19 +78,6 @@ class rsa_key final {
   using impl_ptr = std::unique_ptr<void, rsa_deleter>;
   impl_ptr impl_;
 };
-
-std::string encrypt_with_rsa_public_key(const std::string &input,
-                                        const rsa_key &key,
-                                        rsa_padding padding);
-std::string encrypt_with_rsa_private_key(const std::string &input,
-                                         const rsa_key &key,
-                                         rsa_padding padding);
-std::string decrypt_with_rsa_public_key(const std::string &input,
-                                        const rsa_key &key,
-                                        rsa_padding padding);
-std::string decrypt_with_rsa_private_key(const std::string &input,
-                                         const rsa_key &key,
-                                         rsa_padding padding);
 
 std::ostream &operator<<(std::ostream &os, const rsa_key &obj);
 

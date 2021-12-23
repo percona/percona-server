@@ -24,6 +24,7 @@
 #include <opensslpp/core_error.hpp>
 #include <opensslpp/digest_context.hpp>
 #include <opensslpp/rsa_key.hpp>
+#include <opensslpp/rsa_operations.hpp>
 #include <opensslpp/rsa_padding.hpp>
 
 namespace {

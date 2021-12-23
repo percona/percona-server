@@ -50,6 +50,7 @@ set(
   digest_context_fwd.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
+  rsa_operations.hpp
   rsa_padding.hpp
   rsa_padding_fwd.hpp
 )
@@ -75,6 +76,7 @@ set(
   core_allocated_buffer.cpp
   digest_context.cpp
   rsa_key.cpp
+  rsa_operations.cpp
 )
 list(TRANSFORM SOURCE_LIST PREPEND "${SRC_DIR_EX}/")
 

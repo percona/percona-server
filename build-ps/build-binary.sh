@@ -439,17 +439,11 @@ fi
     cd "$INSTALLDIR/usr/local/"
     #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
-    if [[ ${WITH_ZENFS} == "ON" ]]; then
-        install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL/bin
-    fi
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
     if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
         cd "$INSTALLDIR/usr/local/minimal/"
         find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
-	if [[ ${WITH_ZENFS} == "ON" ]]; then
-            install -m 0755 $INSTALLDIR/zenfs $PRODUCT_FULL-minimal/bin
-        fi
         $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
     fi
 )

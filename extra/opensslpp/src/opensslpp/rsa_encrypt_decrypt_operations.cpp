@@ -17,10 +17,9 @@
 #include <cassert>
 #include <vector>
 
-#include <openssl/err.h>
 #include <openssl/rsa.h>
 
-#include "opensslpp/rsa_operations.hpp"
+#include "opensslpp/rsa_encrypt_decrypt_operations.hpp"
 
 #include "opensslpp/core_error.hpp"
 #include "opensslpp/rsa_key.hpp"

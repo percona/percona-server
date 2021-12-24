@@ -18,7 +18,6 @@
 #include <memory>
 #include <vector>
 
-#include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 

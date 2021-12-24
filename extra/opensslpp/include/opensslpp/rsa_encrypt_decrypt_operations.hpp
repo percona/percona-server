@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef OPENSSLPP_RSA_OPERATIONS_HPP
-#define OPENSSLPP_RSA_OPERATIONS_HPP
+#ifndef OPENSSLPP_RSA_ENCRYPT_DECRYPT_OPERATIONS_HPP
+#define OPENSSLPP_RSA_ENCRYPT_DECRYPT_OPERATIONS_HPP
 
 #include <string>
 

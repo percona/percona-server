@@ -26,19 +26,9 @@
 #include "opensslpp/rsa_key.hpp"
 #include "opensslpp/rsa_key_accessor.hpp"
 #include "opensslpp/rsa_padding.hpp"
+#include "opensslpp/rsa_padding_conversions.hpp"
 
 namespace opensslpp {
-
-inline int rsa_padding_to_native_padding(rsa_padding padding) noexcept {
-  switch (padding) {
-    case rsa_padding::no:
-      return RSA_NO_PADDING;
-    case rsa_padding::pkcs1:
-      return RSA_PKCS1_PADDING;
-    default:
-      assert(false);
-  }
-}
 
 std::string encrypt_with_rsa_public_key(const std::string &input,
                                         const rsa_key &key,

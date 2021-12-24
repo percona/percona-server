@@ -66,6 +66,7 @@ set(
   core_allocated_buffer.hpp
   digest_context_accessor.hpp
   rsa_key_accessor.hpp
+  rsa_padding_conversions.hpp
   typed_accessor.hpp
 )
 list(TRANSFORM PRIVATE_HEADER_LIST PREPEND "${PRIVATE_INCLUDE_DIR_EX}/")

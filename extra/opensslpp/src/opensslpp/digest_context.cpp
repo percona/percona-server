@@ -94,10 +94,4 @@ std::string digest_context::finalize() {
           static_cast<std::size_t>(res_size)};
 }
 
-std::string calculate_digest(const std::string &type, const std::string &data) {
-  digest_context ctx(type);
-  ctx.update(data);
-  return ctx.finalize();
-}
-
 }  // namespace opensslpp

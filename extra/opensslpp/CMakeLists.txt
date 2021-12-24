@@ -48,6 +48,7 @@ set(
   core_error_fwd.hpp
   digest_context.hpp
   digest_context_fwd.hpp
+  digest_operations.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
   rsa_operations.hpp
@@ -75,6 +76,7 @@ set(
   core_error.cpp
   core_allocated_buffer.cpp
   digest_context.cpp
+  digest_operations.cpp
   rsa_key.cpp
   rsa_operations.cpp
 )

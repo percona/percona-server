@@ -60,8 +60,6 @@ class digest_context final {
   impl_ptr impl_;
 };
 
-std::string calculate_digest(const std::string &type, const std::string &data);
-
 }  // namespace opensslpp
 
 #endif

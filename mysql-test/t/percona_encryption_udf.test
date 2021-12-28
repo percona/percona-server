@@ -3,6 +3,96 @@
 #
 # Creating functions from encryption_udf
 #
+
+SET @message = 'message';
+SET @digest_type = 'SHA224';
+
+--echo
+--echo ** checking 'create_digest()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION create_digest RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_digest();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_digest(@digest_type);
+
+--error ER_UDF_ERROR
+SELECT create_digest(@digest_type, NULL);
+
+--error ER_UDF_ERROR
+SELECT create_digest('FOO', @message);
+
+--let $number_of_length_iterations = 16
+--let $length_increment = 7
+eval SET @random_pattern = REPEAT(MD5(42), $number_of_length_iterations * $length_increment DIV 32 + 1);
+
+--echo ** checking digests calculation
+
+CREATE TEMPORARY TABLE digest_type(
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  digest_name VARCHAR(64) NOT NULL,
+  builtin_template VARCHAR(64),
+  PRIMARY KEY(id)
+);
+INSERT INTO digest_type(digest_name, builtin_template) VALUES
+  ('MD5' , 'MD5(@message)'),
+  ('SHA1', 'SHA(@message)'),
+
+  ('SHA224', 'SHA2(@message, 224)'),
+  ('SHA256', 'SHA2(@message, 256)'),
+  ('SHA384', 'SHA2(@message, 384)'),
+  ('SHA512', 'SHA2(@message, 512)'),
+
+  ('BLAKE2B512', NULL),
+  ('BLAKE2S256', NULL),
+  ('MD4'       , NULL),
+  ('RIPEMD'    , NULL),
+  ('RIPEMD160' , NULL),
+  ('RMD160'    , NULL),
+  ('SHAKE128'  , NULL),
+  ('SHAKE256'  , NULL),
+  ('SM3'       , NULL),
+  ('WHIRLPOOL' , NULL)
+;
+--let $number_of_digest_types = `SELECT COUNT(*) FROM digest_type`
+
+--let $digest_type_idx = 1
+while($digest_type_idx <= $number_of_digest_types)
+{
+  --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
+  --let $udf_template = HEX(create_digest("$digest_name", @message))
+  --echo **** checking $udf_template digest
+
+  --let $builtin_template = `SELECT builtin_template FROM digest_type WHERE id = $digest_type_idx`
+  --let $current_length_iteration = 0
+  --let $number_of_length_iterations = 16
+  while($current_length_iteration <= $number_of_length_iterations)
+  {
+    --let $message_length = `SELECT $current_length_iteration * $length_increment`
+    --echo ****** checking digest calculation on $message_length - byte(s) message
+    eval SET @message = LEFT(@random_pattern, $message_length);
+
+    if($builtin_template)
+    {
+      --let $assert_text = digest of a message of length $message_length - byte(s) calculated via UDF should match built-in function result
+      --let $assert_cond = $udf_template = $builtin_template
+    }
+    if(!$builtin_template)
+    {
+      --let $assert_text = digest of a message of length $message_length - byte(s) calculated via UDF is not NULL
+      --let $assert_cond = $udf_template IS NOT NULL
+    }
+    --source include/assert.inc
+
+    --inc $current_length_iteration
+  }
+
+  --inc $digest_type_idx
+}
+
+
 SET @algorithm = 'RSA';
 SET @message = 'message';
 
@@ -107,6 +197,102 @@ SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
 
 
 --echo
+--echo ** checking 'asymmetric_sign()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION asymmetric_sign RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+SET @message_digest = create_digest(@digest_type, @message);
+SET @rsa_priv = create_asymmetric_priv_key(@algorithm, 1024);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign(@algorithm, @message_digest);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(NULL, @message_digest, @rsa_priv, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(42, @message_digest, @rsa_priv, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign('XSA', @message_digest, @rsa_priv, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, NULL, @rsa_priv, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, 'SHAX');
+
+
+--echo
+--echo ** checking 'asymmetric_verify()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION asymmetric_verify RETURNS INTEGER SONAME "$ENCRYPTION_UDF_LIB";
+
+SET @signature = asymmetric_sign(@algorithm, @message_digest, @rsa_priv, @digest_type);
+SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm, @message_digest);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(NULL, @message_digest, @signature, @rsa_pub, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(42, @message_digest, @signature, @rsa_pub, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify('XSA', @message_digest, @signature, @rsa_pub, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, NULL, @signature, @rsa_pub, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, NULL, @rsa_pub, @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_type);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub, 'SHAX');
+
+
+--echo
 --echo ** checking private key generation, public key derivation and encryption/decryption functionality
 --let $key_length_index = 1
 while ($key_length_index <= 2)
@@ -155,6 +341,25 @@ while ($key_length_index <= 2)
     --let $assert_cond = @message_dec_with_rsa_pub = @message
     --source include/assert.inc
 
+    --echo ****** checking sign/verify functionality of a $message_length - byte(s) message
+    --let $digest_type_idx = 1
+    while($digest_type_idx <= $number_of_digest_types)
+    {
+      --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
+      --echo ******** calculating $digest_name digest a $message_length - byte(s) message
+      eval SET @digest_type = '$digest_name';
+      SET @message_digest = create_digest(@digest_type, @message);
+      --echo ******** calculating signature of the $digest_name digest of a $message_length - byte(s) message
+      SET @message_signature = asymmetric_sign(@algorithm, @message_digest, @rsa_priv, @digest_type);
+      --echo ******** verifying signature of thhe $digest_name digest of a $message_length - byte(s) message
+      SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @message_signature, @rsa_pub, @digest_type);
+      --let $assert_text = signature of the $digest_name digest of a $message_length - byte(s) message must pass verification
+      --let $assert_cond = @verification_result = 1
+      --source include/assert.inc
+
+      --inc $digest_type_idx
+    }
+
     --inc $message_index
   }
   --let $message_length = $max_message_size + 1
@@ -175,98 +380,14 @@ while ($key_length_index <= 2)
 --error ER_UDF_ERROR
 SELECT create_asymmetric_priv_key('DSA', 2048);
 
-SET @digest_type = 'SHA224';
-SET @message = 'message';
-
---echo
---echo ** checking 'create_digest()' function basics
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_digest RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---error ER_CANT_INITIALIZE_UDF
-SELECT create_digest();
-
---error ER_CANT_INITIALIZE_UDF
-SELECT create_digest(@algorithm);
-
---error ER_UDF_ERROR
-SELECT create_digest(@algorithm, NULL);
-
---error ER_UDF_ERROR
-SELECT create_digest('FOO', @message);
-
---let $number_of_length_iterations = 16
---let $length_increment = 7
-eval SET @random_pattern = REPEAT(MD5(42), $number_of_length_iterations * $length_increment DIV 32 + 1);
-
---echo ** checking digests calculation
-
-CREATE TEMPORARY TABLE digest_type(
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  udf_template VARCHAR(64) NOT NULL,
-  builtin_template VARCHAR(64),
-  PRIMARY KEY(id)
-);
-INSERT INTO digest_type(udf_template, builtin_template) VALUES
-  ('HEX(create_digest("MD5"   , @message))', 'MD5(@message)'),
-  ('HEX(create_digest("SHA1"  , @message))', 'SHA(@message)'),
-
-  ('HEX(create_digest("SHA224", @message))', 'SHA2(@message, 224)'),
-  ('HEX(create_digest("SHA256", @message))', 'SHA2(@message, 256)'),
-  ('HEX(create_digest("SHA384", @message))', 'SHA2(@message, 384)'),
-  ('HEX(create_digest("SHA512", @message))', 'SHA2(@message, 512)'),
-
-  ('HEX(create_digest("BLAKE2B512", @message))', NULL),
-  ('HEX(create_digest("BLAKE2S256", @message))', NULL),
-  ('HEX(create_digest("MD4"       , @message))', NULL),
-  ('HEX(create_digest("RIPEMD"    , @message))', NULL),
-  ('HEX(create_digest("RIPEMD160" , @message))', NULL),
-  ('HEX(create_digest("RMD160"    , @message))', NULL),
-  ('HEX(create_digest("SHAKE128"  , @message))', NULL),
-  ('HEX(create_digest("SHAKE256"  , @message))', NULL),
-  ('HEX(create_digest("SM3"       , @message))', NULL),
-  ('HEX(create_digest("WHIRLPOOL" , @message))', NULL)
-;
---let $number_of_digest_types = `SELECT COUNT(*) FROM digest_type`
-
---let $digest_type_idx = 1
-while($digest_type_idx <= $number_of_digest_types)
-{
-  --let $udf_template = `SELECT udf_template FROM digest_type WHERE id = $digest_type_idx`
-  --echo **** checking $udf_template digest
-
-  --let $builtin_template = `SELECT builtin_template FROM digest_type WHERE id = $digest_type_idx`
-  --let $current_length_iteration = 0
-  --let $number_of_length_iterations = 16
-  while($current_length_iteration <= $number_of_length_iterations)
-  {
-    --let $message_length = `SELECT $current_length_iteration * $length_increment`
-    --echo ****** checking digest calculation on $message_length - byte(s) message
-    eval SET @message = LEFT(@random_pattern, $message_length);
-
-    if($builtin_template)
-    {
-      --let $assert_text = digest of a message of length $message_length - byte(s) calculated via UDF should match built-in function result
-      --let $assert_cond = $udf_template = $builtin_template
-    }
-    if(!$builtin_template)
-    {
-      --let $assert_text = digest of a message of length $message_length - byte(s) calculated via UDF is not NULL
-      --let $assert_cond = $udf_template IS NOT NULL
-    }
-    --source include/assert.inc
-
-    --inc $current_length_iteration
-  }
-
-  --inc $digest_type_idx
-}
 
 #
 # Dropping functions from encryption_udf
 #
-DROP FUNCTION create_digest;
+DROP FUNCTION asymmetric_verify;
+DROP FUNCTION asymmetric_sign;
 DROP FUNCTION asymmetric_decrypt;
 DROP FUNCTION asymmetric_encrypt;
 DROP FUNCTION create_asymmetric_pub_key;
 DROP FUNCTION create_asymmetric_priv_key;
+DROP FUNCTION create_digest;

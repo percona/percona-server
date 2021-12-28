@@ -2151,6 +2151,35 @@ DROP TABLE federated.t1;
 connection slave;
 DROP TABLE federated.t1;
 
+--echo #
+--echo # Bug#105878: PS-7999: FEDERATED engine not reconnecting on wait_timeout exceeded
+--echo #
+connection slave;
+SET @OLD_SLAVE_WAIT_TIMEOUT= @@GLOBAL.WAIT_TIMEOUT;
+SET @@GLOBAL.WAIT_TIMEOUT= 4;
+CREATE TABLE test.t1 (id int PRIMARY KEY);
+INSERT INTO test.t1 VALUES(1);
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE SERVER test FOREIGN DATA WRAPPER test1 OPTIONS(
+  user 'root',
+  password '',
+  host '127.0.0.1',
+  port $SLAVE_MYPORT,
+  database 'test');
+CREATE TABLE test.t1 (id int PRIMARY KEY) ENGINE=FEDERATED CONNECTION='test';
+
+SELECT * FROM test.t1;
+SELECT sleep(5);
+SELECT * from test.t1;
+
+DROP TABLE test.t1;
+DROP SERVER test;
+connection slave;
+DROP TABLE test.t1;
+SET @@GLOBAL.WAIT_TIMEOUT= @OLD_SLAVE_WAIT_TIMEOUT;
+
 connection default;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 connection slave;

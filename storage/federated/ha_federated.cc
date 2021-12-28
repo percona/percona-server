@@ -500,7 +500,8 @@ static int federated_db_init(void *p) {
   federated_hton->commit = federated_commit;
   federated_hton->rollback = federated_rollback;
   federated_hton->create = federated_create_handler;
-  federated_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION;
+  federated_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION |
+                          HTON_SUPPORTS_ONLINE_BACKUPS;
 
   /*
     Support for transactions disabled until WL#2952 fixes it.
@@ -1600,7 +1601,7 @@ int ha_federated::close(void) {
     it will reconnect again and quit silently.
   */
   if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
-    mysql->net.error = 2;
+    mysql->net.error = NET_ERROR_SOCKET_UNUSABLE;
 
   /* Disconnect from mysql */
   mysql_close(mysql);
@@ -2989,13 +2990,28 @@ int ha_federated::real_connect() {
 }
 
 int ha_federated::real_query(const char *query, size_t length) {
+  THD *thd = current_thd;
   int rc = 0;
+  ulong len = static_cast<ulong>(length);
   DBUG_TRACE;
   if (!mysql && (rc = real_connect())) goto end;
 
   if (!query || !length) goto end;
 
-  rc = mysql_real_query(mysql, query, static_cast<ulong>(length));
+  rc = mysql_real_query(mysql, query, len);
+  if (rc) {
+    /*
+      We want to reconnect here because error can occur on reading query
+      result in the case of timeout exceeding. See PS-7999 for details.
+    */
+    if (!mysql || (mysql_errno(mysql) != CR_SERVER_LOST &&
+                   mysql->net.error != NET_ERROR_SOCKET_UNUSABLE))
+      goto end;
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    if (!mysql->reconnect || mysql_reconnect(mysql)) goto end;
+    rc = mysql_real_query(mysql, query, len);
+  }
 
   // Simulate as errors happened within the previous query
   DBUG_EXECUTE_IF("bug33500956_simulate_out_of_order",

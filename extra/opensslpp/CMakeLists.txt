@@ -54,6 +54,7 @@ set(
   rsa_key_fwd.hpp
   rsa_padding.hpp
   rsa_padding_fwd.hpp
+  rsa_sign_verify_operations.hpp
 )
 list(TRANSFORM PUBLIC_HEADER_LIST PREPEND "${PUBLIC_INCLUDE_DIR_EX}/")
 set(
@@ -80,6 +81,7 @@ set(
   digest_operations.cpp
   rsa_encrypt_decrypt_operations.cpp
   rsa_key.cpp
+  rsa_sign_verify_operations.cpp
 )
 list(TRANSFORM SOURCE_LIST PREPEND "${SRC_DIR_EX}/")
 

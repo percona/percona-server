@@ -402,6 +402,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_servers.h"  // FOREIGN_SERVER, get_server_by_name
+#include "sql_common.h"
 #include "template_utils.h"
 #include "unsafe_string_append.h"
 
@@ -1601,7 +1602,7 @@ int ha_federated::close(void) {
     it will reconnect again and quit silently.
   */
   if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
-    mysql->net.error = 2;
+    mysql->net.error = NET_ERROR_SOCKET_UNUSABLE;
 
   /* Disconnect from mysql */
   mysql_close(mysql);
@@ -2990,14 +2991,29 @@ int ha_federated::real_connect() {
 }
 
 int ha_federated::real_query(const char *query, size_t length) {
+  THD *thd = current_thd;
   int rc = 0;
+  ulong len = static_cast<ulong>(length);
   DBUG_TRACE;
 
   if (!mysql && (rc = real_connect())) goto end;
 
   if (!query || !length) goto end;
 
-  rc = mysql_real_query(mysql, query, static_cast<ulong>(length));
+  rc = mysql_real_query(mysql, query, len);
+  if (rc) {
+    /*
+      We want to reconnect here because error can occur on reading query
+      result in the case of timeout exceeding. See PS-7999 for details.
+    */
+    if (!mysql || (mysql_errno(mysql) != CR_SERVER_LOST &&
+                   mysql->net.error != NET_ERROR_SOCKET_UNUSABLE))
+      goto end;
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    if (!mysql->reconnect || mysql_reconnect(mysql)) goto end;
+    rc = mysql_real_query(mysql, query, len);
+  }
 
 end:
   return rc;

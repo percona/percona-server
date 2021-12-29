@@ -940,8 +940,19 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       tbl_list_str.pop_back();
     }
 
-    if (my_b_printf(&log_file, "# Query_tables: %s\n", tbl_list_str.c_str()) ==
-        (uint)-1) {
+    // Query_digest
+    uchar digest_buf[PARSER_SERVICE_DIGEST_LENGTH];
+    const size_t digest_size = PARSER_SERVICE_DIGEST_LENGTH * 2;
+    char digest_str[digest_size + sizeof('\0')];
+
+    if (!mysql_parser_get_statement_digest(thd, digest_buf)) {
+      for (int i = 0; i < PARSER_SERVICE_DIGEST_LENGTH; ++i) {
+        snprintf(digest_str + i * 2, digest_size, "%02x", digest_buf[i]);
+      }
+    }
+
+    if (my_b_printf(&log_file, "# Query_tables: %s Query_digest: %s\n",
+                    tbl_list_str.c_str(), digest_str) == (uint)-1) {
       goto err;
     }
   }

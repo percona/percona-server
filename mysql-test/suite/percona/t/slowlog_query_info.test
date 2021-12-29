@@ -19,7 +19,7 @@ SELECT * FROM t1;
 
 --source include/log_stop.inc
 
---let grep_pattern = ^# Query_tables: t1
+--let grep_pattern = ^# Query_tables: t1 Query_digest: [\d\w]{64}
 --let log_expected_matches = 1
 --source include/log_grep.inc
 
@@ -32,7 +32,7 @@ SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2);
 
 --source include/log_stop.inc
 
---let grep_pattern = ^# Query_tables: t1,t2
+--let grep_pattern = ^# Query_tables: t1,t2 Query_digest: [\d\w]{64}
 --let log_expected_matches = 4
 --source include/log_grep.inc
 
@@ -42,7 +42,7 @@ WITH table1 (a1, b1) AS (SELECT a, b FROM t1) SELECT a1, b1 FROM table1;
 
 --source include/log_stop.inc
 
---let grep_pattern = ^# Query_tables: table1,t1
+--let grep_pattern = ^# Query_tables: table1,t1 Query_digest: [\d\w]{64}
 --let log_expected_matches = 1
 --source include/log_grep.inc
 

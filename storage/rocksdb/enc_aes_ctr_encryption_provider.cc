@@ -50,18 +50,6 @@ AesCtrEncryptionProvider::AesCtrEncryptionProvider(
       cipherStreamFactory_(std::move(csf)),
       logger_(logger) {}
 
-rocksdb::Status AesCtrEncryptionProvider::Feed(rocksdb::Slice &prefix) {
-  // here we get the whole prefix of the encrypted file
-  uint32_t masterKeyId =
-      rocksdb::DecodeFixed32(prefix.data() + MASTER_KEY_ID_OFFSET);
-
-  std::string serverUuid(prefix.data() + S_UUID_OFFSET, S_UUID_SIZE);
-
-  masterKeyManager_->RegisterMasterKeyId(masterKeyId, serverUuid);
-
-  return rocksdb::Status::OK();
-}
-
 const char *AesCtrEncryptionProvider::Name() const {
   return kCTRAesProviderName;
 }
@@ -75,8 +63,8 @@ Encryption prefix:
  4 bytes		KEY_MAGIC_V1 (e001) 		not encrypted
  4 bytes		master_key_id			    not encrypted
 36 bytes		s_uuid				        not encrypted
-32 bytes		key				            encrypted
-16 bytes		iv				            encrypted
+32 bytes		file-key		            encrypted
+16 bytes		file-iv			            encrypted
  4 bytes		CRC (unencrypted key + iv)	encrypted
  4 bytes        CRC (all above)             not encrypted
 */
@@ -156,85 +144,6 @@ bool AesCtrEncryptionProvider::IsPrefixOK(const rocksdb::Slice &prefix) {
       rocksdb::crc32c::Extend(0, prefix.data(), HEADER_CRC_SIZE);
 
   return crc == crcCalculated;
-}
-
-// prefix is encrypted, reencrypt with new master key if needed.
-rocksdb::Status AesCtrEncryptionProvider::ReencryptPrefix(
-    rocksdb::Slice &prefix) const {
-  std::string newestMasterKey;
-  uint32_t newestMasterKeyId;
-
-  if (masterKeyManager_->GetMostRecentMasterKey(&newestMasterKey,
-                                                &newestMasterKeyId)) {
-    ROCKS_LOG_ERROR(logger_, "Failed to get the most recent master key");
-    return rocksdb::Status::IOError();
-  }
-
-  uint32_t fileMasterKeyId =
-      rocksdb::DecodeFixed32(prefix.data() + MASTER_KEY_ID_OFFSET);
-
-  if (newestMasterKeyId == fileMasterKeyId) {
-    ROCKS_LOG_INFO(logger_,
-                   "Newest master key already used. Reencryption skipped.");
-    return rocksdb::Status::OK();
-  }
-
-  // decrypt the header using old MK
-  std::string suuid(prefix.data() + S_UUID_OFFSET, S_UUID_SIZE);
-  std::string fileMasterKey;
-
-  if (masterKeyManager_->GetMasterKey(fileMasterKeyId, suuid, &fileMasterKey)) {
-    ROCKS_LOG_ERROR(logger_, "Failed to get master key");
-    return rocksdb::Status::IOError();
-  }
-
-  auto cipher =
-      cipherStreamFactory_->CreateCipherStream(fileMasterKey, kHeaderIV);
-  if (!cipher) {
-    ROCKS_LOG_ERROR(logger_,
-                    "Failed to create cipher stream for header decryption");
-    return rocksdb::Status::IOError();
-  }
-  auto data = (char *)(prefix.data() + FILE_KEY_OFFSET);
-  auto res = cipher->Decrypt(0, data, FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
-  if (res != rocksdb::Status::OK()) {
-    ROCKS_LOG_ERROR(logger_, "Header decryption failed");
-    return rocksdb::Status::IOError();
-  }
-  // Calculate and validate CRC
-  uint32_t crcRead = rocksdb::DecodeFixed32(prefix.data() + KEY_CRC_OFFSET);
-
-  uint32_t crcCalculated = rocksdb::crc32c::Extend(
-      0, &prefix.data()[FILE_KEY_OFFSET], FILE_KEY_SIZE + IV_SIZE);
-  if (crcRead != crcCalculated) {
-    ROCKS_LOG_ERROR(logger_, "Wrong CRC in header");
-    return rocksdb::Status::Corruption();
-  }
-
-  // no need to update CRC as it is calculated from plain text it didn't change
-
-  // encrypt using the new master key
-  cipher = cipherStreamFactory_->CreateCipherStream(newestMasterKey, kHeaderIV);
-  if (!cipher) {
-    ROCKS_LOG_ERROR(logger_,
-                    "Failed to create cipher stream for header encryption");
-    return rocksdb::Status::IOError();
-  }
-  res = cipher->Encrypt(0, data, FILE_KEY_SIZE + IV_SIZE + KEY_CRC_SIZE);
-  if (res != rocksdb::Status::OK()) {
-    ROCKS_LOG_ERROR(logger_, "Header encryption failed");
-    return rocksdb::Status::IOError();
-  }
-
-  // update MK id
-  rocksdb::EncodeFixed32((char *)prefix.data() + MASTER_KEY_ID_OFFSET,
-                         newestMasterKeyId);
-
-  // calculate and store CRC of the whole header
-  uint32_t crc = rocksdb::crc32c::Extend(0, prefix.data(), HEADER_CRC_SIZE);
-  rocksdb::EncodeFixed32((char *)prefix.data() + HEADER_CRC_OFFSET, crc);
-
-  return res;
 }
 
 rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(

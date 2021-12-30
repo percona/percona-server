@@ -39,7 +39,6 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
   rocksdb::Status CreateNewPrefix(const std::string &fname, char *prefix,
                                   size_t prefixLength) const override;
 
-  rocksdb::Status ReencryptPrefix(rocksdb::Slice &prefix) const override;
 
   // CreateCipherStream creates a block access cipher stream for a file given
   // given name and options.
@@ -53,8 +52,6 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
                             bool /*for_write*/) override;
 
   std::string GetMarker() const override;
-
-  rocksdb::Status Feed(rocksdb::Slice &prefix) override;
 
   rocksdb::Status CreateThreadSafeCipherStream(
       const std::string &fname, const rocksdb::EnvOptions &options,

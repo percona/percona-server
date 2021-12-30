@@ -272,6 +272,7 @@ SET(ROCKSDB_SOURCES
   enc_keyring_master_key_manager.cc
   enc_aes_ctr_stream_factory.cc
   enc_stream_cipher.cc
+  enc_info_plainfile_storage.cc
 )
 
 IF(WITH_FB_TSAN)

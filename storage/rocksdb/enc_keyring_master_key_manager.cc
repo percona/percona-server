@@ -1,4 +1,5 @@
 #include "./enc_keyring_master_key_manager.h"
+#include "./enc_info_storage.h"
 #include <scope_guard.h>
 #include <memory>
 #include <mutex>
@@ -26,10 +27,10 @@ static std::once_flag master_key_mutex_init_once_flag;
 static Rds_mysql_mutex master_key_id_mutex_;
 
 KeyringMasterKeyManager::KeyringMasterKeyManager(
-    const std::string &uuid, std::shared_ptr<rocksdb::Logger> logger)
+    std::shared_ptr<EncryptionInfoStorage> encInfoStorage,
+    std::shared_ptr<rocksdb::Logger> logger)
     : oldestMasterKeyId_((uint32_t)-1),
-      newestMasterKeyId_(DEFAULT_MASTER_KEY_ID),
-      seedUuid_(uuid),
+      encInfoStorage_(encInfoStorage),
       logger_(logger) {
   std::call_once(master_key_mutex_init_once_flag, []() {
     master_key_id_mutex_.init(rdb_master_key_mutex_key, MY_MUTEX_INIT_FAST);
@@ -41,6 +42,8 @@ KeyringMasterKeyManager::KeyringMasterKeyManager(
 #endif
 
   InitKeyringServices();
+  serverUuid_ = encInfoStorage_->GetServerUuid();
+  newestMasterKeyId_ = encInfoStorage_->GetCurrentMasterKeyId();
 }
 
 KeyringMasterKeyManager::~KeyringMasterKeyManager() { DeinitKeyringServices(); }
@@ -241,7 +244,6 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     // there are no encrypted files and we are on default MK id
     // generate the new master key
     newestMasterKeyId_++;
-    serverUuid_ = seedUuid_;
   }
   *masterKey = "12345678901234567890123456789012";
   *masterKeyId = newestMasterKeyId_;
@@ -264,10 +266,6 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     no encrypted file yet. Generate the first master key now and store
     it to keyring. */
 
-    // We use provided uuid as our uuid. From now on it will identify all files
-    // produced by this server.
-    serverUuid_ = seedUuid_;
-
     // This is the key with id '1'
     auto keyName = CreateKeyName(1);
 
@@ -283,12 +281,13 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
       return -2;
     }
 
-    // We call keyring API to get master key here.
+    // We call keyring API to get master key here. It will cache the new key.
     retval = ReadSecret(keyName, masterKey);
 
     if (retval > -1 && masterKey->length() > 0) {
       ++newestMasterKeyId_;
       *masterKeyId = newestMasterKeyId_;
+      encInfoStorage_->StoreCurrentMasterKeyId(newestMasterKeyId_);
     }
   } else {
     *masterKeyId = newestMasterKeyId_;
@@ -326,6 +325,10 @@ void KeyringMasterKeyManager::GetMasterKeyInfo(uint32_t *oldestMasterKeyId,
 int KeyringMasterKeyManager::GetMasterKey(uint32_t masterKeyId,
                                           const std::string &suuid,
                                           std::string *masterKey) {
+  if (masterKeyId < oldestMasterKeyId_) {
+    oldestMasterKeyId_ = masterKeyId;
+  }
+
   return ReadSecret(CreateKeyName(masterKeyId), masterKey);
 }
 
@@ -343,6 +346,17 @@ int KeyringMasterKeyManager::GenerateNewMasterKey() {
                     "is installed.");
     return -1;
   }
+
+  // We call keyring API to get master key here. It will store the key in the cache.
+  std::string masterKey;
+  auto retval = ReadSecret(CreateKeyName(newMasterKeyId).c_str(), &masterKey);
+
+  if (retval < 0 || masterKey.length() == 0) {
+    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
+    return -1;
+  }
+
+  encInfoStorage_->StoreCurrentMasterKeyId(newMasterKeyId);
   newestMasterKeyId_ = newMasterKeyId;
 
   RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
@@ -355,16 +369,6 @@ const std::string KeyringMasterKeyManager::CreateKeyName(uint32_t keyId) const {
 
   return MASTER_KEY_PREFIX + serverUuid_ + MASTER_KEY_SEPARATOR +
          std::to_string(keyId);
-}
-
-void KeyringMasterKeyManager::RegisterMasterKeyId(
-    uint32_t masterKeyId, const std::string &serverUuid) {
-  if (masterKeyId > newestMasterKeyId_) {
-    newestMasterKeyId_ = masterKeyId;
-    serverUuid_ = serverUuid;
-  } else if (masterKeyId < oldestMasterKeyId_) {
-    oldestMasterKeyId_ = masterKeyId;
-  }
 }
 
 }  // namespace myrocks

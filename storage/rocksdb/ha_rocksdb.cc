@@ -94,11 +94,13 @@
 #include "./rdb_threads.h"
 
 /* encryption includes */
-#include "./enc_aes_ctr_encryption_provider.h"
 #include "./enc_aes_ctr_stream_factory.h"
+#include "./enc_aes_ctr_encryption_provider.h"
 #include "./enc_env_encryption_myrocks.h"
-#include "./enc_keyring_master_key_manager.h"
 #include "./enc_master_key_manager.h"
+#include "./enc_keyring_master_key_manager.h"
+#include "./enc_info_storage.h"
+#include "./enc_info_plainfile_storage.h"
 #include "rocksdb/env/composite_env_wrapper.h"
 #include "rocksdb/env_encryption.h"
 
@@ -4664,9 +4666,7 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
 }
 
 bool rocksdb_rotate_encryption_master_key() {
-  keyringMasterKeyManager->GenerateNewMasterKey();
-  auto res = (rocksdb::Status::OK() !=
-              encryptedFileSystem->RotateEncryptionMasterKey(rocksdb_datadir));
+  auto res = keyringMasterKeyManager->GenerateNewMasterKey();
   if (res) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
   }
@@ -5705,8 +5705,15 @@ static rocksdb::Status initialize_encryption(
   auto uuid = rocksdb_db_options->env->GenerateUniqueId();
   // unfortunately it has new line character at the end
   uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
+
+  std::string encryptionInfoStorageFile =
+    std::string(rocksdb_datadir) + std::string("/.encryption_info");
+  auto encInfoStorage = std::make_shared<EncryptionInfoPlainFileStorage>(
+      encryptionInfoStorageFile, rocksdb_db_options->env->GetFileSystem(), uuid
+  );
+
   keyringMasterKeyManager =
-      std::make_shared<KeyringMasterKeyManager>(uuid, logger);
+      std::make_shared<KeyringMasterKeyManager>(encInfoStorage, logger);
 
   /* The best case scenario would be to use AES CTR provided by MySql as
      keyring_encryption_service. As it does not provide AES CTR, we will hide
@@ -5721,7 +5728,7 @@ static rocksdb::Status initialize_encryption(
    */
   encryptedFileSystem = myrocks::NewEncryptedFS(
       rocksdb_db_options->env->GetFileSystem(), provider, rocksdb_encryption,
-      rocksdb_datadir, logger);
+      logger);
 
   if (!encryptedFileSystem) {
     return rocksdb::Status::Corruption();

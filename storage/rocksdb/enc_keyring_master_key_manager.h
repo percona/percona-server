@@ -19,10 +19,11 @@ class Logger;
 }
 
 namespace myrocks {
+class EncryptionInfoStorage;
 
 class KeyringMasterKeyManager : public MasterKeyManager {
  public:
-  KeyringMasterKeyManager(const std::string &uuid,
+  KeyringMasterKeyManager(std::shared_ptr<EncryptionInfoStorage> encInfoStorage,
                           std::shared_ptr<rocksdb::Logger> logger);
   ~KeyringMasterKeyManager() override;
 
@@ -33,8 +34,6 @@ class KeyringMasterKeyManager : public MasterKeyManager {
   void GetServerUuid(std::string *serverUuid) override;
   int GenerateNewMasterKey() override;
 
-  void RegisterMasterKeyId(uint32_t masterKeyId,
-                           const std::string &serverUuid) override;
   void GetMasterKeyInfo(uint32_t *oldestMasterKeyId,
     uint32_t *newestMasterKeyId, std::string *serverUuid);
 
@@ -54,11 +53,11 @@ class KeyringMasterKeyManager : public MasterKeyManager {
   uint32_t oldestMasterKeyId_;
   uint32_t newestMasterKeyId_;
   std::string serverUuid_;
-  std::string seedUuid_;
 
   std::map<std::string, std::string> keysCache_;
   std::mutex keysCacheMtx_;
 
+  std::shared_ptr<EncryptionInfoStorage> encInfoStorage_;
   std::shared_ptr<rocksdb::Logger> logger_;
 };
 

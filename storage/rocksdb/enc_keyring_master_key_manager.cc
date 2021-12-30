@@ -44,6 +44,7 @@ KeyringMasterKeyManager::KeyringMasterKeyManager(
   InitKeyringServices();
   serverUuid_ = encInfoStorage_->GetServerUuid();
   newestMasterKeyId_ = encInfoStorage_->GetCurrentMasterKeyId();
+  Recover();
 }
 
 KeyringMasterKeyManager::~KeyringMasterKeyManager() { DeinitKeyringServices(); }
@@ -268,7 +269,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
 
     // This is the key with id '1'
     auto keyName = CreateKeyName(1);
-
+    encInfoStorage_->StoreMasterKeyRotationInProgress(true);
     // We call keyring API to generate master key here.
     if (keyring_generator_service_->generate(
             keyName.c_str(), nullptr, rocksdb_key_type, KEY_LEN) == true) {
@@ -288,6 +289,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
       ++newestMasterKeyId_;
       *masterKeyId = newestMasterKeyId_;
       encInfoStorage_->StoreCurrentMasterKeyId(newestMasterKeyId_);
+      encInfoStorage_->StoreMasterKeyRotationInProgress(false);
     }
   } else {
     *masterKeyId = newestMasterKeyId_;
@@ -334,6 +336,8 @@ int KeyringMasterKeyManager::GetMasterKey(uint32_t masterKeyId,
 
 int KeyringMasterKeyManager::GenerateNewMasterKey() {
   RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
+  encInfoStorage_->StoreMasterKeyRotationInProgress(true);
+
   uint32_t newMasterKeyId = newestMasterKeyId_ + 1;
 
   // We call keyring API to generate master key here.
@@ -359,6 +363,7 @@ int KeyringMasterKeyManager::GenerateNewMasterKey() {
   encInfoStorage_->StoreCurrentMasterKeyId(newMasterKeyId);
   newestMasterKeyId_ = newMasterKeyId;
 
+  encInfoStorage_->StoreMasterKeyRotationInProgress(false);
   RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
   return 0;
 }
@@ -369,6 +374,25 @@ const std::string KeyringMasterKeyManager::CreateKeyName(uint32_t keyId) const {
 
   return MASTER_KEY_PREFIX + serverUuid_ + MASTER_KEY_SEPARATOR +
          std::to_string(keyId);
+}
+
+void KeyringMasterKeyManager::Recover() {
+    RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
+    if (encInfoStorage_->GetMasterKeyRotationInProgress()) {
+        auto masterKeyId = encInfoStorage_->GetCurrentMasterKeyId();
+        std::string masterKey;
+
+        // check if we failed after rotation.
+        // This means that new key was generated, but its Id was not stored
+        auto retval = ReadSecret(CreateKeyName(masterKeyId+1).c_str(), &masterKey);
+        if (!retval) {
+            // new key was generated, but info was not stored
+            newestMasterKeyId_ = masterKeyId+1;
+            encInfoStorage_->StoreCurrentMasterKeyId(newestMasterKeyId_);
+        }
+        encInfoStorage_->StoreMasterKeyRotationInProgress(false);
+    }
+    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
 }
 
 }  // namespace myrocks

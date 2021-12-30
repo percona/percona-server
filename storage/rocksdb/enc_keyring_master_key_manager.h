@@ -45,6 +45,7 @@ class KeyringMasterKeyManager : public MasterKeyManager {
   void StoreSecretInCache(const std::string &keyName,
                           const std::string &secret);
   const std::string CreateKeyName(uint32_t keyId) const;
+  void Recover();
 
   SERVICE_TYPE(keyring_reader_with_status) * keyring_reader_service_{nullptr};
   SERVICE_TYPE(keyring_writer) * keyring_writer_service_{nullptr};

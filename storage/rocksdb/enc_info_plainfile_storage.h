@@ -18,6 +18,8 @@ public:
     const std::shared_ptr<rocksdb::FileSystem> fs, const std::string &uuidHint);
 
     void StoreCurrentMasterKeyId(uint32_t Id) override;
+    void StoreMasterKeyRotationInProgress(bool flag) override;
+    bool GetMasterKeyRotationInProgress() override;
 
     // returns 0 if no id stored
     uint32_t GetCurrentMasterKeyId() override;
@@ -28,15 +30,19 @@ private:
    struct EncryptionInfo {
        uint32_t CurrentMasterKeyId;
        std::string ServerUuid;
+       uint32_t MasterKeyRotationInProgress;
+       uint32_t CRC;
    };
-   void serialize();
-   void deserialize();
+   void serialize(const std::string &filePath, std::shared_ptr<EncryptionInfo> info, bool backup = true);
+   std::shared_ptr<EncryptionInfo> deserialize(const std::string &filePath);
+   void recover();
 
    std::string filePath_;
+   std::string backupFilePath_;
    const std::shared_ptr<rocksdb::FileSystem> fs_;
    std::string uuidHint_;
    std::mutex fileAccessMtx_;
-   std::unique_ptr<EncryptionInfo> encryptionInfo_;
+   std::shared_ptr<EncryptionInfo> encryptionInfo_;
 };
 
 } // namespace myrocks

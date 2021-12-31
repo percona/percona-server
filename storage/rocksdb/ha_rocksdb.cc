@@ -5709,8 +5709,8 @@ static rocksdb::Status initialize_encryption(
   std::string encryptionInfoStorageFile =
     std::string(rocksdb_datadir) + std::string("/.encryption_info");
   auto encInfoStorage = std::make_shared<EncryptionInfoPlainFileStorage>(
-      encryptionInfoStorageFile, rocksdb_db_options->env->GetFileSystem(), uuid
-  );
+      encryptionInfoStorageFile, rocksdb_db_options->env->GetFileSystem(), uuid,
+  logger);
 
   keyringMasterKeyManager =
       std::make_shared<KeyringMasterKeyManager>(encInfoStorage, logger);

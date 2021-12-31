@@ -10,7 +10,7 @@
 #include "rocksdb/logging/logging.h"
 #include "sql/mysqld.h"
 
-//#define USE_DEVEL_KEY
+// #define USE_DEVEL_KEY
 
 namespace myrocks {
 // The implementation of KeyringMasterManager is based on the implementation
@@ -176,14 +176,13 @@ void KeyringMasterKeyManager::StoreSecretInCache(const std::string &keyName,
 
 int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
                                         std::string *secret) {
-#ifdef USE_DEVEL_KEY
-  *secret = "12345678901234567890123456789012";
-  return 0;
-#else
   if (0 == GetSecretFromCache(keyName, secret)) {
     return 0;
   }
 
+#ifdef USE_DEVEL_KEY
+  *secret = "12345678901234567890123456789012";
+#else
   size_t secret_length = 0;
   size_t secret_type_length = 0;
   my_h_keyring_reader_object reader_object = nullptr;
@@ -232,25 +231,15 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
   }
   secret->assign((char *)(secret_v.data()), secret_length);
 
+#endif  /* USE_DEVEL_KEY */
+
   StoreSecretInCache(keyName, *secret);
 
   return 0;
-#endif
 }
 
 int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
                                                     uint32_t *masterKeyId) {
-#ifdef USE_DEVEL_KEY
-  if (newestMasterKeyId_ == 0) {
-    // there are no encrypted files and we are on default MK id
-    // generate the new master key
-    newestMasterKeyId_++;
-  }
-  *masterKey = "12345678901234567890123456789012";
-  *masterKeyId = newestMasterKeyId_;
-  return 0;
-#else
-
   int retval;
   bool key_id_locked = false;
 
@@ -270,6 +259,10 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     // This is the key with id '1'
     auto keyName = CreateKeyName(1);
     encInfoStorage_->StoreMasterKeyRotationInProgress(true);
+
+#ifdef USE_DEVEL_KEY
+    // Nothing here. "key" generation is handled by ReadSecret()
+#else
     // We call keyring API to generate master key here.
     if (keyring_generator_service_->generate(
             keyName.c_str(), nullptr, rocksdb_key_type, KEY_LEN) == true) {
@@ -281,6 +274,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
                       "is installed.");
       return -2;
     }
+#endif /* USE_DEVEL_KEY */
 
     // We call keyring API to get master key here. It will cache the new key.
     retval = ReadSecret(keyName, masterKey);
@@ -310,7 +304,6 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
   }
 
   return retval;
-#endif
 }
 
 void KeyringMasterKeyManager::GetServerUuid(std::string *serverUuid) {

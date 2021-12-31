@@ -7,21 +7,26 @@
 
 namespace rocksdb {
     class FileSystem;
+    class Logger;
 }
 
-// This is naive implementation of such a storage. We need something fault-tolerant.
-// rdb database instance would be ok for this purpose.
 namespace myrocks {
+
+// This implementation uses plain text file to store the information
+// The file access is protected by single mutex, but it is not a problem
+// at this moment, as the storage is used only when MK rotation happens.
+// If we need it to be scalable, consider using db (RocksDB?) as the backend.
 class EncryptionInfoPlainFileStorage : public EncryptionInfoStorage {
 public:
     EncryptionInfoPlainFileStorage(const std::string& filePath,
-    const std::shared_ptr<rocksdb::FileSystem> fs, const std::string &uuidHint);
+    const std::shared_ptr<rocksdb::FileSystem> fs, const std::string &uuidHint,
+    std::shared_ptr<rocksdb::Logger> logger);
 
     void StoreCurrentMasterKeyId(uint32_t Id) override;
     void StoreMasterKeyRotationInProgress(bool flag) override;
     bool GetMasterKeyRotationInProgress() override;
 
-    // returns 0 if no id stored
+    // returns 0 if no ID stored
     uint32_t GetCurrentMasterKeyId() override;
 
     std::string GetServerUuid() override;
@@ -43,6 +48,7 @@ private:
    std::string uuidHint_;
    std::mutex fileAccessMtx_;
    std::shared_ptr<EncryptionInfo> encryptionInfo_;
+   std::shared_ptr<rocksdb::Logger> logger_;
 };
 
 } // namespace myrocks

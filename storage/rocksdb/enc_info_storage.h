@@ -10,11 +10,10 @@ public:
     virtual void StoreMasterKeyRotationInProgress(bool flag) = 0;
     virtual bool GetMasterKeyRotationInProgress() = 0;
 
-    // returns 0 if no id stored
+    // returns 0 if no ID stored
     virtual uint32_t GetCurrentMasterKeyId() = 0;
 
     virtual std::string GetServerUuid() = 0;
-
 };
 
 } // namespace myrocks

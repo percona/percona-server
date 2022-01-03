@@ -5,6 +5,8 @@
 [Unit]
 Description=Percona Server
 After=network.target
+After=local-fs.target remote-fs.target
+Requires=local-fs.target remote-fs.target
 
 [Install]
 WantedBy=multi-user.target

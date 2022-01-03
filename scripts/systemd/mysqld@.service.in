@@ -31,6 +31,8 @@ Documentation=http://dev.mysql.com/doc/refman/en/using-systemd.html
 After=network-online.target
 Wants=network-online.target
 After=syslog.target
+After=local-fs.target remote-fs.target
+Requires=local-fs.target remote-fs.target
 
 [Install]
 WantedBy=multi-user.target

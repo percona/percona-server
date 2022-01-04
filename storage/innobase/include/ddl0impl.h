@@ -63,6 +63,8 @@ using Builders = std::vector<Builder *, ut::allocator<Builder *>>;
 /** Start offsets in the file, from where to merge records. */
 using Merge_offsets = std::deque<os_offset_t, ut::allocator<os_offset_t>>;
 
+using Write_offsets = std::vector<os_offset_t, ut::allocator<os_offset_t>>;
+
 /** Information about temporary files used in merge sort */
 struct file_t {
   /** File. */
@@ -73,6 +75,9 @@ struct file_t {
 
   /** Number of records in the file */
   uint64_t m_n_recs{};
+
+  /** Offset after every write op, not including initial 0 */
+  Write_offsets m_write_offsets;
 };
 
 /** Fetch the document ID from the table. */

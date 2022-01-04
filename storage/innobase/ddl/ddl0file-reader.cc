@@ -37,14 +37,40 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace ddl {
 
+[[nodiscard]] inline static auto get_read_len_max(
+    const Write_offsets &offsets) noexcept {
+  ut_a(!offsets.empty());
+
+  os_offset_t len_max = 0;
+  os_offset_t prev = 0;
+
+  for (const auto offset : offsets) {
+    auto len = offset - prev;
+    if (len > len_max) len_max = len;
+
+    prev = offset;
+  }
+
+  return len_max;
+}
+
 dberr_t File_reader::prepare() noexcept {
   ut_a(m_ptr == nullptr);
   ut_a(m_mrec == nullptr);
   ut_a(m_buffer_size > 0);
-  ut_a(m_bounds.first == nullptr && m_bounds.second == nullptr);
+  ut_a(m_read_len == 0);
 
   if (m_offset == m_size) {
     return DB_END_OF_INDEX;
+  }
+
+  if (log_tmp_is_encrypted()) {
+    // If encrypted, the chunk of data must be read in one go
+    // so the decryption is correct
+    auto max_len = get_read_len_max(m_write_offsets);
+    if (max_len > m_buffer_size) {
+      m_buffer_size = max_len;
+    }
   }
 
   m_aligned_buffer = ut::make_unique_aligned<byte[]>(
@@ -57,19 +83,18 @@ dberr_t File_reader::prepare() noexcept {
   m_io_buffer = {m_aligned_buffer.get(), m_buffer_size};
 
   if (log_tmp_is_encrypted()) {
-    m_aligned_buffer_crypt = ut::make_unique_aligned<byte[]>(
-        ut::make_psi_memory_key(mem_key_ddl), UNIV_SECTOR_SIZE, m_buffer_size);
+    m_aligned_buffer_crypt =
+        ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                        UNIV_SECTOR_SIZE, m_io_buffer.second);
 
     if (!m_aligned_buffer_crypt) {
       return DB_OUT_OF_MEMORY;
     }
 
-    m_crypt_buffer = {m_aligned_buffer_crypt.get(), m_buffer_size};
+    m_crypt_buffer = {m_aligned_buffer_crypt.get(), m_io_buffer.second};
   }
 
   m_mrec = m_io_buffer.first;
-  m_bounds.first = m_io_buffer.first;
-  m_bounds.second = m_bounds.first + m_io_buffer.second,
 
   m_ptr = m_io_buffer.first;
 
@@ -92,8 +117,8 @@ dberr_t File_reader::prepare() noexcept {
   }
 
   ut_a(m_size > m_offset);
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len,
+  m_read_len = get_read_len_next();
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
                               m_offset, m_crypt_buffer.first, m_space_id);
 
   if (err != DB_SUCCESS) {
@@ -112,8 +137,8 @@ dberr_t File_reader::seek(os_offset_t offset) noexcept {
 
   m_offset = offset;
 
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len,
+  m_read_len = get_read_len_next();
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
                               m_offset, m_crypt_buffer.first, m_space_id);
 
   m_ptr = m_io_buffer.first;
@@ -134,11 +159,11 @@ dberr_t File_reader::read(os_offset_t offset) noexcept {
 
 dberr_t File_reader::read_next() noexcept {
   ut_a(m_size > m_offset);
-  return seek(m_offset + m_io_buffer.second);
+  return seek(m_offset + m_read_len);
 }
 
 dberr_t File_reader::next() noexcept {
-  ut_a(m_ptr >= m_bounds.first && m_ptr < m_bounds.second);
+  ut_a(m_ptr >= m_io_buffer.first && m_ptr < get_io_buffer_end());
 
   size_t extra_size = *m_ptr++;
 
@@ -150,7 +175,7 @@ dberr_t File_reader::next() noexcept {
 
   if (extra_size >= 0x80) {
     /* Read another byte of extra_size. */
-    if (m_ptr >= m_bounds.second) {
+    if (m_ptr >= get_io_buffer_end()) {
       const auto err = read_next();
       if (err != DB_SUCCESS) {
         return err;
@@ -168,10 +193,10 @@ dberr_t File_reader::next() noexcept {
 
   auto rec = const_cast<byte *>(m_ptr);
 
-  if (unlikely(rec + extra_size >= m_bounds.second)) {
+  if (unlikely(rec + extra_size >= get_io_buffer_end())) {
     /* The record spans two blocks. Copy the entire record to the auxiliary
     buffer and handle this as a special case. */
-    const auto partial_size = std::ptrdiff_t(m_bounds.second - m_ptr);
+    const auto partial_size = std::ptrdiff_t(get_io_buffer_end() - m_ptr);
 
     ut_a(static_cast<size_t>(partial_size) < UNIV_PAGE_SIZE_MAX);
 
@@ -204,7 +229,7 @@ dberr_t File_reader::next() noexcept {
     /* These overflows should be impossible given that records are much
     smaller than either buffer, and the record starts near the beginning
     of each buffer. */
-    ut_a(m_ptr + data_size < m_bounds.second);
+    ut_a(m_ptr + data_size < get_io_buffer_end());
     ut_a(extra_size + data_size < UNIV_PAGE_SIZE_MAX);
 
     /* Copy the data bytes. */
@@ -222,9 +247,9 @@ dberr_t File_reader::next() noexcept {
     const auto required = extra_size + data_size;
 
     /* Check if the record fits entirely in the block. */
-    if (unlikely(m_ptr + required >= m_bounds.second)) {
+    if (unlikely(m_ptr + required >= get_io_buffer_end())) {
       /* The record spans two blocks. Copy prefix it to buf. */
-      const auto partial_size = std::ptrdiff_t(m_bounds.second - m_ptr);
+      const auto partial_size = std::ptrdiff_t(get_io_buffer_end() - m_ptr);
 
       rec = m_aux_buf;
 
@@ -262,6 +287,36 @@ dberr_t File_reader::next() noexcept {
   m_mrec = rec + extra_size;
 
   return DB_SUCCESS;
+}
+
+[[nodiscard]] inline static auto get_next_offset(const Write_offsets &offsets,
+                                                 os_offset_t offset) noexcept {
+  if (offset == 0) {  // 0 is not included
+    return offsets.begin();
+  }
+
+  auto offset_it = std::find(offsets.begin(), offsets.end(), offset);
+  ut_a(offset_it != offsets.end());
+
+  return ++offset_it;
+}
+
+[[nodiscard]] size_t File_reader::get_read_len_next() const noexcept {
+  if (!log_tmp_is_encrypted()) {
+    return std::min(m_io_buffer.second, m_size - m_offset);
+  }
+
+  // If encrypted, read the same offset and length that was written
+  // so the decryption is correct
+  auto offset_it = get_next_offset(m_write_offsets, m_offset);
+  ut_a(offset_it != m_write_offsets.end());
+
+  const auto len = *offset_it - m_offset;
+  ut_a(len > 0);
+  ut_a(len <= m_size - m_offset);
+  ut_a(len <= m_io_buffer.second);
+
+  return len;
 }
 
 }  // namespace ddl

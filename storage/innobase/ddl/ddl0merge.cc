@@ -158,6 +158,8 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   /** @return number of rows in the output file. */
   [[nodiscard]] uint64_t get_n_rows() const noexcept { return m_n_rows; }
 
+  Write_offsets m_write_offsets;
+
  private:
   /** @return the number of bytes copied so far. */
   [[nodiscard]] size_t copied() const noexcept {
@@ -345,6 +347,7 @@ dberr_t Merge_file_sort::Output_file::write(const mrec_t *mrec,
     m_ptr += n_move;
 
     m_offset += len;
+    m_write_offsets.push_back(m_offset);
   }
 
   m_last_mrec = m_ptr;
@@ -379,6 +382,7 @@ dberr_t Merge_file_sort::Output_file::flush() noexcept {
                                m_crypt_buffer.first, m_space_id);
 
   m_offset += len;
+  m_write_offsets.push_back(m_offset);
 
   /* Start writing the next page from the start. */
   m_ptr = m_buffer.first;
@@ -531,6 +535,7 @@ dberr_t Merge_file_sort::sort(Builder *builder,
 
     /* Swap the input file with the output file and repeat. */
     std::swap(tmpfd, file->m_fd);
+    file->m_write_offsets = std::move(output_file.m_write_offsets);
     std::swap(offsets, m_next_offsets);
 
     ut_a(m_next_offsets.empty());

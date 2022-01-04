@@ -182,8 +182,8 @@ struct File_cursor : public Load_cursor {
   @param[in] size               Size of the file in bytes.
   @param[in,out] stage          PFS observability. */
   File_cursor(Builder *builder, const Unique_os_file_descriptor &file,
-              size_t buffer_size, os_offset_t size,
-              Alter_stage *stage) noexcept;
+              size_t buffer_size, os_offset_t size, Alter_stage *stage,
+              const Write_offsets &write_offsets) noexcept;
 
   /** Destructor. */
   ~File_cursor() override = default;
@@ -245,10 +245,11 @@ dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
 File_cursor::File_cursor(Builder *builder,
                          const Unique_os_file_descriptor &file,
                          size_t buffer_size, os_offset_t size,
-                         Alter_stage *stage) noexcept
+                         Alter_stage *stage,
+                         const Write_offsets &write_offsets) noexcept
     : Load_cursor(builder, nullptr),
       m_reader(file, builder->index(), buffer_size, size,
-               builder->get_space_id()),
+               builder->get_space_id(), write_offsets),
       m_stage(stage) {
   ut_a(m_reader.m_file.is_open());
 }
@@ -355,7 +356,7 @@ dberr_t Merge_cursor::add_file(const ddl::file_t &file,
 
   auto cursor = ut::new_withkey<File_cursor>(
       ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
-      file.m_size, m_stage);
+      file.m_size, m_stage, file.m_write_offsets);
 
   if (cursor == nullptr) {
     m_err = DB_OUT_OF_MEMORY;
@@ -1203,6 +1204,8 @@ dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer,
     return get_error();
   } else {
     file.m_size += io_buffer.second;
+    file.m_write_offsets.push_back(file.m_size);
+
     return err;
   }
 }
@@ -1572,6 +1575,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       }
 
       file.m_size += n;
+      file.m_write_offsets.push_back(file.m_size);
 
       return DB_SUCCESS;
     };

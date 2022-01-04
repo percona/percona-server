@@ -79,7 +79,7 @@ sub mtr_report_stats_junit {
 
     foreach my $tinfo (@{$testinfo->{$suite}{tests}}) {
       my $name = $tinfo->{shortname} ? $tinfo->{shortname} : $tinfo->{name};
-      $name .= '_' . $tinfo->{combination} if $tinfo->{combination};
+      $name .= '.' . $tinfo->{combination} if $tinfo->{combination};
 
       my $testtime = $tinfo->{timer} ? $tinfo->{timer} / 1000 : 0;
       $suitetime += $testtime;

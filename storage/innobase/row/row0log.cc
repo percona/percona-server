@@ -276,22 +276,13 @@ void log_tmp_enable_encryption_if_set() {
   }
 }
 
-/** Encrypt a temporary file block.
-@param[in]	src_block	block to encrypt
-@param[in]	size		size of the block
-@param[out]	dst_block	destination block
-@param[in]	offs		offset to block
-@param[in]	space_id	tablespace id
-@return whether the operation succeeded */
-bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
-                           os_offset_t offs, space_id_t space_id) {
-  size_t dst_len;
-  byte iv[MY_AES_BLOCK_SIZE];
-
+static bool encrypt_iv(byte *iv, os_offset_t offs, space_id_t space_id) {
   memset(iv, 0, MY_AES_BLOCK_SIZE);
 
   mach_write_to_8(iv, space_id);
   mach_write_to_8(iv + 8, offs);
+
+  size_t dst_len;
 
   int res = my_aes_crypt(
       my_aes_mode::ECB, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, iv,
@@ -305,10 +296,30 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
 
   ut_ad(dst_len == MY_AES_BLOCK_SIZE);
 
-  res = my_aes_crypt(my_aes_mode::CBC,
-                     ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, src_block,
-                     size, dst_block, &dst_len, crypt_info.encryption_key,
-                     crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
+  return true;
+}
+
+/** Encrypt a temporary file block.
+@param[in]	src_block	block to encrypt
+@param[in]	size		size of the block
+@param[out]	dst_block	destination block
+@param[in]	offs		offset to block
+@param[in]	space_id	tablespace id
+@return whether the operation succeeded */
+bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
+                           os_offset_t offs, space_id_t space_id) {
+  byte iv[MY_AES_BLOCK_SIZE];
+
+  if (!encrypt_iv(iv, offs, space_id)) {
+    return false;
+  }
+
+  size_t dst_len;
+
+  int res = my_aes_crypt(
+      my_aes_mode::CBC, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD,
+      src_block, size, dst_block, &dst_len, crypt_info.encryption_key,
+      crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
 
   if (res != MY_AES_OK) {
     ib::error() << "Unable to encrypt data block  src: "
@@ -332,30 +343,18 @@ bool log_tmp_block_encrypt(const byte *src_block, ulint size, byte *dst_block,
 @return whether the operation succeeded */
 bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
                            os_offset_t offs, space_id_t space_id) {
-  size_t dst_len;
   byte iv[MY_AES_BLOCK_SIZE];
 
-  memset(iv, 0, MY_AES_BLOCK_SIZE);
-
-  mach_write_to_8(iv, space_id);
-  mach_write_to_8(iv + 8, offs);
-
-  int res = my_aes_crypt(
-      my_aes_mode::ECB, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD, iv,
-      MY_AES_BLOCK_SIZE, iv, &dst_len, crypt_info.encryption_key,
-      crypt_info.encryption_klen, nullptr, 0);
-
-  if (res != MY_AES_OK) {
-    ib::error() << "Unable to encrypt IV";
+  if (!encrypt_iv(iv, offs, space_id)) {
     return false;
   }
 
-  ut_ad(dst_len == MY_AES_BLOCK_SIZE);
+  size_t dst_len;
 
-  res = my_aes_crypt(my_aes_mode::CBC,
-                     ENCRYPTION_FLAG_DECRYPT | ENCRYPTION_FLAG_NOPAD, src_block,
-                     size, dst_block, &dst_len, crypt_info.encryption_key,
-                     crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
+  int res = my_aes_crypt(
+      my_aes_mode::CBC, ENCRYPTION_FLAG_DECRYPT | ENCRYPTION_FLAG_NOPAD,
+      src_block, size, dst_block, &dst_len, crypt_info.encryption_key,
+      crypt_info.encryption_klen, iv, MY_AES_BLOCK_SIZE);
 
   if (res != MY_AES_OK) {
     ib::error() << "Unable to decrypt data block src: "

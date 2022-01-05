@@ -75,6 +75,7 @@ struct file_t {
   /** Number of records in the file */
   uint64_t m_n_recs{};
 
+  /** Offset after every write op, not including initial 0 */
   Write_offsets m_write_offsets;
 };
 

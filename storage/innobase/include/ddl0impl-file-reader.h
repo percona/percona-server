@@ -128,17 +128,16 @@ struct File_reader : private ut::Non_copyable {
   os_fd_t m_fd{OS_FD_CLOSED};
 
  private:
-  using Bounds = std::pair<const byte *, const byte *>;
-
   /** Size of the file in bytes. */
   os_offset_t m_size{};
 
   /** Offset to read. */
   os_offset_t m_offset{};
 
-  os_offset_t m_len{};
+  /** Last read length */
+  os_offset_t m_read_len{};
 
-  byte *get_io_buffer_end() { return m_io_buffer.first + m_len; }
+  byte *get_io_buffer_end() { return m_io_buffer.first + m_read_len; }
 
   /** Pointer current offset within file buffer. */
   const byte *m_ptr{};

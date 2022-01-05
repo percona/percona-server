@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace ddl {
 
 [[nodiscard]] inline static auto get_read_len_max(
-    const Write_offsets &offsets) {
+    const Write_offsets &offsets) noexcept {
   ut_a(!offsets.empty());
 
   os_offset_t len_max = 0;
@@ -57,7 +57,7 @@ dberr_t File_reader::prepare() noexcept {
   ut_a(m_ptr == nullptr);
   ut_a(m_mrec == nullptr);
   ut_a(m_buffer_size > 0);
-  ut_a(m_len == 0);
+  ut_a(m_read_len == 0);
 
   if (m_offset == m_size) {
     return DB_END_OF_INDEX;
@@ -109,8 +109,8 @@ dberr_t File_reader::prepare() noexcept {
   }
 
   ut_a(m_size > m_offset);
-  m_len = get_read_len_next();
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_len, m_offset,
+  m_read_len = get_read_len_next();
+  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_read_len, m_offset,
                               m_crypt_buffer.first, m_space_id);
 
   if (err != DB_SUCCESS) {
@@ -129,8 +129,8 @@ dberr_t File_reader::seek(os_offset_t offset) noexcept {
 
   m_offset = offset;
 
-  m_len = get_read_len_next();
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_len, m_offset,
+  m_read_len = get_read_len_next();
+  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_read_len, m_offset,
                               m_crypt_buffer.first, m_space_id);
 
   m_ptr = m_io_buffer.first;
@@ -151,7 +151,7 @@ dberr_t File_reader::read(os_offset_t offset) noexcept {
 
 dberr_t File_reader::read_next() noexcept {
   ut_a(m_size > m_offset);
-  return seek(m_offset + m_len);
+  return seek(m_offset + m_read_len);
 }
 
 dberr_t File_reader::next() noexcept {
@@ -282,7 +282,7 @@ dberr_t File_reader::next() noexcept {
 }
 
 [[nodiscard]] inline static auto get_next_offset(const Write_offsets &offsets,
-                                                 os_offset_t offset) {
+                                                 os_offset_t offset) noexcept {
   if (offset == 0) {  // 0 is not included
     return offsets.begin();
   }

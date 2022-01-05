@@ -37,6 +37,10 @@ call test();
 --let grep_pattern=INSERT INTO t1 VALUES\(1\);
 --source include/log_grep.inc
 
+# Check Rows_affected properly logged for each separate statement
+--let grep_pattern=Rows_sent: 0  Rows_examined: 0  Rows_affected: 1
+--source include/log_grep.inc
+
 DROP INDEX i ON t1;
 --source include/log_cleanup.inc
 
@@ -55,6 +59,11 @@ call test();
 --let grep_pattern=CREATE INDEX i ON t1\(a\);
 --source include/log_grep.inc
 --let grep_pattern=INSERT INTO t1 VALUES\(1\);
+--source include/log_grep.inc
+
+# Check Rows_affected reflects all changes done by each individual statement
+# executed within CALL
+--let grep_pattern=Rows_sent: 0  Rows_examined: 0  Rows_affected: 2
 --source include/log_grep.inc
 
 DROP INDEX i ON t1;

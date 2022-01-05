@@ -2220,7 +2220,10 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     */
     if (thd->rewritten_query().length()) thd->reset_rewritten_query();
 
+    Sub_statement_state statement_state;
+    thd->reset_sub_statement_state_slow_extended(&statement_state);
     err_status = i->execute(thd, &ip);
+    thd->restore_sub_statement_state_slow_extended(statement_state);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());

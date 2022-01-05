@@ -1,5 +1,9 @@
 SET SESSION min_examined_row_limit=0;
 SET SESSION long_query_time=0;
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (3), (4), (5);
 CREATE PROCEDURE test_inner()
 BEGIN
 SELECT 2;
@@ -10,6 +14,11 @@ SELECT 1;
 CALL test_inner();
 END^
 PREPARE stmt FROM "CALL test_outer()";
+CREATE PROCEDURE test_stats()
+BEGIN
+SELECT * FROM t1;
+SELECT * FROM t2;
+END^
 SET @saved_log_slow_sp_statements=@@GLOBAL.log_slow_sp_statements;
 SET GLOBAL log_slow_sp_statements=ON;
 [log_start.inc] percona.slow_extended.sp1
@@ -39,6 +48,24 @@ EXECUTE stmt;
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.sp1 pattern: # Stored_routine: test.test_inner
 [log_grep.inc] lines:   2
+[log_start.inc] percona.slow_extended.sp_stats1
+CALL test_stats();
+id
+1
+2
+id
+3
+4
+5
+[log_stop.inc] percona.slow_extended.sp_stats1
+[log_grep.inc] file: percona.slow_extended.sp_stats1 pattern: SELECT \* FROM t1;
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.sp_stats1 pattern: SELECT \* FROM t2;
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.sp_stats1 pattern: Rows_sent: 2  Rows_examined: 2  Rows_affected: 0
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.sp_stats1 pattern: Rows_sent: 3  Rows_examined: 3  Rows_affected: 0
+[log_grep.inc] lines:   1
 SET GLOBAL log_slow_sp_statements=OFF;
 [log_start.inc] percona.slow_extended.sp2
 SELECT "log_always";
@@ -65,6 +92,18 @@ EXECUTE stmt;
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.sp2 pattern: # Stored_routine: test.test_
 [log_grep.inc] lines:   0
+[log_start.inc] percona.slow_extended.sp_stats2
+CALL test_stats();
+id
+1
+2
+id
+3
+4
+5
+[log_stop.inc] percona.slow_extended.sp_stats2
+[log_grep.inc] file: percona.slow_extended.sp_stats2 pattern: Rows_sent: 5  Rows_examined: 5  Rows_affected: 0
+[log_grep.inc] lines:   1
 SET GLOBAL log_slow_sp_statements=OFF_NO_CALLS;
 [log_start.inc] percona.slow_extended.sp3
 SELECT "log_always";
@@ -93,4 +132,7 @@ EXECUTE stmt;
 [log_grep.inc] lines:   0
 DROP PROCEDURE test_outer;
 DROP PROCEDURE test_inner;
+DROP PROCEDURE test_stats;
+DROP TABLE t1;
+DROP TABLE t2;
 SET GLOBAL log_slow_sp_statements=@saved_log_slow_sp_statements;

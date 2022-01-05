@@ -690,6 +690,7 @@ class Sub_statement_state {
   Discrete_intervals_list auto_inc_intervals_forced;
   ulonglong current_found_rows;
   ulonglong previous_found_rows;
+  longlong row_count_func;
   ha_rows num_truncated_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
@@ -1668,8 +1669,6 @@ class THD : public MDL_context_owner,
   }
   /*** Following methods used in slow_extended.patch ***/
   void clear_slow_extended() noexcept;
-
- private:
   void reset_sub_statement_state_slow_extended(
       Sub_statement_state *backup) noexcept;
   void restore_sub_statement_state_slow_extended(

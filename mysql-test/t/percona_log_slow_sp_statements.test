@@ -6,6 +6,11 @@
 SET SESSION min_examined_row_limit=0;
 SET SESSION long_query_time=0;
 
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (3), (4), (5);
+
 delimiter ^;
 CREATE PROCEDURE test_inner()
 BEGIN
@@ -22,6 +27,14 @@ END^
 delimiter ;^
 
 PREPARE stmt FROM "CALL test_outer()";
+
+delimiter ^;
+CREATE PROCEDURE test_stats()
+BEGIN
+   SELECT * FROM t1;
+   SELECT * FROM t2;
+END^
+delimiter ;^
 
 SET @saved_log_slow_sp_statements=@@GLOBAL.log_slow_sp_statements;
 SET GLOBAL log_slow_sp_statements=ON;
@@ -44,12 +57,30 @@ EXECUTE stmt;
 --let grep_pattern=# Stored_routine: test.test_inner
 --source include/log_grep.inc
 
+# Check statistic is properly calculated for each separate statement within a
+# stored procedure when log_slow_sp_statements=ON
+--let log_file=percona.slow_extended.sp_stats1
+--source include/log_start.inc
+CALL test_stats();
+--source include/log_stop.inc
+
+--let grep_pattern=SELECT \* FROM t1;
+--source include/log_grep.inc
+--let grep_pattern=SELECT \* FROM t2;
+--source include/log_grep.inc
+
+--let grep_pattern=Rows_sent: 2  Rows_examined: 2  Rows_affected: 0
+--source include/log_grep.inc
+--let grep_pattern=Rows_sent: 3  Rows_examined: 3  Rows_affected: 0
+--source include/log_grep.inc
+
 SET GLOBAL log_slow_sp_statements=OFF;
 --let log_file=percona.slow_extended.sp2
 --source include/log_start.inc
 SELECT "log_always";
 CALL test_outer();
 EXECUTE stmt;
+
 --source include/log_stop.inc
 --let grep_pattern=log_always
 --source include/log_grep.inc
@@ -60,6 +91,16 @@ EXECUTE stmt;
 --let grep_pattern=CALL test_
 --source include/log_grep.inc
 --let grep_pattern=# Stored_routine: test.test_
+--source include/log_grep.inc
+
+# Check statistic is properly calculated for CALL statement when
+# log_slow_sp_statements=OFF
+--let log_file=percona.slow_extended.sp_stats2
+--source include/log_start.inc
+CALL test_stats();
+--source include/log_stop.inc
+
+--let grep_pattern=Rows_sent: 5  Rows_examined: 5  Rows_affected: 0
 --source include/log_grep.inc
 
 SET GLOBAL log_slow_sp_statements=OFF_NO_CALLS;
@@ -82,6 +123,10 @@ EXECUTE stmt;
 
 DROP PROCEDURE test_outer;
 DROP PROCEDURE test_inner;
+DROP PROCEDURE test_stats;
+
+DROP TABLE t1;
+DROP TABLE t2;
 
 SET GLOBAL log_slow_sp_statements=@saved_log_slow_sp_statements;
 --source include/log_cleanup.inc

@@ -2115,8 +2115,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->enable_slow_log = enable_slow_log;
   backup->current_found_rows = current_found_rows;
   backup->previous_found_rows = previous_found_rows;
-  backup->examined_row_count = m_examined_row_count;
-  backup->sent_row_count = m_sent_row_count;
   backup->num_truncated_fields = num_truncated_fields;
   backup->client_capabilities = m_protocol->get_client_capabilities();
   backup->savepoints = get_transaction()->m_savepoints;
@@ -2139,8 +2137,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   if (is_classic_protocol())
     get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
   in_sub_stmt |= new_state;
-  m_examined_row_count = 0;
-  m_sent_row_count = 0;
   num_truncated_fields = 0;
   get_transaction()->m_savepoints = nullptr;
   first_successful_insert_id_in_cur_stmt = 0;
@@ -2171,12 +2167,15 @@ void THD::clear_slow_extended() noexcept {
   query_plan_flags = QPLAN_NONE;
   query_plan_fsort_passes = 0;
   last_errno = 0;
+  set_row_count_func(0);
   DBUG_VOID_RETURN;
 }
 
 void THD::reset_sub_statement_state_slow_extended(
     Sub_statement_state *backup) noexcept {
   DBUG_ENTER("THD::reset_sub_statement_state_slow_extended");
+  backup->examined_row_count = m_examined_row_count;
+  backup->sent_row_count = m_sent_row_count;
   backup->tmp_tables_used = tmp_tables_used;
   backup->tmp_tables_disk_used = tmp_tables_disk_used;
   backup->tmp_tables_size = tmp_tables_size;
@@ -2189,6 +2188,7 @@ void THD::reset_sub_statement_state_slow_extended(
   backup->innodb_page_access = innodb_page_access;
   backup->query_plan_flags = query_plan_flags;
   backup->query_plan_fsort_passes = query_plan_fsort_passes;
+  backup->row_count_func = get_row_count_func();
   clear_slow_extended();
   DBUG_VOID_RETURN;
 }
@@ -2196,6 +2196,8 @@ void THD::reset_sub_statement_state_slow_extended(
 void THD::restore_sub_statement_state_slow_extended(
     const Sub_statement_state &backup) noexcept {
   DBUG_ENTER("THD::restore_sub_statement_state_slow_extended");
+  inc_examined_row_count(backup.examined_row_count);
+  set_sent_row_count(m_sent_row_count + backup.sent_row_count);
   tmp_tables_used += backup.tmp_tables_used;
   tmp_tables_disk_used += backup.tmp_tables_disk_used;
   tmp_tables_size += backup.tmp_tables_size;
@@ -2208,6 +2210,7 @@ void THD::restore_sub_statement_state_slow_extended(
   innodb_page_access += backup.innodb_page_access;
   query_plan_flags |= backup.query_plan_flags;
   query_plan_fsort_passes += backup.query_plan_fsort_passes;
+  set_row_count_func(get_row_count_func() + backup.row_count_func);
   DBUG_VOID_RETURN;
 }
 
@@ -2246,7 +2249,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
       backup->first_successful_insert_id_in_cur_stmt;
   current_found_rows = backup->current_found_rows;
   previous_found_rows = backup->previous_found_rows;
-  set_sent_row_count(backup->sent_row_count);
   if (is_classic_protocol())
     get_protocol_classic()->set_client_capabilities(
         backup->client_capabilities);
@@ -2279,7 +2281,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
     The following is added to the old values as we are interested in the
     total complexity of the query
   */
-  inc_examined_row_count(backup->examined_row_count);
   num_truncated_fields += backup->num_truncated_fields;
 
   /* Restore savepoint on transaction write set */

@@ -197,7 +197,14 @@ Ha_innopart_share::open_one_table_part(
 		&& (m_table_share->fields
 		    != dict_table_get_n_user_cols(ib_table)
 		       + dict_table_get_n_v_cols(ib_table) - 1))) {
-		ib::warn() << "Partition `" << get_partition_name(part_id)
+        /* We may end up here when doing ha_innopart::open(), so before
+        populate_partition_name_hash() was called. In such a case
+        get_partition_name() returns nullptr. Fall back to any other
+        informative string instead of trying to print nullptr. */
+        const char *part_name = get_partition_name(part_id)
+                                ? get_partition_name(part_id)
+                                : ib_table->name.m_name;
+		ib::warn() << "Partition `" << (part_name ? part_name : "nullptr")
 			<< "` contains " << dict_table_get_n_user_cols(ib_table)
 			<< " user defined columns in InnoDB, but "
 			<< m_table_share->fields
@@ -459,7 +466,10 @@ Ha_innopart_share::close_table_parts()
 	mutex_enter(&dict_sys->mutex);
 	if (m_table_parts != NULL) {
 		for (uint i = 0; i < m_tot_parts; i++) {
-			if (m_table_parts[i] != NULL) {
+            // If the partition is corrupted, it was not opened.
+            ut_a(m_table_parts[i] == NULL || m_table_parts[i]->n_ref_count > 0
+                 || m_table_parts[i]->corrupted);
+			if (m_table_parts[i] != NULL && !m_table_parts[i]->corrupted)  {
 				dict_table_close(m_table_parts[i], TRUE, TRUE);
 			}
 		}
@@ -1055,6 +1065,11 @@ share_error:
 	m_pcur_parts = NULL;
 	m_clust_pcur_parts = NULL;
 	m_pcur_map = NULL;
+
+    if (ib_table->corrupted) {
+        close();
+        DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+    }
 
 	/* TODO: Handle mismatching #P# vs #p# in upgrading to new DD instead!
 	See bug#58406, The problem exists when moving partitioned tables

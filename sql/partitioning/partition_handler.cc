@@ -639,7 +639,10 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
       !m_table->s->next_number_keypart &&
       bitmap_is_set(m_table->write_set,
                     m_table->found_next_number_field->field_index())) {
+    my_bitmap_map *old_map =
+        dbug_tmp_use_all_columns(m_table, m_table->read_set);
     set_auto_increment_if_higher();
+    dbug_tmp_restore_column_map(m_table->read_set, old_map);
   }
   return error;
 }

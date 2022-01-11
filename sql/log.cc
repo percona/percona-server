@@ -917,6 +917,36 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       goto err;
   }
 
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_INFO))) {
+    // Query_tables
+    std::string tbl_list_str = "";
+    if (thd->lex->query_tables != nullptr) {
+      std::stringstream tbl_list;
+      for (TABLE_LIST *table = thd->lex->query_tables; table;
+           table = table->next_global) {
+        tbl_list << table->get_table_name() << ",";
+      }
+      tbl_list_str = tbl_list.str();
+      tbl_list_str.pop_back();
+    }
+
+    // Query_digest
+    uchar digest_buf[PARSER_SERVICE_DIGEST_LENGTH];
+    const size_t digest_size = PARSER_SERVICE_DIGEST_LENGTH * 2;
+    char digest_str[digest_size + sizeof('\0')];
+
+    if (!mysql_parser_get_statement_digest(thd, digest_buf)) {
+      for (int i = 0; i < PARSER_SERVICE_DIGEST_LENGTH; ++i) {
+        snprintf(digest_str + i * 2, digest_size, "%02x", digest_buf[i]);
+      }
+    }
+
+    if (my_b_printf(&log_file, "# Query_tables: %s Query_digest: %s\n",
+                    tbl_list_str.c_str(), digest_str) == (uint)-1) {
+      goto err;
+    }
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db)) {  // Database changed
     if (my_b_printf(&log_file, "use %s;\n", thd->db().str) == (uint)-1)
       goto err;

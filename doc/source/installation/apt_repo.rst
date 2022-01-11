@@ -44,7 +44,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-      $ sudo apt install gnupg2
+      $ sudo apt install gnupg2 curl
 
 2. Fetch the repository packages from Percona web:
 

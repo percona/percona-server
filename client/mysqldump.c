@@ -1319,28 +1319,52 @@ static void maybe_die(int error_num, const char* fmt_reason, ...)
   some.
 
   SYNOPSIS
-    mysql_query_with_error_report()
-    mysql_con       connection to use
-    res             if non zero, result will be put there with
-                    mysql_store_result()
-    query           query to send to server
+    do_mysql_query_with_error_report()
+    mysql_con         connection to use
+    res               if non zero, result will be put there with
+                      mysql_store_result()
+    query             query to send to server
+    dont_die_on_errno don't call maybe_die on this error
 
   RETURN VALUES
     0               query sending and (if res!=0) result reading went ok
     1               error
 */
-
-static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
-                                         const char *query)
+static int do_mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
+                                            const char *query,
+                                            uint dont_die_on_errno)
 {
   if (mysql_query(mysql_con, query) ||
       (res && !((*res)= mysql_store_result(mysql_con))))
   {
-    maybe_die(EX_MYSQLERR, "Couldn't execute '%s': %s (%d)",
-            query, mysql_error(mysql_con), mysql_errno(mysql_con));
+    if (mysql_errno(mysql) != dont_die_on_errno)
+      maybe_die(EX_MYSQLERR, "Couldn't execute '%s': %s (%d)",
+                query, mysql_error(mysql_con), mysql_errno(mysql_con));
     return 1;
   }
   return 0;
+}
+
+static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
+                                         const char *query)
+{
+  return do_mysql_query_with_error_report(mysql_con, res, query, 0);
+}
+
+/*
+  Works like mysql_query_with_error_report, but skips parse errors.
+
+  DESCRIPTION
+    It can be useful when it's necessary to send a query that can be
+    unsupported on the server instance.
+
+    Original purpose of this procedure was to make mysqldump compatible
+    with ProxySQL, that doesn't support SHOW STATUS statement.
+*/
+static int mysql_query_ignore_unsupported(MYSQL *mysql_con, MYSQL_RES **res,
+                                          const char *query)
+{
+  return do_mysql_query_with_error_report(mysql_con, res, query, ER_PARSE_ERROR);
 }
 
 
@@ -1399,7 +1423,7 @@ consistent_gtid_executed_supported(MYSQL *mysql_con)
   MYSQL_ROW row;
   int found = 0;
 
-  if (mysql_query_with_error_report(
+  if (mysql_query_ignore_unsupported(
 		  mysql_con, &res, "SHOW STATUS LIKE 'binlog_snapshot_gtid_executed'"))
     return 0;
 
@@ -1429,8 +1453,8 @@ check_consistent_binlog_pos(char *binlog_pos_file, char *binlog_pos_offset)
   MYSQL_ROW row;
   int found;
 
-  if (mysql_query_with_error_report(mysql, &res,
-                                    "SHOW STATUS LIKE 'binlog_snapshot_%'"))
+  if (mysql_query_ignore_unsupported(mysql, &res,
+                                     "SHOW STATUS LIKE 'binlog_snapshot_%'"))
     return 0;
 
   found= 0;
@@ -6782,7 +6806,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con, my_bool ftwrl_done)
   if (!ftwrl_done && opt_single_transaction)
   {
     if (!consistent_gtid_executed_supported(mysql_con) ||
-        mysql_query_with_error_report(
+        mysql_query_ignore_unsupported(
             mysql_con, &gtid_purged_res,
             "SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed'"))
     {

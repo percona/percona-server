@@ -680,7 +680,7 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
   int rc = 0;
   size_t num_rows = 0;
 
-  free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
+  m_mem_root.ClearForReuse();
   m_records.clear();
 
   rocksdb::Slice cur_prefix_key((const char *)m_cur_prefix_key,
@@ -977,7 +977,7 @@ int Rdb_iterator_partial::prev() {
 void Rdb_iterator_partial::reset() {
   m_valid = false;
   m_materialized = false;
-  free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
+  m_mem_root.ClearForReuse();
   m_records.clear();
   m_iterator_pk.reset();
   Rdb_iterator_base::reset();

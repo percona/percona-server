@@ -3198,7 +3198,7 @@ class Rdb_transaction {
                 !keydef->value_matches_prefix(merge_key, cur_prefix)) {
               // This is a new group, so clear any rows buffered from a prior
               // group.
-              free_root(&mem_root, MYF(MY_KEEP_PREALLOC));
+              mem_root.ClearForReuse();
               keys.clear();
               materialized = false;
 

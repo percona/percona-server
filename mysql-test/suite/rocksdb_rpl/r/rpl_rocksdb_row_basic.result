@@ -373,8 +373,6 @@ X	Q	5	7	R	49	X	Y	2	S	1
 X	Q	5	7	R	49	X	Z	2	S	2
 X	Q	5	9	R	81	X	Y	2	S	1
 X	Q	5	9	R	81	X	Z	2	S	2
-SET @saved_replica_type_conversions = @@REPLICA_TYPE_CONVERSIONS;
-SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_LOSSY';
 CREATE TABLE t4 (C1 CHAR(1) PRIMARY KEY, B1 BIT(1), B2 BIT(1) NOT NULL DEFAULT 0, C2 CHAR(1) NOT NULL DEFAULT 'A') ENGINE = 'RocksDB' ;
 INSERT INTO t4 SET C1 = 1;
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
@@ -384,7 +382,6 @@ include/sync_slave_sql_with_master.inc
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 C1	HEX(B1)	HEX(B2)
 1	NULL	0
-SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = 'RocksDB' ;
 include/sync_slave_sql_with_master.inc
 --- on slave: original values ---
@@ -672,8 +669,6 @@ include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
 include/sync_slave_sql_with_master.inc
-SET @saved_replica_type_conversions = @@REPLICA_TYPE_CONVERSIONS;
-SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_LOSSY';
 CREATE TABLE t1 (a bit) ENGINE='RocksDB';
 INSERT IGNORE INTO t1 VALUES (NULL);
 INSERT INTO t1 ( a ) VALUES ( 0 );
@@ -715,7 +710,6 @@ UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
 INSERT IGNORE INTO t1 ( a ) VALUES ( 1 );
 UPDATE IGNORE t1 SET a = 9 WHERE a < 5 LIMIT 3;
 include/sync_slave_sql_with_master.inc
-SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
 include/sync_slave_sql_with_master.inc

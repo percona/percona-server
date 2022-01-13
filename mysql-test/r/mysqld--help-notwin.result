@@ -599,6 +599,11 @@ The following options may be given as the first argument:
  --log-queries-not-using-indexes 
  Log queries that are executed without benefit of any
  index to the slow log if it is open
+ --log-query-errors=# 
+ Log queries which failed with the specified error code.
+ Multiple error codes are allowed in comma-separated
+ string. Can be set to ALL to match all possible error
+ codes.
  --log-raw           Log to general log before any rewriting of the query. For
  use in debugging, not production as sensitive information
  may be logged.
@@ -647,7 +652,8 @@ The following options may be given as the first argument:
  Choose how verbose the messages to your slow log will be.
  Multiple flags allowed in a comma-separated string.
  [microtime, query_plan, innodb, profiling,
- profiling_use_getrusage, minimal, standard, full]
+ profiling_use_getrusage, query_info, minimal, standard,
+ full]
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
  based binary logging.
@@ -747,6 +753,15 @@ The following options may be given as the first argument:
  --max-seeks-for-key=# 
  Limit assumed max number of seeks when looking up rows
  based on a key
+ --max-slowlog-files=# 
+ Maximum number of slow query log files. Used with
+ --max-slowlog-size this can be used to limit the total
+ amount of disk space used for the slow query log. Default
+ is 0, don't limit.
+ --max-slowlog-size=# 
+ Slow query log will be rotated automatically when the
+ size exceeds this value. The default is 0, don't limit
+ the size.
  --max-sort-length=# The number of bytes to use when sorting long values with
  PAD SPACE collations (only the first max_sort_length
  bytes of each value are used; the rest are ignored)
@@ -1513,7 +1528,7 @@ The following options may be given as the first argument:
  Multiple flags allowed in a comma-separated string.
  [none, log_slow_filter, log_slow_rate_limit,
  log_slow_verbosity, long_query_time,
- min_examined_row_limit, all]
+ min_examined_row_limit, log_query_errors, all]
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -1838,6 +1853,7 @@ log-error-verbosity 2
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
+log-query-errors (Disabled)
 log-raw FALSE
 log-replica-updates FALSE
 log-short-format FALSE
@@ -1882,6 +1898,8 @@ max-points-in-geometry 65536
 max-prepared-stmt-count 16382
 max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
+max-slowlog-files 0
+max-slowlog-size 0
 max-sort-length 1024
 max-sp-recursion-depth 0
 max-user-connections 0

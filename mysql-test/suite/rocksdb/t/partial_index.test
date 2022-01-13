@@ -1,0 +1,17 @@
+--source include/have_rocksdb.inc
+
+--let $asc=ASC
+--let $cfname=cf
+--source suite/rocksdb/include/partial_index.inc
+
+--let $asc=ASC
+--let $cfname=rev:cf
+--source suite/rocksdb/include/partial_index.inc
+
+--let $asc=DESC
+--let $cfname=cf
+--source suite/rocksdb/include/partial_index.inc
+
+--let $asc=DESC
+--let $cfname=rev:cf
+--source suite/rocksdb/include/partial_index.inc

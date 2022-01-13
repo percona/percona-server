@@ -9765,6 +9765,12 @@ ER_WRAPPED_UDF_EXCEPTION
 ER_DROP_MULTI_TABLE
   eng "Multi table drop is not supported when '%s' option is enabled"
 
+ER_TOO_MANY_ERROR_CODES
+  eng "The number of provided error codes exceeds the maximum allowed %lu"
+
+ER_TOO_BIG_ERROR_CODE
+  eng "Provided error code is bigger than maximum allowed %lu"
+
 #
 # End of Percona Server 8.0 client messages
 #

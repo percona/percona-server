@@ -250,6 +250,8 @@ extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
 extern ulong expire_logs_days;
+extern ulong max_slowlog_size;
+extern ulong max_slowlog_files;
 extern ulong binlog_expire_logs_seconds;
 extern ulonglong binlog_space_limit;
 extern uint sync_binlog_period, sync_relaylog_period, sync_relayloginfo_period,

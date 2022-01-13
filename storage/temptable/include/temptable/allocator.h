@@ -277,6 +277,12 @@ struct AllocatorState {
    * new block needs to be created.
    */
   size_t number_of_blocks = 0;
+
+  /**
+   * Allocated memory size counter. Used for statistics to determine
+   * maximum allocated memory space for a table.
+   */
+  size_t allocated_mem_counter;
 };
 
 /** Custom memory allocator. All dynamic memory used by the TempTable engine
@@ -413,6 +419,10 @@ class Allocator {
    * before other methods. */
   static void init();
 
+  uint64_t get_allocated_mem_counter() const {
+    return m_state->allocated_mem_counter;
+  }
+
   /**
     Shared state between all the copies and rebinds of this allocator.
     See AllocatorState for details.
@@ -499,6 +509,7 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
   T *chunk_data =
       reinterpret_cast<T *>(block->allocate(n_bytes_requested).data());
   assert(reinterpret_cast<uintptr_t>(chunk_data) % alignof(T) == 0);
+  m_state->allocated_mem_counter += n_bytes_requested;
   return chunk_data;
 }
 

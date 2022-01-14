@@ -4725,21 +4725,22 @@ wait_again:
 		if (indexes[i]->type & DICT_FTS) {
 			row_fts_psort_info_destroy(psort_info, merge_info);
 			fts_psort_initiated = false;
-		} else if (error != DB_SUCCESS || !online) {
-			/* Do not apply any online log. */
-		} else if (old_table != new_table) {
-			ut_ad(!sort_idx->online_log);
-			ut_ad(sort_idx->online_status
-			      == ONLINE_INDEX_COMPLETE);
-		} else {
+		} else if (error == DB_SUCCESS) {
 			ut_ad(need_flush_observer);
-
 			flush_observer->flush();
 			row_merge_write_redo(indexes[i]);
 
-			DEBUG_SYNC_C("row_log_apply_before");
-			error = row_log_apply(trx, sort_idx, table, stage);
-			DEBUG_SYNC_C("row_log_apply_after");
+			if (old_table != new_table) {
+				ut_ad(!sort_idx->online_log);
+				ut_ad(sort_idx->online_status
+				      == ONLINE_INDEX_COMPLETE);
+			/* Do not apply any online log if not online. */
+			} else if (online) {
+				DEBUG_SYNC_C("row_log_apply_before");
+				error = row_log_apply(trx, sort_idx, table,
+						stage);
+				DEBUG_SYNC_C("row_log_apply_after");
+			}
 		}
 
 		if (error != DB_SUCCESS) {

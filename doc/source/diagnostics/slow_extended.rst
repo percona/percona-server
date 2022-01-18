@@ -193,6 +193,9 @@ Specifies how much information to include in your slow log. The value is a comma
   * ``profiling_use_getrusage``:
     Enables usage of the getrusage function.
 
+  * ``query_info``: 
+    Enables printing ``Query_tables`` and ``Query_digest`` into the slow query log. These fields are disabled by default.
+
 Values are OR'ed together.
 
 For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.

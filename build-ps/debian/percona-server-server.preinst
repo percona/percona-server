@@ -37,7 +37,7 @@ case "$1" in
 
 		if [ -x "/etc/init.d/mysql" ];
 		then
-			invoke-rc.d mysql stop || exit $?
+			/usr/sbin/invoke-rc.d mysql stop || exit $?
 			server_stop
 		fi
 

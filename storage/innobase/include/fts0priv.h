@@ -606,14 +606,6 @@ fts_get_table_id(
 					long */
 	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /******************************************************************//**
-Add the table to add to the OPTIMIZER's list. */
-UNIV_INTERN
-void
-fts_optimize_add_table(
-/*===================*/
-	dict_table_t*	table)		/*!< in: table to add */
-	MY_ATTRIBUTE((nonnull));
-/******************************************************************//**
 Optimize a table. */
 UNIV_INTERN
 void

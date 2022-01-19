@@ -2687,6 +2687,9 @@ fts_optimize_request_sync_table(
 	msg->ptr = table_id;
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+	DBUG_EXECUTE_IF("fts_optimize_wq_count_check",
+	    if (ib_wqueue_get_count(fts_optimize_wq) > 1000) {
+	    DBUG_SUICIDE(); });
 }
 
 /**********************************************************************//**
@@ -3111,6 +3114,10 @@ fts_optimize_thread(
 				break;
 
 			case FTS_MSG_SYNC_TABLE:
+				DBUG_EXECUTE_IF("fts_instrument_msg_sync_sleep",
+					os_thread_sleep(300000);
+				);
+
 				fts_optimize_sync_table(
 					*static_cast<table_id_t*>(msg->ptr));
 				break;

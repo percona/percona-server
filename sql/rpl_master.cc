@@ -870,6 +870,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool time_for_hb_event= false;
   int error= 0;
   const char *errmsg = "Unknown error";
+  std::string bl_errmsg;
   char error_text[MAX_SLAVE_ERRMSG]= {0}; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
@@ -1015,9 +1016,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       */
       if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
       {
-        mysql_bin_log.report_missing_purged_gtids(slave_gtid_executed, &errmsg);
+        mysql_bin_log.report_missing_purged_gtids(slave_gtid_executed, bl_errmsg);
         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
         global_sid_lock->unlock();
+        errmsg = bl_errmsg.c_str();
         GOTO_ERR;
       }
       global_sid_lock->unlock();
@@ -1025,9 +1027,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       if (mysql_bin_log.find_first_log_not_in_gtid_set(name,
                                                        slave_gtid_executed,
                                                        &first_gtid,
-                                                       &errmsg))
+                                                       bl_errmsg))
       {
          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+         errmsg = bl_errmsg.c_str();
          GOTO_ERR;
       }
     }

@@ -602,6 +602,7 @@ fts_cache_init(
 	cache->sync_heap->arg = mem_heap_create(1024);
 
 	cache->total_size = 0;
+	cache->total_size_before_sync = 0;
 
 	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 	cache->deleted_doc_ids = ib_vector_create(
@@ -2663,22 +2664,18 @@ fts_get_next_doc_id(
 	/* If the Doc ID system has not yet been initialized, we
 	will consult the CONFIG table and user table to re-establish
 	the initial value of the Doc ID */
-
-	if (cache->first_doc_id != 0 || !fts_init_doc_id(table)) {
-		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
-			*doc_id = FTS_NULL_DOC_ID;
-			return(DB_SUCCESS);
-		}
-
-		/* Otherwise, simply increment the value in cache */
-		mutex_enter(&cache->doc_id_lock);
-		*doc_id = ++cache->next_doc_id;
-		mutex_exit(&cache->doc_id_lock);
-	} else {
-		mutex_enter(&cache->doc_id_lock);
-		*doc_id = cache->next_doc_id;
-		mutex_exit(&cache->doc_id_lock);
+	if (cache->first_doc_id == FTS_NULL_DOC_ID) {
+		fts_init_doc_id(table);
 	}
+
+	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		*doc_id = FTS_NULL_DOC_ID;
+		return(DB_SUCCESS);
+	}
+
+	mutex_enter(&cache->doc_id_lock);
+	*doc_id = ++cache->next_doc_id;
+	mutex_exit(&cache->doc_id_lock);
 
 	return(DB_SUCCESS);
 }
@@ -3576,10 +3573,13 @@ fts_add_doc_by_id(
 					doc_id, doc.tokens);
 
 				bool	need_sync = false;
-				if ((cache->total_size > fts_max_cache_size / 10
-				     || fts_need_sync)
+				if ((cache->total_size -
+				    cache->total_size_before_sync >
+				    fts_max_cache_size / 10 || fts_need_sync)
 				    && !cache->sync->in_progress) {
 					need_sync = true;
+					cache->total_size_before_sync =
+					    cache->total_size;
 				}
 
 				rw_lock_x_unlock(&table->fts->cache->lock);
@@ -4029,6 +4029,9 @@ fts_sync_write_words(
 		fts_tokenizer_word_t*	word;
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
+
+		DBUG_EXECUTE_IF("fts_instrument_write_words_before_select_index",
+				os_thread_sleep(300000););
 
 		selected = fts_select_index(
 			index_cache->charset, word->text.f_str,
@@ -4617,6 +4620,36 @@ fts_sync_rollback(
 	trx_free_for_background(trx);
 }
 
+/** Check that all indexes are synced.
+@param[in,out]	sync		sync state
+@return true if all indexes are synced, false otherwise. */
+static
+bool
+fts_check_all_indexes_synced(
+	fts_sync_t*	sync)
+{
+	ulint i;
+	fts_cache_t*	cache = sync->table->fts->cache;
+
+	/* Make sure all the caches are synced. */
+	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+		fts_index_cache_t*	index_cache;
+
+		index_cache = static_cast<fts_index_cache_t*>(
+			ib_vector_get(cache->indexes, i));
+
+		if (index_cache->index->to_be_dropped
+		    || index_cache->index->table->to_be_dropped
+		    || fts_sync_index_check(index_cache)) {
+			continue;
+		}
+
+		return false;
+	}
+
+	return true;
+}
+
 /** Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
@@ -4704,17 +4737,7 @@ begin_sync:
 	);
 
 	/* Make sure all the caches are synced. */
-	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
-		fts_index_cache_t*	index_cache;
-
-		index_cache = static_cast<fts_index_cache_t*>(
-			ib_vector_get(cache->indexes, i));
-
-		if (index_cache->index->to_be_dropped
-		    || fts_sync_index_check(index_cache)) {
-			continue;
-		}
-
+	if (!fts_check_all_indexes_synced(sync)) {
 		goto begin_sync;
 	}
 

@@ -1,0 +1,5 @@
+--early-plugin-load="keyring_file=$KEYRING_PLUGIN"
+--loose-keyring_file_data=$MYSQL_TMP_DIR/keyring
+$KEYRING_PLUGIN_OPT
+--gtid-mode=ON --enforce-gtid-consistency=ON
+--innodb-use_native_aio=OFF

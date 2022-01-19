@@ -282,6 +282,14 @@ void Connection_handler_manager::process_new_connection(
   }
 }
 
+void Connection_handler_manager::pause_new_connections() {
+  mysql_mutex_lock(&LOCK_connection_count);
+}
+
+void Connection_handler_manager::resume_new_connections() {
+  mysql_mutex_unlock(&LOCK_connection_count);
+}
+
 THD *create_thd(Channel_info *channel_info) {
   THD *thd = channel_info->create_thd();
   if (thd == nullptr)

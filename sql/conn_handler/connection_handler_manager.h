@@ -233,5 +233,8 @@ class Connection_handler_manager {
     wat till connection_count to become zero.
   */
   static void wait_till_no_connection();
+
+  static void pause_new_connections();
+  static void resume_new_connections();
 };
 #endif  // CONNECTION_HANDLER_MANAGER_INCLUDED.

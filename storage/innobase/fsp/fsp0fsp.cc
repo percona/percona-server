@@ -4828,6 +4828,8 @@ void fsp_init_resume_alter_encrypt_tablespace() {
   THD *thd = create_thd(false, true, true, 0);
 #endif
 
+  thd->set_new_thread_id();
+
   resume_alter_encrypt_tablespace(thd);
 
   destroy_thd(thd);

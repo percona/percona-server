@@ -38,6 +38,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"  // CREATE_TABLESPACE_ACL
 #include "sql/auth/auth_common.h"
+#include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::create_object
 #include "sql/dd/dd_kill_immunizer.h"        // dd::DD_kill_immunizer
@@ -54,6 +55,7 @@
 #include "sql/item_strfunc.h"              // mysql_generate_uuid
 #include "sql/mdl.h"
 #include "sql/parse_tree_helpers.h"  // resolve_engine
+#include "sql/raii/sentry.h"         // raii::Sentry<>
 #include "sql/sql_base.h"            // TDC_RT_REMOVE_ALL
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_const.h"
@@ -930,6 +932,39 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
       check_table_encryption_admin_access(thd)) {
     my_error(ER_CANNOT_SET_TABLESPACE_ENCRYPTION, MYF(0));
     return true;
+  }
+
+  bool call_resume_new_connections = false;
+  raii::Sentry<> scope_guard{[&call_resume_new_connections] {
+    if (call_resume_new_connections)
+      Connection_handler_manager::resume_new_connections();
+  }};
+
+  if (m_tablespace_name.length == MYSQL_TABLESPACE_NAME.length &&
+      memcmp(m_tablespace_name.str, MYSQL_TABLESPACE_NAME.str,
+             MYSQL_TABLESPACE_NAME.length) == 0) {
+    /*
+      "mysql" tablespace is a special case, as data dictionary tables (residing
+      in "mysql") are expected to be always readable without creating deadlocks.
+      Exclusive locking of tables in "mysql" tablespace further down this
+      function opens a small window of opportunity to cause potential deadlocks
+      in dictionary tables updates from concurrent threads. Which in turn may
+      cause outer transactions to roll back, which will break no-rollback
+      guarantees of (nested) attachable transactions of data dictionary
+      accesses.
+
+      To prevent that, only continue with encryption of "mysql" tablespace if
+      this thread is the only client connected. Encryption of other tablespaces
+      is not affected.
+    */
+
+    call_resume_new_connections = true;
+    Connection_handler_manager::pause_new_connections();
+    if (Connection_handler_manager::connection_count > 1) {
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0),
+               "changing ENCRYPTION state while other clients connected");
+      return true;
+    }
   }
 
   if (lock_tablespace_names(thd, m_tablespace_name)) {

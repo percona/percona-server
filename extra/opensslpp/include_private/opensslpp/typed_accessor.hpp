@@ -38,6 +38,12 @@ class typed_accessor : private accessor<WrapperType> {
       const WrapperType &obj) noexcept {
     return const_cast<UnderlyingType *>(this_type::get_impl(obj));
   }
+  static void set_impl(WrapperType &obj, UnderlyingType *impl_raw) noexcept {
+    base_type::set_impl(obj, impl_raw);
+  }
+  static void *release(WrapperType &obj) noexcept {
+    return static_cast<UnderlyingType *>(base_type::release(obj));
+  }
 };
 
 }  // namespace opensslpp

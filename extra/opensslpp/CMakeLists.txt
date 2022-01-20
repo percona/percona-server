@@ -49,6 +49,8 @@ set(
   digest_context.hpp
   digest_context_fwd.hpp
   digest_operations.hpp
+  dsa_key.hpp
+  dsa_key_fwd.hpp
   rsa_encrypt_decrypt_operations.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
@@ -66,6 +68,7 @@ set(
   bio_fwd.hpp
   core_allocated_buffer.hpp
   digest_context_accessor.hpp
+  dsa_key_accessor.hpp
   rsa_key_accessor.hpp
   rsa_padding_conversions.hpp
   typed_accessor.hpp
@@ -79,6 +82,7 @@ set(
   core_allocated_buffer.cpp
   digest_context.cpp
   digest_operations.cpp
+  dsa_key.cpp
   rsa_encrypt_decrypt_operations.cpp
   rsa_key.cpp
   rsa_sign_verify_operations.cpp

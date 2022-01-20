@@ -14,27 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef OPENSSLPP_ACCESSOR_HPP
-#define OPENSSLPP_ACCESSOR_HPP
+#ifndef OPENSSLPP_DSA_KEY_ACCESSOR_HPP
+#define OPENSSLPP_DSA_KEY_ACCESSOR_HPP
 
-#include "opensslpp/accessor_fwd.hpp"
+#include <openssl/dsa.h>
+
+#include "opensslpp/dsa_key_fwd.hpp"
+#include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {
 
-template <typename WrapperType>
-class accessor {
- protected:
-  static void *get_impl(WrapperType &obj) noexcept { return obj.impl_.get(); }
-  static const void *get_impl(const WrapperType &obj) noexcept {
-    return obj.impl_.get();
-  }
-  static void set_impl(WrapperType &obj, void *impl_raw) noexcept {
-    obj.impl_.reset(impl_raw);
-  }
-  static void *release(WrapperType &obj) noexcept {
-    return obj.impl_.release();
-  }
-};
+using dsa_key_accessor = typed_accessor<dsa_key, DSA>;
 
 }  // namespace opensslpp
 

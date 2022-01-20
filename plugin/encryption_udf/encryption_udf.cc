@@ -23,6 +23,8 @@
 
 #include <opensslpp/core_error.hpp>
 #include <opensslpp/digest_operations.hpp>
+#include <opensslpp/dsa_key.hpp>
+#include <opensslpp/dsa_sign_verify_operations.hpp>
 #include <opensslpp/rsa_encrypt_decrypt_operations.hpp>
 #include <opensslpp/rsa_key.hpp>
 #include <opensslpp/rsa_padding.hpp>
@@ -70,17 +72,29 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA")
+  if (algorithm != "RSA" && algorithm != "DSA")
     throw std::invalid_argument("Invalid algorithm specified");
   auto optional_length = ctx.get_arg<INT_RESULT>(1);
   if (!optional_length)
     throw std::invalid_argument("Key length cannot be NULL");
   auto length = optional_length.get();
-  if (length < 1024 || length > 16384)
-    throw std::invalid_argument("Invalid key length specified");
 
-  auto key = opensslpp::rsa_key::generate(length);
-  return {opensslpp::rsa_key::export_private_pem(key)};
+  std::string pem;
+  if (algorithm == "RSA") {
+    if (length < 1024 || length > 16384)
+      throw std::invalid_argument("Invalid RSA key length specified");
+    auto key = opensslpp::rsa_key::generate(length);
+    pem = opensslpp::rsa_key::export_private_pem(key);
+  } else if (algorithm == "DSA") {
+    // DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
+    // and be a multiple of 64
+    if (length < 1024 || length > 9984)
+      throw std::invalid_argument("Invalid DSA key length specified");
+    auto key = opensslpp::dsa_key::generate_parameters(length);
+    key.promote_to_key();
+    pem = opensslpp::dsa_key::export_private_pem(key);
+  }
+  return {std::move(pem)};
 }
 
 //
@@ -122,13 +136,21 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA")
+  if (algorithm != "RSA" && algorithm != "DSA")
     throw std::invalid_argument("Invalid algorithm specified");
   auto priv_key_pem = static_cast<std::string>(ctx.get_arg<STRING_RESULT>(1));
   if (priv_key_pem.data() == nullptr)
     throw std::invalid_argument("Private key cannot be NULL");
-  auto priv_key = opensslpp::rsa_key::import_private_pem(priv_key_pem);
-  return {opensslpp::rsa_key::export_public_pem(priv_key)};
+
+  std::string pem;
+  if (algorithm == "RSA") {
+    auto priv_key = opensslpp::rsa_key::import_private_pem(priv_key_pem);
+    pem = opensslpp::rsa_key::export_public_pem(priv_key);
+  } else if (algorithm == "DSA") {
+    auto priv_key = opensslpp::dsa_key::import_private_pem(priv_key_pem);
+    pem = opensslpp::dsa_key::export_public_pem(priv_key);
+  }
+  return {std::move(pem)};
 }
 
 //
@@ -376,7 +398,7 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA")
+  if (algorithm != "RSA" && algorithm != "DSA")
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
@@ -394,10 +416,17 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
     throw std::invalid_argument("Digest type cannot be NULL");
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
-  auto private_key = opensslpp::rsa_key::import_private_pem(private_key_pem);
-
-  return {opensslpp::sign_with_rsa_private_key(digest_type, message_digest,
-                                               private_key)};
+  std::string signature;
+  if (algorithm == "RSA") {
+    auto private_key = opensslpp::rsa_key::import_private_pem(private_key_pem);
+    signature = opensslpp::sign_with_rsa_private_key(
+        digest_type, message_digest, private_key);
+  } else if (algorithm == "DSA") {
+    auto private_key = opensslpp::dsa_key::import_private_pem(private_key_pem);
+    signature = opensslpp::sign_with_dsa_private_key(
+        digest_type, message_digest, private_key);
+  }
+  return {std::move(signature)};
 }
 
 // ASYMMETRIC_VERIFY(@algorithm, @digest_str, @sig_str, @pub_key_str,
@@ -461,7 +490,7 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA")
+  if (algorithm != "RSA" && algorithm != "DSA")
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
@@ -484,10 +513,17 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
     throw std::invalid_argument("Digest type cannot be NULL");
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
-  auto public_key = opensslpp::rsa_key::import_public_pem(public_key_pem);
-
-  return {opensslpp::verify_with_rsa_public_key(digest_type, message_digest,
-                                                signature, public_key)};
+  bool verification_result = false;
+  if (algorithm == "RSA") {
+    auto public_key = opensslpp::rsa_key::import_public_pem(public_key_pem);
+    verification_result = opensslpp::verify_with_rsa_public_key(
+        digest_type, message_digest, signature, public_key);
+  } else if (algorithm == "DSA") {
+    auto public_key = opensslpp::dsa_key::import_public_pem(public_key_pem);
+    verification_result = opensslpp::verify_with_dsa_public_key(
+        digest_type, message_digest, signature, public_key);
+  }
+  return {verification_result ? 1LL : 0LL};
 }
 
 }  // end of anonymous namespace

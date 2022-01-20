@@ -58,12 +58,13 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ;
 --let $number_of_digest_types = `SELECT COUNT(*) FROM digest_type`
 
+--disable_query_log
 --let $digest_type_idx = 1
 while($digest_type_idx <= $number_of_digest_types)
 {
   --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
   --let $udf_template = HEX(create_digest("$digest_name", @message))
-  --echo **** checking $udf_template digest
+  --echo **** [$digest_name] checking digest
 
   --let $builtin_template = `SELECT builtin_template FROM digest_type WHERE id = $digest_type_idx`
   --let $current_length_iteration = 0
@@ -71,26 +72,33 @@ while($digest_type_idx <= $number_of_digest_types)
   while($current_length_iteration <= $number_of_length_iterations)
   {
     --let $message_length = `SELECT $current_length_iteration * $length_increment`
-    --echo ****** checking digest calculation on $message_length - byte(s) message
+    --echo ****** [$digest_name][message_len=$message_length] checking digest calculation on message
+    if($builtin_template)
+    {
+      --echo ******** [$digest_name][message_len=$message_length] checking if identical to built-in $builtin_template
+    }
     eval SET @message = LEFT(@random_pattern, $message_length);
 
     if($builtin_template)
     {
-      --let $assert_text = digest of a message of length $message_length - byte(s) calculated via UDF should match built-in function result
+      --let $assert_text = [$digest_name][message_len=$message_length] digest of a message calculated via UDF should match built-in function result
       --let $assert_cond = $udf_template = $builtin_template
     }
     if(!$builtin_template)
     {
-      --let $assert_text = digest of a message of length $message_length - byte(s) calculated via UDF is not NULL
+      --let $assert_text = [$digest_name][message_len=$message_length] digest of a message calculated via UDF is not NULL
       --let $assert_cond = $udf_template IS NOT NULL
     }
+    --let $include_silent = 1
     --source include/assert.inc
+    --let $include_silent =
 
     --inc $current_length_iteration
   }
 
   --inc $digest_type_idx
 }
+--enable_query_log
 
 
 SET @algorithm = 'RSA';
@@ -118,10 +126,14 @@ SELECT create_asymmetric_priv_key(@algorithm, -1);
 SELECT create_asymmetric_priv_key(@algorithm, 'blah');
 
 --error ER_UDF_ERROR
-SELECT create_asymmetric_priv_key(@algorithm, 1023);
+SELECT create_asymmetric_priv_key('RSA', 1023);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('DSA', 1023);
 
 --error ER_UDF_ERROR
-SELECT create_asymmetric_priv_key(@algorithm, 16385);
+SELECT create_asymmetric_priv_key('RSA', 16385);
+--error ER_UDF_ERROR
+SELECT create_asymmetric_priv_key('DSA', 9985);
 
 
 --echo
@@ -202,7 +214,7 @@ SELECT asymmetric_decrypt(@algorithm, NULL, NULL);
 eval CREATE FUNCTION asymmetric_sign RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
 
 SET @message_digest = create_digest(@digest_type, @message);
-SET @rsa_priv = create_asymmetric_priv_key(@algorithm, 1024);
+SET @priv = create_asymmetric_priv_key(@algorithm, 1024);
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT asymmetric_sign();
@@ -214,17 +226,17 @@ SELECT asymmetric_sign(@algorithm);
 SELECT asymmetric_sign(@algorithm, @message_digest);
 
 --error ER_CANT_INITIALIZE_UDF
-SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv);
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_sign(NULL, @message_digest, @rsa_priv, @digest_type);
+SELECT asymmetric_sign(NULL, @message_digest, @priv, @digest_type);
 --error ER_UDF_ERROR
-SELECT asymmetric_sign(42, @message_digest, @rsa_priv, @digest_type);
+SELECT asymmetric_sign(42, @message_digest, @priv, @digest_type);
 --error ER_UDF_ERROR
-SELECT asymmetric_sign('XSA', @message_digest, @rsa_priv, @digest_type);
+SELECT asymmetric_sign('XSA', @message_digest, @priv, @digest_type);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_sign(@algorithm, NULL, @rsa_priv, @digest_type);
+SELECT asymmetric_sign(@algorithm, NULL, @priv, @digest_type);
 
 --error ER_UDF_ERROR
 SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
@@ -234,11 +246,11 @@ SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
 SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, NULL);
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, NULL);
 --error ER_UDF_ERROR
-SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, 42);
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 42);
 --error ER_UDF_ERROR
-SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, 'SHAX');
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 'SHAX');
 
 
 --echo
@@ -246,8 +258,8 @@ SELECT asymmetric_sign(@algorithm, @message_digest, @rsa_priv, 'SHAX');
 --replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
 eval CREATE FUNCTION asymmetric_verify RETURNS INTEGER SONAME "$ENCRYPTION_UDF_LIB";
 
-SET @signature = asymmetric_sign(@algorithm, @message_digest, @rsa_priv, @digest_type);
-SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+SET @signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+SET @pub = create_asymmetric_pub_key(@algorithm, @priv);
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT asymmetric_verify();
@@ -262,20 +274,20 @@ SELECT asymmetric_verify(@algorithm, @message_digest);
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature);
 
 --error ER_CANT_INITIALIZE_UDF
-SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub);
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(NULL, @message_digest, @signature, @rsa_pub, @digest_type);
+SELECT asymmetric_verify(NULL, @message_digest, @signature, @pub, @digest_type);
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(42, @message_digest, @signature, @rsa_pub, @digest_type);
+SELECT asymmetric_verify(42, @message_digest, @signature, @pub, @digest_type);
 --error ER_UDF_ERROR
-SELECT asymmetric_verify('XSA', @message_digest, @signature, @rsa_pub, @digest_type);
+SELECT asymmetric_verify('XSA', @message_digest, @signature, @pub, @digest_type);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(@algorithm, NULL, @signature, @rsa_pub, @digest_type);
+SELECT asymmetric_verify(@algorithm, NULL, @signature, @pub, @digest_type);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(@algorithm, @message_digest, NULL, @rsa_pub, @digest_type);
+SELECT asymmetric_verify(@algorithm, @message_digest, NULL, @pub, @digest_type);
 
 --error ER_UDF_ERROR
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
@@ -285,101 +297,131 @@ SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_ty
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
 
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub, NULL);
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, NULL);
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub, 42);
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 42);
 --error ER_UDF_ERROR
-SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @rsa_pub, 'SHAX');
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 'SHAX');
 
 
 --echo
---echo ** checking private key generation, public key derivation and encryption/decryption functionality
---let $key_length_index = 1
-while ($key_length_index <= 2)
+--echo ** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
+--let $algorithm_index = 1
+--disable_query_log
+while ($algorithm_index <= 2)
 {
-  --let $key_length = `SELECT ELT($key_length_index, 1024, 4096, 16384)`
-  --echo **** generating $key_length - bit private key
-  eval SET @rsa_priv = create_asymmetric_priv_key(@algorithm, $key_length);
-  --echo **** deriving $key_length - bit public key
-  SET @rsa_pub = create_asymmetric_pub_key(@algorithm, @rsa_priv);
+  --let $algorithm = `SELECT ELT($algorithm_index, 'RSA', 'DSA')`
+  --echo
+  --echo ** [$algorithm] checking asymmertic algorithm functions
+  # DSA max key length must be <= 10000 and be a multiple of 64, therefore 9984
+  --let $max_key_length = `SELECT ELT($algorithm_index, 16384, 9984)`
+  eval SET @algorithm = "$algorithm";
 
-  # <max message size> = <key length in bytes> - <pkcs1 padding>
-  --let $max_message_size = `SELECT $key_length DIV 8 - 11`
-
-  # size of MD5 hash in bytes is 32
-  eval SET @random_pattern = REPEAT(MD5(42), $max_message_size DIV 32 + 1);
-
-  --echo **** checking operations on NULL message
-  SET @message = NULL;
-  --echo ****** checking encryption of NULL message with public key
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
-  --echo ****** checking encryption of NULL message with private key
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
-
-  --let $message_index = 1
-  while ($message_index <= 4)
+  --let $key_length_index = 1
+  while ($key_length_index <= 2)
   {
-    --let $message_length = `SELECT ELT($message_index, 0, 1, $max_message_size DIV 2, $max_message_size)`
-    eval SET @message = LEFT(@random_pattern, $message_length);
-    --echo **** checking operations on $message_length - byte(s) message
+    --let $key_length = `SELECT ELT($key_length_index, 1024, 4096, $max_key_length)`
+    --echo ** [$algorithm][$key_length] checking asymmetric algorithm functions
+    --echo **** [$algorithm][$key_length] generating private key
+    eval SET @priv = create_asymmetric_priv_key(@algorithm, $key_length);
+    --echo **** [$algorithm][$key_length] deriving public key
+    SET @pub = create_asymmetric_pub_key(@algorithm, @priv);
 
-    --echo ****** checking encryption of $message_length - byte(s) message with public key
-    SET @message_enc_with_rsa_pub = asymmetric_encrypt(@algorithm, @message, @rsa_pub);
-    --echo ****** checking decryption of $message_length - byte(s) message with private key
-    SET @message_dec_with_rsa_priv = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_pub, @rsa_priv);
-    --let $assert_text = message of length $message_length - byte(s) decrypted with private key must match the original one
-    --let $assert_cond = @message_dec_with_rsa_priv = @message
-    --source include/assert.inc
-
-    --echo ****** checking encryption of $message_length - byte(s) message with private key
-    SET @message_enc_with_rsa_priv = asymmetric_encrypt(@algorithm, @message, @rsa_priv);
-    --echo ****** checking decryption of $message_length - byte(s) message with public key
-    SET @message_dec_with_rsa_pub = asymmetric_decrypt(@algorithm, @message_enc_with_rsa_priv, @rsa_pub);
-    --let $assert_text = message of length $message_length - byte(s) decrypted with public key must match the original one
-    --let $assert_cond = @message_dec_with_rsa_pub = @message
-    --source include/assert.inc
-
-    --echo ****** checking sign/verify functionality of a $message_length - byte(s) message
-    --let $digest_type_idx = 1
-    while($digest_type_idx <= $number_of_digest_types)
+    # for RSA <max message size> = <key length in bytes> - <pkcs1 padding>
+    --let $max_message_size = `SELECT $key_length DIV 8`
+    if ($algorithm == 'RSA')
     {
-      --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
-      --echo ******** calculating $digest_name digest a $message_length - byte(s) message
-      eval SET @digest_type = '$digest_name';
-      SET @message_digest = create_digest(@digest_type, @message);
-      --echo ******** calculating signature of the $digest_name digest of a $message_length - byte(s) message
-      SET @message_signature = asymmetric_sign(@algorithm, @message_digest, @rsa_priv, @digest_type);
-      --echo ******** verifying signature of thhe $digest_name digest of a $message_length - byte(s) message
-      SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @message_signature, @rsa_pub, @digest_type);
-      --let $assert_text = signature of the $digest_name digest of a $message_length - byte(s) message must pass verification
-      --let $assert_cond = @verification_result = 1
-      --source include/assert.inc
-
-      --inc $digest_type_idx
+      --let $max_message_size = `SELECT $max_message_size - 11`
     }
 
-    --inc $message_index
+    # size of MD5 hash in bytes is 32
+    eval SET @random_pattern = REPEAT(MD5(42), $max_message_size DIV 32 + 1);
+
+    if ($algorithm == 'RSA')
+    {
+      --echo **** [$algorithm][$key_length] checking operations on NULL message
+      SET @message = NULL;
+      --echo ****** [$algorithm][$key_length] checking encryption with public key of NULL message
+      --error ER_UDF_ERROR
+      SELECT asymmetric_encrypt(@algorithm, @message, @pub);
+      --echo ****** [$algorithm][$key_length] checking encryption with privcate key of NULL message
+      --error ER_UDF_ERROR
+      SELECT asymmetric_encrypt(@algorithm, @message, @priv);
+    }
+
+    --let $message_index = 1
+    while ($message_index <= 4)
+    {
+      --let $message_length = `SELECT ELT($message_index, 0, 1, $max_message_size DIV 2, $max_message_size)`
+      eval SET @message = LEFT(@random_pattern, $message_length);
+      --echo **** [$algorithm][$key_length][message_len=$message_length] checking operations
+
+      if ($algorithm == 'RSA')
+      {
+        --echo ****** [$algorithm][$key_length][message_len=$message_length] checking encryption with public key
+        SET @message_enc_with_pub = asymmetric_encrypt(@algorithm, @message, @pub);
+        --echo ****** [$algorithm][$key_length][message_len=$message_length] checking decryption with private key
+        SET @message_dec_with_priv = asymmetric_decrypt(@algorithm, @message_enc_with_pub, @priv);
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with private key must match the original one
+        --let $assert_cond = @message_dec_with_priv = @message
+        --let $include_silent = 1
+        --source include/assert.inc
+        --let $include_silent =
+
+        --echo ****** [$algorithm][$key_length][message_len=$message_length] checking encryption with private key
+        SET @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv);
+        --echo ****** [$algorithm][$key_length][message_len=$message_length] checking decryption with public key
+        SET @message_dec_with_pub = asymmetric_decrypt(@algorithm, @message_enc_with_priv, @pub);
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with public key must match the original one
+        --let $assert_cond = @message_dec_with_pub = @message
+        --let $include_silent = 1
+        --source include/assert.inc
+        --let $include_silent =
+      }
+
+      --echo ****** [$algorithm][$key_length][message_len=$message_length] checking sign/verify functionality
+      --let $digest_type_idx = 1
+      while($digest_type_idx <= $number_of_digest_types)
+      {
+        --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
+        --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating digest
+        eval SET @digest_type = '$digest_name';
+        SET @message_digest = create_digest(@digest_type, @message);
+        --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] calculating signature
+        SET @message_signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+        --echo ******** [$algorithm][$key_length][message_len=$message_length][$digest_name] verifying signature
+        SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @message_signature, @pub, @digest_type);
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length][$digest_name] signature must pass verification
+        --let $assert_cond = @verification_result = 1
+        --let $include_silent = 1
+        --source include/assert.inc
+        --let $include_silent =
+
+        --inc $digest_type_idx
+      }
+
+      --inc $message_index
+    }
+
+    if ($algorithm == 'RSA')
+    {
+      --let $message_length = $max_message_size + 1
+      --echo **** [$algorithm][$key_length] checking operations on oversize message
+      eval SET @message = LEFT(@random_pattern, $message_length);
+      --echo ****** [$algorithm][$key_length] checking encryption of oversize message with public key
+      --error ER_UDF_ERROR
+      SELECT asymmetric_encrypt(@algorithm, @message, @pub);
+      --echo ****** [$algorithm][$key_length] checking encryption of oversize message with private key
+      --error ER_UDF_ERROR
+      SELECT asymmetric_encrypt(@algorithm, @message, @priv);
+    }
+
+    --inc $key_length_index
   }
-  --let $message_length = $max_message_size + 1
-  --echo **** checking operations on oversize message
-  eval SET @message = LEFT(@random_pattern, $message_length);
-  --echo ****** checking encryption of oversize message with public key
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_pub);
-  --echo ****** checking encryption of oversize message with private key
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @rsa_priv);
 
-  --inc $key_length_index
+  --inc $algorithm_index
 }
-
-
-# not implemented yet
---error ER_UDF_ERROR
-SELECT create_asymmetric_priv_key('DSA', 2048);
-
+--enable_query_log
 
 #
 # Dropping functions from encryption_udf

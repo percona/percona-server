@@ -1,3 +1,5 @@
+--source include/have_innodb.inc
+
 #################################
 --echo # PS-7856: update on partition tables crashes the server
 #################################

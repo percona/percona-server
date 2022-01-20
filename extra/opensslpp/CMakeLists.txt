@@ -51,6 +51,7 @@ set(
   digest_operations.hpp
   dsa_key.hpp
   dsa_key_fwd.hpp
+  dsa_sign_verify_operations.hpp
   rsa_encrypt_decrypt_operations.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
@@ -83,6 +84,7 @@ set(
   digest_context.cpp
   digest_operations.cpp
   dsa_key.cpp
+  dsa_sign_verify_operations.cpp
   rsa_encrypt_decrypt_operations.cpp
   rsa_key.cpp
   rsa_sign_verify_operations.cpp

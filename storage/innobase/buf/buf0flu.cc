@@ -3639,16 +3639,19 @@ void buf_flush_sync_all_buf_pools(void) {
 already in the past.
 @param[in]	next_loop_timm	desired wake up time */
 static void buf_lru_manager_sleep_if_needed(
-    ib_time_monotonic_ms_t next_loop_time) {
+    std::chrono::steady_clock::time_point next_loop_time) {
   /* If this is the server shutdown buffer pool flushing phase, skip the
   sleep to quit this thread faster */
   if (srv_shutdown_state.load() == SRV_SHUTDOWN_FLUSH_PHASE) return;
 
-  const auto cur_time = ut_time_monotonic_ms();
+  const auto cur_time = std::chrono::steady_clock::now();
 
   if (next_loop_time > cur_time) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(
-        std::min(int64_t{1000L}, next_loop_time - cur_time)));
+    const auto period = std::chrono::duration_cast<std::chrono::milliseconds>(
+        next_loop_time - cur_time);
+
+    std::this_thread::sleep_for(
+        std::min(std::chrono::milliseconds{1000L}, period));
   }
 }
 
@@ -3659,7 +3662,7 @@ the last flush result
 @param[in,out]	lru_sleep_time	LRU manager thread sleep time */
 static void buf_lru_manager_adapt_sleep_time(
     const buf_pool_t *buf_pool, ulint lru_n_flushed,
-    ib_time_monotonic_ms_t &lru_sleep_time) {
+    std::chrono::milliseconds &lru_sleep_time) {
   const auto free_len = UT_LIST_GET_LEN(buf_pool->free);
   const auto max_free_len =
       std::min(UT_LIST_GET_LEN(buf_pool->LRU), srv_LRU_scan_depth);
@@ -3667,16 +3670,18 @@ static void buf_lru_manager_adapt_sleep_time(
   if (free_len < max_free_len / 100 && lru_n_flushed) {
     /* Free list filled less than 1% and the last iteration was
     able to flush, no sleep */
-    lru_sleep_time = 0;
+    lru_sleep_time = std::chrono::milliseconds::zero();
   } else if (free_len > max_free_len / 5 ||
              (free_len < max_free_len / 100 && lru_n_flushed == 0)) {
     /* Free list filled more than 20% or no pages flushed in the
     previous batch, sleep a bit more */
-    lru_sleep_time += 1;
-    if (lru_sleep_time > 1000) lru_sleep_time = 1000;
-  } else if (free_len < max_free_len / 20 && lru_sleep_time >= 50) {
+    lru_sleep_time += std::chrono::milliseconds{1};
+    if (lru_sleep_time > std::chrono::milliseconds{1000})
+      lru_sleep_time = std::chrono::milliseconds{1000};
+  } else if (free_len < max_free_len / 20 &&
+             lru_sleep_time >= std::chrono::milliseconds{50}) {
     /* Free list filled less than 5%, sleep a bit less */
-    lru_sleep_time -= 50;
+    lru_sleep_time -= std::chrono::milliseconds{50};
   } else {
     /* Free lists filled between 5% and 20%, no change */
   }
@@ -3699,8 +3704,8 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
   buf_pool_t *const buf_pool = buf_pool_from_array(buf_pool_instance);
 
-  ib_time_monotonic_ms_t lru_sleep_time{1000};
-  auto next_loop_time = ut_time_monotonic_ms() + lru_sleep_time;
+  std::chrono::milliseconds lru_sleep_time{1000};
+  auto next_loop_time = std::chrono::steady_clock::now() + lru_sleep_time;
   ulint lru_n_flushed = 1;
 
   /* On server shutdown, the LRU manager thread runs through cleanup
@@ -3715,7 +3720,7 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
     buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed, lru_sleep_time);
 
-    next_loop_time = ut_time_monotonic_ms() + lru_sleep_time;
+    next_loop_time = std::chrono::steady_clock::now() + lru_sleep_time;
 
     lru_n_flushed = buf_flush_LRU_list(buf_pool);
 

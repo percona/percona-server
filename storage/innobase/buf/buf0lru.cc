@@ -1341,16 +1341,17 @@ has failed
 @param[out]	started_monitor	whether InnoDB monitor print has been requested
 */
 static void buf_LRU_handle_lack_of_free_blocks(
-    ulint n_iterations, ib_time_monotonic_ms_t started_time,
+    ulint n_iterations, std::chrono::steady_clock::time_point started_time,
     ulint flush_failures, bool *mon_value_was, bool *started_monitor) {
-  static ib_time_monotonic_ms_t last_printout_time;
+  static std::chrono::steady_clock::time_point last_printout_time;
 
   /* Legacy algorithm started warning after at least 2 seconds, we
   emulate this. */
-  const auto current_time = ut_time_monotonic_ms();
+  const auto current_time = std::chrono::steady_clock::now();
+  const std::chrono::milliseconds limit{2000};
 
-  if ((current_time - started_time > 2000) &&
-      (current_time - last_printout_time > 2000) &&
+  if ((current_time - started_time > limit) &&
+      (current_time - last_printout_time > limit) &&
       srv_buf_pool_old_size == srv_buf_pool_size) {
     ib::warn(ER_IB_MSG_134)
         << "Difficult to find free blocks in the buffer pool"
@@ -1419,7 +1420,7 @@ buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   ulint flush_failures = 0;
   bool mon_value_was = false;
   bool started_monitor = false;
-  ib_time_monotonic_ms_t started_time = 0;
+  std::chrono::steady_clock::time_point started_time;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1458,7 +1459,8 @@ loop:
     return block;
   }
 
-  if (!started_time) started_time = ut_time_monotonic_ms();
+  if (started_time == std::chrono::steady_clock::time_point{})
+    started_time = std::chrono::steady_clock::now();
 
   MONITOR_INC(MONITOR_LRU_GET_FREE_LOOPS);
 

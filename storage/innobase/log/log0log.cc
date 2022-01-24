@@ -1380,9 +1380,9 @@ ulonglong innodb_scrub_log_speed;
 void log_scrub_thread() {
   ut_ad(!srv_read_only_mode);
   while (srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE) {
-    /* log scrubbing interval in µs. */
-    ulonglong interval = 1000 * 1000 * 512 / innodb_scrub_log_speed;
-    os_event_wait_time(log_scrub_event, static_cast<ulint>(interval));
+    std::chrono::microseconds interval{1000 * 1000 * 512 /
+                                       innodb_scrub_log_speed};
+    os_event_wait_time(log_scrub_event, interval);
     log_scrub();
     os_event_reset(log_scrub_event);
   }

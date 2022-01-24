@@ -5596,7 +5596,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-  const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, n);
+  const auto start_time = trx_stats::start_io_read(trx, n);
 
   os_n_pending_reads.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);

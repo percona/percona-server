@@ -3228,7 +3228,7 @@ got_block:
     /* Let us wait until the read operation
     completes */
 
-    const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, 0);
+    const auto start_time = trx_stats::start_io_read(trx, 0);
     for (;;) {
       enum buf_io_fix io_fix;
 
@@ -3417,16 +3417,18 @@ static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
 
   The repeated reads of io_fix will not be optimized out because it's an atomic
   variable.*/
-  ib_time_monotonic_us_t start_time = 0;
+  std::chrono::steady_clock::time_point start_time;
   while (block->page.was_io_fix_read()) {
-    if (start_time == 0) start_time = trx_stats::start_io_read(trx, 0);
+    if (start_time == std::chrono::steady_clock::time_point{})
+      start_time = trx_stats::start_io_read(trx, 0);
     /* Page is X-latched on block->lock until the read is completed.
     Let's just wait for S-lock on block->lock, it will be granted as soon as the
     read completes. */
     rw_lock_s_lock(&block->lock);
     rw_lock_s_unlock(&block->lock);
   }
-  if (start_time != 0) trx_stats::end_io_read(trx, start_time);
+  if (start_time != std::chrono::steady_clock::time_point{})
+    trx_stats::end_io_read(trx, start_time);
 }
 
 /** This class implements the rules for fetching the pages from the buffer

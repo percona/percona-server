@@ -5,6 +5,10 @@ get_pcount () {
 	echo "${PSCOUNT}"
 }
 
+kill_process () {
+	kill -9 $(ps wwaux | grep /usr/sbin/mysqld | grep -v grep | awk '{print $2}') || exit $?
+}
+
 server_stop () {
 	PSCOUNT=$(get_pcount)
 	COUNT=0
@@ -16,7 +20,11 @@ server_stop () {
 			echo
 			break
 		fi
-		if [ "${COUNT}" -gt 15 ];
+		if [ "${COUNT}" -eq 15 ];
+		then
+			kill_process
+		fi
+		if [ "${COUNT}" -gt 25 ];
 		then
 			echo
 			return 1

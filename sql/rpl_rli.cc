@@ -431,7 +431,8 @@ bool Relay_log_info::cannot_safely_rollback() const
   {
     Slave_worker *worker= *it;
     mysql_mutex_lock(&worker->jobs_lock);
-    ret= worker->info_thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION);
+    const Transaction_ctx *trx= worker->info_thd->get_transaction();
+    ret= trx ? trx->cannot_safely_rollback(Transaction_ctx::SESSION) : false;
     mysql_mutex_unlock(&worker->jobs_lock);
   }
   return ret;

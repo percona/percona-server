@@ -63,7 +63,7 @@ inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
 
   if (ptr == (void *)-1) return nullptr;
 
-  if (populate) prefault_if_not_map_populate(ptr, n_bytes);
+  if (populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
 
   return ptr;
 }

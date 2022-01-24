@@ -51,12 +51,13 @@ namespace detail {
 */
 inline void *large_page_aligned_alloc(size_t n_bytes, bool populate) {
   // VirtualAlloc requires for n_bytes to be a multiple of large-page size
+  const auto n_bytes_rounded = pow2_round(
+      n_bytes + (large_page_default_size - 1), large_page_default_size);
+
   void *ptr =
-      VirtualAlloc(nullptr,
-                   pow2_round(n_bytes + (large_page_default_size - 1),
-                              large_page_default_size),
+      VirtualAlloc(nullptr, n_bytes_rounded,
                    MEM_COMMIT | MEM_RESERVE | MEM_LARGE_PAGES, PAGE_READWRITE);
-  if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes);
+  if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes_rounded);
 
   return ptr;
 }

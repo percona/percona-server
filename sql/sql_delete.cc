@@ -1371,7 +1371,7 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
     if (!tr->is_deleted()) continue;
 
     if (unique_table(tr, join->tables_list, false) != nullptr ||
-        has_cascade_dependency(thd, *tr, join->tables_list)) {
+        has_cascade_dependency(join->thd, *tr, join->tables_list)) {
       /*
         If the table being deleted from is also referenced in the query,
         defer delete so that the delete doesn't interfer with reading of this

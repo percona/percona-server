@@ -218,7 +218,7 @@ extern "C" void handle_fatal_signal(int sig) {
         }
       }
       my_safe_printf_stderr("%s", "Writing a core file using lib coredumper\n");
-      my_write_libcoredumper(sig, opt_libcoredumper_path, curr_time);
+      my_write_libcoredumper(sig, opt_libcoredumper_path, time(nullptr));
     } else {
 #endif
       my_safe_printf_stderr("%s", "Writing a core file\n");

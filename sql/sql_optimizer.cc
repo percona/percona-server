@@ -2471,7 +2471,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       assert(tab->range_scan() == save_range_scan ||
              tab->range_scan() == nullptr);
       tab->set_range_scan(range_scan);
-      if (qck && !no_changes) tab->set_type(calc_join_type(qck->get_type()));
+      if (tab->range_scan() && !no_changes)
+        tab->set_type(calc_join_type(tab->range_scan()));
     }
     order_direction = best_key_direction;
     /*

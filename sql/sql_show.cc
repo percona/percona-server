@@ -2755,9 +2755,6 @@ class List_process_list : public Do_THD_Impl {
 
     thread_info *thd_info = nullptr;
 
-    const bool is_utility_user = acl_is_utility_user(
-        inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
-
     {
       MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
 
@@ -2766,6 +2763,9 @@ class List_process_list : public Do_THD_Impl {
       LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
       LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
+
+      const bool is_utility_user = acl_is_utility_user(
+          inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
 
       {
         MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
@@ -3022,6 +3022,7 @@ class Fill_process_list : public Do_THD_Impl {
 
     TABLE *table;
     const char *val = nullptr;
+    ulonglong now_utime;
 
     {
       MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
@@ -3041,7 +3042,7 @@ class Fill_process_list : public Do_THD_Impl {
           m_client_thd->security_context()->check_access(PROCESS_ACL)
               ? NullS
               : client_priv_user;
-      ulonglong now_utime = my_micro_time();
+      now_utime = my_micro_time();
 
       {
         MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);

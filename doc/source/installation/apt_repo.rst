@@ -76,7 +76,7 @@ The |Percona Server| distribution contains several useful User Defined Functions
 
 .. code-block:: bash
 
-    mysql -e "CREATE FUNCTION fnvla_64 RETURNS INTEGER SONAME 'libfnvla_udf.so'"
+    mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'"
     mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'"
     mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'"
     

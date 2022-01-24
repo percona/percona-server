@@ -16,7 +16,7 @@ server_stop () {
 			echo
 			break
 		fi
-		if [ "${COUNT}" -gt 15 ];
+		if [ "${COUNT}" -gt 25 ];
 		then
 			echo
 			return 1
@@ -102,14 +102,6 @@ case "$1" in
 	;;
 
 	upgrade)
-
-	set -e
-
-	#DEBHELPER#
-	server_stop
-
-	set +e
-
 	;;
 
 	abort-upgrade)

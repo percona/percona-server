@@ -1758,12 +1758,12 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
    themselves.
 
    @param thd              thread handle
-   @param lex              current relative time in microseconds
+   @param cur_utime        current relative time in microseconds
 
-   @return                 time in microseconds from utime_after_lock
+   @return                 time in microseconds
 */
 
-static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
+static ulonglong get_query_exec_time(THD *thd) {
   ulonglong res;
 
 #ifndef NDEBUG
@@ -1773,7 +1773,7 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
               : 0;
   else
 #endif
-    res = cur_utime - thd->utime_after_lock;
+    res = get_query_time(thd);
 
   if (res > thd->variables.long_query_time)
     thd->server_status |= SERVER_QUERY_WAS_SLOW;
@@ -1813,8 +1813,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   if (!thd->enable_slow_log || !opt_slow_log) return false;
 
   /* Collect query exec time as the first step. */
-  ulonglong end_utime_of_query = thd->current_utime();
-  ulonglong query_exec_time = get_query_exec_time(thd, end_utime_of_query);
+  ulonglong query_exec_time = get_query_exec_time(thd);
 
   /*
     Copy all needed global variables into a session one before doing all checks.

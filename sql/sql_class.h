@@ -5038,4 +5038,8 @@ inline void THD::set_system_user(bool system_user_flag) {
   m_is_system_user.store(system_user_flag, std::memory_order_seq_cst);
 }
 
+inline ulonglong get_query_time(THD *thd) {
+  return my_micro_time() - thd->start_utime;
+}
+
 #endif /* SQL_CLASS_INCLUDED */

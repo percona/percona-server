@@ -3307,8 +3307,7 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
       crypt_data->rotate_state.flush_observer->get_number_of_pages_flushed() -
       number_of_pages_flushed_so_far;
 
-  if (number_of_pages_flushed_now > 0 &&
-      end > start) {
+  if (number_of_pages_flushed_now > 0) {
     state->cnt_waited += number_of_pages_flushed_now;
     state->sum_waited_us +=
         std::chrono::duration_cast<std::chrono::microseconds>(end - start)

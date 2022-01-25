@@ -250,9 +250,9 @@ CREATE TABLE t1(a INT);
 LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
 (@b) SET a=REVERSE(@b);
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1366	Incorrect integer value: '?' for column 'a' at row 1
 Warning	1366	Incorrect integer value: '?' for column 'a' at row 2
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # should return 2 zeroes (as the value is truncated)
 SELECT * FROM t1;
 a

@@ -79,7 +79,7 @@ Start with the installation of *Percona Server for MySQL*.
 	  $ sudo apt install percona-server-rocksdb
 
 
-.. _zenfs-configure
+.. _zenfs-configure:
 
 Configuration
 ============================================================

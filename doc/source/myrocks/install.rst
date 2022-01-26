@@ -35,7 +35,7 @@ It is recommended to install Percona software from official repositories:
       
      .. note::
      
-        The :ref:`zenfs-install` section contains the :ref:`zenfs` installation commands.
+       Review the :ref:`zenfs` document for the :ref:`zenfs-installation` and the :ref:`zenfs-configure` information.
      
       
    * For RHEL or CentOS::

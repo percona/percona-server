@@ -40,7 +40,7 @@ Installing |Percona Server| from a Binary Tarball
 In |Percona Server| 8.0.20-11 and later, select the **Percona Server for MySQL** 8.0 version number and the type of tarball for your installation. The multiple binary tarballs from earlier versions have been replaced with the following:
 
  
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
+.. tabularcolumns:: |p{0.08\linewidth}|p{0.30\linewidth}|p{0.10\linewidth}|p{0.40\linewidth}|
 
 .. list-table::
    :header-rows: 1
@@ -69,7 +69,7 @@ In |Percona Server| 8.0.20-11 and later, select the **Percona Server for MySQL**
 Implemented in *Percona for MySQL* 8.0.26-16, the following binary tarballs
 are available for the MyRocks ZenFS installation. See :ref:`zenfs` for more information and the installation procedure.
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
+.. tabularcolumns:: |p{0.08\linewidth}|p{0.30\linewidth}|p{0.40\linewidth}|
 
 .. list-table::
    :header-rows: 1
@@ -82,7 +82,7 @@ are available for the MyRocks ZenFS installation. See :ref:`zenfs` for more info
      - Contains the binaries, libraries, test files, and debug symbols
    * - Minimal
      - Percona-Server-<version number>-Linux.x86_64.glibc2.31-zenfs-minimal.tar.gz
-     - Contains the binaries, and libraries but does not include test files, or debug symbols
+     - Contains the binaries and libraries but does not include test files or debug symbols
 
 At this time, you can enable the ZenFS plugin in the following distributions:
 

@@ -463,7 +463,7 @@ f3 TIMESTAMP NOT NULL default '1971-01-01 00:00:00');
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "1971-01-01 00:00:00");
-UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
+UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('99999999990') WHERE f1=1;
 ERROR 23000: Column 'f3' cannot be null
 SELECT f1,f2-f3 FROM t1;
 f1	f2-f3

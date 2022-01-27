@@ -376,14 +376,18 @@ if (!$explicit_defaults_for_timestamp)
 {
  INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
  INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
- INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
+# FROM_UNIXTIME('9999999999') no longer gives NULL, but a real UNIX timestamp
+# outside 32 bits time range. To retain the test of NULL from FROM_UNIXTIME we
+# now add FROM_UNIXTIME(99999999990), i.e. a date beyond UTC 23:59:59, January
+# 18, 3001. This will return NULL.
+ INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('99999999990'));
  INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
 }
 if ($explicit_defaults_for_timestamp)
 {
  --error ER_BAD_NULL_ERROR
 }
-UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
+UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('99999999990') WHERE f1=1;
 SELECT f1,f2-f3 FROM t1;
 DROP TABLE t1;
 

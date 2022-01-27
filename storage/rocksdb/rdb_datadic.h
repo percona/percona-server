@@ -373,12 +373,11 @@ class Rdb_key_def {
     return gl_index_id;
   }
 
-  int read_memcmp_key_part(const TABLE *table_arg, Rdb_string_reader *reader,
+  int read_memcmp_key_part(Rdb_string_reader *reader,
                            const uint part_num) const;
 
   /* Must only be called for secondary keys: */
-  uint get_primary_key_tuple(const TABLE *const tbl,
-                             const Rdb_key_def &pk_descr,
+  uint get_primary_key_tuple(const Rdb_key_def &pk_descr,
                              const rocksdb::Slice *const key,
                              uchar *const pk_buffer) const;
 
@@ -583,6 +582,16 @@ class Rdb_key_def {
                               bool skip_checks = false);
   inline bool has_ttl() const { return m_ttl_duration > 0; }
 
+  uint extract_partial_index_info(const TABLE *const table_arg,
+                                  const Rdb_tbl_def *const tbl_def_arg);
+  inline bool is_partial_index() const { return m_partial_index_threshold > 0; }
+  inline uint partial_index_threshold() const {
+    return m_partial_index_threshold;
+  }
+  inline uint partial_index_keyparts() const {
+    return m_partial_index_keyparts;
+  }
+
   static bool has_index_flag(uint32 index_flags, enum INDEX_FLAG flag);
   static uint32 calculate_index_flag_offset(uint32 index_flags,
                                             enum INDEX_FLAG flag,
@@ -593,13 +602,6 @@ class Rdb_key_def {
 
   static const std::string gen_qualifier_for_table(
       const char *const qualifier, const std::string &partition_name = "");
-  static const std::string gen_cf_name_qualifier_for_partition(
-      const std::string &s);
-  static const std::string gen_ttl_duration_qualifier_for_partition(
-      const std::string &s);
-  static const std::string gen_ttl_col_qualifier_for_partition(
-      const std::string &s);
-
   static const std::string parse_comment_for_qualifier(
       const std::string &comment, const TABLE *const table_arg,
       const Rdb_tbl_def *const tbl_def_arg, bool *per_part_match_found,
@@ -982,6 +984,10 @@ class Rdb_key_def {
     Default is UINT_MAX to denote that it does not exist.
   */
   uint m_ttl_field_index;
+
+  uint m_partial_index_keyparts;
+
+  uint m_partial_index_threshold;
 
   /* Prefix extractor for the column family of the key definiton */
   std::shared_ptr<const rocksdb::SliceTransform> m_prefix_extractor;

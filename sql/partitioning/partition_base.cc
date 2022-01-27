@@ -4558,7 +4558,7 @@ void Partition_base::cancel_pushed_idx_cond() {
   Also sets stats.auto_increment_value.
 */
 
-inline int Partition_base::initialize_auto_increment(bool no_lock) {
+int Partition_base::initialize_auto_increment(bool no_lock) {
   DBUG_ENTER("Partition_base::initialize_auto_increment");
 #ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE) {

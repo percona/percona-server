@@ -295,12 +295,14 @@ Variable_name	Value
 rocksdb_bulk_load	ON
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 show session variables like 'rocksdb_bulk_load%';
 Variable_name	Value
 rocksdb_bulk_load	ON
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i)) ENGINE = ROCKSDB;
 INSERT INTO t1 VALUES (1,1);
@@ -345,6 +347,7 @@ Variable_name	Value
 rocksdb_bulk_load	OFF
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 CREATE TABLE t1 (a VARCHAR(30)) ENGINE=RocksDB;
 INSERT INTO t1 (a) VALUES (REPEAT("a", 30));

@@ -1,0 +1,19 @@
+--source include/have_rocksdb.inc
+
+# rocksdb_write_disable_wal=ON is incompatible with
+# synchronous writes (rocksdb_flush_log_at_trx_commit=1).
+# See https://jira.percona.com/browse/PS-7883 for details.
+
+call mtr.add_suppression("Plugin rocksdb reported:");
+call mtr.add_suppression("Plugin 'ROCKSDB'");
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE tt_12 (ipkey INT AUTO_INCREMENT, i1 INT, d2 DOUBLE,
+                    PRIMARY KEY(ipkey), INDEX tt_12i0(d2, i1 ASC, ipkey),
+                    INDEX tt_12i1(ipkey, i1, d2))
+                   ROW_FORMAT=DYNAMIC ENGINE=RocksDB;
+
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=\[ERROR\] .* Plugin rocksdb reported: 'Invalid argument: Sync writes \(rocksdb_flush_log_at_trx_commit == 1\) has to enable WAL'
+--let $grep_output=boolean
+--source include/grep_pattern.inc

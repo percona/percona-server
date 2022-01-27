@@ -247,6 +247,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Local
+   * - :variable:`rocksdb_enable_pipelined_write`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
      - Yes
      - Yes
@@ -347,6 +351,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_manual_compaction_bottommost_level`
+     - Yes
+     - Yes
+     - Local
    * - :variable:`rocksdb_manual_wal_flush`
      - Yes
      - No
@@ -588,7 +596,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Global, Session
    * - :variable:`rocksdb_track_and_verify_wals_in_manifest`
-     - Yes
+     - No
      - No
      - Global
    * - :variable:`rocksdb_unsafe_for_binlog`
@@ -764,6 +772,7 @@ Disabled by default.
   :vartype: Boolean
   :default: ``OFF``
 
+
 Enable crash unsafe INPLACE ADD|DROP partition.
 
 .. variable:: rocksdb_alter_column_default_inplace
@@ -774,7 +783,8 @@ Enable crash unsafe INPLACE ADD|DROP partition.
   :vartype: Boolean
   :default: ON
 
-Allows inplace alter for alter column default operation.
+Allows an inplace alter for the ``ALTER COLUMN`` default operation.
+
 
 .. variable:: rocksdb_base_background_compactions
 
@@ -1272,7 +1282,7 @@ This variable is a no-op in non-debug builds.
   :vartype: Numeric
   :default: ``0``
 
-For debugging purposes only.  Sets the snapshot during
+For debugging purposes only. Sets the snapshot during
 compaction to ``now()`` + :variable:`rocksdb_debug_set_ttl_snapshot_ts`.
 The value can be +/- to simulate a snapshot in the past vs a
 snapshot created in the  future . A value of ``0`` denotes
@@ -1397,6 +1407,19 @@ failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.
   :default: ``TRUE``
 
 Enables the rocksdb iterator upper bounds and lower bounds in read options.
+
+.. variable:: rocksdb_enable_pipelined_write
+
+    :version 8.0.25-15: Implemented
+    :cli: ``--rocksdb-enable-pipelined-write``
+    :dyn: No
+    :scope: Global
+    :vartype: Boolean
+    :default: ``OFF``
+
+DBOptions::enable_pipelined_write for RocksDB.
+
+If ``enable_pipelined_write`` is ``true``, a separate write thread is maintained for WAL write and memtable write. A write thread first enters the WAL writer queue and then the memtable writer queue. A pending thread on the WAL writer queue only waits for the previous WAL write operations but does not wait for memtable write operations. Enabling the feature may improve write throughput and reduce latency of the prepare phase of a two-phase commit.
 
 .. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
 
@@ -1739,6 +1762,24 @@ Allowed range is up to ``18446744073709551615``.
 .. note::
 
    A value of ``4194304`` (4 MB) is reasonable to reduce random I/O on XFS.
+
+.. variable:: rocksdb_manual_compaction_bottommost_level
+
+  :cli: ``--rocksdb-manual-compaction-bottommost-level``
+  :dyn: Yes
+  :scope: Local
+  :vartype: Enum  
+  :default: kForceOptimized
+
+Option for bottommost level compaction during manual compaction:
+  
+  * kSkip - Skip bottommost level compaction
+
+  * kIfHaveCompactionFilter - Only compact bottommost level if there is a compaction filter
+
+  * kForce - Always compact bottommost level
+
+  * kForceOptimized -  Always compact bottommost level but in bottommost level avoid double-compacting files created in the same compaction
 
 .. variable:: rocksdb_manual_wal_flush
 
@@ -2510,7 +2551,6 @@ Specifies the path to the directory for temporary files during DDL operations.
 Defines the block cache trace option string. The format is sampling frequency: max_trace_file_size:trace_file_name. The sampling frequency value and max_trace_file_size value are positive integers. The block accesses are saved to the ``rocksdb_datadir/block_cache_traces/trace_file_name``. The default value is an empty string.
 
 .. variable:: rocksdb_trace_queries
-
    :cli: ``--rocksdb-trace-queries``
    :dyn: Yes
    :scope: Global
@@ -2539,8 +2579,8 @@ Disabled by default.
   :vartype: Boolean
   :default: ON
 
-DBOptions::rocksdb_track_and_verify_wals_in_manifest for RocksDB.
 
+DBOptions::track_and_verify_wals_in_manifest for RocksDB.
 
 .. variable:: rocksdb_two_write_queues
 
@@ -2757,6 +2797,7 @@ Make sure that lookups use the whole key for matching.
   :default: 0
 
 This variable specifies the maximum size of the write batch in bytes before flushing. Only valid if ``rockdb_write_policy`` is WRITE_UNPREPARED. There is no limit if the variable is set to the default setting. 
+
 
 .. variable:: rocksdb_write_batch_max_bytes
 

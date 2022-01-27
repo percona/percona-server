@@ -3048,6 +3048,22 @@ static Sys_var_ulong Sys_max_relay_log_size(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_max_relay_log_size));
 
+static Sys_var_ulong Sys_max_slowlog_size(
+    "max_slowlog_size",
+    "Slow query log will be rotated automatically when the size exceeds "
+    "this value. The default is 0, don't limit the size.",
+    GLOBAL_VAR(max_slowlog_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, 1024 * 1024L * 1024L), DEFAULT(0L), BLOCK_SIZE(IO_SIZE));
+
+static Sys_var_ulong Sys_max_slowlog_files(
+    "max_slowlog_files",
+    "Maximum number of slow query log files. Used with --max-slowlog-size "
+    "this can be used to limit the total amount of disk space used for the "
+    "slow query log. "
+    "Default is 0, don't limit.",
+    GLOBAL_VAR(max_slowlog_files), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, 102400), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_max_sort_length(
     "max_sort_length",
     "The number of bytes to use when sorting long values with PAD SPACE "
@@ -6032,6 +6048,14 @@ static Sys_var_set Sys_log_slow_filter(
     SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG), log_slow_filter_name,
     DEFAULT(0));
 
+static Sys_var_errors_set Sys_log_query_errors(
+    "log_query_errors",
+    "Log queries which failed with the specified error code. "
+    "Multiple error codes are allowed in comma-separated string. "
+    "Can be set to ALL to match all possible error codes.",
+    SESSION_VAR(log_query_errors), CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static Sys_var_ulong sys_log_slow_rate_limit(
     "log_slow_rate_limit",
     "Rate limit statement writes to slow log to only those from every "
@@ -6057,9 +6081,16 @@ static Sys_var_double sys_slow_query_log_always_write_time(
     VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(update_slow_query_log_always_write_time));
 
-static const char *log_slow_verbosity_name[] = {
-    "microtime", "query_plan", "innodb", "profiling", "profiling_use_getrusage",
-    "minimal",   "standard",   "full",   nullptr};
+static const char *log_slow_verbosity_name[] = {"microtime",
+                                                "query_plan",
+                                                "innodb",
+                                                "profiling",
+                                                "profiling_use_getrusage",
+                                                "query_info",
+                                                "minimal",
+                                                "standard",
+                                                "full",
+                                                nullptr};
 
 static ulonglong update_log_slow_verbosity_replace(ulonglong value,
                                                    ulonglong what,
@@ -6104,8 +6135,8 @@ static Sys_var_set Sys_log_slow_verbosity(
     "log_slow_verbosity",
     "Choose how verbose the messages to your slow log will be. "
     "Multiple flags allowed in a comma-separated string. [microtime, "
-    "query_plan, innodb, profiling, profiling_use_getrusage, minimal, "
-    "standard, full]",
+    "query_plan, innodb, profiling, profiling_use_getrusage, query_info, "
+    "minimal, standard, full]",
     SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
     log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr),
@@ -6142,6 +6173,7 @@ static const char *slow_query_log_use_global_control_name[] = {
     "log_slow_verbosity",
     "long_query_time",
     "min_examined_row_limit",
+    "log_query_errors",
     "all",
     nullptr};
 
@@ -6153,7 +6185,8 @@ static bool update_slow_query_log_use_global_control(sys_var *, THD *,
         (1ULL << SLOG_UG_LOG_SLOW_RATE_LIMIT) |
         (1ULL << SLOG_UG_LOG_SLOW_VERBOSITY) |
         (1ULL << SLOG_UG_LONG_QUERY_TIME) |
-        (1ULL << SLOG_UG_MIN_EXAMINED_ROW_LIMIT);
+        (1ULL << SLOG_UG_MIN_EXAMINED_ROW_LIMIT) |
+        (1ULL << SLOG_UG_LOG_QUERY_ERRORS);
   }
   return false;
 }
@@ -6201,7 +6234,7 @@ static Sys_var_set_none Sys_slow_query_log_use_global_control(
     "Choose flags, wich always use the global variables. Multiple flags "
     "allowed in a comma-separated string. [none, log_slow_filter, "
     "log_slow_rate_limit, log_slow_verbosity, long_query_time, "
-    "min_examined_row_limit, all]",
+    "min_examined_row_limit, log_query_errors, all]",
     GLOBAL_VAR(opt_slow_query_log_use_global_control), CMD_LINE(REQUIRED_ARG),
     slow_query_log_use_global_control_name, DEFAULT(0), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(0),

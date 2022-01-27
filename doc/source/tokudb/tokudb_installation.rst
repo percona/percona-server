@@ -4,6 +4,19 @@
  TokuDB Installation
 ================================================================================
 
+.. Important:: 
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+
+
 |Percona Server| is compatible with the separately available |TokuDB| storage
 engine package. The |TokuDB| engine must be separately downloaded and then
 enabled as a plug-in component. This package can be installed alongside with
@@ -18,7 +31,7 @@ write-intensive workloads which is achieved with Fractal Tree indexing. To learn
 more about Fractal Tree indexing, you can visit the following `Wikipedia page
 <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
-.. warning:: 
+.. warning::
 
    Only the `Percona supplied
    <http://www.percona.com/downloads/Percona-Server-8.0/LATEST/>`_
@@ -28,7 +41,7 @@ more about Fractal Tree indexing, you can visit the following `Wikipedia page
    from one variant to any other variant requires a logical data dump
    and reload.
 
-Prerequisites 
+Prerequisites
 ================================================================================
 
 ``libjemalloc`` library
@@ -64,7 +77,7 @@ the Transparent huge pages are enabled with: :bash:`cat /sys/kernel/mm/transpare
 .. admonition:: Output
 
    .. code-block:: bash
-		   
+
       [always] madvise never
 
 If transparent huge pages are enabled and you try to start the TokuDB
@@ -83,7 +96,7 @@ your server).
 You can disable the transparent huge pages by running the following
 command as root (**NOTE**: Setting this will last only until the
 server is rebooted):
-  
+
 .. code-block:: bash
 
    echo never > /sys/kernel/mm/transparent_hugepage/enabled
@@ -117,7 +130,7 @@ Once the |TokuDB| server package is installed, the following output is shown:
      * Run the following script to enable the TokuDB storage engine in Percona Server:
 
        :bash:`ps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]`
-              
+
      * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_installation.html for more installation details
 
      * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB
@@ -128,7 +141,7 @@ Once the |TokuDB| server package is installed, the following output is shown:
 Transparent huge pages, if they're enabled, and install and enable the
 |TokuDB| storage engine with all the required plugins. You need to run
 this script as root or with :program:`sudo`. The script should only
-be used for local installations and should not be used to install 
+be used for local installations and should not be used to install
 TokuDB to a remote server. After you run the script
 with required parameters:
 
@@ -136,7 +149,7 @@ with required parameters:
 
 .. code-block:: bash
 
-   $ ps-admin --enable-tokudb -uroot -pPassw0rd   
+   $ ps-admin --enable-tokudb -uroot -pPassw0rd
 
 Following output will be displayed:
 
@@ -225,7 +238,7 @@ TokuDB Version
 .. admonition:: Output
 
    .. code-block:: mysql
-  
+
       +------------------+
       | @@tokudb_version |
       +------------------+

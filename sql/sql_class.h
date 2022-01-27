@@ -186,6 +186,7 @@ enum enum_slow_query_log_use_global_control {
   SLOG_UG_LOG_SLOW_VERBOSITY,
   SLOG_UG_LONG_QUERY_TIME,
   SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+  SLOG_UG_LOG_QUERY_ERRORS,
   SLOG_UG_ALL
 };
 enum enum_log_slow_verbosity {
@@ -194,6 +195,7 @@ enum enum_log_slow_verbosity {
   SLOG_V_INNODB,
   SLOG_V_PROFILING,
   SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_QUERY_INFO,
   SLOG_V_MINIMAL,
   SLOG_V_STANDARD,
   SLOG_V_FULL

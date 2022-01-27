@@ -1355,6 +1355,9 @@ The following options may be given as the first argument:
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
+ --secure-log-path=name 
+ Limit location of general log, slow log and buffered
+ error logwithin specified directory
  --select-into-buffer-size[=#] 
  Buffer size for SELECT INTO OUTFILE/DUMPFILE.
  --select-into-disk-sync 
@@ -2031,6 +2034,7 @@ rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
 secondary-engine-cost-threshold 100000
+secure-log-path 
 select-into-buffer-size 131072
 select-into-disk-sync FALSE
 select-into-disk-sync-delay 0

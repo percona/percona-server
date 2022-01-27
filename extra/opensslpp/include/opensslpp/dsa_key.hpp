@@ -45,8 +45,8 @@ class dsa_key final {
   void swap(dsa_key &obj) noexcept;
 
   bool is_empty() const noexcept { return !impl_; }
-  bool has_private_component() const noexcept;
   bool has_public_component() const noexcept;
+  bool has_private_component() const noexcept;
 
   std::size_t get_size_in_bits() const noexcept;
   std::size_t get_size_in_bytes() const noexcept;

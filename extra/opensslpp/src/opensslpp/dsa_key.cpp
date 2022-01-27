@@ -40,17 +40,20 @@ dsa_key::dsa_key(const dsa_key &obj)
     : impl_{obj.is_empty()
                 ? nullptr
                 : DSAparams_dup(dsa_key_accessor::get_impl_const_casted(obj))} {
-  if (!obj.is_empty() && is_empty())
-    core_error::raise_with_error_string("cannot duplicate DSA key");
-  auto public_component = obj.get_public_component();
-  auto private_component = obj.get_private_component();
-  if (DSA_set0_key(dsa_key_accessor::get_impl(*this),
-                   big_number_accessor::get_impl(public_component),
-                   big_number_accessor::get_impl(private_component)) == 0)
-    throw core_error{
-        "cannot set private/public components when duplicating DSA key"};
-  big_number_accessor::release(public_component);
-  big_number_accessor::release(private_component);
+  if (!obj.is_empty()) {
+    if (is_empty())
+      core_error::raise_with_error_string("cannot duplicate DSA key");
+
+    auto public_component = obj.get_public_component();
+    auto private_component = obj.get_private_component();
+    if (DSA_set0_key(dsa_key_accessor::get_impl(*this),
+                     big_number_accessor::get_impl(public_component),
+                     big_number_accessor::get_impl(private_component)) == 0)
+      throw core_error{
+          "cannot set private/public components when duplicating DSA key"};
+    big_number_accessor::release(public_component);
+    big_number_accessor::release(private_component);
+  }
 }
 
 dsa_key &dsa_key::operator=(const dsa_key &obj) {
@@ -61,14 +64,14 @@ dsa_key &dsa_key::operator=(const dsa_key &obj) {
 
 void dsa_key::swap(dsa_key &obj) noexcept { impl_.swap(obj.impl_); }
 
-bool dsa_key::has_private_component() const noexcept {
-  assert(!is_empty());
-  return DSA_get0_priv_key(dsa_key_accessor::get_impl(*this)) != nullptr;
-}
-
 bool dsa_key::has_public_component() const noexcept {
   assert(!is_empty());
   return DSA_get0_pub_key(dsa_key_accessor::get_impl(*this)) != nullptr;
+}
+
+bool dsa_key::has_private_component() const noexcept {
+  assert(!is_empty());
+  return DSA_get0_priv_key(dsa_key_accessor::get_impl(*this)) != nullptr;
 }
 
 std::size_t dsa_key::get_size_in_bits() const noexcept {
@@ -87,6 +90,7 @@ std::size_t dsa_key::get_security_size_in_bits() const noexcept {
 }
 
 big_number dsa_key::get_public_component() const {
+  assert(!is_empty());
   auto public_component_raw =
       DSA_get0_priv_key(dsa_key_accessor::get_impl(*this));
   if (public_component_raw == nullptr) return {};
@@ -99,6 +103,7 @@ big_number dsa_key::get_public_component() const {
 }
 
 big_number dsa_key::get_private_component() const {
+  assert(!is_empty());
   auto private_component_raw =
       DSA_get0_priv_key(dsa_key_accessor::get_impl(*this));
   if (private_component_raw == nullptr) return {};

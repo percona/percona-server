@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -671,6 +671,22 @@ Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 The
 \fB\-\-server\-public\-key\-path\fR
 option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-skip\-mysql\-schema\fR
+Do not drop the
+mysql
+schema when the dump file is restored\&. By default, the schema is dropped\&.
+.sp
+This option was added in MySQL 5\&.7\&.36\&.
 .RE
 .sp
 .RS 4
@@ -1947,7 +1963,7 @@ includes the XML namespace, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-xml \-u root world City\fR
+$> \fBmysqldump \-\-xml \-u root world City\fR
 <?xml version="1\&.0"?>
 <mysqldump xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
 <database name="world">

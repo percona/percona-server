@@ -2,12 +2,12 @@
 .\"     Title: ndb_perror
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_PERROR" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_PERROR" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -57,7 +57,7 @@ does not need to access a running NDB Cluster, or any nodes (including SQL nodes
 .RS 4
 .\}
 .nf
-shell> \fBndb_perror 323\fR
+$> \fBndb_perror 323\fR
 NDB error code 323: Invalid nodegroup id, nodegroup already existing: Permanent error: Application error
 .fi
 .if n \{\
@@ -75,7 +75,7 @@ option (short form
 .RS 4
 .\}
 .nf
-shell> \fBndb_perror \-s 323\fR
+$> \fBndb_perror \-s 323\fR
 Invalid nodegroup id, nodegroup already existing: Permanent error: Application error
 .fi
 .if n \{\
@@ -91,7 +91,7 @@ accepts multiple error codes:
 .RS 4
 .\}
 .nf
-shell> \fBndb_perror 321 1001\fR
+$> \fBndb_perror 321 1001\fR
 NDB error code 321: Invalid nodegroup id: Permanent error: Application error
 NDB error code 1001: Illegal connect string
 .fi
@@ -270,8 +270,6 @@ Additional Options
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -282,16 +280,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -310,8 +298,6 @@ Display program help text and exit\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -322,16 +308,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -357,8 +333,6 @@ does nothing, and is ignored by it\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -369,16 +343,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -398,8 +362,6 @@ Show error message only\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -410,16 +372,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -439,8 +391,6 @@ Print program version information and exit\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -451,16 +401,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1

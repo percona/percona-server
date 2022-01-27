@@ -2,12 +2,12 @@
 .\"     Title: mysqlimport
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQLIMPORT" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLIMPORT" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -875,8 +875,8 @@ Here is a sample session that demonstrates use of
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-e \*(AqCREATE TABLE imptest(id INT, n VARCHAR(30))\*(Aq test\fR
-shell> \fBed\fR
+$> \fBmysql \-e \*(AqCREATE TABLE imptest(id INT, n VARCHAR(30))\*(Aq test\fR
+$> \fBed\fR
 a
 100     Max Sydow
 101     Count Dracula
@@ -884,13 +884,13 @@ a
 w imptest\&.txt
 32
 q
-shell> \fBod \-c imptest\&.txt\fR
+$> \fBod \-c imptest\&.txt\fR
 0000000   1   0   0  \et   M   a   x       S   y   d   o   w  \en   1   0
 0000020   1  \et   C   o   u   n   t       D   r   a   c   u   l   a  \en
 0000040
-shell> \fBmysqlimport \-\-local test imptest\&.txt\fR
+$> \fBmysqlimport \-\-local test imptest\&.txt\fR
 test\&.imptest: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
-shell> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
+$> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
 | id   | n             |
 +\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+

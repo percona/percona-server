@@ -2,12 +2,12 @@
 .\"     Title: ndb_top
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_TOP" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_TOP" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -228,9 +228,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
-\fB--host[=name]\fR,
+\fB--host=string\fR,
 .PP
-\fB \fR\fB-h\fR\fB \fR
+\fB \fR\fB-h string\fR\fB \fR
 T}:T{
 Host name or IP address of MySQL Server to connect to
 T}:T{
@@ -268,9 +268,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--node-id[=#]\fR,
+\fB--node-id=#\fR,
 .PP
-\fB \fR\fB-n\fR\fB \fR
+\fB \fR\fB-n #\fR\fB \fR
 T}:T{
 Watch node having this node ID
 T}:T{
@@ -290,9 +290,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
-\fB--passwd[=password]\fR,
+\fB--passwd=password\fR,
 .PP
-\fB \fR\fB-p\fR\fB \fR
+\fB \fR\fB-p password\fR\fB \fR
 T}:T{
 Connect using this password (same as --password option)
 T}:T{
@@ -303,9 +303,9 @@ REMOVED: NDB 7.6.4
 T}
 T{
 .PP
-\fB--password[=password]\fR,
+\fB--password=password\fR,
 .PP
-\fB \fR\fB-p\fR\fB \fR
+\fB \fR\fB-p password\fR\fB \fR
 T}:T{
 Connect using this password
 T}:T{
@@ -314,12 +314,12 @@ ADDED: NDB 7.6.6
 T}
 T{
 .PP
-\fB--port[=#]\fR,
+\fB--port=#\fR,
 .PP
-\fB-t\fR
+\fB-t #\fR
 (<=7.6.5),
 .PP
-\fB-P\fR
+\fB-P #\fR
 (>=7.6.6)
 T}:T{
 Port number to use when connecting to MySQL Server
@@ -338,9 +338,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--sleep-time[=seconds]\fR,
+\fB--sleep-time=#\fR,
 .PP
-\fB \fR\fB-s\fR\fB \fR
+\fB \fR\fB-s #\fR\fB \fR
 T}:T{
 Time to wait between display refreshes, in seconds
 T}:T{
@@ -349,9 +349,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
-\fB--socket\fR,
+\fB--socket=path\fR,
 .PP
-\fB \fR\fB-S\fR\fB \fR
+\fB \fR\fB-S path\fR\fB \fR
 T}:T{
 Socket file to use for connection
 T}:T{
@@ -395,9 +395,9 @@ ADDED: NDB 7.6.3
 T}
 T{
 .PP
-\fB--user[=name]\fR,
+\fB--user=name\fR,
 .PP
-\fB \fR\fB-u\fR\fB \fR
+\fB \fR\fB-u name\fR\fB \fR
 T}:T{
 Connect as this MySQL user
 T}:T{
@@ -421,8 +421,6 @@ Additional Options
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -433,16 +431,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -566,8 +554,6 @@ Also read groups with concat(group, suffix)\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -578,16 +564,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -611,8 +587,6 @@ must be true; both options may be true\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -623,16 +597,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -658,7 +622,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---host[=name]
+--host=string
 T}
 T{
 Introduced
@@ -727,8 +691,6 @@ Read given path from login file\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -739,16 +701,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -798,7 +750,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---node-id[=#]
+--node-id=#
 T}
 T{
 Introduced
@@ -833,8 +785,6 @@ Watch the data node having this node ID\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -845,16 +795,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -883,7 +823,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---passwd[=password]
+--passwd=password
 T}
 T{
 Introduced
@@ -898,7 +838,7 @@ T}
 T{
 Type
 T}:T{
-Boolean
+String
 T}
 T{
 Default Value
@@ -935,7 +875,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---password[=password]
+--password=password
 T}
 T{
 Introduced
@@ -945,7 +885,7 @@ T}
 T{
 Type
 T}:T{
-Boolean
+String
 T}
 T{
 Default Value
@@ -981,7 +921,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---port[=#]
+--port=#
 T}
 T{
 Introduced
@@ -1048,7 +988,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---sleep-time[=seconds]
+--sleep-time=#
 T}
 T{
 Introduced
@@ -1089,7 +1029,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---socket
+--socket=path
 T}
 T{
 Introduced
@@ -1124,8 +1064,6 @@ Use the specified socket file for the connection\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -1136,16 +1074,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -1167,8 +1095,6 @@ to disable\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -1179,16 +1105,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1213,8 +1129,6 @@ in previous versions of NDB Cluster, but this is no longer supported\&.)
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -1225,16 +1139,6 @@ T{
 Introduced
 T}:T{
 5.7.19-ndb-7.6.3
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -1261,7 +1165,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---user[=name]
+--user=name
 T}
 T{
 Introduced

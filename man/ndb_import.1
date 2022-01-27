@@ -2,12 +2,12 @@
 .\"     Title: ndb_import
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_IMPORT" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_IMPORT" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -125,7 +125,7 @@ mysql> \fBCREATE TABLE myndb_table LIKE myinnodb\&.myinnodb_table;\fR
 mysql> \fBALTER TABLE myndb_table ENGINE=NDB;\fR
 mysql> \fBEXIT;\fR
 Bye
-shell>
+$>
 .fi
 .if n \{\
 .RE
@@ -153,8 +153,8 @@ In the system shell:
 .\}
 .nf
 # if you are not already in the MySQL bin directory:
-shell> \fBcd \fR\fB\fIpath\-to\-mysql\-bin\-dir\fR\fR
-shell> \fBndb_import myndb /tmp/myndb_table\&.csv \-\-fields\-optionally\-enclosed\-by=\*(Aq"\*(Aq \e\fR
+$> \fBcd \fR\fB\fIpath\-to\-mysql\-bin\-dir\fR\fR
+$> \fBndb_import myndb /tmp/myndb_table\&.csv \-\-fields\-optionally\-enclosed\-by=\*(Aq"\*(Aq \e\fR
     \fB\-\-fields\-terminated\-by="," \-\-fields\-escaped\-by=\*(Aq\e\e\*(Aq\fR
 .fi
 .if n \{\
@@ -172,7 +172,7 @@ job\-1 [running] import myndb\&.myndb_table from /tmp/myndb_table\&.csv
 job\-1 [success] import myndb\&.myndb_table from /tmp/myndb_table\&.csv
 job\-1 imported 19984 rows in 0h0m9s at 2277 rows/s
 jobs summary: defined: 1 run: 1 with success: 1 with failure: 0
-shell>
+$>
 .fi
 .if n \{\
 .RE
@@ -199,6 +199,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -323,9 +324,9 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -355,6 +356,16 @@ T{
 \fB \fR\fB--core-file\fR\fB \fR
 T}:T{
 Write core file on error; used in debugging
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+\fB \fR\fB--csvopt=opts\fR\fB \fR
+T}:T{
+Shorthand option for setting typical CSV option values. See
+              documentation for syntax and other information
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -427,7 +438,7 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
-\fB \fR\fB--fields-escaped-by=name\fR\fB \fR
+\fB \fR\fB--fields-escaped-by=char\fR\fB \fR
 T}:T{
 Same as FIELDS ESCAPED BY option for LOAD DATA statements
 T}:T{
@@ -476,7 +487,7 @@ T{
 .PP
 \fB \fR\fB--idlespin=#\fR\fB \fR
 T}:T{
-Number of times to re-try before idlesleep
+Number of times to retry before idlesleep
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -522,7 +533,7 @@ ADDED: NDB 7.6.4
 T}
 T{
 .PP
-\fB \fR\fB--lines-terminated-by=name\fR\fB \fR
+\fB \fR\fB--lines-terminated-by=char\fR\fB \fR
 T}:T{
 Same as LINES TERMINATED BY option for LOAD DATA statements
 T}:T{
@@ -563,9 +574,9 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -576,9 +587,9 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -627,7 +638,8 @@ T{
 .PP
 \fB \fR\fB--no-hint\fR\fB \fR
 T}:T{
-Do not use distribution key hint to select data node (TC)
+Tells transaction coordinator not to use distribution key hint when
+              selecting data node
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -685,7 +697,7 @@ T{
 \fB \fR\fB--pagecnt=#\fR\fB \fR
 T}:T{
 Size of I/O buffers as multiple of page size. CSV input worker allocates
-              a double-sized buffer
+              double-sized buffer
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -752,7 +764,7 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
-\fB \fR\fB--state-dir=name\fR\fB \fR
+\fB \fR\fB--state-dir=path\fR\fB \fR
 T}:T{
 Where to write state files; currect directory is default
 T}:T{
@@ -804,9 +816,9 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
-\fB--verbose\fR,
+\fB--verbose[=#]\fR,
 .PP
-\fB \fR\fB-v\fR\fB \fR
+\fB \fR\fB-v [#]\fR\fB \fR
 T}:T{
 Enable verbose output
 T}:T{
@@ -839,8 +851,6 @@ T}
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -851,16 +861,6 @@ T{
 Introduced
 T}:T{
 5.7.18-ndb-7.6.2
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1225,7 +1225,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Introduced
@@ -1260,8 +1260,6 @@ Same as
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -1272,16 +1270,6 @@ T{
 Introduced
 T}:T{
 5.7.18-ndb-7.6.2
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -1314,6 +1302,111 @@ T}
 .TE
 .sp 1
 Write core file on error; used in debugging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-csvopt\fR=\fIstring\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--csvopt=opts
+T}
+T{
+Introduced
+T}:T{
+5.7.18-ndb-7.6.2
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Provides a shortcut method for setting typical CSV import options\&. The argument to this option is a string consisting of one or more of the following parameters:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+c: Fields terminated by comma
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+d: Use defaults, except where overridden by another parameter
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+n: Lines terminated by
+\en
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+q: Fields optionally enclosed by double quote characters (")
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+r: Line terminated by
+\er
+.RE
+.sp
+The order of the parameters makes no difference, except that if both
+n
+and
+r
+are specified, the one occurring last is the parameter which takes effect\&.
+.sp
+This option is intended for use in testing under conditions in which it is difficult to transmit escapes or quotation marks\&.
 .RE
 .sp
 .RS 4
@@ -1674,7 +1767,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---fields-escaped-by=name
+--fields-escaped-by=char
 T}
 T{
 Introduced
@@ -2103,8 +2196,6 @@ Set the number of threads processing input\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -2115,16 +2206,6 @@ T{
 Introduced
 T}:T{
 5.7.20-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
 T}
 .TE
 .sp 1
@@ -2151,7 +2232,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---lines-terminated-by=name
+--lines-terminated-by=char
 T}
 T{
 Introduced
@@ -2399,7 +2480,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Introduced
@@ -2439,7 +2520,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Introduced
@@ -2539,8 +2620,6 @@ to disable\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -2551,16 +2630,6 @@ T{
 Introduced
 T}:T{
 5.7.18-ndb-7.6.2
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -2607,8 +2676,6 @@ Do not read default options from any option file other than login file\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -2619,16 +2686,6 @@ T{
 Introduced
 T}:T{
 5.7.18-ndb-7.6.2
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -3121,8 +3178,6 @@ run for this purpose\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -3133,16 +3188,6 @@ T{
 Introduced
 T}:T{
 5.7.18-ndb-7.6.2
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-FALSE
 T}
 .TE
 .sp 1
@@ -3277,8 +3322,6 @@ Set a limit on the number of bytes per row queue\&. Use 0 for no limit\&.
 .TS
 allbox tab(:);
 lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -3289,16 +3332,6 @@ T{
 Introduced
 T}:T{
 5.7.20-ndb-7.6.4
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-false
 T}
 .TE
 .sp 1
@@ -3328,7 +3361,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---state-dir=name
+--state-dir=path
 T}
 T{
 Introduced
@@ -3517,7 +3550,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---verbose
+--verbose[=#]
 T}
 T{
 Introduced

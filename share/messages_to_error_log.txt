@@ -340,28 +340,28 @@ ER_CANT_CREATE_SHUTDOWN_THREAD
   eng "Can't create thread to handle shutdown requests (errno= %d)"
 
 ER_SEC_FILE_PRIV_CANT_ACCESS_DIR
-  eng "Failed to access directory for --secure-file-priv. Please make sure that directory exists and is accessible by MySQL Server. Supplied value : %s"
+  eng "Failed to access directory for --%s. Please make sure that directory exists and is accessible by MySQL Server. Supplied value : %s"
 
 ER_SEC_FILE_PRIV_IGNORED
-  eng "Ignoring --secure-file-priv value as server is running with --initialize(-insecure)."
+  eng "Ignoring --%s value as server is running with --initialize(-insecure)."
 
 ER_SEC_FILE_PRIV_EMPTY
-  eng "Insecure configuration for --secure-file-priv: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path."
+  eng "Insecure configuration for --%s: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path."
 
 ER_SEC_FILE_PRIV_NULL
-  eng "--secure-file-priv is set to NULL. Operations related to importing and exporting data are disabled"
+  eng "--%s is set to NULL. Operations related to importing and exporting data are disabled"
 
 ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
-  eng "Insecure configuration for --secure-file-priv: %s is accessible through --secure-file-priv. Consider choosing a different directory."
+  eng "Insecure configuration for --%s: %s is accessible through --%s. Consider choosing a different directory."
 
 ER_SEC_FILE_PRIV_CANT_STAT
-  eng "Failed to get stat for directory pointed out by --secure-file-priv"
+  eng "Failed to get stat for directory pointed out by --%s"
 
 ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
-  eng "Insecure configuration for --secure-file-priv: Location is accessible to all OS users. Consider choosing a different directory."
+  eng "Insecure configuration for --%s: Location is accessible to all OS users. Consider choosing a different directory."
 
 ER_SEC_FILE_PRIV_ARGUMENT_TOO_LONG
-  eng "Value for --secure-file-priv is longer than maximum limit of %d"
+  eng "Value for --%s is longer than maximum limit of %d"
 
 ER_CANT_CREATE_NAMED_PIPES_THREAD
   eng "Can't create thread to handle named pipes (errno= %d)"

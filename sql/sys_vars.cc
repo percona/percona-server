@@ -2059,8 +2059,8 @@ export bool fix_delay_key_write(sys_var *, THD *, enum_var_type) {
    Make sure we don't have an active TABLE FOR BACKUP lock when setting
    delay_key_writes=ALL dynamically.
 */
-static bool check_delay_key_write(sys_var *self [[maybe_unused]],
-                                  THD *thd, set_var *var) {
+static bool check_delay_key_write(sys_var *self [[maybe_unused]], THD *thd,
+                                  set_var *var) {
   assert(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
          !thd->backup_tables_lock.is_acquired());
 
@@ -3980,6 +3980,13 @@ static Sys_var_charptr Sys_secure_file_priv(
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_secure_file_priv),
     CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
     DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
+
+static Sys_var_charptr Sys_secure_log_path(
+    "secure_log_path",
+    "Limit location of general log, slow log and buffered error log"
+    "within specified directory",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_secure_log_path),
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""));
 
 static bool fix_server_id(sys_var *, THD *thd, enum_var_type) {
   // server_id is 'MYSQL_PLUGIN_IMPORT ulong'
@@ -5910,6 +5917,8 @@ static bool check_log_path(sys_var *self, THD *, set_var *var) {
 
   if (my_access(path, (F_OK | W_OK))) return true;  // directory is not writable
 
+  if (!is_secure_log_path((path))) return true;
+
   return false;
 }
 
@@ -6069,9 +6078,11 @@ static Sys_var_ulong sys_log_slow_rate_limit(
 
 static double opt_slow_query_log_always_write_time;
 
-static bool update_slow_query_log_always_write_time(
-    sys_var *self [[maybe_unused]], THD *thd [[maybe_unused]],
-    enum_var_type type [[maybe_unused]]) noexcept {
+static bool update_slow_query_log_always_write_time(sys_var *self
+                                                    [[maybe_unused]],
+                                                    THD *thd [[maybe_unused]],
+                                                    enum_var_type type
+                                                    [[maybe_unused]]) noexcept {
   slow_query_log_always_write_time =
       double2ulonglong(opt_slow_query_log_always_write_time * 1e6);
   return false;

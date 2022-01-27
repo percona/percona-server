@@ -282,6 +282,11 @@ INSERT INTO global_suppressions VALUES
  ("Insecure configuration for --secure-file-priv:*"),
 
  /*
+   Warnings related to --secure-log-path
+ */
+ ("Insecure configuration for --secure-log-path:*"),
+
+ /*
    Bug#26585560, warning related to --pid-file
  */
  ("Insecure configuration for --pid-file:*"),

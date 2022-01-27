@@ -1,0 +1,41 @@
+#
+# Test the case when server is aborted after updating InnoDB dictionary,
+# but before fmt file gets updated. This leads to the inconsistency which
+# cannot be auto healied. Informative error message should be printed
+# and there should be possible to drop such a table.
+#
+--source include/have_innodb.inc
+
+--disable_query_log
+call mtr.add_suppression('InnoDB: Partition .* contains 2 user defined columns in InnoDB, but 1 columns in MySQL');
+--enable_query_log
+
+CREATE TABLE t1 (id INT)
+  PARTITION BY RANGE(id) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN (300),
+    PARTITION p3 VALUES LESS THAN (400)
+);
+
+SET SESSION DEBUG = '+d,alter_table_crash_before_frm_replace';
+
+--source include/expect_crash.inc
+
+--error 2013
+ALTER TABLE t1 ADD a INT;
+
+--echo # Restart mysqld after the crash and reconnect.
+--source include/start_mysqld.inc
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+# Check that the error log contains the information about corrupted table
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count = 4
+--let $assert_select = InnoDB: Partition .* contains 2 user defined columns in InnoDB, but 1 columns in MySQL.
+--let $assert_text = InnoDB vs MySql columns mismatch.
+--source include/assert_grep.inc
+
+DROP TABLE t1;

@@ -7934,6 +7934,9 @@ static bool mysql_inplace_alter_table(THD *thd,
   table_list->table= table= NULL;
   close_temporary_table(thd, altered_table, true, false);
 
+  DBUG_EXECUTE_IF("alter_table_crash_before_frm_replace", {
+    DBUG_SUICIDE();
+  });
   /*
     Replace the old .FRM with the new .FRM, but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.

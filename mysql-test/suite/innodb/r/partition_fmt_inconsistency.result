@@ -1,0 +1,16 @@
+CREATE TABLE t1 (id INT)
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN (300),
+PARTITION p3 VALUES LESS THAN (400)
+);
+SET SESSION DEBUG = '+d,alter_table_crash_before_frm_replace';
+ALTER TABLE t1 ADD a INT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+# restart
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+include/assert_grep.inc [InnoDB vs MySql columns mismatch.]
+DROP TABLE t1;

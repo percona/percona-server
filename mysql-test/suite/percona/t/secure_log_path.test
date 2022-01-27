@@ -1,0 +1,19 @@
+# Test that general_log_file can't be set outside of secure_log_path
+# if it is set. If it is empty, it should be allowed anywhere, which is
+# tested by other existing general_log_file tests.
+
+SET @old_general_log_file = @@global.general_log_file;
+
+let $datadir= `select @@datadir`;
+--replace_result $datadir DATADIR
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL general_log_file="$datadir/log_in_the_datadir"
+
+--let $tmpdir= `SELECT @@tmpdir`
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL general_log_file="$tmpdir/log_in_the_secure_tmpdir"
+
+--disable_query_log
+SET GLOBAL general_log_file = @old_general_log_file;
+call mtr.add_suppression("Insecure configuration for --secure-log-path");
+--enable_query_log

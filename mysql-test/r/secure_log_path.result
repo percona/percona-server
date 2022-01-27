@@ -1,0 +1,4 @@
+SET @old_general_log_file = @@global.general_log_file;
+SET GLOBAL general_log_file="DATADIR/log_in_the_datadir";
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'DATADIR/log_in_the_datadir'
+SET GLOBAL general_log_file="TMPDIR/log_in_the_secure_tmpdir";

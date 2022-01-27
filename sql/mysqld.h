@@ -30,8 +30,8 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
-#include <utility>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mysql/components/minimal_chassis.h>
@@ -133,6 +133,7 @@ bool signal_restart_server();
 void kill_mysql(void);
 void refresh_status();
 bool is_secure_file_path(const char *path);
+bool is_secure_log_path(const char *path);
 ulong sql_rnd_with_mutex();
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated);
@@ -226,6 +227,7 @@ extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
+extern const char *opt_secure_log_path;
 extern bool opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;

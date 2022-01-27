@@ -2497,8 +2497,6 @@ void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
 
   mysql_prlock_wrlock(&m_rwlock);
 
-  DEBUG_SYNC(current_thd, "mdl_lock_remove_ticket_m_rwlock_locked");
-
   (this->*list).remove_ticket(ticket);
 
   /*

@@ -1,0 +1,21 @@
+select @@global.secure_log_path;
+@@global.secure_log_path
+
+select @@session.secure_log_path;
+ERROR HY000: Variable 'secure_log_path' is a GLOBAL variable
+show global variables like 'secure_log_path';
+Variable_name	Value
+secure_log_path	
+show session variables like 'secure_log_path';
+Variable_name	Value
+secure_log_path	
+select * from performance_schema.global_variables where variable_name='secure_log_path';
+VARIABLE_NAME	VARIABLE_VALUE
+secure_log_path	
+select * from performance_schema.session_variables where variable_name='secure_log_path';
+VARIABLE_NAME	VARIABLE_VALUE
+secure_log_path	
+set global secure_log_path=1;
+ERROR HY000: Variable 'secure_log_path' is a read only variable
+set session secure_log_path=1;
+ERROR HY000: Variable 'secure_log_path' is a read only variable

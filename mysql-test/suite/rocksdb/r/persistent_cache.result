@@ -11,3 +11,9 @@ a
 1
 # restart
 DROP TABLE t1;
+call mtr.add_suppression("Plugin rocksdb reported:");
+call mtr.add_suppression("Plugin 'ROCKSDB'");
+# restart:--rocksdb_persistent_cache_path=MYSQLTEST_VARDIR/tmp/roksdb.persistent_cache --rocksdb_persistent_cache_size_mb=12
+Pattern found.
+# restart:--rocksdb_persistent_cache_size_mb=100
+Pattern found.

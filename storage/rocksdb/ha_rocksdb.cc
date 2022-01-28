@@ -6048,6 +6048,40 @@ static int rocksdb_init_internal(void *const p) {
   }
 
   if (rocksdb_persistent_cache_size_mb > 0) {
+    // TODO: This is the limitations in RocksDB.
+    // 1. Persistent cache size RocksDB has to be at least cache_file_size.
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:112
+    // Status ValidateSettings() const {
+    // ...
+    // if (cache_size < cache_file_size ...) {
+    // ...
+    // cache_file_size is set here.
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:165
+    // uint32_t cache_file_size = 100ULL * 1024 * 1024;
+    //
+    // 2. rocksdb_persistent_cache_path required persistent cache parameter
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:104
+    // Status ValidateSettings() const {
+    // ...
+    // if (!env || path.empty()) {
+    // ...
+    static constexpr int persistent_cache_size_mb_min = 100;
+    if (rocksdb_persistent_cache_size_mb < persistent_cache_size_mb_min) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Invalid value for rocksdb_persistent_cache_size_mb. It "
+                      "has to be at least %i",
+                      persistent_cache_size_mb_min);
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    if (!strlen(rocksdb_persistent_cache_path)) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Specify rocksdb_persistent_cache_size_path");
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(

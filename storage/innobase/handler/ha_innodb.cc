@@ -2,7 +2,7 @@
 
 Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
-Copyright (c) 2009, Percona Inc.
+Copyright (c) 2009, 2021, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1046,6 +1046,17 @@ void
 free_share(
 /*=======*/
 	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
+
+
+/************************************************************************/ /**
+Calls free_share and assign NULL to share. */
+static void
+free_share_and_nullify(
+    INNOBASE_SHARE **share) /*!< in/own: table share to free */
+{
+	free_share(*share);
+	*share = NULL;
+}
 
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
@@ -5913,18 +5924,7 @@ ha_innobase::open(
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
-
-	if (!(share=get_share(name))) {
-
-		DBUG_RETURN(1);
-	}
-
-	if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
-		free_share(share);
-
-		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-	}
+	share = NULL;
 
 	/* Will be allocated if it is needed in ::update_row() */
 	upd_buf = NULL;
@@ -5948,6 +5948,25 @@ ha_innobase::open(
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE, ignore_err);
 
+	/* share might hold pointers to dict table indexes without any pin.
+	We must always allocate m_share after opening the dict_table_t object
+	and free it before de-allocating dict_table_t to avoid race. */
+	if (ib_table != NULL) {
+		share = get_share(name);
+		if (share == NULL) {
+			dict_table_close(ib_table, FALSE, FALSE);
+			DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+		}
+
+		if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
+			free_share_and_nullify(&share);
+			dict_table_close(ib_table, FALSE, FALSE);
+
+			DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+		}
+	}
+
 	if (ib_table
 	    && ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		 && table->s->fields != dict_table_get_n_user_cols(ib_table))
@@ -5966,6 +5985,7 @@ ha_innobase::open(
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */
 		ib_table->corrupted = true;
+		free_share_and_nullify(&share);
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
@@ -5973,7 +5993,7 @@ ha_innobase::open(
 
 	if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
 			  srv_pass_corrupt_table <= 1)) {
-		free_share(share);
+		free_share_and_nullify(&share);
 		my_free(upd_buf);
 		upd_buf = NULL;
 		upd_buf_size = 0;
@@ -5981,7 +6001,9 @@ ha_innobase::open(
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 	}
 
-	share->ib_table = ib_table;
+	if (share) {
+		share->ib_table = ib_table;
+	}
 
 	if (NULL == ib_table) {
 		if (is_part) {
@@ -6025,6 +6047,25 @@ ha_innobase::open(
 				ib_table = dict_table_open_on_name(
 					par_case_name, FALSE, TRUE,
 					ignore_err);
+
+				/* share might hold pointers to dict table indexes without any pin.
+				We must always allocate m_share after opening the dict_table_t object
+				and free it before de-allocating dict_table_t to avoid race. */
+				if (ib_table != NULL) {
+					share = get_share(name);
+					if (share == NULL) {
+						dict_table_close(ib_table, FALSE, FALSE);
+						DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+					}
+
+					if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
+						  srv_pass_corrupt_table <= 1)) {
+						free_share_and_nullify(&share);
+						dict_table_close(ib_table, FALSE, FALSE);
+
+						DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+					}
+				}
 			}
 
 			if (ib_table) {
@@ -6064,7 +6105,6 @@ ha_innobase::open(
 			REFMAN "innodb-troubleshooting.html for how "
 			"you can resolve the problem.", norm_name);
 
-		free_share(share);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -6108,7 +6148,7 @@ table_opened:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		free_share(share);
+		free_share_and_nullify(&share);
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE, FALSE);
@@ -6336,6 +6376,8 @@ ha_innobase::close()
 	/* No-op in XtraDB */
 	innobase_release_temporary_latches(ht, thd);
 
+	free_share_and_nullify(&share);
+
 	row_prebuilt_free(prebuilt, FALSE);
 
 	if (upd_buf != NULL) {
@@ -6344,8 +6386,6 @@ ha_innobase::close()
 		upd_buf = NULL;
 		upd_buf_size = 0;
 	}
-
-	free_share(share);
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
@@ -14402,6 +14442,10 @@ free_share(
 /*=======*/
 	INNOBASE_SHARE*	share)	/*!< in/own: table share to free */
 {
+	if (!share) {
+		return;
+	}
+
 	mysql_mutex_lock(&innobase_share_mutex);
 
 #ifdef UNIV_DEBUG

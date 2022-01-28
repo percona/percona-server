@@ -843,6 +843,9 @@ bool Table_function_sequence::do_init_args() {
   Item *dummy = m_source;
   if (m_source->fix_fields(current_thd, &dummy)) return true;
 
+  // Set the default type of '?'
+  if (m_source->propagate_type(current_thd, MYSQL_TYPE_LONGLONG)) return true;
+
   assert(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (m_source->has_aggregation() || m_source->has_subquery() ||
       m_source != dummy) {

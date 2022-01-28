@@ -37,36 +37,39 @@ Following guides describe the installation process for using the official Percon
 Installing |Percona Server| from a Binary Tarball
 ===================================================
 
-In |Percona Server| 8.0.20-11 and later, the multiple binary tarballs have been replaced with the following:
+In |Percona Server| 8.0.20-11 and later, select the **Percona Server for MySQL** 8.0 version number and the type of tarball for your installation. The multiple binary tarballs from earlier versions have been replaced with the following:
 
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
+ 
+.. tabularcolumns:: |p{0.08\linewidth}|p{0.30\linewidth}|p{0.10\linewidth}|p{0.40\linewidth}|
 
 .. list-table::
    :header-rows: 1
 
    * - Type
      - Name
+     - Operating systems
      - Description
    * - Full
      - Percona-Server-<version number>-Linux.x86_64.glibc2.12.tar.gz
+     - Built for CentOS 6
      - Contains binaries, libraries, test files, and debug symbols
    * - Minimal
      - Percona-Server-<version number>-Linux.x86_64.glibc2.12-minimal.tar.gz
-     - Contains binaries, and libraries but does not include test files, or debug symbols
-
-Select the |Percona Server| 8.0 version number and type of tarball for your installation. Both binary tarballs support all distributions.
+     - Built for CentOS 6
+     - Contains binaries and libraries but does not include test files, or debug symbols
+   * - Full
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.17.tar.gz
+     - Compatible with any supported operating system except for CentOS 6
+     - Contains binaries, libraries, test files, and debug symbols
+   * - Minimal
+     - Percona-Server-<version number>-Linux.x86_64.glibc2.17-minimal.tar.gz
+     - Compatible with any supported operating system except for CentOS 6
+     - Contains binaries and libraries but does not include test files or debug symbols
 
 Implemented in *Percona for MySQL* 8.0.26-16, the following binary tarballs
-are available for the MyRocks ZenFS installations on an SSD with
-Ubuntu 20.04 if the operating system has NVMe ZNS kernel support,
-the ``libzbd`` libary, and the necessary tools. These installations
-are in the **TECH PREVIEW** mode.
-**Do not install these binary tarballs in a production environment**.
+are available for the MyRocks ZenFS installation. See :ref:`zenfs` for more information and the installation procedure.
 
-See :ref:`zenfs` for more information and :ref:`zenfs-install` for the
-installation commands.
-
-.. tabularcolumns:: |p{5cm}|p{5cm}|p{11cm}|
+.. tabularcolumns:: |p{0.08\linewidth}|p{0.30\linewidth}|p{0.40\linewidth}|
 
 .. list-table::
    :header-rows: 1
@@ -76,10 +79,25 @@ installation commands.
      - Description
    * - Full
      - Percona-Server-<version number>-Linux.x86_64.glibc2.31-zenfs.tar.gz
-     - **TECH PREVIEW**. Contains the binaries, libraries, test files, and debug symbols
+     - Contains the binaries, libraries, test files, and debug symbols
    * - Minimal
      - Percona-Server-<version number>-Linux.x86_64.glibc2.31-zenfs-minimal.tar.gz
-     - **TECH PREVIEW**. Contains the binaries, and libraries but does not include test files, or debug symbols
+     - Contains the binaries and libraries but does not include test files or debug symbols
+
+At this time, you can enable the ZenFS plugin in the following distributions:
+
+.. list-table::
+   :widths: auto
+   :header-rows: 1
+
+   * - Distribution Name
+     - Notes
+   * - Debian 11.1
+     - Able to run the ZenFS plugin
+   * - Ubuntu 20.04.3
+     - Requires the 5.11 HWE kernel patched with the ``allow blk-zoned ioctls without CAPT_SYS_ADMIN`` patch
+
+If you do not enable the ZenFS functionality on Ubuntu 20.04, the binaries with ZenFS support can run on the standard 5.4 kernel. `Other Linux distributions <https://zonedstorage.io/docs/distributions/linux/>`__ are adding support for ZenFS, but Percona does not provide installation packages for those distributions.
 
 In |Percona Server| before 8.0.20-11, multiple tarballs are provided based on the  *OpenSSL* library available in the distribution:
 

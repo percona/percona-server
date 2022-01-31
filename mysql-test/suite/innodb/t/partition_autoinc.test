@@ -498,3 +498,11 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 DROP TABLE tr;
+
+#################################
+--echo # PS-7856: update on partition tables crashes the server
+#################################
+CREATE TABLE t1(ip_col INT, i1 INT AUTO_INCREMENT, INDEX tt_2_pi1(i1)) PARTITION BY HASH (ip_col);
+INSERT INTO t1(ip_col) VALUES(1);
+UPDATE t1 SET i1 = 1 WHERE ip_col = 1;
+DROP TABLE t1;

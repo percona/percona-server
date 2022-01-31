@@ -124,6 +124,7 @@ Security Improvements
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin
+  security/using-kmip
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces

@@ -682,11 +682,13 @@ static inline ulint rec_offs_nth_size(
 {
   ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   ut_ad(n < rec_offs_n_fields(offsets));
-  if (!n) {
-    return (rec_offs_base(offsets)[1 + n] & REC_OFFS_MASK);
+
+  auto size = rec_offs_base(offsets)[1 + n] & REC_OFFS_MASK;
+  if (n != 0) {
+    size -= rec_offs_base(offsets)[n] & REC_OFFS_MASK;
   }
-  return ((rec_offs_base(offsets)[1 + n] - rec_offs_base(offsets)[n]) &
-          REC_OFFS_MASK);
+
+  return size;
 }
 
 /** Returns the number of extern bits set in a record.

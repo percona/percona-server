@@ -3695,6 +3695,9 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
          srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP) {
     ut_d(buf_flush_page_cleaner_disabled_loop());
 
+    // There must be no ongoing operation during buf_pool_invalidate_instance
+    os_event_wait(buf_pool->no_invalidate);
+
     buf_lru_manager_sleep_if_needed(next_loop_time);
 
     buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed, lru_sleep_time);

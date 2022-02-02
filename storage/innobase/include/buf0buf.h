@@ -2297,6 +2297,10 @@ struct buf_pool_t {
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
 
+  /** This is event is set when there is no ongoing invalidation of the
+   * buff_pool_t. */
+  os_event_t no_invalidate;
+
   /** A red-black tree is used exclusively during recovery to speed up
   insertions in the flush_list. This tree contains blocks in order of
   oldest_modification LSN and is kept in sync with the flush_list.  Each

@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_config.h"
 
+#include <boost/scope_exit.hpp>
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
@@ -1326,6 +1327,9 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     buf_pool->no_flush[i] = os_event_create();
   }
 
+  buf_pool->no_invalidate = os_event_create();
+  os_event_set(buf_pool->no_invalidate);
+
   buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
@@ -1420,6 +1424,8 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
     os_event_destroy(buf_pool->no_flush[i]);
   }
+
+  os_event_destroy(buf_pool->no_invalidate);
 
   ut::free(buf_pool->chunks);
   mutex_exit(&buf_pool->chunks_mutex);
@@ -5885,27 +5891,29 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
+  os_event_reset(buf_pool->no_invalidate);
+
+  BOOST_SCOPE_EXIT_ALL(&) { os_event_set(buf_pool->no_invalidate); };
+
   mutex_enter(&buf_pool->flush_state_mutex);
 
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in intialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == FALSE);
+    /* Although this function is called during startup and
+    during redo application phase during recovery, Percona InnoDB
+    might be running several LRU manager threads at this stage.
+    Hence, a new write batch can be in initialization stage at this point. */
 
-    /* However, it is possible that a write batch that has
-    been posted earlier is still not complete. For buffer
-    pool invalidation to proceed we must ensure there is NO
+    /* For buffer pool invalidation to proceed we must ensure there is NO
     write activity happening. */
-    if (buf_pool->n_flush[i] > 0) {
+    if (buf_pool->n_flush[i] > 0 || buf_pool->init_flush[i]) {
       buf_flush_t type = static_cast<buf_flush_t>(i);
 
       mutex_exit(&buf_pool->flush_state_mutex);
       buf_flush_wait_batch_end(buf_pool, type);
       mutex_enter(&buf_pool->flush_state_mutex);
     }
+
+    ut_ad(buf_pool->init_flush[i] == FALSE);
   }
 
   mutex_exit(&buf_pool->flush_state_mutex);

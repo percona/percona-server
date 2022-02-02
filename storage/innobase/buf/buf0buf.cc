@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "page0page.h"
+#include "scope_guard.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -1357,6 +1358,9 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     os_event_set(buf_pool->no_flush[i]);
   }
 
+  buf_pool->run_lru = os_event_create();
+  os_event_set(buf_pool->run_lru);
+
   buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
@@ -1451,6 +1455,8 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
     os_event_destroy(buf_pool->no_flush[i]);
   }
+
+  os_event_destroy(buf_pool->run_lru);
 
   ut::free(buf_pool->chunks);
   mutex_exit(&buf_pool->chunks_mutex);
@@ -6164,18 +6170,17 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-  for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-    /* As this function is called during startup and during redo application
-    phase during recovery, a flush might be requested either by
-    recv_writer thread (which is not started yet, or paused by writer_mutex), or
-    by our own thread (in which case we wait for it to finish initialization).
-    No new write batch can be in initialization stage at this point.
-    This also explains why we don't need flush_state_mutex to assert this. */
-    ut_ad(!buf_pool->init_flush[i]);
+  os_event_reset(buf_pool->run_lru);
+  auto guard = create_scope_guard([&]() { os_event_set(buf_pool->run_lru); });
 
-    /* However, it is possible that a write batch that has been posted earlier
-    is still not complete. For buffer pool invalidation to proceed we must
-    ensure there is NO write activity happening. */
+  for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
+    /* Although this function is called during startup and
+    during redo application phase during recovery, Percona InnoDB
+    might be running several LRU manager threads at this stage.
+    Hence, a new write batch can be in initialization stage at this point. */
+
+    /* For buffer pool invalidation to proceed we must ensure there is NO
+    write activity happening. */
     buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
   }
 

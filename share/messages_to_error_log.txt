@@ -11256,12 +11256,6 @@ ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED
 ER_NOTE_KEYRING_COMPONENT_METADATA_ITERATOR_INVALID_OUT_PARAM
   eng "Key and value length parameters must not be null."
 
-ER_KEYRING_COMPONENT_NO_CONFIG
-  eng "Keyring configuration doesn't exists: %s"
-
-ER_KEYRING_COMPONENT_CONFIG_PARSE_FAILED
-  eng "Keyring configuration JSON parse error: %s (%lu)"
-
 ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE
   eng "Innodb could not acquire service : %s"
 
@@ -11677,6 +11671,12 @@ ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DOUBLEWRITE_PATH
 
 ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DBLWR_ENCRYPT
   eng "Setting Percona-specific INNODB_PARALLEL_DBLWR_ENCRYPT is deprecated and has no effect."
+
+ER_KEYRING_COMPONENT_NO_CONFIG
+  eng "Keyring configuration doesn't exists: %s"
+
+ER_KEYRING_COMPONENT_CONFIG_PARSE_FAILED
+  eng "Keyring configuration JSON parse error: %s (%lu)"
 
 #
 # End of Percona Server 8.0 server error log messages

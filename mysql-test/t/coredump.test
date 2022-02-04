@@ -1,3 +1,6 @@
+# ASAN disables core dumps
+--source include/not_asan.inc
+
 call mtr.add_suppression("Started with --core-file and --coredumper. --coredumper will take precedence.");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to");
 let $MYSQLD_DATADIR= `select @@datadir`;

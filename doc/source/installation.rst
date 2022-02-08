@@ -12,7 +12,6 @@ This page provides the information on how to you can install |Percona Server|. F
 * :ref:`installing_from_source_tarball`
 * :ref:`source_from_git`
 * :ref:`compile_from_source`
-* :ref:`docker`
 
 Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
@@ -226,12 +225,3 @@ packages for all Debian and Ubuntu releases.
   :ref:`pam_plugin` is not built with the server by default. In order to build
   the |Percona Server| with PAM plugin, additional option
   :option:`-DWITH_PAM=ON` should be used.
-
-Running |Percona Server| in a Docker Container
-==============================================
-
-Docker images of Percona Server for MySQL are hosted publicly on Docker Hub at https://hub.docker.com/r/percona/percona-server/.
-
-.. seealso::
-
-    :ref:`docker`

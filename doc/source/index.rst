@@ -123,7 +123,6 @@ Security Improvements
    :maxdepth: 1
    :glob:
 
-   security/data-masking
    security/data-at-rest-encryption
    security/data-masking
    security/ssl-improvement

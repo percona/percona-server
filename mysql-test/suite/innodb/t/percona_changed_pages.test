@@ -371,10 +371,10 @@ SELECT VARIABLE_VALUE INTO @end_max_trx_id FROM performance_schema.global_status
 
 # Save the copy of current table contents
 CREATE TABLE ICP_COPY (
-       space_id INT NOT NULL,
-       page_id INT NOT NULL,
-       start_lsn BIGINT NOT NULL,
-       end_lsn BIGINT NOT NULL,
+       space_id INT UNSIGNED NOT NULL,
+       page_id INT UNSIGNED NOT NULL,
+       start_lsn BIGINT UNSIGNED NOT NULL,
+       end_lsn BIGINT UNSIGNED NOT NULL,
        INDEX page_id(space_id, page_id)) ENGINE=InnoDB;
 
 INSERT INTO ICP_COPY SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES

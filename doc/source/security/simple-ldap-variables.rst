@@ -53,7 +53,7 @@ The following variables are static and can only be changed at runtime.
     :default: Null
     
 The ``root`` credential used to authenticate against an LDAP. This variable is used with
-``authentication_ldap_simple_bind_root_pwd`.
+``authentication_ldap_simple_bind_root_pwd``.
 
 .. variable:: authentication_ldap_simple_bind_root_pwd
 
@@ -64,7 +64,7 @@ The ``root`` credential used to authenticate against an LDAP. This variable is u
     :default: Null
     
 The ``root`` password used to authenticate against an LDAP. This variable is used with
-``authentication_ldap_simple_bind_root_dn`.
+``authentication_ldap_simple_bind_root_dn``.
 
 .. variable:: authentication_ldap_simple_ca_path
 

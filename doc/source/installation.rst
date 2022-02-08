@@ -12,7 +12,6 @@ This page provides the information on how to you can install |Percona Server|. F
 * :ref:`installing_from_source_tarball`
 * :ref:`source_from_git`
 * :ref:`compile_from_source`
-* :ref:`docker`
 
 Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 

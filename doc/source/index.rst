@@ -35,6 +35,15 @@ Installation
    installation
    installation/post-installation
 
+Run in Docker
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   installation/docker
+
 Scalability Improvements
 ================================================================================
 

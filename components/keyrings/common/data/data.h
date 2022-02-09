@@ -75,7 +75,7 @@ struct Sensitive_data {
   }
 
   friend bool operator==(Sensitive_data const &a, Sensitive_data const &b) {
-    return a.data == b.data;
+    return a.decode() == b.decode();
   }
 
  private:

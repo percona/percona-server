@@ -4418,6 +4418,60 @@ static inline rec_t *row_search_debug_copy_rec_order_prefix(
 }
 #endif /* UNIV_DEBUG */
 
+/* Avoid the clustered index lookup if all of the following are true:
+1) all columns are in the secondary index
+2) all values for columns that are prefix-only indexes are shorter than the
+prefix size This optimization can avoid many IOs for certain schemas.  */
+static bool use_secondary_index(const row_prebuilt_t *prebuilt,
+                                const ulint *offsets, const dict_index_t *index,
+                                const rec_t *rec) {
+  for (auto i = 0; i < prebuilt->n_template; ++i) {
+    const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
+    const auto secondary_index_field_no = templ->rec_prefix_field_no;
+
+    // Condition (1): is the field in the index (prefix or not)?
+    if (secondary_index_field_no == ULINT_UNDEFINED) {
+      return false;
+    }
+
+    // Condition (2): if this is a prefix, is this row's value size shorter than
+    // the prefix?
+    if (templ->rec_field_is_prefix) {
+      // Must be a character type
+      ut_ad(templ->mbminlen > 0);
+      ut_ad(templ->mbmaxlen >= templ->mbminlen);
+
+      const dict_field_t *field = index->get_field(secondary_index_field_no);
+      ut_a(field->prefix_len > 0);
+
+      const auto record_size =
+          rec_offs_nth_size(offsets, secondary_index_field_no);
+      const auto prefix_len_chars = field->prefix_len / templ->mbmaxlen;
+
+      if (record_size < prefix_len_chars) {
+        // Record in bytes shorter than the index prefix length in characters
+        continue;
+      }
+
+      if (record_size * templ->mbminlen >= field->prefix_len) {
+        /* The shortest representable string by the byte length of the record is
+        longer than the maximum possible index prefix. */
+        return false;
+      }
+
+      /* The record could or could not fit into the index prefix,
+       * calculate length to find out */
+      const auto record_size_chars = rec_field_len_in_chars(
+          *field->col, secondary_index_field_no, rec, offsets);
+      if (record_size_chars >= prefix_len_chars) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
 so it employs technique that can help re-construct the rows that
@@ -5494,65 +5548,17 @@ rec_loop:
     /* ...but, perhaps avoid the clustered index lookup if
     all of the following are true:
     1) all columns are in the secondary index
-    2) all values for columns that are prefix-only
-       indexes are shorter than the prefix size
-    This optimization can avoid many IOs for certain schemas.
+    2) all values for columns that are prefix-only indexes are shorter than the
+    prefix size This optimization can avoid many IOs for certain schemas.
     */
-    bool row_contains_all_values = true;
-    unsigned int i;
-    for (i = 0; i < prebuilt->n_template; i++) {
-      /* Condition (1) from above: is the field in the
-      index (prefix or not)? */
-      const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
-      const auto secondary_index_field_no = templ->rec_prefix_field_no;
-      if (secondary_index_field_no == ULINT_UNDEFINED) {
-        row_contains_all_values = false;
-        break;
-      }
-      /* Condition (2) from above: if this is a
-      prefix, is this row's value size shorter
-      than the prefix? */
-      if (templ->rec_field_is_prefix) {
-        const auto record_size =
-            rec_offs_nth_size(offsets, secondary_index_field_no);
-        const dict_field_t *field = index->get_field(secondary_index_field_no);
-        ut_a(field->prefix_len > 0);
+    bool row_contains_all_values =
+        use_secondary_index(prebuilt, offsets, index, rec);
 
-        /* Must be a character type */
-        ut_ad(templ->mbminlen > 0);
-        ut_ad(templ->mbmaxlen >= templ->mbminlen);
-
-        if (record_size < field->prefix_len / templ->mbmaxlen) {
-          /* Record in bytes shorter than the
-          index prefix length in characters */
-          continue;
-
-        } else if (record_size * templ->mbminlen >= field->prefix_len) {
-          /* The shortest represantable string by
-          the byte length of the record is longer
-          than the maximum possible index
-          prefix. */
-          row_contains_all_values = false;
-          break;
-        } else {
-          /* The record could or could not fit
-          into the index prefix, calculate length
-          to find out */
-
-          if (rec_field_len_in_chars(*field->col, secondary_index_field_no, rec,
-                                     offsets) >=
-              (field->prefix_len / templ->mbmaxlen)) {
-            row_contains_all_values = false;
-            break;
-          }
-        }
-      }
-    }
     /* If (1) and (2) were true for all columns above, use
-    rec_prefix_field_no instead of rec_field_no, and skip
-    the clustered lookup below. */
+    rec_prefix_field_no instead of rec_field_no, and skip the clustered lookup
+    below. */
     if (row_contains_all_values) {
-      for (i = 0; i < prebuilt->n_template; i++) {
+      for (unsigned int i = 0; i < prebuilt->n_template; i++) {
         mysql_row_templ_t *templ = prebuilt->mysql_template + i;
         templ->rec_field_no = templ->rec_prefix_field_no;
         ut_a(templ->rec_field_no != ULINT_UNDEFINED);

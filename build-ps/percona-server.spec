@@ -128,7 +128,7 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-%global license_files_server  %{src_dir}/README
+%global license_files_server  %{src_dir}/README.md
 %global license_type          GPLv2
 
 Name:           percona-server
@@ -1096,6 +1096,12 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/swedish/
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
 #%attr(755, root, root) %{_datadir}/percona-server/mysql_system_users.sql
+#
+%attr(755, root, root) %{_includedir}/kmip.h
+%attr(755, root, root) %{_includedir}/kmippp.h
+%attr(755, root, root) /usr/lib/libkmip.a
+%attr(755, root, root) /usr/lib/libkmippp.a
+%attr(755, root, root) %{_libdir}/xtrabackup/plugin/component_keyring_kmip.so
 
 %files -n percona-server-client
 %defattr(-, root, root, -)

@@ -4,23 +4,23 @@
    ${CMAKE_SOURCE_DIR}/client/multi_factor_passwordopt-vars.cc
  )
  
--TARGET_LINK_LIBRARIES(client_base mysqlclient)
-+TARGET_LINK_LIBRARIES(client_base perconaserverclient)
+-TARGET_LINK_LIBRARIES(client_base perconaserverclient)
++TARGET_LINK_LIBRARIES(client_base mysqlclient)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
 @@ -48,13 +48,13 @@
    client_query_attributes.cc
    multi_factor_passwordopt-vars.cc
    ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
--  LINK_LIBRARIES mysqlclient client_base ${MY_READLINE_LIBRARY}
-+  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
+-  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
++  LINK_LIBRARIES mysqlclient client_base ${MY_READLINE_LIBRARY}
    )
  
  IF(NOT WITHOUT_SERVER)
    MYSQL_ADD_EXECUTABLE(mysql_upgrade
      upgrade/program.cc
--    LINK_LIBRARIES mysqlclient client_base
-+    LINK_LIBRARIES perconaserverclient client_base
+-    LINK_LIBRARIES perconaserverclient client_base
++    LINK_LIBRARIES mysqlclient client_base
      )
  ENDIF()
  
@@ -28,8 +28,8 @@
    COMPONENT Test
    DEPENDENCIES GenError GenClientError
    ENABLE_EXPORTS
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  IF (WITH_COREDUMPER)
    TARGET_LINK_LIBRARIES(mysqltest coredumper)
@@ -37,26 +37,26 @@
    check/mysqlcheck.cc
    check/mysqlcheck_core.cc
    multi_factor_passwordopt-vars.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysqldump
    mysqldump.cc
    multi_factor_passwordopt-vars.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysqlimport
    mysqlimport.cc
    multi_factor_passwordopt-vars.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysqlshow
    mysqlshow.cc
    multi_factor_passwordopt-vars.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  
  OPTION(WITH_JSON_BINLOG_LIBRARY
@@ -64,8 +64,8 @@
  SET(MYSQLBINLOG_LIBRARIES
    binlogevents_static
    client_base
--  mysqlclient
-+  perconaserverclient
+-  perconaserverclient
++  mysqlclient
    )
  
  IF(WITH_JSON_BINLOG_LIBRARY)
@@ -73,24 +73,24 @@
  MYSQL_ADD_EXECUTABLE(mysqladmin
    mysqladmin.cc
    multi_factor_passwordopt-vars.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysqlslap
    mysqlslap.cc
    multi_factor_passwordopt-vars.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysql_config_editor
    mysql_config_editor.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysql_secure_installation
    mysql_secure_installation.cc
--  LINK_LIBRARIES mysqlclient
-+  LINK_LIBRARIES perconaserverclient
+-  LINK_LIBRARIES perconaserverclient
++  LINK_LIBRARIES mysqlclient
    )
  MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup
    logger.cc
@@ -137,18 +137,18 @@
  # authentication IAM client plug-in
  ADD_SUBDIRECTORY(authentication_oci_client)
  
--# Merge several convenience libraries into one big mysqlclient
--MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
-+# Merge several convenience libraries into one big perconaserverclient
-+MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
+-# Merge several convenience libraries into one big perconaserverclient
+-MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
++# Merge several convenience libraries into one big mysqlclient
++MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
    COMPONENT Development
    LINK_LIBRARIES ${LIBS_TO_LINK}
    )
  
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
--  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
-+  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
+-  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
++  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
  
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
@@ -156,16 +156,16 @@
      STRING_APPEND(OS_SHARED_LIB_VERSION
        ".${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
    ENDIF()
--  # Name of shared library is libmysqlclient on Unix
--  SET(UNIX_OUTPUT_NAME OUTPUT_NAME mysqlclient)
-+  # Name of shared library is libperconaserverclient on Unix
-+  SET(UNIX_OUTPUT_NAME OUTPUT_NAME perconaserverclient)
+-  # Name of shared library is libperconaserverclient on Unix
+-  SET(UNIX_OUTPUT_NAME OUTPUT_NAME perconaserverclient)
++  # Name of shared library is libmysqlclient on Unix
++  SET(UNIX_OUTPUT_NAME OUTPUT_NAME mysqlclient)
    SET(UNIX_VERSION     VERSION     "${OS_SHARED_LIB_VERSION}")
    SET(UNIX_SOVERSION   SOVERSION   "${SHARED_LIB_MAJOR_VERSION}")
  ENDIF()
  
--# Merge several convenience libraries into one big mysqlclient
-+# Merge several convenience libraries into one big perconaserverclient
+-# Merge several convenience libraries into one big perconaserverclient
++# Merge several convenience libraries into one big mysqlclient
  # and link them together into shared library.
  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
    EXPORTS
@@ -173,8 +173,8 @@
  
  IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
    ADD_DEPENDENCIES(libmysql ${kerberos_target})
--  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
-+  ADD_DEPENDENCIES(perconaserverclient ${kerberos_target})
+-  ADD_DEPENDENCIES(perconaserverclient ${kerberos_target})
++  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
  ENDIF()
  
  IF(UNIX)
@@ -182,10 +182,10 @@
    ENDIF()
  
    # clean direct output needs to be set several targets have the same name
--  #(mysqlclient in this case)
--  SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-+  #(perconaserverclient in this case)
-+  SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+-  #(perconaserverclient in this case)
+-  SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
++  #(mysqlclient in this case)
++  SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
  ENDIF()
  
@@ -237,8 +237,8 @@
    TARGET_LINK_LIBRARIES(metadata_cache_tests
      router_lib
      metadata_cache
--    mysqlclient
-+    perconaserverclient
+-    perconaserverclient
++    mysqlclient
      mysqlxclient_lite
      mysqlxmessages_lite
      ${PROTOBUF_LITE_LIBRARY}
@@ -246,8 +246,8 @@
    ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
    TARGET_LINK_LIBRARIES(metadata_cache_tests
      router_lib
--    mysqlclient
-+    perconaserverclient
+-    perconaserverclient
++    mysqlclient
      mysqlxclient_lite
      mysqlxmessages_lite
      ${PROTOBUF_LITE_LIBRARY}
@@ -468,8 +468,8 @@
    test_execution_resources.cpp
    DESTINATION mysql-test/ndb
    ENABLE_EXPORTS
--  LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
-+  LINK_LIBRARIES ndbNDBT ndbclient_static perconaserverclient
+-  LINK_LIBRARIES ndbNDBT ndbclient_static perconaserverclient
++  LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
    )
  
  IF(MY_COMPILER_IS_CLANG)
@@ -508,8 +508,8 @@
      gr_unit_test_resource
      gunit_large
      server_unittest_library
--    mysqlclient
-+    perconaserverclient
+-    perconaserverclient
++    mysqlclient
      mysqlgcs
      )
  ENDFOREACH()
@@ -552,8 +552,8 @@
    SET(KERBEROS_LIB  "")
  ENDIF()
  
--SET(MY_SQL "mysqlclient")
-+SET(MY_SQL "perconaserverclient")
+-SET(MY_SQL "perconaserverclient")
++SET(MY_SQL "mysqlclient")
  
  DISABLE_MISSING_PROFILE_WARNING()
  

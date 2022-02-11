@@ -10889,6 +10889,26 @@ page_cur_mode_t convert_search_mode_to_innobase(ha_rkey_function find_flag) {
   return (PAGE_CUR_UNSUPP);
 }
 
+#if defined(UNIV_DEBUG) && !defined(UNIV_DEBUG_VALGRIND)
+static bool template_new_is_valid(mysql_row_templ_t *t_new,
+                                  const mysql_row_templ_t *t_saved,
+                                  int n_template) {
+  /* Percona might modify the template field `rec_field_no`, after its creation,
+  in row0sel.cc:use_secondary_index.
+  In order to compare the new template and the previous one, we overwrite
+  `rec_field_no`.
+  The new template is discarded and used just for debug purposes so we do not
+  need to restore the previous value. */
+  for (auto i = 0; i < n_template; ++i) {
+    auto *templ_new = t_new + i;
+    const auto *templ_saved = t_saved + i;
+    templ_new->rec_field_no = templ_saved->rec_field_no;
+  }
+
+  return !memcmp(t_new, t_saved, n_template * sizeof(mysql_row_templ_t));
+}
+#endif
+
 /*
    BACKGROUND INFO: HOW A SELECT SQL QUERY IS EXECUTED
    ---------------------------------------------------
@@ -11007,8 +11027,8 @@ int ha_innobase::index_read(
     m_prebuilt->mysql_template = nullptr;
     build_template(false);
     ut_a(m_prebuilt->n_template == n_template_save);
-    ut_a(!memcmp(m_prebuilt->mysql_template, mysql_template_save,
-                 m_prebuilt->n_template * sizeof(mysql_row_templ_t)));
+    ut_a(template_new_is_valid(m_prebuilt->mysql_template, mysql_template_save,
+                               n_template_save));
     ut::free(m_prebuilt->mysql_template);
     m_prebuilt->mysql_template = mysql_template_save;
   }

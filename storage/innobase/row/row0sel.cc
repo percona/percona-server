@@ -4453,7 +4453,7 @@ static bool use_secondary_index(const row_prebuilt_t *prebuilt,
         continue;
       }
 
-      if (record_size * templ->mbminlen >= field->prefix_len) {
+      if (record_size >= field->prefix_len) {
         /* The shortest representable string by the byte length of the record is
         longer than the maximum possible index prefix. */
         return false;

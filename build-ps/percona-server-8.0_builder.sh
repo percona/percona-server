@@ -268,6 +268,7 @@ get_sources(){
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
+    rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -428,6 +429,7 @@ install_deps() {
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
         apt-get -y install libmecab2 mecab mecab-ipadic
+        apt-get -y install libudev-dev
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
@@ -850,20 +852,73 @@ build_tarball(){
     #
     rm -fr ${TARFILE%.tar.gz}
     tar xzf ${TARFILE}
-    mkdir -p ${WORKDIR}/ssl/lib
+    for dir in ssl ldap sasl kerberos; do
+        mkdir -p ${WORKDIR}/$dir/{lib,include}
+    done
+
     if [ "x$OS" = "xdeb" ]; then
         cp -av /usr/lib/x86_64-linux-gnu/libssl* ${WORKDIR}/ssl/lib
 	cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
     else
-        cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib
-	cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib
+        cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib/
+        cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib/
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
+        if [ -d /usr/include/openssl11/ ]; then
+            cp -av /usr/lib*/openssl11/libssl.so* ${WORKDIR}/ssl/lib/
+            cp -av /usr/lib*/openssl11/libcrypto* ${WORKDIR}/ssl/lib/
+            cp -av /usr/include/openssl11/openssl ${WORKDIR}/ssl/include/
+            cp -av $(readlink -f /usr/lib64/libssl.so.1.1) ${WORKDIR}/ssl/ 
+            cp -av $(readlink -f /usr/lib64/libcrypto.so.1.1) ${WORKDIR}/ssl/
+        fi
+        #LDAP
+        ldap_include=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep include)
+        for lib in $ldap_include; do
+            cp -av $lib ${WORKDIR}/ldap/include/
+        done
+        ldap_lib=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep /usr/lib)
+        for lib in $ldap_lib; do
+            cp -av $lib ${WORKDIR}/ldap/lib/
+        done
+        ldap_lib=$(rpm -ql openldap | grep /usr/lib | grep -v exec | grep -v conf)
+        for lib in $ldap_lib; do
+            cp -av $lib ${WORKDIR}/ldap/lib/
+        done
+        #SASL
+        mkdir -p ${WORKDIR}/sasl/include/sasl/
+        for file in $(rpm -ql cyrus-sasl-devel | grep -v '/usr/share' | grep include | grep '\.h'); do
+            cp -av $file ${WORKDIR}/sasl/include/sasl/
+        done
+        cp -av /usr/lib*/libsasl2.so ${WORKDIR}/sasl/lib
+        cp -av $(readlink -f /usr/lib*/libsasl2.so) ${WORKDIR}/sasl/lib
+        cp -av /usr/lib*/sasl2/libscram.so* ${WORKDIR}/sasl/lib
+        cp -r /usr/lib*/sasl2 ${WORKDIR}/sasl/lib/
+        #KERBEROS
+        for file in $(rpm -ql krb5-devel | grep include); do
+            if [ -L $file ]; then
+                cp -av $(readlink -f $file) ${WORKDIR}/kerberos/include/
+            fi
+            cp -av $file ${WORKDIR}/kerberos/include/
+        done
+        for file in $(rpm -ql krb5-devel | grep lib | grep so); do
+            if [ -L $file ]; then
+                cp -av $(readlink -f $file) ${WORKDIR}/kerberos/lib/
+            fi
+            cp -av $file ${WORKDIR}/kerberos/lib/
+        done
+        for file in $(rpm -ql krb5-libs | grep '/usr/lib'); do
+            if [ -L $file ]; then
+                cp -av $(readlink -f $file) ${WORKDIR}/kerberos/lib/
+            fi
+            cp -av $file ${WORKDIR}/kerberos/lib/
+        done
+        cp -av /usr/lib64/libcom_err.so* ${WORKDIR}/kerberos/lib/
     fi
 
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
-        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        sed -i '284d' build-ps/build-binary.sh
+        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SASL=$PWD/../sasl/ -DWITH_KERBEROS=$PWD/../kerberos/ -DWITH_LDAP=$PWD/../ldap/ -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else
         if [[ "${DEBUG}" == 1 ]]; then

@@ -148,6 +148,10 @@ usr/lib/mysql/plugin/semisync_replica.so
 usr/lib/mysql/plugin/semisync_source.so
 usr/lib/mysql/plugin/component_test_table_access.so
 usr/lib/mysql/plugin/component_test_mysql_system_variable_set.so
+usr/lib/mysql/plugin/authentication_oci_client.so
+usr/lib/mysql/plugin/component_keyring_kmip.so
+usr/lib/mysql/plugin/debug/authentication_oci_client.so
+usr/lib/mysql/plugin/debug/component_keyring_kmip.so
 
 # support files
 usr/share/mysql/dictionary.txt
@@ -157,3 +161,8 @@ usr/share/mysql/mysql-systemd-start
 usr/share/mysql/mysqld_multi.server
 # defaults file
 etc/default/mysql
+#kmip
+usr/include/kmip.h
+usr/include/kmippp.h
+usr/lib/libkmip.a
+usr/lib/libkmippp.a

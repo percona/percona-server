@@ -1011,6 +1011,9 @@ void log_online_read_init(void) {
 
   ib::info() << "Starting tracking changed pages from LSN "
              << tracking_start_lsn;
+  ib::warn() << "Use of Percona changed page tracking is deprecated and will "
+                "be removed in future release. We recommend using the MySQL "
+                "page tracking feature";
   log_bmp_sys->start_at(tracking_start_lsn);
 }
 

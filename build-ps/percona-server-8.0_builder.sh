@@ -365,7 +365,7 @@ install_deps() {
         fi
         if [ "x${RHEL}" = "x7" ]; then
             yum -y install devtoolset-10
-            yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5
+            yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-10/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then

@@ -1101,7 +1101,11 @@ fi
 %attr(755, root, root) %{_includedir}/kmippp.h
 %attr(755, root, root) /usr/lib/libkmip.a
 %attr(755, root, root) /usr/lib/libkmippp.a
-%attr(755, root, root) %{_libdir}/xtrabackup/plugin/component_keyring_kmip.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_kmip.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_kmip.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
+
 
 %files -n percona-server-client
 %defattr(-, root, root, -)

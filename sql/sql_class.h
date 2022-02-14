@@ -1713,7 +1713,6 @@ class THD : public MDL_context_owner,
     Query start time, expressed in microseconds.
   */
   ulonglong start_utime;
-  ulonglong utime_after_query;
 
  private:
   /**

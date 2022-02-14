@@ -35,6 +35,19 @@ Installation
    installation
    installation/post-installation
 
+In-place upgrades
+================================================================================
+
+.. toctree::
+   :maxdepth: 2
+   :glob:
+
+   upgrading_guide
+   upgrading_using_percona_repos
+   upgrading_tokudb_myrocks
+
+
+
 Scalability Improvements
 ================================================================================
 

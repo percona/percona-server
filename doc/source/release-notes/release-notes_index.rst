@@ -1,3 +1,5 @@
+.. _release-note-index:
+
 ==================================
 |Percona Server| 8.0 Release notes
 ==================================

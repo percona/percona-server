@@ -14,7 +14,7 @@ TokuDB file management
 
    We recommend :ref:`migrate-myrocks`.
       
-   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
 As mentioned in the :ref:`tokudb_files_and_file_types` |Percona FT| is
 extremely pedantic about validating its data set. If a file goes missing or

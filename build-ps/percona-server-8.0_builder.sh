@@ -980,8 +980,13 @@ build_tarball(){
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
         sed -i '279d' build-ps/build-binary.sh
-        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SASL=$PWD/../sasl/ -DWITH_KERBEROS=$PWD/../kerberos/ -DWITH_LDAP=$PWD/../ldap/ -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-        DIRNAME="yassl"
+        if [[ "${DEBUG}" == 1 ]]; then
+            CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SASL=$PWD/../sasl/ -DWITH_KERBEROS=$PWD/../kerberos/ -DWITH_LDAP=$PWD/../ldap/ -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ --debug ../TARGET
+            DIRNAME="tarball"
+        else
+            CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SASL=$PWD/../sasl/ -DWITH_KERBEROS=$PWD/../kerberos/ -DWITH_LDAP=$PWD/../ldap/ -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            DIRNAME="tarball"
+        fi
     else
         if [[ "${DEBUG}" == 1 ]]; then
             CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET

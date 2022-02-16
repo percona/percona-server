@@ -161,8 +161,3 @@ usr/share/mysql/mysql-systemd-start
 usr/share/mysql/mysqld_multi.server
 # defaults file
 etc/default/mysql
-#kmip
-usr/include/kmip.h
-usr/include/kmippp.h
-usr/lib/libkmip.a
-usr/lib/libkmippp.a

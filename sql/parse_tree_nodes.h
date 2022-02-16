@@ -1663,6 +1663,8 @@ public:
 
   virtual bool contextualize(Parse_context *pc)
   {
+    uchar dummy;
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
     return head->contextualize(pc) || super::contextualize(pc);
   }
 };

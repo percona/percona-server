@@ -1361,6 +1361,7 @@ share_error:
 		close();  // Frees all the above.
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
+	m_reuse_mysql_template = false;
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
@@ -1594,6 +1595,7 @@ ha_innopart::update_partition(
 	m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
 	if (m_prebuilt->sql_stat_start == 0) {
 		clear_bit(m_sql_stat_start_parts, part_id);
+		m_reuse_mysql_template = true;
 	}
 	m_last_part = part_id;
 	DBUG_VOID_RETURN;
@@ -4239,6 +4241,7 @@ ha_innopart::start_stmt(
 		memset(m_sql_stat_start_parts, 0,
 		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
+	m_reuse_mysql_template = false;
 	return(error);
 }
 
@@ -4372,6 +4375,7 @@ ha_innopart::external_lock(
 		memset(m_sql_stat_start_parts, 0,
 		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
+	m_reuse_mysql_template = false;
 	return(error);
 }
 

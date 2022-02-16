@@ -28,6 +28,25 @@
 
 #include <string.h>
 
+<<<<<<< HEAD
+||||||| 0ed6d65f4c6
+#define bfill please_use_memset_rather_than_bfill
+#define bzero please_use_memset_rather_than_bzero
+#define bmove please_use_memmove_rather_than_bmove
+#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
+#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
+
+=======
+#define bfill please_use_memset_rather_than_bfill
+#ifdef bzero
+#undef bzero
+#endif
+#define bzero please_use_memset_rather_than_bzero
+#define bmove please_use_memmove_rather_than_bmove
+#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
+#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
+
+>>>>>>> 0cd98bdf981583a1cf4cb526581fc16e23bb839b^
 #include "mysql/service_my_snprintf.h"
 
 #if defined(__cplusplus)

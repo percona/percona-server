@@ -2617,6 +2617,7 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SLAVE_START:
   case SQLCOM_SLAVE_STOP:
   case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_ALTER_TABLESPACE:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:

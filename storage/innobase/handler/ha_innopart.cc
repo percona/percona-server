@@ -467,7 +467,7 @@ Ha_innopart_share::close_table_parts()
 	if (m_table_parts != NULL) {
 		for (uint i = 0; i < m_tot_parts; i++) {
             // If the partition is corrupted, it was not opened.
-            ut_a(m_table_parts[i] == NULL || m_table_parts[i]->n_ref_count > 0
+            ut_a(m_table_parts[i] == NULL || m_table_parts[i]->get_ref_count() > 0
                  || m_table_parts[i]->corrupted);
 			if (m_table_parts[i] != NULL && !m_table_parts[i]->corrupted)  {
 				dict_table_close(m_table_parts[i], TRUE, TRUE);

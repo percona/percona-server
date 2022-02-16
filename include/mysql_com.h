@@ -137,13 +137,9 @@
 #define FIELD_IS_DROPPED (1<< 26)       /* Intern: Field is being dropped */
 #define EXPLICIT_NULL_FLAG (1<< 27)     /* Field is explicitly specified as
                                            NULL by the user */
-<<<<<<< HEAD
 #define CLUSTERING_FLAG (1 << 28)       /* Field has a secondary clustering
                                         key */
-||||||| 0ed6d65f4c6
-=======
-#define SERIAL_FLAG (1<< 28)            /* Field is "SERIAL" */
->>>>>>> 0cd98bdf981583a1cf4cb526581fc16e23bb839b^
+#define SERIAL_FLAG (1<< 29)            /* Field is "SERIAL" */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */

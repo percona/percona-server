@@ -632,8 +632,8 @@ rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
 rm -rf %{buildroot}/usr/cmake/coredumper.cmake
 rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
-rm -rf %{buildroot}/usr/include/libkmip.a
-rm -rf %{buildroot}/usr/include/libkmippp.a
+rm -rf %{buildroot}/usr/lib/libkmip.a
+rm -rf %{buildroot}/usr/lib/libkmippp.a
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3

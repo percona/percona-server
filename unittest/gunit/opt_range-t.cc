@@ -1699,12 +1699,12 @@ public:
     make_root();
   }
 
-  Mock_SEL_ARG(Type type_arg, int initial_use_count, int expected_use_count)
+  Mock_SEL_ARG(Type type_arg, int initial_use_count, int expected_use_count,uint8 initial_part = 1)
     : m_expected_use_count(expected_use_count)
   {
     make_root();
     type= type_arg;
-    part= 1;
+    part= initial_part;
     left= NULL;
     use_count= initial_use_count;
     min_flag= 0;
@@ -2068,8 +2068,8 @@ TEST_F(OptRangeTest, AppendRange)
 
 TEST_F(OptRangeTest, CloneSpatialKey) {
   Fake_RANGE_OPT_PARAM param(thd(), &m_alloc, 2, false);
-  Mock_SEL_ARG key1(SEL_ARG::KEY_RANGE, 2, 0);
-  Mock_SEL_ARG key2(SEL_ARG::MAYBE_KEY, 1, 0);
+  Mock_SEL_ARG key1(SEL_ARG::KEY_RANGE, 1, 0,1);
+  Mock_SEL_ARG key2(SEL_ARG::MAYBE_KEY, 2, 0,2);
   // dummy field
   Mock_field_long field1("geom1");
   key1.field = &field1;

@@ -392,6 +392,9 @@ install_deps() {
             yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
             yum -y remove centos-release-stream
         fi
+        if [ "x$RHEL" = "x7" ]; then
+            yum -y install openssl11 openssl11-devel openssl11-libs openssl11-static
+        fi
     else
         apt-get -y install dirmngr || true
         apt-get update

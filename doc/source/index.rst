@@ -79,6 +79,7 @@ Flexibility Improvements
    flexibility/binlogging_replication_improvements
    flexibility/extended_set_var
    flexibility/sequence_table
+   flexibility/slowlog_rotation
 
 Reliability Improvements
 ================================================================================

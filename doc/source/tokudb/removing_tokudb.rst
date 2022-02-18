@@ -41,14 +41,14 @@ Follow the :ref:`remove-plugins` steps.
 Migrating from TokuDB to InnoDB
 ---------------------------------
 
-In case you want remove the TokuDB storage engine from |Percona Server| without
+In case you want remove the TokuDB storage engine from *Percona Server for MySQL* without
 causing any errors following is the recommended procedure:
 
 Change the tables from TokuDB to InnoDB
 ---------------------------------------
 
 If you still need the data in the TokuDB tables you must alter the tables
-to other supported storage engine i.e., |InnoDB|: :mysql:`ALTER TABLE City
+to other supported storage engine i.e., *InnoDB*: :mysql:`ALTER TABLE City
 ENGINE=InnoDB;`
 
 .. note::
@@ -62,8 +62,8 @@ ENGINE=InnoDB;`
 Removing the plugins
 --------------------
 
-To remove the |TokuDB| storage engine with all installed plugins you can use the
-|ps-admin| script:
+To remove the *TokuDB* storage engine with all installed plugins you can use the
+**ps-admin** script:
 
 .. code-block:: bash
 
@@ -93,7 +93,7 @@ Script output should look like this:
       Uninstalling TokuDB plugin...
       >> Successfuly uninstalled TokuDB plugin.
 
-Another option is to manually remove the |TokuDB| storage engine with all installed plugins:
+Another option is to manually remove the *TokuDB* storage engine with all installed plugins:
 
 .. code-block:: mysql
 

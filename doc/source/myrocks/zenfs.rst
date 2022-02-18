@@ -261,6 +261,16 @@ The options are the following:
 * ``--path`` must end with a slash (``/``) character.
 * ``--restore_path`` must not end with a slash (``/``) character. The single period (``.``) character restores the backup into the root of the ZenFS drive.
 
+Known Limitations
+====================================================================
+
+After a reboot the NVME ZBD configuration ("/dev/nvme02" in our examples) can disappear. The issue is OS-dependent and can be managed by the system administrators. One or more of the following events may have occurred:
+
+- A reboot changes the active "scheduler" from "[mq-deadline]". The following steps `reset the disk scheduler in RedHat using udev rules <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/managing_storage_devices/setting-the-disk-scheduler_managing-storage-devices#setting-the-disk-scheduler-using-udev-rules_setting-the-disk-scheduler>`__. For Ubuntu, see `Input/output schedulers <https://wiki.archlinux.org/title/Improving_performance#Input/output_schedulers>`__.
+
+.. seealso:: For more information, review `Change I/O scheduler <https://www.golinuxcloud.com/how-to-change-io-scheduler-permanently-linux/>`__.
+
+- A reboot resets the device permissions from "640/mysql:mysql" to "660/root:disk". 
 
 
 

@@ -4817,10 +4817,6 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
   return HA_EXIT_SUCCESS;
 }
 
-/**
- do nothing for prepare/commit by xid
- this is needed to avoid crashes in XA scenarios
-*/
 static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
                                             XID *const xid) {
   DBUG_ENTER_FUNC();
@@ -4910,10 +4906,6 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   dst->set_data(tmp_data.data(), tmp_data.length());
 }
 
-/**
-  Reading last committed binary log info from RocksDB system row.
-  The info is needed for crash safe slave/master to work.
-*/
 static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
                            MEM_ROOT *mem_root) {
   if (len == 0 || txn_list == nullptr) {

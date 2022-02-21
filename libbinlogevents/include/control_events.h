@@ -39,6 +39,7 @@
 
 #include <sys/types.h>
 #include <time.h>
+#include <array>
 #include <list>
 #include <map>
 #include <vector>

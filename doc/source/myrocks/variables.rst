@@ -67,10 +67,6 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
-   * - :variable:`rocksdb_base_background_compactions`
-     - Yes
-     - No
-     - Global
    * - :variable:`rocksdb_blind_delete_primary_key`
      - Yes
      - Yes
@@ -115,7 +111,15 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_cache_high_pri_pool_ratio`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_cache_index_and_filter_blocks`
+     - Yes
+     - No
+     - Global
+   * - :variable:`rocksdb_cache_index_and_filter_with_high_priority`
      - Yes
      - No
      - Global
@@ -195,6 +199,14 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_debug_cardinality_multiplier`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_debug_manual_compaction_delay`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_debug_optimizer_no_zero_cardinality`
      - Yes
      - Yes
@@ -355,6 +367,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Local
+   * - :variable:`rocksdb_manual_compaction_threads`
+     - Yes
+     - Yes
+     - Local
    * - :variable:`rocksdb_manual_wal_flush`
      - Yes
      - No
@@ -394,6 +410,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_max_manifest_file_size`
      - Yes
      - No
+     - Global
+   * - :variable:`rocksdb_max_manual_compactions`
+     - Yes
+     - Yes
      - Global
    * - :variable:`rocksdb_max_open_files`
      - Yes
@@ -785,23 +805,6 @@ Enable crash unsafe INPLACE ADD|DROP partition.
 
 Allows an inplace alter for the ``ALTER COLUMN`` default operation.
 
-
-.. variable:: rocksdb_base_background_compactions
-
-  :cli: ``--rocksdb-base-background-compactions``
-  :dyn: No
-  :scope: Global
-  :vartype: Numeric
-  :default: ``2``
-
-Specifies the suggested number of concurrent background compaction jobs,
-submitted to the default LOW priority thread pool in RocksDB.  Default is ``1``.
-Allowed range of values is from ``-1`` to ``64``.  Maximum depends on the
-:variable:`rocksdb_max_background_compactions` variable. This variable was
-replaced with :variable:`rocksdb_max_background_jobs`, which automatically
-decides how many threads to allocate towards flush/compaction.
-
-
 .. variable:: rocksdb_blind_delete_primary_key
 
    :version 8.0.20-11: Implemented
@@ -961,6 +964,20 @@ Allowed range is up to ``18446744073709551615``.
 Includes RocksDB block cache content in core dump. This variable is
 enabled by default.
 
+.. variable:: rocksdb_cache_high_pri_pool_ratio
+
+  :cli: ``--rocksdb-cache-high-pri-pool-ratio``
+  :dyn: No
+  :scope: Global
+  :vartype: double
+  :default: 0.0
+
+Specifies the size of the block cache high-pri pool. 
+
+The default value and the minimum value is 0.0.
+
+The maximum value is 1.0.
+
 .. variable:: rocksdb_cache_index_and_filter_blocks
 
   :cli: ``--rocksdb-cache-index-and-filter-blocks``
@@ -974,6 +991,16 @@ and bloomfilter data blocks from each data file.
 Enabled by default.
 If you disable this feature,
 RocksDB will allocate additional memory to maintain these data blocks.
+
+.. variable:: rocksdb_cache_index_and_filter_with_high_priority
+
+  :cli: ``--rocksdb_cache_index_and_filter_with_high_priority``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ON
+
+The RocksDB cache_index_and_filter_blocks_with_high_priority variable. 
 
 .. variable:: rocksdb_checksums_pct
 
@@ -1224,6 +1251,31 @@ Disabled by default.
 Specifies the number of transactions deadlock detection will traverse
 through before assuming deadlock.
 
+.. variable:: rocksdb_debug_cardinality_multiplier
+
+  :cli: ``--rocksdb-debug-cardinality-multiplier``
+  :dyn: Yes
+  :scope: Global
+  :vartype: UINT 
+  :default: 2
+
+The cardinality multiplier used in tests. The minimum value is 0. The maximum value is 2147483647 (INT_MAX).
+
+.. variable:: rocksdb_debug_manual_compaction_delay
+
+  :cli: ``--rocksdb-debug-manual-compaction-delay``
+  :dyn: Yes
+  :scope: Global
+  :vartype: UINT 
+  :default: 0
+
+Only use this variable when debugging. 
+
+This variable specifies in seconds a sleep for simulating long-running compactions.
+
+The minimum value is 0. 
+The maximum value is 4292967295 (UINT_MAX).
+
 .. variable:: rocksdb_debug_optimizer_no_zero_cardinality
 
   :cli: ``--rocksdb-debug-optimizer-no-zero-cardinality``
@@ -1419,7 +1471,7 @@ Enables the rocksdb iterator upper bounds and lower bounds in read options.
 
 DBOptions::enable_pipelined_write for RocksDB.
 
-If ``enable_pipelined_write`` is ``true``, a separate write thread is maintained for WAL write and memtable write. A write thread first enters the WAL writer queue and then the memtable writer queue. A pending thread on the WAL writer queue only waits for the previous WAL write operations but does not wait for memtable write operations. Enabling the feature may improve write throughput and reduce latency of the prepare phase of a two-phase commit.
+If ``enable_pipelined_write`` is ``ON``, a separate write thread is maintained for WAL write and memtable write. A write thread first enters the WAL writer queue and then the memtable writer queue. A pending thread on the WAL writer queue only waits for the previous WAL write operations but does not wait for memtable write operations. Enabling the feature may improve write throughput and reduce latency of the prepare phase of a two-phase commit.
 
 .. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
 
@@ -1538,19 +1590,6 @@ Possible values:
   but reduces performance.
 
 * ``2``: Sync every second.
-
-.. variable:: rocksdb_flush_memtable_on_analyze
-
-  :cli: ``--rocksdb-flush-memtable-on-analyze``
-  :dyn: Yes
-  :scope: Global, Session
-  :vartype: Boolean
-  :default: ``ON``
-
-Specifies whether to flush the memtable when running ``ANALYZE`` on a table.
-Enabled by default.
-This ensures accurate cardinality
-by including data in the memtable for calculating stats.
 
 .. variable:: rocksdb_force_compute_memtable_stats
 
@@ -1781,6 +1820,19 @@ Option for bottommost level compaction during manual compaction:
 
   * kForceOptimized -  Always compact bottommost level but in bottommost level avoid double-compacting files created in the same compaction
 
+.. variable:: rocksdb_manual_compaction_threads
+
+  :cli: ``--rocksdb-manual-compaction-threads``
+  :dyn: Yes
+  :scope: Local
+  :vartype: INT 
+  :default: 0
+
+This variable defines the number of RocksDB threads to run for a manual compaction.
+
+The minimum value is 0. 
+The maximum value is 120.
+
 .. variable:: rocksdb_manual_wal_flush
 
   :cli: ``--rocksdb-manual-wal-flush``
@@ -1919,6 +1971,19 @@ Specifies the maximum size of the MANIFEST data file,
 after which it is rotated.
 Default value is also the maximum, making it practically unlimited:
 only one manifest file is used.
+
+.. variable:: rocksdb_max_manual_compactions
+
+  :cli: ``--rocksdb-max-manual-compactions``
+  :dyn: Yes
+  :scope: Global
+  :vartype: UINT
+  :default: 10
+
+Defines the maximum number of pending plus ongoing manual compactions.
+
+The default value and minimum value is 0. 
+The maximum value is 4294967295 (UNIT_MAX).
 
 .. variable:: rocksdb_max_open_files
 

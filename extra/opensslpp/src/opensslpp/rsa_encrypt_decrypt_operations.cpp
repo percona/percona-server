@@ -35,9 +35,9 @@ std::string encrypt_with_rsa_public_key(const std::string &input,
   assert(!key.is_empty());
 
   if (input.size() > key.get_max_block_size_in_bytes(padding))
-    throw core_error(
+    throw core_error{
         "encryption block size is too long for the specified padding and RSA "
-        "key");
+        "key"};
 
   // TODO: use c++17 non-const std::string::data() member here
   using buffer_type = std::vector<unsigned char>;
@@ -60,12 +60,12 @@ std::string encrypt_with_rsa_private_key(const std::string &input,
   assert(!key.is_empty());
 
   if (!key.is_private())
-    throw core_error("RSA key does not have private components");
+    throw core_error{"RSA key does not have private components"};
 
   if (input.size() > key.get_max_block_size_in_bytes(padding))
-    throw core_error(
+    throw core_error{
         "encryption block size is too long for the specified padding and RSA "
-        "key");
+        "key"};
 
   // TODO: use c++17 non-const std::string::data() member here
   using buffer_type = std::vector<unsigned char>;
@@ -113,11 +113,11 @@ std::string decrypt_with_rsa_private_key(const std::string &input,
   assert(!key.is_empty());
 
   if (!key.is_private())
-    throw core_error("RSA key does not have private components");
+    throw core_error{"RSA key does not have private components"};
 
   if (input.size() != key.get_size_in_bytes())
-    throw core_error(
-        "decryption block size is not the same as RSA key length in bytes");
+    throw core_error{
+        "decryption block size is not the same as RSA key length in bytes"};
 
   // TODO: use c++17 non-const std::string::data() member here
   using buffer_type = std::vector<unsigned char>;

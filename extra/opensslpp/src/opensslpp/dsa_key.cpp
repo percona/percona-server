@@ -182,7 +182,7 @@ std::string dsa_key::export_private_pem(const dsa_key &key) {
   assert(!key.is_empty());
 
   if (!key.has_private_component())
-    throw core_error("DSA key does not have private component");
+    throw core_error{"DSA key does not have private component"};
 
   auto sink = bio{};
   const int r =
@@ -201,7 +201,7 @@ std::string dsa_key::export_public_pem(const dsa_key &key) {
   assert(!key.is_empty());
 
   if (!key.has_public_component())
-    throw core_error("DSA key does not have public component");
+    throw core_error{"DSA key does not have public component"};
 
   auto sink = bio{};
   const int r =

@@ -34,7 +34,7 @@ std::string sign_with_dsa_private_key(const std::string &digest_type,
   assert(!key.is_empty());
 
   if (!key.has_private_component())
-    throw core_error("DSA key does not have private component");
+    throw core_error{"DSA key does not have private component"};
 
   auto md = EVP_get_digestbyname(digest_type.c_str());
   if (md == nullptr) throw core_error{"unknown digest name"};

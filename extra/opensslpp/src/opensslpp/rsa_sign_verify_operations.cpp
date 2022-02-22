@@ -34,7 +34,7 @@ std::string sign_with_rsa_private_key(const std::string &digest_type,
   assert(!key.is_empty());
 
   if (!key.is_private())
-    throw core_error("RSA key does not have private components");
+    throw core_error{"RSA key does not have private components"};
 
   auto md = EVP_get_digestbyname(digest_type.c_str());
   if (md == nullptr) throw core_error{"unknown digest name"};

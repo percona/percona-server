@@ -129,7 +129,7 @@ std::string rsa_key::export_private_pem(const rsa_key &key) {
   assert(!key.is_empty());
 
   if (!key.is_private())
-    throw core_error("RSA key does not have private components");
+    throw core_error{"RSA key does not have private components"};
 
   auto sink = bio{};
   const int r =

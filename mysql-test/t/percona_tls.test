@@ -2,22 +2,21 @@
 --echo # Percona tests for TLS
 --echo #
 
---echo # Test that tls-version on server only works
+--echo # Test that neither TLSv1 or TLSv1.1 are allowed
 
 # Test requires TLSv1 and TLSv1.1
 --source include/not_min_protocol_tlsv12.inc
 
---let $restart_parameters= restart:--tls-version="TLSv1,TLSv1.1"
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
 
---echo # Only TLSv1 and TLSv1.1 allowed
---exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
+--let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log
+--error 1
+--exec $MYSQLD --log-error=$MYSQLD_LOG --tls-version="TLSv1,TLSv1.1"
 
---let $restart_parameters= restart:--tls-version="TLSv1"
---source include/restart_mysqld.inc
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Option --tls-version or --admin-tls-version is set to an invalid value TLSv1,TLSv1.1.
+--source include/search_pattern.inc
 
---echo # Only TLSv1 allowed
---exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
-
---let $restart_parameters=
---source include/restart_mysqld.inc
+# Cleanup
+--remove_file $MYSQLD_LOG
+--source include/start_mysqld.inc

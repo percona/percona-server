@@ -1,13 +1,6 @@
 #
 # Percona tests for TLS
 #
-# Test that tls-version on server only works
-# restart:--tls-version=TLSv1,TLSv1.1
-# Only TLSv1 and TLSv1.1 allowed
-Variable_name	Value
-Ssl_version	TLSv1.1
-# restart:--tls-version=TLSv1
-# Only TLSv1 allowed
-Variable_name	Value
-Ssl_version	TLSv1
+# Test that neither TLSv1 or TLSv1.1 are allowed
+Pattern "Option --tls-version or --admin-tls-version is set to an invalid value TLSv1,TLSv1.1." found
 # restart

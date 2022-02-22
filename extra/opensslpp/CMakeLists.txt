@@ -46,6 +46,11 @@ set(
   big_number_fwd.hpp
   core_error.hpp
   core_error_fwd.hpp
+  dh_compute_operations.hpp
+  dh_key.hpp
+  dh_key_fwd.hpp
+  dh_padding.hpp
+  dh_padding_fwd.hpp
   digest_context.hpp
   digest_context_fwd.hpp
   digest_operations.hpp
@@ -68,6 +73,7 @@ set(
   bio_accessor.hpp
   bio_fwd.hpp
   core_allocated_buffer.hpp
+  dh_key_accessor.hpp
   digest_context_accessor.hpp
   dsa_key_accessor.hpp
   rsa_key_accessor.hpp
@@ -81,6 +87,8 @@ set(
   bio.cpp
   core_error.cpp
   core_allocated_buffer.cpp
+  dh_compute_operations.cpp
+  dh_key.cpp
   digest_context.cpp
   digest_operations.cpp
   dsa_key.cpp

@@ -17,11 +17,16 @@
 #include <stdexcept>
 #include <string>
 
+#include <boost/lexical_cast/try_lexical_convert.hpp>
+
 #include <mysql/plugin.h>
 
 #include <mysqlpp/udf_wrappers.hpp>
 
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/dh_compute_operations.hpp>
+#include <opensslpp/dh_key.hpp>
+#include <opensslpp/dh_padding.hpp>
 #include <opensslpp/digest_operations.hpp>
 #include <opensslpp/dsa_key.hpp>
 #include <opensslpp/dsa_sign_verify_operations.hpp>
@@ -32,13 +37,11 @@
 
 namespace {
 
-//
-// CREATE_ASYMMETRIC_PRIV_KEY(@algorithm, {@key_len|@dh_secret})
+// CREATE_ASYMMETRIC_PRIV_KEY(@algorithm, {@key_len|@dh_parameters})
 // This functions generates a private key using the given algorithm
-// (@algorithm) and key length (@key_len) or Diffie-Hellman secret(@dh_secret),
-// and returns the key as a binary string in PEM format.
+// (@algorithm) and key length (@key_len) or Diffie-Hellman
+// secret(@dh_parameters), and returns the key as a binary string in PEM format.
 // If key generation fails, the result is NULL.
-//
 class create_asymmetric_priv_key_impl {
  public:
   create_asymmetric_priv_key_impl(mysqlpp::udf_context &ctx) {
@@ -55,9 +58,9 @@ class create_asymmetric_priv_key_impl {
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
 
-    // arg1 - @key_len
+    // arg1 - @key_len|@dh_parameters
     ctx.mark_arg_nullable(1, false);
-    ctx.set_arg_type(1, INT_RESULT);
+    ctx.set_arg_type(1, STRING_RESULT);
   }
   ~create_asymmetric_priv_key_impl() { DBUG_TRACE; }
 
@@ -72,37 +75,51 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA" && algorithm != "DSA")
+  if (algorithm != "RSA" && algorithm != "DSA" && algorithm != "DH")
     throw std::invalid_argument("Invalid algorithm specified");
-  auto optional_length = ctx.get_arg<INT_RESULT>(1);
-  if (!optional_length)
-    throw std::invalid_argument("Key length cannot be NULL");
-  auto length = optional_length.get();
+  auto length_or_dh_parameters = ctx.get_arg<STRING_RESULT>(1);
 
   std::string pem;
-  if (algorithm == "RSA") {
-    if (length < 1024 || length > 16384)
-      throw std::invalid_argument("Invalid RSA key length specified");
-    auto key = opensslpp::rsa_key::generate(length);
-    pem = opensslpp::rsa_key::export_private_pem(key);
-  } else if (algorithm == "DSA") {
-    // DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
-    // and be a multiple of 64
-    if (length < 1024 || length > 9984)
-      throw std::invalid_argument("Invalid DSA key length specified");
-    auto key = opensslpp::dsa_key::generate_parameters(length);
+  if (algorithm == "DH") {
+    if (length_or_dh_parameters.data() == nullptr)
+      throw std::invalid_argument("DH parameters cannot be NULL");
+    auto dh_parameters_pem = static_cast<std::string>(length_or_dh_parameters);
+
+    auto key = opensslpp::dh_key::import_parameters_pem(dh_parameters_pem);
     key.promote_to_key();
-    pem = opensslpp::dsa_key::export_private_pem(key);
+    pem = opensslpp::dh_key::export_private_pem(key);
+  } else {
+    if (length_or_dh_parameters.data() == nullptr)
+      throw std::invalid_argument("Key length cannot be NULL");
+
+    std::uint32_t length = 0;
+    if (!boost::conversion::try_lexical_convert(length_or_dh_parameters,
+                                                length))
+      throw std::invalid_argument("Key length is not a numeric value");
+
+    if (algorithm == "RSA") {
+      if (length < 1024 || length > 16384)
+        throw std::invalid_argument("Invalid RSA key length specified");
+      auto key = opensslpp::rsa_key::generate(length);
+      pem = opensslpp::rsa_key::export_private_pem(key);
+    } else if (algorithm == "DSA") {
+      // DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
+      // and be a multiple of 64
+      if (length < 1024 || length > 9984)
+        throw std::invalid_argument("Invalid DSA key length specified");
+      auto key = opensslpp::dsa_key::generate_parameters(length);
+      key.promote_to_key();
+      pem = opensslpp::dsa_key::export_private_pem(key);
+    }
   }
+
   return {std::move(pem)};
 }
 
-//
 // CREATE_ASYMMETRIC_PUB_KEY(@algorithm, @priv_key_str)
 // Derives a public key from the given private key using the given algorithm,
 // and returns the key as a binary string in PEM format.
 // If key derivation fails, the result is NULL.
-//
 class create_asymmetric_pub_key_impl {
  public:
   create_asymmetric_pub_key_impl(mysqlpp::udf_context &ctx) {
@@ -136,7 +153,7 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
-  if (algorithm != "RSA" && algorithm != "DSA")
+  if (algorithm != "RSA" && algorithm != "DSA" && algorithm != "DH")
     throw std::invalid_argument("Invalid algorithm specified");
   auto priv_key_pem = static_cast<std::string>(ctx.get_arg<STRING_RESULT>(1));
   if (priv_key_pem.data() == nullptr)
@@ -149,16 +166,17 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
   } else if (algorithm == "DSA") {
     auto priv_key = opensslpp::dsa_key::import_private_pem(priv_key_pem);
     pem = opensslpp::dsa_key::export_public_pem(priv_key);
+  } else if (algorithm == "DH") {
+    auto priv_key = opensslpp::dh_key::import_private_pem(priv_key_pem);
+    pem = opensslpp::dh_key::export_public_pem(priv_key);
   }
   return {std::move(pem)};
 }
 
-//
 // ASYMMETRIC_ENCRYPT(@algorithm, @str, @key_str)
 // Encrypts a string using the given algorithm and key string, and returns
 // the resulting ciphertext as a binary string.
 // If encryption fails, the result is NULL.
-//
 class asymmetric_encrypt_impl {
  public:
   asymmetric_encrypt_impl(mysqlpp::udf_context &ctx) {
@@ -222,12 +240,10 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
                                  message, key, opensslpp::rsa_padding::pkcs1)};
 }
 
-//
 // ASYMMETRIC_DECRYPT(@algorithm, @crypt_str, @key_str)
 // Decrypts an encrypted string using the given algorithm and key string, and
 // returns the resulting plaintext as a binary string. If decryption fails, the
 // result is NULL.
-//
 class asymmetric_decrypt_impl {
  public:
   asymmetric_decrypt_impl(mysqlpp::udf_context &ctx) {
@@ -291,13 +307,11 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
                                  message, key, opensslpp::rsa_padding::pkcs1)};
 }
 
-//
 // CREATE_DIGEST(@digest_type, @str)
 // Creates a digest from the given string using the given digest type, and
 // returns the digest as a binary string.
 // If digest generation fails, the result is NULL.
 // Supported @digest_type values: 'SHA224', 'SHA256', 'SHA384', 'SHA512'
-//
 class create_digest_impl {
  public:
   create_digest_impl(mysqlpp::udf_context &ctx) {
@@ -341,7 +355,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
   return {opensslpp::calculate_digest(digest_type, message)};
 }
 
-//
 // ASYMMETRIC_SIGN(@algorithm, @digest_str, @priv_key_str, @digest_type)
 // Signs a digest string using a private key string, and returns the signature
 // as a binary string.
@@ -355,8 +368,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
 // @algorithm indicates the encryption algorithm used to create the key.
 // Supported @algorithm values: 'RSA', 'DSA'
 // Supported @digest_type values: 'SHA224', 'SHA256', 'SHA384', 'SHA512'
-//
-
 class asymmetric_sign_impl {
  public:
   asymmetric_sign_impl(mysqlpp::udf_context &ctx) {
@@ -445,7 +456,6 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
 // @algorithm indicates the encryption algorithm used to create the key.
 // Supported algorithm values: 'RSA', 'DSA'
 // Supported digest_type values: 'SHA224', 'SHA256', 'SHA384', 'SHA512'
-
 class asymmetric_verify_impl {
  public:
   asymmetric_verify_impl(mysqlpp::udf_context &ctx) {
@@ -505,7 +515,7 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
 
   auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(3);
   if (public_key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Puclic key cannot be NULL");
+    throw std::invalid_argument("Public key cannot be NULL");
   auto public_key_pem = static_cast<std::string>(public_key_pem_sv);
 
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(4);
@@ -526,6 +536,104 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
   return {verification_result ? 1LL : 0LL};
 }
 
+// CREATE_DH_PARAMETERS(@key_len)
+// Creates parameters for generating a DH private/public key pair and returns
+// them in PEM format. The parameters can be passed to
+// CREATE_ASYMMETRIC_PRIV_KEY(). If secret generation fails, the result is null.
+// Supported @key_len values: The minimum and maximum key lengths in bits are
+// 1,024 and 10,000. These key-length limits are constraints imposed by OpenSSL.
+class create_dh_parameters_impl {
+ public:
+  create_dh_parameters_impl(mysqlpp::udf_context &ctx) {
+    DBUG_TRACE;
+
+    if (ctx.get_number_of_args() != 1)
+      throw std::invalid_argument("Function requires exactly one argument");
+
+    // result
+    ctx.mark_result_const(false);
+    ctx.mark_result_nullable(true);
+
+    // arg0 - @key_len
+    ctx.mark_arg_nullable(0, false);
+    ctx.set_arg_type(0, INT_RESULT);
+  }
+  ~create_dh_parameters_impl() { DBUG_TRACE; }
+
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context &args);
+};
+
+mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
+    const mysqlpp::udf_context &ctx) {
+  DBUG_TRACE;
+
+  auto optional_length = ctx.get_arg<INT_RESULT>(0);
+  if (!optional_length)
+    throw std::invalid_argument("Parameters length cannot be NULL");
+  auto length = optional_length.get();
+
+  if (length < 1024 || length > 10000)
+    throw std::invalid_argument("Invalid DH parameters length specified");
+
+  auto key = opensslpp::dh_key::generate_parameters(length);
+  key.promote_to_key();
+
+  return {opensslpp::dh_key::export_parameters_pem(key)};
+}
+
+// ASYMMETRIC_DERIVE(@pub_key_str, @priv_key_str)
+// Derives a symmetric key using the private key of one party and the public
+// key of another, and returns the resulting key as a binary string.
+// If key derivation fails, the result is NULL.
+// @pub_key_str and @priv_key_str must be valid key strings in PEM format.
+// They must be created using the DH algorithm.
+class asymmetric_derive_impl {
+ public:
+  asymmetric_derive_impl(mysqlpp::udf_context &ctx) {
+    DBUG_TRACE;
+
+    if (ctx.get_number_of_args() != 2)
+      throw std::invalid_argument("Function requires exactly two arguments");
+
+    // result
+    ctx.mark_result_const(false);
+    ctx.mark_result_nullable(true);
+
+    // arg0 - @pub_key_str
+    ctx.mark_arg_nullable(0, false);
+    ctx.set_arg_type(0, STRING_RESULT);
+
+    // arg1 - @priv_key_str
+    ctx.mark_arg_nullable(1, false);
+    ctx.set_arg_type(1, STRING_RESULT);
+  }
+  ~asymmetric_derive_impl() { DBUG_TRACE; }
+
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context &args);
+};
+
+mysqlpp::udf_result_t<STRING_RESULT> asymmetric_derive_impl::calculate(
+    const mysqlpp::udf_context &ctx) {
+  DBUG_TRACE;
+
+  auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(0);
+  if (public_key_pem_sv.data() == nullptr)
+    throw std::invalid_argument("Public key cannot be NULL");
+  auto public_key_pem = static_cast<std::string>(public_key_pem_sv);
+  auto public_key = opensslpp::dh_key::import_public_pem(public_key_pem);
+
+  auto private_key_pem_sv = ctx.get_arg<STRING_RESULT>(1);
+  if (private_key_pem_sv.data() == nullptr)
+    throw std::invalid_argument("Private key cannot be NULL");
+  auto private_key_pem = static_cast<std::string>(private_key_pem_sv);
+  auto private_key = opensslpp::dh_key::import_private_pem(private_key_pem);
+
+  return {opensslpp::compute_dh_key(public_key, private_key,
+                                    opensslpp::dh_padding::nist_sp800_56a)};
+}
+
 }  // end of anonymous namespace
 
 DECLARE_STRING_UDF(create_asymmetric_priv_key_impl, create_asymmetric_priv_key)
@@ -535,3 +643,5 @@ DECLARE_STRING_UDF(asymmetric_decrypt_impl, asymmetric_decrypt)
 DECLARE_STRING_UDF(create_digest_impl, create_digest)
 DECLARE_STRING_UDF(asymmetric_sign_impl, asymmetric_sign)
 DECLARE_INT_UDF(asymmetric_verify_impl, asymmetric_verify)
+DECLARE_STRING_UDF(create_dh_parameters_impl, create_dh_parameters)
+DECLARE_STRING_UDF(asymmetric_derive_impl, asymmetric_derive)

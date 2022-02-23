@@ -25,6 +25,7 @@
 
 /* MySQL header files */
 #include "my_stacktrace.h"
+#include "sql/debug_sync.h"
 #include "sql/sql_array.h"
 
 /* MyRocks header files */
@@ -690,6 +691,7 @@ int Rdb_converter::verify_row_debug_checksum(
         my_core::my_checksum(0, rdb_slice_to_uchar_ptr(value),
                              value->size() - RDB_CHECKSUM_CHUNK_SIZE);
 
+    DEBUG_SYNC(const_cast<THD *>(m_thd), "myrocks_verify_row_debug_checksum");
     DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_checksum1", stored_key_chksum++;);
 
     if (stored_key_chksum != computed_key_chksum) {
@@ -861,6 +863,8 @@ int Rdb_converter::encode_value_slice(
   }
 
   if (store_row_debug_checksums) {
+    DEBUG_SYNC(const_cast<THD *>(m_thd), "rocksdb.encode_value_slice");
+
     const ha_checksum key_crc32 = my_core::my_checksum(
         0, rdb_slice_to_uchar_ptr(&pk_packed_slice), pk_packed_slice.size());
     const ha_checksum val_crc32 =

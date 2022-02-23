@@ -27,6 +27,8 @@ enable_query_log;
 # make sure the WAL has not been removed
 --let $file_exists_file_name = $wal
 --let $file_exists_inverted = 0
+--let $zenfs_data_dir_prefix = ./.rocksdb
+--let $rocksdb_data_dir_prefix = `SELECT CONCAT(@@datadir, '/', @@rocksdb_datadir)`
 --source ../include/zenfs_file_exists.inc
 
 connection con1;
@@ -48,6 +50,8 @@ enable_query_log;
 # make sure the WAL has disappeared
 --let $file_exists_file_name = $wal
 --let $file_exists_inverted = 1
+--let $zenfs_data_dir_prefix = ./.rocksdb
+--let $rocksdb_data_dir_prefix = `SELECT CONCAT(@@datadir, '/', @@rocksdb_datadir)`
 --source ../include/zenfs_file_exists.inc
 
 DROP TABLE t;

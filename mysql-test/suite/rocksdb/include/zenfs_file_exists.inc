@@ -1,24 +1,31 @@
 # Expected arguments:
 # $file_exists_file_name - file name to check
 # $file_exists_inverted - if non-zero, $file_exists_file_name must not exist
+# $zenfs_data_dir_prefix - prefix of the ZenFS data directory where the file is (not) expected
+# $rocksdb_data_dir_prefix - prefix of the RocksDB data directory where the file is (not) expected
 #
 
 --source parse_rocksdb_fs_uri.inc
 if ($rocksdb_zenfs_disabled)
 {
 
-  --let $ROCKSDB_DATADIR = `SELECT CONCAT(@@datadir, '/', @@rocksdb_datadir)`
   if ($file_exists_inverted)
   {
     --error 1
   }
-  --file_exists $ROCKSDB_DATADIR/$file_exists_file_name
+
+  if(!$rocksdb_data_dir_prefix)
+  {
+    --file_exists $file_exists_file_name
+  }
+  if($rocksdb_data_dir_prefix)
+  {
+    --file_exists $rocksdb_data_dir_prefix/$file_exists_file_name
+  }
 }
 if (!$rocksdb_zenfs_disabled)
 {
   --file_exists $MYSQL_ZENFS
-
-  --let $zenfs_data_dir_prefix = ./.rocksdb
 
   --let $extracted_zenfs_file_name = `SELECT SUBSTRING_INDEX('$file_exists_file_name', '/', -1)`
   --let $extracted_zenfs_path = `SELECT LEFT('$file_exists_file_name', LENGTH('$file_exists_file_name') - LENGTH('$extracted_zenfs_file_name') - 1)`

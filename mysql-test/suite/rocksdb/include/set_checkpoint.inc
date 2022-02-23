@@ -11,10 +11,15 @@ if ($succeeds)
   eval SET GLOBAL ROCKSDB_CREATE_CHECKPOINT = '$checkpoint';
 
   # Check checkpoint
-  --exec ls $checkpoint/CURRENT | sed s/.*CURRENT/CURRENT/g
+  --let $file_exists_file_name = $checkpoint/CURRENT
+  --let $file_exists_inverted = 0
+  --let $zenfs_data_dir_prefix =
+  --let $rocksdb_data_dir_prefix =
+  --source ./zenfs_file_exists.inc
 
   # Cleanup
-  --force-rmdir $checkpoint
+  --let $directory_to_force_delete = $checkpoint
+  --source ./zenfs_force_rmdir.inc
 }
 if (!$succeeds)
 {

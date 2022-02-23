@@ -7,8 +7,6 @@
 # $disk_usage_output_suffix - suffix to add to the output size (must be double-quoted, can be empty)
 #
 
---source include/parse_rocksdb_fs_uri.inc
-
 if ($rocksdb_zenfs_disabled)
 {
   --let $datadir = `SELECT @@datadir`

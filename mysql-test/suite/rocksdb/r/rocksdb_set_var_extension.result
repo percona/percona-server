@@ -1,0 +1,470 @@
+Creating auxiliary 'test_hint' SP which returns variable value before hint, with hint and after hint applying
+#################################################
+# Test SET_VAR hint with RocksDB session variables
+#################################################
+SET rocksdb_blind_delete_primary_key=0;
+CALL test_hint("SET_VAR(rocksdb_blind_delete_primary_key=1)", "rocksdb_blind_delete_primary_key");
+hint_str
+SET_VAR(rocksdb_blind_delete_primary_key=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_blind_delete_primary_key=default;
+SET rocksdb_bulk_load_size=10;
+CALL test_hint("SET_VAR(rocksdb_bulk_load_size=2)", "rocksdb_bulk_load_size");
+hint_str
+SET_VAR(rocksdb_bulk_load_size=2)
+@before_val	@hint_val	@after_val
+10	2	10
+SET rocksdb_bulk_load_size=default;
+SET rocksdb_enable_iterate_bounds=0;
+CALL test_hint("SET_VAR(rocksdb_enable_iterate_bounds=1)", "rocksdb_enable_iterate_bounds");
+hint_str
+SET_VAR(rocksdb_enable_iterate_bounds=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_enable_iterate_bounds=default;
+SET rocksdb_lock_scanned_rows=0;
+CALL test_hint("SET_VAR(rocksdb_lock_scanned_rows=1)", "rocksdb_lock_scanned_rows");
+hint_str
+SET_VAR(rocksdb_lock_scanned_rows=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_lock_scanned_rows=default;
+CALL test_hint("SET_VAR(rocksdb_lock_wait_timeout=800)", "rocksdb_lock_wait_timeout");
+hint_str
+SET_VAR(rocksdb_lock_wait_timeout=800)
+@before_val	@hint_val	@after_val
+1	800	1
+SET rocksdb_lock_wait_timeout=200;
+CALL test_hint("SET_VAR(rocksdb_lock_wait_timeout=600)", "rocksdb_lock_wait_timeout");
+hint_str
+SET_VAR(rocksdb_lock_wait_timeout=600)
+@before_val	@hint_val	@after_val
+200	600	200
+SET rocksdb_lock_wait_timeout=default;
+SET rocksdb_master_skip_tx_api=0;
+CALL test_hint("SET_VAR(rocksdb_master_skip_tx_api=1)", "rocksdb_master_skip_tx_api");
+hint_str
+SET_VAR(rocksdb_master_skip_tx_api=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_master_skip_tx_api=default;
+SET rocksdb_perf_context_level=0;
+CALL test_hint("SET_VAR(rocksdb_perf_context_level=1)", "rocksdb_perf_context_level");
+hint_str
+SET_VAR(rocksdb_perf_context_level=1)
+@before_val	@hint_val	@after_val
+0	1	0
+SET rocksdb_perf_context_level=default;
+SET rocksdb_checksums_pct=0;
+CALL test_hint("SET_VAR(rocksdb_checksums_pct=1)", "rocksdb_checksums_pct");
+hint_str
+SET_VAR(rocksdb_checksums_pct=1)
+@before_val	@hint_val	@after_val
+0	1	0
+SET rocksdb_checksums_pct=default;
+SET rocksdb_store_row_debug_checksums=0;
+CALL test_hint("SET_VAR(rocksdb_store_row_debug_checksums=1)", "rocksdb_store_row_debug_checksums");
+hint_str
+SET_VAR(rocksdb_store_row_debug_checksums=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_store_row_debug_checksums=default;
+SET rocksdb_skip_fill_cache=0;
+CALL test_hint("SET_VAR(rocksdb_skip_fill_cache=1)", "rocksdb_skip_fill_cache");
+hint_str
+SET_VAR(rocksdb_skip_fill_cache=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_skip_fill_cache=default;
+SET rocksdb_trace_sst_api=0;
+CALL test_hint("SET_VAR(rocksdb_trace_sst_api=1)", "rocksdb_trace_sst_api");
+hint_str
+SET_VAR(rocksdb_trace_sst_api=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_trace_sst_api=default;
+SET rocksdb_verify_row_debug_checksums=0;
+CALL test_hint("SET_VAR(rocksdb_verify_row_debug_checksums=1)", "rocksdb_verify_row_debug_checksums");
+hint_str
+SET_VAR(rocksdb_verify_row_debug_checksums=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_verify_row_debug_checksums=default;
+SET rocksdb_write_batch_flush_threshold=0;
+CALL test_hint("SET_VAR(rocksdb_write_batch_flush_threshold=100)", "rocksdb_write_batch_flush_threshold");
+hint_str
+SET_VAR(rocksdb_write_batch_flush_threshold=100)
+@before_val	@hint_val	@after_val
+0	100	0
+SET rocksdb_write_batch_flush_threshold=0;
+SET rocksdb_write_batch_max_bytes=0;
+CALL test_hint("SET_VAR(rocksdb_write_batch_max_bytes=100)", "rocksdb_write_batch_max_bytes");
+hint_str
+SET_VAR(rocksdb_write_batch_max_bytes=100)
+@before_val	@hint_val	@after_val
+0	100	0
+SET rocksdb_write_batch_max_bytes=default;
+SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
+SET rocksdb_write_disable_wal=0;
+CALL test_hint("SET_VAR(rocksdb_write_disable_wal=1)", "rocksdb_write_disable_wal");
+hint_str
+SET_VAR(rocksdb_write_disable_wal=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_write_disable_wal=default;
+SET rocksdb_write_ignore_missing_column_families=0;
+CALL test_hint("SET_VAR(rocksdb_write_ignore_missing_column_families=1)", "rocksdb_write_ignore_missing_column_families");
+hint_str
+SET_VAR(rocksdb_write_ignore_missing_column_families=1)
+@before_val	@hint_val	@after_val
+OFF	ON	OFF
+SET rocksdb_write_ignore_missing_column_families=default;
+###########################################################
+# Test SET_VAR hint with stored procedure (CALL statement)
+###########################################################
+# check without hints
+CALL p1();
+@@rocksdb_blind_delete_primary_key	@@rocksdb_bulk_load_size	@@rocksdb_force_index_records_in_range	@@rocksdb_enable_iterate_bounds	@@rocksdb_lock_scanned_rows	@@rocksdb_lock_wait_timeout	@@rocksdb_master_skip_tx_api	@@rocksdb_perf_context_level	@@rocksdb_checksums_pct	@@rocksdb_store_row_debug_checksums	@@rocksdb_records_in_range	@@rocksdb_skip_bloom_filter_on_read	@@rocksdb_skip_fill_cache	@@rocksdb_trace_sst_api	@@rocksdb_verify_row_debug_checksums	@@rocksdb_write_batch_flush_threshold	@@rocksdb_write_batch_max_bytes	@@rocksdb_write_disable_wal	@@rocksdb_write_ignore_missing_column_families
+0	1000	0	1	0	1	0	0	100	0	0	0	0	0	0	0	0	0	0
+# check with hints
+CALL /*+ SET_VAR(rocksdb_blind_delete_primary_key=1) SET_VAR(rocksdb_bulk_load_size=1) SET_VAR(rocksdb_force_index_records_in_range=10) SET_VAR(rocksdb_enable_iterate_bounds=1) SET_VAR(rocksdb_lock_scanned_rows=1) SET_VAR(rocksdb_lock_wait_timeout=99) SET_VAR(rocksdb_master_skip_tx_api=1) SET_VAR(rocksdb_perf_context_level=1) SET_VAR(rocksdb_checksums_pct=1) SET_VAR(rocksdb_store_row_debug_checksums=1) SET_VAR(rocksdb_records_in_range=10) SET_VAR(rocksdb_skip_bloom_filter_on_read=1) SET_VAR(rocksdb_skip_fill_cache=1) SET_VAR(rocksdb_trace_sst_api=1) SET_VAR(rocksdb_verify_row_debug_checksums=1) SET_VAR(rocksdb_write_batch_flush_threshold=100) SET_VAR(rocksdb_write_batch_max_bytes=100) SET_VAR(rocksdb_write_disable_wal=1) SET_VAR(rocksdb_write_ignore_missing_column_families=1) */ p1();
+@@rocksdb_blind_delete_primary_key	@@rocksdb_bulk_load_size	@@rocksdb_force_index_records_in_range	@@rocksdb_enable_iterate_bounds	@@rocksdb_lock_scanned_rows	@@rocksdb_lock_wait_timeout	@@rocksdb_master_skip_tx_api	@@rocksdb_perf_context_level	@@rocksdb_checksums_pct	@@rocksdb_store_row_debug_checksums	@@rocksdb_records_in_range	@@rocksdb_skip_bloom_filter_on_read	@@rocksdb_skip_fill_cache	@@rocksdb_trace_sst_api	@@rocksdb_verify_row_debug_checksums	@@rocksdb_write_batch_flush_threshold	@@rocksdb_write_batch_max_bytes	@@rocksdb_write_disable_wal	@@rocksdb_write_ignore_missing_column_families
+1	1	10	1	1	99	1	1	1	1	10	1	1	1	1	100	100	1	1
+# some with invalid values
+CALL /*+ SET_VAR(rocksdb_blind_delete_primary_key=1) SET_VAR(rocksdb_bulk_load_size=1) SET_VAR(rocksdb_force_index_records_in_range=10) SET_VAR(rocksdb_enable_iterate_bounds=1) SET_VAR(rocksdb_lock_scanned_rows=1) SET_VAR(rocksdb_lock_wait_timeout=abc) SET_VAR(rocksdb_master_skip_tx_api=1) SET_VAR(rocksdb_perf_context_level=1) SET_VAR(rocksdb_checksums_pct=1) SET_VAR(rocksdb_store_row_debug_checksums=1) SET_VAR(rocksdb_records_in_range=10) SET_VAR(rocksdb_skip_bloom_filter_on_read=1) SET_VAR(rocksdb_skip_fill_cache=1) SET_VAR(rocksdb_trace_sst_api=1) SET_VAR(rocksdb_verify_row_debug_checksums=1) SET_VAR(rocksdb_write_batch_flush_threshold=100) SET_VAR(rocksdb_write_batch_max_bytes=100) SET_VAR(rocksdb_write_disable_wal=1) SET_VAR(rocksdb_write_ignore_missing_column_families=1) */ p1();
+@@rocksdb_blind_delete_primary_key	@@rocksdb_bulk_load_size	@@rocksdb_force_index_records_in_range	@@rocksdb_enable_iterate_bounds	@@rocksdb_lock_scanned_rows	@@rocksdb_lock_wait_timeout	@@rocksdb_master_skip_tx_api	@@rocksdb_perf_context_level	@@rocksdb_checksums_pct	@@rocksdb_store_row_debug_checksums	@@rocksdb_records_in_range	@@rocksdb_skip_bloom_filter_on_read	@@rocksdb_skip_fill_cache	@@rocksdb_trace_sst_api	@@rocksdb_verify_row_debug_checksums	@@rocksdb_write_batch_flush_threshold	@@rocksdb_write_batch_max_bytes	@@rocksdb_write_disable_wal	@@rocksdb_write_ignore_missing_column_families
+1	1	10	1	1	1	1	1	1	1	10	1	1	1	1	100	100	1	1
+Warnings:
+Warning	1232	Incorrect argument type to variable 'rocksdb_lock_wait_timeout'
+DROP PROCEDURE p1;
+###########################################################
+# Test SET_VAR hint with stored procedure (CALL statement)
+# and with the same hint at statement in stored procedure
+# The hint at statement should have higher preference to the
+# hint at CALL statement
+###########################################################
+
+# test without hints to CALL statement
+
+CALL p1();
+hint_str
+SET_VAR(rocksdb_blind_delete_primary_key=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_bulk_load_size=2)
+@before_val	@hint_val	@after_val
+1000	2	1000
+hint_str
+SET_VAR(rocksdb_force_index_records_in_range=20)
+@before_val	@hint_val	@after_val
+0	20	0
+hint_str
+SET_VAR(rocksdb_enable_iterate_bounds=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_lock_scanned_rows=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_lock_wait_timeout=299)
+@before_val	@hint_val	@after_val
+1	299	1
+hint_str
+SET_VAR(rocksdb_master_skip_tx_api=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_perf_context_level=4)
+@before_val	@hint_val	@after_val
+0	4	0
+hint_str
+SET_VAR(rocksdb_checksums_pct=99)
+@before_val	@hint_val	@after_val
+100	99	100
+hint_str
+SET_VAR(rocksdb_store_row_debug_checksums=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_records_in_range=20)
+@before_val	@hint_val	@after_val
+0	20	0
+hint_str
+SET_VAR(rocksdb_skip_bloom_filter_on_read=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_skip_fill_cache=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_trace_sst_api=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_verify_row_debug_checksums=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_write_batch_flush_threshold=300)
+@before_val	@hint_val	@after_val
+0	300	0
+hint_str
+SET_VAR(rocksdb_write_batch_max_bytes=100)
+@before_val	@hint_val	@after_val
+0	100	0
+hint_str
+SET_VAR(rocksdb_write_disable_wal=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_write_ignore_missing_column_families=0)
+@before_val	@hint_val	@after_val
+OFF	OFF	OFF
+hint_str
+SET_VAR(rocksdb_lock_wait_timeout=299)
+@before_val	@hint_val	@after_val
+499	299	499
+
+# test with hints to CALL statement
+
+CALL /*+ SET_VAR(rocksdb_blind_delete_primary_key=1) SET_VAR(rocksdb_bulk_load_size=1) SET_VAR(rocksdb_force_index_records_in_range=10) SET_VAR(rocksdb_enable_iterate_bounds=1) SET_VAR(rocksdb_lock_scanned_rows=1) SET_VAR(rocksdb_lock_wait_timeout=99) SET_VAR(rocksdb_master_skip_tx_api=1) SET_VAR(rocksdb_perf_context_level=2) SET_VAR(rocksdb_checksums_pct=1) SET_VAR(rocksdb_store_row_debug_checksums=1) SET_VAR(rocksdb_records_in_range=10) SET_VAR(rocksdb_skip_bloom_filter_on_read=1) SET_VAR(rocksdb_skip_fill_cache=1) SET_VAR(rocksdb_trace_sst_api=1) SET_VAR(rocksdb_verify_row_debug_checksums=1) SET_VAR(rocksdb_write_batch_flush_threshold=200) SET_VAR(rocksdb_write_batch_max_bytes=200) SET_VAR(rocksdb_write_disable_wal=1) SET_VAR(rocksdb_write_ignore_missing_column_families=1) */ p1();
+hint_str
+SET_VAR(rocksdb_blind_delete_primary_key=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_bulk_load_size=2)
+@before_val	@hint_val	@after_val
+1	2	1
+hint_str
+SET_VAR(rocksdb_force_index_records_in_range=20)
+@before_val	@hint_val	@after_val
+10	20	10
+hint_str
+SET_VAR(rocksdb_enable_iterate_bounds=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_lock_scanned_rows=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_lock_wait_timeout=299)
+@before_val	@hint_val	@after_val
+99	299	99
+hint_str
+SET_VAR(rocksdb_master_skip_tx_api=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_perf_context_level=4)
+@before_val	@hint_val	@after_val
+2	4	2
+hint_str
+SET_VAR(rocksdb_checksums_pct=99)
+@before_val	@hint_val	@after_val
+1	99	1
+hint_str
+SET_VAR(rocksdb_store_row_debug_checksums=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_records_in_range=20)
+@before_val	@hint_val	@after_val
+10	20	10
+hint_str
+SET_VAR(rocksdb_skip_bloom_filter_on_read=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_skip_fill_cache=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_trace_sst_api=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_verify_row_debug_checksums=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_write_batch_flush_threshold=300)
+@before_val	@hint_val	@after_val
+200	300	200
+hint_str
+SET_VAR(rocksdb_write_batch_max_bytes=100)
+@before_val	@hint_val	@after_val
+200	100	200
+hint_str
+SET_VAR(rocksdb_write_disable_wal=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_write_ignore_missing_column_families=0)
+@before_val	@hint_val	@after_val
+ON	OFF	ON
+hint_str
+SET_VAR(rocksdb_lock_wait_timeout=299)
+@before_val	@hint_val	@after_val
+499	299	499
+DROP PROCEDURE p1;
+#############################################
+# Test SET_VAR with rocksdb_blind_delete_primary_key
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0);
+SHOW STATUS LIKE 'rocksdb_rows_deleted_blind';
+Variable_name	Value
+rocksdb_rows_deleted_blind	0
+DELETE /*+ SET_VAR(rocksdb_blind_delete_primary_key=1) */ FROM t1 WHERE a=1;
+SHOW STATUS LIKE 'rocksdb_rows_deleted_blind';
+Variable_name	Value
+rocksdb_rows_deleted_blind	1
+DROP TABLE t1;
+#############################################
+# Test SET_VAR with rocksdb_bulk_load_size
+#############################################
+# restart:--rocksdb_enable_bulk_load_api=0 --rocksdb_write_policy=write_prepared
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0), (1), (2), (3);
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=RocksDB;
+SET rocksdb_bulk_load=1;
+SET debug_sync="rocksdb.flush_batch SIGNAL flush_reached";
+INSERT /*+ SET_VAR(rocksdb_bulk_load_size=2) */ INTO t2(a) SELECT a FROM t1 WHERE a=0 OR a=1 OR a=2;
+SET debug_sync="now WAIT_FOR flush_reached";
+SET rocksdb_bulk_load=0;
+DROP TABLE t1, t2;
+# restart
+#############################################
+# Test SET_VAR with rocksdb_force_index_records_in_range
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, INDEX bidx (b)) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0, 1), (1, 2), (2, 3), (3, 4);
+SELECT /*+ SET_VAR(rocksdb_force_index_records_in_range=0) */ COUNT(*) FROM t1 FORCE INDEX (bidx) WHERE b > 1 AND b < 3;
+COUNT(*)
+1
+SELECT /*+ SET_VAR(rocksdb_force_index_records_in_range=10000000) */ COUNT(*) FROM t1 FORCE INDEX (bidx) WHERE b > 1 AND b < 3;
+COUNT(*)
+1
+DROP TABLE t1;
+#############################################
+# Test SET_VAR with rocksdb_enable_iterate_bounds
+#############################################
+#############################################
+# Test SET_VAR with rocksdb_lock_scanned_rows
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0, 0), (1, 0), (2, 0), (3, 0);
+SET @rocksdb_max_row_locks_saved=@@rocksdb_max_row_locks;
+SET GLOBAL rocksdb_max_row_locks=3;
+SELECT /*+ SET_VAR(rocksdb_lock_scanned_rows=1) */ * FROM t1 WHERE b=1 FOR UPDATE;
+ERROR HY000: Got error 10 'Operation aborted: Failed to acquire lock due to rocksdb_max_row_locks limit' from ROCKSDB
+DROP TABLE t1;
+SET GLOBAL rocksdb_max_row_locks=@rocksdb_max_row_locks_saved;
+#############################################
+# Test SET_VAR with rocksdb_master_skip_tx_api
+#############################################
+#############################################
+# Test SET_VAR with rocksdb_perf_context_level
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0), (1), (2), (3);
+SELECT /*+ SET_VAR(rocksdb_perf_context_level=4) */ COUNT(*) FROM t1;
+COUNT(*)
+4
+SELECT VALUE FROM INFORMATION_SCHEMA.ROCKSDB_PERF_CONTEXT WHERE STAT_TYPE='USER_KEY_COMPARISON_COUNT' INTO @count1;
+SELECT /*+ SET_VAR(rocksdb_perf_context_level=4) */ COUNT(*) FROM t1;
+COUNT(*)
+4
+SELECT VALUE FROM INFORMATION_SCHEMA.ROCKSDB_PERF_CONTEXT WHERE STAT_TYPE='USER_KEY_COMPARISON_COUNT' INTO @count2;
+include/assert.inc ["Counter not incremented"]
+DROP TABLE t1;
+#############################################
+# Test SET_VAR with rocksdb_checksums_pct, rocksdb_store_row_debug_checksums, rocksdb_verify_row_debug_checksums
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0, 1), (1, 2), (2, 3), (3, 4);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=RocksDB;
+SET debug_sync="rocksdb.encode_value_slice SIGNAL encode_value_slice_reached";
+INSERT /*+ SET_VAR(rocksdb_store_row_debug_checksums=1) SET_VAR(rocksdb_checksums_pct=100) */ INTO t2(a, b) SELECT a, b FROM t1 WHERE a=0;
+SET debug_sync="now WAIT_FOR encode_value_slice_reached";
+SET debug_sync="myrocks_verify_row_debug_checksum SIGNAL verify_checksum_reached";
+SELECT /*+ SET_VAR(rocksdb_verify_row_debug_checksums=1) */ * FROM t2;
+a	b
+0	1
+SET debug_sync="now WAIT_FOR verify_checksum_reached";
+TRUNCATE TABLE t2;
+SET debug_sync="rocksdb.encode_value_slice WAIT_FOR encode_value_slice_continue";
+INSERT /*+ SET_VAR(rocksdb_store_row_debug_checksums=1) SET_VAR(rocksdb_checksums_pct=0) */ INTO t2(a, b) SELECT a, b FROM t1 WHERE a=0;
+SET debug_sync=reset;
+DROP TABLE t1, t2;
+#############################################
+# Test SET_VAR with rocksdb_records_in_range
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (0), (1), (2), (3);
+SELECT /*+ SET_VAR(rocksdb_records_in_range=0) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
+COUNT(*)
+1
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(rocksdb_records_in_range=0) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Filter: ((t1.a > 1) and (t1.a < 3))  (...)
+        -> Covering index range scan on t1 using PRIMARY over (1 < a < 3)  (...)
+
+SELECT /*+ SET_VAR(rocksdb_records_in_range=10000000) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
+COUNT(*)
+1
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(rocksdb_records_in_range=10000000) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Filter: ((t1.a > 1) and (t1.a < 3))  (...)
+        -> Covering index scan on t1 using PRIMARY  (...)
+
+DROP TABLE t1;
+#############################################
+# Test SET_VAR with rocksdb_skip_bloom_filter_on_read
+#############################################
+#############################################
+# Test SET_VAR with rocksdb_skip_fill_cache
+#############################################
+#############################################
+# Test SET_VAR with rocksdb_trace_sst_api
+#############################################
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=RocksDB;
+SET rocksdb_bulk_load=1;
+INSERT /*+ SET_VAR(rocksdb_trace_sst_api=1) */ INTO t1 VALUES (0, 0);
+SET rocksdb_bulk_load=0;
+include/assert_grep.inc [SST API tracing info not found.]
+DROP TABLE t1;
+#############################################
+# Test SET_VAR with rocksdb_lock_wait_timeout
+#############################################
+CREATE TABLE t1(a INT PRIMARY KEY)ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES(1),(2),(3);
+BEGIN;
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+a
+1
+SET rocksdb_lock_wait_timeout=10000;
+SELECT @@rocksdb_lock_wait_timeout;
+@@rocksdb_lock_wait_timeout
+10000
+SELECT /*+ SET_VAR(rocksdb_lock_wait_timeout=1) */ * FROM t1 WHERE a=1 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+SELECT /*+ SET_VAR(rocksdb_lock_wait_timeout="abc") */ * FROM t1 WHERE a=1 FOR UPDATE;
+a
+1
+Warnings:
+Warning	1232	Incorrect argument type to variable 'rocksdb_lock_wait_timeout'
+DROP TABLE t1;
+#############################################
+# Test SET_VAR with rocksdb_write_batch_flush_threshold, rocksdb_write_batch_max_bytes, write_disable_wal, write_ignore_missing_column_families
+#############################################
+DROP PROCEDURE test_hint;

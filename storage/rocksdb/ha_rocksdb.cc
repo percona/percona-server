@@ -1037,7 +1037,8 @@ static TYPELIB index_type_typelib = {array_elements(index_type_names) - 1,
                                      nullptr};
 
 // TODO: 0 means don't wait at all, and we don't support it yet?
-static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(lock_wait_timeout,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                           "Number of seconds to wait for lock", nullptr,
                           nullptr, /*default*/ 1, /*min*/ 1,
                           /*max*/ RDB_MAX_LOCK_WAIT_SECONDS, 0);
@@ -1059,7 +1060,7 @@ static MYSQL_THDVAR_BOOL(
     nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
-    trace_sst_api, PLUGIN_VAR_RQCMDARG,
+    trace_sst_api, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Generate trace output in the log for each call to the SstFileWriter",
     nullptr, nullptr, false);
 
@@ -1115,13 +1116,13 @@ static MYSQL_THDVAR_BOOL(
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 static MYSQL_THDVAR_BOOL(
-    blind_delete_primary_key, PLUGIN_VAR_RQCMDARG,
+    blind_delete_primary_key, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Deleting rows by primary key lookup, without reading rows (Blind Deletes)."
     " Blind delete is disabled if the table has secondary key",
     nullptr, nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
-    enable_iterate_bounds, PLUGIN_VAR_OPCMDARG,
+    enable_iterate_bounds, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Enable rocksdb iterator upper/lower bounds in read options.", nullptr,
     nullptr, true);
 
@@ -1224,7 +1225,8 @@ static MYSQL_SYSVAR_BOOL(
     "Use write batches for replication thread instead of tx api", nullptr,
     nullptr, false);
 
-static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Skip using bloom filter for reads", nullptr, nullptr,
                          false);
 
@@ -1237,22 +1239,24 @@ static MYSQL_SYSVAR_ULONG(max_row_locks, rocksdb_max_row_locks,
                           /*max*/ RDB_MAX_ROW_LOCKS, 0);
 
 static MYSQL_THDVAR_ULONGLONG(
-    write_batch_max_bytes, PLUGIN_VAR_RQCMDARG,
+    write_batch_max_bytes, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Maximum size of write batch in bytes. 0 means no limit.", nullptr, nullptr,
     /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
 static MYSQL_THDVAR_ULONGLONG(
-    write_batch_flush_threshold, PLUGIN_VAR_RQCMDARG,
+    write_batch_flush_threshold,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Maximum size of write batch in bytes before flushing. Only valid if "
     "rocksdb_write_policy is WRITE_UNPREPARED. 0 means no limit.",
     nullptr, nullptr, /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
 static MYSQL_THDVAR_BOOL(
-    lock_scanned_rows, PLUGIN_VAR_RQCMDARG,
+    lock_scanned_rows, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Take and hold locks on rows that are scanned but not updated", nullptr,
     nullptr, false);
 
-static MYSQL_THDVAR_ULONG(bulk_load_size, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(bulk_load_size,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                           "Max #records in a batch for bulk-load mode", nullptr,
                           nullptr,
                           /*default*/ RDB_DEFAULT_BULK_LOAD_SIZE,
@@ -1407,7 +1411,7 @@ static MYSQL_SYSVAR_ENUM(
     rocksdb::InfoLogLevel::ERROR_LEVEL, &info_log_level_typelib);
 
 static MYSQL_THDVAR_INT(
-    perf_context_level, PLUGIN_VAR_RQCMDARG,
+    perf_context_level, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Perf Context Level for rocksdb internal timer stat collection", nullptr,
     nullptr,
     /* default */ rocksdb::PerfLevel::kUninitialized,
@@ -1879,7 +1883,8 @@ static MYSQL_SYSVAR_UINT(flush_log_at_trx_commit,
                          /* min */ FLUSH_LOG_NEVER,
                          /* max */ FLUSH_LOG_BACKGROUND, 0);
 
-static MYSQL_THDVAR_BOOL(write_disable_wal, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(write_disable_wal,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "WriteOptions::disableWAL for RocksDB",
                          rocksdb_check_write_disable_wal, nullptr,
                          rocksdb::WriteOptions().disableWAL);
@@ -1888,11 +1893,13 @@ static MYSQL_THDVAR_BOOL(write_disable_wal_save, PLUGIN_VAR_INVISIBLE,
                          rocksdb::WriteOptions().disableWAL);
 
 static MYSQL_THDVAR_BOOL(
-    write_ignore_missing_column_families, PLUGIN_VAR_RQCMDARG,
+    write_ignore_missing_column_families,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "WriteOptions::ignore_missing_column_families for RocksDB", nullptr,
     nullptr, rocksdb::WriteOptions().ignore_missing_column_families);
 
-static MYSQL_THDVAR_BOOL(skip_fill_cache, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(skip_fill_cache,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Skip filling block cache on read requests", nullptr,
                          nullptr, false);
 
@@ -1901,13 +1908,15 @@ static MYSQL_THDVAR_BOOL(
     "Allowing statement based binary logging which may break consistency",
     nullptr, nullptr, false);
 
-static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_UINT(records_in_range,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Used to override the result of records_in_range(). "
                          "Set to a positive number to override",
                          nullptr, nullptr, 0,
                          /* min */ 0, /* max */ INT_MAX, 0);
 
-static MYSQL_THDVAR_UINT(force_index_records_in_range, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_UINT(force_index_records_in_range,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Used to override the result of records_in_range() "
                          "when FORCE INDEX is used.",
                          nullptr, nullptr, 0,
@@ -2143,20 +2152,24 @@ static MYSQL_SYSVAR_BOOL(
     "Logging queries that got snapshot conflict errors into *.err log", nullptr,
     nullptr, rocksdb_print_snapshot_conflict_queries);
 
-static MYSQL_THDVAR_INT(checksums_pct, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_INT(checksums_pct,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                         "How many percentages of rows to be checksummed",
                         nullptr, nullptr, RDB_MAX_CHECKSUMS_PCT,
                         /* min */ 0, /* max */ RDB_MAX_CHECKSUMS_PCT, 0);
 
-static MYSQL_THDVAR_BOOL(store_row_debug_checksums, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(store_row_debug_checksums,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Include checksums when writing index/table records",
                          nullptr, nullptr, false /* default value */);
 
-static MYSQL_THDVAR_BOOL(verify_row_debug_checksums, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(verify_row_debug_checksums,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Verify checksums when reading index/table records",
                          nullptr, nullptr, false /* default value */);
 
-static MYSQL_THDVAR_BOOL(master_skip_tx_api, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_BOOL(master_skip_tx_api,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Skipping holding any lock on row access. "
                          "Not effective on slave.",
                          nullptr, nullptr, false);
@@ -3492,6 +3505,8 @@ class Rdb_transaction {
 
     /* Commit the current transaction */
     if (commit_no_binlog()) return true;
+
+    DEBUG_SYNC(m_thd, "rocksdb.flush_batch");
 
     /* Start another one */
     start_tx();

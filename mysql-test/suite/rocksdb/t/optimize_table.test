@@ -4,4 +4,6 @@
 # OPTIMIZE TABLE statements
 #
 
+--source include/parse_rocksdb_fs_uri.inc
+
 --source suite/rocksdb/include/optimize_table.inc

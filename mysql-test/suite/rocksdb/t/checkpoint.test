@@ -54,13 +54,24 @@ let $max = 1000;
 let $table = t5;
 --source suite/rocksdb/include/drop_table_repopulate_table.inc
 
+--source include/parse_rocksdb_fs_uri.inc
+
+if ($rocksdb_zenfs_disabled)
+{
+  --let $TMP_CHECKPOINT_DIR = $MYSQL_TMP_DIR
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  --let $TMP_CHECKPOINT_DIR = .
+}
+
 # Create checkpoint without trailing '/'
-let $checkpoint = $MYSQL_TMP_DIR/checkpoint;
+let $checkpoint = $TMP_CHECKPOINT_DIR/checkpoint;
 let $succeeds = 1;
 --source suite/rocksdb/include/set_checkpoint.inc
 
 # Create checkpoint with a trailing '/'
-let $checkpoint = $MYSQL_TMP_DIR/checkpoint/;
+let $checkpoint = $TMP_CHECKPOINT_DIR/checkpoint/;
 let $succeeds = 1;
 --source suite/rocksdb/include/set_checkpoint.inc
 
@@ -75,11 +86,23 @@ let $succeeds = 0;
 --source suite/rocksdb/include/set_checkpoint.inc
 
 # Set checkpoint as a directory that already exists, which fails
-let $checkpoint = $MYSQL_TMP_DIR/already-existing-directory;
---mkdir $checkpoint
+if ($rocksdb_zenfs_disabled)
+{
+  let $checkpoint = $TMP_CHECKPOINT_DIR/already-existing-directory;
+  --mkdir $checkpoint
+}
+if (!$rocksdb_zenfs_disabled)
+{
+  #'./.rocksdb' exists in the aux directory of zenfs at this point
+  let $checkpoint = $TMP_CHECKPOINT_DIR/.rocksdb;
+}
 let $succeeds = 0;
 --source suite/rocksdb/include/set_checkpoint.inc
---force-rmdir $checkpoint
+
+if ($rocksdb_zenfs_disabled)
+{
+  --force-rmdir $checkpoint
+}
 
 --disable_result_log
 truncate table t1;

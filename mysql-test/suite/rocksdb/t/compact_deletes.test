@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source include/have_rocksdb_encryption_disabled.inc
 
 --file_exists $MYSQL_SST_DUMP
 

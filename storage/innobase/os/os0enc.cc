@@ -794,6 +794,7 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 @param[in,out]	encrypt_info	encryption information
 @param[in]	is_boot		if it's for bootstrap
 @return true if success */
+// KH: InnoDB header
 bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                       bool is_boot, bool encrypt_key) noexcept {
   byte *master_key = nullptr;

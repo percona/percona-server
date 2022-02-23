@@ -119,6 +119,14 @@ class Rotate_redo_system_key final : public Alter_instance {
   Rotate_percona_system_key rotate_percona_system_key;
 };
 
+class Rotate_rocksdb_master_key final : public Rotate_innodb_key {
+ public:
+  explicit Rotate_rocksdb_master_key(THD *thd) : Rotate_innodb_key(thd) {}
+
+  bool execute() override;
+  ~Rotate_rocksdb_master_key() override {}
+};
+
 /** Alter Innodb redo log properties. */
 class Innodb_redo_log : public Alter_instance {
  public:

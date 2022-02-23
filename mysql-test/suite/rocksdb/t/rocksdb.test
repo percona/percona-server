@@ -795,7 +795,7 @@ drop table t45;
 # across distros and installs
 # rocksdb_fs_uri is also excluded from the list in order to support both
 # ZenFS and non ZenFS MTR runs
-show variables where variable_name like 'rocksdb%' and variable_name not like 'rocksdb_max_open_files' and variable_name not like 'rocksdb_fs_uri';
+show variables where variable_name like 'rocksdb%' and variable_name not like 'rocksdb_max_open_files' and variable_name not like 'rocksdb_fs_uri' and variable_name not like 'rocksdb_encryption';
 create table t47 (pk int primary key, col1 varchar(12)) engine=rocksdb;
 insert into t47 values (1, 'row1');
 insert into t47 values (2, 'row2');

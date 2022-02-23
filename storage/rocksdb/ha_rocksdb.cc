@@ -63,7 +63,6 @@
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/compaction_job_stats.h"
 #include "rocksdb/env.h"
-#include "rocksdb/env/composite_env_wrapper.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/persistent_cache.h"
 #include "rocksdb/rate_limiter.h"
@@ -93,6 +92,17 @@
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_psi.h"
 #include "./rdb_threads.h"
+
+/* encryption includes */
+#include "./enc_aes_ctr_stream_factory.h"
+#include "./enc_aes_ctr_encryption_provider.h"
+#include "./enc_env_encryption_myrocks.h"
+#include "./enc_master_key_manager.h"
+#include "./enc_keyring_master_key_manager.h"
+#include "./enc_info_storage.h"
+#include "./enc_info_plainfile_storage.h"
+#include "rocksdb/env/composite_env_wrapper.h"
+#include "rocksdb/env_encryption.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -127,6 +137,11 @@ const std::string TRUNCATE_TABLE_PREFIX("#truncate_tmp#");
 static std::vector<std::string> rdb_tables_to_recalc;
 
 static Rdb_exec_time st_rdb_exec_time;
+
+static std::shared_ptr<rocksdb::Env> fault_env_guard;
+std::shared_ptr<KeyringMasterKeyManager> keyringMasterKeyManager;
+static std::shared_ptr<MyRocksEncryptedFileSystem> encryptedFileSystem;
+static std::shared_ptr<rocksdb::Env> encryptedEnv;
 
 /**
   Updates row counters based on the table type and operation type.
@@ -736,6 +751,8 @@ static bool rocksdb_enable_insert_with_update_caching = true;
 static unsigned long long rocksdb_max_compaction_history = 0;
 static bool rocksdb_skip_locks_if_skip_unique_check = false;
 static bool rocksdb_alter_column_default_inplace = false;
+static bool rocksdb_encryption_enabled = false;
+std::atomic_bool rocksdb_encryption(rocksdb_encryption_enabled);
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -899,6 +916,7 @@ static std::unique_ptr<rocksdb::DBOptions> rdb_init_rocksdb_db_options(void) {
 
   o->two_write_queues = true;
   o->manual_wal_flush = true;
+
   return o;
 }
 
@@ -2344,6 +2362,18 @@ static MYSQL_THDVAR_ULONGLONG(
     nullptr, nullptr,
     /* default */ 0, /* min */ 0, /* max */ SIZE_T_MAX, 1);
 
+static void rocksdb_encryption_enabled_on_update(MYSQL_THD, SYS_VAR *, void *ptr,
+                                                 const void *val) {
+    bool *value = (bool*)val;
+    rocksdb_encryption_enabled = *value;
+    rocksdb_encryption = rocksdb_encryption_enabled;
+}
+
+static MYSQL_SYSVAR_BOOL(encryption, rocksdb_encryption_enabled,
+                         PLUGIN_VAR_RQCMDARG,
+                         "DBOptions::RocksDB encryption on/off", nullptr,
+                         &rocksdb_encryption_enabled_on_update, false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
@@ -2538,6 +2568,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(skip_locks_if_skip_unique_check),
     MYSQL_SYSVAR(alter_column_default_inplace),
     MYSQL_SYSVAR(partial_index_sort_max_mem),
+    MYSQL_SYSVAR(encryption),
     nullptr};
 
 static int rocksdb_compact_column_family(THD *const thd,
@@ -4657,6 +4688,14 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
   DBUG_RETURN(false);
 }
 
+bool rocksdb_rotate_encryption_master_key() {
+  auto res = keyringMasterKeyManager->GenerateNewMasterKey();
+  if (res) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+  }
+  return res;
+}
+
 /**
   For a slave, prepare() updates the slave_gtid_info table which tracks the
   replication progress.
@@ -4703,7 +4742,7 @@ static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
   assert(xid != nullptr);
   assert(commit_latency_stats != nullptr);
 
-  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  auto clock = rocksdb_db_options->env->GetSystemClock().get();
   rocksdb::StopWatchNano timer(clock, true);
 
   const auto name = rdb_xid_to_string(*xid);
@@ -4821,7 +4860,7 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
   assert(thd != nullptr);
   assert(commit_latency_stats != nullptr);
 
-  auto clock = rocksdb::Env::Default()->GetSystemClock().get();
+  auto clock = rocksdb_db_options->env->GetSystemClock().get();
   rocksdb::StopWatchNano timer(clock, true);
 
   /* note: h->external_lock(F_UNLCK) is called after this function is called) */
@@ -5574,7 +5613,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
   rocksdb::Status status =
-      LoadLatestOptions(dbpath, rocksdb::Env::Default(), &loaded_db_opt,
+      LoadLatestOptions(dbpath, rocksdb_db_options->env, &loaded_db_opt,
                         &loaded_cf_descs, rocksdb_ignore_unknown_options);
 
   // If we're starting from scratch and there are no options saved yet then this
@@ -5614,7 +5653,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
-  status = CheckOptionsCompatibility(dbpath, rocksdb::Env::Default(), main_opts,
+  status = CheckOptionsCompatibility(dbpath, rocksdb_db_options->env, main_opts,
                                      loaded_cf_descs,
                                      rocksdb_ignore_unknown_options);
 
@@ -5671,10 +5710,69 @@ void rocksdb_truncation_table_cleanup(void) {
   }
 }
 
+// encryption infrastructure initialization
+static rocksdb::Status initialize_encryption(
+    std::shared_ptr<Rdb_logger> logger) {
+    rocksdb_encryption = rocksdb_encryption_enabled;
+
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Initializing MyRocks encryption. "
+      "Enabled: %d", rocksdb_encryption.load());
+
+  /* We are here before MySql uuid is generated or read from auto.cnf file.
+     As the master key name consists of unique uuid, to be able to distinguish
+     keys from multiple MySql servers, we need some unique number.
+     Feed the MasterKeyManager with such uuid which will be used if there are
+     no files encrypted.
+     If any encrypted file is found, we will restore uuid from that file.
+   */
+  auto uuid = rocksdb_db_options->env->GenerateUniqueId();
+  // unfortunately it has new line character at the end
+  uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
+
+  std::string encryptionInfoStorageFile =
+    std::string(rocksdb_datadir) + std::string("/.encryption_info");
+  auto encInfoStorage = std::make_shared<EncryptionInfoPlainFileStorage>(
+      encryptionInfoStorageFile, rocksdb_db_options->env->GetFileSystem(), uuid,
+  logger);
+
+  keyringMasterKeyManager =
+      std::make_shared<KeyringMasterKeyManager>(encInfoStorage, logger);
+
+  /* The best case scenario would be to use AES CTR provided by MySql as
+     keyring_encryption_service. As it does not provide AES CTR, we will hide
+     local implementation behind the interface
+   */
+  auto cipherFactory = std::make_unique<AesCtrStreamFactory>(logger);
+  auto provider = std::make_shared<AesCtrEncryptionProvider>(
+      keyringMasterKeyManager, std::move(cipherFactory), logger);
+
+  /* Now let's add the wrapper around the default file system, which will
+     provide encryption + master key header encryption
+   */
+  encryptedFileSystem = myrocks::NewEncryptedFS(
+      rocksdb_db_options->env->GetFileSystem(), provider, rocksdb_encryption,
+      logger);
+
+  if (!encryptedFileSystem) {
+    return rocksdb::Status::Corruption();
+  }
+
+  encryptedEnv.reset(new rocksdb::CompositeEnvWrapper(rocksdb_db_options->env,
+                                                      encryptedFileSystem));
+  rocksdb_db_options->env = encryptedEnv.get();
+
+  return rocksdb::Status::OK();
+}
+
+static void deinitialize_encryption() {
+  encryptedFileSystem.reset();
+  keyringMasterKeyManager.reset();
+  encryptedEnv.reset();
+}
+
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
-
 static int rocksdb_init_internal(void *const p) {
   DBUG_ENTER_FUNC();
 
@@ -5746,6 +5844,27 @@ static int rocksdb_init_internal(void *const p) {
   DBUG_EXECUTE_IF("rocksdb_init_failure_files_corruption",
                   { DBUG_RETURN(HA_EXIT_FAILURE); });
 
+  std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
+  rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
+      rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
+  if (s.ok()) {
+    myrocks_logger->SetRocksDBLogger(rocksdb_db_options->info_log);
+  }
+
+  rocksdb_db_options->info_log = myrocks_logger;
+  myrocks_logger->SetInfoLogLevel(
+      static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
+
+  // Initialize it before 'fault_injection' fs. This way
+  // fault injection is done in the layer above the encryption
+  // so the encryption stays transparent.
+  auto enc_init_status = initialize_encryption(myrocks_logger);
+  if (enc_init_status != rocksdb::Status::OK()) {
+    rdb_log_status_error(enc_init_status,
+                         "Encryption environment initialization failed");
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
   if (opt_rocksdb_fault_injection_options != nullptr &&
       *opt_rocksdb_fault_injection_options != '\0') {
     bool retryable = false;
@@ -5770,9 +5889,8 @@ static int rocksdb_init_internal(void *const p) {
                             /* inject_for_all_file_types */ false, types);
     fs->EnableWriteErrorInjection();
 
-    static auto fault_env_guard =
-        std::make_shared<rocksdb::CompositeEnvWrapper>(rocksdb_db_options->env,
-                                                       fs);
+    fault_env_guard = std::make_shared<rocksdb::CompositeEnvWrapper>(
+        rocksdb_db_options->env, fs);
     rocksdb_db_options->env = fault_env_guard.get();
   }
 
@@ -5843,7 +5961,8 @@ static int rocksdb_init_internal(void *const p) {
       rocksdb_rollback_to_savepoint_can_release_mdl;
   rocksdb_hton->get_table_statistics = rocksdb_get_table_statistics;
   rocksdb_hton->flush_logs = rocksdb_flush_wal;
-
+  rocksdb_hton->rotate_encryption_master_key =
+      rocksdb_rotate_encryption_master_key;
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE |
                         HTON_SUPPORTS_ONLINE_BACKUPS;
@@ -5878,16 +5997,6 @@ static int rocksdb_init_internal(void *const p) {
 
   rocksdb_db_options->delayed_write_rate = rocksdb_delayed_write_rate;
 
-  std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
-  rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
-      rocksdb_datadir, *rocksdb_db_options, &rocksdb_db_options->info_log);
-  if (s.ok()) {
-    myrocks_logger->SetRocksDBLogger(rocksdb_db_options->info_log);
-  }
-
-  rocksdb_db_options->info_log = myrocks_logger;
-  myrocks_logger->SetInfoLogLevel(
-      static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
   rocksdb_db_options->wal_dir = rocksdb_wal_dir;
 
   rocksdb_db_options->wal_recovery_mode =
@@ -6109,7 +6218,7 @@ static int rocksdb_init_internal(void *const p) {
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
-        rocksdb::Env::Default(), std::string(rocksdb_persistent_cache_path),
+        rocksdb_db_options->env, std::string(rocksdb_persistent_cache_path),
         cache_size_bytes, myrocks_logger, true, &pcache);
     if (!status.ok()) {
       LogPluginErrMsg(ERROR_LEVEL, 0, "Persistent cache returned error: (%s)",
@@ -6495,6 +6604,11 @@ static int rocksdb_shutdown(bool minimalShutdown) {
     }
 #endif /* HAVE_VALGRIND */
   }
+
+  // Do it before clearing rocksdb_db_options.
+  // We need to delete encryption wrapper to release resources.
+  fault_env_guard.reset();
+  deinitialize_encryption();
 
   rocksdb_db_options = nullptr;
   rocksdb_tbl_options = nullptr;
@@ -15948,4 +16062,5 @@ mysql_declare_plugin(rocksdb_se){
     myrocks::rdb_i_s_global_info, myrocks::rdb_i_s_ddl,
     myrocks::rdb_i_s_sst_props, myrocks::rdb_i_s_index_file_map,
     myrocks::rdb_i_s_lock_info, myrocks::rdb_i_s_trx_info,
-    myrocks::rdb_i_s_deadlock_info mysql_declare_plugin_end;
+    myrocks::rdb_i_s_deadlock_info, myrocks::rdb_i_s_encryption
+    mysql_declare_plugin_end;

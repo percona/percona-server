@@ -2070,7 +2070,25 @@ for the MyRocks MTR test suites.
 
 Specifies the level of information to capture with the Perf Context plugins.
 Default value is ``0``.
-Allowed range is up to ``4``.
+Allowed range is up to ``5``.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Value
+     - Description
+   * - 0
+     - Unknown setting
+   * - 1
+     - Disable perf stats
+   * - 2 
+     - Enable only count stats
+   * - 3
+     - Enable count stats and time stats except for mutexes
+   * - 4
+     - Enable count stats, time stats, except for wall time or CPU time for mutexes
+   * - 5 
+     - Enable count and time stats
 
 .. variable:: rocksdb_persistent_cache_path
 

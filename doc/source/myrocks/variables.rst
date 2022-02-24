@@ -870,9 +870,6 @@ Disabled by default.
 Enable this only if you are certain that there are no row conflicts,
 for example, when setting up a new MyRocks instance from a MySQL dump.
 
-Enabling this variable will also enable
-the :variable:`rocksdb_commit_in_the_middle` variable.
-
 .. variable:: rocksdb_bulk_load_size
 
   :version 5.7.19-17: Implemented

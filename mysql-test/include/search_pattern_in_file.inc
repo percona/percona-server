@@ -67,17 +67,32 @@ perl;
     #my $abort_on_found=        $ENV{ABORT_ON_FOUND} or 0;
     my @search_files=          glob($ENV{'SEARCH_FILE'});
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
-    my $file_content=          "";
     my $found=                  0;
+
     foreach my $search_file (@search_files) {
-       open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-       while ( read(FILE, $file_content, 50000, 0) ) {
-          if ( $file_content =~ m{$search_pattern} ) {
+       my @buffs;
+       $/ = \50000;  # buff read size
+
+       open(FILE, "<", "$search_file") or die("Unable to open '$search_file': $!\n");
+       while ( <FILE> ) {
+          push @buffs, $_;
+          my $str = join "", @buffs;
+
+          if ( $str =~ m{$search_pattern} ) {
              $found= 1;
              last;
           }
+
+          if ( @buffs > 2 ) {
+             shift @buffs
+          }
        }
+
        close(FILE);
+
+       if ( $found ) {
+          last;
+       }
     }
 
     if ( $print_search_result == 0 ) {

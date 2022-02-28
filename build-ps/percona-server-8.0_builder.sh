@@ -102,7 +102,7 @@ add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
         curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
-        sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
+	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
     fi
     return
 }
@@ -144,7 +144,7 @@ get_sources(){
         cat MYSQL_VERSION > ../percona-server-8.0.properties
     else
         echo "VERSION file does not exist"
-        exit 1
+	exit 1
     fi
     IS_RELEASE_BRANCH=$(echo ${BRANCH} | grep -c release);
     if [ ${IS_RELEASE_BRANCH} != 0 ]; then
@@ -949,7 +949,7 @@ build_tarball(){
                 rm -f libcrypto.so
                 ln -s libcrypto.so.1.1.1k libcrypto.so
             fi
-            cd -
+            cd ../../
         fi
         #LDAP
 
@@ -1011,6 +1011,7 @@ build_tarball(){
         done
         cp -av /usr/lib64/libcom_err.so* ${WORKDIR}/kerberos/lib/
     fi
+    cd ${WORKDIR}
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
         sed -i '279d' build-ps/build-binary.sh

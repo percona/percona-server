@@ -5681,14 +5681,6 @@ static int rocksdb_init_internal(void *const p) {
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
   static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
 
-  if (THDVAR(nullptr, write_disable_wal) &&
-      rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Invalid argument: Sync writes "
-                    "(rocksdb_flush_log_at_trx_commit == 1) has to enable WAL");
-    DBUG_RETURN(1);
-  }
-
   // Lock the handlertons initialized status flag for writing
   Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
   SHIP_ASSERT(!rdb_get_hton_init_state()->initialized());
@@ -5696,6 +5688,14 @@ static int rocksdb_init_internal(void *const p) {
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
     DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
+  if (THDVAR(nullptr, write_disable_wal) &&
+      rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Invalid argument: Sync writes "
+                    "(rocksdb_flush_log_at_trx_commit == 1) has to enable WAL");
+    DBUG_RETURN(1);
   }
 
 #ifdef FB_HAVE_WSENV

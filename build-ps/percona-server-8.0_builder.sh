@@ -951,6 +951,7 @@ build_tarball(){
                sudo make install
            cd ../
         cd ../
+
         rm -rf ldap_build
         ldap_include=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep include)
         for lib in $ldap_include; do

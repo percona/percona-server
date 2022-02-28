@@ -10,7 +10,6 @@
 #
 
 # Bail out on errors, be strict
-set -ue
 
 # Examine parameters
 TARGET="$(uname -m)"
@@ -252,6 +251,7 @@ fi
     cd "$WORKDIR_ABS/bld"
 
     cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
+        -DDOWNLOAD_BOOST=1 \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTRA \
         -DFEATURE_SET=community \
@@ -299,7 +299,7 @@ fi
 )
 
 (
-    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libssl3.so libplds4.so libncurses.so.5 libtinfo.so.5"
+    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libssl3.so libplds4.so libncurses.so.5 libtinfo.so.5 libssl.so.10 libcrypto.so.10 libldap_r.so libcurl.so libcurl.so.4"
     DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     LIBPATH=""
@@ -313,19 +313,40 @@ fi
                     lib_realpath="$(readlink -f ${libfromelf})"
                     lib_realpath_basename="$(basename $(readlink -f ${libfromelf}))"
                     lib_without_version_suffix=$(echo ${lib_realpath_basename} | awk -F"." 'BEGIN { OFS = "." }{ print $1, $2}')
-
-                    if [ ! -f "lib/private/${lib_realpath_basename}" ] && [ ! -L "lib/private/${lib_without_version_suffix}" ]; then
-                    
+                    if [ ${lib_realpath_basename} = "libcrypto.so.1.0.2k" -o ${lib_realpath_basename} = "libssl.so.1.0.2k" ]; then
                         echo "Copying lib ${lib_realpath_basename}"
-                        cp ${lib_realpath} lib/private
-
+                        if [ ! -f lib/private/${lib_realpath_basename} ]; then
+                            cp ${lib_realpath} lib/private/ || true
+                        fi
                         echo "Symlinking lib from ${lib_realpath_basename} to ${lib_without_version_suffix}"
                         cd lib/
-                        ln -s private/${lib_realpath_basename} ${lib_without_version_suffix}
+                        if [ ! -L ${lib_without_version_suffix}.10 ]; then
+                            ln -s private/${lib_realpath_basename} ${lib_without_version_suffix}.10 || true
+                        fi
                         cd -
                         if [ ${lib_realpath_basename} != ${lib_without_version_suffix} ]; then
                             cd lib/private
-                            ln -s ${lib_realpath_basename} ${lib_without_version_suffix}
+                            if [ ! -L ${lib_without_version_suffix}.10 ]; then
+                                ln -s ${lib_realpath_basename} ${lib_without_version_suffix}.10 || true
+                            fi
+                            cd -
+                        fi
+                        patchelf --set-soname ${lib_without_version_suffix}.10 lib/private/${lib_realpath_basename}
+
+                        LIBPATH+=" $(echo ${libfromelf} | grep -v $(pwd))"
+                    fi
+                    if [ ! -f "lib/private/${lib_realpath_basename}" ] && [ ! -L "lib/private/${lib_without_version_suffix}" ]; then
+                    
+                        echo "Copying lib ${lib_realpath_basename}"
+                        cp ${lib_realpath} lib/private/
+
+                        echo "Symlinking lib from ${lib_realpath_basename} to ${lib_without_version_suffix}"
+                        cd lib/
+                        ln -s private/${lib_realpath_basename} ${lib_without_version_suffix} || true
+                        cd -
+                        if [ ${lib_realpath_basename} != ${lib_without_version_suffix} ]; then
+                            cd lib/private
+                            ln -s ${lib_realpath_basename} ${lib_without_version_suffix} || true
                             cd -
                         fi
 
@@ -451,4 +472,3 @@ fi
 # Clean up
 rm -rf "$INSTALLDIR"
 rm -rf "$WORKDIR_ABS/bld"
-

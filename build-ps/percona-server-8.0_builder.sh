@@ -102,7 +102,7 @@ add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
         curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
-	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
+        sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
     fi
     return
 }
@@ -144,7 +144,7 @@ get_sources(){
         cat MYSQL_VERSION > ../percona-server-8.0.properties
     else
         echo "VERSION file does not exist"
-	exit 1
+        exit 1
     fi
     IS_RELEASE_BRANCH=$(echo ${BRANCH} | grep -c release);
     if [ ${IS_RELEASE_BRANCH} != 0 ]; then
@@ -344,13 +344,13 @@ enable_zenfs() {
 
 get_system(){
     if [ -f /etc/redhat-release ]; then
-	GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+        GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         OS_NAME="el$RHEL"
         OS="rpm"
     else
-	GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
+        GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
         ARCH=$(uname -m)
         OS_NAME="$(lsb_release -sc)"
         OS="deb"
@@ -396,13 +396,13 @@ install_deps() {
             source /opt/rh/devtoolset-8/enable
             yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         else
-	    yum -y install perl.x86_64
+            yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
             yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
-	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen re2-devel libtirpc-devel
-	    yum -y install zstd libzstd libzstd-devel
-	    yum -y install cmake
+            yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+            yum -y install rpcgen re2-devel libtirpc-devel
+            yum -y install zstd libzstd libzstd-devel
+            yum -y install cmake
             yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         fi
         if [ "x${RHEL}" = "x8" ]; then
@@ -415,22 +415,22 @@ install_deps() {
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-10/enable
         fi
-	 if [ "x${RHEL}" = "x6" ]; then
+         if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
         fi
         if [ "x$RHEL" = "x6" ]; then
             rm -f /usr/bin/cmake
             cp -p /usr/bin/cmake3 /usr/bin/cmake
             yum -y install Percona-Server-shared-56
-	          yum -y install libevent2-devel
-	      else
+                  yum -y install libevent2-devel
+              else
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
             yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
             yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
             rm -f /usr/bin/cmake
-	    cp -p /usr/bin/cmake3 /usr/bin/cmake
+            cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
         if [ "x$RHEL" = "x8" ]; then
             yum -y install centos-release-stream
@@ -445,7 +445,7 @@ install_deps() {
     else
         apt-get -y install dirmngr || true
         apt-get update
-	apt-get -y install lsb_release || true
+        apt-get -y install lsb_release || true
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget git curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
@@ -495,9 +495,9 @@ install_deps() {
         if [ x${DIST} = xhirsute ]; then
             apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
         fi
-	if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]]; then
+        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]]; then
             apt-get -y install libgflags-dev
-	fi
+        fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
@@ -622,7 +622,7 @@ build_mecab_lib(){
     make DESTDIR=${MECAB_INSTALL_DIR} install
     cd ../${MECAB_INSTALL_DIR}
     if [ -d usr/lib64 ]; then
-	mkdir -p usr/lib
+        mkdir -p usr/lib
         mv usr/lib64/* usr/lib
     fi
     cd ${WORKDIR}
@@ -923,31 +923,63 @@ build_tarball(){
 
     if [ "x$OS" = "xdeb" ]; then
         cp -av /usr/lib/x86_64-linux-gnu/libssl* ${WORKDIR}/ssl/lib
-	cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
+        cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
     else
         cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib/
         cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib/
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
         if [ -d /usr/include/openssl11/ ]; then
+            sudo mv /usr/bin/openssl /usr/bin/openssl.back
+            sudo ln -s /usr/bin/openssl11 /usr/bin/openssl
+            ldconfig -v
             cp -av /usr/lib*/openssl11/libssl.so* ${WORKDIR}/ssl/lib/
             cp -av /usr/lib*/openssl11/libcrypto* ${WORKDIR}/ssl/lib/
             cp -av /usr/include/openssl11/openssl ${WORKDIR}/ssl/include/
             cp -av $(readlink -f /usr/lib64/libssl.so.1.1) ${WORKDIR}/ssl/ 
             cp -av $(readlink -f /usr/lib64/libcrypto.so.1.1) ${WORKDIR}/ssl/
+            cp -av $(readlink -f /usr/lib64/libssl.so.1.1) ${WORKDIR}/ssl/lib/ 
+            cp -av $(readlink -f /usr/lib64/libcrypto.so.1.1) ${WORKDIR}/ssl/lib/
+            cd ${WORKDIR}/ssl/lib/
+            if [ -L libssl.so ]; then
+                rm -f libssl.so
+                ln -s libssl.so.1.1.1k libssl.so
+            fi
+            if [ -L libcrypto.so ]; then
+                rm -f libcrypto.so
+                ln -s libcrypto.so.1.1.1k libcrypto.so
+            fi
+            cd -
         fi
         #LDAP
+
+        mkdir ldap_build
+        cd ldap_build
+           wget https://www.openldap.org/software/download/OpenLDAP/openldap-release/openldap-2.4.59.tgz
+           tar -xf openldap-2.4.59.tgz
+           cd openldap-2.4.59/
+               LDFLAGS="-L/usr/lib64/openssl11 -Wl,-rpath,/usr/include/openssl11"
+               CPPFLAGS="-I/usr/include/openssl11"
+               export CPPFLAGS
+               export LDFLAGS
+               ./configure --build=x86_64-redhat-linux-gnu --host=x86_64-redhat-linux-gnu --program-prefix= --disable-dependency-tracking --prefix=/usr --exec-prefix=/usr --bindir=/usr/bin --sbindir=/usr/sbin --sysconfdir=/etc --datadir=/usr/share --includedir=/usr/include --libdir=/usr/lib64 --libexecdir=/usr/libexec --localstatedir=/var --sharedstatedir=/var/lib --mandir=/usr/share/man --infodir=/usr/share/info --enable-debug --enable-dynamic --enable-syslog --enable-proctitle --enable-ipv6 --enable-local --enable-slapd --enable-dynacl --enable-aci --enable-cleartext --enable-crypt --enable-lmpasswd --enable-spasswd --enable-modules --enable-rewrite --enable-rlookups --enable-slapi --disable-slp --enable-wrappers --enable-backends=mod --enable-bdb=yes --enable-hdb=yes --enable-mdb=yes --enable-monitor=yes --disable-ndb --enable-overlays=mod --disable-static --enable-shared --enable-moznss-compatibility=yes --with-cyrus-sasl --without-fetch --with-threads --with-pic --with-gnu-ld --libexecdir=/usr/lib64 --with-tls=openssl
+               make depend
+               make -j8
+               sudo make install
+           cd ../
+        cd ../
+        rm -rf ldap_build
         ldap_include=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep include)
         for lib in $ldap_include; do
-            cp -av $lib ${WORKDIR}/ldap/include/
+            cp -av $lib* ${WORKDIR}/ldap/include/
         done
         ldap_lib=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep /usr/lib)
         for lib in $ldap_lib; do
-            cp -av $lib ${WORKDIR}/ldap/lib/
+               cp -av $lib* ${WORKDIR}/ldap/lib/
         done
         ldap_lib=$(rpm -ql openldap | grep /usr/lib | grep -v exec | grep -v conf)
         for lib in $ldap_lib; do
-            cp -av $lib ${WORKDIR}/ldap/lib/
+            cp -av $lib* ${WORKDIR}/ldap/lib/
         done
         #SASL
         mkdir -p ${WORKDIR}/sasl/include/sasl/
@@ -979,7 +1011,6 @@ build_tarball(){
         done
         cp -av /usr/lib64/libcom_err.so* ${WORKDIR}/kerberos/lib/
     fi
-
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
         sed -i '279d' build-ps/build-binary.sh
@@ -1033,7 +1064,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.26-16"
+BRANCH="release-8.0.27-18"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -1041,12 +1072,12 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=26
-MYSQL_VERSION_EXTRA=-16
-PRODUCT_FULL=Percona-Server-8.0.26
+MYSQL_VERSION_PATCH=27
+MYSQL_VERSION_EXTRA=-18
+PRODUCT_FULL=Percona-Server-8.0.27
 BOOST_PACKAGE_NAME=boost_1_73_0
-PERCONAFT_BRANCH=Percona-Server-8.0.22-13
-TOKUBACKUP_BRANCH=Percona-Server-8.0.22-13
+PERCONAFT_BRANCH=Percona-Server-8.0.27-18
+TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

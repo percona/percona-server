@@ -10,6 +10,7 @@
 #
 
 # Bail out on errors, be strict
+set -ue
 
 # Examine parameters
 TARGET="$(uname -m)"

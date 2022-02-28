@@ -297,13 +297,13 @@ get_sources(){
 
 get_system(){
     if [ -f /etc/redhat-release ]; then
-        GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+	GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         OS_NAME="el$RHEL"
         OS="rpm"
     else
-        GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
+	GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
         ARCH=$(uname -m)
         OS_NAME="$(lsb_release -sc)"
         OS="deb"
@@ -349,13 +349,13 @@ install_deps() {
             source /opt/rh/devtoolset-8/enable
             yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         else
-            yum -y install perl.x86_64
+	    yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
             yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
-            yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-            yum -y install rpcgen re2-devel libtirpc-devel
-            yum -y install zstd libzstd libzstd-devel
-            yum -y install cmake
+	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+	    yum -y install rpcgen re2-devel libtirpc-devel
+	    yum -y install zstd libzstd libzstd-devel
+	    yum -y install cmake
             yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         fi
         if [ "x${RHEL}" = "x8" ]; then
@@ -368,22 +368,22 @@ install_deps() {
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-10/enable
         fi
-         if [ "x${RHEL}" = "x6" ]; then
+	 if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable
         fi
         if [ "x$RHEL" = "x6" ]; then
             rm -f /usr/bin/cmake
             cp -p /usr/bin/cmake3 /usr/bin/cmake
             yum -y install Percona-Server-shared-56
-                  yum -y install libevent2-devel
-              else
+	          yum -y install libevent2-devel
+	      else
             yum -y install libevent-devel
         fi
         if [ "x$RHEL" = "x7" ]; then
             yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-gcc-c++ devtoolset-10-binutils devtoolset-10-valgrind devtoolset-10-valgrind-devel devtoolset-10-libatomic-devel
             yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-10-libasan-devel devtoolset-10-libubsan-devel
             rm -f /usr/bin/cmake
-            cp -p /usr/bin/cmake3 /usr/bin/cmake
+	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
         if [ "x$RHEL" = "x8" ]; then
             yum -y install centos-release-stream
@@ -392,13 +392,10 @@ install_deps() {
             yum -y install gcc-toolset-10-libasan-devel gcc-toolset-10-libubsan-devel
             yum -y remove centos-release-stream
         fi
-        if [ "x$RHEL" = "x7" ]; then
-            yum -y install openssl11 openssl11-devel openssl11-libs openssl11-static
-        fi
     else
         apt-get -y install dirmngr || true
         apt-get update
-        apt-get -y install lsb_release || true
+	apt-get -y install lsb_release || true
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget git curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
@@ -567,7 +564,7 @@ build_mecab_lib(){
     make DESTDIR=${MECAB_INSTALL_DIR} install
     cd ../${MECAB_INSTALL_DIR}
     if [ -d usr/lib64 ]; then
-        mkdir -p usr/lib
+	mkdir -p usr/lib
         mv usr/lib64/* usr/lib
     fi
     cd ${WORKDIR}
@@ -856,111 +853,21 @@ build_tarball(){
     #
     rm -fr ${TARFILE%.tar.gz}
     tar xzf ${TARFILE}
-    for dir in ssl ldap sasl kerberos; do
-        mkdir -p ${WORKDIR}/$dir/{lib,include}
-    done
-
+    mkdir -p ${WORKDIR}/ssl/lib
     if [ "x$OS" = "xdeb" ]; then
         cp -av /usr/lib/x86_64-linux-gnu/libssl* ${WORKDIR}/ssl/lib
-        cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
+	cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
     else
-        cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib/
-        cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib/
+        cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib
+	cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
-        if [ -d /usr/include/openssl11/ ]; then
-            sudo mv /usr/bin/openssl /usr/bin/openssl.back
-            sudo ln -s /usr/bin/openssl11 /usr/bin/openssl
-            ldconfig -v
-            cp -av /usr/lib*/openssl11/libssl.so* ${WORKDIR}/ssl/lib/
-            cp -av /usr/lib*/openssl11/libcrypto* ${WORKDIR}/ssl/lib/
-            cp -av /usr/include/openssl11/openssl ${WORKDIR}/ssl/include/
-            cp -av $(readlink -f /usr/lib64/libssl.so.1.1) ${WORKDIR}/ssl/ 
-            cp -av $(readlink -f /usr/lib64/libcrypto.so.1.1) ${WORKDIR}/ssl/
-            cp -av $(readlink -f /usr/lib64/libssl.so.1.1) ${WORKDIR}/ssl/lib/ 
-            cp -av $(readlink -f /usr/lib64/libcrypto.so.1.1) ${WORKDIR}/ssl/lib/
-            cd ${WORKDIR}/ssl/lib/
-            if [ -L libssl.so ]; then
-                rm -f libssl.so
-                ln -s libssl.so.1.1.1k libssl.so
-            fi
-            if [ -L libcrypto.so ]; then
-                rm -f libcrypto.so
-                ln -s libcrypto.so.1.1.1k libcrypto.so
-            fi
-            cd ../../
-        fi
-        #LDAP
-
-        mkdir ldap_build
-        cd ldap_build
-           wget https://www.openldap.org/software/download/OpenLDAP/openldap-release/openldap-2.4.59.tgz
-           tar -xf openldap-2.4.59.tgz
-           cd openldap-2.4.59/
-               LDFLAGS="-L/usr/lib64/openssl11 -Wl,-rpath,/usr/include/openssl11"
-               CPPFLAGS="-I/usr/include/openssl11"
-               export CPPFLAGS
-               export LDFLAGS
-               ./configure --build=x86_64-redhat-linux-gnu --host=x86_64-redhat-linux-gnu --program-prefix= --disable-dependency-tracking --prefix=/usr --exec-prefix=/usr --bindir=/usr/bin --sbindir=/usr/sbin --sysconfdir=/etc --datadir=/usr/share --includedir=/usr/include --libdir=/usr/lib64 --libexecdir=/usr/libexec --localstatedir=/var --sharedstatedir=/var/lib --mandir=/usr/share/man --infodir=/usr/share/info --enable-debug --enable-dynamic --enable-syslog --enable-proctitle --enable-ipv6 --enable-local --enable-slapd --enable-dynacl --enable-aci --enable-cleartext --enable-crypt --enable-lmpasswd --enable-spasswd --enable-modules --enable-rewrite --enable-rlookups --enable-slapi --disable-slp --enable-wrappers --enable-backends=mod --enable-bdb=yes --enable-hdb=yes --enable-mdb=yes --enable-monitor=yes --disable-ndb --enable-overlays=mod --disable-static --enable-shared --enable-moznss-compatibility=yes --with-cyrus-sasl --without-fetch --with-threads --with-pic --with-gnu-ld --libexecdir=/usr/lib64 --with-tls=openssl
-               make depend
-               make -j8
-               sudo make install
-           cd ../
-        cd ../
-        rm -rf ldap_build
-        ldap_include=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep include)
-        for lib in $ldap_include; do
-            cp -av $lib* ${WORKDIR}/ldap/include/
-        done
-        ldap_lib=$(rpm -ql openldap-devel.x86_64 | grep -v man | grep -v doc | grep /usr/lib)
-        for lib in $ldap_lib; do
-               cp -av $lib* ${WORKDIR}/ldap/lib/
-        done
-        ldap_lib=$(rpm -ql openldap | grep /usr/lib | grep -v exec | grep -v conf)
-        for lib in $ldap_lib; do
-            cp -av $lib* ${WORKDIR}/ldap/lib/
-        done
-        #SASL
-        mkdir -p ${WORKDIR}/sasl/include/sasl/
-        for file in $(rpm -ql cyrus-sasl-devel | grep -v '/usr/share' | grep include | grep '\.h'); do
-            cp -av $file ${WORKDIR}/sasl/include/sasl/
-        done
-        cp -av /usr/lib*/libsasl2.so ${WORKDIR}/sasl/lib
-        cp -av $(readlink -f /usr/lib*/libsasl2.so) ${WORKDIR}/sasl/lib
-        cp -av /usr/lib*/sasl2/libscram.so* ${WORKDIR}/sasl/lib
-        cp -r /usr/lib*/sasl2 ${WORKDIR}/sasl/lib/
-        #KERBEROS
-        for file in $(rpm -ql krb5-devel | grep include); do
-            if [ -L $file ]; then
-                cp -av $(readlink -f $file) ${WORKDIR}/kerberos/include/
-            fi
-            cp -av $file ${WORKDIR}/kerberos/include/
-        done
-        for file in $(rpm -ql krb5-devel | grep lib | grep so); do
-            if [ -L $file ]; then
-                cp -av $(readlink -f $file) ${WORKDIR}/kerberos/lib/
-            fi
-            cp -av $file ${WORKDIR}/kerberos/lib/
-        done
-        for file in $(rpm -ql krb5-libs | grep '/usr/lib'); do
-            if [ -L $file ]; then
-                cp -av $(readlink -f $file) ${WORKDIR}/kerberos/lib/
-            fi
-            cp -av $file ${WORKDIR}/kerberos/lib/
-        done
-        cp -av /usr/lib64/libcom_err.so* ${WORKDIR}/kerberos/lib/
     fi
-    cd ${WORKDIR}
+
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
-        sed -i 's:DWITH_LDAP=system:DDOWNLOAD_BOOST=1:' build-ps/build-binary.sh
-        if [[ "${DEBUG}" == 1 ]]; then
-            CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SASL=$PWD/../sasl/ -DWITH_KERBEROS=$PWD/../kerberos/ -DWITH_LDAP=$PWD/../ldap/ -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ --debug ../TARGET
-            DIRNAME="tarball"
-        else
-            CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SASL=$PWD/../sasl/ -DWITH_KERBEROS=$PWD/../kerberos/ -DWITH_LDAP=$PWD/../ldap/ -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-            DIRNAME="tarball"
-        fi
+        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        DIRNAME="yassl"
     else
         if [[ "${DEBUG}" == 1 ]]; then
             CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET

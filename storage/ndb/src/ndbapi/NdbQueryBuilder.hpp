@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,14 +137,22 @@ public:
    */
   enum MatchType
   {
-    MatchAll = 0x00, // DEFAULT: Output all matches, including duplicates.
-                     // Append a single NULL complemented row for non-matching childs.
-    MatchNonNull = 0x01,// Output all matches, including duplicates.
-                     // Parents without any matches are discarded.
-    MatchNullOnly,   // Output only parent rows without any child matches.
-                     // Append a single NULL complemented row for the non_matching child
-    MatchFirst = 0x02,// Output a single row when >=1 child matches.
-                     // One of the matching child row is included in the output.
+    // DEFAULT: Output all matches, including duplicates.
+    // Append a single NULL-extended row for non-matching childs.
+    MatchAll = 0x00,
+
+    // Output all matches, including duplicates.
+    // Parents without any matches are discarded.
+    MatchNonNull = 0x01,
+
+    // Output only parent rows without any child matches. (Antijoin)
+    // Append only the single NULL-extended row for the non_matching child
+    MatchNullOnly = 0x02,
+
+    // Output a single row when >=1 child matches.
+    // One of the matching child row is included in the output.
+    MatchFirst = 0x04,
+
     Default = MatchAll
   };
 
@@ -189,7 +197,7 @@ public:
    *
    * Specifying a 'FirstInnerJoin' is only required when the firstInner
    * is not an ancestor Op. of this Op in the tree of QueryOperations.
-   * That is if firstInner and this Op are in seperate branches of the
+   * That is if firstInner and this Op are in separate branches of the
    * QueryTree -> This Op has no linkedValue dependencies on other Ops
    * in the nest starting with firstInner.
    */

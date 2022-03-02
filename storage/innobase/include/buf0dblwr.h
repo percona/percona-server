@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -57,6 +57,7 @@ pages in the doublewrite buffer. */
 constexpr ulint DBLWR_V1_BLOCK2 = (8 + FSEG_HEADER_SIZE);
 
 namespace dblwr {
+
 /** IO buffer in UNIV_PAGE_SIZE units and aligned on UNIV_PAGE_SIZE */
 struct Buffer {
   /** Constructor
@@ -65,24 +66,15 @@ struct Buffer {
       : m_n_bytes(n_pages * univ_page_size.physical()) {
     ut_a(n_pages > 0);
 
-    auto n_bytes = m_n_bytes + univ_page_size.physical();
-
-    m_ptr_unaligned = static_cast<byte *>(ut_zalloc_nokey(n_bytes));
-
-    m_ptr = static_cast<byte *>(ut_align(m_ptr_unaligned, UNIV_PAGE_SIZE));
-
-    ut_a(ptrdiff_t(m_ptr - m_ptr_unaligned) <=
-         (ssize_t)univ_page_size.physical());
+    m_ptr = static_cast<byte *>(ut::aligned_zalloc(m_n_bytes, UNIV_PAGE_SIZE));
 
     m_next = m_ptr;
   }
 
   /** Destructor */
   ~Buffer() noexcept {
-    if (m_ptr_unaligned != nullptr) {
-      ut_free(m_ptr_unaligned);
-    }
-    m_ptr_unaligned = nullptr;
+    ut::aligned_free(m_ptr);
+    m_ptr = nullptr;
   }
 
   /** Add the contents of ptr upto n_bytes to the buffer.
@@ -128,9 +120,6 @@ struct Buffer {
 
   /** Start of  next write to the buffer. */
   byte *m_next{};
-
-  /** Pointer to m_ptr, but unaligned */
-  byte *m_ptr_unaligned{};
 
   /** Size of the unaligned (raw) buffer. */
   const size_t m_n_bytes{};
@@ -179,8 +168,15 @@ then writes the page to the datafile.
 @param[in]	bpage		            Buffer block to write
 @param[in]	sync		            True if sync IO requested
 @return DB_SUCCESS or error code */
-dberr_t write(buf_flush_t flush_type, buf_page_t *bpage,
-              bool sync) noexcept MY_ATTRIBUTE((warn_unused_result));
+dberr_t write(buf_flush_t flush_type, buf_page_t *bpage, bool sync) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** Obtain the encrypted frame and store it in bpage->m_io_frame
+@param[in,out]  bpage  the buffer page containing the unencrypted frame.
+@param[out]     len    the encrypted data length.
+@return the memory block containing the compressed + encrypted frame. */
+file::Block *get_encrypted_frame(buf_page_t *bpage, uint32_t &len) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates the double write buffer when a write request is completed.
 @param[in] bpage               Block that has just been writtent to disk.
@@ -255,9 +251,8 @@ void recover(Pages *pages, fil_space_t *space) noexcept;
 @param[in]	page_id		Page number to lookup
 @return	page frame
 @retval NULL if no page was found */
-const byte *find(
-    const Pages *pages,
-    const page_id_t &page_id) noexcept MY_ATTRIBUTE((warn_unused_result));
+const byte *find(const Pages *pages, const page_id_t &page_id) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if some pages from the double write buffer could not be
 restored because of the missing tablespace IDs.
@@ -327,6 +322,13 @@ class DBLWR {
   Pages *m_pages{};
 };
 }  // namespace recv
+
+#ifdef UNIV_DEBUG
+/** Check if the dblwr files contain encrypted pages.
+@return true if dblwr file contains any encrypted pages,
+        false if dblwr file contains no encrypted pages. */
+bool has_encrypted_pages() noexcept MY_ATTRIBUTE((warn_unused_result));
+#endif /* UNIV_DEBUG */
 }  // namespace dblwr
 
 #endif /* buf0dblwr_h */

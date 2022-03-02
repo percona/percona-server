@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,8 @@ enum mysql_option {
   MYSQL_OPT_SSL_FIPS_MODE,
   MYSQL_OPT_TLS_CIPHERSUITES,
   MYSQL_OPT_COMPRESSION_ALGORITHMS,
-  MYSQL_OPT_ZSTD_COMPRESSION_LEVEL
+  MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+  MYSQL_OPT_LOAD_DATA_LOCAL_DIR
 };
 
 /**
@@ -730,6 +731,9 @@ enum enum_stmt_attr_type {
   STMT_ATTR_PREFETCH_ROWS
 };
 
+bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
+                              MYSQL_BIND *binds, const char **names);
+
 MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql);
 int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
                                unsigned long length);
@@ -785,6 +789,12 @@ void STDCALL mysql_reset_server_public_key(void);
 #define mysql_reload(mysql) mysql_refresh((mysql), REFRESH_GRANT)
 
 #define HAVE_MYSQL_REAL_CONNECT
+
+MYSQL *STDCALL mysql_real_connect_dns_srv(MYSQL *mysql,
+                                          const char *dns_srv_name,
+                                          const char *user, const char *passwd,
+                                          const char *db,
+                                          unsigned long client_flag);
 
 #ifdef __cplusplus
 }

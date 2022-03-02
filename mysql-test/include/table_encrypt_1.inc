@@ -4,23 +4,24 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
+--source include/have_punch_hole.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[Error\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] .* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\] .* Tablespace [0-9]+, name 'test.*t1', unable to open file '.*test.*t1.ibd' - Data structure corruption");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");
-call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm that keyring is loaded");
+call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -73,8 +74,8 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --source include/kill_and_restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -124,8 +125,8 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -145,8 +146,8 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -177,8 +178,8 @@ UNLOCK TABLES;
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters = $KEYRING_RESTART_PARAM --innodb_strict_mode=OFF
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param --innodb_strict_mode=OFF
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
@@ -223,6 +224,6 @@ eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;
 
 # Restart with default innodb_strict_mode
---let $restart_parameters = $KEYRING_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <signaldata/RedoStateRep.hpp>
 #include "lgman.hpp"
 
+#include <EventLogger.hpp>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 
@@ -259,7 +260,7 @@ class Pgman : public SimulatedBlock
 {
 public:
   Pgman(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Pgman();
+  ~Pgman() override;
 
   /* Special function to indicate the block is the extra PGMAN worker */
   void init_extra_pgman();
@@ -610,7 +611,7 @@ private:
 
   bool m_track_lcp_speed_loop_ongoing;
 public:
-  void lcp_end_point(Uint32 lcp_time_in_ms);
+  bool lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal);
   void set_lcp_dd_percentage(Uint32 dd_percentage);
   void set_current_disk_write_speed(Uint64);
   void lcp_start_point(Signal*, Uint32, Uint32);
@@ -841,6 +842,7 @@ private:
                          Signal*,
                          Ptr<Page_entry>, 
                          Page_request page_req);
+  void set_lsn(Ptr<Page_entry>, Uint64 lsn);
   void update_lsn(Signal *signal,
                   EmulatedJamBuffer* jamBuf,
                   Ptr<Page_entry>,
@@ -870,6 +872,8 @@ private:
   static const char* get_sublist_name(Uint32 list_no);
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_request>);
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_entry>);
+  friend void print(EventLogger *logger, Ptr<Pgman::Page_request> ptr);
+  friend void print(EventLogger *logger, Ptr<Pgman::Page_entry> ptr);
 };
 
 class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_request>);
@@ -943,6 +947,7 @@ public:
    */
   bool init_page_entry(Request&);
 
+  void set_lsn(Local_key, Uint64 lsn);
   void update_lsn(Signal*, Local_key, Uint64 lsn);
 
   /**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <string>
 #ifdef UNIV_DEBUG
 #include "current_thd.h" /* current_thd */
-#include "debug_sync.h"  /* debug_sync_set_action */
+#include "debug_sync.h"  /* DBUG_SIGNAL_WAIT_FOR */
 #endif                   /* UNIV_DEBUG */
 
 /** Global Clone System */
@@ -57,6 +57,7 @@ Clone_Sys::Clone_Sys()
       m_num_apply_snapshots(),
       m_clone_id_generator() {
   mutex_create(LATCH_ID_CLONE_SYS, &m_clone_sys_mutex);
+  m_space_initialized.store(false);
 }
 
 Clone_Sys::~Clone_Sys() {
@@ -404,8 +405,12 @@ bool Clone_Sys::check_active_clone(bool print_alert) {
 bool Clone_Sys::mark_abort(bool force) {
   ut_ad(mutex_own(&m_clone_sys_mutex));
 
-  /* Check for active clone operations. */
-  auto active_clone = check_active_clone(false);
+  /* Check for active clone operations. Ignore clone, before initializing
+  space. It is safe as clone would check for abort request afterwards. We
+  require this check to prevent self deadlock when clone needs to create
+  space objects while initializing.*/
+
+  auto active_clone = is_space_initialized() && check_active_clone(false);
 
   /* If active clone is running and force is not set then
   return without setting abort state. */
@@ -550,12 +555,8 @@ void Clone_Task_Manager::debug_wait(uint chunk_num, Clone_Task *task) {
   }
 
   if (state == CLONE_SNAPSHOT_FILE_COPY) {
-    DBUG_EXECUTE_IF(
-        "gr_clone_wait",
-        ut_ad(!debug_sync_set_action(
-            current_thd, STRING_WITH_LEN("now  "
-                                         "SIGNAL gr_clone_paused "
-                                         "WAIT_FOR gr_clone_continue "))););
+    DBUG_SIGNAL_WAIT_FOR(current_thd, "gr_clone_wait", "gr_clone_paused",
+                         "gr_clone_continue");
 
     DEBUG_SYNC_C("clone_file_copy");
 

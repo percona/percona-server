@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -119,8 +119,7 @@ const std::string query_schema_version =
 // metadata server
 std::string query_metadata =
     "SELECT "
-    "R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-    "I.version_token, "
+    "R.replicaset_name, I.mysql_server_uuid, "
     "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' "
     "FROM mysql_innodb_cluster_metadata.clusters AS F "
     "JOIN mysql_innodb_cluster_metadata.replicasets AS R ON F.cluster_id = "
@@ -256,18 +255,11 @@ static bool cmp_mi_FIFMS(const ManagedInstance &lhs,
 
   return lhs.replicaset_name == rhs.replicaset_name &&
          lhs.mysql_server_uuid == rhs.mysql_server_uuid &&
-         lhs.role == rhs.role && std::fabs(lhs.weight - rhs.weight) < 0.001 &&
-         lhs.version_token == rhs.version_token && lhs.host == rhs.host &&
-         lhs.port == rhs.port && lhs.xport == rhs.xport;
+         lhs.host == rhs.host && lhs.port == rhs.port && lhs.xport == rhs.xport;
 }
 
 static bool cmp_mi_FI(const ManagedInstance &lhs, const ManagedInstance &rhs) {
   // This function compares fields set by Metadata::fetch_instances().
-  // Ignored fields (they're not being set at the time of writing):
-  //   std::string role;
-  //   float weight;
-  //   unsigned int version_token;
-
   return lhs.replicaset_name == rhs.replicaset_name &&
          lhs.mysql_server_uuid == rhs.mysql_server_uuid &&
          lhs.mode == rhs.mode && lhs.host == rhs.host && lhs.port == rhs.port &&
@@ -308,8 +300,8 @@ class MetadataTest : public ::testing::Test {
 
   void connect_to_first_metadata_server() {
     std::vector<ManagedInstance> metadata_servers{
-        {"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0,
-         "localhost", 3310, 33100},
+        {"replicaset-1", "instance-1", ServerMode::ReadWrite, "localhost", 3310,
+         33100},
     };
     session_factory.get(0).set_good_conns(
         {"127.0.0.1:3310", "127.0.0.1:3320", "127.0.0.1:3330"});
@@ -417,12 +409,12 @@ class MetadataTest : public ::testing::Test {
       {
           // will be set ----------------------vvvvvvvvvvvvvvvvvvvvvvv
           // v--v--vv--- ignored at the time of writing
-          {"replicaset-1", "instance-1", "HA", ServerMode::Unavailable, 0, 0,
-           "localhost", 3310, 33100},
-          {"replicaset-1", "instance-2", "HA", ServerMode::Unavailable, 0, 0,
-           "localhost", 3320, 33200},
-          {"replicaset-1", "instance-3", "HA", ServerMode::Unavailable, 0, 0,
-           "localhost", 3330, 33300},
+          {"replicaset-1", "instance-1", ServerMode::Unavailable, "localhost",
+           3310, 33100},
+          {"replicaset-1", "instance-2", ServerMode::Unavailable, "localhost",
+           3320, 33200},
+          {"replicaset-1", "instance-3", ServerMode::Unavailable, "localhost",
+           3330, 33300},
           // ignored at time of writing
           // -^^^^--------------------------------------------------------^^^^^
           // TODO: ok to ignore xport?
@@ -438,7 +430,7 @@ class MetadataTest : public ::testing::Test {
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
   ManagedInstance metadata_server{
-      "replicaset-1", "instance-1", "",   ServerMode::ReadWrite, 0, 0,
+      "replicaset-1", "instance-1", ServerMode::ReadWrite,
       "localhost",    3310,         33100};
   session_factory.get(0).set_good_conns({"127.0.0.1:3310"});
 
@@ -449,7 +441,7 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
   ManagedInstance metadata_server{
-      "replicaset-1", "instance-1", "",   ServerMode::ReadWrite, 0, 0,
+      "replicaset-1", "instance-1", ServerMode::ReadWrite,
       "localhost",    3310,         33100};
 
   // connetion attempt should fail
@@ -483,16 +475,14 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
         [this](const std::string &, const MySQLSession::RowProcessor &processor,
                const MySQLSession::FieldValidator &) {
           session_factory.get(0).query_impl(
-              processor, {
-                             {"replicaset-1", "instance-1", "HA", "0.2", "0",
-                              "localhost:3310", "localhost:33100"},
-                             {"replicaset-1", "instance-2", "arbitrary_string",
-                              "1.5", "1", "localhost:3320", nullptr},
-                             {"replicaset-1", "instance-3", "", "0.0", "99",
-                              "localhost", nullptr},
-                             {"replicaset-1", "instance-4", "", nullptr,
-                              nullptr, nullptr, nullptr},
-                         });
+              processor,
+              {
+                  {"replicaset-1", "instance-1", "localhost:3310",
+                   "localhost:33100"},
+                  {"replicaset-1", "instance-2", "localhost:3320", nullptr},
+                  {"replicaset-1", "instance-3", "localhost", nullptr},
+                  {"replicaset-1", "instance-4", nullptr, nullptr},
+              });
         };
     EXPECT_CALL(session_factory.get(0), query(StartsWith(query_metadata), _, _))
         .Times(1)
@@ -506,23 +496,21 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
       EXPECT_EQ(1u, rs.size());
       EXPECT_EQ(4u, rs.at("replicaset-1").members.size());  // not set/checked
       // -------------------vvvvvvvvvvvvvvvvvvvvvvv
-      EXPECT_TRUE(
-          cmp_mi_FIFMS(ManagedInstance{"replicaset-1", "instance-1", "HA",
-                                       ServerMode::Unavailable, 0.2f, 0,
-                                       "localhost", 3310, 33100},
-                       rs.at("replicaset-1").members.at(0)));
       EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-2", "arbitrary_string",
-                          ServerMode::Unavailable, 1.5f, 1, "localhost", 3320,
-                          33200},
+          ManagedInstance{"replicaset-1", "instance-1", ServerMode::Unavailable,
+                          "localhost", 3310, 33100},
+          rs.at("replicaset-1").members.at(0)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-1", "instance-2", ServerMode::Unavailable,
+                          "localhost", 3320, 33200},
           rs.at("replicaset-1").members.at(1)));
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-1", "instance-3", "",
-                                               ServerMode::Unavailable, 0.0f,
-                                               99, "localhost", 3306, 33060},
-                               rs.at("replicaset-1").members.at(2)));
       EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-4", "",
-                          ServerMode::Unavailable, 0.0f, 0, "", 3306, 33060},
+          ManagedInstance{"replicaset-1", "instance-3", ServerMode::Unavailable,
+                          "localhost", 3306, 33060},
+          rs.at("replicaset-1").members.at(2)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-1", "instance-4", ServerMode::Unavailable,
+                          "", 3306, 33060},
           rs.at("replicaset-1").members.at(3)));
       // TODO is this really right behavior?
       // ---------------------------------------------------------------------------------------------------^^
@@ -555,20 +543,15 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
         [this](const std::string &, const MySQLSession::RowProcessor &processor,
                const MySQLSession::FieldValidator &) {
           session_factory.get(0).query_impl(
-              processor, {
-                             {"replicaset-2", "instance-4", "HA", nullptr,
-                              nullptr, "localhost2:3333", nullptr},
-                             {"replicaset-1", "instance-1", "HA", nullptr,
-                              nullptr, "localhost1:1111", nullptr},
-                             {"replicaset-1", "instance-2", "HA", nullptr,
-                              nullptr, "localhost1:2222", nullptr},
-                             {"replicaset-1", "instance-3", "HA", nullptr,
-                              nullptr, "localhost1:3333", nullptr},
-                             {"replicaset-3", "instance-5", "HA", nullptr,
-                              nullptr, "localhost3:3333", nullptr},
-                             {"replicaset-3", "instance-6", "HA", nullptr,
-                              nullptr, "localhost3:3333", nullptr},
-                         });
+              processor,
+              {
+                  {"replicaset-2", "instance-4", "localhost2:3333", nullptr},
+                  {"replicaset-1", "instance-1", "localhost1:1111", nullptr},
+                  {"replicaset-1", "instance-2", "localhost1:2222", nullptr},
+                  {"replicaset-1", "instance-3", "localhost1:3333", nullptr},
+                  {"replicaset-3", "instance-5", "localhost3:3333", nullptr},
+                  {"replicaset-3", "instance-6", "localhost3:3333", nullptr},
+              });
         };
     EXPECT_CALL(session_factory.get(0), query(StartsWith(query_metadata), _, _))
         .Times(1)
@@ -581,32 +564,32 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
       EXPECT_EQ(3u, rs.size());
       EXPECT_EQ(3u, rs.at("replicaset-1").members.size());
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-1", "instance-1",
-                                               "HA", ServerMode::Unavailable, 0,
-                                               0, "localhost1", 1111, 11110},
-                               rs.at("replicaset-1").members.at(0)));
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-1", "instance-2",
-                                               "HA", ServerMode::Unavailable, 0,
-                                               0, "localhost1", 2222, 22220},
-                               rs.at("replicaset-1").members.at(1)));
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-1", "instance-3",
-                                               "HA", ServerMode::Unavailable, 0,
-                                               0, "localhost1", 3333, 33330},
-                               rs.at("replicaset-1").members.at(2)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-1", "instance-1", ServerMode::Unavailable,
+                          "localhost1", 1111, 11110},
+          rs.at("replicaset-1").members.at(0)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-1", "instance-2", ServerMode::Unavailable,
+                          "localhost1", 2222, 22220},
+          rs.at("replicaset-1").members.at(1)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-1", "instance-3", ServerMode::Unavailable,
+                          "localhost1", 3333, 33330},
+          rs.at("replicaset-1").members.at(2)));
       EXPECT_EQ(1u, rs.at("replicaset-2").members.size());
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-2", "instance-4",
-                                               "HA", ServerMode::Unavailable, 0,
-                                               0, "localhost2", 3333, 33330},
-                               rs.at("replicaset-2").members.at(0)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-2", "instance-4", ServerMode::Unavailable,
+                          "localhost2", 3333, 33330},
+          rs.at("replicaset-2").members.at(0)));
       EXPECT_EQ(2u, rs.at("replicaset-3").members.size());
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-3", "instance-5",
-                                               "HA", ServerMode::Unavailable, 0,
-                                               0, "localhost3", 3333, 33330},
-                               rs.at("replicaset-3").members.at(0)));
-      EXPECT_TRUE(cmp_mi_FIFMS(ManagedInstance{"replicaset-3", "instance-6",
-                                               "HA", ServerMode::Unavailable, 0,
-                                               0, "localhost3", 3333, 33330},
-                               rs.at("replicaset-3").members.at(1)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-3", "instance-5", ServerMode::Unavailable,
+                          "localhost3", 3333, 33330},
+          rs.at("replicaset-3").members.at(0)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{"replicaset-3", "instance-6", ServerMode::Unavailable,
+                          "localhost3", 3333, 33330},
+          rs.at("replicaset-3").members.at(1)));
     });
   }
 
@@ -646,6 +629,32 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
 /**
  * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns
+ * AvailableWritable when there are 2 nodes in the GR, one Online and the other
+ * one Recovering and the second one is missing in the metadata (simulates
+ * cloning scenario)
+ */
+TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
+  std::vector<ManagedInstance> servers_in_metadata{
+      // ServerMode doesn't matter ---vvvvv
+      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+  };
+  bool metadata_gr_discrepancy{false};
+
+  std::map<std::string, GroupReplicationMember> server_status{
+      {"instance-1", {"", "", 0, State::Online, Role::Primary}},
+      {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
+  };
+
+  EXPECT_EQ(RS::AvailableWritable,
+            metadata.check_replicaset_status(servers_in_metadata, server_status,
+                                             metadata_gr_discrepancy));
+  EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
+  EXPECT_TRUE(metadata_gr_discrepancy);
+}
+
+/**
+ * @test
  * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
@@ -657,9 +666,9 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
+      {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
   };
   bool metadata_gr_discrepancy{false};
 
@@ -940,13 +949,13 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   {
     std::vector<ManagedInstance> servers_in_metadata{
         // ServerMode doesn't matter ------vvvvvvvvvvv
-        {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-4", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-5", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-6", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-7", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-4", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-5", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-6", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-7", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(RS::AvailableWritable,
               metadata.check_replicaset_status(
@@ -962,10 +971,10 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   // 4-node setup according to metadata
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-4", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-4", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(RS::AvailableWritable,
               metadata.check_replicaset_status(
@@ -992,8 +1001,8 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   // count
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-        {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(RS::AvailableWritable,
               metadata.check_replicaset_status(
@@ -1009,7 +1018,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   // counts
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(RS::Unavailable,
               metadata.check_replicaset_status(
@@ -1052,9 +1061,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
 
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
+      {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
   };
 
   for (State state :
@@ -1127,9 +1136,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
 
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
+      {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
   };
 
   // 1 node recovering, 1 RW, 1 RO
@@ -1325,9 +1334,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"", "node-A", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "node-B", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "node-C", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+      {"", "node-A", ServerMode::Unavailable, "", 0, 0},
+      {"", "node-B", ServerMode::Unavailable, "", 0, 0},
+      {"", "node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 5 nodes, of which only 2 are alive (no qourum), BUT from
@@ -1402,9 +1411,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"", "node-A", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "node-B", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "node-C", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+      {"", "node-A", ServerMode::Unavailable, "", 0, 0},
+      {"", "node-B", ServerMode::Unavailable, "", 0, 0},
+      {"", "node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 5 nodes, of which 3 are alive (have qourum), BUT from
@@ -1478,9 +1487,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"", "node-A", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "node-B", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
-      {"", "node-C", "", ServerMode::Unavailable, 0, 0, "", 0, 0},
+      {"", "node-A", ServerMode::Unavailable, "", 0, 0},
+      {"", "node-B", ServerMode::Unavailable, "", 0, 0},
+      {"", "node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 3 nodes, of which 3 are alive (have qourum), BUT from
@@ -1585,17 +1594,17 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
 
   EXPECT_EQ(3u, replicaset.members.size());
   EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", "", ServerMode::ReadWrite,
-                      0, 0, "localhost", 3310, 33100},
+      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
+                      "localhost", 3310, 33100},
       replicaset.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-2", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3320, 33200},
-      replicaset.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3330, 33300},
-      replicaset.members.at(2)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
+                                ServerMode::ReadOnly, "localhost", 3320, 33200},
+                replicaset.members.at(1)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
+                                ServerMode::ReadOnly, "localhost", 3330, 33300},
+                replicaset.members.at(2)));
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
                                                // localhost:3320 and :3330
@@ -1711,17 +1720,17 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
   // query_status reported back from instance-2
   EXPECT_EQ(3u, replicaset.members.size());
   EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", "", ServerMode::ReadWrite,
-                      0, 0, "localhost", 3310, 33100},
+      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
+                      "localhost", 3310, 33100},
       replicaset.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-2", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3320, 33200},
-      replicaset.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3330, 33300},
-      replicaset.members.at(2)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
+                                ServerMode::ReadOnly, "localhost", 3320, 33200},
+                replicaset.members.at(1)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
+                                ServerMode::ReadOnly, "localhost", 3330, 33300},
+                replicaset.members.at(2)));
 }
 
 /**
@@ -1853,17 +1862,17 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
   // query_status reported back from instance-1
   EXPECT_EQ(3u, replicaset.members.size());
   EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", "", ServerMode::ReadWrite,
-                      0, 0, "localhost", 3310, 33100},
+      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
+                      "localhost", 3310, 33100},
       replicaset.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-2", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3320, 33200},
-      replicaset.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3330, 33300},
-      replicaset.members.at(2)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
+                                ServerMode::ReadOnly, "localhost", 3320, 33200},
+                replicaset.members.at(1)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
+                                ServerMode::ReadOnly, "localhost", 3330, 33300},
+                replicaset.members.at(2)));
 }
 
 /**
@@ -1994,17 +2003,17 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
   // query_status reported back from instance-1
   EXPECT_EQ(3u, replicaset.members.size());
   EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", "", ServerMode::ReadWrite,
-                      0, 0, "localhost", 3310, 33100},
+      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
+                      "localhost", 3310, 33100},
       replicaset.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-2", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3320, 33200},
-      replicaset.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly, 0,
-                      0, "localhost", 3330, 33300},
-      replicaset.members.at(2)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
+                                ServerMode::ReadOnly, "localhost", 3320, 33200},
+                replicaset.members.at(1)));
+  EXPECT_TRUE(
+      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
+                                ServerMode::ReadOnly, "localhost", 3330, 33300},
+                replicaset.members.at(2)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2042,14 +2051,12 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
                                    const MySQLSession::RowProcessor &processor,
                                    const MySQLSession::FieldValidator &) {
     session_factory.get(0).query_impl(
-        processor, {
-                       {"replicaset-1", "instance-1", "HA", nullptr, nullptr,
-                        "localhost:3310", nullptr},
-                       {"replicaset-1", "instance-2", "HA", nullptr, nullptr,
-                        "localhost:3320", nullptr},
-                       {"replicaset-1", "instance-3", "HA", nullptr, nullptr,
-                        "localhost:3330", nullptr},
-                   });
+        processor,
+        {
+            {"replicaset-1", "instance-1", "localhost:3310", nullptr},
+            {"replicaset-1", "instance-2", "localhost:3320", nullptr},
+            {"replicaset-1", "instance-3", "localhost:3330", nullptr},
+        });
   };
   EXPECT_CALL(session_factory.get(session),
               query(StartsWith(query_metadata), _, _))
@@ -2073,16 +2080,16 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
     EXPECT_EQ(1u, rs.size());
     EXPECT_EQ(3u, rs.at("replicaset-1").members.size());
     EXPECT_TRUE(cmp_mi_FI(
-        ManagedInstance{"replicaset-1", "instance-1", "", ServerMode::ReadWrite,
-                        0, 0, "localhost", 3310, 33100},
+        ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
+                        "localhost", 3310, 33100},
         rs.at("replicaset-1").members.at(0)));
     EXPECT_TRUE(cmp_mi_FI(
-        ManagedInstance{"replicaset-1", "instance-2", "", ServerMode::ReadOnly,
-                        0, 0, "localhost", 3320, 33200},
+        ManagedInstance{"replicaset-1", "instance-2", ServerMode::ReadOnly,
+                        "localhost", 3320, 33200},
         rs.at("replicaset-1").members.at(1)));
     EXPECT_TRUE(cmp_mi_FI(
-        ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly,
-                        0, 0, "localhost", 3330, 33300},
+        ManagedInstance{"replicaset-1", "instance-3", ServerMode::ReadOnly,
+                        "localhost", 3330, 33300},
         rs.at("replicaset-1").members.at(2)));
   });
 }
@@ -2109,14 +2116,12 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
                                    const MySQLSession::RowProcessor &processor,
                                    const MySQLSession::FieldValidator &) {
     session_factory.get(0).query_impl(
-        processor, {
-                       {"replicaset-1", "instance-1", "HA", nullptr, nullptr,
-                        "localhost:3310", nullptr},
-                       {"replicaset-1", "instance-2", "HA", nullptr, nullptr,
-                        "localhost:3320", nullptr},
-                       {"replicaset-1", "instance-3", "HA", nullptr, nullptr,
-                        "localhost:3330", nullptr},
-                   });
+        processor,
+        {
+            {"replicaset-1", "instance-1", "localhost:3310", nullptr},
+            {"replicaset-1", "instance-2", "localhost:3320", nullptr},
+            {"replicaset-1", "instance-3", "localhost:3330", nullptr},
+        });
   };
   EXPECT_CALL(session_factory.get(session),
               query(StartsWith(query_metadata), _, _))

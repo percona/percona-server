@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,26 @@
   };
 #endif
 
+/* workaround default-constructor of std::unique_ptr<T, D> triggering a
+ * static-exception when it is tested for "std::is_default_constructible"
+ *
+ * The problem exists in GCC's libstdc++ up to 7.0.0 and is tracked by C++ std
+ * as DR 2801
+ *
+ *   http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#2801
+ *
+ * It is fixed in GCC-7.1.0 and later:
+ *
+ * https://gcc.gnu.org/legacy-ml/gcc-cvs/2017-01/msg00068.html
+ */
+
+#include <memory>
+namespace std {
+template <class T>
+struct is_default_constructible<std::unique_ptr<T, void (*)(T *)>>
+    : std::false_type {};
+}  // namespace std
+
 namespace stdx {
 
 template <typename E>
@@ -60,9 +80,9 @@ class unexpected {
 
   constexpr explicit unexpected(const error_type &e) : error_{e} {}
 
-  constexpr error_type &value() & noexcept { return error_; }
+  constexpr error_type &value() &noexcept { return error_; }
   constexpr const error_type &value() const &noexcept { return error_; }
-  constexpr error_type &&value() && noexcept { return std::move(error_); }
+  constexpr error_type &&value() &&noexcept { return std::move(error_); }
   constexpr const error_type &&value() const &&noexcept {
     return std::move(error_);
   }
@@ -88,8 +108,8 @@ union storage_t {
   using value_type = T;
   using error_type = E;
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   template <bool B = std::is_default_constructible<T>::value,
             std::enable_if_t<B> * = nullptr>
@@ -156,8 +176,8 @@ union storage_t<T, void> {
   using value_type = T;
   using error_type = void;
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   template <bool B = std::is_default_constructible<T>::value,
             std::enable_if_t<B> * = nullptr>
@@ -211,8 +231,8 @@ union storage_t<void, E> {
 
   static_assert(!std::is_void<E>::value, "E must not be void");
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   void construct_error(error_type const &e) { new (&error_) error_type(e); }
   void construct_error(error_type &&e) {
@@ -389,7 +409,7 @@ using select_ctor_base =
                    ? member_policy::copy
                    : member_policy::none) |
               (and_<or_<std::is_void<T>, std::is_move_constructible<T>>,
-                    or_<std::is_void<T>, std::is_move_constructible<E>>>::value
+                    or_<std::is_void<E>, std::is_move_constructible<E>>>::value
                    ? member_policy::move
                    : member_policy::none)>;
 

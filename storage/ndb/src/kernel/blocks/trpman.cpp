@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 
 #include <mt.hpp>
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 430
 
@@ -60,10 +59,12 @@ Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_ROUTE_ORD, &Trpman::execROUTE_ORD);
   addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &Trpman::execSYNC_THREAD_VIA_REQ);
   addRecSignal(GSN_ACTIVATE_TRP_REQ, &Trpman::execACTIVATE_TRP_REQ);
+  addRecSignal(GSN_UPD_QUERY_DIST_ORD, &Trpman::execUPD_QUERY_DIST_ORD);
 
   addRecSignal(GSN_NDB_TAMPER, &Trpman::execNDB_TAMPER, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trpman::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trpman::execDBINFO_SCANREQ);
+  m_distribution_handler_inited = false;
 }
 
 BLOCK_FUNCTIONS(Trpman)
@@ -522,13 +523,12 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(rnode); // Remote node id
         row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
 
+        struct in6_addr conn_addr = globalTransporterRegistry.get_connect_address(rnode);
         /* Connect address */
-        if (globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
+        if (!IN6_IS_ADDR_UNSPECIFIED(&conn_addr))
         {
           jam();
-          struct in_addr conn_addr = globalTransporterRegistry.
-                                       get_connect_address(rnode);
-          char *addr_str = Ndb_inet_ntop(AF_INET,
+          char *addr_str = Ndb_inet_ntop(AF_INET6,
                                          static_cast<void*>(&conn_addr),
                                          addr_buf,
                                          sizeof(addr_buf));
@@ -592,7 +592,7 @@ Trpman::execNDB_TAMPER(Signal* signal)
     {
       MAX_RECEIVED_SIGNALS = 1 + (rand() % 128);
     }
-    ndbout_c("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
+    g_eventLogger->info("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
     CLEAR_ERROR_INSERT_VALUE;
   }
 #endif
@@ -647,7 +647,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     {
       signal->theData[0] = i;
       sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
-      ndbout_c("stopping %u using %u", i, db);
+      g_eventLogger->info("stopping %u using %u", i, db);
     }
     CLEAR_ERROR_INSERT_VALUE;
   }
@@ -701,8 +701,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
-                 arg, nodeId);
+        g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
+                            nodeId);
       }
     }
   }
@@ -712,8 +712,9 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() > 1)
     {
       pattern = signal->theData[1];
-      ndbout_c("TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
-               ((pattern == 1)? "Other side":"Unknown"));
+      g_eventLogger->info(
+          "TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
+          ((pattern == 1) ? "Other side" : "Unknown"));
     }
 
     TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
@@ -810,8 +811,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
-                 arg, nodeId);
+        g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
+                            nodeId);
       }
     }
 
@@ -893,6 +894,52 @@ Trpman::execACTIVATE_TRP_REQ(Signal *signal)
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is not receiver (%u,%u)",
                    instance(), node_id, trp_id));
   }
+}
+
+Uint32
+Trpman::distribute_signal(SignalHeader * const header,
+                          const Uint32 instance_no)
+{
+  DistributionHandler *handle = &m_distribution_handle;
+  Uint32 gsn = header->theVerId_signalNumber;
+  ndbrequire(m_distribution_handler_inited);
+  if (gsn == GSN_LQHKEYREQ)
+  {
+    return get_lqhkeyreq_ref(handle, instance_no);
+  }
+  else if (gsn == GSN_SCAN_FRAGREQ)
+  {
+    return get_scan_fragreq_ref(handle, instance_no);
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+void
+Trpman::execUPD_QUERY_DIST_ORD(Signal *signal)
+{
+  /**
+   * Receive an array of weights for each LDM and query thread.
+   * These weights are used to create an array used for a quick round robin
+   * distribution of the signals received in distribute_signal.
+   */
+  DistributionHandler *dist_handle = &m_distribution_handle;
+  if (!m_distribution_handler_inited)
+  {
+    fill_distr_references(dist_handle);
+    calculate_distribution_signal(dist_handle);
+    m_distribution_handler_inited = true;
+  }
+  ndbrequire(signal->getNoOfSections() == 1);
+  SegmentedSectionPtr ptr;
+  SectionHandle handle(this, signal);
+  handle.getSection(ptr, 0);
+  memset(dist_handle->m_weights, 0, sizeof(dist_handle->m_weights));
+  copy(dist_handle->m_weights, ptr);
+  releaseSections(handle);
+  calculate_distribution_signal(dist_handle);
 }
 
 TrpmanProxy::TrpmanProxy(Block_context & ctx) :

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,12 @@ struct st_string_iterator {
 */
 class mysql_string_imp {
  public: /* service implementations */
+  /* mysql_charset service. */
+
+  static DEFINE_METHOD(CHARSET_INFO_h, get_charset_utf8mb4, ());
+
+  static DEFINE_METHOD(CHARSET_INFO_h, get_charset_by_name, (const char *name));
+
   /**
     Creates a new instance of string object
 
@@ -99,10 +105,13 @@ class mysql_string_imp {
   static DEFINE_BOOL_METHOD(toupper,
                             (my_h_string * out_string, my_h_string in_string));
 
+  /* mysql_string_converter service. */
+
   /**
-    alocates a string object and converts the character buffer to string
-    of specified charset_name.
-    please call destroy() api to free the allocated string after this api.
+    Allocates a string object and converts the character buffer to string
+    and just sets the specified charset_name in the string object. It does
+    not performs the conversion of buffer into the specified character set.
+    Caller must free the allocated string by calling destroy() api.
 
     @param [out] out_string Pointer to string object handle to set new string
       to.
@@ -110,7 +119,7 @@ class mysql_string_imp {
       string.
     @param length Length of the buffer to copy into string, in bytes, not in
       character count.
-    @param charset_name charset that is used for convertion.
+    @param charset_name charset that is used for conversion.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -120,7 +129,7 @@ class mysql_string_imp {
                              uint64 length, const char *charset_name));
 
   /**
-    converts the mysql_string to the character set specified by
+    Converts the mysql_string to the character set specified by
     charset_name parameter.
 
     @param in_string Pointer to string object handle to set new string
@@ -128,7 +137,7 @@ class mysql_string_imp {
     @param [out] out_buffer Pointer to the buffer with data to be interpreted
       as characters.
     @param length Length of the buffer to hold out put in characters.
-    @param charset_name charset that is used for convertion.
+    @param charset_name charset that is used for conversion.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -137,13 +146,23 @@ class mysql_string_imp {
                             (my_h_string in_string, char *out_buffer,
                              uint64 length, const char *charset_name));
 
+  /* mysql_string_converter_v2 service. */
+
+  static DEFINE_BOOL_METHOD(convert_from_buffer_v2,
+                            (my_h_string dest_string, const char *src_buffer,
+                             uint64 src_length, CHARSET_INFO_h src_charset));
+
+  static DEFINE_BOOL_METHOD(convert_to_buffer_v2,
+                            (my_h_string src_string, char *dest_buffer,
+                             uint64 dest_length, CHARSET_INFO_h dest_charset));
+
   /**
     Gets character code of character on specified index position in
     string to a specified buffer.
 
     @param string String object handle to get character from.
     @param index Index, position of character to query.
-    @param [out] out_char Pointer to unsinged long value to store character to.
+    @param [out] out_char Pointer to unsigned long value to store character to.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -221,7 +240,7 @@ class mysql_string_imp {
   /**
     Releases the string iterator object specified.
 
-    @param iter String iterator object handle te release.
+    @param iter String iterator object handle to release.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -264,5 +283,17 @@ class mysql_string_imp {
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(is_digit, (my_h_string_iterator iter, bool *out));
+
+  static DEFINE_BOOL_METHOD(reset, (my_h_string s));
+
+  static DEFINE_BOOL_METHOD(append, (my_h_string s1, my_h_string s2));
+
+  static DEFINE_BOOL_METHOD(compare,
+                            (my_h_string s1, my_h_string s2, int *cmp));
+
+  static DEFINE_BOOL_METHOD(get_data,
+                            (my_h_string s, const char **buffer_pointer,
+                             size_t *buffer_length,
+                             CHARSET_INFO_h *buffer_charset));
 };
 #endif /* MYSQL_SERVER_STRING_SERVICE_H */

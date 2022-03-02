@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -62,7 +63,6 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_system.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
@@ -102,7 +102,8 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // check_string_char_length
 #include "sql/sql_plugin_var.h"
-#include "sql/sql_show.h"  // add_status_vars
+#include "sql/sql_show.h"                // add_status_vars
+#include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/sql_table.h"
 #include "sql/sys_vars_resource_mgr.h"
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
@@ -307,7 +308,7 @@ using std::min;
 #define REPORT_TO_LOG 1
 #define REPORT_TO_USER 2
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static PSI_memory_key key_memory_plugin_ref;
 #endif
 
@@ -486,6 +487,19 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin);
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
 
+// mysql.plugin table definition.
+static const int MYSQL_PLUGIN_TABLE_FIELD_COUNT = 2;
+static const TABLE_FIELD_TYPE
+    mysql_plugin_table_fields[MYSQL_PLUGIN_TABLE_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("name")},
+         {STRING_WITH_LEN("varchar(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("dl")},
+         {STRING_WITH_LEN("varchar(128)")},
+         {nullptr, 0}}};
+static const TABLE_FIELD_DEF mysql_plugin_table_def = {
+    MYSQL_PLUGIN_TABLE_FIELD_COUNT, mysql_plugin_table_fields};
+
 malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash(void) {
   return bookmark_hash;
 }
@@ -530,7 +544,7 @@ static void report_error(int where_to, uint error, ...) {
         ecode = ER_PLUGIN_NOT_EARLY_DUP;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return;
     }
     va_start(args, error);
@@ -700,7 +714,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
      */
 #if !defined(_WIN32)
     errmsg = dlerror();
-    DBUG_ASSERT(errmsg == nullptr);
+    assert(errmsg == nullptr);
 #endif
     return nullptr;
   }
@@ -765,7 +779,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
         When the following assert starts failing, we'll have to call
         report_error(report, ER_CANT_FIND_DL_ENTRY, sizeof_st_plugin_sym);
       */
-      DBUG_ASSERT(min_plugin_interface_version == 0);
+      assert(min_plugin_interface_version == 0);
       sizeof_st_plugin = (int)offsetof(st_mysql_plugin, version);
     }
 
@@ -927,7 +941,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc) {
 
   if (pi->state & (PLUGIN_IS_READY | PLUGIN_IS_UNINITIALIZED)) {
     plugin_ref plugin;
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     /* built-in plugins don't need ref counting */
     if (!pi->plugin_dl) return pi;
 
@@ -1195,7 +1209,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin) {
 
   pi = plugin_ref_to_int(plugin);
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   if (!pi->plugin_dl) return;
 #else
   my_free(plugin);
@@ -1218,10 +1232,10 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin) {
         break;
       }
     }
-    DBUG_ASSERT(found_it);
+    assert(found_it);
   }
 
-  DBUG_ASSERT(pi->ref_count);
+  assert(pi->ref_count);
   pi->ref_count--;
 
   if (pi->state == PLUGIN_IS_DELETED && !pi->ref_count) reap_needed = true;
@@ -1231,7 +1245,7 @@ void plugin_unlock(THD *thd, plugin_ref plugin) {
   LEX *lex = thd ? thd->lex : nullptr;
   DBUG_TRACE;
   if (!plugin) return;
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   /* built-in plugins don't need ref counting */
   if (!plugin_dlib(plugin)) return;
 #endif
@@ -1244,7 +1258,7 @@ void plugin_unlock(THD *thd, plugin_ref plugin) {
 void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count) {
   LEX *lex = thd ? thd->lex : nullptr;
   DBUG_TRACE;
-  DBUG_ASSERT(list);
+  assert(list);
 
   /*
     In unit tests, LOCK_plugin may be uninitialized, so do not lock it.
@@ -1264,7 +1278,7 @@ static int plugin_initialize(st_plugin_int *plugin) {
 
   mysql_mutex_assert_owner(&LOCK_plugin);
   uint state = plugin->state;
-  DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
+  assert(state == PLUGIN_IS_UNINITIALIZED);
 
   mysql_mutex_unlock(&LOCK_plugin);
 
@@ -1342,7 +1356,7 @@ static PSI_mutex_info all_plugin_mutexes[]=
 /* clang-format off */
 static PSI_memory_info all_plugin_memory[]=
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
 #endif
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
@@ -1469,7 +1483,7 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
   DBUG_TRACE;
 
   /* Don't allow initializing twice */
-  DBUG_ASSERT(!initialized);
+  assert(!initialized);
 
   /* Make sure the internals are initialized */
   if ((retval = plugin_init_internals())) return retval;
@@ -1505,7 +1519,7 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
   DBUG_TRACE;
 
   /* Don't allow initializing twice */
-  DBUG_ASSERT(!initialized);
+  assert(!initialized);
 
   /* Allocate the temporary mem root, will be freed before returning */
   MEM_ROOT tmp_root;
@@ -1562,17 +1576,20 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
       if (register_builtin(plugin, &tmp, &plugin_ptr)) goto err_unlock;
 
       /*
-        Only initialize MyISAM, InnoDB and CSV at this stage.
-        Note that when the --help option is supplied, InnoDB is not
-        initialized because the plugin table will not be read anyway,
-        as indicated by the flag set when the plugin_init() function
-        is called.
+        Only initialize daemon_keyring_proxy, MyISAM, InnoDB and CSV at this
+        stage. Note that when the --help option is supplied,
+        daemon_keyring_proxy and InnoDB are not initialized because the plugin
+        table will not be read anyway, as indicated by the flag set when the
+        plugin_init() function is called.
       */
+      bool is_daemon_keyring_proxy = !my_strcasecmp(
+          &my_charset_latin1, plugin->name, "daemon_keyring_proxy_plugin");
       bool is_myisam =
           !my_strcasecmp(&my_charset_latin1, plugin->name, "MyISAM");
       bool is_innodb =
           !my_strcasecmp(&my_charset_latin1, plugin->name, "InnoDB");
-      if (!is_myisam && (!is_innodb || is_help_or_validate_option()) &&
+      if ((!is_daemon_keyring_proxy || is_help_or_validate_option()) &&
+          !is_myisam && (!is_innodb || is_help_or_validate_option()) &&
           my_strcasecmp(&my_charset_latin1, plugin->name, "CSV"))
         continue;
 
@@ -1585,20 +1602,20 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
         not be null in any child thread.
       */
       if (is_myisam) {
-        DBUG_ASSERT(!global_system_variables.table_plugin);
-        DBUG_ASSERT(!global_system_variables.temp_table_plugin);
+        assert(!global_system_variables.table_plugin);
+        assert(!global_system_variables.temp_table_plugin);
         global_system_variables.table_plugin =
             my_intern_plugin_lock(nullptr, plugin_int_to_ref(plugin_ptr));
         global_system_variables.temp_table_plugin =
             my_intern_plugin_lock(nullptr, plugin_int_to_ref(plugin_ptr));
-        DBUG_ASSERT(plugin_ptr->ref_count == 2);
+        assert(plugin_ptr->ref_count == 2);
       }
     }
   }
 
   /* Should now be set to MyISAM storage engine */
-  DBUG_ASSERT(global_system_variables.table_plugin);
-  DBUG_ASSERT(global_system_variables.temp_table_plugin);
+  assert(global_system_variables.table_plugin);
+  assert(global_system_variables.temp_table_plugin);
 
   mysql_mutex_unlock(&LOCK_plugin);
 
@@ -1725,7 +1742,7 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
     free_root(&tmp_root, MYF(0));
   } else if (!opt_plugin_load_list.is_empty()) {
     /* Table is always empty at initialize */
-    DBUG_ASSERT(opt_initialize);
+    assert(opt_initialize);
     /* Tell the user the plugin-load[-add] is ignored if not empty */
     LogErr(WARNING_LEVEL, ER_PLUGIN_LOAD_OPTIONS_IGNORED);
   }
@@ -1803,9 +1820,9 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     return;
   }
   table = tables.table;
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(new_thd, table, nullptr, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      new_thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) {
     close_trans_system_tables(new_thd);
     return;
@@ -1852,7 +1869,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   iterator.reset();
-  table->m_needs_reopen = true;  // Force close to free memory
+  table->invalidate_dict();  // Force close to free memory
 
   close_trans_system_tables(new_thd);
 }
@@ -2217,6 +2234,26 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
     return true;
 
   /*
+    System table mysql.plugin is supported by only InnoDB engine. Changing
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. INSTALL PLUGIN operation is
+    *not* allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return end_transaction(thd, error);
+  }
+
+  // INSTALL PLUGIN operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_plugin_table_def))
+    return end_transaction(thd, error);
+
+  /*
     Pre-acquire audit plugins for events that may potentially occur
     during [UN]INSTALL PLUGIN.
 
@@ -2394,7 +2431,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
 
   if (!opt_noacl &&
       check_table_access(thd, DELETE_ACL, &tables, false, 1, false)) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     return true;
   }
 
@@ -2407,9 +2444,29 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (!(table =
             open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT))) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     return true;
   }
+
+  /*
+    System table mysql.plugin is supported by only InnoDB engine. Changing
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. UNINSTALL PLUGIN operation is
+    *not* allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return end_transaction(thd, error);
+  }
+
+  // UNINSTALL PLUGIN operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_plugin_table_def))
+    return end_transaction(thd, error);
 
   mysql_mutex_lock(&LOCK_plugin_install);
   if (!table->key_info) {
@@ -2469,7 +2526,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   }
 
   /*
-    FIXME: plugin rpl_semi_sync_master, check_uninstall() function.
+    FIXME: plugin rpl_semi_sync_source, check_uninstall() function.
   */
 
   /* Block Uninstallation of semi_sync plugins (Master/Slave)
@@ -2479,14 +2536,14 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   size_t buff_length;
   /*
     Master: If there are active semi sync slaves for this Master,
-    then that means it is busy and rpl_semi_sync_master plugin
+    then that means it is busy and rpl_semi_sync_source plugin
     cannot be uninstalled. To check whether the master
     has any semi sync slaves or not, check Rpl_semi_sync_master_cliens
     status variable value, if it is not 0, that means it is busy.
   */
-  if (!strcmp(name.str, "rpl_semi_sync_master") &&
+  if (!strcmp(name.str, "rpl_semi_sync_source") &&
       get_status_var(thd, plugin->plugin->status_vars,
-                     "Rpl_semi_sync_master_clients", buff, OPT_DEFAULT,
+                     "Rpl_semi_sync_source_clients", buff, OPT_DEFAULT,
                      &buff_length) &&
       strcmp(buff, "0")) {
     mysql_mutex_unlock(&LOCK_plugin);
@@ -2496,18 +2553,18 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   }
 
   /*
-    FIXME: plugin rpl_semi_sync_slave, check_uninstall() function.
+    FIXME: plugin rpl_semi_sync_replica, check_uninstall() function.
   */
 
   /* Slave: If there is semi sync enabled IO thread active on this Slave,
-    then that means plugin is busy and rpl_semi_sync_slave plugin
+    then that means plugin is busy and rpl_semi_sync_replica plugin
     cannot be uninstalled. To check whether semi sync
-    IO thread is active or not, check Rpl_semi_sync_slave_status status
+    IO thread is active or not, check Rpl_semi_sync_replica_status status
     variable value, if it is ON, that means it is busy.
   */
-  if (!strcmp(name.str, "rpl_semi_sync_slave") &&
+  if (!strcmp(name.str, "rpl_semi_sync_replica") &&
       get_status_var(thd, plugin->plugin->status_vars,
-                     "Rpl_semi_sync_slave_status", buff, OPT_DEFAULT,
+                     "Rpl_semi_sync_replica_status", buff, OPT_DEFAULT,
                      &buff_length) &&
       !strcmp(buff, "ON")) {
     mysql_mutex_unlock(&LOCK_plugin);
@@ -2535,7 +2592,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
     check = plugin->plugin->check_uninstall(plugin);
 
     mysql_mutex_lock(&LOCK_plugin);
-    DBUG_ASSERT(plugin->state == PLUGIN_IS_DYING);
+    assert(plugin->state == PLUGIN_IS_DYING);
 
     if (check) {
       DBUG_PRINT("warning",
@@ -2586,15 +2643,15 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
       of the delete from the plugin table, so that it is not replicated in
       row based mode.
     */
-    DBUG_ASSERT(!thd->is_error());
+    assert(!thd->is_error());
     Disable_binlog_guard binlog_guard(thd);
     rc = table->file->ha_delete_row(table->record[0]);
     if (rc) {
-      DBUG_ASSERT(thd->is_error());
+      assert(thd->is_error());
     } else
       error = false;
   } else if (rc != HA_ERR_KEY_NOT_FOUND && rc != HA_ERR_END_OF_FILE) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
   } else
     error = false;
 
@@ -2612,7 +2669,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
     error = dd::info_schema::remove_I_S_view_metadata(
         thd,
         dd::String_type(orig_plugin_name.c_str(), orig_plugin_name.length()));
-    DBUG_ASSERT(!error || thd->is_error());
+    assert(!error || thd->is_error());
 
     if (!error) {
       Uncommitted_tables_guard uncommitted_tables(thd);
@@ -2686,7 +2743,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs, int type,
     /* Call binlog engine function first. This is required as GTID is generated
     by binlog to be used by othe SE. */
     if (found_binlog) {
-      DBUG_ASSERT(type == MYSQL_STORAGE_ENGINE_PLUGIN);
+      assert(type == MYSQL_STORAGE_ENGINE_PLUGIN);
       plugin = plugins[binlog_index];
       if (plugin && (*funcs)(thd, plugin_int_to_ref(plugin), arg)) goto err;
       plugins[binlog_index] = nullptr;
@@ -2797,7 +2854,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
       size = sizeof(double);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return nullptr;
   };
 
@@ -2814,7 +2871,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     result->name_len = length - 2;
     result->offset = -1;
 
-    DBUG_ASSERT(size && !(size & (size - 1))); /* must be power of 2 */
+    assert(size && !(size & (size - 1))); /* must be power of 2 */
 
     offset = global_system_variables.dynamic_variables_size;
     offset = (offset + size - 1) & ~(size - 1);
@@ -2868,7 +2925,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
       fprintf(stderr,
               "failed to add placeholder to"
               " hash of malloced string type sysvars");
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
   return result;
@@ -2901,7 +2958,7 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock) {
     MAINTAINER:
     The following assert is wrong on purpose, useful to debug
     when thd dynamic variables are expanded:
-    DBUG_ASSERT(thd->variables.dynamic_variables_ptr == NULL);
+    assert(thd->variables.dynamic_variables_ptr == NULL);
   */
 
   thd->variables.dynamic_variables_ptr = (char *)my_realloc(
@@ -2912,7 +2969,7 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock) {
     Debug hook which allows tests to check that this code is not
     called for InnoDB after connection was created.
   */
-  DBUG_EXECUTE_IF("verify_innodb_thdvars", DBUG_ASSERT(0););
+  DBUG_EXECUTE_IF("verify_innodb_thdvars", assert(0););
 
   memcpy(thd->variables.dynamic_variables_ptr +
              thd->variables.dynamic_variables_size,
@@ -3056,8 +3113,8 @@ static void cleanup_variables(THD *thd, struct System_variables *vars) {
     thd->variables.track_sysvars_ptr = nullptr;
     thd->session_sysvar_res_mgr.deinit();
   }
-  DBUG_ASSERT(vars->table_plugin == nullptr);
-  DBUG_ASSERT(vars->temp_table_plugin == nullptr);
+  assert(vars->table_plugin == nullptr);
+  assert(vars->temp_table_plugin == nullptr);
 
   my_free(vars->dynamic_variables_ptr);
   vars->dynamic_variables_ptr = nullptr;
@@ -3131,7 +3188,7 @@ static void plugin_vars_free_values(sys_var *vars) {
 
 void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var, char **dest,
                                const char *value) {
-  DBUG_ASSERT(thd == current_thd);
+  assert(thd == current_thd);
 
   if (var->flags & PLUGIN_VAR_THDLOCAL) {
     if ((var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
@@ -3516,7 +3573,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   size_t len;
   uint count = EXTRA_OPTIONS;
   DBUG_TRACE;
-  DBUG_ASSERT(tmp->plugin && tmp->name.str);
+  assert(tmp->plugin && tmp->name.str);
 
   /*
     The 'federated' and 'ndbcluster' storage engines are always disabled by
@@ -3597,7 +3654,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
       convert_dash_to_underscore(varname, len - 1);
       v = new (mem_root) sys_var_pluginvar(&chain, varname, o);
     }
-    DBUG_ASSERT(v); /* check that an object was actually constructed */
+    assert(v); /* check that an object was actually constructed */
 
     const my_option *optp = opts;
     if (findopt(o->name, strlen(o->name), &optp))

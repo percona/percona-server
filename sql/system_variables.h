@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,10 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"     // my_thread_id
+#include "mysqld_error.h"
 #include "sql/rpl_gtid.h"        // Gitd_specification
 #include "sql/sql_plugin_ref.h"  // plugin_ref
+#include "sql_string.h"
 
 class MY_LOCALE;
 class Time_zone;
@@ -87,7 +89,11 @@ enum enum_transaction_write_set_hashing_algorithm {
 };
 
 // Values for session_track_gtids sysvar
-enum enum_session_track_gtids { OFF = 0, OWN_GTID = 1, ALL_GTIDS = 2 };
+enum enum_session_track_gtids {
+  SESSION_TRACK_GTIDS_OFF = 0,
+  SESSION_TRACK_GTIDS_OWN_GTID = 1,
+  SESSION_TRACK_GTIDS_ALL_GTIDS = 2
+};
 
 /** Values for use_secondary_engine sysvar. */
 enum use_secondary_engine {
@@ -193,6 +199,160 @@ struct fragmentation_stats_t {
   ulonglong scan_deleted_recs_size;         /*!< size of deleded records in
                                               all InnoDB pages read inside a
                                               query (in bytes) */
+};
+
+class Query_errors_set {
+ public:
+  static constexpr uint8_t MAX_CODES_NUM = 64;
+  static constexpr uint32_t MAX_TEXT_LENGTH =
+      std::numeric_limits<uint32_t>::digits10 * MAX_CODES_NUM + MAX_CODES_NUM;
+  static const String LOG_ALL;
+
+ private:
+  bool is_all_set;
+  uint32_t codes[MAX_CODES_NUM];
+
+  void set_all() {
+    if (!is_all_set) {
+      clear_all();
+      is_all_set = true;
+    }
+  }
+
+ public:
+  void clear_all() {
+    is_all_set = false;
+    for (uint32_t &code : codes) {
+      code = 0;
+    }
+  }
+
+  static bool check(const String *str) {
+    if (str == nullptr || str->is_empty()) {
+      return true;
+    }
+    if (stringcmp(str, &LOG_ALL) == 0) {
+      return true;
+    }
+
+    const char *val = str->ptr();
+
+    for (; my_isspace(system_charset_info, *val); ++val) /* empty */
+      ;
+
+    uint8_t codes_count = 0;
+    uint8_t digits_count = 0;
+
+    for (const char *p = val; *p; ++p) {
+      if (!my_isdigit(system_charset_info, *p) && *p != ',') {
+        return false;
+      }
+
+      if (*p == ',' && ++codes_count == MAX_CODES_NUM) {
+        my_error(ER_TOO_MANY_ERROR_CODES, MYF(0), MAX_CODES_NUM);
+        return false;
+      }
+
+      if (my_isdigit(system_charset_info, *p)) {
+        ++digits_count;
+      }
+      if ((*p == ',' || static_cast<size_t>(p - val) + 1 == str->length()) &&
+          digits_count > 0) {
+        long err_code = 0;
+        const char *code_start =
+            (*p == ',') ? p - digits_count : p - digits_count + 1;
+        if (!str2int(code_start, 10, 0, LONG_MAX, &err_code)) {
+          my_error(ER_TOO_BIG_ERROR_CODE, MYF(0), LONG_MAX);
+          return false;
+        }
+        digits_count = 0;
+      }
+    }
+
+    return true;
+  }
+
+  bool set_codes(const String *str) {
+    if (str == nullptr || str->is_empty()) {
+      clear_all();
+      return true;
+    }
+    if (stringcmp(str, &LOG_ALL) == 0) {
+      set_all();
+      return true;
+    }
+
+    const char *val = str->ptr();
+
+    for (; my_isspace(system_charset_info, *val); ++val) /* empty */
+      ;
+
+    clear_all();
+    uint8_t error_index = 0;
+
+    for (const char *p = val; *p;) {
+      long err_code;
+      if (!(p = str2int(p, 10, 0, LONG_MAX, &err_code))) {
+        break;
+      }
+
+      if (error_index == MAX_CODES_NUM) {
+        // Too many codes, should have been detected in check()
+        return true;
+      }
+
+      codes[error_index] = err_code;
+      ++error_index;
+
+      while (!my_isdigit(system_charset_info, *p) && *p) {
+        p++;
+      }
+    }
+
+    return true;
+  }
+
+  size_t to_string(char *buf) const {
+    char *p = buf;
+
+    if (is_all_set) {
+      p += sprintf(p, "%s", LOG_ALL.ptr());
+    } else {
+      for (int i = 0; i < MAX_CODES_NUM; ++i) {
+        if (codes[i] != 0) {
+          if (i > 0) {
+            p += sprintf(p, ",%d", codes[i]);
+          } else {
+            p += sprintf(p, "%d", codes[i]);
+          }
+        }
+      }
+    }
+
+    *p = '\0';
+
+    return p - buf;
+  }
+
+  bool check_error_set(const uint32_t code) const {
+    if (is_all_set) {
+      return true;
+    }
+
+    for (const uint32_t &c : codes) {
+      if (c == 0) {
+        // unused slots reached
+        break;
+      }
+      if (code == c) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool check_variable_set() const { return is_all_set || codes[0] != 0; }
 };
 
 struct System_variables {
@@ -335,25 +495,27 @@ struct System_variables {
 
   bool sysdate_is_now;
   bool binlog_rows_query_log_events;
+  bool binlog_ddl_skip_rewrite;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulonglong query_exec_time;
   double query_exec_time_double;
 #endif
   ulong log_slow_rate_limit;
   ulonglong log_slow_filter;
   ulonglong log_slow_verbosity;
+  Query_errors_set log_query_errors;
 
   ulong innodb_io_reads;
   ulonglong innodb_io_read;
-  ulong innodb_io_reads_wait_timer;
-  ulong innodb_lock_que_wait_timer;
-  ulong innodb_innodb_que_wait_timer;
+  uint64_t innodb_io_reads_wait_timer;
+  uint64_t innodb_lock_que_wait_timer;
+  uint64_t innodb_innodb_que_wait_timer;
   ulong innodb_page_access;
 
   double long_query_time_double;
 
-  bool pseudo_slave_mode;
+  bool pseudo_replica_mode;
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
@@ -454,6 +616,22 @@ struct System_variables {
     @sa Sys_var_require_row_format
   */
   bool require_row_format;
+  /**
+    @sa Sys_select_into_buffer_size
+  */
+  ulong select_into_buffer_size;
+  /**
+    @sa Sys_select_into_disk_sync
+  */
+  bool select_into_disk_sync;
+  /**
+    @sa Sys_select_disk_sync_delay
+  */
+  uint select_into_disk_sync_delay;
+  /**
+    @sa Sys_terminology_use_previous
+  */
+  ulong terminology_use_previous;
 };
 
 /**
@@ -515,6 +693,8 @@ struct System_status_var {
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+
+  ulonglong net_buffer_length;
 
   ulonglong max_execution_time_exceeded;
   ulonglong max_execution_time_set;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,16 +34,17 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
@@ -59,12 +60,13 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"        // is_supported_parser_charset
-#include "sql/sql_select.h"       // free_underlaid_joins
-#include "sql/sql_show.h"         // append_identifier
-#include "sql/sys_vars_shared.h"  // PolyLock_mutex
-#include "sql/system_variables.h"
-#include "sql/table.h"
+#include "sql/sql_parse.h"         // is_supported_parser_charset
+#include "sql/sql_select.h"        // free_underlaid_joins
+#include "sql/sql_show.h"          // append_identifier
+#include "sql/sys_vars_shared.h"   // PolyLock_mutex
+#include "sql/system_variables.h"  // system_variables
+#include "sql/table.h"             // table
+#include "sql/thd_raii.h"          // Prepared_stmt_arena_holder
 #include "sql_string.h"
 
 using std::min;
@@ -95,7 +97,7 @@ bool get_sysvar_source(const char *name, uint length,
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
   /* system_variable_hash should have been initialized. */
-  DBUG_ASSERT(get_system_variable_hash() != nullptr);
+  assert(get_system_variable_hash() != nullptr);
   std::string str(name, length);
   sysvar = find_or_nullptr(*get_system_variable_hash(), str);
 
@@ -115,7 +117,7 @@ int sys_var_init() {
   DBUG_TRACE;
 
   /* Must be already initialized. */
-  DBUG_ASSERT(system_charset_info != nullptr);
+  assert(system_charset_info != nullptr);
 
   system_variable_hash = new collation_unordered_map<string, sys_var *>(
       system_charset_info, PSI_INSTRUMENT_ME);
@@ -208,12 +210,13 @@ bool check_priv(THD *thd, bool static_variable) {
   @param off       offset of the global variable value from the
                    &global_system_variables.
   @param getopt_id -1 for no command-line option, otherwise @sa my_option::id
-  @param getopt_arg_type @sa my_option::arg_type
+  @param getopt_arg_type no|optional|required value @sa my_option::arg_type
   @param show_val_type_arg what value_ptr() returns for sql_show.cc
   @param def_val   default value, @sa my_option::def_value
   @param lock      mutex or rw_lock that protects the global variable
                    *in addition* to LOCK_global_system_variables.
-  @param binlog_status_arg @sa binlog_status_enum
+  @param binlog_status_arg if the sysvar will be written to binlog or not @sa
+  binlog_status_enum
   @param on_check_func a function to be called at the end of sys_var::check,
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
@@ -222,6 +225,14 @@ bool check_priv(THD *thd, bool static_variable) {
   string describes what one should use instead. If an empty string,
   the variable is deprecated but no replacement is offered.
   @param parse_flag either PARSE_EARLY or PARSE_NORMAL
+  @param persisted_alias If this variable is persisted, it will
+                   appear in the file both under its own name, and using
+                   'persisted_alias'.
+  @param is_persisted_deprecated If this variable is found in the
+                   persisted, variables file, and its alias is not
+                   found, a deprecation warning will be issued if
+                   is_persisted_deprecated is true.  This flag must be
+                   false if persisted_alias is null.
 */
 sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  const char *comment, int flags_arg, ptrdiff_t off,
@@ -230,8 +241,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func, const char *substitute,
-                 int parse_flag)
+                 int parse_flag, sys_var *persisted_alias,
+                 bool is_persisted_deprecated)
     : next(nullptr),
+      m_persisted_alias(persisted_alias),
+      m_is_persisted_deprecated(is_persisted_deprecated),
       binlog_status(binlog_status_arg),
       flags(flags_arg),
       m_parse_flag(parse_flag),
@@ -239,6 +253,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
       guard(lock),
       offset(off),
       on_check(on_check_func),
+      pre_update(nullptr),
       on_update(on_update_func),
       deprecation_substitute(substitute),
       is_os_charset(false) {
@@ -252,11 +267,14 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     in the first (PARSE_EARLY) stage.
     See handle_options() for details.
   */
-  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+  assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+
+  // the is_persist_deprecated flag is only applicable for aliases
+  if (!persisted_alias) assert(!is_persisted_deprecated);
 
   name.str = name_arg;  // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length = strlen(name_arg);  // and so does this.
-  DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
+  assert(name.length <= NAME_CHAR_LEN);
 
   memset(&option, 0, sizeof(option));
   option.name = name_arg;
@@ -276,6 +294,8 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   memset(source.m_path_name, 0, FN_REFLEN);
   option.arg_source = &source;
 
+  if (persisted_alias) persisted_alias->m_persisted_alias = this;
+
   if (chain->last)
     chain->last->next = this;
   else
@@ -284,6 +304,13 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 }
 
 bool sys_var::update(THD *thd, set_var *var) {
+  /*
+    Invoke preparatory step for updating a system variable. Doing this action
+    before we have acquired any locks allows to invoke code which acquires other
+    locks without introducing deadlocks.
+  */
+  if (pre_update && pre_update(this, thd, var)) return true;
+
   enum_var_type type = var->type;
   if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL) {
     /*
@@ -345,7 +372,7 @@ uchar *sys_var::global_var_ptr() {
 
 bool sys_var::check(THD *thd, set_var *var) {
   if ((var->value && do_check(thd, var)) ||
-      (on_check && on_check(this, thd, var))) {
+      (var->type != OPT_PERSIST_ONLY && on_check && on_check(this, thd, var))) {
     if (!thd->is_error()) {
       char buff[STRING_BUFFER_USUAL_SIZE];
       String str(buff, sizeof(buff), system_charset_info), *res;
@@ -393,16 +420,24 @@ bool sys_var::set_default(THD *thd, set_var *var) {
 
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
-  DBUG_ASSERT(thd->security_context()->user().length < sizeof(user));
-  /* set client user */
-  if (thd->security_context()->user().length > 0)
-    strncpy(user, thd->security_context()->user().str,
-            thd->security_context()->user().length);
   memset(host, 0, sizeof(host));
-  if (thd->security_context()->host().length > 0) {
-    int host_len =
-        min<size_t>(sizeof(host) - 1, thd->security_context()->host().length);
-    strncpy(host, thd->security_context()->host().str, host_len);
+  Security_context *sctx = thd->security_context();
+  bool truncated = false;
+  if (sctx->user().length > 0) {
+    truncated = set_and_truncate(user, thd->security_context()->user().str,
+                                 sizeof(user));
+    if (truncated) {
+      LogErr(WARNING_LEVEL, ER_USERNAME_TRUNKATED, sctx->user().str,
+             USERNAME_CHAR_LENGTH);
+    }
+  }
+  if (sctx->host().length > 0) {
+    truncated = set_and_truncate(host, thd->security_context()->host().str,
+                                 sizeof(host));
+    if (truncated) {
+      LogErr(WARNING_LEVEL, ER_HOSTNAME_TRUNKATED, sctx->host().str,
+             HOSTNAME_LENGTH);
+    }
   }
 }
 
@@ -463,7 +498,7 @@ Item *sys_var::copy_value(THD *thd) {
       return new Item_float(*pointer_cast<const double *>(val_ptr),
                             DECIMAL_NOT_SPECIFIED);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return nullptr;
 }
@@ -522,6 +557,38 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v) {
 const CHARSET_INFO *sys_var::charset(THD *thd) {
   return is_os_charset ? thd->variables.character_set_filesystem
                        : system_charset_info;
+}
+
+Sys_var_tracker::Sys_var_tracker(sys_var *var)
+    : m_is_dynamic(var->cast_pluginvar() != nullptr),
+      m_name(m_is_dynamic ? current_thd->strmake(var->name) : var->name),
+      m_var(m_is_dynamic ? nullptr : var) {}
+
+sys_var *Sys_var_tracker::bind_system_variable(THD *thd) {
+  if (!m_is_dynamic ||                                               // (1)
+      (m_var != nullptr &&                                           // (2)
+       thd->get_state() == Query_arena::STMT_INITIALIZED_FOR_SP)) {  // (3)
+    /*
+      Return a previous cached value of a system variable:
+
+      - if this is a static variable (1) then always return its cached value.
+
+      - if SP body evaluation is in the process (3), and if this is not
+        a resolver phase (2): the resolver phase caches the value and the
+        executor phase reuses it; this can work since SQL statements
+        referencing SP calls don't release plugins acquired by those SP
+        calls until the SPs removed from the server memory.
+    */
+    return m_var;
+  }
+
+  m_var = find_sys_var(thd, m_name.str, m_name.length);
+  if (m_var == nullptr) {
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), m_name.str);
+    return nullptr;
+  }
+
+  return m_var;
 }
 
 struct my_old_conv {
@@ -661,8 +728,8 @@ ulonglong get_system_variable_hash_version(void) {
 */
 bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
                         enum enum_var_type query_scope, bool strict) {
-  DBUG_ASSERT(show_var_array != nullptr);
-  DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  assert(show_var_array != nullptr);
+  assert(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
   int count = system_variable_hash->size();
 
   /* Resize array if necessary. */
@@ -770,15 +837,20 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
 
   LEX *lex = thd->lex;
   set_var_base *var;
-  while ((var = it++)) {
-    if ((error = var->resolve(thd))) goto err;
+  if (!thd->lex->unit->is_prepared()) {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    while ((var = it++)) {
+      if ((error = var->resolve(thd))) goto err;
+    }
+    if ((error = thd->is_error())) goto err;
+    thd->lex->unit->set_prepared();
+    if (!thd->stmt_arena->is_regular()) thd->lex->save_cmd_properties(thd);
   }
-  if ((error = thd->is_error())) goto err;
-
   if (opened && lock_tables(thd, lex->query_tables, lex->table_count, 0)) {
     error = 1;
     goto err;
   }
+  thd->lex->set_exec_started();
   it.rewind();
   while ((var = it++)) {
     if ((error = var->check(thd))) goto err;
@@ -810,7 +882,10 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
     }
   }
 err:
-  free_underlaid_joins(thd, thd->lex->select_lex);
+  for (set_var_base &v : *var_list) {
+    v.cleanup();
+  }
+  free_underlaid_joins(thd, thd->lex->query_block);
   return error;
 }
 
@@ -838,8 +913,8 @@ bool keyring_access_test() {
 *****************************************************************************/
 
 set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
-                 LEX_CSTRING base_name_arg, Item *value_arg)
-    : var(var_arg), type(type_arg), base(base_name_arg) {
+                 const LEX_CSTRING base_name_arg, Item *value_arg)
+    : var(var_arg), type(type_arg), base(base_name_arg), var_tracker(var_arg) {
   /*
     If the set value is a field, change it to a string to allow things like
     SET table_type=MYISAM;
@@ -939,6 +1014,16 @@ Resolve the variable assignment
 
 int set_var::resolve(THD *thd) {
   DBUG_TRACE;
+
+  if (var == nullptr) {
+    var = var_tracker.bind_system_variable(thd);
+  } else {
+    // No need to rebind: called from sql_set_variables().
+  }
+  if (var == nullptr) {
+    return -1;
+  }
+
   var->do_deprecated_warning(thd);
   if (var->is_readonly()) {
     if (type != OPT_PERSIST_ONLY) {
@@ -976,11 +1061,23 @@ int set_var::resolve(THD *thd) {
   }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
-  if (!value) return 0;
+  if (value == nullptr || value->fixed) return 0;
 
-  if ((!value->fixed && value->fix_fields(thd, &value)) || value->check_cols(1))
+  if (value->fix_fields(thd, &value)) {
     return -1;
+  }
+  /*
+    If expression has no data type (e.g because it contains a parameter),
+    assign type character string.
+  */
+  if (value->data_type() == MYSQL_TYPE_INVALID &&
+      value->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+    return -1;
+  }
 
+  if (value->check_cols(1)) {
+    return -1;
+  }
   return 0;
 }
 
@@ -996,6 +1093,16 @@ int set_var::resolve(THD *thd) {
 
 int set_var::check(THD *thd) {
   DBUG_TRACE;
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  if (var == nullptr) {
+    var = var_tracker.bind_system_variable(thd);
+  } else {
+    // No need to rebind: called from sql_set_variables().
+  }
+  if (var == nullptr) {
+    return -1;
+  }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value) return 0;
@@ -1004,7 +1111,7 @@ int set_var::check(THD *thd) {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
     return -1;
   }
-  int ret = (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
+  int ret = var->check(thd, this) ? -1 : 0;
 
   if (!ret && (is_global_persist())) {
     ret = mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
@@ -1028,6 +1135,10 @@ int set_var::check(THD *thd) {
     -1   ERROR, message not sent
 */
 int set_var::light_check(THD *thd) {
+  var = var_tracker.bind_system_variable(thd);
+  if (var == nullptr) {
+    return 1;
+  }
   if (!var->check_scope(type)) {
     int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
@@ -1047,9 +1158,23 @@ int set_var::light_check(THD *thd) {
             .first))
     return 1;
 
-  if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
-                value->check_cols(1)))
+  if (value == nullptr || value->fixed) return 0;
+
+  if (value->fix_fields(thd, &value)) {
     return -1;
+  }
+  /*
+    If expression has no data type (e.g because it contains a parameter),
+    assign type character string.
+  */
+  if (value->data_type() == MYSQL_TYPE_INVALID &&
+      value->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+    return -1;
+  }
+
+  if (value->check_cols(1)) {
+    return -1;
+  }
   return 0;
 }
 
@@ -1077,13 +1202,18 @@ void set_var::update_source_user_host_timestamp(THD *thd) {
   an error due to logics.
 */
 int set_var::update(THD *thd) {
+  assert(var != nullptr);
+
   int ret = 0;
   /* for persist only syntax do not update the value */
   if (type != OPT_PERSIST_ONLY) {
+    auto saved_var_source = var->get_source();
+    var->set_source(enum_variable_source::DYNAMIC);
     if (value)
       ret = (int)var->update(thd, this);
     else
       ret = (int)var->set_default(thd, this);
+    var->set_source(saved_var_source);
   }
   /*
    For PERSIST_ONLY syntax we dont change the value of the variable
@@ -1139,9 +1269,10 @@ void set_var::print(const THD *thd, String *str) {
 int set_var_user::resolve(THD *thd) {
   /*
     Item_func_set_user_var can't substitute something else on its place =>
-    0 can be passed as last argument (reference on item)
+    NULL can be passed as last argument (reference on item)
   */
-  return user_var_item->fix_fields(thd, nullptr) ? -1 : 0;
+  return !user_var_item->fixed && user_var_item->fix_fields(thd, nullptr) ? -1
+                                                                          : 0;
 }
 
 int set_var_user::check(THD *) {
@@ -1283,7 +1414,7 @@ int set_var_collation_client::check(THD *) {
   /* Currently, UCS-2 cannot be used as a client character set */
   if (!is_supported_parser_charset(character_set_client)) {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
-             character_set_client->csname);
+             replace_utf8_utf8mb3(character_set_client->csname));
     return 1;
   }
   return 0;
@@ -1325,7 +1456,7 @@ void set_var_collation_client::print(const THD *, String *str) {
     str->append("DEFAULT");
   else {
     str->append("'");
-    str->append(character_set_client->csname);
+    str->append(replace_utf8_utf8mb3(character_set_client->csname));
     str->append("'");
     if (set_cs_flags & SET_CS_COLLATE) {
       str->append(" COLLATE '");

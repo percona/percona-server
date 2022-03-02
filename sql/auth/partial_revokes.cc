@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -45,50 +45,37 @@ const std::string Restrictions("Restrictions");
 
 /**
   Abstract restriction constructor
-
-  @param [in] mem_root MEM_ROOT handle to be used to store restrictions.
-                       Can be nullptr.
 */
-Abstract_restrictions::Abstract_restrictions(MEM_ROOT *mem_root)
-    : m_mem_root_base(mem_root) {}
+Abstract_restrictions::Abstract_restrictions() = default;
 
 /** Abstract restriction destructor */
-Abstract_restrictions::~Abstract_restrictions() {}
+Abstract_restrictions::~Abstract_restrictions() = default;
 
 /**
   DB Restrictions constructor
-
-  @param [in] mem_root MEM_ROOT handle. Can be nullptr.
-
 */
-DB_restrictions::DB_restrictions(MEM_ROOT *mem_root)
-    : Abstract_restrictions(mem_root),
-      m_restrictions(system_charset_info ? system_charset_info
-                                         : &my_charset_utf8_general_ci,
-                     m_mem_root_base.get_mem_root()) {}
+DB_restrictions::DB_restrictions()
+    : Abstract_restrictions(), m_restrictions() {}
 
 /**
   Copy constructor for DB Restrictions
 
-  @param [in] restrictions Source DB restrictions
+  @param [in] other Source DB restrictions
 */
-DB_restrictions::DB_restrictions(const DB_restrictions &restrictions)
-    : DB_restrictions(nullptr) {
-  add(restrictions);
-}
+DB_restrictions::DB_restrictions(const DB_restrictions &other)
+    : m_restrictions(other.m_restrictions) {}
+
 /** Destructor */
 DB_restrictions::~DB_restrictions() { m_restrictions.clear(); }
 
 /**
   Assignment operator
 
-  @param [in] restrictions Source DB restrictions
+  @param [in] other Source DB restrictions
 */
-DB_restrictions &DB_restrictions::operator=(
-    const DB_restrictions &restrictions) {
-  if (this != &restrictions) {
-    this->clear();
-    this->add(restrictions);
+DB_restrictions &DB_restrictions::operator=(const DB_restrictions &other) {
+  if (this != &other) {
+    m_restrictions = other.m_restrictions;
   }
   return *this;
 }
@@ -274,7 +261,13 @@ bool DB_restrictions::is_not_empty() const { return !is_empty(); }
 size_t DB_restrictions::size() const { return m_restrictions.size(); }
 
 /** Clear restriction list */
-void DB_restrictions::clear() { m_restrictions.clear(); }
+void DB_restrictions::clear() {
+  /*
+    we use swap (with temporary object) trick here to force the container to
+    return the memory
+  */
+  db_revocations().swap(m_restrictions);
+}
 
 /**
   Serializer. Converts restriction list to JSON format.
@@ -379,12 +372,12 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
   const Auth_id grantee = fetch_grantee(acl_user);
   /* Fetch access information of grantor */
   ulong grantor_global_access;
-  Restrictions grantor_restrictions(nullptr);
+  Restrictions grantor_restrictions;
   fetch_grantor_access(security_context, db, grantor_global_access,
                        grantor_restrictions);
   /* Fetch access infomation of grantee */
   ulong grantee_global_access;
-  Restrictions grantee_restrictions(nullptr);
+  Restrictions grantee_restrictions;
   fetch_grantee_access(acl_user, grantee_global_access, grantee_restrictions);
   if (db) {
     /* Fetch DB privileges of grantor */
@@ -407,7 +400,7 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
             std::move(security_context)));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   } else {
@@ -431,11 +424,11 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
             std::move(security_context)));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
-  DBUG_ASSERT(aggregator);
+  assert(aggregator);
   return aggregator;
 }
 
@@ -452,7 +445,7 @@ Restrictions_aggregator_factory::create(
   aggregator.reset(new DB_restrictions_aggregator_set_role(
       grantor, grantee, grantor_access, grantee_access, grantor_db_restrictions,
       grantee_db_restrictions, required_access, db_map));
-  DBUG_ASSERT(aggregator);
+  assert(aggregator);
   return aggregator;
 }
 
@@ -539,7 +532,7 @@ void Restrictions_aggregator_factory::fetch_grantor_access(
 
 void Restrictions_aggregator_factory::fetch_grantee_access(
     const ACL_USER *grantee, ulong &global_access, Restrictions &restrictions) {
-  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  assert(assert_acl_cache_read_lock(current_thd));
   global_access = grantee->access;
   restrictions = acl_restrictions->find_restrictions(grantee);
 }
@@ -565,11 +558,11 @@ Restrictions_aggregator::Restrictions_aggregator(
       m_requested_access(requested_access),
       m_status(Status::No_op) {
   // partial_revokes system variable is ON
-  DBUG_ASSERT(mysqld_partial_revokes());
+  assert(mysqld_partial_revokes());
 }
 
 /** Destructor */
-Restrictions_aggregator::~Restrictions_aggregator() {}
+Restrictions_aggregator::~Restrictions_aggregator() = default;
 
 /**
   Constructor for database level restrictions aggregator
@@ -619,7 +612,7 @@ DB_restrictions_aggregator::DB_restrictions_aggregator(
 bool DB_restrictions_aggregator::generate(Abstract_restrictions &restrictions) {
   DB_restrictions *db_restrictions =
       dynamic_cast<DB_restrictions *>(&restrictions);
-  DBUG_ASSERT(db_restrictions);
+  assert(db_restrictions);
   m_status = validate();
   if (m_status == Status::Validated) {
     aggregate(*db_restrictions);
@@ -742,28 +735,45 @@ void DB_restrictions_aggregator::aggregate_restrictions(
     if (test_all_bits(m_grantee_global_access, m_requested_access) &&
         m_grantee_rl.is_empty()) {
       /*
-        If grantee does not have any restrictions but grantor has, that implies
-        grantee already has more privileges, therefore retain its restrictions
+        If grantee does not have any restrictions but grantor has, that
+        implies grantee already has more privileges, therefore don't do
+        any further processing. Keep the empty restrictions list.
       */
       restrictions = m_grantee_rl;
     } else {
       ulong restrictions_mask;
+      DB_restrictions grantee_rl = m_grantee_rl;
       for (const auto &grantor_rl_itr : m_grantor_rl()) {
         ulong grantee_revokes;
-        if (m_grantee_rl.find(grantor_rl_itr.first.c_str(), grantee_revokes)) {
+        if (grantee_rl.find(grantor_rl_itr.first, grantee_revokes)) {
           /*
             If grantor and grantee both have restriction list then aggregration
             of them will be OR operation of the following :
-              - Grantor's global privileges negates grantee's restrictions
-              - Grantee's global privileges negates grantor's restrictions
-              - Grantor and grantee both might have same restrictions as well
-                as global privileges
+             - Grantee's global privileges negates grantor's restrictions
+               (consider relevant restrictions in context of privileges
+                specified in statement i.e. requested_access)
+             - Grantor and Grantee both might have same restrictions as well
+               as global privileges. Remaining restrictions after negation
+               by Grantor and Grantee's global privileges.
           */
-          ulong rm1 = (grantor_rl_itr.second & ~m_grantee_global_access);
-          ulong rm2 = (grantee_revokes & ~m_grantor_global_access);
-          ulong rm3 = (grantor_rl_itr.second & m_grantee_global_access &
-                       m_grantor_global_access & grantee_revokes);
-          restrictions_mask = rm1 | rm2 | rm3;
+          ulong rm1 = ((grantor_rl_itr.second & m_requested_access) &
+                       ~m_grantee_global_access);
+          ulong rm2 = (grantor_rl_itr.second & m_grantee_global_access &
+                       grantee_revokes & m_grantor_global_access);
+          restrictions_mask = rm1 | rm2;
+
+          /*
+            Retain restrictions that are not applicable w.r.t.
+            requested operation in the restrictions list.
+            For instance :
+            Grantee may have restrictions SELECT, INSERT on db,
+            the GRANT statement has only SELECT on db, then
+            retain INSERT on db.
+          */
+          ulong remove_mask = grantee_revokes & m_requested_access;
+          grantee_rl.remove(grantor_rl_itr.first, remove_mask);
+          /* Remove the schemas without any restrictions remaining */
+          grantee_rl.remove(0);
         } else {
           /*
             Filter restrictions relevant to access from the grantor's
@@ -773,8 +783,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
 
           ulong grantee_db_access = 0;
           if (sql_op == SQL_OP::GLOBAL_GRANT) {
-            grantee_db_access =
-                get_grantee_db_access(grantor_rl_itr.first.c_str());
+            grantee_db_access = get_grantee_db_access(grantor_rl_itr.first);
           } else if (sql_op == SQL_OP::SET_ROLE && db_map != nullptr) {
             const std::string key(grantor_rl_itr.first.c_str(),
                                   grantor_rl_itr.first.length());
@@ -788,13 +797,28 @@ void DB_restrictions_aggregator::aggregate_restrictions(
           */
           restrictions_mask &= ~grantee_db_access;
 
-          /*
-            Remove any global privilege that grantee already has
-          */
+          /* Remove any global privilege that grantee already has */
           restrictions_mask &= ~m_grantee_global_access;
         }
         if (restrictions_mask)
-          restrictions.add(grantor_rl_itr.first.c_str(), restrictions_mask);
+          restrictions.add(grantor_rl_itr.first, restrictions_mask);
+      }
+      /*
+       We are left with two types of grantee's restrictions to process.
+       (1) Grantee's schemas that did not match grantor's restrictions but
+           restrictions on these schemas could be negated due to grantor's
+           global privileges.
+       (2) Restrictions in grantee's schemas which are not relevant with
+           the requested access. Grantee must retain these restrictions.
+      */
+      if (grantee_rl.is_not_empty()) {
+        for (auto &grantee_rl_itr : grantee_rl()) {
+          grantee_rl_itr.second &=
+              ~(m_grantor_global_access & m_requested_access);
+        }
+        /* Remove the schemas without any restrictions remaining */
+        grantee_rl.remove(0);
+        restrictions.add(grantee_rl);
       }
     }
   } else if (m_grantee_rl.is_not_empty()) {
@@ -917,7 +941,7 @@ DB_restrictions_aggregator_set_role::validate() {
 */
 void DB_restrictions_aggregator_set_role::aggregate(
     DB_restrictions &db_restrictions) {
-  DBUG_ASSERT(m_status == Status::Validated);
+  assert(m_status == Status::Validated);
 
   if (m_grantee_rl.is_not_empty()) {
     /*
@@ -1026,7 +1050,7 @@ DB_restrictions_aggregator_global_grant::validate() {
 */
 void DB_restrictions_aggregator_global_grant::aggregate(
     DB_restrictions &restrictions) {
-  DBUG_ASSERT(m_status == Status::Validated);
+  assert(m_status == Status::Validated);
   aggregate_restrictions(SQL_OP::GLOBAL_GRANT, nullptr, restrictions);
   m_status = Status::Aggregated;
 }
@@ -1095,25 +1119,18 @@ DB_restrictions_aggregator_global_revoke::validate() {
 }
 
 /**
-  Generates DB_restrictions based on the requested access, grantor and
-  grantee's DB_restrictions in the ACL cache.
   - If grantee has the restriction list
     - Remove only requested restrictions from restriction_list
-  - Else clear the DB_restrictions paramater
 
-  @param  [out]  restrictions  Fills the paramter with the aggregated
-                                  DB_restrictions
+  @param  [out]  restrictions  Fills the parater with the aggregated
+                               DB_restrictions
 */
 void DB_restrictions_aggregator_global_revoke::aggregate(
     DB_restrictions &restrictions) {
-  DBUG_ASSERT(m_status == Status::Validated);
+  assert(m_status == Status::Validated);
+  restrictions = m_grantee_rl;
   if (test_all_bits(m_grantee_global_access, m_requested_access)) {
-    if (m_grantee_rl.is_not_empty()) {
-      restrictions = m_grantee_rl;
-      restrictions.remove(m_requested_access);
-    } else {
-      restrictions.clear();
-    }
+    restrictions.remove(m_requested_access);
   }
   m_status = Status::Aggregated;
 }
@@ -1218,7 +1235,7 @@ DB_restrictions_aggregator_global_revoke_all::validate() {
 */
 void DB_restrictions_aggregator_global_revoke_all::aggregate(
     DB_restrictions &restrictions) {
-  DBUG_ASSERT(m_status == Status::Validated);
+  assert(m_status == Status::Validated);
   restrictions.clear();
   m_status = Status::Aggregated;
 }
@@ -1303,7 +1320,7 @@ void DB_restrictions_aggregator_db_grant::aggregate(
        should be recorded in mysql.db table. Hence, we call
        set_if_db_level_operation().
   */
-  DBUG_ASSERT(m_status == Status::Validated);
+  assert(m_status == Status::Validated);
   restrictions = m_grantee_rl;
   ulong grantee_db_revokes = 0;
 
@@ -1390,7 +1407,7 @@ DB_restrictions_aggregator_db_revoke::validate() {
 */
 void DB_restrictions_aggregator_db_revoke::aggregate(
     DB_restrictions &restrictions) {
-  DBUG_ASSERT(m_status == Status::Validated);
+  assert(m_status == Status::Validated);
   restrictions = m_grantee_rl;
   if ((test_all_bits(m_grantee_db_access, m_requested_access))) {
     /*
@@ -1419,26 +1436,14 @@ void DB_restrictions_aggregator_db_revoke::aggregate(
 
 /**
   Constructor for Restrictions
-
-  @param [in] mem_root MEM_ROOT to be used to store restrictions
 */
-Restrictions::Restrictions(MEM_ROOT *mem_root) : m_db_restrictions(mem_root) {}
+Restrictions::Restrictions() : m_db_restrictions() {}
 
 /** Destructor */
 Restrictions ::~Restrictions() { m_db_restrictions.clear(); }
 
 /**
-  Copy constructor for Restrictions
-
-  @param [in] restrictions Restrictions to be copied
-*/
-Restrictions::Restrictions(const Restrictions &restrictions)
-    : m_db_restrictions(restrictions.m_db_restrictions) {}
-
-/**
   Move constructor for Restrictions
-
-  @param [in] restrictions
 */
 Restrictions::Restrictions(Restrictions &&restrictions)
     : m_db_restrictions(restrictions.m_db_restrictions) {}

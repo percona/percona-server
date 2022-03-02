@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,8 @@ class Session_consistency_gtids_ctx {
    */
   class Ctx_change_listener {
    public:
-    Ctx_change_listener() {}
-    virtual ~Ctx_change_listener() {}
+    Ctx_change_listener() = default;
+    virtual ~Ctx_change_listener() = default;
     virtual void notify_session_gtids_ctx_change() = 0;
 
    private:
@@ -200,6 +200,11 @@ class Session_consistency_gtids_ctx {
   virtual bool notify_after_xa_prepare(const THD *thd) {
     return notify_after_transaction_commit(thd);
   }
+
+  /**
+    Update session tracker (m_curr_session_track_gtids) from thd.
+  */
+  void update_tracking_activeness_from_session_variable(const THD *thd);
 
  private:
   // not implemented

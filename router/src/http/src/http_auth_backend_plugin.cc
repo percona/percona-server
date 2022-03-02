@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
  * :  http_auth_backend
  */
 
+#include <array>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -52,11 +53,6 @@
 IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kSectionName[]{"http_auth_backend"};
-
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 
 namespace {
 class HtpasswdPluginConfig : public mysqlrouter::BasePluginConfig {
@@ -125,7 +121,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
 
 std::shared_ptr<HttpAuthBackendComponent::value_type> auth_backends;
 
-static void init(PluginFuncEnv *env) {
+static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (nullptr == info->config) {
@@ -162,7 +158,7 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
-static void start(PluginFuncEnv *env) {
+static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
   PluginConfig config(section);
@@ -193,19 +189,26 @@ static void start(PluginFuncEnv *env) {
   }
 }
 
+static const std::array<const char *, 2> required = {{
+    "logger",
+    "router_protobuf",
+}};
+
 extern "C" {
-Plugin HTTP_AUTH_BACKEND_EXPORT harness_plugin_http_auth_backend = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "HTTP_AUTH_BACKEND",
-    VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // requires
-    0,
-    nullptr,  // conflicts
-    init,     // init
-    nullptr,  // deinit
-    start,    // start
-    nullptr,  // stop
+mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
+    harness_plugin_http_auth_backend = {
+        mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+        "HTTP_AUTH_BACKEND",                     // name
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        required.size(), required.data(),
+        // conflicts
+        0, nullptr,
+        init,     // init
+        nullptr,  // deinit
+        start,    // start
+        nullptr,  // stop
+        false,    // declares_readiness
 };
 }

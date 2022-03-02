@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -167,7 +167,7 @@ int table_esmh_by_digest::rnd_pos(const void *pos) {
 
 int table_esmh_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_esmh_by_digest *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_esmh_by_digest);
   m_opened_index = result;
   m_index = result;
@@ -232,7 +232,7 @@ void table_esmh_by_digest::materialize(
 
 int table_esmh_by_digest::make_row(PFS_statements_digest_stat *digest_stat,
                                    ulong bucket_index) {
-  DBUG_ASSERT(bucket_index < NUMBER_OF_BUCKETS);
+  assert(bucket_index < NUMBER_OF_BUCKETS);
 
   materialize(digest_stat);
 
@@ -270,15 +270,15 @@ int table_esmh_by_digest::read_row_values(TABLE *table, unsigned char *buf,
     Set the null bits. It indicates how many fields could be null
     in the table.
   */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* SCHEMA_NAME */
         case 1: /* DIGEST */
-          m_materialized_histogram.m_digest.set_field(f->field_index, f);
+          m_materialized_histogram.m_digest.set_field(f->field_index(), f);
           break;
         case 2: /* BUCKET_NUMBER */
           set_field_ulong(f, m_row.m_bucket_number);
@@ -299,7 +299,7 @@ int table_esmh_by_digest::read_row_values(TABLE *table, unsigned char *buf,
           set_field_double(f, m_row.m_percentile);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
     }

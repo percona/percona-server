@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,8 +144,10 @@ bool Xcom_member_state::encode_header(uchar *buffer,
   slider += WIRE_XCOM_NODE_ID_SIZE;
   assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
 
-  MYSQL_GCS_LOG_TRACE("Encoded header for exchangeable data: (header)=%llu",
-                      static_cast<long long unsigned>(encoded_size));
+  MYSQL_GCS_LOG_TRACE(
+      "Encoded header for exchangeable data: (header)=%llu view_id %s",
+      static_cast<long long unsigned>(encoded_size),
+      m_view_id->get_representation().c_str());
 
   return false;
 }
@@ -748,7 +750,7 @@ Gcs_xcom_state_exchange::compute_incompatible_members() {
 std::pair<bool, Gcs_protocol_version>
 Gcs_xcom_state_exchange::members_announce_same_version() const {
   /* Validate preconditions. */
-  DBUG_ASSERT(m_member_versions.size() > 1);
+  assert(m_member_versions.size() > 1);
 
   bool constexpr SAME_VERSION = true;
   bool constexpr DIFFERENT_VERSIONS = false;
@@ -840,7 +842,7 @@ bool Gcs_xcom_state_exchange::incompatible_with_group() const {
           "again.");
       goto end;
     } else {
-      DBUG_ASSERT(group_version != Gcs_protocol_version::UNKNOWN);
+      assert(group_version != Gcs_protocol_version::UNKNOWN);
     }
 
     /*
@@ -850,12 +852,11 @@ bool Gcs_xcom_state_exchange::incompatible_with_group() const {
     bool const supports_protocol =
         (group_version <= Gcs_protocol_version::HIGHEST_KNOWN);
     if (supports_protocol) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool const failed =
 #endif
           pipeline.set_version(group_version);
-      DBUG_ASSERT(!failed &&
-                  "Setting the pipeline version should not have failed");
+      assert(!failed && "Setting the pipeline version should not have failed");
       MYSQL_GCS_LOG_INFO("This server adjusted its communication protocol to "
                          << gcs_protocol_to_mysql_version(group_version)
                          << " in order to join the group.");
@@ -868,7 +869,7 @@ bool Gcs_xcom_state_exchange::incompatible_with_group() const {
       goto end;
     }
   } else {
-    DBUG_ASSERT(m_member_versions.begin()->first == m_local_information);
+    assert(m_member_versions.begin()->first == m_local_information);
   }
 
   result = COMPATIBLE;
@@ -889,11 +890,11 @@ Gcs_xcom_state_exchange::compute_incompatible_joiners() {
 
   /* Compute the set of incompatible joiners. */
   for (Gcs_member_identifier const *joiner_id : m_ms_joined) {
-    DBUG_ASSERT(m_member_versions.find(*joiner_id) != m_member_versions.end());
+    assert(m_member_versions.find(*joiner_id) != m_member_versions.end());
     Gcs_protocol_version const &joiner_version = m_member_versions[*joiner_id];
 
-    DBUG_ASSERT(m_member_max_versions.find(*joiner_id) !=
-                m_member_max_versions.end());
+    assert(m_member_max_versions.find(*joiner_id) !=
+           m_member_max_versions.end());
     Gcs_protocol_version const &joiner_max_version =
         m_member_max_versions[*joiner_id];
 
@@ -967,7 +968,7 @@ bool Gcs_xcom_state_exchange::process_recovery_state() {
    */
   bool const only_i_exist = (m_member_states.size() == 1);
   if (only_i_exist) {
-    DBUG_ASSERT(m_member_states.begin()->first == m_local_information);
+    assert(m_member_states.begin()->first == m_local_information);
     successful = true;
     goto end;
   }
@@ -1067,6 +1068,8 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
     }
   });
 
+  MYSQL_GCS_LOG_TRACE("get_new_view_id returns view_id %s",
+                      view_id->get_representation().c_str());
   return view_id;
 }
 

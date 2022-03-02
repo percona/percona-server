@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -128,7 +128,8 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
 columns in row.
 @param[in]	index	index handler
 @param[out]	entry	index entry to make
-@param[in]	row	row */
+@param[in]	row	row
+@return DB_SUCCESS if the set is successful */
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row);
 
@@ -179,7 +180,7 @@ struct ins_node_t {
   dtuple_t *entry;         /*!< NULL, or entry to insert in the index;
                            after a successful insert of the entry,
                            this should be reset to NULL */
-  UT_LIST_BASE_NODE_T(dtuple_t)
+  UT_LIST_BASE_NODE_T(dtuple_t, tuple_list)
   entry_list;       /* list of entries, one for each index */
   byte *row_id_buf; /* buffer for the row id sys field in row */
   trx_id_t trx_id;  /*!< trx id or the last trx which executed the

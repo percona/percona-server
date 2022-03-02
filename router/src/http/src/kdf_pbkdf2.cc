@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,15 @@
 #include "kdf_pbkdf2.h"
 
 #include <algorithm>
+#include <cstdint>  // uint8_t
+#include <cstdlib>  // std::strtol
 #include <cstring>
+#include <iterator>  // std::distance
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // std::tie
 #include <vector>
-
-#include <iostream>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>

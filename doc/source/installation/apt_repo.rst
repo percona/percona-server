@@ -37,6 +37,8 @@ What's in each DEB package?
        ABI change that requires software using the client library to be
        recompiled or its source code modified.
 
+.. _apt-install:
+
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 
@@ -44,7 +46,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-      $ sudo apt-get install gnupg2
+      $ sudo apt install gnupg2
 
 2. Fetch the repository packages from Percona web:
 
@@ -72,16 +74,27 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-      $ sudo apt-get install percona-server-server
+      $ sudo apt install percona-server-server
 
 .. note::
 
-   |ps-last| comes with the :ref:`TokuDB storage engine
-   <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines. These
-   storage engines are installed as plugins. You can find more information on how
-   to install and enable the |TokuDB| storage in the :ref:`tokudb_installation`
-   guide. More information about how to install |MyRocks| can be found in the
-   section :ref:`myrocks_install`.
+   |ps-last|  comes with the :ref:`TokuDB storage engine <tokudb_intro>` and :ref:`MyRocks storage engine<myrocks_intro>`.
+   These storage engines are installed as plugin.
+
+   For information on how to install and configure |TokuDB|, refer to the :ref:`tokudb_installation` guide.
+
+   For information on how to install and configure |MyRocks|, refer to the :ref:`myrocks_install` guide.
+
+
+The |Percona Server| distribution contains several useful User Defined Functions (UDF) from Percona Toolkit. After the installation completes, run the following commands to create these functions:
+
+.. code-block:: bash
+
+    mysql -e "CREATE FUNCTION fnvla_64 RETURNS INTEGER SONAME 'libfnvla_udf.so'"
+    mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'"
+    mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'"
+
+For more details on the UDFs, see `Percona Toolkit UDFS <https://www.percona.com/doc/percona-server/8.0/management/udf_percona_toolkit.html>`_.
 
 Percona ``apt`` Testing repository
 --------------------------------------------------------------------------------
@@ -136,7 +149,7 @@ After you unpack the bundle you should see the following packages:
 
   .. admonition:: Output
 
-     .. code-block:: guess
+     .. code-block:: bash
 
         libperconaserverclient21-dev_8.0.13-3-1.stretch_amd64.deb
         libperconaserverclient21_8.0.13-3-1.stretch_amd64.deb
@@ -268,22 +281,26 @@ The following procedure runs the |Percona Server|:
    service manager. You can invoke all the above commands with ``systemctl``
    instead of ``service``. Currently both are supported.
 
+Working with AppArmor
+======================
+
+For information on AppArmor, see :ref:`enable-apparmor`.
+
 Uninstalling |Percona Server|
 =============================
 
 To uninstall |Percona Server| you'll need to remove all the installed
-packages. Removing packages with :command:`apt-get remove` will leave the
-configuration and data files. Removing the p ackages with :command:`apt-get
-purge` will remove all the packages with configuration files and data files (all
+packages. Removing packages with `apt remove` does not remove the
+configuration and data files. Removing the packages with `apt purge` does remove the packages with configuration files and data files (all
 the databases). Depending on your needs you can choose which command better
 suits you.
 
 1. Stop the |Percona Server| service: :bash:`service mysql stop`
 2. Remove the packages
 
-   a) Remove the packages. This will leave the data files (databases, tables, logs, configuration, etc.) behind. In case you don't need them you'll need to remove them manually: :bash:`apt-get remove percona-server*`
+   a) Remove the packages. This will leave the data files (databases, tables, logs, configuration, etc.) behind. In case you don't need them you'll need to remove them manually: :bash:`apt remove percona-server*`
 
-   b) Purge the packages. **NOTE**: This will remove all the packages and delete all the data files (databases, tables, logs, etc.): :bash:`apt-get purge percona-server*`
+   b) Purge the packages. **NOTE**: This command removes all the packages and delete all the data files (databases, tables, logs, and so on.): :bash:`apt purge percona-server*`
 
      $ sudo apt-get purge percona-server*
 

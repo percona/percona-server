@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/components/services/mysql_cond.h>
 #include <mysql/components/services/mysql_mutex.h>
 #include <mysql/components/services/mysql_rwlock.h>
@@ -38,10 +39,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/psi_system.h>
 #include <mysql/components/services/psi_table.h>
 #include <mysql/components/services/psi_thread.h>
+#include <mysql/components/services/psi_tls_channel.h>
 #include <mysql/components/services/psi_transaction.h>
-
-// FIXME: need to be visible in include
-#include <mysql/psi/psi_base.h>
 
 /* Mutex */
 
@@ -270,6 +269,7 @@ REQUIRES_PSI_STATEMENT_SERVICE_PLACEHOLDER;
 REQUIRES_PSI_TABLE_SERVICE_PLACEHOLDER;
 REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
 REQUIRES_PSI_TRANSACTION_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_TLS_CHANNEL_SERVICE_PLACEHOLDER;
 
 BEGIN_COMPONENT_REQUIRES(pfs_example)
 REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
@@ -280,7 +280,8 @@ REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
     REQUIRES_PSI_RWLOCK_SERVICE, REQUIRES_PSI_SOCKET_SERVICE,
     REQUIRES_PSI_STAGE_SERVICE, REQUIRES_PSI_STATEMENT_SERVICE,
     REQUIRES_PSI_TABLE_SERVICE, REQUIRES_PSI_THREAD_SERVICE,
-    REQUIRES_PSI_TRANSACTION_SERVICE, END_COMPONENT_REQUIRES();
+    REQUIRES_PSI_TRANSACTION_SERVICE, REQUIRES_PSI_TLS_CHANNEL_SERVICE,
+    END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(pfs_example)
 METADATA("mysql.author", "Oracle Corporation"),

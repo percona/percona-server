@@ -4,6 +4,12 @@
 -- source include/have_pool_of_threads.inc
 -- source include/common-tests.inc
 
+--disable_query_log
+# Admin port TLS not sep up
+CALL mtr.add_suppression("Failed to initialize TLS for channel");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL");
+--enable_query_log
+
 # Calculate value for admin port
 --let $PORT_OFFSET = 1
 --expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET

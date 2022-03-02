@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class Column_statistics_impl final : public Entity_object_impl,
   }
 
  public:
-  virtual const Object_table &object_table() const override;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
@@ -159,6 +159,21 @@ class Column_statistics_impl final : public Entity_object_impl,
 
   Column_statistics *clone() const override {
     return new Column_statistics_impl(*this);
+  }
+
+  Column_statistics *clone_dropped_object_placeholder() const override {
+    Column_statistics_impl *placeholder = new Column_statistics_impl();
+    placeholder->set_id(id());
+    placeholder->set_name(name());
+    /*
+      Even though schema, table and column name members are not used in keys
+      directly, they are still used to check that correct metadata locks are
+      held, so for safety we copy them as well.
+    */
+    placeholder->set_schema_name(schema_name());
+    placeholder->set_table_name(table_name());
+    placeholder->set_column_name(column_name());
+    return placeholder;
   }
 };
 

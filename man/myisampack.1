@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmyisampack\fR
+.\"     Title: myisampack
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYISAMPACK" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -100,7 +100,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisampack [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR\fB \&.\&.\&.\fR
+myisampack [\fIoptions\fR] \fIfile_name\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -114,7 +114,7 @@ After you compress a table with
 \fBmyisampack\fR, use
 \fBmyisamchk \-rq\fR
 to rebuild its indexes\&.
-\fBmyisamchk\fR(1)\&.
+myisamchk(1)\&.
 .PP
 \fBmyisampack\fR
 supports the following options\&. It also reads option files and supports the options for processing them described at
@@ -130,7 +130,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -144,7 +143,6 @@ Display a help message and exit\&.
 .\}
 \fB\-\-backup\fR,
 \fB\-b\fR
-.sp
 Make a backup of each table\*(Aqs data file using the name
 \fItbl_name\fR\&.OLD\&.
 .RE
@@ -158,7 +156,6 @@ Make a backup of each table\*(Aqs data file using the name
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -173,7 +170,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -196,7 +192,6 @@ built using this option\&.
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
-.sp
 Produce a packed table even if it becomes larger than the original or if the intermediate file from an earlier invocation of
 \fBmyisampack\fR
 exists\&. (\fBmyisampack\fR
@@ -225,7 +220,6 @@ packs the table anyway\&.
 .\}
 \fB\-\-join=\fR\fB\fIbig_tbl_name\fR\fR,
 \fB\-j \fR\fB\fIbig_tbl_name\fR\fR
-.sp
 Join all tables named on the command line into a single packed table
 \fIbig_tbl_name\fR\&. All tables that are to be combined
 \fImust\fR
@@ -247,7 +241,6 @@ must exist\&. The source tables are read for the join operation but not modified
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Silent mode\&. Write output only when errors occur\&.
 .RE
 .sp
@@ -261,7 +254,6 @@ Silent mode\&. Write output only when errors occur\&.
 .\}
 \fB\-\-test\fR,
 \fB\-t\fR
-.sp
 Do not actually pack the table, just test packing it\&.
 .RE
 .sp
@@ -275,7 +267,6 @@ Do not actually pack the table, just test packing it\&.
 .\}
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-T \fR\fB\fIdir_name\fR\fR
-.sp
 Use the named directory as the location where
 \fBmyisampack\fR
 creates temporary files\&.
@@ -291,7 +282,6 @@ creates temporary files\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Write information about the progress of the packing operation and its result\&.
 .RE
 .sp
@@ -305,7 +295,6 @@ Verbose mode\&. Write information about the progress of the packing operation an
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .sp
@@ -319,7 +308,6 @@ Display version information and exit\&.
 .\}
 \fB\-\-wait\fR,
 \fB\-w\fR
-.sp
 Wait and retry if the table is in use\&. If the
 \fBmysqld\fR
 server was invoked with external locking disabled, it is not a good idea to invoke
@@ -809,7 +797,7 @@ to re\-create any indexes\&. At this time, you can also sort the index blocks an
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-rq \-\-sort\-index \-\-analyze \fR\fB\fItbl_name\fR\fR\fB\&.MYI\fR
+myisamchk \-rq \-\-sort\-index \-\-analyze \fItbl_name\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -828,7 +816,7 @@ option to
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

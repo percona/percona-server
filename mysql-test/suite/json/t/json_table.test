@@ -12,6 +12,7 @@ let $query=select * from
   ) as tt;
 eval $query;
 eval explain $query; 
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;   # Tests printing of MaterializedTableFunctionIterator.
 
 --error ER_INVALID_DEFAULT
@@ -422,6 +423,32 @@ SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
   f FLOAT PATH '$',
   d DECIMAL PATH '$')) AS jt;
 
+# DEFAULT NULL is not accepted syntax.
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON EMPTY)) jt;
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON ERROR)) jt;
+
+# The DEFAULT value must be a string on JSON format for now.
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON ERROR)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON ERROR)) jt;
+
 --echo #
 --echo # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
 --echo #
@@ -498,7 +525,7 @@ DEALLOCATE PREPARE stmt;
 --echo #
 CREATE TABLE t1 (id INT, jc JSON);
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 
@@ -506,7 +533,6 @@ SELECT * FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt LEFT JOIN t1 ON t1.jc=jt.id;
 
---error ER_UNKNOWN_TABLE
 SELECT * FROM JSON_TABLE(t1.jc, '$' COLUMNS
   (id FOR ORDINALITY)) as jt RIGHT JOIN t1 ON t1.jc=jt.id;
 
@@ -524,38 +550,41 @@ EXPLAIN SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
   LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
                        (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+# Error code can be ER_UNKNOWN_TABLE or ER_BAD_FIELD_ERROR
+# (see find_field_in_tables()), both are acceptable.
+
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 WITH qn AS
   (SELECT jt.* FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
     (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
   SELECT * from qn;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 WITH qn AS
   (SELECT 1 UNION
    SELECT jt.id FROM t1 RIGHT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
     (id FOR ORDINALITY)) as jt ON t1.jc=jt.id)
   SELECT * from qn;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
   ON t1o.id=t1i.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 AS t1o RIGHT JOIN
   (t1 AS t1i RIGHT JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
                             (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
@@ -571,7 +600,7 @@ SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 EXPLAIN SELECT * FROM t1 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
   (id INT PATH '$')) as jt ON t1.id=jt.id;
 
---error ER_TF_FORBIDDEN_JOIN_TYPE
+--error ER_UNKNOWN_TABLE
 SELECT * FROM t1 
   LEFT JOIN
     JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
@@ -1434,3 +1463,45 @@ SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
 # specified in the JSON_TABLE column definitions.
 SELECT x, y, z, COLLATION(x) c_x, COLLATION(y) c_y, COLLATION(z) c_z FROM v;
 DROP VIEW v;
+
+--echo #
+--echo # Bug#31345503 JSON_TABLE SHOULD RETURN SQL NULL FOR JSON NULL
+--echo #
+
+SELECT *
+FROM
+JSON_TABLE(
+'[
+  {"c1": null,
+   "c2": [{"c": "c_val", "l": [1,2]}],
+   "c3": null},
+  {"c1": true,
+   "c2": [{"c": "c_val","l": [11]}, {"c": "c_val", "l": [false]}],
+   "c3": true},
+  {"c1": false,
+   "c2": [{"c": null,"l": [true]}, {"c": "c_val", "l": [null]}],
+   "c3": false}
+  ]',
+  '$[*]' COLUMNS(
+           top_ord FOR ORDINALITY,
+           c1path VARCHAR(10) PATH '$.c1' ERROR ON ERROR,
+           NESTED PATH '$.c2[*]' COLUMNS (
+             c2path VARCHAR(10) PATH '$.c' ERROR ON ERROR,
+             ord FOR ORDINALITY,
+             NESTED PATH '$.l[*]' COLUMNS (lpath_c VARCHAR(10) PATH '$' ERROR ON ERROR,
+             lpath_i INT PATH '$' ERROR ON ERROR)
+           ),
+           c3path INT PATH '$.c3' ERROR ON ERROR
+         )
+) as jt;
+
+--echo #
+--echo # Bug #31327187 UBSAN: JSON_TABLE: NULL POINTER PASSED AS ARGUMENT 2,
+--echo #               WHICH IS DECLARED TO NEVER BE NULL
+--echo #
+
+SELECT HEX(a) FROM JSON_TABLE(
+  '[{"E":{"e":true,"~":1,"S3":"sTa"},"r":3,"":6.7},"",6.5]',
+  '$'
+  COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
+) e;

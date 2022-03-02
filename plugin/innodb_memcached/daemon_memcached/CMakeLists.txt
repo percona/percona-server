@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities
   )
 INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
+
+IF(HAVE_LIBEVENT2)
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+ENDIF()
 
 # If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
 IF(CMAKE_C_FLAGS MATCHES "-Werror")

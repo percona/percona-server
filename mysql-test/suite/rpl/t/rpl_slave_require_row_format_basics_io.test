@@ -51,6 +51,7 @@
 #  WL #12968 : Configure replication applier to require row-based replication
 
 -- source include/have_binlog_format_statement.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 -- source include/master-slave.inc
 
 --echo #
@@ -60,6 +61,8 @@
 
 # Suppressions
 
+
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '': \\.\\.\\. .* Error_code: MY-\\d+.*");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Slave I/O for channel '': The queue event failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.*");
 call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master*");
@@ -70,7 +73,7 @@ call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: cou
 
   --source include/rpl_connection_slave.inc
 
-  CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
   START SLAVE;
 
@@ -83,7 +86,7 @@ call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: cou
   STOP SLAVE;
 
   --let $assert_text = The slave stopped as there was an error in the IO thread with REQUIRE_ROW_FORMAT
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_slave_require_row_format_basics_io.2.err
+  --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
   --let $assert_select = The queue event failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.
   --let $assert_count = $error_count
   --source include/assert_grep.inc
@@ -93,7 +96,7 @@ call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: cou
 
   --echo # No issues when REQUIRE_ROW_FORMAT = 0
 
-  CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
   --source include/start_slave.inc
 
@@ -149,6 +152,11 @@ END_OF_PROCEDURE
   --source include/rpl_connection_master.inc
 
 END_OF_PROCEDURE
+
+# Record the number of temp tables present
+
+--source include/rpl_connection_slave.inc
+--let $_number_temp_tables = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
 
 # Create tables for testing
 
@@ -233,7 +241,7 @@ create temporary TABLE temp1 (k INT PRIMARY KEY);
 --echo #
 --echo # 6.1 Check the slave IO thread fails
 
---let $assert_cond= [SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
+--let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = No temporary table was created
 --source $MYSQL_TMP_DIR/check_slave_IO_error.inc
 
@@ -245,7 +253,8 @@ DROP TEMPORARY TABLE IF EXISTS temp1;
 --echo #
 --echo # 7.1 Check the slave IO thread fails
 
---let $assert_cond= [SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
+--inc $_number_temp_tables
+--let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = There is still a temporary table
 --source $MYSQL_TMP_DIR/check_slave_IO_error.inc
 
@@ -263,7 +272,7 @@ SET SESSION binlog_format=ROW;
 --let $binlog_format_slave_value = `SELECT @@binlog_format`
 SET GLOBAL binlog_format=ROW;
 
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
 --source include/rpl_connection_master.inc
 

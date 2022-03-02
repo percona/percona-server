@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -144,7 +144,7 @@ que_fork_t *que_fork_create(
 
   fork->graph = (graph != nullptr) ? graph : fork;
 
-  UT_LIST_INIT(fork->thrs, &que_thr_t::thrs);
+  UT_LIST_INIT(fork->thrs);
 
   return (fork);
 }
@@ -190,13 +190,11 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
 que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
                                              in QUE_THR_LOCK_WAIT */
 {
-  que_thr_t *thr;
-  ibool was_active;
+  ut_ad(locksys::owns_lock_shard(trx->lock.wait_lock));
 
-  ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(trx));
 
-  thr = trx->lock.wait_thr;
+  que_thr_t *const thr = trx->lock.wait_thr;
 
   ut_ad(thr != nullptr);
 
@@ -204,7 +202,7 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
   /* In MySQL this is the only possible state here */
   ut_a(thr->state == QUE_THR_LOCK_WAIT);
 
-  was_active = thr->is_active;
+  bool const was_active = thr->is_active;
 
   que_thr_move_to_run_state(thr);
 
@@ -217,12 +215,11 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
   /* In MySQL we let the OS thread (not just the query thread) to wait
   for the lock to be released: */
 
-  return ((!was_active && thr != nullptr) ? thr : nullptr);
+  return !was_active ? thr : nullptr;
 }
 
 /** Inits a query thread for a command. */
-UNIV_INLINE
-void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
+static inline void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
 {
   thr->run_node = thr;
   thr->prev_node = thr->common.parent;
@@ -280,7 +277,6 @@ que_thr_t *que_fork_scheduler_round_robin(
  caller */
 que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 {
-  que_thr_t *thr;
   que_thr_t *suspended_thr = nullptr;
   que_thr_t *completed_thr = nullptr;
 
@@ -302,8 +298,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 
   /* We make a single pass over the thr list within which we note which
   threads are ready to run. */
-  for (thr = UT_LIST_GET_FIRST(fork->thrs); thr != nullptr;
-       thr = UT_LIST_GET_NEXT(thrs, thr)) {
+  for (auto thr : fork->thrs) {
     switch (thr->state) {
       case QUE_THR_COMMAND_WAIT:
 
@@ -337,7 +332,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
         ut_error;
     }
   }
-
+  que_thr_t *thr;
   if (suspended_thr) {
     thr = suspended_thr;
     que_thr_move_to_run_state(thr);
@@ -515,7 +510,7 @@ void que_graph_free(que_t *graph) /*!< in: query graph; we assume that the
                                   afterwards! */
 {
   ut_ad(graph);
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (graph->sym_tab) {
     /* The following call frees dynamic memory allocated
@@ -593,15 +588,9 @@ static void que_thr_move_to_run_state(
   thr->state = QUE_THR_RUNNING;
 }
 
-/** Stops a query thread if graph or trx is in a state requiring it. The
- conditions are tested in the order (1) graph, (2) trx.
- @return true if stopped */
-ibool que_thr_stop(que_thr_t *thr) /*!< in: query thread */
-{
-  que_t *graph;
+bool que_thr_stop(que_thr_t *thr) {
+  que_t *graph = thr->graph;
   trx_t *trx = thr_get_trx(thr);
-
-  graph = thr->graph;
 
   ut_ad(trx_mutex_own(trx));
 
@@ -622,10 +611,10 @@ ibool que_thr_stop(que_thr_t *thr) /*!< in: query thread */
   } else {
     ut_ad(graph->state == QUE_FORK_ACTIVE);
 
-    return (FALSE);
+    return false;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Decrements the query thread reference counts in the query graph and the
@@ -748,10 +737,10 @@ void que_thr_move_to_run_state_for_mysql(
 }
 
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL
- select, when there is no error or lock wait. */
-void que_thr_stop_for_mysql_no_error(que_thr_t *thr, /*!< in: query thread */
-                                     trx_t *trx)     /*!< in: transaction */
-{
+ select, when there is no error or lock wait.
+@param[in] thr Query thread
+@param[in] trx Transaction */
+void que_thr_stop_for_mysql_no_error(que_thr_t *thr, trx_t *trx) {
   ut_ad(thr->state == QUE_THR_RUNNING);
   ut_ad(thr->is_active == TRUE);
   ut_ad(trx->lock.n_active_thrs == 1);
@@ -847,8 +836,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
 /** Performs an execution step on a query thread.
  @return query thread to run next: it may differ from the input
  parameter if, e.g., a subprocedure call is made */
-UNIV_INLINE
-que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
 {
   que_node_t *node;
   que_thr_t *old_thr;

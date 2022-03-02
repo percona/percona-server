@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,13 +57,12 @@ extern "C" bool g_windows_service;
 
 #include "common.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/string_utils.h"
 
 using mysql_harness::trim;
-using std::string;
 
-const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
-const string kValidPortChars = "0123456789";
+const char kValidPortChars[] = "0123456789";
 
 namespace mysqlrouter {
 
@@ -72,36 +71,6 @@ const perm_mode kStrictDirectoryPerm = S_IRWXU;
 #else
 const perm_mode kStrictDirectoryPerm = 0;
 #endif
-
-void MockOfstream::open(const char *filename,
-                        ios_base::openmode mode /*= ios_base::out*/) {
-  // deal properly with A, B, C, B scenario
-  // (without this, last B would create a 4th file which would not be tracked by
-  // map)
-  if (filenames_.count(filename)) {
-    erase_file(filenames_.at(filename));
-    filenames_.erase(filename);
-  }
-
-  std::string fake_filename = gen_fake_filename(filenames_.size());
-  filenames_.emplace(filename, fake_filename);
-
-  std::ofstream::open(fake_filename, mode);
-}
-
-/*static*/ std::map<std::string, std::string> MockOfstream::filenames_;
-
-/*static*/ void MockOfstream::erase_file(const std::string &filename) {
-  remove(filename.c_str());
-}
-
-/*static*/ std::string MockOfstream::gen_fake_filename(unsigned long i) {
-#ifndef _WIN32
-  return std::string("/tmp/mysqlrouter_mockfile") + std::to_string(i);
-#else
-  return std::string("C:\\temp\\mysqlrouter_mockfile") + std::to_string(i);
-#endif
-}
 
 bool my_check_access(const std::string &path) {
 #ifndef _WIN32
@@ -156,17 +125,17 @@ bool substitute_envvar(std::string &line) noexcept {
   size_t pos_end;
 
   pos_start = line.find("ENV{");
-  if (pos_start == string::npos) {
+  if (pos_start == std::string::npos) {
     return true;  // no environment variable placeholder found -> this is not an
                   // error, just a no-op
   }
 
   pos_end = line.find("}", pos_start + 4);
-  if (pos_end == string::npos) {
+  if (pos_end == std::string::npos) {
     return false;  // environment placeholder not closed (missing '}')
   }
 
-  string env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
+  std::string env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
   if (env_var.empty()) {
     return false;  // no environment variable name found in placeholder
   }
@@ -199,7 +168,7 @@ std::string substitute_variable(const std::string &s, const std::string &name,
     return r;
 }
 
-string string_format(const char *format, ...) {
+std::string string_format(const char *format, ...) {
   va_list args;
   va_start(args, format);
   va_list args_next;
@@ -212,7 +181,7 @@ string string_format(const char *format, ...) {
   std::vsnprintf(buf.data(), buf.size(), format, args_next);
   va_end(args_next);
 
-  return string(buf.begin(), buf.end() - 1);
+  return std::string(buf.begin(), buf.end() - 1);
 }
 
 std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {
@@ -223,69 +192,16 @@ std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {
   return os.str();
 }
 
-std::pair<string, uint16_t> split_addr_port(string data) {
-  size_t pos;
-  string addr;
-  uint16_t port = 0;
-  trim(data);
-
-  if (data.empty()) {
-    return std::make_pair(addr, port);
-  }
-
-  if (data.at(0) == '[') {
-    // IPv6 with port
-    pos = data.find(']');
-    if (pos == string::npos) {
-      throw std::runtime_error(
-          "invalid IPv6 address: missing closing square bracket");
-    }
-    addr.assign(data, 1, pos - 1);
-    if (addr.find_first_not_of(kValidIPv6Chars) != string::npos) {
-      throw std::runtime_error("invalid IPv6 address: illegal character(s)");
-    }
-    pos = data.find(":", pos);
-    if (pos != string::npos) {
-      try {
-        port = get_tcp_port(data.substr(pos + 1));
-      } catch (const std::runtime_error &exc) {
-        throw std::runtime_error("invalid TCP port: " + string(exc.what()));
-      }
-    }
-  } else if (std::count(data.begin(), data.end(), ':') > 1) {
-    // IPv6 without port
-    pos = data.find(']');
-    if (pos != string::npos) {
-      throw std::runtime_error(
-          "invalid IPv6 address: missing opening square bracket");
-    }
-    if (data.find_first_not_of(kValidIPv6Chars) != string::npos) {
-      throw std::runtime_error("invalid IPv6 address: illegal character(s)");
-    }
-    addr.assign(data);
-  } else {
-    // IPv4 or address
-    pos = data.find(":");
-    addr = data.substr(0, pos);
-    if (pos != string::npos) {
-      try {
-        port = get_tcp_port(data.substr(pos + 1));
-      } catch (const std::runtime_error &exc) {
-        throw std::runtime_error("invalid TCP port: " + string(exc.what()));
-      }
-    }
-  }
-
-  return std::make_pair(addr, port);
-}
-
-uint16_t get_tcp_port(const string &data) {
+uint16_t get_tcp_port(const std::string &data) {
   int port;
 
   // We refuse data which is bigger than 5 characters
-  if (data.find_first_not_of(kValidPortChars) != string::npos ||
-      data.size() > 5) {
-    throw std::runtime_error("invalid characters or too long");
+  if (data.size() > 5) {
+    throw std::runtime_error("too long");
+  }
+
+  if (data.find_first_not_of(kValidPortChars) != std::string::npos) {
+    throw std::runtime_error("invalid characters");
   }
 
   try {
@@ -298,14 +214,14 @@ uint16_t get_tcp_port(const string &data) {
     throw std::runtime_error("impossible port number (out-of-range)");
   }
 
-  if (port > UINT16_MAX) {
-    throw std::runtime_error("impossible port number");
+  if (port > static_cast<int>(UINT16_MAX)) {
+    throw std::runtime_error("out of range. Max " + std::to_string(UINT16_MAX));
   }
   return static_cast<uint16_t>(port);
 }
 
-string hexdump(const unsigned char *buffer, size_t count, long start,
-               bool literals) {
+std::string hexdump(const unsigned char *buffer, size_t count, long start,
+                    bool literals) {
   std::ostringstream os;
 
   using std::hex;
@@ -352,7 +268,7 @@ std::string get_last_error(int myerrnum) {
                 (LPTSTR)&lpMsgBuf, 0, NULL);
   std::string msgerr = "SystemError: ";
   msgerr += lpMsgBuf;
-  msgerr += "with error code %d.";
+  msgerr += " with error code %d.";
   std::string result = string_format(msgerr.c_str(), dwCode);
   LocalFree(lpMsgBuf);
   return result;
@@ -377,14 +293,14 @@ std::string get_last_error(int myerrnum) {
 #endif
 
   std::string s = sys_err;
-  s += "with errno %d.";
+  s += " with errno %d.";
   std::string result = string_format(s.c_str(), errnum);
   return result;
 #endif
 }
 
 #ifndef _WIN32
-static string default_prompt_password(const string &prompt) {
+static std::string default_prompt_password(const std::string &prompt) {
   struct termios console;
   bool no_terminal = false;
   if (tcgetattr(STDIN_FILENO, &console) != 0) {
@@ -399,7 +315,7 @@ static string default_prompt_password(const string &prompt) {
     console.c_lflag &= ~(uint)ECHO;
     tcsetattr(STDIN_FILENO, TCSANOW, &console);
   }
-  string result;
+  std::string result;
   std::getline(std::cin, result);
 
   if (!no_terminal) {
@@ -411,7 +327,7 @@ static string default_prompt_password(const string &prompt) {
   return result;
 }
 #else
-static string default_prompt_password(const string &prompt) {
+static std::string default_prompt_password(const std::string &prompt) {
   std::cout << prompt << ": " << std::flush;
 
   // prevent showing input
@@ -421,7 +337,7 @@ static string default_prompt_password(const string &prompt) {
   mode &= ~ENABLE_ECHO_INPUT;
   SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
 
-  string result;
+  std::string result;
   std::getline(std::cin, result);
 
   // reset
@@ -432,7 +348,7 @@ static string default_prompt_password(const string &prompt) {
 }
 #endif
 
-static std::function<string(const string &)> g_prompt_password =
+static std::function<std::string(const std::string &)> g_prompt_password =
     default_prompt_password;
 
 void set_prompt_password(
@@ -440,7 +356,7 @@ void set_prompt_password(
   g_prompt_password = f;
 }
 
-string prompt_password(const std::string &prompt) {
+std::string prompt_password(const std::string &prompt) {
   return g_prompt_password(prompt);
 }
 

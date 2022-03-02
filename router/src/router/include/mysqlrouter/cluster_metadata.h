@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include <stdexcept>
 #include <string>
+
+#include "mysql/harness/stdx/expected.h"
 
 namespace mysqlrouter {
 
@@ -118,7 +120,7 @@ std::string to_string(const ClusterType cluster_type);
 
 class MetadataUpgradeInProgressException : public std::exception {};
 
-void setup_metadata_session(MySQLSession &session);
+stdx::expected<void, std::string> setup_metadata_session(MySQLSession &session);
 
 }  // namespace mysqlrouter
 #endif

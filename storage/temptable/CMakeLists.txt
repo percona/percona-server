@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 include_directories(
-  ${BOOST_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
@@ -37,8 +36,13 @@ MYSQL_ADD_PLUGIN(temptable
   src/result.cc
   src/row.cc
   src/table.cc
-  src/test.cc
 
   STORAGE_ENGINE
   MANDATORY
 )
+
+# Only used for debugging.
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(src/result.cc COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -331,6 +331,16 @@ void allow_windows_service_to_write_logs(const std::string &conf_file) {
   }
 }
 
+/** @brief Wrapper for request_application_shutdown()
+ *
+ * The service Init() method must call a function without parameters on
+ * shutdown, hence the need for a wrapper function for
+ * request_application_shutdown().
+ */
+static void service_request_shutdown() {
+  request_application_shutdown(SHUTDOWN_REQUESTED);
+}
+
 int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
   int result = 0;
   switch (do_windows_init(argc, argv)) {
@@ -345,7 +355,7 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
         // - g_service.StopService() (triggered by OS due to outside event, such
         // as termination request)
         BOOL ok = g_service.Init(kRouterServiceName, (void *)router_service,
-                                 request_application_shutdown);
+                                 service_request_shutdown);
         if (!ok) {
           DWORD err = GetLastError();
 

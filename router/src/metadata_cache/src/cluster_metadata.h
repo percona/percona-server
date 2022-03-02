@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -172,5 +172,12 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const mysqlrouter::MySQLSession::Row &row,
                         const size_t classic_port_column,
                         const size_t x_port_column);
+
+void set_instance_attributes(metadata_cache::ManagedInstance &instance,
+                             const std::string &attributes);
+
+bool get_hidden(const std::string &attributes, std::string &out_warning);
+bool get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
+                                                  std::string &out_warning);
 
 #endif  // METADATA_CACHE_CLUSTER_METADATA_INCLUDED

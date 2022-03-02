@@ -68,6 +68,10 @@ EOF
 --let $assert_cond = @@innodb_file_per_table = 0
 --source include/assert.inc
 
+# Read current state of bitmaps after restarts
+--let $bmp_data_dir = $CUSTOM_INNODB_DATA_HOME_DIR
+--source suite/innodb/include/percona_get_last_bmp_file_name_size.inc
+
 --echo
 --echo # Creating a simple table and filling it with some records.
 CREATE TABLE t1(id INT) ENGINE=InnoDB STATS_PERSISTENT=0 STATS_AUTO_RECALC=0;
@@ -79,6 +83,16 @@ FLUSH TABLES t1;
 SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
 SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 
+--let $prev_last_bmp_file_name = $last_bmp_file_name
+--let $prev_last_bmp_file_size = $last_bmp_file_size
+--source suite/innodb/include/percona_get_last_bmp_file_name_size.inc
+
+--echo
+--echo # Checking if bitmap files updated after the first flush
+if (`SELECT "$last_bmp_file_name" = "$prev_last_bmp_file_name" AND $last_bmp_file_size = $prev_last_bmp_file_size`) {
+    --die "Bitmap files should be updated after the flush"
+}
+
 --echo
 --echo # Inserting and flushing one more time for compatibility with 5.5.
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
@@ -86,11 +100,15 @@ FLUSH TABLES t1;
 SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
 SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 
+--let $prev_last_bmp_file_name = $last_bmp_file_name
+--let $prev_last_bmp_file_size = $last_bmp_file_size
+--source suite/innodb/include/percona_get_last_bmp_file_name_size.inc
+
 --echo
---echo # Listing .xdb files after the flush.
---echo # The output must show 6 .xdb files: ib_modified_log_1_0.xdb to ib_modified_log_6_nnn.xdb.
---replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
---list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
+--echo # Checking if bitmap files updated after the second flush
+if (`SELECT "$last_bmp_file_name" = "$prev_last_bmp_file_name" AND $last_bmp_file_size = $prev_last_bmp_file_size`) {
+    --die "Bitmap files should be updated after the flush"
+}
 
 --echo
 --echo # Purging changed page bitmaps (tracking enabled).
@@ -100,10 +118,15 @@ SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
---echo # Listing .xdb files after the purge (tracking enabled).
---echo # The output must show only one .xdb file - ib_modified_log_6_nnn.xdb.
---replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
---list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
+--echo # Checking .xdb files after the purge (tracking enabled).
+--echo # There must be only one file.
+--let $prev_last_bmp_file_name = $last_bmp_file_name
+--let $prev_last_bmp_file_size = $last_bmp_file_size
+--source suite/innodb/include/percona_get_last_bmp_file_name_size.inc
+
+if (`SELECT "$last_bmp_file_name" != "$prev_last_bmp_file_name" AND $bmp_files_count != 1`) {
+    --die "There must stay only one last file after purge"
+}
 
 --echo
 --echo # Restarting with redo log tracking disabled.
@@ -116,23 +139,31 @@ eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 --source include/assert.inc
 
 --echo
---echo # Listing .xdb files after the restart with tracking disabled.
---echo # The output must show the same and a new .xdb file: ib_modified_log_6_nnn.xdb and ib_modified_log_7_nnn.xdb.
---replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
---list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
+--echo # Checking .xdb files after the restart with tracking disabled.
+--echo # There must stay some .xdb files.
+--let $prev_last_bmp_file_name = $last_bmp_file_name
+--source suite/innodb/include/percona_get_last_bmp_file_name_size.inc
+
+if (`SELECT $bmp_files_count = 0`) {
+    --die "There must stay some .xdb files after restart (tracking enabled)"
+}
 
 --echo
 --echo # Purging changed page bitmaps (tracking disabled).
---echo # The next-to-last one .xdb file (ib_modified_log_6_nnn.xdb) must be deleted.
+--echo # The next-to-last one .xdb file must be deleted.
 --let $previous_lsn = query_get_value(SHOW STATUS LIKE 'innodb_lsn_current', Value, 1)
 --replace_regex /[[:digit:]]+/PREVIOUS_LSN/
 eval PURGE CHANGED_PAGE_BITMAPS BEFORE $previous_lsn;
 
 --echo
---echo # Listing .xdb files after the purge (tracking disabled).
---echo # The output must show only the last one .xdb file - ib_modified_log_7_nnn.xdb.
---replace_regex /_[[:digit:]]+\.xdb$/_<nnn>.xdb/
---list_files $CUSTOM_INNODB_DATA_HOME_DIR *.xdb
+--echo # Checking .xdb files after the purge (tracking disabled).
+--echo # There must stay only the last one .xdb file.
+--let $prev_last_bmp_file_name = $last_bmp_file_name
+--source suite/innodb/include/percona_get_last_bmp_file_name_size.inc
+
+if (`SELECT "$last_bmp_file_name" != "$prev_last_bmp_file_name" AND $bmp_files_count != 1`) {
+    --die "There must stay only the last one .xdb file"
+}
 
 --echo
 --echo # Dropping the table.
@@ -145,3 +176,4 @@ DROP TABLE t1;
 --echo # Cleaning up
 --force-rmdir $CUSTOM_INNODB_DATA_HOME_DIR
 --force-rmdir $MYSQLD_DATADIR1
+

@@ -29,6 +29,7 @@
 --source include/big_test.inc
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/have_binlog_format_row.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
@@ -78,12 +79,12 @@ CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT CREATE,INSERT,DROP ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_1';
 --source include/start_slave.inc
 
 --let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
 --source include/start_slave.inc
 
 --echo #
@@ -100,7 +101,7 @@ CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
 --source include/rpl_connection.inc
 
 # Make server 4 run with mysqld_safe
---let $mysqld_extra_settings=--skip-slave-start=1
+--let $mysqld_extra_settings=--skip-replica-start=1
 --source include/spawn_monitoring_process.inc
 
 # Install clone

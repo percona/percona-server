@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,18 +72,18 @@ class Zstd_comp : public Compressor {
 
  public:
   Zstd_comp();
-  virtual ~Zstd_comp() override;
+  ~Zstd_comp() override;
   /**
     Shall set the compression level to be used.
    */
-  virtual void set_compression_level(unsigned int compression_level) override;
+  void set_compression_level(unsigned int compression_level) override;
 
   /**
     Shall get the compressor type code.
 
     @return the compressor type code.
    */
-  virtual type compression_type_code() override;
+  type compression_type_code() override;
 
   /**
     Shall open the compressor. This member function must be called before
@@ -91,7 +91,7 @@ class Zstd_comp : public Compressor {
 
     @return false on success, true otherwise.
    */
-  virtual bool open() override;
+  bool open() override;
 
   /**
     This member function shall compress the buffer provided and put the
@@ -102,8 +102,8 @@ class Zstd_comp : public Compressor {
 
     @return false on success, true otherwise.
    */
-  virtual std::tuple<std::size_t, bool> compress(const unsigned char *data,
-                                                 size_t length) override;
+  std::tuple<std::size_t, bool> compress(const unsigned char *data,
+                                         size_t length) override;
 
   /**
     This member function shall close the compressor. It must be called
@@ -112,7 +112,18 @@ class Zstd_comp : public Compressor {
 
     @return false on success, true otherwise.
    */
-  virtual bool close() override;
+  bool close() override;
+
+ private:
+  /**
+    Expands the size of `m_buffer` by `extra_bytes` (if needed) and updates
+    the size and pointer of `m_obuf`.
+
+    @param extra_bytes The amount of extra bytes to expand the buffer with
+
+    @return false on success, true otherwise.
+   */
+  bool expand_buffer(size_t const &extra_bytes);
 };
 
 /**
@@ -128,14 +139,14 @@ class Zstd_dec : public Decompressor {
 
  public:
   Zstd_dec();
-  virtual ~Zstd_dec() override;
+  ~Zstd_dec() override;
 
   /**
     Shall return the compression type code.
 
     @return the compression type code.
    */
-  virtual type compression_type_code() override;
+  type compression_type_code() override;
 
   /**
     Shall open the decompressor. This member function must be called
@@ -144,7 +155,7 @@ class Zstd_dec : public Decompressor {
 
     @return false on success, true otherwise.
    */
-  virtual bool open() override;
+  bool open() override;
 
   /**
     This member function shall decompress the buffer provided and put the
@@ -155,8 +166,8 @@ class Zstd_dec : public Decompressor {
 
     @return false on success, true otherwise.
    */
-  virtual std::tuple<std::size_t, bool> decompress(const unsigned char *data,
-                                                   size_t length) override;
+  std::tuple<std::size_t, bool> decompress(const unsigned char *data,
+                                           size_t length) override;
 
   /**
     This member function shall close the decompressor. It must be called
@@ -165,7 +176,7 @@ class Zstd_dec : public Decompressor {
 
     @return false on success, true otherwise.
    */
-  virtual bool close() override;
+  bool close() override;
 };
 
 }  // namespace compression

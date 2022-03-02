@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 #include "Multi_Transporter.hpp"
 #include "Loopback_Transporter.hpp"
 
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
 #include "SHM_Transporter.hpp"
 #endif
 
@@ -52,7 +52,6 @@
 #include <mgmapi/mgmapi_debug.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -95,7 +94,7 @@ private:
 };
 
 
-struct in_addr
+struct in6_addr
 TransporterRegistry::get_connect_address(NodeId node_id) const
 {
   return theNodeIdTransporters[node_id]->m_connect_address;
@@ -209,7 +208,7 @@ TransporterReceiveData::epoll_add(Transporter *t)
     int ret_val, error;
 
     if (!ndb_socket_valid(sock_fd))
-      return FALSE;
+      return false;
 
     event_poll.data.u32 = t->getTransporterIndex();
     event_poll.events = EPOLLIN;
@@ -232,19 +231,16 @@ TransporterReceiveData::epoll_add(Transporter *t)
        * have permission problems or the socket doesn't support
        * epoll!!
        */
-      ndbout_c("Failed to %s epollfd: %u fd " MY_SOCKET_FORMAT
-               " node %u to epoll-set,"
-               " errno: %u %s",
-               add ? "ADD" : "DEL",
-               m_epoll_fd,
-               MY_SOCKET_FORMAT_VALUE(sock_fd),
-               node_id,
-               error,
-               strerror(error));
+      g_eventLogger->info("Failed to %s epollfd: %u fd " MY_SOCKET_FORMAT
+                          " node %u to epoll-set,"
+                          " errno: %u %s",
+                          add ? "ADD" : "DEL", m_epoll_fd,
+                          MY_SOCKET_FORMAT_VALUE(sock_fd), node_id, error,
+                          strerror(error));
       abort();
     }
-    ndbout << "We lacked memory to add the socket for node id ";
-    ndbout << node_id << endl;
+    g_eventLogger->info("We lacked memory to add the socket for node id %u",
+                        node_id);
     return false;
   }
 
@@ -295,7 +291,9 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 
   allTransporters     = new Transporter*      [maxTransporters];
   theTCPTransporters  = new TCP_Transporter * [maxTransporters];
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   theSHMTransporters  = new SHM_Transporter * [maxTransporters];
+#endif
   theTransporterTypes = new TransporterType   [MAX_NODES];
   theNodeIdTransporters = new Transporter   * [MAX_NODES];
   theMultiTransporters = new Multi_Transporter * [MAX_NODES];
@@ -337,7 +335,9 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   {
     allTransporters[i]    = NULL;
     theTCPTransporters[i] = NULL;
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
     theSHMTransporters[i] = NULL;
+#endif
   }
   theMultiTransporterMutex = NdbMutex_Create();
   DBUG_VOID_RETURN;
@@ -350,7 +350,7 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
     ndb_mgm_destroy_handle(&m_mgm_handle);
   m_mgm_handle= h;
   ndb_mgm_set_timeout(m_mgm_handle, 5000);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (h)
   {
     char buf[256];
@@ -374,7 +374,9 @@ TransporterRegistry::~TransporterRegistry()
   
   delete[] allTransporters;
   delete[] theTCPTransporters;
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   delete[] theSHMTransporters;
+#endif
   delete[] theTransporterTypes;
   delete[] theMultiTransporters;
   delete[] theNodeIdTransporters;
@@ -405,10 +407,12 @@ TransporterRegistry::removeAll()
   {
     delete theTCPTransporters[i];
   }
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     delete theSHMTransporters[i];
   }
+#endif
   for (Uint32 i = 0; i < nMultiTransporters; i++)
   {
     delete theMultiTransporters[i];
@@ -427,7 +431,7 @@ TransporterRegistry::disconnectAll(){
   {
     theTCPTransporters[i]->doDisconnect();
   }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     theSHMTransporters[i]->doDisconnect();
@@ -666,14 +670,15 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     /**
      * Normal connection setup
      * Sub cases :
-     *   Normal setup from recent version  : multi = 0, instance = 0
-     *   Normal setup from old version     : multi = 0, instance = -1
-     *   Normal setup for multi instance 0 : multi = 1, instance = 0
+     *   Normal setup for non-multi trp        : multi = 0, instance = 0
+     *   Normal setup from non-multi trp from
+     *     old version                         : multi = 0, instance = -1
+     *   Normal setup for multi trp instance 0 : multi = 1, instance = 0
+     *   Normal setup from for multi trp
+     *     from old version                    : multi = 1, instance = -1
      *
      * Not supported :
-     *   multi = 1, instance > 0  : Handled above
-     *   multi = 1, instance < 0  : Do not enable multi transporters before upgrade
-     *   multi = 0, instance > 0  : Invalid
+     *   multi = 0, instance > 0               : Invalid
      */
     if (!multi_trp)
     {
@@ -690,21 +695,11 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     else
     {
       /* multi_trp */
-      if (multi_transporter_instance == 0)
-      {
-        /* Continue connection setup with specific instance 0 */
-        require(multi_trp->get_num_active_transporters() == 1);
-        t = multi_trp->get_active_transporter(0);
-      }
-      else
-      {
-        unlockMultiTransporters();
-        /* Strange, log it */
-        msg.assfmt("Ignored connection attempt from node %u as multi "
-                   "transporter instance %d specified",
-                   nodeId, multi_transporter_instance);
-        DBUG_RETURN(false);
-      }
+      require(multi_transporter_instance <= 0);
+
+      /* Continue connection setup with specific instance 0 */
+      require(multi_trp->get_num_active_transporters() == 1);
+      t = multi_trp->get_active_transporter(0);
     }
 
     /**
@@ -910,7 +905,7 @@ TransporterRegistry::createMultiTransporter(Uint32 node_id, Uint32 num_trps)
       new_trp->set_multi_transporter_instance(i + 1);
       theTCPTransporters[nTCPTransporters++] = new_trp;
     }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
     else if (type == tt_SHM_TRANSPORTER)
     {
       SHM_Transporter *shm_trp = (SHM_Transporter*)base_trp;
@@ -969,7 +964,7 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 bool
 TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 
   /* Don't use index 0, special use case for extra  transporters */
@@ -1007,6 +1002,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 
   DBUG_RETURN(true);
 #else
+  ndbout_c("Shared memory transporters not supported on Windows");
   return false;
 #endif
 }
@@ -1285,9 +1281,8 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
     if (ret_val != 0)
     {
       int error= errno;
-      fprintf(stderr, "Failed to add extra sock %u to epoll-set: %u\n",
-              sock, error);
-      fflush(stderr);
+      g_eventLogger->info("Failed to add extra sock %u to epoll-set: %u", sock,
+                          error);
       goto err;
     }
   }
@@ -1395,7 +1390,7 @@ TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
 
   Uint32 retVal = 0;
   any_connected = false;
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1424,7 +1419,7 @@ TransporterRegistry::spin_check_transporters(
                           TransporterReceiveHandle& recvdata)
 {
   Uint32 res = 0;
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   Uint64 micros_passed = 0;
   bool any_connected = false;
   Uint64 spintime = Uint64(recvdata.m_spintime);
@@ -1446,7 +1441,9 @@ TransporterRegistry::spin_check_transporters(
     res = check_TCP(recvdata, 0);
     if (res)
       break;
+#ifdef NDB_HAVE_CPU_PAUSE
     NdbSpin();
+#endif
     NDB_TICKS now = NdbTick_getCurrentTicks();
     micros_passed =
       NdbTick_Elapsed(start, now).microSec();
@@ -1475,7 +1472,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     timeOutMillis = 0;
     retVal = 1;
   }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   if (recvdata.nSHMTransporters > 0)
   {
     /**
@@ -1539,7 +1536,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
   }
 #endif
   retVal |= check_TCP(recvdata, timeOutMillis);
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   if (recvdata.nSHMTransporters > 0)
   {
     /**
@@ -1587,7 +1584,7 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
                                        bool& sleep_state_set)
 {
   int res = 0;
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1629,7 +1626,7 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
 void
 TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
 {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 i = 0; i < recvdata.nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1692,7 +1689,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     }
   }
 
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   for (Uint32 j = 0; j < recvdata.nSHMTransporters; j++)
   {
     /**
@@ -1744,7 +1741,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
         }
       }
     }
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
     for (Uint32 j = 0; j < recvdata.nSHMTransporters; j++)
     {
       /**
@@ -1902,7 +1899,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
     }
     else
     {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
       require(transp->getTransporterType() == tt_SHM_TRANSPORTER);
       SHM_Transporter * t = (SHM_Transporter*)transp;
       assert(recvdata.m_transporters.get(trp_id));
@@ -1962,6 +1959,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
       {
         if (unlikely(recvdata.checkJobBuffer()))
         {
+          recvdata.m_last_trp_id = trp_id;  //Resume from node after 'last_node'
           return 1;     // Full, can't unpack more
         }
         if (unlikely(recvdata.m_handled_transporters.get(trp_id)))
@@ -1986,7 +1984,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
         }
         else
         {
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
           require(t->getTransporterType() == tt_SHM_TRANSPORTER);
           SHM_Transporter *t_shm = (SHM_Transporter*)t;
           Uint32 * readPtr, * eodPtr, * endPtr;
@@ -2318,7 +2316,7 @@ TransporterRegistry::setMixologyLevel(Uint32 l)
   
   if (m_mixology_level & MIXOLOGY_MIX_INCOMING_SIGNALS)
   {
-    ndbout_c("MIXOLOGY_MIX_INCOMING_SIGNALS on");
+    g_eventLogger->info("MIXOLOGY_MIX_INCOMING_SIGNALS on");
     /* Max one signal per transporter */
     MAX_RECEIVED_SIGNALS = 1;
   }
@@ -2437,7 +2435,7 @@ TransporterRegistry::do_disconnect(NodeId node_id,
      * setup the transporter. Therefore we assert here to get a simple
      * handling of test failures such that we can fix the test config.
      */
-    //DBUG_ASSERT(false);
+    //assert(false);
     break;
   case DISCONNECTING:
   {
@@ -3122,10 +3120,9 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,
     {
       if (performStates[nodeId] == CONNECTING)
       {
-        fprintf(stderr,
-                "update_connections while CONNECTING, nodeId:%d, error:%d\n",
-                nodeId,
-                code);
+        g_eventLogger->info(
+            "update_connections while CONNECTING, nodeId:%d, error:%d", nodeId,
+            code);
         /* Failed during CONNECTING -> we are still DISCONNECTED */
         assert(!t->isConnected());
         assert(false);
@@ -3139,7 +3136,7 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,
 
     switch(performStates[nodeId]){
     case CONNECTED:
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
       if (t->getTransporterType() == tt_SHM_TRANSPORTER)
       {
         SHM_Transporter *shm_trp = (SHM_Transporter*)t;
@@ -3460,10 +3457,18 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 	 * If it wasn't a dynamically allocated port, or
 	 * our attempts at getting a new dynamic port failed
 	 */
-        g_eventLogger->error("Unable to setup transporter service port: %s:%d!\n"
+
+        char buf[512];
+        char* sockaddr_string =
+            Ndb_combine_address_port(buf,
+                                     sizeof(buf),
+                                     t.m_interface,
+                                     t.m_s_service_port);
+        g_eventLogger->error("Unable to setup transporter service port: %s!\n"
                              "Please check if the port is already used,\n"
                              "(perhaps the node is already running)",
-                             t.m_interface ? t.m_interface : "*", t.m_s_service_port);
+                             sockaddr_string);
+
 	delete transporter_service;
 	DBUG_RETURN(false);
       }
@@ -3480,7 +3485,7 @@ TransporterRegistry::startReceiving()
 {
   DBUG_ENTER("TransporterRegistry::startReceiving");
 
-#ifndef WIN32
+#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   m_shm_own_pid = getpid();
 #endif
   DBUG_VOID_RETURN;
@@ -3678,7 +3683,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
    */
   {
     BaseString cs;
-    cs.assfmt("%s:%u", server_name, server_port);
+    cs.assfmt("%s %u", server_name, server_port);
     ndb_mgm_set_connectstring(h, cs.c_str());
   }
 

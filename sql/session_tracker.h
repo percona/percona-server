@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class State_tracker {
   State_tracker() : m_enabled(false), m_changed(false) {}
 
   /** Destructor */
-  virtual ~State_tracker() {}
+  virtual ~State_tracker() = default;
 
   /** Getters */
   bool is_enabled() const { return m_enabled; }
@@ -105,7 +105,7 @@ class State_tracker {
   /** Mark the entity as changed. */
   virtual void mark_as_changed(THD *thd, LEX_CSTRING *name) = 0;
 
-  virtual void claim_memory_ownership() {}
+  virtual void claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {}
 };
 
 /**
@@ -126,10 +126,10 @@ class Session_tracker {
   Session_tracker &operator=(Session_tracker const &) = delete;
 
   /** Constructor */
-  Session_tracker() {}
+  Session_tracker() = default;
 
   /** Destructor */
-  ~Session_tracker() {}
+  ~Session_tracker() = default;
   /**
     Initialize Session_tracker objects and enable them based on the
     tracker_xxx variables' value that the session inherit from global
@@ -157,7 +157,7 @@ class Session_tracker {
     for (int i = 0; i <= SESSION_TRACKER_END; i++) delete m_trackers[i];
   }
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 };
 
 /*
@@ -179,11 +179,11 @@ class Session_state_change_tracker : public State_tracker {
 
  public:
   Session_state_change_tracker();
-  bool enable(THD *thd);
-  bool check(THD *, set_var *) { return false; }
-  bool update(THD *thd);
-  bool store(THD *, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override;
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
   bool is_state_changed();
 };
 
@@ -245,11 +245,11 @@ class Transaction_state_tracker : public State_tracker {
  public:
   /** Constructor */
   Transaction_state_tracker();
-  bool enable(THD *thd) { return update(thd); }
-  bool check(THD *, set_var *) { return false; }
-  bool update(THD *thd);
-  bool store(THD *thd, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override { return update(thd); }
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *thd, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
 
   /** Change transaction characteristics */
   void set_read_flags(THD *thd, enum enum_tx_read_flags flags);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,13 @@ std::string create_state_file_content(
     const std::vector<uint16_t> &metadata_servers_ports,
     const unsigned view_id = 0);
 
-void check_state_file(const std::string &state_file,
-                      const std::string &expected_group_replication_id,
-                      const std::vector<uint16_t> expected_cluster_nodes,
-                      const unsigned expected_view_id = 0,
-                      const std::string node_address = "127.0.0.1");
+void check_state_file(
+    const std::string &state_file,
+    const std::string &expected_group_replication_id,
+    const std::vector<uint16_t> expected_cluster_nodes,
+    const unsigned expected_view_id = 0,
+    const std::string node_address = "127.0.0.1",
+    std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000));
 
 int get_int_field_value(const std::string &json_string,
                         const std::string &field_name);

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,9 +72,13 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       MESSAGE(FATAL_ERROR "Oracle Studio 12.6 or newer is required!")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
-    MESSAGE(WARNING "Clang is (highly) experimental!!")
+    MESSAGE(WARNING "Clang is experimental!!")
   ELSEIF(MY_COMPILER_IS_GNU)
-    MESSAGE(WARNING "gcc is experimental")
+    MESSAGE(STATUS "CMAKE_CXX_COMPILER_VERSION is ${CMAKE_CXX_COMPILER_VERSION}")
+    # 9.2.0 generated code which dumped core in optimized mode.
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.2)
+      MESSAGE(FATAL_ERROR "GCC 10.2 or newer is required")
+    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")
   ENDIF()
@@ -238,3 +242,5 @@ IF(MY_COMPILER_IS_CLANG AND SOLARIS_INTEL)
   STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS   " -lstdc++ -lgcc_s -lc")
   STRING_APPEND(QUOTED_CMAKE_CXX_LINK_FLAGS " -lstdc++ -lgcc_s -lc")
 ENDIF()
+
+SET(LINK_FLAG_Z_DEFS "-z,defs")

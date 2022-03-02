@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,16 +107,16 @@ public:
     m_value(value) {}
 
 private:
-  int convertInt8();
-  int convertUint8();
-  int convertInt16();
-  int convertUint16();
-  int convertInt24();
-  int convertUint24();
-  int convertInt32();
-  int convertUint32();
-  int convertInt64();
-  int convertUint64();
+  int convertInt8() override;
+  int convertUint8() override;
+  int convertInt16() override;
+  int convertUint16() override;
+  int convertInt24() override;
+  int convertUint24() override;
+  int convertInt32() override;
+  int convertUint32() override;
+  int convertInt64() override;
+  int convertUint64() override;
 
   const Int64 m_value;
 };
@@ -129,8 +129,8 @@ public:
     m_value(value) {}
 
 private:
-  int convertDouble();
-  int convertFloat();
+  int convertDouble() override;
+  int convertFloat() override;
 private:
   const double m_value;
 };
@@ -142,8 +142,8 @@ public:
     NdbConstOperandImpl(), m_value(value) {}
 
 private:
-  int convertChar();
-  int convertVChar();
+  int convertChar() override;
+  int convertVChar() override;
 //int convertLVChar();
 private:
   const char* const m_value;
@@ -160,7 +160,7 @@ public:
   {}
 
 private:
-  int convert2ColumnType();
+  int convert2ColumnType() override;
 
   const void* const m_value;
   const Uint32 m_len;
@@ -178,7 +178,7 @@ class NdbQueryLookupOperationDefImpl : public NdbQueryOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbQueryOperandImpl* const* getKeyOperands() const
+  const NdbQueryOperandImpl* const* getKeyOperands() const override
   { return m_keys; }
  
 protected:
@@ -192,13 +192,13 @@ protected:
                            Uint32      internalOpNo,
                            int& error);
 
-  virtual const NdbQueryLookupOperationDef& getInterface() const
+  const NdbQueryLookupOperationDef& getInterface() const override
   { return m_interface; }
 
   // Append pattern for creating lookup key to serialized code 
   Uint32 appendKeyPattern(Uint32Buffer& serializedDef) const;
 
-  virtual bool isScanOperation() const
+  bool isScanOperation() const override
   { return false; }
 
 protected:
@@ -212,8 +212,8 @@ class NdbQueryPKLookupOperationDefImpl : public NdbQueryLookupOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                         Uint32Buffer& serializedDef) override;
 
 private:
 
@@ -229,7 +229,7 @@ private:
                                      internalOpNo, error)
   {}
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::PrimaryKeyAccess; }
 
 }; // class NdbQueryPKLookupOperationDefImpl
@@ -240,11 +240,11 @@ class NdbQueryIndexOperationDefImpl : public NdbQueryLookupOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbIndexImpl* getIndex() const
+  const NdbIndexImpl* getIndex() const override
   { return &m_index; }
 
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                         Uint32Buffer& serializedDef) override;
 
 private:
 
@@ -263,7 +263,7 @@ private:
     m_index(index)
   {}
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::UniqueIndexAccess; }
 
 private:
@@ -277,13 +277,13 @@ class NdbQueryTableScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                         Uint32Buffer& serializedDef) override;
 
-  virtual const NdbQueryTableScanOperationDef& getInterface() const
+  const NdbQueryTableScanOperationDef& getInterface() const override
   { return m_interface; }
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::TableScan; }
 
 private:
@@ -1128,26 +1128,47 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
       (op->getMatchType() & NdbQueryOptions::MatchNonNull) == 0)
   {
     /**
-     * For an outer joined index-scan child we need to use setFirstInner()
+     * For an outer joined index-scan child we may either setFirstInner()
      * or setFirstUpper() to specify the 'first' QueryOperation of the
-     * join-nest this QueryOperation is embedded within. If we failed to
-     * specify this, the NdbQuery-API will not be able to correctly produce
-     * the outer joined result set, (or later DBUG_ASSERT).
-     * Return an error if such 'nest-info' was not specified.
+     * join-nest this QueryOperation is embedded within. (firstInEmbeddingNest)
+     * It is only *required* in cases where the firstInEmbeddingNest is not also
+     * an ancestor of this QueryOperation.
+     * (It is still allowed to be set even if not required). If not set, the query
+     * will be evalued as if the firstInEmbeddingNest is an ancestor.
+     * (Or return incorrect result in cases where it should have been set).
+     * This is required in order to correctly represent the query semantics of
+     * queries like:  t1 oj (t2 ij t3 on t2.a = t3.x) on t2.a = t1.y. Due to
+     * equality list propagation we know t3.x = [t2.a,t1.y]. Thus the query can
+     * be represented by the query tree:
+     *
+     *                           t1
+     *             t2.a = t1.y  /  \   t3.x = t1.y
+     *                        (t2  t3) t3.firstInner = t2
+     *
+     * This is exactly the same topology we would have used for the different
+     * query
+     *
+     *  t1 oj (t2) on t2.a = t1.y oj (t3) on t3.x = t1.y
+     *
+     * Except for 't3.firstInner = t2' being specified (and required) for the
+     * first query. For the later query we could have set 't2.firstUpper=t1' and
+     * 't3.firstUpper=t1', but this is also implicitly assumed if not specified
+     * as t1 is an ancestor of both t2 and t3.
      */
     const NdbQueryOperationDefImpl* firstInEmbeddingNest =
       op->getFirstInEmbeddingNest();
-    returnErrIf(firstInEmbeddingNest == nullptr, QRY_NEST_NOT_SPECIFIED);
 
     /**
-     * It is a further limitation (in prepareResultSet()) that the specified
-     * 'first' in the embedded nest is either an ancestor of this QueryOperation,
-     * or a sibling of it:
+     * It is a limitation (in prepareResultSet()) that the specified 'first' in
+     * the embedded nest is either an ancestor of this QueryOperation, (the assumed
+     * default if not specified) or a sibling of it (which must be specified)
      */
-    returnErrIf(
-        firstInEmbeddingNest->getInternalOpNo() > parent->getInternalOpNo() &&
-	firstInEmbeddingNest->getParentOperation() != parent,
-	QRY_NEST_NOT_SUPPORTED);
+    if (firstInEmbeddingNest != nullptr) {
+      returnErrIf(
+          firstInEmbeddingNest->getInternalOpNo() > parent->getInternalOpNo() &&
+          firstInEmbeddingNest->getParentOperation() != parent,
+          QRY_NEST_NOT_SUPPORTED);
+    }
   }
 
   return &op->m_interface;
@@ -1194,7 +1215,7 @@ NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 
 void NdbQueryBuilderImpl::setErrorCode(int aErrorCode)
 { 
-  DBUG_ASSERT(aErrorCode != 0);
+  assert(aErrorCode != 0);
   m_error.code = aErrorCode;
   m_hasError = true;
 }
@@ -1558,7 +1579,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   }
   else
   {
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   memcpy (dst, m_value, len);
@@ -2637,11 +2658,15 @@ NdbQueryPKLookupOperationDefImpl
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
   }
-  if (getMatchType() & NdbQueryOptions::MatchFirst)
+  if (getMatchType() & NdbQueryOptions::MatchFirst || hasFirstMatchAncestor())
   {
     // We set FirstMatch for 'completeness', even if it isn't really
     // required for a PK lookup. (There can only be a single 'first')
     requestInfo |= DABits::NI_FIRST_MATCH;
+  }
+  if (getMatchType() & NdbQueryOptions::MatchNullOnly)
+  {
+    requestInfo |= DABits::NI_ANTI_JOIN;
   }
 
   /**
@@ -2699,7 +2724,7 @@ NdbQueryIndexOperationDefImpl
   m_isPrepared = true;
 
   /**
-   * Serialize unique index as a seperate lookupNode
+   * Serialize unique index as a separate lookupNode
    */
   {
     // Reserve memory for Index LookupNode, fill in contents later when
@@ -2712,11 +2737,16 @@ NdbQueryIndexOperationDefImpl
     {
       requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
     }
-    if (getMatchType() & NdbQueryOptions::MatchFirst)
+    if (getMatchType() & NdbQueryOptions::MatchFirst ||
+        hasFirstMatchAncestor())
     {
       // We set FirstMatch for 'completeness', even if it isn't really
       // required for a UQ lookup. (There can only be a single 'first')
       requestInfo |= DABits::NI_FIRST_MATCH;
+    }
+    if (getMatchType() & NdbQueryOptions::MatchNullOnly)
+    {
+      requestInfo |= DABits::NI_ANTI_JOIN;
     }
 
     // Optional part1: Make list of parent nodes.
@@ -2864,9 +2894,13 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
   }
-  if (getMatchType() & NdbQueryOptions::MatchFirst)
+  if (getMatchType() & NdbQueryOptions::MatchFirst || hasFirstMatchAncestor())
   {
     requestInfo |= DABits::NI_FIRST_MATCH;
+  }
+  if (getMatchType() & NdbQueryOptions::MatchNullOnly)
+  {
+    requestInfo |= DABits::NI_ANTI_JOIN;
   }
 
   // Optional part1: Make list of parent nodes.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -356,7 +356,14 @@ void mysql_dynamic_loader_imp::deinit() {
            vector iterator invalidation. So, we need to make a copy
            of the vector and pass it to below function */
         auto components_to_unload = (*it);
-        unload_do_topological_order(components_to_unload);
+        if (unload_do_topological_order(components_to_unload)) {
+          /* since there is a error in the deinit function, report
+             the error and clear the vector elements(i.e components in that
+             group and then remove the component group node */
+          it->clear();
+          // removes the forward_list node
+          mysql_dynamic_loader_imp::urns_with_gen_list.remove(*it);
+        }
         /* Updating the iterator because unload_do_unload_components
           removes the mysql_dynamic_loader_imp::urns_with_gen_list node */
         it = mysql_dynamic_loader_imp::urns_with_gen_list.begin();
@@ -1129,7 +1136,7 @@ bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
    */
   minimal_chassis::rwlock_scoped_lock lock =
       mysql_registry_imp::lock_registry_for_write();
-  return mysql_dynamic_loader_imp ::
+  return mysql_dynamic_loader_imp::
       unload_do_check_provided_services_reference_count(
           components_to_unload, dependency_graph, scheme_services);
 }
@@ -1150,7 +1157,7 @@ bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
   @retval false success
   @retval true failure
 */
-bool mysql_dynamic_loader_imp ::
+bool mysql_dynamic_loader_imp::
     unload_do_check_provided_services_reference_count(
         const std::vector<mysql_component *> &components_to_unload,
         const std::map<const void *, std::vector<mysql_component *>>

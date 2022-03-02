@@ -108,8 +108,9 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data_57_crypt_v1_encryption_n/data;
 --let $assert_cond= "[SELECT name FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE EXCLUDED=\\'Y\\']" = "test/t2"
 --source include/assert.inc
 
-SET GLOBAL innodb_encryption_threads = 4;
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 --echo # Wait max 10 min for key encryption threads to encrypt spaces

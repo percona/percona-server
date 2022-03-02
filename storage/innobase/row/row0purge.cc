@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -91,6 +91,7 @@ purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap) {
   node->heap = mem_heap_create(256);
 
   node->recs = nullptr;
+  node->init();
 
   return (node);
 }
@@ -194,14 +195,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_lo
         const char act[] =
             "now SIGNAL pessimistic_row_purge_clust_pause WAIT_FOR "
             "pessimistic_row_purge_clust_continue";
-        DBUG_ASSERT(opt_debug_sync_timeout > 0);
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        assert(opt_debug_sync_timeout > 0);
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     });
 
     btr_cur_pessimistic_delete(&err, FALSE, btr_pcur_get_btr_cur(&node->pcur),
                                0, false, node->trx_id, node->undo_no,
-                               node->rec_type, &mtr, &node->pcur);
+                               node->rec_type, &mtr, &node->pcur, node);
 
     switch (err) {
       case DB_SUCCESS:
@@ -247,7 +248,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss(
       return (true);
     }
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
   }
 
   return (false);
@@ -387,7 +389,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     }
 
     btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, node->undo_no,
-                               node->rec_type, &mtr);
+                               node->rec_type, &mtr, &pcur, node);
     switch (UNIV_EXPECT(err, DB_SUCCESS)) {
       case DB_SUCCESS:
         break;
@@ -528,8 +530,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
 
           page = btr_cur_get_page(btr_cur);
 
-          if (!lock_test_prdt_page_lock(trx, page_get_space_id(page),
-                                        page_get_page_no(page)) &&
+          if (!lock_test_prdt_page_lock(trx, page_get_page_id(page)) &&
               page_get_n_recs(page) < 2 &&
               page_get_page_no(page) != dict_index_get_page(index)) {
             /* this is the last record on page,
@@ -572,10 +573,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
 }
 
 /** Removes a secondary index entry if possible. */
-UNIV_INLINE
-void row_purge_remove_sec_if_poss(purge_node_t *node, /*!< in: row purge node */
-                                  dict_index_t *index,   /*!< in: index */
-                                  const dtuple_t *entry) /*!< in: index entry */
+static inline void row_purge_remove_sec_if_poss(
+    purge_node_t *node,    /*!< in: row purge node */
+    dict_index_t *index,   /*!< in: index */
+    const dtuple_t *entry) /*!< in: index entry */
 {
   ibool success;
   ulint n_tries = 0;
@@ -601,7 +602,8 @@ retry:
   if (!success && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }
@@ -806,12 +808,13 @@ skip_secondaries:
       byte *field_ref = data_field + dfield_get_len(&ufield->new_val) -
                         BTR_EXTERN_FIELD_REF_SIZE;
 
-      lob::BtrContext btr_ctx(&mtr, nullptr, index, nullptr, nullptr, block);
+      lob::BtrContext btr_ctx(&mtr, index, block);
 
       lob::DeleteContext ctx(btr_ctx, field_ref, ufield->field_no, false);
 
       lob::purge(&ctx, index, node->modifier_trx_id,
-                 trx_undo_rec_get_undo_no(undo_rec), node->rec_type, ufield);
+                 trx_undo_rec_get_undo_no(undo_rec), node->rec_type, ufield,
+                 node);
 
       mtr_commit(&mtr);
     }
@@ -874,10 +877,10 @@ try_again:
   /* Cannot call dd_table_open_on_id() before server is fully up */
   if (!srv_upgrade_old_undo_found && !dict_table_is_system(table_id)) {
     while (!mysqld_server_started) {
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
         return (false);
       }
-      os_thread_sleep(1000000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
 
@@ -911,18 +914,18 @@ try_again:
       const auto no_mdl = nullptr;
       node->mdl = no_mdl;
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       node->table = dd_table_open_on_id(table_id, thd, &node->mdl, true, true);
 
       if (node->table && node->table->is_temporary()) {
         /* Temp table does not do purge */
         ut_ad(node->mdl == nullptr);
         dd_table_close(node->table, nullptr, nullptr, true);
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
         goto err_exit;
       }
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       if (node->table != nullptr) {
         if (node->table->is_fts_aux()) {
@@ -977,10 +980,10 @@ try_again:
           dd_table_close(node->parent, thd & node->parent_mdl, false);
         }
       }
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
         return (false);
       }
-      os_thread_sleep(1000000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       goto try_again;
     }
 
@@ -990,12 +993,12 @@ try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
   /* Disable purging for temp-tables as they are short-lived
-  and no point in re-organzing such short lived tables */
+  and no point in re-organizing such short lived tables */
   if (node->table->is_temporary()) {
     goto close_exit;
   }
 
-  if (node->table->file_unreadable) {
+  if (node->table->ibd_file_missing) {
     /* We skip purge of missing .ibd files */
 
     if (dict_table_is_sdi(node->table->id)) {
@@ -1066,8 +1069,12 @@ try_again:
 
 /** Purges the parsed record.
 @param[in,out]	node		row purge node
-@param[in]	undo_rec	undo record to purge
-@param[in,out]	thr		query thread
+@param[in]	undo_rec	undo record to purge */
+#ifdef UNIV_DEBUG
+/**
+@param[in,out]	thr		query thread */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	updated_extern	whether external columns were updated
 @param[in,out]	thd		current thread
 @return true if purged, false if skipped */
@@ -1102,6 +1109,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_record_func(
       }
       /* fall through */
     case TRX_UNDO_UPD_EXIST_REC:
+      DBUG_EXECUTE_IF("innodb_purge_sleep_12",
+                      std::this_thread::sleep_for(std::chrono::seconds(5)););
       row_purge_upd_exist_or_extern(thr, node, undo_rec);
       MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
       break;
@@ -1157,8 +1166,8 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 
   DBUG_EXECUTE_IF(
       "do_not_meta_lock_in_background",
-      while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-        os_thread_sleep(500000);
+      while (srv_shutdown_state.load() < SRV_SHUTDOWN_PURGE) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
       } return;);
 
   while (row_purge_parse_undo_rec(node, undo_rec, &updated_extern, thd, thr)) {
@@ -1166,12 +1175,12 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 
     purged = row_purge_record(node, undo_rec, thr, updated_extern, thd);
 
-    if (purged || srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+    if (purged || srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
       return;
     }
 
     /* Retry the purge in a second. */
-    os_thread_sleep(1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 }
 
@@ -1338,3 +1347,55 @@ bool purge_node_t::check_duplicate_undo_no() const {
   return (true);
 }
 #endif /* UNIV_DEBUG */
+
+void purge_node_t::add_lob_page(dict_index_t *index, const page_id_t &page_id) {
+  const index_id_t id(page_id.space(), index->id);
+  const auto tup = std::make_tuple(id, page_id, index->table->id);
+  ut_ad(m_lob_pages.find(tup) == m_lob_pages.end());
+  m_lob_pages.insert(tup);
+}
+
+void purge_node_t::free_lob_pages() {
+  mtr_t local_mtr;
+
+  for (const auto &tup : m_lob_pages) {
+    const index_id_t index_id = std::get<0>(tup);
+    const page_id_t &page_id = std::get<1>(tup);
+    const table_id_t table_id = std::get<2>(tup);
+    const space_id_t space_id = page_id.space();
+
+    dict_sys_mutex_enter();
+    const dict_index_t *idx = dict_index_find(index_id);
+
+    if (idx == nullptr || idx->space != space_id ||
+        idx->table->id != table_id) {
+      dict_sys_mutex_exit();
+      continue;
+    }
+
+    dict_index_t *index = const_cast<dict_index_t *>(idx);
+    const page_size_t page_size = dict_table_page_size(index->table);
+    dict_sys_mutex_exit();
+
+    fil_space_t *space = fil_space_acquire_silent(space_id);
+
+    if (space != nullptr) {
+      mtr_start(&local_mtr);
+      buf_block_t *block =
+          buf_page_get(page_id, page_size, RW_X_LATCH, &local_mtr);
+
+#ifdef UNIV_DEBUG
+      const page_type_t page_type = block->get_page_type();
+      ut_ad(page_type == FIL_PAGE_TYPE_LOB_FIRST ||
+            page_type == FIL_PAGE_TYPE_ZLOB_FIRST);
+#endif /* UNIV_DEBUG */
+
+      btr_page_free_low(index, block, ULINT_UNDEFINED, &local_mtr);
+      mtr_commit(&local_mtr);
+
+      fil_space_release(space);
+    }
+  }
+
+  m_lob_pages.clear();
+}

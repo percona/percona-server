@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class TableCacheBasicTest : public ::testing::Test {
  protected:
   static const uint MAX_THREADS = 3;
 
-  virtual void SetUp() {
+  void SetUp() override {
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->set_unit_test();
     // Reset thread ID counter for each test.
@@ -68,7 +68,7 @@ class TableCacheBasicTest : public ::testing::Test {
 
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
-  virtual void TearDown() {
+  void TearDown() override {
     for (uint i = 0; i < MAX_THREADS; ++i) initializer[i].TearDown();
   }
 
@@ -85,7 +85,7 @@ class TableCacheBasicTest : public ::testing::Test {
 class TableCacheSingleCacheTest : public TableCacheBasicTest {
  protected:
   virtual uint CachesNumber() { return 1; }
-  virtual void SetUp() {
+  void SetUp() override {
     TableCacheBasicTest::SetUp();
 
     /*
@@ -98,7 +98,7 @@ class TableCacheSingleCacheTest : public TableCacheBasicTest {
     table_cache_size_per_instance = 100;
     ASSERT_FALSE(table_def_init());
   }
-  virtual void TearDown() {
+  void TearDown() override {
     table_def_free();
     TableCacheBasicTest::TearDown();
   }
@@ -111,7 +111,7 @@ class TableCacheSingleCacheTest : public TableCacheBasicTest {
 
 class TableCacheDoubleCacheTest : public TableCacheSingleCacheTest {
  protected:
-  virtual uint CachesNumber() { return 2; }
+  uint CachesNumber() override { return 2; }
 };
 
 /**
@@ -749,7 +749,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
   // are in use.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_ALL, &share_1),
       ".*Assertion.*is_empty.*");
@@ -787,7 +787,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_NOT_OWN, &share_1),
       ".*Assertion.*0.*");

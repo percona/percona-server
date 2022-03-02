@@ -1,4 +1,4 @@
-#ifndef _PLUGIN_COMMON_MPALDAP_H
+#ifndef PLUGIN_COMMON_MPALDAP_H
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-#define _PLUGIN_COMMON_MPALDAP_H
+#define PLUGIN_COMMON_MPALDAP_H
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -47,4 +47,4 @@ int auth_ldap_common_validate_auth_string_hash(char *const buf,
 int auth_ldap_common_set_salt(const char *password, unsigned int password_len,
                               unsigned char *salt, unsigned char *salt_len);
 
-#endif  // _PLUGIN_COMMON_MPALDAP_H
+#endif  // PLUGIN_COMMON_MPALDAP_H

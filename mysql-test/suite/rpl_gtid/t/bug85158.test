@@ -17,11 +17,11 @@
 --let $inserts_number=50
 
 --echo ###
---echo # STOP SLAVE ON 2
+--echo # STOP REPLICA ON 2
 --echo ######
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-STOP SLAVE;
+STOP REPLICA;
 
 --echo ###
 --echo # CREATE TABLE AND INSERTS ON 1
@@ -47,11 +47,11 @@ while($j)
 --echo ###
 --echo # MEASURE 3
 --echo ######
-STOP SLAVE;
+STOP REPLICA;
 UPDATE performance_schema.setup_objects
   SET enabled='yes', timed='yes'
   WHERE object_schema='mysql';
-START SLAVE;
+START REPLICA;
 
 let $before=
 `SELECT count_write
@@ -59,11 +59,11 @@ let $before=
   WHERE object_schema='mysql' AND object_name ='slave_master_info'`;
 
 --echo ###
---echo # START SLAVES 2
+--echo # START REPLICA 2
 --echo ######
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-START SLAVE;
+START REPLICA;
 
 --echo ###
 --echo # SYNC 1->2,2->3

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "auto_cleaner.h"
+#include "mysql/harness/filesystem.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/mysql_session.h"
@@ -54,7 +57,6 @@ DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
 DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
 DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
 DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-DECLARE_TEST(ConfigGeneratorTest, create_config);
 DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_password_directly);
 DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
 DECLARE_TEST(ConfigGeneratorTest,
@@ -91,15 +93,21 @@ DECLARE_TEST(ConfigGeneratorTest, stop_sh);
 DECLARE_TEST(ConfigGeneratorTest, register_router_error_message);
 DECLARE_TEST(ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
 DECLARE_TEST(ConfigGeneratorTest, get_account_host_args);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_basic);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_system_instance);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_base_port);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_skip_tcp);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_use_sockets);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_bind_address);
+DECLARE_TEST(CreateConfigGeneratorTest, create_config_disable_rest);
 #endif
-
-class AutoCleaner;
 
 namespace mysqlrouter {
 class ClusterMetadata;
 class MySQLSession;
 class SysUserOperationsBase;
 class SysUserOperations;
+struct ClusterInfo;
 
 class ConfigGenerator {
  public:
@@ -163,7 +171,7 @@ class ConfigGenerator {
 
       operator bool() const { return port > 0 || !socket.empty(); }
     };
-    Options() {}
+    Options() = default;
 
     Endpoint rw_endpoint;
     Endpoint ro_endpoint;
@@ -171,6 +179,7 @@ class ConfigGenerator {
     Endpoint ro_x_endpoint;
 
     std::string override_logdir;
+    std::string override_logfilename;
     std::string override_rundir;
     std::string override_datadir;
     std::string socketsdir;
@@ -187,10 +196,30 @@ class ConfigGenerator {
     mysqlrouter::SSLOptions ssl_options;
 
     bool use_gr_notifications;
+
+    bool disable_rest{false};
+    std::string https_port_str;
+
+    std::string client_ssl_cert;
+    std::string client_ssl_cipher;
+    std::string client_ssl_curves;
+    std::string client_ssl_mode;
+    std::string client_ssl_key;
+    std::string client_ssl_dh_params;
+
+    std::string server_ssl_cipher;
+    std::string server_ssl_curves;
+    std::string server_ssl_mode;
+    std::string server_ssl_ca;
+    std::string server_ssl_capath;
+    std::string server_ssl_crl;
+    std::string server_ssl_crlpath;
+    std::string server_ssl_verify;
   };
 
-  void set_file_owner(const std::map<std::string, std::string> &options,
-                      const std::string &owner);  // throws std::runtime_error
+  void set_file_owner(
+      const std::map<std::string, std::string> &options,
+      const std::string &owner) const;  // throws std::runtime_error
 
  private:
   /**
@@ -248,7 +277,17 @@ class ConfigGenerator {
    */
   void init_gr_data(const URI &u, const std::string &bootstrap_socket);
 
-  Options fill_options(const std::map<std::string, std::string> &user_options);
+  struct ExistingConfigOptions {
+    bool valid{false};
+    uint32_t router_id{0};
+    std::string username;
+    uint16_t rw_x_port{0};
+    uint16_t ro_x_port{0};
+  };
+
+  Options fill_options(const std::map<std::string, std::string> &user_options,
+                       const std::map<std::string, std::string> &default_paths,
+                       const ExistingConfigOptions &existing_config_options);
 
   void create_start_script(const std::string &directory,
                            bool interactive_master_key,
@@ -282,10 +321,9 @@ class ConfigGenerator {
   void create_config(std::ostream &config_file, std::ostream &state_file,
                      uint32_t router_id, const std::string &router_name,
                      const std::string &system_username,
-                     const std::vector<std::string> &metadata_server_addresses,
-                     const std::string &metadata_cluster,
-                     const std::string &metadata_replicaset,
+                     const ClusterInfo &cluster_info,
                      const std::string &username, const Options &options,
+                     const std::map<std::string, std::string> &default_paths,
                      const std::string &state_file_name = "");
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
@@ -436,8 +474,7 @@ class ConfigGenerator {
   std::string make_account_list(const std::string username,
                                 const std::set<std::string> &hostnames);
 
-  std::pair<uint32_t, std::string>
-  get_router_id_and_username_from_config_if_it_exists(
+  ExistingConfigOptions get_options_from_config_if_it_exists(
       const std::string &config_file_path, const std::string &cluster_name,
       bool forcing_overwrite);
 
@@ -484,6 +521,57 @@ class ConfigGenerator {
                              const std::string &primary_cluster_name,
                              bool strict);
 
+  /**
+   * @brief Create Router configuration that allows to enable the REST services.
+   *
+   * Create configuration for the following plugins: http_server,
+   * http_auth_realm, rest_router, rest_api, http_auth_backend, rest_routing,
+   * rest_metadata_cache.
+   *
+   * @param[in] options Bootstrap config options.
+   * @param[in] default_paths Map of predefined default paths.
+   *
+   * @return Router configuration that enables the REST services.
+   */
+  std::string generate_config_for_rest(
+      const Options &options,
+      const std::map<std::string, std::string> &default_paths) const;
+
+  /**
+   * @brief Prepare X.509 certificates for the Router.
+   *
+   * If user provides Router certificate and key files they are used in the
+   * first place so no action is taken in this method. If there are no existing
+   * certificate files then CA certificate and key along with Router certificate
+   * and key will be created.
+   *
+   * @param[in] user_options Key/value map of bootstrap config options.
+   * @param[in] default_paths Map of predefined default paths.
+   * @param[in,out] auto_cleaner Automatic file cleanup object that guarantees
+   * file cleanup if bootstrap fails at any point.
+   *
+   * @throws std::runtime_error Data directory contains some certificate files
+   * but Router certificate and/or key is missing.
+   */
+  void prepare_ssl_certificate_files(
+      const std::map<std::string, std::string> &user_options,
+      const std::map<std::string, std::string> &default_paths,
+      AutoCleaner *auto_cleaner) const;
+
+  /**
+   * @brief Check if datadir directory contains only files that are allowed
+   * before the bootstrap.
+   *
+   * @param[in] dir Data directory representation.
+   *
+   * @retval false - datadir contains files that are not allowed before the
+   * bootstrap.
+   * @retval true - datadir does not contain files that are not allowed before
+   * the bootstrap.
+   */
+  bool datadir_contains_allowed_files(
+      const mysql_harness::Directory &dir) const;
+
  private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
   std::unique_ptr<ClusterMetadata> metadata_;
@@ -514,6 +602,13 @@ class ConfigGenerator {
     std::string accounts;
   } undo_create_account_list_;
 
+  const struct TLS_filenames {
+    std::string ca_key{"ca-key.pem"};
+    std::string ca_cert{"ca.pem"};
+    std::string router_key{"router-key.pem"};
+    std::string router_cert{"router-cert.pem"};
+  } tls_filenames_;
+
 #ifndef _WIN32
   SysUserOperationsBase *sys_user_operations_;
 #endif
@@ -524,7 +619,6 @@ class ConfigGenerator {
   FRIEND_TEST(::ConfigGeneratorTest,
               fetch_bootstrap_servers_multiple_replicasets);
   FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-  FRIEND_TEST(::ConfigGeneratorTest, create_config);
   FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_password_directly);
   FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_hashed_password);
   FRIEND_TEST(::ConfigGeneratorTest,
@@ -561,6 +655,14 @@ class ConfigGenerator {
   FRIEND_TEST(::ConfigGeneratorTest, register_router_error_message);
   FRIEND_TEST(::ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
   FRIEND_TEST(::ConfigGeneratorTest, get_account_host_args);
+
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_basic);
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_system_instance);
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_base_port);
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_skip_tcp);
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_use_sockets);
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_bind_address);
+  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_disable_rest);
 #endif
 };
 }  // namespace mysqlrouter

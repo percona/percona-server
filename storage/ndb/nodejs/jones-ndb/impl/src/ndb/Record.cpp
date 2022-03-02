@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2021, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ Record::Record(NdbDictionary::Dictionary *d, int ncol) :
   specs(new NdbDictionary::RecordSpecification[ncol]),
   pkColumnMask(),
   allColumnMask(),
-  isPartitionKey(true)                                                     {};
+  isPartitionKey(true)                                                     {}
 
 Record::~Record() {
   // dict->releaseRecord(ndb_record);  // causes crashes due to dict==0. ??
@@ -99,7 +99,7 @@ void Record::addColumn(const NdbDictionary::Column *column) {
   /* Increment the counter and record size */
   index += 1;
   rec_size += column->getSizeInBytes();
-};
+}
 
 
 void Record::build_null_bitmap() {

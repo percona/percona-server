@@ -33,7 +33,7 @@ INSERT INTO t2 VALUES(1);
 UPDATE t1 SET c2 = 3 WHERE c1 = 1;
 COMMIT;
 [connection slave1]
-STOP SLAVE;
+STOP REPLICA;
 [connection slave]
 ROLLBACK;
 [connection master]

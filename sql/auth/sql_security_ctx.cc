@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -30,11 +30,12 @@
 #include <vector>
 
 #include "m_ctype.h"
+#include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -50,19 +51,14 @@
 extern bool initialized;
 
 Security_context::Security_context(THD *thd /*= nullptr */)
-    : m_restrictions(nullptr), m_thd(thd) {
-  init();
-}
-
-Security_context::Security_context(MEM_ROOT *mem_root, THD *thd /* = nullptr*/)
-    : m_restrictions(mem_root), m_thd(thd) {
+    : m_restrictions(), m_thd(thd) {
   init();
 }
 
 Security_context::~Security_context() { destroy(); }
 
 Security_context::Security_context(const Security_context &src_sctx)
-    : m_restrictions(nullptr), m_thd(nullptr) {
+    : m_restrictions(), m_thd(nullptr) {
   copy_security_ctx(src_sctx);
 }
 
@@ -108,8 +104,8 @@ void Security_context::logout() {
     get_global_acl_cache()->return_acl_map(m_acl_map);
     m_acl_map = nullptr;
     clear_active_roles();
-    clear_db_restrictions();
   }
+  clear_db_restrictions();
 }
 
 bool Security_context::has_drop_policy(void) { return m_has_drop_policy; }
@@ -228,14 +224,14 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
 
-  @param       thd
-  @param       definer_user
-  @param       definer_host
-  @param       db
-  @param[out]  backup  Save a pointer to the current security context
-                       in the thread. In case of success it points to the
-                       saved old context, otherwise it points to NULL.
-  @param       force   Force context switch
+  @param       thd           Thread handle.
+  @param       definer_user  user part of a 'definer' value.
+  @param       definer_host  host part of a 'definer' value.
+  @param       db            Database name.
+  @param[out]  backup        Save a pointer to the current security context
+                             in the thread. In case of success it points to the
+                             saved old context, otherwise it points to NULL.
+  @param       force         Force context switch
 
 
   @note The Security_context_factory should be used as a replacement to this
@@ -284,7 +280,7 @@ bool Security_context::change_security_context(
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(definer_user.str && definer_host.str);
+  assert(definer_user.str && definer_host.str);
 
   *backup = nullptr;
   needs_change =
@@ -474,6 +470,29 @@ void Security_context::get_active_roles(THD *thd, List<LEX_USER> &list) {
   }
 }
 
+/**
+  Get grant information for given database
+
+  Cached database access is split into two containers:
+  1. Database names without wildcards
+  2. Database names with wildcards
+
+  First we perform the exact name comprison.
+  If that returns the result, all good.
+
+  Otherwise, we take a look at each db in second list
+  and compare incoming database name against it.
+  If patial_revokes is OFF, use_pattern_scan flag is
+  passed to wild_compare. This would allow incoming
+  database name like db1name to match against wild card
+  db entry db_name/db%name.
+
+  @param [in] db               Name of the database
+  @param [in] use_pattern_scan Flag to treat database name as pattern
+
+  @returns Access granted to user for given database
+*/
+
 ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   DBUG_TRACE;
   if (m_acl_map == nullptr || db.length == 0) return 0;
@@ -481,31 +500,26 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   std::string key(db.str, db.length);
   Db_access_map::iterator found_acl_it = m_acl_map->db_acls()->find(key);
   if (found_acl_it == m_acl_map->db_acls()->end()) {
-    if (use_pattern_scan) {
-      Db_access_map::iterator it = m_acl_map->db_wild_acls()->begin();
-      ulong access = 0;
-      for (; it != m_acl_map->db_wild_acls()->end(); ++it) {
-        /*
-          Do the usual string comparision if partial_revokes is ON,
-          otherwise do the wildcard grant comparision
-        */
-        if (mysqld_partial_revokes()
-                ? (my_strcasecmp(system_charset_info, db.str,
-                                 it->first.c_str()) == 0)
-                : (wild_case_compare(system_charset_info, db.str, db.length,
-                                     it->first.c_str(),
-                                     it->first.size()) == 0)) {
-          DBUG_PRINT("info", ("Found matching db pattern %s for key %s",
-                              it->first.c_str(), key.c_str()));
-          access |= it->second;
-        }
+    Db_access_map::iterator it = m_acl_map->db_wild_acls()->begin();
+    ulong access = 0;
+    for (; it != m_acl_map->db_wild_acls()->end(); ++it) {
+      /*
+        Do the usual string comparision if partial_revokes is ON,
+        otherwise do the wildcard grant comparision
+      */
+      if (mysqld_partial_revokes()
+              ? (my_strcasecmp(system_charset_info, db.str,
+                               it->first.c_str()) == 0)
+              : (wild_compare(db.str, db.length, it->first.c_str(),
+                              it->first.size(), use_pattern_scan)) == 0) {
+        DBUG_PRINT("info", ("Found matching db pattern %s for key %s",
+                            it->first.c_str(), key.c_str()));
+        access |= it->second;
+        return filter_access(access, key);
       }
-      return filter_access(access, key);
-    } else {
-      DBUG_PRINT("info", ("Db %s not found in cache (no pattern matching)",
-                          key.c_str()));
-      return 0;
     }
+    DBUG_PRINT("info", ("Db %s not found in cache", key.c_str()));
+    return 0;
   } else {
     DBUG_PRINT("info", ("Found exact match for db %s", key.c_str()));
     return filter_access(found_acl_it->second, key);
@@ -521,7 +535,9 @@ ulong Security_context::procedure_acl(LEX_CSTRING db,
     String q_name;
     append_identifier(&q_name, db.str, db.length);
     q_name.append(".");
-    append_identifier(&q_name, procedure_name.str, procedure_name.length);
+    std::string name(procedure_name.str, procedure_name.length);
+    my_casedn_str(files_charset_info, &name[0]);
+    append_identifier(&q_name, name.c_str(), name.length());
     it = m_acl_map->sp_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->sp_acls()->end()) return 0;
     return filter_access(it->second, q_name.c_ptr());
@@ -535,7 +551,9 @@ ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
     String q_name;
     append_identifier(&q_name, db.str, db.length);
     q_name.append(".");
-    append_identifier(&q_name, func_name.str, func_name.length);
+    std::string name(func_name.str, func_name.length);
+    my_casedn_str(files_charset_info, &name[0]);
+    append_identifier(&q_name, name.c_str(), name.length());
     SP_access_map::iterator it;
     it = m_acl_map->func_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->func_acls()->end()) return 0;
@@ -617,10 +635,10 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db) {
   @param [in] priv      privilege to check
   @param [in] priv_len  length of privilege
 
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>  has required privilege with grant option
-    @retval /<true, false/> has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"  has required privilege with grant option
+    @retval "<true, false>" has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege
 */
 std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                                          size_t priv_len) {
@@ -637,8 +655,13 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
   }
 
   if (m_acl_map == nullptr) {
-    Acl_cache_lock_guard acl_cache_lock(current_thd,
-                                        Acl_cache_lock_mode::READ_MODE);
+    THD *thd = m_thd ? m_thd : current_thd;
+    if (thd == nullptr) {
+      DBUG_PRINT("error", ("Security Context must have valid THD handle to"
+                           " probe grants.\n"));
+      return {false, false};
+    }
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
     if (!acl_cache_lock.lock(false)) return std::make_pair(false, false);
     Role_id key(&m_priv_user[0], m_priv_user_length, &m_priv_host[0],
                 m_priv_host_length);
@@ -671,10 +694,10 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                   roles granted to it irrespective the roles are
                                   active or not.
 
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>  has required privilege with grant option
-    @retval /<true, false/> has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege, OR
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"  has required privilege with grant option
+    @retval "<true, false>" has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege, OR
                              auth_id does not exist.
 */
 std::pair<bool, bool> Security_context::has_global_grant(
@@ -711,14 +734,18 @@ std::pair<bool, bool> Security_context::has_global_grant(
                                     auth_id.
                                     true  - consider as privilege exists
                                     false - consider as privilege do not exist
+  @param  [in]  throw_error         Flag to decide if error needs to be thrown
+  or not.
 
-  @retval true    auth_id has the privilege but the current_auth does not
+  @retval true    auth_id has the privilege but the current_auth does not, also
+                  throws error.
   @retval false   Otherwise
 */
 bool Security_context::can_operate_with(const Auth_id &auth_id,
                                         const std::string &privilege,
                                         bool cumulative /*= false */,
-                                        bool ignore_if_nonextant /*= true */) {
+                                        bool ignore_if_nonextant /*= true */,
+                                        bool throw_error /* = true */) {
   DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
@@ -733,7 +760,8 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
     if (ignore_if_nonextant)
       return false;
     else {
-      my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
+      if (throw_error)
+        my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
       return true;
     }
   }
@@ -745,7 +773,8 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
                       : true;
   }
   if (is_mismatch) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
+    if (throw_error)
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
   }
   return is_mismatch;
 }
@@ -846,7 +875,7 @@ void Security_context::set_host_ptr(const char *host_arg,
                                     const size_t host_arg_length) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(host_arg != nullptr);
+  assert(host_arg != nullptr);
 
   if (host_arg == m_host.ptr()) return;
 
@@ -1122,15 +1151,15 @@ ulong Security_context::filter_access(const ulong access,
                           true  - privileges granted directly or coming through
                                   roles granted to it irrespective the roles are
                                   active or not.
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>   has required privilege with grant option
-    @retval /<true, false/>  has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"   has required privilege with grant option
+    @retval "<true, false>"  has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege
 */
 std::pair<bool, bool> Security_context::fetch_global_grant(
     const ACL_USER &acl_user, const std::string &privilege,
     bool cumulative /*= false */) {
-  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  assert(assert_acl_cache_read_lock(current_thd));
   std::pair<bool, bool> has_privilege{false, false};
   Security_context sctx;
 
@@ -1163,7 +1192,7 @@ std::pair<bool, bool> Security_context::fetch_global_grant(
  */
 bool Security_context::has_table_access(ulong priv, TABLE_LIST *tables) {
   DBUG_TRACE;
-  DBUG_ASSERT(tables != nullptr);
+  assert(tables != nullptr);
   TABLE const *table = tables->table;
   LEX_CSTRING db, table_name;
   db.str = table->s->db.str;
@@ -1207,7 +1236,7 @@ bool Security_context::has_table_access(ulong priv, TABLE_LIST *tables) {
  */
 bool Security_context::is_table_blocked(ulong priv, TABLE const *table) {
   DBUG_TRACE;
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
   LEX_CSTRING db, table_name;
   db.str = table->s->db.str;
   db.length = table->s->db.length;
@@ -1241,7 +1270,7 @@ bool Security_context::is_table_blocked(ulong priv, TABLE const *table) {
 bool Security_context::has_column_access(ulong priv, TABLE const *table,
                                          std::vector<std::string> columns) {
   DBUG_TRACE;
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
   LEX_CSTRING db, table_name;
   db.str = table->s->db.str;
   db.length = table->s->db.length;

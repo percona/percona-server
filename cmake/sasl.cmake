@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ MACRO(FIND_SASL_VERSION)
     SET(SASL_VERSION
       "${SASL_VERSION_MAJOR}.${SASL_VERSION_MINOR}.${SASL_VERSION_STEP}")
     SET(SASL_VERSION "${SASL_VERSION}" CACHE INTERNAL "SASL major.minor.step")
-    MESSAGE(STATUS "SASL_VERSION ${SASL_VERSION}")
+    MESSAGE(STATUS "SASL_VERSION (${WITH_SASL}) is ${SASL_VERSION}")
   ENDIF()
 ENDMACRO()
 
@@ -103,6 +103,11 @@ MACRO(FIND_SYSTEM_SASL)
   ENDIF()
   FIND_LIBRARY(SASL_SYSTEM_LIBRARY NAMES "sasl2" "sasl")
   FIND_LIBRARY(SASL_SYSTEM_SCRAM_LIBRARY NAMES scram PATH_SUFFIXES sasl2)
+  # SCRAM library found, setting SCRAM_LIB_CONFIGURED to 1.
+  # SCRAM_LIB_CONFIGURED will be used to construct supported SASL methods.
+  IF(SASL_SYSTEM_SCRAM_LIBRARY)
+    SET(SCRAM_LIB_CONFIGURED 1)
+  ENDIF()
   IF (SASL_SYSTEM_LIBRARY)
     SET(SASL_LIBRARY ${SASL_SYSTEM_LIBRARY})
     MESSAGE(STATUS "SASL_LIBRARY ${SASL_LIBRARY}")
@@ -180,10 +185,13 @@ MACRO(FIND_CUSTOM_SASL)
         )
       IF(NOT ${VAR_NAME})
         # This should be FATAL_ERROR, enable later
-        MESSAGE(WARNING
+        MESSAGE(FATAL_ERROR
         "Could not find plugin lib${SASL_PLUGIN}.so in ${WITH_SASL}/lib/sasl2")
       ENDIF()
     ENDFOREACH()
+    # SCRAM library found, setting SCRAM_LIB_CONFIGURED to 1.
+    # SCRAM_LIB_CONFIGURED will be used to construct supported SASL methods.
+    SET(SCRAM_LIB_CONFIGURED 1)
   ENDIF()
 
   IF(SASL_INCLUDE_DIR)
@@ -214,6 +222,11 @@ MACRO(FIND_CUSTOM_SASL)
       NO_CMAKE_ENVIRONMENT_PATH
       NO_SYSTEM_ENVIRONMENT_PATH
       )
+    # SCRAM library found, setting SCRAM_LIB_CONFIGURED to 1.
+    # SCRAM_LIB_CONFIGURED will be used to construct supported SASL methods.
+    IF(SASL_SCRAM_PLUGIN)
+      SET(SCRAM_LIB_CONFIGURED 1)
+    ENDIF()
   ENDIF()
 ENDMACRO()
 

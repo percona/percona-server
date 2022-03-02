@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,18 +38,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "scope_guard.h"
@@ -98,7 +99,7 @@ static const TABLE_FIELD_DEF component_table_def = {CT_FIELD_COUNT,
 
 class Component_db_intact : public Table_check_intact {
  protected:
-  void report_error(uint ecode, const char *fmt, ...)
+  void report_error(uint ecode, const char *fmt, ...) override
       MY_ATTRIBUTE((format(printf, 3, 4))) {
     longlong log_ecode = 0;
     switch (ecode) {
@@ -115,7 +116,7 @@ class Component_db_intact : public Table_check_intact {
         log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return;
     }
 
@@ -169,6 +170,21 @@ static bool open_component_table(THD *thd, enum thr_lock_type lock_type,
     trans_rollback_stmt(thd);
     close_mysql_tables(thd);
     return true;
+  }
+
+  // System table mysql.component is supported by only InnoDB engine.
+  if (lock_type == TL_WRITE) {
+    if (((*table)->file->ht->is_supported_system_table != nullptr) &&
+        !(*table)->file->ht->is_supported_system_table(
+            (*table)->s->db.str, (*table)->s->table_name.str, true)) {
+      my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name((*table)->file->ht),
+               (*table)->s->db.str, (*table)->s->table_name.str);
+      LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,
+             ha_resolve_storage_engine_name((*table)->file->ht),
+             (*table)->s->db.str, (*table)->s->table_name.str);
+      return true;
+    }
   }
 
   return false;
@@ -225,9 +241,9 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     auto guard =
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
-    unique_ptr_destroy_only<RowIterator> iterator =
-        init_table_iterator(thd, component_table, nullptr, false,
-                            /*ignore_not_found_rows=*/false);
+    unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+        thd, component_table, nullptr,
+        /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
     if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
                    ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));
@@ -276,7 +292,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
 
     /* res is guaranteed to be != 0, -1 means end of records encountered, which
       is interpreted as a success. */
-    DBUG_ASSERT(res != 0);
+    assert(res != 0);
     if (res != -1) {
       return true;
     }
@@ -473,7 +489,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       close_mysql_tables(thd);
     });
 
-    DBUG_ASSERT(component_table->key_info != nullptr);
+    assert(component_table->key_info != nullptr);
 
     for (int i = 0; i < component_count; ++i) {
       /* Find component ID used in component table using memory mapping. */

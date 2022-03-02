@@ -5,14 +5,14 @@ if (!$restart_parameters)
 
 # We use --exec echo instead of simple "--echo" because
 # replace_result works on --exec
-if (!$restart_hide_args)
+if (!$do_not_echo_parameters)
 {
   --exec echo "# $restart_parameters"
 }
-if ($restart_hide_args)
+if ($do_not_echo_parameters)
 {
   --echo # restart:<hidden args>
-  let $restart_hide_args=;
+  let $do_not_echo_parameters=;
 }
 
 # Include this script only after using shutdown_mysqld.inc
@@ -25,6 +25,8 @@ if ($restart_hide_args)
 --enable_reconnect
 
 # Call script that will poll the server waiting for it to be back online again
+# Allow for slow machines like Sparc
+--let $wait_counter= 6000
 --source include/wait_until_connected_again.inc
 
 ## Script xplugin_wait_for_interfaces.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -620,7 +620,7 @@ bool Upgrade_status::create() {
 
 // Open status file.
 bool Upgrade_status::open(int flags) {
-  DBUG_ASSERT(m_file == nullptr);
+  assert(m_file == nullptr);
 
   if (!(m_file = my_fopen(m_filename.c_str(), flags, MYF(0)))) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_OPEN_FAILED, m_filename.c_str(),
@@ -633,7 +633,7 @@ bool Upgrade_status::open(int flags) {
 
 // Read status from file.
 Upgrade_status::enum_stage Upgrade_status::read() {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   enum_stage stage = enum_stage::NONE;
   size_t items_read MY_ATTRIBUTE((unused));
@@ -645,7 +645,7 @@ Upgrade_status::enum_stage Upgrade_status::read() {
 
 // Write status to file.
 bool Upgrade_status::write(Upgrade_status::enum_stage stage) {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   fwrite(&stage, sizeof(int), 1, m_file);
   fflush(m_file);
@@ -659,7 +659,7 @@ bool Upgrade_status::exists() {
 
 // Close status file.
 bool Upgrade_status::close() {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   if (my_fclose(m_file, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED,
@@ -674,7 +674,7 @@ bool Upgrade_status::close() {
 
 // Delete status file.
 bool Upgrade_status::remove() {
-  DBUG_ASSERT(!m_file);
+  assert(!m_file);
   (void)mysql_file_delete(key_file_misc, m_filename.c_str(), MYF(MY_WME));
   return false;
 }
@@ -839,7 +839,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   Disable_autocommit_guard autocommit_guard(thd);
   Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   char path[FN_REFLEN + 1];

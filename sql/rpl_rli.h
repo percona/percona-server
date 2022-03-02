@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,8 +62,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"         // Gtid_set
 #include "sql/rpl_info.h"         // Rpl_info
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
-#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica_until_options.h"
 #include "sql/rpl_tblmap.h"  // table_mapping
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"  // Deferred_log_events
@@ -81,7 +81,7 @@ class String;
 struct LEX_MASTER_INFO;
 struct db_worker_hash_entry;
 
-extern uint sql_slave_skip_counter;
+extern uint sql_replica_skip_counter;
 
 typedef Prealloced_array<Slave_worker *, 4> Slave_worker_array;
 
@@ -91,6 +91,50 @@ typedef struct slave_job_item {
   my_off_t relay_pos;
 } Slave_job_item;
 
+/**
+  This class is used to store the type and value for
+  Assign_gtids_to_anonymous_transactions parameter of Change master command on
+  slave.
+*/
+class Assign_gtids_to_anonymous_transactions_info {
+ public:
+  /**
+    This accepted value of the type of the
+    Assign_gtids_to_anonymous_transactions info OFF :   Anonymous gtid events
+    won't be converted to Gtid event. LOCAL:  Anonymous gtid events will be
+    converted to Gtid event & the UUID used while create GTIDs will be the one
+    of replica which is the server where this transformation of anonymous to
+    gtid event happens. UUID: Anonymous gtid events will be converted to Gtid
+    event & the UUID used while create GTIDs will be the one specified via
+    Change master command to the parameter
+    ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+  */
+  enum class enum_type { AGAT_OFF = 1, AGAT_LOCAL, AGAT_UUID };
+  /**
+    The default constructor intializes the parameter to their default value
+  */
+  Assign_gtids_to_anonymous_transactions_info() {
+    set_info(enum_type::AGAT_OFF, "");
+    m_sidno = 0;
+  }
+  rpl_sidno get_sidno() const { return m_sidno; }
+  enum_type get_type() const;
+  std::string get_value() const;
+  /*
+    Here the assign_gtids_to_anonymous_transactions_value contains the textual
+    representation of the UUID used while creating a GTID.
+   */
+  bool set_info(enum_type assign_gtids_to_anonymous_transactions_type,
+                const char *assign_gtids_to_anonymous_transactions_value);
+
+ private:
+  /** This stores the type of Assign_gtids_to_anonymous_transactions info */
+  enum_type m_type;
+  /** Stores the UUID in case the m_type is not OFF */
+  std::string m_value;
+  // The sidno corresponding to the UUID value.
+  rpl_sidno m_sidno;
+};
 /*******************************************************************************
 Replication SQL Thread
 
@@ -243,6 +287,13 @@ class Relay_log_info : public Rpl_info {
     PK_CHECK_OFF = 3
   };
 
+  /**
+    Stores the information related to the ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+    parameter of CHANGE MASTER
+  */
+  Assign_gtids_to_anonymous_transactions_info
+      m_assign_gtids_to_anonymous_transactions_info;
+
   /*
     The SQL thread owns one Relay_log_info, and each client that has
     executed a BINLOG statement owns one Relay_log_info. This function
@@ -251,12 +302,12 @@ class Relay_log_info : public Rpl_info {
     clients.
   */
   inline bool belongs_to_client() {
-    DBUG_ASSERT(info_thd);
+    assert(info_thd);
     return !info_thd->slave_thread;
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key m_key_mts_temp_table_LOCK;
+  PSI_mutex_key m_key_mta_temp_table_LOCK;
 #endif
   /*
      Lock to protect race condition while transferring temporary table from
@@ -286,7 +337,7 @@ class Relay_log_info : public Rpl_info {
 
   /*
     Identifies when the recovery process is going on.
-    See sql/rpl_slave.h:init_recovery for further details.
+    See sql/rpl_replica.h:init_recovery for further details.
   */
   bool is_relay_log_recovery;
 
@@ -409,13 +460,6 @@ class Relay_log_info : public Rpl_info {
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
-
-  /**
-    Variable is set to true as long as
-    original_commit_timestamp > immediate_commit_timestamp so that the
-    corresponding warning is only logged once.
-  */
-  bool gtid_timestamps_warning_logged;
 
   /**
     Retrieves the username part of the `PRIVILEGE_CHECKS_USER` option of `CHANGE
@@ -750,7 +794,7 @@ class Relay_log_info : public Rpl_info {
 
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno) {
     get_sid_lock()->assert_some_lock();
-    DBUG_ASSERT(sidno <= get_sid_map()->get_max_sidno());
+    assert(sidno <= get_sid_map()->get_max_sidno());
     gtid_set->ensure_sidno(sidno);
     gtid_set->_add_gtid(sidno, gno);
   }
@@ -786,7 +830,7 @@ class Relay_log_info : public Rpl_info {
 
      @retval    false    Success
      @retval    true     Error
- */
+   */
   bool reset_group_relay_log_pos(const char **errmsg);
   /*
     Update the error number, message and timestamp fields. This function is
@@ -862,7 +906,7 @@ class Relay_log_info : public Rpl_info {
   char cached_charset[6];
 
   /*
-    trans_retries varies between 0 to slave_transaction_retries and counts how
+    trans_retries varies between 0 to replica_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0
     when the transaction finally succeeds. retried_trans is a cumulative
     counter: how many times the slave has retried a transaction (any) since
@@ -900,7 +944,7 @@ class Relay_log_info : public Rpl_info {
   */
   inline void notify_relay_log_change() {
     if (until_condition == UNTIL_RELAY_POS)
-      dynamic_cast<Until_position *>(until_option)->notify_log_name_change();
+      down_cast<Until_position *>(until_option)->notify_log_name_change();
   }
 
   /**
@@ -920,7 +964,7 @@ class Relay_log_info : public Rpl_info {
   */
   inline void notify_group_master_log_name_update() {
     if (until_condition == UNTIL_MASTER_POS)
-      dynamic_cast<Until_position *>(until_option)->notify_log_name_change();
+      down_cast<Until_position *>(until_option)->notify_log_name_change();
   }
 
   inline void inc_event_relay_log_pos() {
@@ -992,7 +1036,7 @@ class Relay_log_info : public Rpl_info {
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var,
                       TABLE **conv_table_var) const {
-    DBUG_ASSERT(tabledef_var && conv_table_var);
+    assert(tabledef_var && conv_table_var);
     for (TABLE_LIST *ptr = tables_to_lock; ptr != nullptr;
          ptr = ptr->next_global)
       if (ptr->table == table_arg) {
@@ -1053,7 +1097,7 @@ class Relay_log_info : public Rpl_info {
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  // number's is determined by global slave_parallel_workers
+  // number's is determined by global replica_parallel_workers
   Slave_worker_array workers;
 
   // To map a database to a worker
@@ -1130,18 +1174,20 @@ class Relay_log_info : public Rpl_info {
      Coordinator in order to avoid reaching WQ limits.
   */
   volatile long mts_wq_excess_cnt;
-  long mts_worker_underrun_level;    // % of WQ size at which W is considered
-                                     // hungry
-  ulong mts_coordinator_basic_nap;   // C sleeps to avoid WQs overrun
-  ulong opt_slave_parallel_workers;  // cache for ::opt_slave_parallel_workers
-  ulong slave_parallel_workers;  // the one slave session time number of workers
+  long mts_worker_underrun_level;   // % of WQ size at which W is considered
+                                    // hungry
+  ulong mts_coordinator_basic_nap;  // C sleeps to avoid WQs overrun
+  ulong
+      opt_replica_parallel_workers;  // cache for ::opt_replica_parallel_workers
+  ulong
+      replica_parallel_workers;  // the one slave session time number of workers
   ulong
       exit_counter;  // Number of workers contributed to max updated group index
   ulonglong max_updated_index;
   ulong recovery_parallel_workers;  // number of workers while recovering
   uint rli_checkpoint_seqno;        // counter of groups executed after the most
                                     // recent CP
-  uint checkpoint_group;            // cache for ::opt_mts_checkpoint_group
+  uint checkpoint_group;            // cache for ::opt_mta_checkpoint_group
   MY_BITMAP recovery_groups;        // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt;  // number of groups to execute at recovery
@@ -1206,13 +1252,6 @@ class Relay_log_info : public Rpl_info {
   struct timespec ts_exec[2];   // per event pre- and post- exec timestamp
   struct timespec stats_begin;  // applier's bootstrap time
 
-  /*
-     A sorted array of the Workers' current assignement numbers to provide
-     approximate view on Workers loading.
-     The first row of the least occupied Worker is queried at assigning
-     a new partition. Is updated at checkpoint commit to the main RLI.
-  */
-  Prealloced_array<ulong, 16> least_occupied_workers;
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
@@ -1286,9 +1325,9 @@ class Relay_log_info : public Rpl_info {
      returns true if events are to be executed in parallel
   */
   inline bool is_parallel_exec() const {
-    bool ret = (slave_parallel_workers > 0) && !is_mts_recovery();
+    bool ret = (replica_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || !workers.empty());
+    assert(!ret || !workers.empty());
 
     return ret;
   }
@@ -1310,7 +1349,7 @@ class Relay_log_info : public Rpl_info {
      @retval true   It is time to compute MTS checkpoint.
      @retval false  It is not MTS or it is not time for computing checkpoint.
   */
-  bool is_time_for_mts_checkpoint();
+  bool is_time_for_mta_checkpoint();
   /**
      While a group is executed by a Worker the relay log can change.
      Coordinator notifies Workers about this event. Worker is supposed
@@ -1602,7 +1641,7 @@ class Relay_log_info : public Rpl_info {
                  PSI_mutex_key *param_key_info_sleep_cond,
 #endif
                  uint param_id, const char *param_channel, bool is_rli_fake);
-  virtual ~Relay_log_info();
+  ~Relay_log_info() override;
 
   /*
     Determines if a warning message on unsafe execution was
@@ -1703,7 +1742,7 @@ class Relay_log_info : public Rpl_info {
     mysql_mutex_unlock(&data_lock);
   }
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
   /**
     Get coordinator's RLI. Especially used get the rli from
@@ -1712,7 +1751,7 @@ class Relay_log_info : public Rpl_info {
   */
   virtual Relay_log_info *get_c_rli() { return this; }
 
-  virtual const char *get_for_channel_str(bool upper_case = false) const;
+  const char *get_for_channel_str(bool upper_case = false) const override;
 
   /**
     Set replication filter for the channel.
@@ -1820,14 +1859,29 @@ class Relay_log_info : public Rpl_info {
       LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK = 12;
 
   /*
+    Represent line number in relay_log.info to save
+    ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE.
+  */
+  static const int
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE =
+          13;
+
+  /*
+    Represent line number in relay_log.info to save
+    ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE.
+  */
+  static const int
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE =
+          14;
+  /*
     Total lines in relay_log.info.
     This has to be updated every time a member is added or removed.
   */
   static const int MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE =
-      LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK;
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE;
 
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
 
   Relay_log_info(const Relay_log_info &info);
   Relay_log_info &operator=(const Relay_log_info &info);
@@ -1869,6 +1923,18 @@ class Relay_log_info : public Rpl_info {
   */
   int thd_tx_priority;
 
+  /**
+    If the SQL thread should or not ignore the set limit for
+    write set collection
+   */
+  bool m_ignore_write_set_memory_limit;
+
+  /**
+    Even if a component says all transactions require write sets,
+    this variable says the SQL thread transactions can drop them
+  */
+  bool m_allow_drop_write_set;
+
   /* The object stores and handles START SLAVE UNTIL option */
   Until_option *until_option;
 
@@ -1882,7 +1948,7 @@ class Relay_log_info : public Rpl_info {
     at internal rollback of the slave applier at the same time with
     the engine ha_data re-attachment.
   */
-  bool is_engine_ha_data_detached;
+  bool m_is_engine_ha_data_detached;
   /**
     Reference to being applied event. The member is set at event reading
     and gets reset at the end of the event lifetime.
@@ -1904,6 +1970,20 @@ class Relay_log_info : public Rpl_info {
   void set_thd_tx_priority(int priority) { thd_tx_priority = priority; }
 
   int get_thd_tx_priority() { return thd_tx_priority; }
+
+  void set_ignore_write_set_memory_limit(bool ignore_limit) {
+    m_ignore_write_set_memory_limit = ignore_limit;
+  }
+
+  bool get_ignore_write_set_memory_limit() {
+    return m_ignore_write_set_memory_limit;
+  }
+
+  void set_allow_drop_write_set(bool does_not_require_ws) {
+    m_allow_drop_write_set = does_not_require_ws;
+  }
+
+  bool get_allow_drop_write_set() { return m_allow_drop_write_set; }
 
   const char *get_until_log_name();
   my_off_t get_until_log_pos();
@@ -1928,12 +2008,12 @@ class Relay_log_info : public Rpl_info {
    @return int
      @retval 0      Succeeds to initialize until option object.
      @retval <> 0   A defined error number is return if any error happens.
- */
+   */
   int init_until_option(THD *thd, const LEX_MASTER_INFO *master_param);
 
   /**
     Detaches the engine ha_data from THD. The fact
-    is memorized in @c is_engine_ha_detached flag.
+    is memorized in @c m_is_engine_ha_data_detached flag.
 
     @param  thd a reference to THD
   */
@@ -1942,29 +2022,19 @@ class Relay_log_info : public Rpl_info {
 
   /**
     Reattaches the engine ha_data to THD. The fact
-    is memorized in @c is_engine_ha_detached flag.
+    is memorized in @c m_is_engine_ha_data_detached flag.
 
     @param  thd a reference to THD
   */
 
   void reattach_engine_ha_data(THD *thd);
+
   /**
-    Drops the engine ha_data flag when it is up.
-    The method is run at execution points of the engine ha_data
-    re-attachment.
-
-    @return true   when THD has detached the engine ha_data,
-            false  otherwise
+    Checks whether engine ha data is detached from THD
+    @retval true if the data is detached
+    @retval false if the data is not detached
   */
-
-  bool unflag_detached_engine_ha_data() {
-    bool rc = false;
-
-    if (is_engine_ha_data_detached)
-      rc = !(is_engine_ha_data_detached = false);  // return the old value
-
-    return rc;
-  }
+  bool is_engine_ha_data_detached() { return m_is_engine_ha_data_detached; }
 
   /**
     Execute actions at replicated atomic DLL post rollback time.
@@ -2081,7 +2151,7 @@ inline bool is_committed_ddl(Log_event *ev) {
                 DDL query-log-event, otherwise returns false.
 */
 inline bool is_atomic_ddl_commit_on_slave(THD *thd) {
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   Relay_log_info *rli = thd->rli_slave;
 

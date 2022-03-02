@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,12 +53,16 @@ namespace {
     - None of the innodb_read_only, read_only, super_read_only
       or transactional_read_only is ON, OR
 
+    - Not in multi transaction mode.
+      i.e., not in START TRANSACTION or AUTOCOMMIT=0.
+
     - Table is not a partitioned table.
 
     - Table is not a performance schema table.
 
   @param thd           - Thread ID
   @param schema_name   - The schema name.
+  @param partition_name - The partition name
 
   @returns true if we can update the statistics, otherwise false.
 */
@@ -71,6 +75,7 @@ inline bool can_persist_I_S_dynamic_statistics(THD *thd,
   return (thd->variables.information_schema_stats_expiry &&
           !thd->variables.transaction_read_only && !super_read_only &&
           !thd->in_sub_stmt && !read_only && !partition_name &&
+          !thd->in_multi_stmt_transaction_mode() &&
           (strcmp(schema_name, "performance_schema") != 0));
 }
 
@@ -154,7 +159,12 @@ bool store_statistics_record(THD *thd, T *object) {
     return true;
   }
 
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  /*
+    Ignore global read lock when committing attachable transaction,
+    so we can update statistics tables even if some other thread
+    owns GRL, similarly to how ANALYZE TABLE is allowed to do this.
+  */
+  return trans_commit_stmt(thd, true) || trans_commit(thd, true);
 }
 
 template bool store_statistics_record(THD *thd, dd::Table_stat *);
@@ -270,6 +280,34 @@ static bool persist_i_s_index_stats(THD *thd, const String &schema_name_ptr,
   return store_statistics_record(thd, obj.get());
 }
 
+static bool report_error_except_ignore_dup(THD *thd, const char *object_type) {
+  /*
+    If the statistics table is updated concurrently, there is a chance
+    that ANALYZE TABLE may fail with "Duplicate key error" if a record
+    was inserted in the interval between the check for the existence of
+    the record and the execution of the insert. This is very rare
+    situation. Hence we ignore the error and clear the DA.
+   */
+  if (thd->get_stmt_da()->mysql_errno() == ER_DUP_ENTRY) {
+    /*
+      We cannot push a error handler to ignore the error, because the
+      store() call would still return 'true' (failure) and we would not
+      know if the error reported was ER_DUP_ENTRY.
+
+      The call to reset_condition_info() is required here, otherwise
+      the call mysql_admin_table()->send_analyze_table_errors() would still
+      print the duplicate key error. We cannot ignore ER_DUP_ENTRY in
+      send_analyze_table_errors(), because send_analyze_table_errors() is
+      invoked for more then one purpose.
+     */
+    thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    return false;
+  }
+
+  my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), object_type);
+  return true;
+}
 }  // Anonymous namespace
 
 namespace dd {
@@ -297,12 +335,8 @@ bool update_table_stats(THD *thd, TABLE_LIST *table) {
       analyze_table->found_next_number_field);
 
   // Store the object
-  if (thd->dd_client()->store(ts_obj.get())) {
-    my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), "table");
-    return true;
-  }
-
-  return false;
+  return thd->dd_client()->store(ts_obj.get()) &&
+         report_error_except_ignore_dup(thd, "table");
 }
 
 bool update_index_stats(THD *thd, TABLE_LIST *table) {
@@ -338,11 +372,10 @@ bool update_index_stats(THD *thd, TABLE_LIST *table) {
           dd::String_type(str, strlen(str)), records);
 
       // Store the object
-      if (thd->dd_client()->store(obj.get())) {
-        my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), "index");
+      if (thd->dd_client()->store(obj.get()) &&
+          report_error_except_ignore_dup(thd, "index")) {
         return true;
       }
-
     }  // Key part info
 
   }  // Keys
@@ -398,14 +431,14 @@ ulonglong Table_statistics::get_stat(ha_statistics &stat,
       return (stat.check_time);
 
     default:
-      DBUG_ASSERT(!"Should not hit here");
+      assert(!"Should not hit here");
   }
 
   return 0;
 }
 
 // Read dynamic table statistics from SE by opening the user table
-// provided OR by reading cached statistics from SELECT_LEX.
+// provided OR by reading cached statistics from Query_block.
 ulonglong Table_statistics::read_stat(
     THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
     const String &index_name_ptr, const char *partition_name,
@@ -460,7 +493,9 @@ ulonglong Table_statistics::read_stat(
   handlerton *hton = nullptr;
   const bool hton_implements_get_statistics =
       (tmp_plugin && (hton = plugin_data<handlerton *>(tmp_plugin)) &&
-       hton->get_index_column_cardinality && hton->get_table_statistics);
+       (hton->get_index_column_cardinality ||
+        stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY) &&
+       hton->get_table_statistics);
 
   // Try to get statistics without opening the table.
   if (!partition_name && hton_implements_get_statistics)
@@ -505,7 +540,7 @@ ulonglong Table_statistics::read_stat_from_SE(
   ulonglong return_value = 0;
 
   DBUG_EXECUTE_IF("information_schema_fetch_table_stats",
-                  DBUG_ASSERT(strncmp(table_name_ptr.ptr(), "fts", 3)););
+                  assert(strncmp(table_name_ptr.ptr(), "fts", 3)););
 
   // No engines implement these statistics retrieval. We always return zero.
   if (stype == enum_table_stats_type::CHECK_TIME ||
@@ -546,7 +581,7 @@ ulonglong Table_statistics::read_stat_from_SE(
         dd::Properties::parse_properties(
             tbl_se_private_data ? tbl_se_private_data : ""));
 
-    DBUG_ASSERT(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
+    assert(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
@@ -672,14 +707,14 @@ ulonglong Table_statistics::read_stat_by_open_table(
     goto end;
   }
 
-  if (make_table_list(thd, lex->select_lex, db_name_lex_cstr,
+  if (make_table_list(thd, lex->query_block, db_name_lex_cstr,
                       table_name_lex_cstr)) {
     error = -1;
     goto end;
   }
 
   TABLE_LIST *table_list;
-  table_list = lex->select_lex->table_list.first;
+  table_list = lex->query_block->table_list.first;
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
 
   /*
@@ -720,7 +755,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   lex->sql_command = old_lex->sql_command;
 
   if (open_result) {
-    DBUG_ASSERT(thd->is_error() || thd->is_killed());
+    assert(thd->is_error() || thd->is_killed());
 
     if (thd->is_error()) {
       /*
@@ -757,7 +792,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
         table_list->table->file->get_partition_handler();
     if (partition_name && part_handler) {
       partition_info *part_info = table_list->table->part_info;
-      DBUG_ASSERT(part_info);
+      assert(part_info);
 
       uint part_id;
       if (part_info->get_part_elem(partition_name, &part_id) &&
@@ -854,13 +889,13 @@ ulonglong Table_statistics::read_stat_by_open_table(
   }
 
 end:
-  lex->unit->cleanup(thd, true);
+  lex->cleanup(thd, true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.item_list() == nullptr);
+  assert(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
   /*

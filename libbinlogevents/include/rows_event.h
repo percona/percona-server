@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -563,6 +563,8 @@ class Table_map_event : public Binary_log_event {
                                      columns, optimized to minimize
                                      space when many columns have the
                                      same charset. */
+    COLUMN_VISIBILITY             /* Flag to indicate column visibility
+                                     attribute. */
   };
 
   /**
@@ -604,6 +606,7 @@ class Table_map_event : public Binary_log_event {
       whole column value is used.
     */
     std::vector<uint_pair> m_primary_key;
+    std::vector<bool> m_column_visibility;
 
     /*
       It parses m_optional_metadata and populates into above variables.
@@ -660,7 +663,7 @@ class Table_map_event : public Binary_log_event {
     if (tblnam) m_tblnam = std::string(tblnam, m_tbllen);
   }
 
-  virtual ~Table_map_event();
+  ~Table_map_event() override;
 
   /** Event post header contents */
   Table_id m_table_id;
@@ -699,8 +702,8 @@ class Table_map_event : public Binary_log_event {
   std::string get_db_name() { return m_dbnam; }
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 };
 
@@ -932,7 +935,7 @@ class Rows_event : public Binary_log_event {
   */
   Rows_event(const char *buf, const Format_description_event *fde);
 
-  virtual ~Rows_event();
+  ~Rows_event() override;
 
  protected:
   Log_event_type m_type; /** Actual event type */
@@ -1036,8 +1039,8 @@ class Rows_event : public Binary_log_event {
     return str;
   }
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &info);
-  void print_long_info(std::ostream &info);
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
 
   template <class Iterator_value_type>
@@ -1150,7 +1153,7 @@ class Rows_query_event : public virtual Ignorable_event {
   Rows_query_event()
       : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(nullptr) {}
 
-  virtual ~Rows_query_event();
+  ~Rows_query_event() override;
 
  protected:
   char *m_rows_query;

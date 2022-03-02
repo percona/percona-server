@@ -4,19 +4,24 @@
 TokuDB Introduction
 ================================================================================
 
-:Availability: |TokuDB| is deprecated in the 8.0 series and will be supported
-               through the 8.0 series until further notice. This storage engine
-               will not be included in the next major release of |Percona
-               Server|. We recommend MyRocks as a long-term migration path.
+.. Important:: 
 
-.. Percona TokuBackup is very limited in 8.0, and the fixes to bring it up to speed have been deferred
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
 |TokuDB| is a highly scalable, zero-maintenance downtime MySQL storage engine
 that delivers indexing-based query acceleration, improved replication
 performance, unparalleled compression, and live schema modification. The
 |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine
 that provides indexing-based query improvements, offers online schema
-modifications, and reduces slave lag for both hard disk drives and flash
+modifications, and reduces replica lag for both hard disk drives and flash
 memory. This storage engine is specifically designed for high performance on
 write-intensive workloads which is achieved with Fractal Tree indexing.
 
@@ -39,21 +44,21 @@ Additional features unique to |TokuDB| include:
 
 - Up to 25x Data Compression
 - Fast Inserts
-- Eliminates Slave Lag with :ref:`Read Free Replication <tokudb_read_free_replication>`
+- Eliminates Replica Lag with :ref:`Read Free Replication <tokudb_read_free_replication>`
 - Hot Schema Changes
 - Hot Index Creation - |TokuDB| tables support insertions, deletions and queries
   with no down time while indexes are being added to that table
 - Hot column addition, deletion, expansion, and rename - |TokuDB| tables support
   insertions, deletions and queries without down-time when an alter table adds,
   deletes, expands, or renames columns
-- On-line Backup 
+- On-line Backup
 
 .. note::
 
-   The |TokuDB| storage engine does not support the |sql.no-wait| and
-   |sql.skip-locked| modifiers introduced in the |InnoDB| storage
+   The |TokuDB| storage engine does not support the ``nowait`` and
+   ``skip locked`` modifiers introduced in the |InnoDB| storage
    engine with |MySQL| 8.0.
-  
+
 For more information on installing and using |TokuDB| click on the following
 links:
 
@@ -86,15 +91,15 @@ Fast Insertions and Deletions
    indexing sweet spot (sequential data) and are up to two orders of magnitude
    faster for random data with high cardinality.
 
-Eliminates Slave Lag
-   |TokuDB| replication slaves can be configured to process
+Eliminates Replica Lag
+   |TokuDB| replication replicas can be configured to process
    the replication stream with virtually no read IO. Uniqueness checking is
-   performed on the |TokuDB| master and can be skipped on all |TokuDB|
-   slaves. Also, row based replication ensures that all before and after row
-   images are captured in the binary logs, so the |TokuDB| slaves can harness
+   performed on the |TokuDB| source and can be skipped on all |TokuDB|
+   replica. Also, row based replication ensures that all before and after row
+   images are captured in the binary logs, so the |TokuDB| replicas can harness
    the power of Fractal Tree indexes and bypass traditional read-modify-write
-   behavior. This "Read Free Replication" ensures that replication slaves do not
-   fall behind the master and can be used for read scaling, backups, and
+   behavior. This "Read Free Replication" ensures that replication replicas do not
+   fall behind the source and can be used for read scaling, backups, and
    disaster recovery, without sharding, expensive hardware, or limits on what
    can be replicated.
 

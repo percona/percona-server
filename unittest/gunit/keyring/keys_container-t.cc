@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #include <mysql/plugin_keyring.h>
 #include <fstream>
 
+#include "mock_serialized_object.h"
+#include "mock_serializer.h"
 #include "my_inttypes.h"
 #include "plugin/keyring/buffered_file_io.h"
 #include "plugin/keyring/common/i_serialized_object.h"
@@ -66,7 +68,7 @@ class Keys_container_test : public ::testing::Test {
   Keys_container_test() : file_name("./keyring") {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     sample_key_data = "Robi";
     sample_key = new Key("Roberts_key", "AES", "Robert",
                          sample_key_data.c_str(), sample_key_data.length() + 1);
@@ -77,7 +79,7 @@ class Keys_container_test : public ::testing::Test {
     logger = new Mock_logger();
     keys_container = new Keys_container(logger);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     remove(file_name.c_str());
     delete keys_container;
     delete logger;
@@ -861,7 +863,7 @@ class Keys_container_test_dont_close : public ::testing::Test {
   Keys_container_test_dont_close() : file_name("./keyring") {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     sample_key_data = "Robi";
     sample_key = new Key("Roberts_key", "AES", "Robert",
                          sample_key_data.c_str(), sample_key_data.length() + 1);
@@ -875,7 +877,7 @@ class Keys_container_test_dont_close : public ::testing::Test {
     remove("./keyring.backup");
     remove("./keyring.backup.backup");
   }
-  virtual void TearDown() { remove(file_name.c_str()); }
+  void TearDown() override { remove(file_name.c_str()); }
   void generate_malformed_keyring_file_without_tag(const char *file_name);
 
  protected:
@@ -1251,7 +1253,7 @@ TEST_F(
 
 class Mock_keyring_io : public IKeyring_io {
  public:
-  MOCK_METHOD1(init, bool(std::string *keyring_filename));
+  MOCK_METHOD1(init, bool(const std::string *keyring_filename));
   MOCK_METHOD1(flush_to_backup, bool(ISerialized_object *serialized_object));
   MOCK_METHOD1(flush_to_storage, bool(ISerialized_object *serialized_object));
   MOCK_METHOD0(get_serializer, ISerializer *());
@@ -1260,33 +1262,16 @@ class Mock_keyring_io : public IKeyring_io {
   MOCK_METHOD0(has_next_serialized_object, bool());
 };
 
-class Mock_serialized_object : public ISerialized_object {
- public:
-  MOCK_METHOD1(get_next_key, bool(IKey **key));
-  MOCK_METHOD0(has_next_key, bool());
-  MOCK_METHOD0(get_key_operation, Key_operation());
-  MOCK_METHOD1(set_key_operation, void(Key_operation));
-};
-
-class Mock_serializer : public ISerializer {
- public:
-  MOCK_METHOD3(
-      serialize,
-      ISerialized_object *(
-          const collation_unordered_map<std::string, std::unique_ptr<IKey>> &,
-          IKey *, Key_operation));
-};
-
 class Keys_container_with_mocked_io_test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     std::string sample_key_data("Robi");
     sample_key = new Key("Roberts_key", "AES", "Robert",
                          sample_key_data.c_str(), sample_key_data.length() + 1);
 
     file_name = "/home/rob/write_key";
   }
-  virtual void TearDown() {
+  void TearDown() override {
     remove(file_name.c_str());
     delete keys_container;
   }

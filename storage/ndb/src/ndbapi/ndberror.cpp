@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -278,13 +278,13 @@ ErrorBundle ErrorCodes[] = {
   { 293,  DMEC, TR, "Out of attribute buffers in TC block, increase SharedGlobalMemory" },
   { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
-  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongSignalMemory" },
-  { 419,  DMEC, TR, "Out of signal memory, increase LongSignalMemory" },
+  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongMessageBuffer" },
+  { 419,  DMEC, TR, "Out of signal memory, increase LongMessageBuffer" },
   { 245,  DMEC, TR, "Too many active scans, increase MaxNoOfConcurrentScans" },
   { 488,  DMEC, TR, "Too many active scans" },
   { 489,  DMEC, TR, "Out of scan records in LQH, increase SharedGlobalMemory" },
   { 490,  DMEC, TR, "Too many active scans" },
-  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongSignalMemory" },
+  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongMessageBuffer" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 899,  DMEC, TR, "Rowid already allocated" },
@@ -427,6 +427,7 @@ ErrorBundle ErrorCodes[] = {
   { 295,  DMEC, IE, "Unlocked operation has invalid state" },
   { 298,  DMEC, IE, "Invalid distribution key" },
   { 416,  DMEC, IE, "Bad state handling unlock request" },
+  { 1237, DMEC, IE, "LQHKEYREQ Protocol error" },
 
   /**
    * Application error
@@ -461,6 +462,7 @@ ErrorBundle ErrorCodes[] = {
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
   { 325,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node ID invalid or undefined" },
+  { 326,  DMEC, AE, "Same node(s) specified for new nodegroup" },
   { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
@@ -617,6 +619,7 @@ ErrorBundle ErrorCodes[] = {
   { 796,  DMEC, SE, "Out of schema transaction memory" },
   { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
   { 799,  HA_WRONG_CREATE_OPTION, SE, "Non default partitioning without partitions" },
+  { 4377, DMEC, AE, "Database and schema name must be set on Ndb object"},
 
   /**
    * FunctionNotImplemented
@@ -635,6 +638,11 @@ ErrorBundle ErrorCodes[] = {
   { 1304, DMEC, IE, "Sequence failure" },
   { 1305, DMEC, IE, "Backup definition not implemented" },
   { 1306, DMEC, AE, "Backup not supported in diskless mode (change Diskless)" },
+  { 1307, DMEC, IE, "Encrypted backup is not supported by the data node/s" },
+  { 1308, DMEC, CE, "Data node/s configured to have encryption but password not provided" },
+  { 1309, DMEC, CE, "Encryption password has bad character/s (see 'HELP START BACKUP')" },
+  { 1310, DMEC, CE, "Encryption password is too long (see 'HELP START BACKUP')" },
+  { 1311, DMEC, CE, "Encryption password is of zero length" },
 
   { 1321, DMEC, UD, "Backup aborted by user request" },
   { 1322, DMEC, IE, "Backup already completed" },
@@ -813,6 +821,7 @@ ErrorBundle ErrorCodes[] = {
   { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
   { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
   { 4557, DMEC, AE, "Column types must be identical when comparing two columns" },
+  { 4558, DMEC, AE, "Pending Blob operations must be executed before this call" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
@@ -970,9 +979,9 @@ ErrorBundle ErrorCodes[] = {
     "Query has operation with empty projection." },
   { QRY_OJ_NOT_SUPPORTED, DMEC, AE,
     "Outer joined scans not supported by data nodes." },
-  { QRY_NEST_NOT_SPECIFIED, DMEC, AE,
-    "Outer joined scans need FirstInner/Upper to be specified" },
-  { QRY_NEST_NOT_SPECIFIED, DMEC, AE,
+  //{ QRY_NEST_NOT_SPECIFIED, DMEC, AE,      <<== DEPRECATED error
+  //  "Outer joined scans need FirstInner/Upper to be specified" },
+  { QRY_NEST_NOT_SUPPORTED, DMEC, AE,
     "FirstInner/Upper has to be an ancestor or a sibling" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,

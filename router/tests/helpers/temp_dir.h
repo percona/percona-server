@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,10 @@ class TempDirectory {
 
   ~TempDirectory() { mysql_harness::delete_dir_recursive(name_); }
 
+  void reset(const std::string &name) {
+    mysql_harness::delete_dir_recursive(name_);
+    name_ = name;
+  }
   std::string name() const { return name_; }
 
  private:

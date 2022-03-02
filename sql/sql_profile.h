@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,14 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #include "mysql/service_mysql_alloc.h"
 
 extern PSI_memory_key key_memory_queue_item;
+extern bool opt_jemalloc_profiling_enabled;
+extern bool opt_jemalloc_detected;
+
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+                     size_t newlen);
+int jemalloc_profiling_dump();
+int jemalloc_profiling_enable(bool enable);
+bool jemalloc_detected();
 
 class PROFILING;
 class QUERY_PROFILE;
@@ -109,7 +117,7 @@ class Queue {
 
     if (first == nullptr) first = new_item;
     if (last != nullptr) {
-      DBUG_ASSERT(last->next == nullptr);
+      assert(last->next == nullptr);
       last->next = new_item;
     }
     new_item->previous = last;
@@ -142,8 +150,8 @@ class Queue {
   }
 
   bool is_empty() {
-    DBUG_ASSERT(((elements > 0) && (first != nullptr)) ||
-                ((elements == 0) || (first == nullptr)));
+    assert(((elements > 0) && (first != nullptr)) ||
+           ((elements == 0) || (first == nullptr)));
     return (elements == 0);
   }
 

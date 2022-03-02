@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <termios.h>
 #include <unistd.h>
 #endif
+#include <array>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -96,12 +97,13 @@ class MetadataServersStateListener
       : dynamic_state_(dynamic_state), replicaset_name_(replicaset_name) {}
 
   ~MetadataServersStateListener() override {
-    metadata_cache::MetadataCacheAPI::instance()->remove_listener(
+    metadata_cache::MetadataCacheAPI::instance()->remove_state_listener(
         replicaset_name_, this);
   }
 
-  void notify(const LookupResult &instances, const bool md_servers_reachable,
-              const unsigned view_id) override {
+  void notify_instances_changed(const LookupResult &instances,
+                                const bool md_servers_reachable,
+                                const unsigned view_id) override {
     if (!md_servers_reachable) return;
     auto md_servers = instances.instance_vector;
 
@@ -212,7 +214,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     if (md_cache_dynamic_state) {
       md_servers_state_listener.reset(new MetadataServersStateListener(
           *md_cache_dynamic_state.get(), replicaset_id));
-      md_cache->add_listener(replicaset_id, md_servers_state_listener.get());
+      md_cache->add_state_listener(replicaset_id,
+                                   md_servers_state_listener.get());
     }
 
     // start metadata cache
@@ -238,20 +241,25 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   metadata_cache::MetadataCacheAPI::instance()->cache_stop();
 }
 
+static const std::array<const char *, 2> required = {{
+    "logger",
+    "router_protobuf",
+}};
+
 extern "C" {
 
 mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Metadata Cache, managing information fetched from the Metadata Server",
     VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // Requires
-    0,
-    nullptr,  // Conflicts
-    init,
-    nullptr,
-    start,   // start
-    nullptr  // stop
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
+    init,     // init
+    nullptr,  // deinit
+    start,    // start
+    nullptr,  // stop
+    true      // declares_readiness
 };
 }

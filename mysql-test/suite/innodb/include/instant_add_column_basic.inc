@@ -1,4 +1,3 @@
-
 --echo #
 --echo # Scenario 1:
 --echo # Create a small table, and add all kinds of new columns and verify
@@ -385,6 +384,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, b, c) VALUES(0, 6, 20);
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -394,6 +394,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, c, e) VALUES(0, 20, 'Hello'), (0, 20, 'World'), (0, 20, 'Hello World');
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -402,8 +403,10 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALW
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b, c, h) VALUES(0, 7, 40, 2000), (0, 7, 40, 20000);
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -431,8 +434,10 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, 
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b, c, e) VALUES(0, 6, 200, 'Good day'), (0, 7, 300, 'Good DAY');
+--sorted_result
 SELECT * FROM t1;
 
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'c' AND has_default = 1;
@@ -441,8 +446,10 @@ ALTER TABLE t1 ALTER COLUMN c SET DEFAULT 500;
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'c' AND
  has_default = 1;
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b) VALUES(0, 8), (0, 9);
+--sorted_result
 SELECT * FROM t1;
 
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'e' AND has_default = 1;
@@ -450,8 +457,10 @@ ALTER TABLE t1 ALTER COLUMN e SET DEFAULT 'HELLO MySQL!';
 # This should not change
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'e' AND has_default = 1;
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b) VALUES(0, 10), (0, 20);
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -479,6 +488,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 UPDATE t1 SET c = 200 WHERE a > 3;
+--sorted_result
 SELECT distinct(c) FROM t1;
 
 INSERT INTO t1(b, c, e) SELECT b, c, e FROM t1;
@@ -488,6 +498,7 @@ INSERT INTO t1(b, c, e) SELECT b, c, e FROM t1;
 DELETE FROM t1 WHERE c = 100;
 
 UPDATE t1 SET c = 300;
+--sorted_result
 SELECT distinct(c) FROM t1;
 
 SELECT count(*) FROM t1;
@@ -500,9 +511,11 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_T
 
 UPDATE t1 SET e = 'Hello MySQL' WHERE a > 10;
 UPDATE t1 SET e = 'Hello MySQL!!' WHERE a > 20;
+--sorted_result
 SELECT distinct(e) FROM t1;
 
 UPDATE t1 SET c = 500 WHERE e LIKE '%world%';
+--sorted_result
 SELECT c, e FROM t1 GROUP BY c, e;
 
 INSERT INTO t1(b, c, e) SELECT b, c, e FROM t1;
@@ -588,10 +601,12 @@ START TRANSACTION;
 
 INSERT INTO t1(a, b) VALUES(0, 6);
 
+--sorted_result
 SELECT * FROM t1;
 
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -605,6 +620,7 @@ SELECT a, b, c FROM t1 WHERE a = 1 OR a = 2;
 
 ROLLBACK;
 
+--sorted_result
 SELECT a, b, c FROM t1;
 
 
@@ -614,10 +630,12 @@ DELETE FROM t1 WHERE a < 5;
 
 INSERT INTO t1(a, b) VALUES(0, 6);
 
+--sorted_result
 SELECT * FROM t1;
 
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -757,9 +775,11 @@ ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
 
 UPDATE t1 SET c = 10 WHERE a = 1;
+--sorted_result
 SELECT c FROM t2;
 
 UPDATE t1 SET c = 10;
+--sorted_result
 SELECT c FROM t2;
 
 CHECK TABLE t1;
@@ -785,14 +805,17 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 
 INSERT INTO t1 VALUES(0, 9, 10), (0, 10, 20);
 
+--sorted_result
 SELECT * FROM t1 WHERE b > 8;
 
 UPDATE t1 SET c = 8 WHERE a = 1 OR a = 3 OR a = 5 OR a = 7;
 
+--sorted_result
 SELECT * FROM t1;
 
 CHECK TABLE t1;
@@ -874,10 +897,12 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 UPDATE t1 SET c = b WHERE b <= 2;
 
 CHECK TABLE t1;
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -916,6 +941,7 @@ ALTER TABLE t1 ADD KEY idx3(col3);
 SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -940,6 +966,7 @@ ALTER TABLE t1 ADD KEY(b);
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -1223,6 +1250,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 INSERT INTO t1(a, c1) VALUES(0, 'bbbb');
 SELECT count(*) = max(a) FROM t1 WHERE c1='aaaa';
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
+--sorted_result
 SELECT * FROM v1;
 DROP VIEW v1;
 
@@ -1419,6 +1447,7 @@ INSERT INTO t2(a, c1) VALUES(0, 'cccc');
 SELECT count(*) = max(a) FROM t2 WHERE c1='bbbb';
 SELECT c1 FROM t2 WHERE c1 = 'cccc';
 
+--sorted_result
 SELECT * FROM t1 JOIN t2 ON t1.c1=t2.c1;
 
 CHECK TABLE t1;
@@ -1448,6 +1477,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, b, c, h) VALUES(0, 6, 20, 40);
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -1457,6 +1487,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, b, c, h, i) VALUES(0, 20, 30, 50, 'qwerty');
+--sorted_result
 SELECT * FROM t1;
 
 CHECK TABLE t1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,11 +38,15 @@ struct key_range;
 struct TABLE;
 class Ndb_item;
 class ha_ndbcluster;
+class SqlScanFilter;
 
 class ha_ndbcluster_cond {
  public:
   ha_ndbcluster_cond(ha_ndbcluster *h);
   ~ha_ndbcluster_cond();
+
+  void cond_clear();  // Clear entire ha_ndbcluster_cond state.
+  void cond_close();  // Clean up after handler close, possibly reopen later
 
   // Prepare condition for being pushed. Need to call
   // use_cond_push() later to make it available for the handler
@@ -52,10 +56,11 @@ class ha_ndbcluster_cond {
   // Return the pushed condition and the unpushable remainder
   int use_cond_push(const Item *&pushed_cond, const Item *&remainder_cond);
 
-  void cond_clear();
-  int generate_scan_filter_from_cond(NdbScanFilter &filter);
+  int build_cond_push();
 
-  static int generate_scan_filter_from_key(NdbScanFilter &filter,
+  int generate_scan_filter_from_cond(SqlScanFilter &filter);
+
+  static int generate_scan_filter_from_key(SqlScanFilter &filter,
                                            const class KEY *key_info,
                                            const key_range *start_key,
                                            const key_range *end_key);
@@ -75,11 +80,13 @@ class ha_ndbcluster_cond {
 
  private:
   int build_scan_filter_predicate(List_iterator<const Ndb_item> &cond,
-                                  NdbScanFilter *filter, bool negated) const;
+                                  SqlScanFilter *filter, bool negated) const;
   int build_scan_filter_group(List_iterator<const Ndb_item> &cond,
-                              NdbScanFilter *filter, bool negated) const;
+                              SqlScanFilter *filter, bool negated) const;
 
   bool eval_condition() const;
+
+  bool isGeneratedCodeReusable() const;
 
   ha_ndbcluster *const m_handler;
 

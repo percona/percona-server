@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,11 @@
 
 #include "plugin/x/src/callback_command_delegate.h"
 
-#include <string>
-
 #include <stddef.h>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include <string>
+
+#include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
@@ -91,8 +91,8 @@ Callback_command_delegate::Row_data::Row_data(const Row_data &other) {
   clone_fields(other);
 }
 
-Callback_command_delegate::Row_data &Callback_command_delegate::Row_data::
-operator=(const Row_data &other) {
+Callback_command_delegate::Row_data &
+Callback_command_delegate::Row_data::operator=(const Row_data &other) {
   if (&other != this) {
     clear();
     clone_fields(other);

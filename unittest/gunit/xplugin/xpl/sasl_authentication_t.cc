@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,10 @@
 
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/sql_user_require.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/client.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
+#include "unittest/gunit/xplugin/xpl/mock/vio.h"
 
 namespace xpl {
 
@@ -40,7 +42,7 @@ using namespace ::testing;  // NOLINT(build/namespaces)
 template <typename Auth_type>
 class AuthenticationTestSuite : public Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     sut = Auth_type::create(&mock_session, nullptr);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _))
@@ -67,10 +69,10 @@ class AuthenticationTestSuite : public Test {
 
   ngs::Error_code default_error;
 
-  StrictMock<Mock_sql_data_context> mock_data_context;
-  StrictMock<Mock_client> mock_client;
-  StrictMock<Mock_vio> mock_connection;
-  StrictMock<Mock_session> mock_session;
+  StrictMock<mock::Sql_session> mock_data_context;
+  StrictMock<mock::Client> mock_client;
+  StrictMock<mock::Vio> mock_connection;
+  StrictMock<mock::Session> mock_session;
   std::unique_ptr<iface::Authentication> sut;
 };
 

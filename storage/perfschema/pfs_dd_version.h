@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -145,8 +145,47 @@
   - WL#3549 created binary_log_transaction_compression_stats
   - replication_applier_configuration, added column
   REQUIRE_TABLE_PRIMARY_KEY_CHECK
+
+  80021:
+
+  performance_schema tables changed in MySQL 8.0.21
+  - tls_channel_status (created)
+  - replication_connection_configuration, added column
+  SOURCE_CONNECTION_AUTO_FAILOVER
+
+  80022:
+
+  performance_schema tables changed in MySQL 8.0.22
+  - WL#9090 created processlist
+  - WL#13681 created error_log
+
+  80023:
+
+  performance_schema tables changed in MySQL 8.0.23
+  - WL#12819 replication_applier_configuration, added column
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+  - performance_schema.replication_asynchronous_connection_failover,
+  added column MANAGED_NAME
+  - added table
+  performance_schema.replication_asynchronous_connection_failover_managed
+
+  performance_schema tables changed in Percona Server 8.0.23-14
+  - add time_ms, rows_sent and rows_examined columns to
+  performance_schema.processlist
+
+  80024:
+
+  performance_schema tables changed in MySQL 8.0.24
+  - WL#13446 added performance_schema.keyring_component_status
+
+  80025:
+
+  performance_schema tables changed in Percona Server 8.0.25-15
+  - malloc_stats
+  - malloc_stats_totals
 */
 
-static const uint PFS_DD_VERSION = 80020;
+static const uint PFS_DD_VERSION = 80025;
 
 #endif /* PFS_DD_VERSION_H */

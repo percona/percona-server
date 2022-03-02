@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -47,7 +48,6 @@
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/auth/auth_acls.h"
@@ -347,7 +347,7 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
   if (parse_data->check_parse_data(thd)) return true;
 
   /* At create, one of them must be set */
-  DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
+  assert(parse_data->expression || parse_data->execute_at);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, nullptr, nullptr,
                    false, false))
@@ -399,7 +399,7 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
 
   // Binlog the create event.
   {
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
     String log_query;
     if (create_query_string(thd, &log_query)) {
       LogErr(ERROR_LEVEL, ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG);
@@ -549,7 +549,7 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
 
   /* Binlog the alter event. */
   {
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
     if (new_dbname) thd->add_to_binlog_accessed_dbs(new_dbname->str);
@@ -649,7 +649,7 @@ bool Events::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
 
   // Binlog the drop event.
   {
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
     if (write_bin_log(thd, true, thd->query().str, thd->query().length,
@@ -714,6 +714,13 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
     schema_name = schema_name_buf;
   }
 
+  /*
+    Ensure that we don't hold memory used by MDL_requests after locks have
+    been acquired. This reduces memory usage in cases when we have DROP
+    DATABASE tha needs to drop lots of different objects.
+  */
+  MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
+
   MDL_request_list mdl_requests;
   for (std::vector<dd::String_type>::const_iterator name = event_names.begin();
        name != event_names.end(); ++name) {
@@ -721,7 +728,7 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
     dd::Event::create_mdl_key(dd::String_type(schema_name), *name, &mdl_key);
 
     // Add MDL_request for routine to mdl_requests list.
-    MDL_request *mdl_request = new (thd->mem_root) MDL_request;
+    MDL_request *mdl_request = new (&mdl_reqs_root) MDL_request;
     MDL_REQUEST_INIT_BY_KEY(mdl_request, &mdl_key, MDL_EXCLUSIVE,
                             MDL_TRANSACTION);
     mdl_requests.push_front(mdl_request);
@@ -763,7 +770,7 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                                    Protocol *protocol) {
   char show_str_buf[10 * STRING_BUFFER_USUAL_SIZE];
   String show_str(show_str_buf, sizeof(show_str_buf), system_charset_info);
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   LEX_STRING sql_mode;
   const String *tz_name;
 
@@ -796,7 +803,7 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
   field_list.push_back(
       new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -809,9 +816,9 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                          system_charset_info);
   protocol->store_string(show_str.c_ptr(), show_str.length(),
                          et->m_creation_ctx->get_client_cs());
-  protocol->store_string(et->m_creation_ctx->get_client_cs()->csname,
-                         strlen(et->m_creation_ctx->get_client_cs()->csname),
-                         system_charset_info);
+  const char *csname =
+      replace_utf8_utf8mb3(et->m_creation_ctx->get_client_cs()->csname);
+  protocol->store_string(csname, strlen(csname), system_charset_info);
   protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
                          strlen(et->m_creation_ctx->get_connection_cl()->name),
                          system_charset_info);
@@ -937,8 +944,8 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
-  DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
-              opt_event_scheduler == Events::EVENTS_OFF);
+  assert(opt_event_scheduler == Events::EVENTS_ON ||
+         opt_event_scheduler == Events::EVENTS_OFF);
 
   if (!(event_queue = new Event_queue) ||
       !(scheduler = new Event_scheduler(event_queue))) {
@@ -1030,7 +1037,8 @@ PSI_stage_info *all_events_stages[] = {&stage_waiting_on_empty_queue,
 
 static PSI_memory_info all_events_memory[] = {
     {&key_memory_event_basic_root, "Event_basic::mem_root",
-     PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}};
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Event base class with root used for definiton etc."}};
 
 static void init_events_psi_keys(void) {
   const char *category = "sql";
@@ -1147,6 +1155,15 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue) {
     if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
       return true;
 
+    const char *converted_schema_name = schema_obj->name().c_str();
+    char name_buf[NAME_LEN + 1];
+    if (lower_case_table_names == 2) {
+      // Lower case table names == 2 is tested on OSX.
+      my_stpcpy(name_buf, converted_schema_name);
+      my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+      converted_schema_name = name_buf;
+    }
+
     for (const dd::Event *ev_obj : events) {
       std::unique_ptr<Event_queue_element> et(new (std::nothrow)
                                                   Event_queue_element);
@@ -1155,7 +1172,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue) {
         return true;
       }
 
-      if (et->fill_event_info(thd, *ev_obj, schema_obj->name().c_str())) {
+      if (et->fill_event_info(thd, *ev_obj, converted_schema_name)) {
         LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_GOT_BAD_DATA_FROM_TABLE);
         return true;
       }

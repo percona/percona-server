@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,6 +137,20 @@ int
 ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
 {
   return x > NDBD_SPJ_API_ONLY_LONG_TRANSID_AI;
+}
+
+/**
+ * Does the SPJ-block (contrary to SPJ_API above) support
+ * short TRANSID_AI signals to be received.
+ */
+#define NDBD_SPJ_SHORT_TRANSID_AI NDB_MAKE_VERSION(8,0,22)
+
+static
+inline
+int
+ndbd_spj_support_short_TRANSID_AI(Uint32 x)
+{
+  return x >= NDBD_SPJ_SHORT_TRANSID_AI;
 }
 
 /**
@@ -527,7 +541,7 @@ ndbd_send_started_bitmask(Uint32 x)
 // New limitations from WL#12757
 
 #define NDBD_80_PROTOCOL_ACCEPT_74 NDB_MAKE_VERSION(7,4,6)
-#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,6)
+#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,4)
 #define NDBD_80_PROTOCOL_ACCEPT_76 NDB_MAKE_VERSION(7,6,4)
 
 static
@@ -576,4 +590,91 @@ ndbd_send_active_bitmask(Uint32 x)
   return x >= NDBD_SEND_ACTIVE_BITMASK;
 }
 
+
+
+#define NDBD_WAITGCP_SHUTDOWNSYNC_73 NDB_MAKE_VERSION(7,3,30)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_74 NDB_MAKE_VERSION(7,4,29)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_75 NDB_MAKE_VERSION(7,5,19)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_76 NDB_MAKE_VERSION(7,6,15)
+#define NDBD_WAITGCP_SHUTDOWNSYNC_80 NDB_MAKE_VERSION(8,0,21)
+
+static
+inline
+int
+ndbd_support_waitgcp_shutdownsync(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 3)
+    {
+      return 0;
+    }
+    else if (minor == 3)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_73;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_WAITGCP_SHUTDOWNSYNC_76;
+    }
+  }
+  else if (major == 8)
+  {
+    return x >= NDBD_WAITGCP_SHUTDOWNSYNC_80;
+  }
+  return 1;
+}
+
+/*
+ * Data Node sends minimum API version connected to cluster
+ * as a part of ApiRegConf reply since 8.0.21
+ */
+#define NDBD_SEND_MIN_API_VERSION NDB_MAKE_VERSION(8,0,21)
+static
+inline
+int
+ndbd_send_min_api_version(Uint32 x)
+{
+  return x >= NDBD_SEND_MIN_API_VERSION;
+}
+
+
+// Backup file encryption
+
+#define NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION NDB_MAKE_VERSION(8,0,22)
+
+static
+inline
+bool
+ndbd_support_backup_file_encryption(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
+}
+
+/*
+ * NdbInterpreter may compare NULL values according to the semantic
+ * specified by the SQL standard, which is what MySQL expect. (WL#14476)
+ */
+#define NDBD_SUPPORT_SQL_COMPARE_SEMANTICS NDB_MAKE_VERSION(8,0,26)
+static
+inline
+int
+ndbd_support_sql_compare_semantics(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_SQL_COMPARE_SEMANTICS;
+}
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #include "http_auth_method_basic.h"
 
 #include <algorithm>  // std::find
+#include <iterator>   // std::back_inserter
 #include <string>
+#include <system_error>  // std::errc
 #include <vector>
 
 #include "../src/base64.h"

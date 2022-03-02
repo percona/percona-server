@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,14 @@ class Query_sequencer : public Query_instances {
   Instance_id m_current_instance{0};
   Instance_id m_last_instance{0};
 };
+
+inline size_t message_byte_size(const XProtocol::Message &msg) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+  return msg.ByteSizeLong();
+#else
+  return msg.ByteSize();
+#endif
+}
 
 }  // namespace details
 
@@ -317,14 +325,10 @@ XError Protocol_impl::authenticate_mysql41(const std::string &user,
     XError operator()(
         const std::string &user, const std::string &pass, const std::string &db,
         const Mysqlx::Session::AuthenticateContinue &auth_continue) {
-      std::string data;
       std::string password_hash;
-
-      Mysqlx::Session::AuthenticateContinue auth_continue_response;
-
       if (pass.length()) {
-        password_hash = password_hasher::scramble(
-            auth_continue.auth_data().c_str(), pass.c_str());
+        password_hash =
+            password_hasher::scramble(auth_continue.auth_data(), pass);
         password_hash = password_hasher::get_password_from_salt(password_hash);
 
         if (password_hash.empty()) {
@@ -332,9 +336,12 @@ XError Protocol_impl::authenticate_mysql41(const std::string &user,
         }
       }
 
+      std::string data;
       data.append(db).push_back('\0');    // authz
       data.append(user).push_back('\0');  // authc
       data.append(password_hash);         // pass
+
+      Mysqlx::Session::AuthenticateContinue auth_continue_response;
       auth_continue_response.set_auth_data(data);
 
       return m_protocol->send(auth_continue_response);
@@ -460,7 +467,7 @@ bool Protocol_impl::send_impl(const Client_message_type_id mid,
   const Header_message_type_id header_mesage_id = mid;
   const int header_message_type_size = sizeof(Header_message_type_id);
   const std::size_t header_whole_message_size =
-      msg.ByteSize() + header_message_type_size;
+      details::message_byte_size(msg) + header_message_type_size;
 
   cos.WriteLittleEndian32(header_whole_message_size);
   cos.WriteRaw(&header_mesage_id, header_message_type_size);
@@ -862,11 +869,11 @@ XError Protocol_impl::send_compressed_multiple_frames(
   DBUG_TRACE;
 
   std::string compressed_messages;
-  int total_size = 0;
+  size_t total_size = 0;
 
   {
     for (const auto &message : messages)
-      total_size += message.second->ByteSize() + 5;
+      total_size += details::message_byte_size(*message.second) + 5;
 
     auto algo = m_compression->compression_algorithm();
     if (algo) algo->set_pledged_source_size(total_size);
@@ -888,7 +895,7 @@ XError Protocol_impl::send_compressed_multiple_frames(
 
       dispatch_send_message(msg_id, *msg);
 
-      cos.WriteLittleEndian32(msg->ByteSize() + 1);
+      cos.WriteLittleEndian32(details::message_byte_size(*msg) + 1);
       cos.WriteRaw(&header_msg_id, 1);
       msg->SerializeToCodedStream(&cos);
     }
@@ -1055,6 +1062,11 @@ XProtocol::Message *Protocol_impl::read_compressed(Server_message_type_id *mid,
   if (*out_error) return nullptr;
 
   return message.release();
+}
+
+void Protocol_impl::reset_buffering() {
+  m_connection_input_stream.reset(
+      new Connection_input_stream(m_connection.get()));
 }
 
 XProtocol::Message *Protocol_impl::recv_message_with_header(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -344,30 +344,13 @@ Listener_unix_socket::~Listener_unix_socket() {
   close_listener();
 }
 
-Listener_unix_socket::Sync_variable_state &Listener_unix_socket::get_state() {
+const Listener_unix_socket::Sync_variable_state &
+Listener_unix_socket::get_state() const {
   return m_state;
 }
 
-std::string Listener_unix_socket::get_name_and_configuration() const {
-  std::string result = "socket: '";
-
-  result += m_unix_socket_path;
-  result += "'";
-
-  return result;
-}
-
-std::vector<std::string> Listener_unix_socket::get_configuration_variables()
-    const {
-  std::vector<std::string> result;
-
-  result.push_back(MYSQLX_SYSTEM_VARIABLE_PREFIX("socket"));
-
-  return result;
-}
-
-std::string Listener_unix_socket::get_last_error() const {
-  return m_last_error;
+std::string Listener_unix_socket::get_configuration_variable() const {
+  return MYSQLX_SYSTEM_VARIABLE_PREFIX("socket");
 }
 
 bool Listener_unix_socket::setup_listener(On_connection on_connection) {
@@ -415,6 +398,7 @@ void Listener_unix_socket::close_listener() {
 
 void Listener_unix_socket::pre_loop() {
   if (m_unix_socket) m_unix_socket->set_socket_thread_owner();
+  m_state.set(xpl::iface::Listener::State::k_running);
 }
 
 void Listener_unix_socket::loop() {}
@@ -435,6 +419,19 @@ void Listener_unix_socket::report_properties(On_report_properties on_prop) {
               ngs::PROPERTY_NOT_CONFIGURED);
       break;
   }
+}
+
+bool Listener_unix_socket::report_status() const {
+  const std::string msg = "socket: '" + m_unix_socket_path + "'";
+
+  if (m_state.is(State::k_prepared)) {
+    log_info(ER_XPLUGIN_LISTENER_STATUS_MSG, msg.c_str());
+    return true;
+  }
+
+  log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED, msg.c_str(),
+            m_last_error.c_str());
+  return false;
 }
 
 }  // namespace xpl

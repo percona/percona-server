@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_ets_by_thread_by_event_name.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -171,7 +171,7 @@ int table_ets_by_thread_by_event_name::rnd_pos(const void *pos) {
 
 int table_ets_by_thread_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_ets_by_thread_by_event_name);
   m_index = m_opened_index;
   return 0;
@@ -235,11 +235,11 @@ int table_ets_by_thread_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* THREAD_ID */
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
@@ -252,7 +252,7 @@ int table_ets_by_thread_by_event_name::read_row_values(TABLE *table,
             COUNT_READ_WRITE, SUM/MIN/AVG/MAX_TIMER_READ_WRITE
             COUNT_READ_ONLY, SUM/MIN/AVG/MAX_TIMER_READ_ONLY
           */
-          m_row.m_stat.set_field(f->field_index - 2, f);
+          m_row.m_stat.set_field(f->field_index() - 2, f);
           break;
       }
     }

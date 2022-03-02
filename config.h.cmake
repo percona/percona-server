@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
 #cmakedefine HAVE_LIBNSL 1
-#cmakedefine HAVE_LIBCRYPT 1
 #cmakedefine HAVE_LIBSOCKET 1
 #cmakedefine HAVE_LIBDL 1
 #cmakedefine HAVE_LIBRT 1
@@ -110,6 +109,7 @@
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
+#cmakedefine HAVE_STRPTIME 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1
@@ -194,6 +194,7 @@
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
+#cmakedefine WITH_SYSTEMD_DEBUG
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
@@ -213,6 +214,8 @@
 #cmakedefine HAVE_TSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine KERBEROS_LIB_CONFIGURED
+#cmakedefine SCRAM_LIB_CONFIGURED
+#cmakedefine WITH_HYPERGRAPH_OPTIMIZER
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
@@ -241,6 +244,8 @@
 #cmakedefine HAVE_HIST_ENTRY 1
 #cmakedefine USE_NEW_XLINE_INTERFACE 1
 #cmakedefine HAVE_READLINE_HISTORY_H 1
+#cmakedefine XLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine XLINE_HAVE_COMPLETION_INT 1
 
 /*
  * Libedit
@@ -297,6 +302,7 @@
  * CPU info
  */
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
+#cmakedefine CPU_PAGE_SIZE @CPU_PAGE_SIZE@
 
 /*
  * NDB
@@ -309,6 +315,7 @@
  * Other
  */
 #cmakedefine EXTRA_DEBUG 1
+#cmakedefine HANDLE_FATAL_SIGNALS 1
 
 /*
  * Hardcoded values needed by libevent/NDB/memcached
@@ -341,5 +348,15 @@
 #define DEFAULT_PARTIAL_REVOKES @DEFAULT_PARTIAL_REVOKES@
 
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+/* coredumper library */
+#cmakedefine01 HAVE_LIBCOREDUMPER
+
+
+/* From libmysql/CMakeLists.txt */
+#cmakedefine HAVE_UNIX_DNS_SRV @HAVE_UNIX_DNS_SRV@
+#cmakedefine HAVE_WIN32_DNS_SRV @HAVE_WIN32_DNS_SRV@
+
+/* ARM crc32 support */
+#cmakedefine HAVE_ARMV8_CRC32_INTRINSIC @HAVE_ARMV8_CRC32_INTRINSIC@
 
 #endif

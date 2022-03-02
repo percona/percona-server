@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,8 +63,8 @@ using ::testing::Return;
 
 class ItemTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -229,7 +229,7 @@ TEST_F(ItemTest, ItemInt) {
 
   item_int->neg();
   EXPECT_EQ(-val, item_int->val_int());
-  EXPECT_EQ(precision - 1, item_int->decimal_precision());
+  EXPECT_EQ(precision, item_int->decimal_precision());
 
   // Functions inherited from parent class(es).
   const table_map tmap = 0;
@@ -384,7 +384,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set =
         new Item_func_export_set(POS(), new Item_int(2), on_string, off_string,
                                  sep_string, new Item_int(4));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(&str, export_set->val_str(&str));
@@ -395,7 +395,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set =
         new Item_func_export_set(POS(), new Item_int(2), on_string, off_string,
                                  sep_string, new Item_int(0));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(&str, export_set->val_str(&str));
@@ -419,7 +419,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
         POS(), new Item_int(0xff),
         new Item_func_repeat(POS(), string_x, item_int_repeat), string_x,
         sep_string);
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -433,7 +433,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set = new Item_func_export_set(
         POS(), new Item_int(0xff), string_x,
         new Item_func_repeat(POS(), string_x, item_int_repeat), sep_string);
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -447,7 +447,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set = new Item_func_export_set(
         POS(), new Item_int(0xff), string_x, string_x,
         new Item_func_repeat(POS(), string_x, item_int_repeat));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -469,7 +469,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Item *export_set = new Item_func_export_set(
         POS(), new Item_string(STRING_WITH_LEN("1111111"), &my_charset_bin),
         lpad, new Item_int(1));
-    Parse_context pc(thd(), thd()->lex->current_select());
+    Parse_context pc(thd(), thd()->lex->current_query_block());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
@@ -528,7 +528,7 @@ TEST_F(ItemTest, ItemFuncSetUserVar) {
 
   LEX_CSTRING var_name = {STRING_WITH_LEN("a")};
   Item_func_set_user_var *user_var =
-      new Item_func_set_user_var(var_name, item_str, false);
+      new Item_func_set_user_var(var_name, item_str);
   EXPECT_FALSE(user_var->set_entry(thd(), true));
   EXPECT_FALSE(user_var->fix_fields(thd(), nullptr));
   EXPECT_EQ(val1, user_var->val_int());
@@ -548,7 +548,7 @@ TEST_F(ItemTest, OutOfMemory) {
   Item_int *item = new Item_int(42);
   EXPECT_NE(nullptr, item);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   // Setting debug flags triggers enter/exit trace, so redirect to /dev/null.
   DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
 
@@ -699,8 +699,8 @@ TEST_F(ItemTest, MysqlTimeCache) {
   /*
     Testing DATETIME(5)
   */
-  MysqlTime datetime5(2011, 11, 7, 10, 20, 30, 123450, false,
-                      MYSQL_TIMESTAMP_DATETIME);
+  MysqlTime datetime5 = {
+      2011, 11, 7, 10, 20, 30, 123450, false, MYSQL_TIMESTAMP_DATETIME};
   cache.set_datetime(&datetime5, 5);
   EXPECT_EQ(1840440237558456890LL, cache.val_packed());
   EXPECT_EQ(5, cache.decimals());
@@ -768,7 +768,7 @@ TEST_F(ItemTest, ItemFuncConvIntMin) {
   Item *item_conv = new Item_func_conv(POS(), new Item_string("5", 1, &charset),
                                        new Item_int(INT_MIN),   // from_base
                                        new Item_int(INT_MIN));  // to_base
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(item_conv->itemize(&pc, &item_conv));
   EXPECT_FALSE(item_conv->fix_fields(thd(), nullptr));
   const String *null_string = nullptr;
@@ -780,19 +780,15 @@ TEST_F(ItemTest, ItemDecimalTypecast) {
   const char msg[] = "";
   POS pos;
   pos.cpp.start = pos.cpp.end = pos.raw.start = pos.raw.end = msg;
-  // Sun Studio needs this null_item,
-  // it fails to compile EXPECT_EQ(NULL, create_func_cast());
-  const Item *null_item = nullptr;
 
   Cast_type type;
   type.target = ITEM_CAST_DECIMAL;
-
   type.length = "123456789012345678901234567890";
   type.dec = nullptr;
 
   {
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
+    EXPECT_EQ(nullptr, create_func_cast(thd(), pos, nullptr, type, false));
   }
 
   {
@@ -801,14 +797,14 @@ TEST_F(ItemTest, ItemDecimalTypecast) {
     type.length = buff;
     type.dec = nullptr;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
+    EXPECT_EQ(nullptr, create_func_cast(thd(), pos, nullptr, type, false));
   }
 
   {
     type.length = nullptr;
     type.dec = "123456789012345678901234567890";
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
+    EXPECT_EQ(nullptr, create_func_cast(thd(), pos, nullptr, type, false));
   }
 
   {
@@ -817,7 +813,7 @@ TEST_F(ItemTest, ItemDecimalTypecast) {
     type.length = buff;
     type.dec = buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
+    EXPECT_EQ(nullptr, create_func_cast(thd(), pos, nullptr, type, false));
   }
 }
 

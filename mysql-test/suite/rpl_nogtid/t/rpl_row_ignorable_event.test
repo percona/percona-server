@@ -94,7 +94,7 @@ RESET MASTER;
 --source include/mysqlbinlog.inc
 
 --echo # Test the Rows_query log event can be applied
---exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $binlog_uuid_filename | $MYSQL test 2>&1
+--exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $binlog_uuid_filename | $MYSQL -c test 2>&1
 
 --remove_file $binlog_uuid_filename
 

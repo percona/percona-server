@@ -17,15 +17,18 @@
 
 #include <atomic>
 #include <ctime>
-#include <list>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <ldap.h>
 
 namespace mysql {
 namespace plugin {
 namespace auth_ldap {
+
+using groups_t = std::vector<std::string>;
+
 class Connection {
  public:
   static const unsigned ZombieAfterSeconds = 120;
@@ -52,11 +55,11 @@ class Connection {
   std::string search_dn(const std::string &user_name,
                         const std::string &user_search_attr,
                         const std::string &base_dn);
-  std::list<std::string> search_groups(const std::string &user_name,
-                                       const std::string &bind_user,
-                                       const std::string &group_search_attr,
-                                       const std::string &group_search_filter,
-                                       const std::string &base_dn);
+  groups_t search_groups(const std::string &user_name,
+                         const std::string &bind_user,
+                         const std::string &group_search_attr,
+                         const std::string &group_search_filter,
+                         const std::string &base_dn);
 
  private:
   std::string get_ldap_uri();

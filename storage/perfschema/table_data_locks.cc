@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -260,7 +260,7 @@ int table_data_locks::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_data_locks_by_object);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -282,13 +282,13 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
   }
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  assert(table->s->null_bytes == 2);
   buf[0] = 0;
   buf[1] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* ENGINE */
           set_field_varchar_utf8(f, m_row->m_engine);
           break;
@@ -362,7 +362,7 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

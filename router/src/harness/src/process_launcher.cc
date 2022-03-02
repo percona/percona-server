@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,14 @@
 #include <unistd.h>
 #endif
 
-#include "iostream"
+#include "common.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+#ifndef _WIN32
+extern char **environ;
+#endif
 
 namespace mysql_harness {
 
@@ -60,7 +64,6 @@ constexpr auto kTerminateWaitInterval = std::chrono::seconds(10);
 /** @brief maximum number of parameters that can be passed to the launched
  * process */
 constexpr auto kWaitPidCheckInterval = std::chrono::milliseconds(10);
-constexpr size_t kMaxLaunchedProcessParams{30};
 #endif
 
 std::string SpawnedProcess::get_cmd_line() const {
@@ -211,26 +214,80 @@ void ProcessLauncher::start() {
 
   std::string arguments = win32::cmdline_from_args(executable_path, args);
 
+  // as CreateProcess may/will modify the arguments (split filename and args
+  // with a \0) keep a copy of it for error-reporting.
+  std::string create_process_arguments = arguments;
+  for (const auto &env_var : env_vars) {
+    SetEnvironmentVariable(env_var.first.c_str(), env_var.second.c_str());
+  }
+
+  // The code below makes sure the process we are launching only inherits the
+  // in/out pipes FDs
+  SIZE_T size = 0;
+  // figure out the size needed for a 1-elem list
+  if (InitializeProcThreadAttributeList(NULL, 1, 0, &size) == FALSE &&
+      GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+    throw std::system_error(last_error_code(),
+                            "Failed to InitializeProcThreadAttributeList() "
+                            "when launching a process " +
+                                arguments);
+  }
+
+  // allocate the memory for the list
+  auto attribute_list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+      HeapAlloc(GetProcessHeap(), 0, size));
+  if (attribute_list == nullptr) {
+    throw std::system_error(
+        last_error_code(),
+        "Failed to HeapAlloc() when launchin a process " + arguments);
+  }
+  mysql_harness::ScopeGuard clean_attribute_list_guard(
+      [&]() { DeleteProcThreadAttributeList(attribute_list); });
+
+  if (InitializeProcThreadAttributeList(attribute_list, 1, 0, &size) == FALSE) {
+    throw std::system_error(last_error_code(),
+                            "Failed to InitializeProcThreadAttributeList() 2 "
+                            "when launching a process " +
+                                arguments);
+  }
+
+  // fill up the list
+  HANDLE handles_to_inherit[] = {child_out_wr, child_in_rd};
+  if (UpdateProcThreadAttribute(attribute_list, 0,
+                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                handles_to_inherit, sizeof(handles_to_inherit),
+                                NULL, NULL) == FALSE) {
+    throw std::system_error(
+        last_error_code(),
+        "Failed to UpdateProcThreadAttribute() when launching a process " +
+            arguments);
+  }
+
+  // prepare the process' startup parameters structure
   si.cb = sizeof(STARTUPINFO);
   if (redirect_stderr) si.hStdError = child_out_wr;
   si.hStdOutput = child_out_wr;
   si.hStdInput = child_in_rd;
   si.dwFlags |= STARTF_USESTDHANDLES;
+  STARTUPINFOEX si_ex;
+  ZeroMemory(&si_ex, sizeof(si_ex));
+  si_ex.StartupInfo = si;
+  si_ex.StartupInfo.cb = sizeof(si_ex);
+  si_ex.lpAttributeList = attribute_list;
 
-  // as CreateProcess may/will modify the arguments (split filename and args
-  // with a \0) keep a copy of it for error-reporting.
-  std::string create_process_arguments = arguments;
+  // launch the process
   BOOL bSuccess =
       CreateProcess(NULL,                               // lpApplicationName
                     &create_process_arguments.front(),  // lpCommandLine
                     NULL,                               // lpProcessAttributes
                     NULL,                               // lpThreadAttributes
                     TRUE,                               // bInheritHandles
-                    CREATE_NEW_PROCESS_GROUP,           // dwCreationFlags
-                    NULL,                               // lpEnvironment
-                    NULL,                               // lpCurrentDirectory
-                    &si,                                // lpStartupInfo
-                    &pi);                               // lpProcessInformation
+                    CREATE_NEW_PROCESS_GROUP |
+                        EXTENDED_STARTUPINFO_PRESENT,  // dwCreationFlags
+                    NULL,                              // lpEnvironment
+                    NULL,                              // lpCurrentDirectory
+                    &si_ex.StartupInfo,                // lpStartupInfo
+                    &pi);                              // lpProcessInformation
 
   if (!bSuccess) {
     throw std::system_error(last_error_code(),
@@ -259,11 +316,7 @@ int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
           get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
           break;
         case WAIT_TIMEOUT:
-          throw std::system_error(std::make_error_code(std::errc::timed_out),
-                                  std::string("Timed out waiting " +
-                                              std::to_string(timeout.count()) +
-                                              " ms for the process '" +
-                                              executable_path + "' to exit"));
+          throw std::system_error(std::make_error_code(std::errc::timed_out));
         case WAIT_FAILED:
           throw std::system_error(last_error_code());
         default:
@@ -405,19 +458,51 @@ uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)child_out_rd; }
 
 #else
 
-static std::array<const char *, kMaxLaunchedProcessParams> get_params(
+static std::vector<const char *> get_params(
     const std::string &command, const std::vector<std::string> &params_vec) {
-  std::array<const char *, kMaxLaunchedProcessParams> result;
-  result[0] = command.c_str();
+  std::vector<const char *> result;
+  result.reserve(params_vec.size() +
+                 2);  // 1 for command name and 1 for terminating NULL
+  result.push_back(command.c_str());
 
-  size_t i = 1;
   for (const auto &par : params_vec) {
-    if (i >= kMaxLaunchedProcessParams - 1) {
-      throw std::runtime_error("Too many parameters passed to the " + command);
-    }
-    result[i++] = par.c_str();
+    result.push_back(par.c_str());
   }
-  result[i] = nullptr;
+  result.push_back(nullptr);
+
+  return result;
+}
+
+// converts vector of pairs to vector of strings "first=second"
+static auto get_env_vars_vector(
+    const std::vector<std::pair<std::string, std::string>> &env_vars) {
+  std::vector<std::string> result;
+
+  for (const auto &env_var : env_vars) {
+    result.push_back(env_var.first + "=" + env_var.second);
+  }
+
+  return result;
+}
+
+static auto get_env_vars(const std::vector<std::string> &env_vars) {
+  std::vector<const char *> result;
+
+  size_t i{0};
+  for (; environ[i] != nullptr; ++i)
+    ;
+  result.reserve(env_vars.size() + i + 1);
+
+  // first copy all current process' env variables
+  for (i = 0; environ[i] != nullptr; ++i) {
+    result.push_back(environ[i]);
+  }
+
+  // now append all the env variables passed to the launcher
+  for (i = 0; i < env_vars.size(); ++i) {
+    result.push_back(env_vars[i].c_str());
+  }
+  result.push_back(nullptr);
 
   return result;
 }
@@ -479,9 +564,23 @@ void ProcessLauncher::start() {
     fcntl(fd_out[1], F_SETFD, FD_CLOEXEC);
     fcntl(fd_in[0], F_SETFD, FD_CLOEXEC);
 
+    // mark all FDs as CLOEXEC
+    //
+    // don't inherit any open FD to the spawned process.
+    //
+    // 3 should be STDERR_FILENO + 1
+    // 255 should be large enough.
+    for (int fd = 3; fd < 255; ++fd) {
+      // it may fail (bad fd, ...)
+      fcntl(fd, F_SETFD, FD_CLOEXEC);
+    }
+
     const auto params_arr = get_params(executable_path, args);
-    execvp(executable_path.c_str(),
-           const_cast<char *const *>(params_arr.data()));
+    const auto env_vars_vect = get_env_vars_vector(env_vars);
+    const auto env_vars_arr = get_env_vars(env_vars_vect);
+    execve(executable_path.c_str(),
+           const_cast<char *const *>(params_arr.data()),
+           const_cast<char *const *>(env_vars_arr.data()));
     // if exec returns, there is an error.
     auto ec = last_error_code();
     fprintf(stderr, "%s could not be executed: %s (errno %d)\n",
@@ -600,16 +699,10 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
         wait_time -= sleep_for;
       } else {
-        throw std::system_error(std::make_error_code(std::errc::timed_out),
-                                std::string("Timed out waiting ") +
-                                    std::to_string(timeout.count()) +
-                                    " ms for the process " +
-                                    std::to_string(childpid) + " to exit");
+        throw std::system_error(std::make_error_code(std::errc::timed_out));
       }
     } else if (ret == -1) {
-      throw std::system_error(
-          last_error_code(),
-          std::string("waiting for process '" + executable_path + "' failed"));
+      throw std::system_error(last_error_code());
     } else {
       if (WIFEXITED(status)) {
         return WEXITSTATUS(status);

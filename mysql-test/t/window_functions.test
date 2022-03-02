@@ -1,6 +1,7 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
 --source include/have_innodb_16k.inc
+--source include/not_hypergraph.inc   # Windowing functions are not supported yet.
 SET NAMES utf8;
 
 --echo
@@ -264,6 +265,7 @@ SELECT id, FIRST_VALUE(id) OVER w first, LAST_VALUE(id) OVER w last, sex FROM t1
 CREATE TABLE t_a (a INT, b INT);
 INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
 CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
+--sorted_result
 SELECT (SELECT SUM(t_b.a) OVER () FROM t_b WHERE t_b.a = t_a.a) aa, b FROM t_a GROUP BY aa, b;
 DROP TABLE t_a, t_b;
 
@@ -339,6 +341,13 @@ DROP PREPARE p;
 
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS ? PRECEDING) FROM t1";
 SET @p1= -1;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p1;
+DROP PREPARE p;
+
+--echo Negative floating-point bounds not ok
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id RANGE ? PRECEDING) FROM t1";
+SET @p1= -0.1;
 --error ER_WINDOW_FRAME_ILLEGAL
 EXECUTE p USING @p1;
 DROP PREPARE p;
@@ -961,7 +970,18 @@ DROP TABLE td;
 
 --error ER_WRONG_ARGUMENTS
 SELECT id, NTILE(0) OVER w FROM t1 WINDOW w AS ();
+
+# Neither NULL literal, nor NULL value of argument is allowed
+--error ER_PARSE_ERROR
 SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+PREPARE s FROM
+  'SELECT id, NTILE(?) OVER w FROM t1 WINDOW w AS (ORDER BY id)';
+SET @a=NULL;
+
+--error ER_WRONG_ARGUMENTS
+EXECUTE s USING @a;
+--error ER_WRONG_ARGUMENTS
+SELECT id, NTILE(@s) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS ();
 SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS ();
 SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
@@ -983,6 +1003,7 @@ SET @p1= '1';
 --error ER_WRONG_ARGUMENTS
 EXECUTE p USING @p1;
 SET @p1= NULL;
+--error ER_WRONG_ARGUMENTS
 EXECUTE p USING @p1;
 DROP PREPARE p;
 
@@ -3821,13 +3842,16 @@ SELECT w, SUM(w) OVER (ROWS BETWEEN 3 PRECEDING AND 3.4 FOLLOWING) FROM t;
 --error ER_WINDOW_FRAME_ILLEGAL
 SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
 
---error ER_WINDOW_FRAME_ILLEGAL
+# 3.14 is invalid, but this is checked only at execution, in case the value
+# is a dynamic parameter
 PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE stmt;
 PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
 SET @p1= 2;
 EXECUTE stmt USING @p1;
 SET @p1= 2.3;
---error ER_WINDOW_FRAME_ILLEGAL
+--error ER_WRONG_ARGUMENTS
 EXECUTE stmt USING @p1;
 DROP PREPARE stmt;
 
@@ -4125,6 +4149,54 @@ RESPECT NULLS OVER(), UUID_SHORT());
 
 --echo # End of test for Bug#26975848, Bug#27062796, Bug#27062694
 
+--echo # Bug#31361428: Assertion `rowno != 0' failed. in bring_back_frame_row
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2),(3),(4);
+SELECT PERCENT_RANK() OVER(),
+       LAG(1,35,1) OVER w2
+FROM t
+WINDOW w1 AS (ROWS UNBOUNDED PRECEDING),
+       w2 AS (ROWS BETWEEN 18446744073709551615 FOLLOWING AND 1 FOLLOWING);
+SELECT PERCENT_RANK() OVER(),
+       LAG(1,35,1) OVER w2
+FROM t
+WINDOW w1 AS (ROWS UNBOUNDED PRECEDING),
+       w2 AS (ROWS BETWEEN 1 FOLLOWING AND 18446744073709551615 FOLLOWING);
+
+--echo # Prove that 18446744073709551615 is not seen as -1:
+SELECT a, SUM(a) OVER (ROWS BETWEEN
+                       18446744073709551615 FOLLOWING AND 1 FOLLOWING)
+FROM t;
+SELECT a, SUM(a) OVER (ROWS BETWEEN
+                       1 FOLLOWING AND 18446744073709551615 FOLLOWING)
+FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#31361748 ASSERTION `W->FRAME_BUFFER()->S->DB_TYPE()->DB_TYPE..
+--echo #
+
+--echo # Minimal repro
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (3), (10), (100), (103);
+SELECT a, COUNT(a) OVER (ORDER BY a RANGE
+                         BETWEEN 4 FOLLOWING AND 6 FOLLOWING)
+FROM t;
+DROP TABLE t;
+
+--echo # Original repro
+CREATE TABLE t (a INT,b INT);
+INSERT INTO t(a) VALUES(2147483647),(0),(-2),(-1),(0);
+INSERT INTO t(a) VALUES(5430600),(0),(-91),(2147483647),(0);
+INSERT INTO t(a) VALUES(-1),(0),(-26164),(37583),(-1),(79);
+SELECT LAST_VALUE(b) RESPECT NULLS
+          OVER (PARTITION BY b ORDER BY a
+                RANGE BETWEEN 253 FOLLOWING AND 118 FOLLOWING)
+FROM t;
+DROP TABLE t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
@@ -4132,3 +4204,155 @@ RESPECT NULLS OVER(), UUID_SHORT());
 # comment-start: "# "
 # fill-column: 80
 # End:
+
+--echo #
+--echo # Bug#31393719: SIGFPE, ARITHMETIC EXCEPTION IN ITEM_NTILE::VAL_INT
+--echo #
+
+--error ER_PARSE_ERROR
+DO NTILE(MAX(NOT 1)) OVER();
+
+# Positive coverage for unlikely-tested corner cases:
+
+DO LAG(1, 9223372036854775807) OVER();
+DO LEAD(1, 9223372036854775807) OVER();
+DO NTILE(9223372036854775807) OVER();
+
+# Negative coverage tests for 2^64-1 literals:
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, 18446744073709551615) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, 18446744073709551615) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(18446744073709551615) OVER();
+
+# Negative coverage tests for some non-literal arguments:
+
+CREATE PROCEDURE p1(n INT) DO NTILE(n) OVER();
+--error ER_WRONG_ARGUMENTS
+CALL p1(NULL);
+DROP PROCEDURE p1;
+
+SET @v = NULL;
+
+PREPARE stmt FROM 'DO NTILE(?) OVER()';
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @v;
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @undefined;
+
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@undefined) OVER();
+
+CREATE PROCEDURE p2(n INT) DO LEAD(1, n) OVER();
+--error ER_WRONG_ARGUMENTS
+CALL p2(NULL);
+DROP PROCEDURE p2;
+
+CREATE PROCEDURE p3(n INT) DO LAG(1, n) OVER();
+--error ER_WRONG_ARGUMENTS
+CALL p3(NULL);
+DROP PROCEDURE p3;
+
+PREPARE stmt FROM 'DO LAG(1, ?) OVER()';
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @v;
+
+PREPARE stmt FROM 'DO LEAD(1, ?) OVER()';
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @v;
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER();
+
+SET @v = '1';
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER();
+
+SET @v = 1.2;
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER();
+
+# Negative coverage tests for mutable references to user-defined variables:
+
+SET @v = 10;
+
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER(), @v:=20;
+
+DO LEAD(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER(), @v:=20;
+
+DO NTILE(@v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER(), @v:=20;
+
+--echo # End of test for Bug#31393719
+
+--echo #
+--echo # Bug#31546816 - QUERY RETURNS DIFFERENT RESULTS DEPENDING ON INTERNAL_TMP_MEM_STORAGE_ENGINE
+--echo #
+
+CREATE TABLE `t1` (`c1` INT, `c2` INT, `c3` CHAR(255), `c4` CHAR(255));
+INSERT INTO t1 VALUES
+(1,1,'t1','t1'), (2,2,'t1','t1'), (3,3,'t1','t1'), (4,4,'t1','t1'), (5,5,'t1','t1'),
+(6,6,'t1','t1'), (7,7,'t1','t1'), (8,8,'t1','t1'), (9,9,'t1','t1'), (10,10,'t1','t1'),
+(11,11,'t1','t1'), (12,12,'t1','t1'), (13,13,'t1','t1'), (14,14,'t1','t1'), (15,15,'t1','t1'),
+(16,16,'t1','t1'), (17,17,'t1','t1'), (18,18,'t1','t1'), (19,19,'t1','t1'), (20,20,'t1','t1'),
+(21,21,'t1','t1'), (22,22,'t1','t1'), (23,23,'t1','t1'), (24,24,'t1','t1'), (25,25,'t1','t1');
+
+# Set minimum values for memory limits to force a disk migration of
+# in-memory temp tables
+SET @@session.max_heap_table_size=16*1024;
+SET @@session.tmp_table_size=1024;
+SET optimizer_switch="derived_condition_pushdown=off";
+
+# Expecting same result set with MEMORY and TempTable storage
+SET SESSION internal_tmp_mem_storage_engine=MEMORY;
+SELECT * FROM (SELECT c2, c3, c4, SUM(c1) OVER (PARTITION BY c2) AS wcol FROM t1)o WHERE c2=10;
+SET SESSION internal_tmp_mem_storage_engine=TempTable;
+SELECT * FROM (SELECT c2, c3, c4, SUM(c1) OVER (PARTITION BY c2) AS wcol FROM t1)o WHERE c2=10;
+
+#cleanup
+SET optimizer_switch=default;
+SET @@session.max_heap_table_size=default;
+SET @@session.tmp_table_size=default;
+SET @@session.internal_tmp_mem_storage_engine=default;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32497850 RECENT CRASH IN MY_DECIMAL::MY_DECIMAL
+--echo #
+
+SELECT (3.14 DIV (
+  FIRST_VALUE(
+    FROM_DAYS(2486378174430980553)
+  )
+  OVER()
+  )
+);
+
+SELECT (3.14 DIV (
+  NTH_VALUE(
+    FROM_DAYS(2486378174430980553), 1
+  )
+  OVER()
+  )
+);

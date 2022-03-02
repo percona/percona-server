@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/service.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/dynamic_privilege.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/registry.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_plugin_registry.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
@@ -88,7 +88,7 @@ Dynamic_privilege_register *get_dynamic_privilege_register(void) {
 bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_TRACE;
   bool error = false;
-  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  assert(assert_acl_cache_write_lock(thd));
   Acl_table_intact table_intact(thd);
 
   if (table_intact.check(tablelst[0].table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
@@ -96,9 +96,9 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, nullptr, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
@@ -131,7 +131,11 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_PRIV]);
       char *with_grant_option = get_field(
           &tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_WITH_GRANT_OPTION]);
-      if (priv == nullptr) priv = &empty_str;
+      if (priv == nullptr) {
+        LogErr(WARNING_LEVEL, ER_EMPTY_PRIVILEGE_NAME_IGNORED);
+        continue;  // skip invalid privilege
+      }
+
       my_caseup_str(system_charset_info, priv);
       LEX_CSTRING str_priv = {priv, strlen(priv)};
       LEX_CSTRING str_user = {user, strlen(user)};

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,6 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
@@ -257,29 +256,31 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     
     if (0)
     {
-      ndbout_c("Inputs : ");
-      ndbout_c("  MaxUIBuildBatchSize : %u",
-               maxUIBuildBatchSize);
-      ndbout_c("  MaxFKBuildBatchSize : %u",
-               maxFKBuildBatchSize);
-      ndbout_c("  MaxReorgBuildBatchSize : %u",
-               maxReorgBuildBatchSize);
-      ndbout_c("  MaxPreparedOps : %u", MaxPreparedOps);
-      ndbout_c("  MaxNonSchemaBuildOps : %u", MaxNonSchemaBuildOps);
-      ndbout_c("  NumConcurrentPrepares : %u", NumConcurrentPrepares);
-      ndbout_c("  SparePages : %u", SparePages);
-      ndbout_c("  PagesPerPreparingOp : %u", PagesPerPreparingOp);
-      ndbout_c("  PagesPerTransaction : %u", PagesPerTransaction);
-      ndbout_c("  MAX_ATTRIBUTES_IN_TABLE : %u", MAX_ATTRIBUTES_IN_TABLE);
-      ndbout_c("  MAX_TUPLE_SIZE_IN_WORDS : %u", MAX_TUPLE_SIZE_IN_WORDS);
-      ndbout_c("  MAX_KEY_SIZE_IN_WORDS : %u", MAX_KEY_SIZE_IN_WORDS);
-      ndbout_c("Outputs : ");
-      ndbout_c("  MaxConcurrentOps : %u", MaxConcurrentOps);
-      ndbout_c("  MaxConcurrentTrans : %u", MaxConcurrentTrans);
-      ndbout_c("  MaxAttributeMappings : %u", MaxAttributeMappings);
-      ndbout_c("  DataBuffWordsPerOp : %u", DataBuffWordsPerOp);
-      ndbout_c("  numDataBuffers : %u", numDataBuffers);
-      ndbout_c("  numPages : %u", numPages);
+      g_eventLogger->info("Inputs : ");
+      g_eventLogger->info("  MaxUIBuildBatchSize : %u", maxUIBuildBatchSize);
+      g_eventLogger->info("  MaxFKBuildBatchSize : %u", maxFKBuildBatchSize);
+      g_eventLogger->info("  MaxReorgBuildBatchSize : %u",
+                          maxReorgBuildBatchSize);
+      g_eventLogger->info("  MaxPreparedOps : %u", MaxPreparedOps);
+      g_eventLogger->info("  MaxNonSchemaBuildOps : %u", MaxNonSchemaBuildOps);
+      g_eventLogger->info("  NumConcurrentPrepares : %u",
+                          NumConcurrentPrepares);
+      g_eventLogger->info("  SparePages : %u", SparePages);
+      g_eventLogger->info("  PagesPerPreparingOp : %u", PagesPerPreparingOp);
+      g_eventLogger->info("  PagesPerTransaction : %u", PagesPerTransaction);
+      g_eventLogger->info("  MAX_ATTRIBUTES_IN_TABLE : %u",
+                          MAX_ATTRIBUTES_IN_TABLE);
+      g_eventLogger->info("  MAX_TUPLE_SIZE_IN_WORDS : %u",
+                          MAX_TUPLE_SIZE_IN_WORDS);
+      g_eventLogger->info("  MAX_KEY_SIZE_IN_WORDS : %u",
+                          MAX_KEY_SIZE_IN_WORDS);
+      g_eventLogger->info("Outputs : ");
+      g_eventLogger->info("  MaxConcurrentOps : %u", MaxConcurrentOps);
+      g_eventLogger->info("  MaxConcurrentTrans : %u", MaxConcurrentTrans);
+      g_eventLogger->info("  MaxAttributeMappings : %u", MaxAttributeMappings);
+      g_eventLogger->info("  DataBuffWordsPerOp : %u", DataBuffWordsPerOp);
+      g_eventLogger->info("  numDataBuffers : %u", numDataBuffers);
+      g_eventLogger->info("  numPages : %u", numPages);
     }
       
 
@@ -819,7 +820,8 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     Callback c = { safe_cast(&DbUtil::mutex_created), ptr.i };
     ptr.p->m_callback = c;
     c_mutexMgr.create(signal, ptr);
-    ndbout_c("c_mutexMgr.create ptrI=%d mutexId=%d", ptr.i, ptr.p->m_mutexId);
+    g_eventLogger->info("c_mutexMgr.create ptrI=%d mutexId=%d", ptr.i,
+                        ptr.p->m_mutexId);
   }
 
   if(tCase == 241 && signal->getLength() == 2){
@@ -829,7 +831,8 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     Callback c = { safe_cast(&DbUtil::mutex_locked), ptr.i };
     ptr.p->m_callback = c;
     c_mutexMgr.lock(signal, ptr, true);
-    ndbout_c("c_mutexMgr.lock ptrI=%d mutexId=%d", ptr.i, ptr.p->m_mutexId);
+    g_eventLogger->info("c_mutexMgr.lock ptrI=%d mutexId=%d", ptr.i,
+                        ptr.p->m_mutexId);
   }
 
   if(tCase == 242 && signal->getLength() == 2){
@@ -839,7 +842,8 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     Callback c = { safe_cast(&DbUtil::mutex_unlocked), ptr.i };
     ptr.p->m_callback = c;
     c_mutexMgr.unlock(signal, ptr);
-    ndbout_c("c_mutexMgr.unlock ptrI=%d mutexId=%d", ptr.i, ptr.p->m_mutexId);
+    g_eventLogger->info("c_mutexMgr.unlock ptrI=%d mutexId=%d", ptr.i,
+                        ptr.p->m_mutexId);
   }
   
   if(tCase == 243 && signal->getLength() == 3){
@@ -849,8 +853,8 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     Callback c = { safe_cast(&DbUtil::mutex_destroyed), ptr.i };
     ptr.p->m_callback = c;
     c_mutexMgr.destroy(signal, ptr);
-    ndbout_c("c_mutexMgr.destroy ptrI=%d mutexId=%d", 
-	     ptr.i, ptr.p->m_mutexId);
+    g_eventLogger->info("c_mutexMgr.destroy ptrI=%d mutexId=%d", ptr.i,
+                        ptr.p->m_mutexId);
   }
 
   if (tCase == 244)
@@ -992,8 +996,8 @@ void
 DbUtil::mutex_created(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
   c_mutexMgr.getPtr(ptr);
-  ndbout_c("mutex_created - mutexId=%d, retVal=%d", 
-	   ptr.p->m_mutexId, retVal);
+  g_eventLogger->info("mutex_created - mutexId=%d, retVal=%d", ptr.p->m_mutexId,
+                      retVal);
   c_mutexMgr.release(ptrI);
 }
 
@@ -1001,8 +1005,8 @@ void
 DbUtil::mutex_destroyed(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
   c_mutexMgr.getPtr(ptr);
-  ndbout_c("mutex_destroyed - mutexId=%d, retVal=%d", 
-	   ptr.p->m_mutexId, retVal); 
+  g_eventLogger->info("mutex_destroyed - mutexId=%d, retVal=%d",
+                      ptr.p->m_mutexId, retVal);
   c_mutexMgr.release(ptrI);
 }
 
@@ -1010,8 +1014,8 @@ void
 DbUtil::mutex_locked(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
   c_mutexMgr.getPtr(ptr);
-  ndbout_c("mutex_locked - mutexId=%d, retVal=%d ptrI=%d", 
-	   ptr.p->m_mutexId, retVal, ptrI);
+  g_eventLogger->info("mutex_locked - mutexId=%d, retVal=%d ptrI=%d",
+                      ptr.p->m_mutexId, retVal, ptrI);
   if(retVal)
     c_mutexMgr.release(ptrI);
 }
@@ -1020,8 +1024,8 @@ void
 DbUtil::mutex_unlocked(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
   c_mutexMgr.getPtr(ptr);
-  ndbout_c("mutex_unlocked - mutexId=%d, retVal=%d", 
-	   ptr.p->m_mutexId, retVal); 
+  g_eventLogger->info("mutex_unlocked - mutexId=%d, retVal=%d",
+                      ptr.p->m_mutexId, retVal);
   if(!retVal)
     c_mutexMgr.release(ptrI);
 }
@@ -1029,35 +1033,35 @@ DbUtil::mutex_unlocked(Signal* signal, Uint32 ptrI, Uint32 retVal){
 void
 DbUtil::execUTIL_SEQUENCE_REF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_SEQUENCE_REF" << endl;
+  g_eventLogger->info("UTIL_SEQUENCE_REF");
   printUTIL_SEQUENCE_REF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void
 DbUtil::execUTIL_SEQUENCE_CONF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_SEQUENCE_CONF" << endl;
+  g_eventLogger->info("UTIL_SEQUENCE_CONF");
   printUTIL_SEQUENCE_CONF(stdout, signal->getDataPtrSend(), signal->length(),0);
 }
 
 void
 DbUtil::execUTIL_PREPARE_CONF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_PREPARE_CONF" << endl;
+  g_eventLogger->info("UTIL_PREPARE_CONF");
   printUTIL_PREPARE_CONF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void
 DbUtil::execUTIL_PREPARE_REF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_PREPARE_REF" << endl;
+  g_eventLogger->info("UTIL_PREPARE_REF");
   printUTIL_PREPARE_REF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void 
 DbUtil::execUTIL_EXECUTE_CONF(Signal* signal) {
   jamEntry();
-  ndbout << "UTIL_EXECUTE_CONF" << endl;
+  g_eventLogger->info("UTIL_EXECUTE_CONF");
   printUTIL_EXECUTE_CONF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
@@ -1065,21 +1069,21 @@ void
 DbUtil::execUTIL_EXECUTE_REF(Signal* signal) {
   jamEntry();
 
-  ndbout << "UTIL_EXECUTE_REF" << endl;
+  g_eventLogger->info("UTIL_EXECUTE_REF");
   printUTIL_EXECUTE_REF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void 
 DbUtil::execUTIL_RELEASE_CONF(Signal* signal) {
   jamEntry();
-  ndbout << "UTIL_RELEASE_CONF" << endl;
+  g_eventLogger->info("UTIL_RELEASE_CONF");
 }
 
 void 
 DbUtil::execUTIL_RELEASE_REF(Signal* signal) {
   jamEntry();
 
-  ndbout << "UTIL_RELEASE_REF" << endl;
+  g_eventLogger->info("UTIL_RELEASE_REF");
 }
 
 void
@@ -1325,7 +1329,7 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
   case GetTabInfoRef::TableNotDefined:
     ndbout << "      Msg:  Table not defined" << endl;
     break;
-  case GetTabInfoRef::TableNameToLong:
+  case GetTabInfoRef::TableNameTooLong:
     ndbout << "      Msg:  Table node too long" << endl;
     break;
   default:
@@ -2213,6 +2217,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
 #if 0 //def EVENT_DEBUG
   // Debugging
+  printf("DbUtil::c_dataBufPool.used = %u\n", c_dataBufPool.getUsed());
   printf("DbUtil::execUTIL_EXECUTEL_REQ: Headers (%u): ", headerPtr.sz);
   Uint32 word;
   while(headerReader.getWord(&word))
@@ -2220,10 +2225,12 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   printf("\n");
   printf("DbUtil::execUTIL_EXECUTEL_REQ: Data (%u): ", dataPtr.sz);
   headerReader.reset();
+#if 0
   while(dataReader.getWord(&word))
     printf("H'%.8x ", word);
-  printf("\n");
   dataReader.reset();
+#endif
+  printf("\n");
 #endif
   
 //  Uint32 totalDataLen = headerPtr.sz + dataPtr.sz;
@@ -2265,7 +2272,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
 #if 0 //def EVENT_DEBUG
     if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) ==
-	TcKeyReq::Read) {
+	UtilPrepareReq::Read) {
       if(prepOpPtr.p->pkBitmask.get(header.getAttributeId()))
 	printf("PrimaryKey\n");
     }
@@ -2323,7 +2330,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) != ZREAD){
     ndbrequire(l1 == l2);
   } else {
-    ndbout_c("TcKeyReq::Read");
+    g_eventLogger->info("TcKeyReq::Read");
   }
 #endif
 
@@ -2379,7 +2386,7 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   
 #if 0 //def EVENT_DEBUG
   if (TcKeyReq::getOperationType(pop->tckey.requestInfo) ==
-      TcKeyReq::Read) {
+      UtilPrepareReq::Read) {
     printf("TcKeyReq::Read runOperation\n");
   }
 #endif
@@ -2414,9 +2421,9 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
 #if 0 //def EVENT_DEBUG
   // Debugging
   printf("DbUtil::runOperation: KEYINFO\n");
-  op->keyInfo.print(stdout);
+  op->keyInfo.print_header(stdout);
   printf("DbUtil::runOperation: ATTRINFO\n");
-  op->attrInfo.print(stdout);
+  op->attrInfo.print_header(stdout);
 #endif
   
   Uint32 attrLen = pop->attrInfo.getSize() + op->attrInfo.getSize();
@@ -2516,7 +2523,8 @@ DbUtil::sendAttrInfo(Signal* signal,
       attrDst[i] = * ait.data;
     }
 #if 0 //def EVENT_DEBUG
-    printf("DbUtil::sendAttrInfo: sendSignal(DBTC_REF, GSN_ATTRINFO, signal, %d , JBB)\n", AttrInfo::HeaderLength + i);
+    printf("DbUtil::sendAttrInfo: sendSignal(DBTC_REF, GSN_ATTRINFO,"
+           " signal, %d , JBB)\n", AttrInfo::HeaderLength + i);
 #endif
     sendSignal(tcRef, GSN_ATTRINFO, signal,
 	       AttrInfo::HeaderLength + i, JBB);
@@ -2558,7 +2566,7 @@ void
 DbUtil::execTRANSID_AI(Signal* signal){
   jamEntry();
 #if 0 //def EVENT_DEBUG
-  ndbout_c("File: %s line: %u",__FILE__,__LINE__);
+  g_eventLogger->info("File: %s line: %u",__FILE__,__LINE__);
 #endif
 
   const Uint32 opI      = signal->theData[0];
@@ -2670,7 +2678,7 @@ void
 DbUtil::execTCKEYCONF(Signal* signal){
   jamEntry();
 #if 0 //def EVENT_DEBUG
-  ndbout_c("File: %s line: %u",__FILE__,__LINE__);
+  g_eventLogger->info("File: %s line: %u",__FILE__,__LINE__);
 #endif
   
   TcKeyConf * keyConf = (TcKeyConf*)signal->getDataPtr();
@@ -2737,7 +2745,7 @@ void
 DbUtil::execTCKEYREF(Signal* signal){
   jamEntry();
 #if 0 //def EVENT_DEBUG
-  ndbout_c("File: %s line: %u",__FILE__,__LINE__);
+  g_eventLogger->info("File: %s line: %u",__FILE__,__LINE__);
 #endif
 
   const Uint32 transI   = signal->theData[0] >> 1;
@@ -2763,7 +2771,7 @@ void
 DbUtil::execTCROLLBACKREP(Signal* signal){
   jamEntry();
 #if 0 //def EVENT_DEBUG
-  ndbout_c("File: %s line: %u",__FILE__,__LINE__);
+  g_eventLogger->info("File: %s line: %u",__FILE__,__LINE__);
 #endif
 
   const Uint32 transI   = signal->theData[0] >> 1;
@@ -2791,7 +2799,7 @@ DbUtil::execTCROLLBACKREP(Signal* signal){
     case 1204:
     case 1217:
 #if 0
-      ndbout_c("errCode: %d noOfRetries: %d -> retry", 
+      g_eventLogger->info("errCode: %d noOfRetries: %d -> retry",
 	       errCode, transPtr.p->noOfRetries);
 #endif
       runTransaction(signal, transPtr);
@@ -2806,7 +2814,7 @@ DbUtil::execTCROLLBACKREP(Signal* signal){
 void 
 DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
 #if 0 //def EVENT_DEBUG
-  ndbout_c("Transaction %x %x completed %s",
+  g_eventLogger->info("Transaction %x %x completed %s",
 	   transPtr.p->transId[0], 
 	   transPtr.p->transId[1],
 	   transPtr.p->errorCode == 0 ? "OK" : "FAILED");

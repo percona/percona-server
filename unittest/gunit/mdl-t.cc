@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,16 @@ void thd_wait_end(THD *) {}
   A mock error handler.
 */
 static uint expected_error = 0;
+
+// This is needed to verify that an error was indeed reported. If
+// my_error() is NOT called as expected, test_error_handler_hook will
+// not be called, so the EXPECT_EQ below will not fire, even if
+// expected_error has been assigned a non-zero value.
+static uint reported_error = 0;
 extern "C" void test_error_handler_hook(uint err, const char *str, myf) {
+  // Record the error reported, so that it becomes possible to verify
+  // that an error was actually reported
+  reported_error = err;
   EXPECT_EQ(expected_error, err) << str;
 }
 
@@ -78,6 +87,8 @@ void debug_sync(THD *, const char *sync_point_name MY_ATTRIBUTE((unused)),
   name clashes with the code under test.
 */
 namespace mdl_unittest {
+
+bool test_drive_fix_pins(MDL_context *cp) { return cp->fix_pins(); }
 
 using thread::Notification;
 using thread::Thread;
@@ -104,8 +115,10 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
     error_handler_hook = m_old_error_handler_hook;
   }
 
-  void SetUp() {
+  void SetUp() override {
     expected_error = 0;
+    reported_error = 0;
+
     mdl_locks_unused_locks_low_water = MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
     max_write_lock_count = ULONG_MAX;
     mdl_init();
@@ -119,14 +132,17 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
                      MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
   }
 
-  void TearDown() {
+  void TearDown() override {
+    // Verify that the error handling hook has indeed been called if an error
+    // was expected.
+    EXPECT_TRUE((expected_error == 0 || reported_error > 0));
     system_charset_info = m_charset;
     m_mdl_context.destroy();
     mdl_destroy();
   }
 
-  virtual void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort) {
+  void notify_shared_lock(MDL_context_owner *in_use,
+                          bool needs_thr_lock_abort) override {
     in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 
@@ -144,10 +160,10 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
   CHARSET_INFO *m_charset;
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 
-void (*MDLTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer MDLTest::m_old_error_handler_hook;
 
 /*
   Will grab a lock on table_name of given type in the run() function.
@@ -169,23 +185,23 @@ class MDL_thread : public Thread, public Test_MDL_context_owner {
     m_mdl_context.init(this);
   }
 
-  ~MDL_thread() { m_mdl_context.destroy(); }
+  ~MDL_thread() override { m_mdl_context.destroy(); }
 
-  virtual void run();
+  void run() override;
   void enable_release_on_notify() { m_enable_release_on_notify = true; }
 
-  virtual void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort) {
+  void notify_shared_lock(MDL_context_owner *in_use,
+                          bool needs_thr_lock_abort) override {
     if (in_use)
       in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
     else if (m_enable_release_on_notify && m_release_locks)
       m_release_locks->notify();
   }
 
-  virtual void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
-                          const PSI_stage_info *stage,
-                          PSI_stage_info *old_stage, const char *src_function,
-                          const char *src_file, int src_line) {
+  void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line) override {
     Test_MDL_context_owner::enter_cond(cond, mutex, stage, old_stage,
                                        src_function, src_file, src_line);
 
@@ -236,9 +252,9 @@ void MDL_thread::run() {
 typedef MDLTest MDLDeathTest;
 
 /*
-  Verifies that we die with a DBUG_ASSERT if we destry a non-empty MDL_context.
+  Verifies that we die with a assert if we destry a non-empty MDL_context.
  */
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(MDLDeathTest, DieWhenMTicketsNonempty) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   MDL_REQUEST_INIT(&m_request, MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
@@ -249,7 +265,7 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty) {
                ".*Assertion.*m_ticket_store.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 /*
   The most basic test: just construct and destruct our test fixture.
@@ -3520,11 +3536,11 @@ class MDL_SRO_SNRW_thread : public Thread, public Test_MDL_context_owner {
  public:
   MDL_SRO_SNRW_thread() { m_mdl_context.init(this); }
 
-  ~MDL_SRO_SNRW_thread() { m_mdl_context.destroy(); }
+  ~MDL_SRO_SNRW_thread() override { m_mdl_context.destroy(); }
 
-  virtual void run();
+  void run() override;
 
-  virtual void notify_shared_lock(MDL_context_owner *, bool) {}
+  void notify_shared_lock(MDL_context_owner *, bool) override {}
 
  private:
   MDL_context m_mdl_context;
@@ -3590,16 +3606,16 @@ class MDL_weight_thread : public Thread, public Test_MDL_context_owner {
     m_mdl_context.init(this);
   }
 
-  ~MDL_weight_thread() { m_mdl_context.destroy(); }
+  ~MDL_weight_thread() override { m_mdl_context.destroy(); }
 
-  virtual void run();
+  void run() override;
 
-  virtual void notify_shared_lock(MDL_context_owner *, bool) {}
+  void notify_shared_lock(MDL_context_owner *, bool) override {}
 
-  virtual void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
-                          const PSI_stage_info *stage,
-                          PSI_stage_info *old_stage, const char *src_function,
-                          const char *src_file, int src_line) {
+  void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line) override {
     Test_MDL_context_owner::enter_cond(cond, mutex, stage, old_stage,
                                        src_function, src_file, src_line);
 
@@ -3693,7 +3709,7 @@ TEST_F(MDLTest, ForceDMLDeadlockWeight) {
 class MDLTestContextVisitor : public MDL_context_visitor {
  public:
   MDLTestContextVisitor() : m_visited_ctx(nullptr) {}
-  virtual void visit_context(const MDL_context *ctx) { m_visited_ctx = ctx; }
+  void visit_context(const MDL_context *ctx) override { m_visited_ctx = ctx; }
   const MDL_context *get_visited_ctx() { return m_visited_ctx; }
 
  private:
@@ -3759,27 +3775,45 @@ TEST_F(MDLTest, FindLockOwner) {
   EXPECT_EQ(null_context, visitor4.get_visited_ctx());
 }
 
+/**
+   Verify that correct error is reported when the MDL system exhausts the LF
+   Pinbox.
+*/
+/**
+   Disabled, because Percona Server allows up to 2^32 pins
+   and this test would take a lot of time
+*/
+TEST_F(MDLTest, DISABLED_ExhaustPinbox) {
+  for (int i = 0; i < 65535; ++i) {
+    MDL_context c;
+    EXPECT_FALSE(test_drive_fix_pins(&c));
+  }
+  MDL_context bad;
+  expected_error = ER_MDL_OUT_OF_RESOURCES;
+  EXPECT_TRUE(test_drive_fix_pins(&bad));
+}
+
 /** Test class for SE notification testing. */
 
 class MDLHtonNotifyTest : public MDLTest {
  protected:
-  MDLHtonNotifyTest() {}
+  MDLHtonNotifyTest() = default;
 
-  void SetUp() {
+  void SetUp() override {
     MDLTest::SetUp();
     reset_counts_and_keys();
   }
 
-  void TearDown() { MDLTest::TearDown(); }
+  void TearDown() override { MDLTest::TearDown(); }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized) {
+  bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                         bool *victimized) override {
     *victimized = false;
     m_pre_acquire_count++;
     m_pre_acquire_key.mdl_key_init(mdl_key);
     return m_refuse_acquire;
   }
-  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key) {
+  void notify_hton_post_release_exclusive(const MDL_key *mdl_key) override {
     m_post_release_key.mdl_key_init(mdl_key);
     m_post_release_count++;
   }
@@ -3918,8 +3952,8 @@ TEST_F(MDLHtonNotifyTest, NotifyLockTypes) {
   EXPECT_EQ(1U, post_release_count());
 
   // There are no other lock types!
-  DBUG_ASSERT(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
-              static_cast<uint>(MDL_TYPE_END));
+  assert(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
+         static_cast<uint>(MDL_TYPE_END));
 }
 
 /**
@@ -4247,11 +4281,310 @@ TEST_F(MDLHtonNotifyTest, NotifyClone) {
   EXPECT_TRUE(post_release_key().is_equal(&request1.key));
 }
 
+/**
+  Thread class for testing optimizations which skip or delay
+  MDL_context::find_deadlock() in some cases.
+*/
+
+class MDL_skip_find_deadlock_thread : public Thread,
+                                      public Test_MDL_context_owner {
+ public:
+  enum enum_simulation_type {
+    AUTOCOMMIT_STMT,
+    TRANSACTION_STMT,
+    TRANSACTION_STMT_DEADLOCK,
+    REPLICATION_APPLIER
+  };
+
+  MDL_skip_find_deadlock_thread(enum_simulation_type simulation_type,
+                                Notification *lock_blocked,
+                                Notification *wait_resume)
+      : m_simulation_type(simulation_type),
+        m_lock_blocked(lock_blocked),
+        m_wait_resume(wait_resume) {
+    m_mdl_context.init(this);
+  }
+
+  ~MDL_skip_find_deadlock_thread() override { m_mdl_context.destroy(); }
+
+  void run() override;
+
+  void notify_shared_lock(MDL_context_owner *, bool) override {}
+
+  void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line) override {
+    Test_MDL_context_owner::enter_cond(cond, mutex, stage, old_stage,
+                                       src_function, src_file, src_line);
+
+    m_lock_blocked->notify();
+    return;
+  }
+
+  void exit_cond(const PSI_stage_info *stage, const char *src_function,
+                 const char *src_file, int src_line) override {
+    Test_MDL_context_owner::exit_cond(stage, src_function, src_file, src_line);
+    if (m_wait_resume) m_wait_resume->wait_for_notification();
+    return;
+  }
+
+  bool might_have_commit_order_waiters() const override {
+    return m_simulation_type == REPLICATION_APPLIER;
+  }
+
+ private:
+  enum_simulation_type m_simulation_type;
+  Notification *m_lock_blocked;
+  Notification *m_wait_resume;
+  MDL_context m_mdl_context;
+};
+
+void MDL_skip_find_deadlock_thread::run() {
+  if (m_simulation_type == TRANSACTION_STMT ||
+      m_simulation_type == TRANSACTION_STMT_DEADLOCK) {
+    MDL_request request1;
+    MDL_REQUEST_INIT(&request1, MDL_key::TABLE, db_name, table_name1,
+                     MDL_SHARED_WRITE, MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  }
+
+  MDL_request request;
+  MDL_REQUEST_INIT(&request, MDL_key::ACL_CACHE, "", "", MDL_SHARED,
+                   MDL_EXPLICIT);
+
+  if (m_simulation_type == TRANSACTION_STMT_DEADLOCK) {
+    // We expect that deadlock will be detected and reported.
+    expected_error = ER_LOCK_DEADLOCK;
+    EXPECT_TRUE(m_mdl_context.acquire_lock(&request, long_timeout));
+  } else {
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+
+    m_mdl_context.release_lock(request.ticket);
+  }
+
+  m_mdl_context.release_transactional_locks();
+}
+
+/**
+  Additional thread class for testing optimization which delays
+  MDL_context::find_deadlock() in some cases.
+*/
+
+class MDL_skip_find_deadlock_helper_thread : public Thread,
+                                             public Test_MDL_context_owner {
+ public:
+  MDL_skip_find_deadlock_helper_thread(Notification *acl_lock_acquired,
+                                       Notification *non_acl_acquire)
+      : m_acl_lock_acquired(acl_lock_acquired),
+        m_non_acl_acquire(non_acl_acquire) {
+    m_mdl_context.init(this);
+  }
+
+  ~MDL_skip_find_deadlock_helper_thread() override { m_mdl_context.destroy(); }
+
+  void run() override;
+
+  void notify_shared_lock(MDL_context_owner *, bool) override {}
+
+ private:
+  Notification *m_acl_lock_acquired;
+  Notification *m_non_acl_acquire;
+  MDL_context m_mdl_context;
+};
+
+void MDL_skip_find_deadlock_helper_thread::run() {
+  // Acquire X lock on ACL_CACHE singleton and notify that we have done so.
+  MDL_request request1;
+  MDL_REQUEST_INIT(&request1, MDL_key::ACL_CACHE, "", "", MDL_EXCLUSIVE,
+                   MDL_EXPLICIT);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  m_acl_lock_acquired->notify();
+
+  // Wait until we are commanded to acquire X lock on the table.
+  m_non_acl_acquire->wait_for_notification();
+
+  // Acquire X lock on db_name.table_name1.
+  MDL_request request2;
+  MDL_REQUEST_INIT(&request2, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request2, long_timeout));
+
+  // Clean-up.
+  m_mdl_context.release_lock(request1.ticket);
+  m_mdl_context.release_lock(request2.ticket);
+}
+
+/**
+  Mock class which allows to simulate wait on some non-MDL resource
+  and catch whether this wait was inspected by deadlock detector.
+*/
+
+class Mock_MDL_wait_for_subgraph : public MDL_wait_for_subgraph {
+ public:
+  bool accept_visitor(MDL_wait_for_graph_visitor *) override {
+    m_was_visited = true;
+    return false;
+  }
+
+  uint get_deadlock_weight() const override { return DEADLOCK_WEIGHT_DML; }
+
+  bool was_visited() const { return m_was_visited; }
+
+ private:
+  bool m_was_visited{false};
+};
+
+/**
+  Test coverage for optimization which skips MDL_context::find_deadlock() in
+  some cases.
+*/
+
+TEST_F(MDLTest, SkipFindDeadlock) {
+  Notification lock_blocked1;
+  Mock_MDL_wait_for_subgraph mock_subgraph1;
+  MDL_skip_find_deadlock_thread thread1(
+      MDL_skip_find_deadlock_thread::AUTOCOMMIT_STMT, &lock_blocked1, nullptr);
+
+  /*
+    Acquire X lock on ACL_CACHE singleton and pretend that we are blocked
+    waiting for some other lock/resource.
+  */
+  MDL_REQUEST_INIT(&m_request, MDL_key::ACL_CACHE, "", "", MDL_EXCLUSIVE,
+                   MDL_EXPLICIT);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+  m_mdl_context.will_wait_for(&mock_subgraph1);
+
+  /*
+    Start the concurrent thread that will try to acquire S lock on ACL_CACHE,
+    simulating privilege check in statement in @@autocommit=1 mode, and
+    wait until it gets blocked.
+  */
+  thread1.start();
+  lock_blocked1.wait_for_notification();
+
+  /*
+    This concurrent thread should not have done deadlock detection thanks
+    to optimization.
+  */
+  EXPECT_FALSE(mock_subgraph1.was_visited());
+
+  /* Clean-up. Release lock and wait for concurrent thread to complete. */
+  m_mdl_context.done_waiting_for();
+  m_mdl_context.release_lock(m_request.ticket);
+  thread1.join();
+
+  Notification lock_blocked2, wait_resume2;
+  Mock_MDL_wait_for_subgraph mock_subgraph2;
+  MDL_skip_find_deadlock_thread thread2(
+      MDL_skip_find_deadlock_thread::TRANSACTION_STMT, &lock_blocked2,
+      &wait_resume2);
+  /*
+    Acquire X lock on ACL_CACHE singleton and pretend that we are blocked
+    waiting for some other lock/resource again.
+  */
+  m_request.ticket = nullptr;
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+  m_mdl_context.will_wait_for(&mock_subgraph2);
+
+  /*
+    Start the concurrent thread that will try to acquire S lock on ACL_CACHE
+    after acquiring another lock, simulating privilege check in the middle
+    of transaction. Wait until it gets blocked and is pauses during initial
+    1 second wait for the lock.
+  */
+  thread2.start();
+  lock_blocked2.wait_for_notification();
+
+  /*
+    The concurrent thread should not do immediate deadlock detection,
+    before 1 second wait for the lock completes, as delayed deadlock
+    detection optimization applies.
+  */
+  EXPECT_FALSE(mock_subgraph2.was_visited());
+
+  // Unpause initial 1 second wait.
+  wait_resume2.notify();
+
+  /* Clean-up. Release lock and wait for concurrent thread to complete. */
+  m_mdl_context.done_waiting_for();
+  m_mdl_context.release_lock(m_request.ticket);
+  thread2.join();
+
+  Notification acl_acquired3, non_acl_acquire3, lock_blocked3;
+  MDL_skip_find_deadlock_helper_thread helper_thread(&acl_acquired3,
+                                                     &non_acl_acquire3);
+  MDL_skip_find_deadlock_thread thread3(
+      MDL_skip_find_deadlock_thread::TRANSACTION_STMT_DEADLOCK, &lock_blocked3,
+      nullptr);
+  /*
+    Start thread that will acquire X lock on ACL_CACHE singleton and
+    pause before trying to acquire X lock on the table.
+  */
+  helper_thread.start();
+  acl_acquired3.wait_for_notification();
+
+  /*
+    Start another thread that will acquire shared lock on the same table and
+    gets blocked while trying to acquire S lock on ACL_CACHE singleton.
+    This simulates privilege check in the middle of transaction.
+  */
+  thread3.start();
+  lock_blocked3.wait_for_notification();
+
+  /*
+    Ask the first thread to acquire X lock on the table. This will created
+    deadlock which will be detected and resolved by aborting the second's
+    thread wait.
+  */
+  non_acl_acquire3.notify();
+
+  /*
+    The first thread should be able to proceed and complete.
+    Do clean-up.
+  */
+  helper_thread.join();
+  thread3.join();
+
+  Notification lock_blocked4;
+  Mock_MDL_wait_for_subgraph mock_subgraph4;
+  MDL_skip_find_deadlock_thread thread4(
+      MDL_skip_find_deadlock_thread::REPLICATION_APPLIER, &lock_blocked4,
+      nullptr);
+
+  /*
+    Acquire X lock on ACL_CACHE singleton and pretend that we are blocked
+    on other resource once again.
+  */
+  m_request.ticket = nullptr;
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+  m_mdl_context.will_wait_for(&mock_subgraph4);
+
+  /*
+    Start the concurrent thread that will try to acquire S lock on ACL_CACHE
+    while pretending to be replication applier thread. Wait until it gets
+    blocked.
+  */
+  thread4.start();
+  lock_blocked4.wait_for_notification();
+
+  /*
+    The concurrent thread should do deadlock detection as optimization
+    should not apply.
+  */
+  EXPECT_TRUE(mock_subgraph4.was_visited());
+
+  /* Clean-up. Release lock and wait for concurrent thread to complete. */
+  m_mdl_context.done_waiting_for();
+  m_mdl_context.release_lock(m_request.ticket);
+  thread4.join();
+}
+
 /** Test class for MDL_key class testing. Doesn't require MDL initialization. */
 
 class MDLKeyTest : public ::testing::Test {
  protected:
-  MDLKeyTest() {}
+  MDLKeyTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLKeyTest);
@@ -4261,11 +4594,11 @@ class MDLKeyTest : public ::testing::Test {
 typedef MDLKeyTest MDLKeyDeathTest;
 
 /*
-  Verifies that debug build dies with a DBUG_ASSERT if we try to construct
+  Verifies that debug build dies with a assert if we try to construct
   MDL_key with too long database or object names.
 */
 
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
@@ -4288,7 +4621,7 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
                ".*Assertion.*strlen.*");
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 /*
   Verifies that for production build we allow construction of
@@ -4296,7 +4629,7 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   truncated.
 */
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 TEST_F(MDLKeyTest, TruncateTooLongNames) {
   /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
   const char *too_long_name =
@@ -4318,7 +4651,7 @@ TEST_F(MDLKeyTest, TruncateTooLongNames) {
 
 struct Mock_MDL_context_owner : public Test_MDL_context_owner {
   void notify_shared_lock(MDL_context_owner *in_use,
-                          bool needs_thr_lock_abort) override final {
+                          bool needs_thr_lock_abort) final {
     in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
   }
 };
@@ -4389,6 +4722,6 @@ static void BM_FindTicket(size_t num_iterations) {
 
 BENCHMARK(BM_FindTicket)
 
-#endif  // defined(DBUG_OFF)
+#endif  // defined(NDEBUG)
 
 }  // namespace mdl_unittest

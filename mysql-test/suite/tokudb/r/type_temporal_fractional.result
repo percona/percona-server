@@ -7213,7 +7213,7 @@ ERROR 22007: Incorrect datetime value: '1999-00-00 00:00:00' for column 'a' at r
 INSERT INTO t1 VALUES (NULL, '1999-00-00 00:00:00');
 ERROR 22007: Incorrect datetime value: '1999-00-00 00:00:00' for column 'b' at row 1
 INSERT INTO t1 VALUES (NULL, TIMESTAMP('0000-00-00 10:00:00'));
-ERROR 22007: Incorrect datetime value: '0000-00-00 10:00:00.000000' for column 'b' at row 1
+ERROR 22007: Incorrect datetime value: '0000-00-00 10:00:00'
 INSERT INTO t1 VALUES (NULL, 199991231000000);
 ERROR 22007: Incorrect datetime value: '199991231000000' for column 'b' at row 1
 INSERT INTO t1 VALUES (NULL, -0.1);
@@ -9006,15 +9006,15 @@ SELECT a, CAST(a AS DATETIME), CAST(b AS DATETIME), CAST(c AS DATETIME), CAST(d 
 a	15:00:00
 CAST(a AS DATETIME)	2001-01-01 15:00:00
 CAST(b AS DATETIME)	2001-01-01 15:00:00
-CAST(c AS DATETIME)	2015-00-00 00:00:00
-CAST(d AS DATETIME)	2015-00-00 00:00:00
+CAST(c AS DATETIME)	NULL
+CAST(d AS DATETIME)	NULL
 CAST(SEC_TO_TIME(e) AS DATETIME)	2001-01-01 15:00:00
 CAST(CAST(a AS TIME) AS DATETIME)	2001-01-01 15:00:00
 a	45:00:00
 CAST(a AS DATETIME)	2001-01-02 21:00:00
 CAST(b AS DATETIME)	2001-01-02 21:00:00
-CAST(c AS DATETIME)	2045-00-00 00:00:00
-CAST(d AS DATETIME)	2045-00-00 00:00:00
+CAST(c AS DATETIME)	NULL
+CAST(d AS DATETIME)	NULL
 CAST(SEC_TO_TIME(e) AS DATETIME)	2001-01-02 21:00:00
 CAST(CAST(a AS TIME) AS DATETIME)	2001-01-02 21:00:00
 a	-15:00:00
@@ -9034,6 +9034,18 @@ CAST(CAST(a AS TIME) AS DATETIME)	2000-12-30 03:00:00
 Warnings:
 Level	Warning
 Code	1292
+Message	Incorrect datetime value: '150000'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '15:00:00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '450000'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '45:00:00'
+Level	Warning
+Code	1292
 Message	Incorrect datetime value: '-150000'
 Level	Warning
 Code	1292
@@ -9048,15 +9060,15 @@ SELECT a, CAST(a AS DATETIME(6)), CAST(b AS DATETIME(6)), CAST(c AS DATETIME(6))
 a	15:00:00
 CAST(a AS DATETIME(6))	2001-01-01 15:00:00.000000
 CAST(b AS DATETIME(6))	2001-01-01 15:00:00.123456
-CAST(c AS DATETIME(6))	2015-00-00 00:00:00.000000
-CAST(d AS DATETIME(6))	2015-00-00 00:00:00.000000
+CAST(c AS DATETIME(6))	NULL
+CAST(d AS DATETIME(6))	NULL
 CAST(SEC_TO_TIME(e) AS DATETIME(6))	2001-01-01 15:00:00.000000
 CAST(CAST(a AS TIME) AS DATETIME(6))	2001-01-01 15:00:00.000000
 a	45:00:00
 CAST(a AS DATETIME(6))	2001-01-02 21:00:00.000000
 CAST(b AS DATETIME(6))	2001-01-02 21:00:00.123456
-CAST(c AS DATETIME(6))	2045-00-00 00:00:00.000000
-CAST(d AS DATETIME(6))	2045-00-00 00:00:00.000000
+CAST(c AS DATETIME(6))	NULL
+CAST(d AS DATETIME(6))	NULL
 CAST(SEC_TO_TIME(e) AS DATETIME(6))	2001-01-02 21:00:00.000000
 CAST(CAST(a AS TIME) AS DATETIME(6))	2001-01-02 21:00:00.000000
 a	-15:00:00
@@ -9074,6 +9086,18 @@ CAST(d AS DATETIME(6))	NULL
 CAST(SEC_TO_TIME(e) AS DATETIME(6))	2000-12-30 03:00:00.000000
 CAST(CAST(a AS TIME) AS DATETIME(6))	2000-12-30 03:00:00.000000
 Warnings:
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '150000'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '15:00:00'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '450000'
+Level	Warning
+Code	1292
+Message	Incorrect datetime value: '45:00:00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '-150000'
@@ -9957,6 +9981,8 @@ a
 2001-01-01 11:22:33.123456
 EXECUTE stmt USING @c;
 a
+Warnings:
+Warning	1292	Incorrect datetime value: '0.123456'
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -12115,7 +12141,7 @@ ERROR 22007: Incorrect datetime value: '0.123' for column 'a' at row 1
 INSERT INTO t1 VALUES (0.123e0);
 ERROR 22007: Incorrect datetime value: '0.123' for column 'a' at row 1
 INSERT INTO t1 VALUES (CAST('0000-00-00 00:00:00.123' AS DATETIME(6)));
-ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00.123000' for column 'a' at row 1
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00.123'
 SELECT * FROM t1;
 a
 DROP TABLE t1;
@@ -13896,7 +13922,7 @@ a
 EXECUTE stmt USING @c;
 a
 Warnings:
-Warning	1292	Incorrect datetime value: '0.123456' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '0.123456'
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -13923,6 +13949,7 @@ SELECT @a;
 20010101000000.1
 SELECT * FROM t1 WHERE a=@a;
 a
+2001-01-01 00:00:00.100000
 SET @a=NULL;
 SELECT a INTO @a FROM t1 LIMIT 1;
 SELECT @a;
@@ -15191,20 +15218,10 @@ ORDER BY 1;
 c1	c2
 Warnings:
 Warning	1411	Incorrect datetime value: '03:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '03:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
 Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
@@ -15345,7 +15362,6 @@ CONCAT_WS('-', '%I', '%S', '%v' )),
 CONCAT_WS('-', '%V', '%H' ));
 c1
 Warnings:
-Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 DROP TABLE t1;
 SET @@timestamp=DEFAULT;
@@ -16097,8 +16113,6 @@ col_timestamp_2_not_null_key
 Warnings:
 Warning	1292	Truncated incorrect date value: '17:28:30'
 Warning	1411	Incorrect datetime value: '17:28:30' for function str_to_date
-Warning	1292	Truncated incorrect date value: '17:28:30'
-Warning	1411	Incorrect datetime value: '17:28:30' for function str_to_date
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 #
@@ -16167,7 +16181,6 @@ AND
 col_timestamp_3_not_null_key < col_datetime;
 c1	c2
 Warnings:
-Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1292	Incorrect date value: '31525200' for column 'col_date' at row 1
 Warning	1292	Incorrect datetime value: '00:00:00.000000'

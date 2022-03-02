@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,7 @@ class Session_impl : public XSession {
   void close() override;
 
   Argument_uobject get_connect_attrs() const override;
+  bool is_protocol() const { return m_protocol.use_count(); }
 
  private:
   using Context_ptr = std::shared_ptr<Context>;

@@ -162,6 +162,8 @@ master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f\'le.txt' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!") ;file_id=#
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/mysqlbinlog.inc
+# The proper term is pseudo_replica_mode, but we use this compatibility alias
+# to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -286,6 +288,8 @@ master-bin.000001	#	User var	#	#	@```d```=_utf8mb4 0x787878787878787878787878787
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/mysqlbinlog.inc
+# The proper term is pseudo_replica_mode, but we use this compatibility alias
+# to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;

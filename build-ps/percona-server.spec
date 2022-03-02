@@ -473,7 +473,7 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -487,18 +487,20 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
-           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
-           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
+           -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_PROTOBUF=bundled \
            -DWITH_RAPIDJSON=bundled \
@@ -532,19 +534,20 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
-           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
-           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
-           -DWITH_LDAP=ON \
+           -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \
@@ -614,8 +617,6 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 %endif
 
 %if 0%{?systemd}
-install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
-install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
 %else
 install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
 %endif
@@ -627,7 +628,8 @@ rm -rf %{buildroot}%{_datadir}/percona-server/mysql.server
 rm -rf %{buildroot}%{_datadir}/percona-server/mysqld_multi.server
 rm -f %{buildroot}%{_datadir}/percona-server/win_install_firewall.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-
+rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
+rm -rf %{buildroot}/usr/cmake/coredumper.cmake
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -640,11 +642,6 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-
-# remove some unwanted router files
-rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
-rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
-rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 
 %check
 %if 0%{?runselftest}
@@ -864,8 +861,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
 %if 0%{?systemd}
-%exclude %{_mandir}/man1/mysqld_multi.1*
-%exclude %{_mandir}/man1/mysqld_safe.1*
 %else
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
@@ -874,12 +869,14 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
-%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
+%if 0%{?rhel} < 7
+%attr(644, root, root) %{_mandir}/man1/mysql.server.1*
+%endif
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -912,13 +909,14 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -926,6 +924,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
@@ -944,17 +943,29 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking*
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/binlog_utils_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_wrappers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_table_access.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
+
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -962,6 +973,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
@@ -980,10 +992,19 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/binlog_utils_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_wrappers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -1023,6 +1044,8 @@ fi
 #%attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
 #
 #%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 #%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
@@ -1090,6 +1113,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
+%attr(755, root, root) %{_bindir}/mysql_migrate_keyring
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
 %attr(644, root, root) %{_mandir}/man1/mysqladmin.1*
@@ -1122,6 +1146,9 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.21*
+#coredumper
+%attr(755, root, root) %{_includedir}/coredumper/coredumper.h
+%attr(755, root, root) /usr/lib/libcoredumper.a
 
 %if 0%{?compatlib}
 %files -n percona-server-shared-compat
@@ -1141,6 +1168,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
+%attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -1198,6 +1226,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
@@ -1271,6 +1300,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
@@ -1314,6 +1344,7 @@ fi
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysqlrouter
 %{_bindir}/mysqlrouter
 %{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
@@ -1327,15 +1358,25 @@ fi
 %else
 %{_sysconfdir}/init.d/mysqlrouter
 %endif
-%{_libdir}/libmysqlharness.so.*
-%{_libdir}/libmysqlrouter.so.*
-%{_libdir}/libmysqlrouter_http.so*
+%{_libdir}/mysqlrouter/private/libmysqlharness.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
+%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.1
 %dir %{_libdir}/mysqlrouter
-%{_libdir}/mysqlrouter/*.so*
+%dir %{_libdir}/mysqlrouter/private
+%{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13
+- Release 8.0.22-13
+
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
 - Added RocksDB
 
@@ -2248,4 +2289,3 @@ lenz@mysql.com>
 - A developers changelog for MySQL is available in the source RPM. And
   there is a history of major user visible changed in the Reference
   Manual.  Only RPM specific changes will be documented here.
-

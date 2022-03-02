@@ -76,5 +76,12 @@ eval USE $DB3; DROP TABLE t1; eval DROP DATABASE $DB3;
 eval USE $DB4; DROP TABLE t1; eval DROP DATABASE $DB4;
 
 --remove_file $LOAD_DATA_FILE
+--remove_files_wildcard $MYSQL_TMP_DIR/ SQL_LOAD_MB*
+
+let $have_binlog_format_statement= `SELECT @@binlog_format LIKE 'STATEMENT'`;
+if ($have_binlog_format_statement)
+{
+  --remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD_MB*
+}
 
 --enable_query_log

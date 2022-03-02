@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,20 +40,62 @@ Ldap_logger *g_logger_client = NULL;
 #endif
 
 #if defined(KERBEROS_LIB_CONFIGURED)
-Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() {}
+Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() = default;
 
-Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() {}
+Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() = default;
 
 bool Sasl_mechanism_kerberos::pre_authentication() {
-  bool ret_val = false;
   m_kerberos = std::unique_ptr<Kerberos>(
       new Kerberos(m_user.c_str(), m_password.c_str()));
-  if (m_user.empty() || m_password.empty()) {
-    return ret_val;
-  } else {
-    ret_val = m_kerberos->obtain_store_credentials();
+  /**
+     Both user name and password are empty.
+     Exisiting TGT will be used for authentication.
+     Main user case.
+  */
+  if (m_user.empty() && m_password.empty()) {
+    log_dbg(
+        "MySQL user name and password are empty. Existing TGT will be used for "
+        "authentication.");
+    return true;
   }
-  return ret_val;
+  /**
+     User name and password are not empty, Obtaining TGT from kerberos.
+     First time use case.
+  */
+  if (!m_user.empty() && !m_password.empty()) {
+    log_dbg("Obtaining TGT from kerberos.");
+    return m_kerberos->obtain_store_credentials();
+  }
+  /**
+    User name is not empty.
+  */
+  if (!m_user.empty()) {
+    std::string user_name;
+    m_kerberos->get_user_name(&user_name);
+    /**
+       MySQL user name and kerberos default principle name is same.
+       Existing TGT will be used for authentication.
+    */
+    if (user_name == m_user) {
+      log_dbg(
+          "MySQL user name and kerberos default principle name is same. "
+          "Existing TGT will be used for authentication.");
+      return true;
+    } else {
+      bool ret_val = false;
+      log_dbg(
+          "MySQL user name and kerberos default principle name is different. "
+          "Authentication will be aborted. ");
+      return ret_val;
+    }
+  }
+  /**
+    User has provided password but not user name, returning error.
+  */
+  log_dbg(
+      "MySQL user name is empty but password is not empty. Authentication will "
+      "be aborted. ");
+  return false;
 }
 
 void Sasl_mechanism_kerberos::get_ldap_host(std::string &host) {
@@ -69,9 +111,9 @@ void Sasl_mechanism::set_user_info(std::string user, std::string password) {
   m_password = password;
 }
 
-Sasl_mechanism::Sasl_mechanism() {}
+Sasl_mechanism::Sasl_mechanism() = default;
 
-Sasl_mechanism::~Sasl_mechanism() {}
+Sasl_mechanism::~Sasl_mechanism() = default;
 
 bool Sasl_mechanism::pre_authentication() { return true; }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_ees_by_host_by_error.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -162,7 +162,7 @@ int table_ees_by_host_by_error::rnd_pos(const void *pos) {
 int table_ees_by_host_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool) {
   PFS_index_ees_by_host_by_error *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_ees_by_host_by_error);
   m_opened_index = result;
   m_index = result;
@@ -224,7 +224,7 @@ int table_ees_by_host_by_error::read_row_values(TABLE *table,
   server_error *temp_error = nullptr;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   if (m_row.m_stat.m_error_index > 0 &&
@@ -234,8 +234,8 @@ int table_ees_by_host_by_error::read_row_values(TABLE *table,
   }
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
           m_row.m_host.set_field(f);
           break;
@@ -247,11 +247,11 @@ int table_ees_by_host_by_error::read_row_values(TABLE *table,
         case 6: /* FIRST_SEEN */
         case 7: /* LAST_SEEN */
           /** ERROR STATS */
-          m_row.m_stat.set_field(f->field_index - 1, f, temp_error);
+          m_row.m_stat.set_field(f->field_index() - 1, f, temp_error);
           break;
         default:
           /** We should never reach here */
-          DBUG_ASSERT(0);
+          assert(0);
           break;
       }
     }

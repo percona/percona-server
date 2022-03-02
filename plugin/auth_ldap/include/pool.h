@@ -1,4 +1,4 @@
-#ifndef _MPAL_POOL_H
+#ifndef MPAL_POOL_H
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-#define _MPAL_POOL_H
+#define MPAL_POOL_H
 
 #include <boost/dynamic_bitset.hpp>
 #include <mutex>
@@ -72,4 +72,4 @@ class Pool {
 }  // namespace auth_ldap
 }  // namespace plugin
 }  // namespace mysql
-#endif  // _MPAL_POOL_H
+#endif  // MPAL_POOL_H

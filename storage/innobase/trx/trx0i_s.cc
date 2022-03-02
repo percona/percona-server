@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -94,7 +94,7 @@ would accommodate 3354832851 rows. */
 
 /** The following are some testing auxiliary macros. Do not enable them
 in a production environment. */
-/* @{ */
+/** @{ */
 
 #if 0
 /** If this is enabled then lock folds will always be different
@@ -131,7 +131,7 @@ if this is enabled, also if this is enabled searching into the hash is
 noop because it will be empty. */
 #define TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
 #endif
-/* @} */
+/** @} */
 
 /** Memory limit passed to ha_storage_put_memlim().
 @param cache hash storage
@@ -187,15 +187,16 @@ struct trx_i_s_cache_t {
 #define CACHE_STORAGE_INITIAL_SIZE 1024
 /** Number of hash cells in the cache storage */
 #define CACHE_STORAGE_HASH_CELLS 2048
-  ha_storage_t *storage; /*!< storage for external volatile
-                         data that may become unavailable
-                         when we release
-                         lock_sys->mutex or trx_sys->mutex */
-  ulint mem_allocd;      /*!< the amount of memory
-                         allocated with mem_alloc*() */
-  ibool is_truncated;    /*!< this is TRUE if the memory
-                         limit was hit and thus the data
-                         in the cache is truncated */
+  /** storage for external volatile data that may become unavailable when we
+  release exclusive global locksys latch or trx_sys->mutex */
+  ha_storage_t *storage;
+
+  /** the amount of memory allocated with mem_alloc*() */
+  ulint mem_allocd;
+
+  /** this is TRUE if the memory limit was hit and thus the data in the cache is
+  truncated */
+  bool is_truncated;
 };
 
 /** This is the intermediate buffer where data needed to fill the
@@ -435,10 +436,14 @@ static ibool fill_trx_row(
 
   /* We are going to read various trx->lock fields protected by trx->mutex */
   ut_ad(trx_mutex_own(trx));
-  ut_ad(lock_mutex_own());
+  /* We are going to read TRX_WEIGHT, lock_number_of_rows_locked() and
+  lock_number_of_tables_locked() which requires latching the lock_sys.
+  Also, we need it to avoid reading temporary NULL value set to wait_lock by a
+  B-tree page reorganization. */
+  ut_ad(locksys::owns_exclusive_global_latch());
 
   row->trx_id = trx_get_id_for_print(trx);
-  row->trx_started = (ib_time_t)trx->start_time;
+  row->trx_started = (ib_time_t)trx->start_time.load(std::memory_order_relaxed);
   row->trx_state = trx_get_que_state_str(trx);
   row->requested_lock_row = requested_lock_row;
   ut_ad(requested_lock_row == nullptr ||
@@ -645,17 +650,14 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   const rec_t *rec;
   const dict_index_t *index;
   ulint n_fields;
-  mem_heap_t *heap;
-  ulint offsets_onstack[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets;
   char buf[TRX_I_S_LOCK_DATA_MAX_LEN];
   ulint buf_used;
   ulint i;
+  Rec_offsets rec_offsets;
 
   mtr_start(&mtr);
 
-  block = buf_page_try_get(
-      page_id_t(lock_rec_get_space_id(lock), lock_rec_get_page_no(lock)), &mtr);
+  block = buf_page_try_get(lock_rec_get_page_id(lock), &mtr);
 
   if (block == nullptr) {
     *lock_data = nullptr;
@@ -667,9 +669,6 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   page = reinterpret_cast<const page_t *>(buf_block_get_frame(block));
 
-  rec_offs_init(offsets_onstack);
-  offsets = offsets_onstack;
-
   rec = page_find_rec_with_heap_no(page, heap_no);
 
   index = lock_rec_get_index(lock);
@@ -678,8 +677,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   ut_a(n_fields > 0);
 
-  heap = nullptr;
-  offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
+  const ulint *offsets = rec_offsets.compute(rec, index);
 
   /* format and store the data */
 
@@ -692,14 +690,6 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   *lock_data = container->cache_string(buf);
 
-  if (heap != nullptr) {
-    /* this means that rec_get_offsets() has created a new
-    heap and has stored offsets in it; check that this is
-    really the case and free the heap */
-    ut_a(offsets != offsets_onstack);
-    mem_heap_free(heap);
-  }
-
   mtr_commit(&mtr);
 }
 
@@ -707,13 +697,14 @@ void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
   row->lock_immutable_id = lock_get_immutable_id(lock);
   row->lock_trx_immutable_id = lock_get_trx_immutable_id(lock);
   switch (lock_get_type(lock)) {
-    case LOCK_REC:
-
-      row->lock_space = lock_rec_get_space_id(lock);
-      row->lock_page = lock_rec_get_page_no(lock);
+    case LOCK_REC: {
+      const auto page_id = lock_rec_get_page_id(lock);
+      row->lock_space = page_id.space();
+      row->lock_page = page_id.page_no();
       row->lock_rec = heap_no;
 
       break;
+    }
     case LOCK_TABLE:
 
       row->lock_space = SPACE_UNKNOWN;
@@ -772,7 +763,11 @@ static ibool add_trx_relevant_locks_to_cache(
                                requested lock row, or NULL or
                                undefined */
 {
-  ut_ad(lock_mutex_own());
+  /* We are about to iterate over locks for various tables/rows so we can not
+  narrow the required latch to any specific shard, and thus require exclusive
+  access to lock_sys. This is also needed to avoid observing NULL temporarily
+  set to wait_lock during B-tree page reorganization. */
+  ut_ad(locksys::owns_exclusive_global_latch());
 
   /* If transaction is waiting we add the wait lock and all locks
   from another transactions that are blocking the wait lock. */
@@ -865,34 +860,56 @@ static void trx_i_s_cache_clear(
 }
 
 /** Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
- table cache buffer. Cache must be locked for write. */
-static void fetch_data_into_cache_low(
-    trx_i_s_cache_t *cache,  /*!< in/out: cache */
-    bool read_write,         /*!< in: only read-write
-                             transactions */
-    trx_ut_list_t *trx_list) /*!< in: trx list */
-{
-  trx_t *trx;
-  bool rw_trx_list = trx_list == &trx_sys->rw_trx_list;
+ table cache buffer. Cache must be locked for write.
+@param[in,out]  cache       the cache
+@param[in]      trx_list    the list to scan
+*/
+template <typename Trx_list>
+static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
+                                      Trx_list *trx_list) {
+  /* We are going to iterate over many different shards of lock_sys so we need
+  exclusive access */
+  ut_ad(locksys::owns_exclusive_global_latch());
+  constexpr bool rw_trx_list =
+      std::is_same<Trx_list, decltype(trx_sys->rw_trx_list)>::value;
 
-  ut_ad(rw_trx_list || trx_list == &trx_sys->mysql_trx_list);
+  static_assert(
+      rw_trx_list ||
+          std::is_same<Trx_list, decltype(trx_sys->mysql_trx_list)>::value,
+      "only rw_trx_list and mysql_trx_list are supported");
 
   /* Iterate over the transaction list and add each one
   to innodb_trx's cache. We also add all locks that are relevant
   to each transaction into innodb_locks' and innodb_lock_waits'
   caches. */
 
-  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
-       trx = (rw_trx_list ? UT_LIST_GET_NEXT(trx_list, trx)
-                          : UT_LIST_GET_NEXT(mysql_trx_list, trx))) {
+  for (auto trx : *trx_list) {
     i_s_trx_row_t *trx_row;
     i_s_locks_row_t *requested_lock_row;
 
     trx_mutex_enter(trx);
 
     /* Note: Read only transactions that modify temporary
-    tables an have a transaction ID */
-    if (!trx_is_started(trx) ||
+    tables have a transaction ID.
+
+    Note: auto-commit non-locking read-only transactions
+    can have trx->state set from NOT_STARTED to ACTIVE and
+    then from ACTIVE to NOT_STARTED with neither trx_sys->mutex
+    nor trx->mutex acquired. However, as long as these transactions
+    are members of mysql_trx_list they are not freed. For such
+    transactions "trx_was_started(trx)" might be considered random,
+    but whatever is its result, the code below handles that well
+    (transaction won't release locks until its trx->mutex is acquired).
+
+    Note: locking read-only transactions can have trx->state set from
+    NOT_STARTED to ACTIVE with neither trx_sys->mutex nor trx->mutex
+    acquired. However, such transactions need to be marked as COMMITTED
+    before trx->state is set to NOT_STARTED and that is protected by the
+    trx->mutex. Therefore the assertion assert_trx_nonlocking_or_in_list()
+    should hold few lines below (note: the name of the assertion is wrong,
+    because it actually checks if the transaction is autocommit nonlocking,
+    whereas its name suggests that it only checks if the trx is nonlocking). */
+    if (!trx_was_started(trx) ||
         (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
       trx_mutex_exit(trx);
       continue;
@@ -903,7 +920,7 @@ static void fetch_data_into_cache_low(
     ut_ad(trx->in_rw_trx_list == rw_trx_list);
 
     if (!add_trx_relevant_locks_to_cache(cache, trx, &requested_lock_row)) {
-      cache->is_truncated = TRUE;
+      cache->is_truncated = true;
       trx_mutex_exit(trx);
       return;
     }
@@ -913,7 +930,7 @@ static void fetch_data_into_cache_low(
 
     /* memory could not be allocated */
     if (trx_row == nullptr) {
-      cache->is_truncated = TRUE;
+      cache->is_truncated = true;
       trx_mutex_exit(trx);
       return;
     }
@@ -921,7 +938,7 @@ static void fetch_data_into_cache_low(
     if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
       /* memory could not be allocated */
       --cache->innodb_trx.rows_used;
-      cache->is_truncated = TRUE;
+      cache->is_truncated = true;
       trx_mutex_exit(trx);
       return;
     }
@@ -934,19 +951,21 @@ static void fetch_data_into_cache_low(
  table cache buffer. Cache must be locked for write. */
 static void fetch_data_into_cache(trx_i_s_cache_t *cache) /*!< in/out: cache */
 {
-  ut_ad(lock_mutex_own());
+  /* We are going to iterate over many different shards of lock_sys so we need
+  exclusive access */
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
   trx_i_s_cache_clear(cache);
 
   /* Capture the state of the read-write transactions. This includes
   internal transactions too. They are not on mysql_trx_list */
-  fetch_data_into_cache_low(cache, true, &trx_sys->rw_trx_list);
+  fetch_data_into_cache_low(cache, &trx_sys->rw_trx_list);
 
   /* Capture the state of the read-only active transactions */
-  fetch_data_into_cache_low(cache, false, &trx_sys->mysql_trx_list);
+  fetch_data_into_cache_low(cache, &trx_sys->mysql_trx_list);
 
-  cache->is_truncated = FALSE;
+  cache->is_truncated = false;
 }
 
 /** Update the transactions cache if it has not been read for some time.
@@ -959,26 +978,21 @@ int trx_i_s_possibly_fetch_data_into_cache(
     return (1);
   }
 
-  /* We need to read trx_sys and record/table lock queues */
+  {
+    /* We need to read trx_sys and record/table lock queues */
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
-  lock_mutex_enter();
+    trx_sys_mutex_enter();
 
-  trx_sys_mutex_enter();
+    fetch_data_into_cache(cache);
 
-  fetch_data_into_cache(cache);
-
-  trx_sys_mutex_exit();
-
-  lock_mutex_exit();
+    trx_sys_mutex_exit();
+  }
 
   return (0);
 }
 
-/** Returns TRUE if the data in the cache is truncated due to the memory
- limit posed by TRX_I_S_MEM_LIMIT.
- @return true if truncated */
-ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache) /*!< in: cache */
-{
+bool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache) {
   return (cache->is_truncated);
 }
 
@@ -987,8 +1001,10 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 {
   /* The latching is done in the following order:
   acquire trx_i_s_cache_t::rw_lock, X
-  acquire lock mutex
-  release lock mutex
+  acquire locksys exclusive global latch
+  acquire trx_sys mutex
+  release trx_sys mutex
+  release locksys exclusive global latch
   release trx_i_s_cache_t::rw_lock
   acquire trx_i_s_cache_t::rw_lock, S
   acquire trx_i_s_cache_t::last_read_mutex
@@ -1014,7 +1030,7 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 
   cache->mem_allocd = 0;
 
-  cache->is_truncated = FALSE;
+  cache->is_truncated = false;
 }
 
 /** Free the INFORMATION SCHEMA trx related cache. */

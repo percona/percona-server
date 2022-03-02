@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,20 +46,20 @@ class FloatingTest {
 
 class Float4Test : public FloatingTest<float>,
                    public ::testing::TestWithParam<float> {
-  virtual void SetUp() {
+  void SetUp() override {
     input = GetParam();
     output = numeric_limits<float>::quiet_NaN();
   }
 };
 
-INSTANTIATE_TEST_CASE_P(Foo, Float4Test,
-                        ::testing::Values(numeric_limits<float>::min(),
-                                          numeric_limits<float>::max(),
-                                          numeric_limits<float>::epsilon(),
-                                          -numeric_limits<float>::min(),
-                                          -numeric_limits<float>::max(),
-                                          -numeric_limits<float>::epsilon(),
-                                          -1.0f, 0.0f, 1.0f));
+INSTANTIATE_TEST_SUITE_P(Foo, Float4Test,
+                         ::testing::Values(numeric_limits<float>::min(),
+                                           numeric_limits<float>::max(),
+                                           numeric_limits<float>::epsilon(),
+                                           -numeric_limits<float>::min(),
+                                           -numeric_limits<float>::max(),
+                                           -numeric_limits<float>::epsilon(),
+                                           -1.0f, 0.0f, 1.0f));
 /*
   The actual test case for float: store and get some values.
  */
@@ -74,20 +74,20 @@ TEST_P(Float4Test, PutAndGet) {
 
 class Float8Test : public FloatingTest<double>,
                    public ::testing::TestWithParam<double> {
-  virtual void SetUp() {
+  void SetUp() override {
     input = GetParam();
     output = numeric_limits<double>::quiet_NaN();
   }
 };
 
-INSTANTIATE_TEST_CASE_P(Foo, Float8Test,
-                        ::testing::Values(numeric_limits<double>::min(),
-                                          numeric_limits<double>::max(),
-                                          numeric_limits<double>::epsilon(),
-                                          -numeric_limits<double>::min(),
-                                          -numeric_limits<double>::max(),
-                                          -numeric_limits<double>::epsilon(),
-                                          -1.0, 0.0, 1.0));
+INSTANTIATE_TEST_SUITE_P(Foo, Float8Test,
+                         ::testing::Values(numeric_limits<double>::min(),
+                                           numeric_limits<double>::max(),
+                                           numeric_limits<double>::epsilon(),
+                                           -numeric_limits<double>::min(),
+                                           -numeric_limits<double>::max(),
+                                           -numeric_limits<double>::epsilon(),
+                                           -1.0, 0.0, 1.0));
 /*
   The actual test case for double: store and get some values.
  */
@@ -99,8 +99,6 @@ TEST_P(Float8Test, PutAndGet) {
   output = doubleget(buf);
   EXPECT_EQ(input, output);
 }
-
-#if defined(GTEST_HAS_TYPED_TEST)
 
 /*
   A test fixture class, parameterized on type.
@@ -119,7 +117,7 @@ class IntegralTest : public ::testing::Test {
 
   IntegralTest() : input(0), output(0) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     values.push_back(Limit::min());
     values.push_back(Limit::min() / T(2));
     values.push_back(T(0));
@@ -176,7 +174,7 @@ typedef ::testing::Types<short, ushort, sizeNint<3>, sizeNint<5>, sizeNint<6>,
                          int, unsigned, longlong, ulonglong>
     IntegralTypes;
 
-TYPED_TEST_CASE(IntegralTest, IntegralTypes);
+TYPED_TEST_SUITE(IntegralTest, IntegralTypes);
 
 /*
   Wrap all the __get, __store, __korr macros in functions.
@@ -289,5 +287,4 @@ TYPED_TEST(IntegralTest, PutAndGet) {
   }
 }
 
-#endif  // GTEST_HAS_TYPED_TEST
 }  // namespace byteorder_unittest

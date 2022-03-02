@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
+#include <vector>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -39,6 +41,8 @@
 #ifdef _WIN32
 #include <aclapi.h>
 #endif
+
+#include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
 
@@ -319,12 +323,16 @@ class HARNESS_EXPORT Directory : public Path {
    *
    * A directory iterator is an input iterator.
    */
-  using DirectoryIteratorBase = std::iterator<std::input_iterator_tag, Path>;
-
-  class HARNESS_EXPORT DirectoryIterator : public DirectoryIteratorBase {
+  class HARNESS_EXPORT DirectoryIterator {
     friend class Directory;
 
    public:
+    using value_type = Path;
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     DirectoryIterator(const Path &path,
                       const std::string &pattern = std::string());
 
@@ -415,11 +423,43 @@ class HARNESS_EXPORT Directory : public Path {
   DirectoryIterator begin();
 
   /**
+   * Constant iterator to first entry.
+   *
+   * @return Returns a constant iterator pointing to the first entry.
+   */
+  DirectoryIterator cbegin() const;
+
+  /**
    * Iterator past-the-end of entries.
    *
    * @return Returns an iterator pointing *past-the-end* of the entries.
    */
   DirectoryIterator end();
+
+  /**
+   * Constant iterator past-the-end of entries.
+   *
+   * @return Returns a constant iterator pointing *past-the-end* of the entries.
+   */
+  DirectoryIterator cend() const;
+
+  /**
+   * Check if the directory is empty.
+   *
+   * @retval true Directory is empty.
+   * @retval false Directory is no empty.
+   */
+  bool is_empty() const;
+
+  /**
+   * Recursively list all paths in a directory.
+   *
+   * Recursively create a list of relative paths from a directory. Path will
+   * be relative to the given directory. Empty directories are also listed.
+   *
+   * @return Recursive list of paths from a direcotry.
+   */
+  std::vector<Path> list_recursive() const;
 
   /**
    * Iterate over entries matching a glob.
@@ -439,10 +479,11 @@ class HARNESS_EXPORT Directory : public Path {
  *
  * @param dir path of the directory to be removed; this directory must be empty
  *
- * @return 0 on success, -1 on error and sets errno
+ * @return void on success, error_code on failure
  */
 HARNESS_EXPORT
-int delete_dir(const std::string &dir) noexcept;
+stdx::expected<void, std::error_code> delete_dir(
+    const std::string &dir) noexcept;
 
 /** @brief Removes a file.
  *
@@ -450,10 +491,11 @@ int delete_dir(const std::string &dir) noexcept;
  *
  * @param path of the file to be removed
  *
- * @return 0 on success, -1 on error
+ * @return void on success, error_code on failure
  */
 HARNESS_EXPORT
-int delete_file(const std::string &path) noexcept;
+stdx::expected<void, std::error_code> delete_file(
+    const std::string &path) noexcept;
 
 /** @brief Removes directory and all its contents.
  *
@@ -461,10 +503,11 @@ int delete_file(const std::string &path) noexcept;
  *
  * @param dir path of the directory to be removed
  *
- * @return 0 on success, -1 on error
+ * @return void on success, error_code on failure
  */
 HARNESS_EXPORT
-int delete_dir_recursive(const std::string &dir) noexcept;
+stdx::expected<void, std::error_code> delete_dir_recursive(
+    const std::string &dir) noexcept;
 
 /** @brief Creates a temporary directory with partially-random name and returns
  * its path.

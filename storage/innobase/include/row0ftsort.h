@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,7 +58,7 @@ struct fts_doc_item {
 
 /** This defines the list type that scan thread would feed the parallel
 tokenization threads and sort threads. */
-typedef UT_LIST_BASE_NODE_T(fts_doc_item_t) fts_doc_list_t;
+typedef UT_LIST_BASE_NODE_T(fts_doc_item_t, doc_list) fts_doc_list_t;
 
 #define FTS_PLL_MERGE 1
 
@@ -89,8 +89,6 @@ struct fts_psort_t {
   merge_file_t *merge_file[FTS_NUM_AUX_INDEX];
   /*!< sort file */
   row_merge_block_t *merge_block[FTS_NUM_AUX_INDEX];
-  /*!< buffer to write to file */
-  row_merge_block_t *block_alloc[FTS_NUM_AUX_INDEX];
   /*!< buffer to allocated */
   row_merge_block_t *crypt_block[FTS_NUM_AUX_INDEX];
   /*!< buffer to crypt data */
@@ -113,7 +111,7 @@ struct row_fts_token_t {
   token_list; /*!< next token link */
 };
 
-typedef UT_LIST_BASE_NODE_T(row_fts_token_t) fts_token_list_t;
+typedef UT_LIST_BASE_NODE_T(row_fts_token_t, token_list) fts_token_list_t;
 
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
@@ -128,7 +126,7 @@ struct fts_tokenize_ctx {
   ib_rbt_t *cached_stopword{nullptr}; /*!< in: stopword list */
   dfield_t sort_field[FTS_NUM_FIELDS_SORT];
   /*!< in: sort field */
-  fts_token_list_t fts_token_list;
+  fts_token_list_t fts_token_list{};
   bool ignore_stopwords;
   /*!< in: true if token
   stopwords checking should be
@@ -193,24 +191,21 @@ instead of 8 bytes integer to
 store Doc ID during sort */
 
 /** Initialize FTS parallel sort structures.
- @return true if all successful */
-ibool row_fts_psort_info_init(
-    trx_t *trx,           /*!< in: transaction */
-    row_merge_dup_t *dup, /*!< in,own: descriptor of
-                          FTS index being created */
-    const dict_table_t *old_table,
-    /*!< in: Needed to fetch LOB from old
-    table */
-    const dict_table_t *new_table, /*!< in: table where indexes are
-                                 created */
-    ibool opt_doc_id_size,
-    /*!< in: whether to use 4 bytes
-    instead of 8 bytes integer to
-    store Doc ID during sort */
-    fts_psort_t **psort,  /*!< out: parallel sort info to be
-                          instantiated */
-    fts_psort_t **merge); /*!< out: parallel merge info
-                          to be instantiated */
+@param[in] trx Transaction
+@param[in,out] dup Descriptor of fts index being created
+@param[in] old_table Needed to fetch lob from old table
+@param[in] new_table Table where indexes are created
+@param[in] opt_doc_id_size Whether to use 4 bytes instead of 8 bytes integer to
+store doc id during sort
+@param[out] psort Parallel sort info to be instantiated
+@param[out] merge Parallel merge info to be instantiated
+@return InnoDB error code */
+dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
+                                const dict_table_t *old_table,
+                                const dict_table_t *new_table,
+                                ibool opt_doc_id_size, fts_psort_t **psort,
+                                fts_psort_t **merge);
+
 /** Clean up and deallocate FTS parallel sort structures, and close
  temparary merge sort files */
 void row_fts_psort_info_destroy(

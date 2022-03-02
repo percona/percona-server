@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -502,39 +502,42 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include <stddef.h>
+#include <assert.h>
 #include <sys/types.h>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;
+class Query_block;
 class THD;
 struct TABLE_LIST;
+
 template <class T>
-class List;
+class mem_root_deque;
 
 /**
    Checks for queries which have DISTINCT.
 */
 class Distinct_check : public Item_tree_walker {
  public:
-  Distinct_check(SELECT_LEX *select_arg)
+  Distinct_check(Query_block *select_arg)
       : select(select_arg), failed_ident(nullptr) {}
+  Distinct_check(const Distinct_check &) = delete;
+  Distinct_check &operator=(const Distinct_check &) = delete;
 
   bool check_query(THD *thd);
 
  private:
   /// Query block which we are validating
-  SELECT_LEX *const select;
+  Query_block *const select;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -547,8 +550,6 @@ class Distinct_check : public Item_tree_walker {
   friend bool Item_sum::aggregate_check_distinct(uchar *arg);
   friend bool Item_ident::aggregate_check_distinct(uchar *arg);
   friend bool Item_func_any_value::aggregate_check_distinct(uchar *arg);
-
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Distinct_check);
 };
 
 /**
@@ -556,7 +557,7 @@ class Distinct_check : public Item_tree_walker {
 */
 class Group_check : public Item_tree_walker {
  public:
-  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root)
+  Group_check(Query_block *select_arg, MEM_ROOT *root)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -572,13 +573,15 @@ class Group_check : public Item_tree_walker {
   ~Group_check() {
     for (uint j = 0; j < mat_tables.size(); ++j) destroy(mat_tables.at(j));
   }
+  Group_check(const Group_check &) = delete;
+  Group_check &operator=(const Group_check &) = delete;
 
   bool check_query(THD *thd);
   void to_opt_trace(THD *thd);
 
  private:
   /// Query block which we are validating
-  SELECT_LEX *const select;
+  Query_block *const select;
 
   /**
      "Underlying" == expressions which are underlying in an identifier.
@@ -644,7 +647,7 @@ class Group_check : public Item_tree_walker {
   bool is_child() const { return table != nullptr; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
+  Group_check(Query_block *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -655,7 +658,7 @@ class Group_check : public Item_tree_walker {
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root) {
-    DBUG_ASSERT(table);
+    assert(table);
   }
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()
@@ -698,8 +701,6 @@ class Group_check : public Item_tree_walker {
   friend bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg);
   friend bool Item_ident::is_column_not_in_fd(uchar *arg);
   friend bool Item_func_grouping::aggregate_check_group(uchar *arg);
-
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Group_check);
 };
 
 #endif

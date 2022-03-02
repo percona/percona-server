@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 
 #include <ndb_global.h>
+#include <cstring>
 #include <NdbThread.h>
 #include "my_thread.h"
 #include <NdbMutex.h>
@@ -75,7 +76,7 @@
 #if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int g_min_prio = 0;
 static int g_max_prio = 0;
-static bool get_prio_first = TRUE;
+static bool get_prio_first = true;
 #endif
 
 static NdbMutex *ndb_thread_mutex = 0;
@@ -250,7 +251,7 @@ ndb_thread_wrapper(void* _ss){
         OpenThread(SYNCHRONIZE |
                      THREAD_SET_INFORMATION |
                      THREAD_QUERY_INFORMATION,
-                   FALSE,
+                   false,
                    GetCurrentThreadId());
 #endif
 
@@ -293,7 +294,7 @@ NdbThread_CreateObject(const char * name)
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
-  bzero(tmpThread, sizeof(* tmpThread));
+  std::memset(tmpThread, 0, sizeof(* tmpThread));
   if (name)
   {
     my_stpnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
@@ -376,8 +377,8 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
   tmpThread->cpu_set_key = NULL;
-  tmpThread->first_lock_call_exclusive = FALSE;
-  tmpThread->first_lock_call_non_exclusive = FALSE;
+  tmpThread->first_lock_call_exclusive = false;
+  tmpThread->first_lock_call_non_exclusive = false;
 
   NdbMutex_Lock(ndb_thread_mutex);
   result = my_thread_create(&thread_handle,
@@ -399,7 +400,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   {
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
     struct sched_param param;
-    bzero(&param, sizeof(param));
+    std::memset(&param, 0, sizeof(param));
     param.sched_priority = f_high_prio_prio;
     if (pthread_setschedparam(tmpThread->thread, f_high_prio_policy, &param))
       perror("pthread_setschedparam failed");
@@ -427,7 +428,7 @@ NdbThread_CreateLockObject(int tid)
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
-  bzero(tmpThread, sizeof(* tmpThread));
+  std::memset(tmpThread, 0, sizeof(* tmpThread));
 
 #if defined HAVE_LINUX_SCHEDULING
   tmpThread->tid= (pid_t)tid;
@@ -450,7 +451,7 @@ NdbThread_CreateLockObject(int tid)
   tmpThread->thread_handle = OpenThread(SYNCHRONIZE |
                                           THREAD_SET_INFORMATION |
                                           THREAD_QUERY_INFORMATION,
-                                        FALSE,
+                                        false,
                                         (DWORD)tid);
 #endif
 
@@ -568,7 +569,7 @@ get_prio(bool high_prio, int policy)
   {
     g_max_prio = get_max_prio(policy);
     g_min_prio = get_min_prio(policy);
-    get_prio_first = FALSE;
+    get_prio_first = false;
   }
   /*
     We need to distinguish between high and low priority threads. High
@@ -598,8 +599,8 @@ get_prio(bool high_prio, int policy)
 int
 NdbThread_yield_rt(struct NdbThread* pThread, bool high_prio)
 {
-  int res = NdbThread_SetScheduler(pThread, FALSE, high_prio);
-  int res1 = NdbThread_SetScheduler(pThread, TRUE, high_prio);
+  int res = NdbThread_SetScheduler(pThread, false, high_prio);
+  int res1 = NdbThread_SetScheduler(pThread, true, high_prio);
   if (res || res1)
     return res;
   return 0;
@@ -637,7 +638,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  bzero(&loc_sched_param, sizeof(loc_sched_param));
+  std::memset(&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= sched_setscheduler(pThread->tid, policy, &loc_sched_param);
   if (ret)
@@ -659,7 +660,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  bzero(&loc_sched_param, sizeof(loc_sched_param));
+  std::memset(&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= pthread_setschedparam(pThread->thread, policy, &loc_sched_param);
   if (ret)
@@ -734,7 +735,7 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
         break;
       default:
         /* Will never end up here */
-        require(FALSE);
+        require(false);
         break;
     }
   }
@@ -879,8 +880,8 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
 
 static unsigned int num_processor_groups = 0;
 static unsigned int *num_processors_per_group = NULL;
-static bool inited = FALSE;
-static bool support_cpu_locking_on_windows = FALSE;
+static bool inited = false;
+static bool support_cpu_locking_on_windows = false;
 
 /**
  * On Windows the processors group have different sizes.
@@ -915,19 +916,19 @@ is_cpu_locking_supported_on_windows()
   {
     return support_cpu_locking_on_windows;
   }
-  inited = TRUE;
+  inited = true;
 
   num_processor_groups = GetActiveProcessorGroupCount();
   if (num_processor_groups == 0)
   {
-    return FALSE;
+    return false;
   }
 
   num_processors_per_group =
       (unsigned int*)malloc(num_processor_groups * sizeof(unsigned int));
   if (num_processors_per_group == NULL)
   {
-    return FALSE;
+    return false;
   }
 
   for (Uint32 i = 0; i < num_processor_groups; i++)
@@ -935,12 +936,12 @@ is_cpu_locking_supported_on_windows()
     num_processors_per_group[i] = GetActiveProcessorCount((WORD)i);
     if (num_processors_per_group[i] == 0)
     {
-      return FALSE;
+      return false;
     }
   }
 
   // Initialization successful -> cpu locking supported!
-  support_cpu_locking_on_windows = TRUE;
+  support_cpu_locking_on_windows = true;
   return support_cpu_locking_on_windows;
 }
 
@@ -953,13 +954,13 @@ is_cpu_available(unsigned int cpu_id)
 
   if (processor_group >= num_processor_groups)
   {
-    return FALSE;
+    return false;
   }
   if (processor_id >= num_processors_per_group[processor_group])
   {
-    return FALSE;
+    return false;
   }
-  return TRUE;
+  return true;
 }
 
 static void
@@ -1045,7 +1046,7 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
       break;
     default:
       /* Impossible to reach */
-      require(FALSE);
+      require(false);
   }
   const BOOL ret = SetThreadPriority(pThread->thread_handle, windows_prio);
   if (ret == 0)
@@ -1063,7 +1064,7 @@ NdbThread_UnassignFromCPUSet(struct NdbThread *pThread,
 {
   if (cpu_set == NULL)
   {
-    assert(FALSE);
+    assert(false);
     return;
   }
   unsigned int *cpu_set_ptr = (unsigned int*)cpu_set;
@@ -1080,7 +1081,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
   /* Windows */
   GROUP_AFFINITY new_affinity;
 
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
 
   new_affinity.Mask = pThread->oldProcessorMask;
   new_affinity.Group = pThread->oldProcessorGroupNumber;
@@ -1120,8 +1121,8 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   GROUP_AFFINITY new_affinity;
   GROUP_AFFINITY old_affinity;
 
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
-  bzero(&old_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
+  std::memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
 
   const KAFFINITY cpu0 = 1;
   new_affinity.Mask = (cpu0 << GET_PROCESSOR_ID(cpu_id));
@@ -1221,7 +1222,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   unsigned long long temp, stat, dynamic;
   unsigned long long num_cpu_ids = (unsigned long long)cpu_set_ptr[0];
   unsigned int *stat_part = &cpu_set_ptr[2 + num_processor_groups];
-  int found = FALSE;
+  bool found = false;
   for (unsigned int i = 0; i < num_processor_groups; i++)
   {
     stat = (unsigned long long)stat_part[i];
@@ -1233,11 +1234,11 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
       {
         used_processor_group = i;
         min_so_far = temp;
-        found = TRUE;
+        found = true;
       }
     }
   }
-  assert(found == TRUE);
+  assert(found);
   KAFFINITY mask;
   calculate_processor_mask(&mask,
                            used_processor_group,
@@ -1252,8 +1253,8 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
    * has to be zeroed, otherwise Windows will return an error of invalid
    * parameter.
    */
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
-  bzero(&old_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
+  std::memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
 
   new_affinity.Mask = mask;
   new_affinity.Group = used_processor_group;
@@ -1365,7 +1366,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     }
     else
     {
-      pThread->first_lock_call_non_exclusive = FALSE;
+      pThread->first_lock_call_non_exclusive = false;
     }
   }
 #elif defined HAVE_SOLARIS_AFFINITY
@@ -1382,7 +1383,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     }
     else
     {
-      pThread->first_lock_call_exclusive = FALSE;
+      pThread->first_lock_call_exclusive = false;
     }
   }
   if (pThread->first_lock_call_non_exclusive)
@@ -1415,7 +1416,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     }
     else
     {
-      pThread->first_lock_call_non_exclusive = FALSE;
+      pThread->first_lock_call_non_exclusive = false;
     }
   }
 #else
@@ -1503,7 +1504,7 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   if (!error_no)
   {
     pThread->cpu_set_key = cpu_set_key;
-    pThread->first_lock_call_non_exclusive = TRUE;
+    pThread->first_lock_call_non_exclusive = true;
   }
   return error_no;
 
@@ -1600,7 +1601,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   if (!error_no)
   {
     pThread->cpu_set_key = cpu_set_key;
-    pThread->first_lock_call_non_exclusive = TRUE;
+    pThread->first_lock_call_non_exclusive = true;
   }
   return error_no;
 
@@ -1764,7 +1765,7 @@ NdbThread_LockCPUSetExclusive(struct NdbThread* pThread,
   if (!error_no)
   {
     pThread->cpu_set_key = cpu_set_key;
-    pThread->first_lock_call_exclusive = TRUE;
+    pThread->first_lock_call_exclusive = true;
   }
   return error_no;
 
@@ -1821,6 +1822,36 @@ struct NdbThread* NdbThread_GetNdbThread()
   return NDB_THREAD_TLS_NDB_THREAD;
 }
 
+  static bool cpu_set_working;
+#if defined(HAVE_LINUX_SCHEDULING)
+  static cpu_set_t g_cpu_usable_set;
+#elif defined(HAVE_CPUSET_SETAFFINITY)
+  static cpuset_t g_cpu_usable_set;
+#elif defined(HAVE_PROCESSOR_AFFINITY)
+  static uint_t g_num_ids;
+  static id_t *g_cpu_ids;
+#endif
+
+bool
+NdbThread_IsCPUAvailable(Uint32 cpu_id)
+{
+  if (!cpu_set_working)
+    return true;
+#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_CPUSET_SETAFFINITY)
+  if (CPU_ISSET(cpu_id, &g_cpu_usable_set))
+    return true;
+  return false;
+#elif defined(HAVE_PROCESSOR_AFFINITY)
+  for (uint_t i = 0; i < g_num_ids; i++)
+  {
+    if (static_cast<Uint32>(g_cpu_ids[i]) == cpu_id)
+      return true;
+  }
+  return false;
+#endif
+  return true;
+}
+
 int
 NdbThread_Init()
 {
@@ -1830,12 +1861,64 @@ NdbThread_Init()
   ndb_thread_mutex = NdbMutex_Create();
   ndb_thread_condition = NdbCondition_Create();
   NdbThread_CreateObject(0);
+  cpu_set_working = true;
+#if defined(HAVE_LINUX_SCHEDULING)
+  CPU_ZERO(&g_cpu_usable_set);
+  int ret = sched_getaffinity(0,
+                              sizeof(g_cpu_usable_set),
+                              &g_cpu_usable_set);
+  if (ret != 0)
+    cpu_set_working = false;
+#elif defined(HAVE_CPUSET_AFFINITY)
+  CPU_ZERO(&g_cpu_usable_set);
+  int ret = cpuset_getaffinity(CPU_LEVEL_ROOT,
+                               CPU_WHICH_TID,
+                               getpid(),
+                               sizeof(cpuset_t),
+                               &g_cpu_usable_set);
+  if (ret != 0)
+    cpu_set_working = false;
+#elif defined(HAVE_PROCESSOR_AFFINITY)
+  g_cpu_ids = nullptr;
+  uint32_t flags = PA_QUERY;
+  procset_t ps;
+  setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID, thr_self());
+  if (processor_affinity(&ps,
+                         &g_num_ids,
+                         NULL,
+                         &flags) == 0)
+  {
+    if (g_num_ids != 0)
+    {
+      flags = PA_QUERY;
+      g_cpu_ids = (id_t*)calloc(g_num_ids, sizeof (id_t));
+      if (g_cpu_ids != nullptr)
+      {
+        if (processor_affinity(&ps,
+                               &g_num_ids,
+                               g_cpu_ids,
+                               &flags) != 0)
+        {
+          cpu_set_working = false;
+        }
+      }
+      else
+      {
+        cpu_set_working = false;
+      }
+    }
+  }
+#endif
   return 0;
 }
 
 void
 NdbThread_End()
 {
+#if defined(HAVE_PROCESSOR_AFFINITY)
+  free(g_cpu_ids);
+  g_cpu_ids = nullptr;
+#endif
   if (ndb_thread_mutex)
   {
     NdbMutex_Destroy(ndb_thread_mutex);
@@ -1934,5 +2017,15 @@ NdbThread_SetHighPrioProperties(const char * spec)
   return 0;
 #else
   return 0;
+#endif
+}
+
+void
+NdbThread_ClearSigMask()
+{
+#ifdef HAVE_PTHREAD_SIGMASK
+  sigset_t mask;
+  sigfillset(&mask);
+  pthread_sigmask(SIG_UNBLOCK, &mask, 0);
 #endif
 }

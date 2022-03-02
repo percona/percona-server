@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 
 #include "storage/perfschema/table_session_connect.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/field.h"
 #include "sql/table.h"
@@ -71,7 +72,7 @@ table_session_connect::~table_session_connect() {
 }
 
 int table_session_connect::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_session_connect);
   m_index = m_opened_index;
   return 0;
@@ -310,12 +311,12 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case FO_PROCESS_ID:
           if (m_row.m_process_id != 0) {
             set_field_ulonglong(f, m_row.m_process_id);
@@ -339,7 +340,7 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulong(f, m_row.m_ordinal_position);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

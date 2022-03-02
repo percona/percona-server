@@ -486,20 +486,16 @@ primary key (id),
 unique key (c)
 ) engine=innodb;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values
 (NULL, 'a'),
 (NULL, 'a')
 on duplicate key update id = values(id), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values
 (NULL, 'b')
 on duplicate key update id = values(id), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
@@ -509,17 +505,13 @@ insert into t1 (id, c) values (NULL, 'a');
 
 select * from t1;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values (NULL, 'b'), (NULL, 'b')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values (NULL, 'a')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
@@ -981,6 +973,7 @@ SELECT * FROM t1 WHERE b=20 FOR UPDATE;
 # This statement gives a "failed: 1205: Lock wait timeout exceeded; try
 # restarting transaction" message when the bug is present.
 START TRANSACTION;
+--skip_if_hypergraph
 SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
 ROLLBACK;
 
@@ -1660,6 +1653,7 @@ analyze table t2;
 -- enable_query_log
 
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+--sorted_result
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 
 drop table t1,t2;

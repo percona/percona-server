@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1448,7 +1448,7 @@ delimiter ;
 #5  in sp_head::execute () at sp_head.cc:1077
 #6  in sp_head::execute_procedure () at sp_head.cc:1726
 #7  in mysql_execute_command () at sql_parse.cc:3807
-#8  in mysql_parse () at sql_parse.cc:5274
+#8  in dispatch_sql_command () at sql_parse.cc:5274
 #9  in dispatch_command () at sql_parse.cc:896
 #10 in do_command () at sql_parse.cc:662
 #11 in handle_one_connection () at sql_connect.cc:1089
@@ -1475,7 +1475,7 @@ delimiter ;
 #11 in sp_head::execute () at sp_head.cc:1077
 #12 in sp_head::execute_procedure () at sp_head.cc:1726
 #13 in mysql_execute_command () at sql_parse.cc:3807
-#14 in mysql_parse () at sql_parse.cc:5274
+#14 in dispatch_sql_command () at sql_parse.cc:5274
 #15 in dispatch_command () at sql_parse.cc:896
 #16 in do_command () at sql_parse.cc:662
 #17 in handle_one_connection () at sql_connect.cc:1089
@@ -1748,7 +1748,7 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
 void sp_head::init_sp_name(THD *thd, sp_name *spname) {
   /* Must be initialized in the parser. */
 
-  DBUG_ASSERT(spname && spname->m_db.str && spname->m_db.length);
+  assert(spname && spname->m_db.str && spname->m_db.length);
 
   /* We have to copy strings to get them into the right memroot. */
 
@@ -1833,10 +1833,11 @@ bool sp_head::setup_trigger_fields(THD *thd, Table_trigger_field_support *tfs,
          f = f->next_trg_field) {
       f->setup_field(tfs, subject_table_grant);
 
-      if (need_fix_fields && !f->fixed &&
-          f->fix_fields(thd, (Item **)nullptr)) {
-        return true;
-      }
+      if (!need_fix_fields || f->fixed) continue;
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+      if (f->fix_fields(thd, nullptr)) return true;
     }
   }
 
@@ -1897,7 +1898,7 @@ sp_head::~sp_head() {
   sp_instr *i;
 
   // Parsing of SP-body must have been already finished.
-  DBUG_ASSERT(!m_parser_data.is_parsing_sp_body());
+  assert(!m_parser_data.is_parsing_sp_body());
 
   for (uint ip = 0; (i = get_instr(ip)); ip++) ::destroy(i);
 
@@ -1923,7 +1924,7 @@ sp_head::~sp_head() {
 Field *sp_head::create_result_field(THD *thd, size_t field_max_length,
                                     const char *field_name_or_null,
                                     TABLE *table) const {
-  DBUG_ASSERT(!m_return_field_def.is_array);
+  assert(!m_return_field_def.is_array);
   size_t field_length = !m_return_field_def.max_display_width_in_bytes()
                             ? field_max_length
                             : m_return_field_def.max_display_width_in_bytes();
@@ -1936,7 +1937,7 @@ Field *sp_head::create_result_field(THD *thd, size_t field_max_length,
       thd->mem_root->ArrayAlloc<uchar>(m_return_field_def.pack_length() + 1);
   if (table->record[0] == nullptr) return nullptr;
 
-  DBUG_ASSERT(m_return_field_def.auto_flags == Field::NONE);
+  assert(m_return_field_def.auto_flags == Field::NONE);
   Field *field =
       make_field(m_return_field_def, table->s, field_name, field_length,
                  table->record[0] + 1, table->record[0], 0);
@@ -1946,14 +1947,14 @@ Field *sp_head::create_result_field(THD *thd, size_t field_max_length,
   field->stored_in_db = m_return_field_def.stored_in_db;
   if (field) field->init(table);
 
-  DBUG_ASSERT(field->pack_length() == m_return_field_def.pack_length());
+  assert(field->pack_length() == m_return_field_def.pack_length());
 
   return field;
 }
 
 void sp_head::returns_type(THD *thd, String *result) const {
-  DBUG_ASSERT(!m_return_field_def.is_array);
-  DBUG_ASSERT(m_return_field_def.auto_flags == Field::NONE);
+  assert(!m_return_field_def.is_array);
+  assert(m_return_field_def.auto_flags == Field::NONE);
 
   TABLE table;
   TABLE_SHARE share;
@@ -1963,12 +1964,12 @@ void sp_head::returns_type(THD *thd, String *result) const {
   Field *field = make_field(m_return_field_def, &share, m_name.str,
                             m_return_field_def.max_display_width_in_bytes(),
                             nullptr, nullptr, 0);
-  field->init(&table);  // Field::sql_type() uses Field::table::in_use
+  field->init(&table);
   field->sql_type(*result);
 
   if (field->has_charset()) {
     result->append(STRING_WITH_LEN(" CHARSET "));
-    result->append(m_return_field_def.charset->csname);
+    result->append(replace_utf8_utf8mb3(m_return_field_def.charset->csname));
     if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
       result->append(STRING_WITH_LEN(" COLLATE "));
       result->append(m_return_field_def.charset->name);
@@ -2043,7 +2044,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   init_sql_alloc(key_memory_sp_head_execute_root, &execute_mem_root,
                  MEM_ROOT_BLOCK_SIZE, 0);
 
-  DBUG_ASSERT(!(m_flags & IS_INVOKED));
+  assert(!(m_flags & IS_INVOKED));
   m_flags |= IS_INVOKED;
   m_first_instance->m_first_free_instance = m_next_cached_sp;
   if (m_next_cached_sp) {
@@ -2058,9 +2059,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     some instances after this one then recursion level of next instance
     greater then recursion level of current instance on 1
   */
-  DBUG_ASSERT((m_next_cached_sp == nullptr &&
-               m_first_instance->m_last_cached_sp == this) ||
-              (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
+  assert((m_next_cached_sp == nullptr &&
+          m_first_instance->m_last_cached_sp == this) ||
+         (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
   /*
     NOTE: The SQL Standard does not specify the context that should be
@@ -2118,7 +2119,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   */
   old_lex = thd->lex;
   /*
-    We should also save Item tree change list to avoid rollback something
+    Save Item tree change list to avoid rollback something
     too early in the calling query.
   */
   thd->change_list.move_elements_to(&old_change_list);
@@ -2241,9 +2242,10 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       thd->user_var_events_alloc = nullptr;  // DEBUG
     }
 
-    /* we should cleanup free_list and memroot, used by instruction */
-
+    // Free items created when executing the instruction, etc.
     thd->cleanup_after_query();
+
+    // Release memory allocated during execution of the instruction
     free_root(&execute_mem_root, MYF(0));
 
     /*
@@ -2273,20 +2275,18 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   thd->profiling->start_new_query("tail end of routine");
 #endif
 
-  /* Restore query context. */
-
+  // Restore query context.
   m_creation_ctx->restore_env(thd, saved_creation_ctx);
 
-  /* Restore arena. */
-
+  // Restore arena.
   thd->swap_query_arena(backup_arena, &execute_arena);
 
-  thd->sp_runtime_ctx
-      ->pop_all_cursors();  // To avoid memory leaks after an error
+  // Delete all cursors allocated during execution
+  thd->sp_runtime_ctx->pop_all_cursors();
 
   if (thd->is_classic_protocol()) /* Restore all saved */
     old_packet.swap(*thd->get_protocol_classic()->get_output_packet());
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex = old_lex;
   thd->set_query_id(old_query_id);
@@ -2354,7 +2354,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   // Restore the caller's original Diagnostics Area.
   while (thd->get_stmt_da() != &sp_da) thd->pop_diagnostics_area();
   thd->pop_diagnostics_area();
-  DBUG_ASSERT(thd->get_stmt_da() == caller_da);
+  assert(thd->get_stmt_da() == caller_da);
 
 done:
   DBUG_PRINT(
@@ -2390,13 +2390,13 @@ done:
     should go just after this one and recursion level of that free instance
     should be on 1 more then recursion level of this instance.
   */
-  DBUG_ASSERT((m_first_instance->m_first_free_instance == nullptr &&
-               this == m_first_instance->m_last_cached_sp &&
-               m_next_cached_sp == nullptr) ||
-              (m_first_instance->m_first_free_instance != nullptr &&
-               m_first_instance->m_first_free_instance == m_next_cached_sp &&
-               m_first_instance->m_first_free_instance->m_recursion_level ==
-                   m_recursion_level + 1));
+  assert((m_first_instance->m_first_free_instance == nullptr &&
+          this == m_first_instance->m_last_cached_sp &&
+          m_next_cached_sp == nullptr) ||
+         (m_first_instance->m_first_free_instance != nullptr &&
+          m_first_instance->m_first_free_instance == m_next_cached_sp &&
+          m_first_instance->m_first_free_instance->m_recursion_level ==
+              m_recursion_level + 1));
   m_first_instance->m_first_free_instance = this;
 
   return err_status;
@@ -2423,7 +2423,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
     the Data Dictionary we guarantee that definer hasn't empty value.
     It means, that trigger can't never be NOT-SUID.
   */
-  DBUG_ASSERT(m_chistics->suid != SP_IS_NOT_SUID);
+  assert(m_chistics->suid != SP_IS_NOT_SUID);
   if (m_security_ctx.change_security_context(thd, definer_user, definer_host,
                                              m_db.str, &save_ctx))
     return true;
@@ -2529,21 +2529,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   // Resetting THD::where to its default value
   thd->where = THD::DEFAULT_WHERE;
-  /*
-    Check that the function is called with all specified arguments.
 
-    If it is not, use my_error() to report an error, or it will not terminate
-    the invoking query properly.
-  */
-  if (argcount != m_root_parsing_ctx->context_var_count()) {
-    /*
-      Need to use my_error here, or it will not terminate the
-      invoking query properly.
-    */
-    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "FUNCTION", m_qname.str,
-             m_root_parsing_ctx->context_var_count(), argcount);
-    return true;
-  }
+  // Number of arguments has been checked during resolving
+  assert(argcount == m_root_parsing_ctx->context_var_count());
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
@@ -2588,7 +2576,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   for (arg_no = 0; arg_no < argcount; arg_no++) {
     /* Arguments must be fixed in Item_func_sp::fix_fields */
-    DBUG_ASSERT(argp[arg_no]->fixed);
+    assert(argp[arg_no]->fixed);
 
     err_status = func_runtime_ctx->set_variable(thd, arg_no, &(argp[arg_no]));
 
@@ -2706,7 +2694,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
       thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
-      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+      thd->auto_inc_intervals_in_cur_stmt_for_binlog.clear();
     }
   }
 
@@ -2738,7 +2726,7 @@ err_with_cleanup:
   return err_status;
 }
 
-bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
+bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   bool err_status = false;
   uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
@@ -2752,7 +2740,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
   // Argument count has been validated in prepare function.
-  DBUG_ASSERT((args != nullptr ? args->elements : 0) == params);
+  assert((args != nullptr ? args->size() : 0) == params);
 
   if (!parent_sp_runtime_ctx) {
     // Create a temporary old context. We need it to pass OUT-parameter values.
@@ -2782,13 +2770,12 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   proc_runtime_ctx->sp = this;
 
   if (params > 0) {
-    List_iterator<Item> it_args(*args);
+    auto it_args = args->begin();
 
     DBUG_PRINT("info", (" %.*s: eval args", (int)m_name.length, m_name.str));
 
-    for (uint i = 0; i < params; i++) {
-      Item *arg_item = it_args++;
-
+    for (uint i = 0; i < params; ++i, ++it_args) {
+      Item *arg_item = *it_args;
       if (!arg_item) break;
 
       sp_variable *spvar = m_root_parsing_ctx->find_variable(i);
@@ -2815,7 +2802,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
           break;
         }
       } else {
-        if (proc_runtime_ctx->set_variable(thd, i, it_args.ref())) {
+        if (proc_runtime_ctx->set_variable(thd, i, &*it_args)) {
           err_status = true;
           break;
         }
@@ -2832,7 +2819,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit->cleanup(thd, true);
+    thd->lex->cleanup(thd, true);
 
     if (!thd->in_sub_stmt) {
       thd->get_stmt_da()->set_overwrite_status(true);
@@ -2901,14 +2888,14 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   thd->sp_runtime_ctx->callers_arena = parent_sp_runtime_ctx->callers_arena;
 
   if (!err_status && params > 0) {
-    List_iterator<Item> it_args(*args);
+    auto it_args = args->cbegin();
 
     /*
       Copy back all OUT or INOUT values to the previous frame, or
       set global user variables
     */
     for (uint i = 0; i < params; i++) {
-      Item *arg_item = it_args++;
+      Item *arg_item = *it_args++;
 
       if (!arg_item) break;
 
@@ -2919,7 +2906,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       Settable_routine_parameter *srp =
           arg_item->get_settable_routine_parameter();
 
-      DBUG_ASSERT(srp);
+      assert(srp);
 
       if (srp->set_value(thd, parent_sp_runtime_ctx,
                          proc_runtime_ctx->get_item_addr(i))) {
@@ -3112,7 +3099,7 @@ void sp_head::optimize() {
 
   opt_mark();
 
-  bp.empty();
+  bp.clear();
   src = dst = 0;
   while ((i = get_instr(src))) {
     if (!i->opt_is_marked()) {
@@ -3135,7 +3122,7 @@ void sp_head::optimize() {
   }
 
   m_instructions.resize(dst);
-  bp.empty();
+  bp.clear();
 }
 
 void sp_head::add_mark_lead(uint ip, List<sp_instr> *leads) {
@@ -3178,12 +3165,11 @@ void sp_head::opt_mark() {
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool sp_head::show_routine_code(THD *thd) {
   Protocol *protocol = thd->get_protocol();
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
-  List<Item> field_list;
   sp_instr *i;
   bool full_access;
   bool res = false;
@@ -3191,11 +3177,12 @@ bool sp_head::show_routine_code(THD *thd) {
 
   if (check_show_access(thd, &full_access) || !full_access) return true;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_uint(NAME_STRING("Pos"), 0, 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string(
       "Instruction", std::max<size_t>(buffer.length(), 1024U)));
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -3227,7 +3214,7 @@ bool sp_head::show_routine_code(THD *thd) {
 
   return res;
 }
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
 
 bool sp_head::merge_table_list(THD *thd, TABLE_LIST *table,
                                LEX *lex_for_tmp_check) {

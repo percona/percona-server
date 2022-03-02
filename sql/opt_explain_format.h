@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,14 @@
   EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
-#include <string.h>
+#include <assert.h>
 #include <sys/types.h>
 
+#include <cstring>
+
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/parse_tree_node_base.h"
@@ -41,9 +44,8 @@
 
 class Opt_trace_object;
 class Query_result;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class Window;
-struct MEM_ROOT;
 
 enum class enum_explain_type;
 
@@ -98,7 +100,7 @@ enum Extra_tag {
 */
 class Lazy {
  public:
-  virtual ~Lazy() {}
+  virtual ~Lazy() = default;
 
   /**
     Deferred evaluation of encapsulated expression
@@ -174,7 +176,7 @@ class qep_row {
       nil = false;
     }
     T get() const {
-      DBUG_ASSERT(!nil);
+      assert(!nil);
       return value;
     }
   };
@@ -355,22 +357,22 @@ class qep_row {
         derived_clone_id(0),
         m_windows(nullptr) {}
 
-  virtual ~qep_row() {}
+  virtual ~qep_row() = default;
 
   void cleanup() {
     col_id.cleanup();
     col_table_name.cleanup();
-    col_partitions.empty();
+    col_partitions.clear();
     col_join_type.cleanup();
-    col_possible_keys.empty();
+    col_possible_keys.clear();
     col_key.cleanup();
     col_key_len.cleanup();
-    col_ref.empty();
+    col_ref.clear();
     col_filtered.cleanup();
-    col_extra.empty();
+    col_extra.clear();
     col_message.cleanup();
     col_attached_condition.cleanup();
-    col_key_parts.empty();
+    col_key_parts.clear();
 
     col_rows.cleanup();
     col_prefix_rows.cleanup();
@@ -386,7 +388,7 @@ class qep_row {
       just for the consistency).
     */
     query_block_id = 0;
-    derived_from.empty();
+    derived_from.clear();
     is_dependent = false;
     is_cacheable = true;
     using_temporary = false;
@@ -410,7 +412,7 @@ class qep_row {
     @param subquery     WHERE clause subquery's unit
   */
   virtual void register_where_subquery(
-      SELECT_LEX_UNIT *subquery MY_ATTRIBUTE((unused))) {}
+      Query_expression *subquery MY_ATTRIBUTE((unused))) {}
 
   void format_extra(Opt_trace_object *obj);
 };
@@ -509,7 +511,7 @@ class Explain_format {
 
  public:
   Explain_format() : output(nullptr) {}
-  virtual ~Explain_format() {}
+  virtual ~Explain_format() = default;
 
   /**
     A hierarchical text or a plain table
@@ -544,7 +546,7 @@ class Explain_format {
     @param flags        Format flags, see Explain_format_flags.
   */
   virtual bool begin_context(enum_parsing_context context,
-                             SELECT_LEX_UNIT *subquery = nullptr,
+                             Query_expression *subquery = nullptr,
                              const Explain_format_flags *flags = nullptr) = 0;
 
   /**

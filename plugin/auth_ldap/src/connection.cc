@@ -45,6 +45,10 @@ bool Connection::connect(const std::string &bind_dn,
                          const std::string &bind_pwd) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
 
+  if(bind_pwd.empty()) {
+    return false;
+  }
+
   if (!(ldap_host_.empty() || bind_dn.empty())) {
     log_srv_dbg("Connecting to ldap server as " + bind_dn);
 
@@ -52,16 +56,39 @@ bool Connection::connect(const std::string &bind_dn,
       ldap_unbind_ext_s(ldap_, nullptr, nullptr);
     }
 
-    int err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
-    if (err != LDAP_SUCCESS) {
-      log_error("ldap_initialize", err);
+    int version = LDAP_VERSION3;
+    int err = ldap_set_option(nullptr, LDAP_OPT_PROTOCOL_VERSION, &version);
+    if (err != LDAP_OPT_SUCCESS) {
+      log_error("ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)", err);
       return false;
     }
 
-    int version = LDAP_VERSION3;
-    err = ldap_set_option(ldap_, LDAP_OPT_PROTOCOL_VERSION, &version);
+    if (ca_path_.size() == 0) {
+      int reqCert = LDAP_OPT_X_TLS_NEVER;
+      err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_REQUIRE_CERT, &reqCert);
+      if (err != LDAP_OPT_SUCCESS) {
+        log_error("ldap_set_option(LDAP_OPT_X_TLS_REQUIRE_CERT)", err);
+        return false;
+      }
+    } else {
+      char *cca_path = const_cast<char *>(ca_path_.c_str());
+      err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_CACERTFILE,
+                            static_cast<void *>(cca_path));
+      if (err != LDAP_OPT_SUCCESS) {
+        log_error("ldap_set_option(LDAP_OPT_X_TLS_CACERTFILE)", err);
+        return false;
+      }
+    }
+
+    err = ldap_set_option(nullptr, LDAP_OPT_X_TLS_NEWCTX, LDAP_OPT_ON);
     if (err != LDAP_OPT_SUCCESS) {
-      log_error("ldap_set_option(LDAP_OPT_PROTOCOL_VERSION)", err);
+      log_error("ldap_set_option(LDAP_OPT_X_TLS_NEWCTX)", err);
+      return false;
+    }
+
+    err = ldap_initialize(&(ldap_), get_ldap_uri().c_str());
+    if (err != LDAP_SUCCESS) {
+      log_error("ldap_initialize", err);
       return false;
     }
 
@@ -75,29 +102,6 @@ bool Connection::connect(const std::string &bind_dn,
     err = ldap_set_option(ldap_, LDAP_OPT_RESTART, LDAP_OPT_ON);
     if (err != LDAP_OPT_SUCCESS) {
       log_warning("ldap_set_option(LDAP_OPT_RESTART, LDAP_OPT_ON)", err);
-    }
-
-    err = ldap_set_option(ldap_, LDAP_OPT_X_TLS_NEWCTX, LDAP_OPT_ON);
-    if (err != LDAP_OPT_SUCCESS) {
-      log_error("ldap_set_option(LDAP_OPT_X_TLS_NEWCTX)", err);
-      return false;
-    }
-
-    if (ca_path_.size() == 0) {
-      int reqCert = LDAP_OPT_X_TLS_NEVER;
-      err = ldap_set_option(ldap_, LDAP_OPT_X_TLS_REQUIRE_CERT, &reqCert);
-      if (err != LDAP_OPT_SUCCESS) {
-        log_error("ldap_set_option(LDAP_OPT_X_TLS_REQUIRE_CERT)", err);
-        return false;
-      }
-    } else {
-      char *cca_path = const_cast<char *>(ca_path_.c_str());
-      err = ldap_set_option(ldap_, LDAP_OPT_X_TLS_CACERTFILE,
-                            static_cast<void *>(cca_path));
-      if (err != LDAP_OPT_SUCCESS) {
-        log_error("ldap_set_option(LDAP_OPT_X_TLS_CACERTFILE)", err);
-        return false;
-      }
     }
 
     if (use_tls_) {
@@ -209,13 +213,14 @@ std::string Connection::search_dn(const std::string &user_name,
   return str;
 }
 
-std::list<std::string> Connection::search_groups(
-    const std::string &user_name, const std::string &user_dn,
-    const std::string &group_search_attr,
-    const std::string &group_search_filter, const std::string &base_dn) {
+groups_t Connection::search_groups(const std::string &user_name,
+                                   const std::string &user_dn,
+                                   const std::string &group_search_attr,
+                                   const std::string &group_search_filter,
+                                   const std::string &base_dn) {
   std::lock_guard<std::mutex> lock(conn_mutex_);
 
-  std::list<std::string> list;
+  groups_t list;
   std::stringstream log_stream;
   std::string filter = std::regex_replace(group_search_filter,
                                           std::regex("\\{UA\\}"), user_name);
@@ -276,8 +281,8 @@ std::list<std::string> Connection::search_groups(
 
 std::string Connection::get_ldap_uri() {
   std::ostringstream str_stream;
-  str_stream << (use_ssl_ || use_tls_ ? "ldaps://" : "ldap://") << ldap_host_
-             << ":" << ldap_port_;
+  str_stream << (use_ssl_ ? "ldaps://" : "ldap://") << ldap_host_ << ":"
+             << ldap_port_;
   return str_stream.str();
 }
 

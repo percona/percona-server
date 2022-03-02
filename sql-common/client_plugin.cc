@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,8 +150,8 @@ static int is_not_initialized(MYSQL *mysql, const char *name) {
 static struct st_mysql_client_plugin *find_plugin(const char *name, int type) {
   struct st_client_plugin_int *p;
 
-  DBUG_ASSERT(initialized);
-  DBUG_ASSERT(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
+  assert(initialized);
+  assert(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) return nullptr;
 
   for (p = plugin_list[type]; p; p = p->next) {
@@ -179,7 +179,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
   struct st_client_plugin_int plugin_int, *p;
   char errbuf[1024];
 
-  DBUG_ASSERT(initialized);
+  assert(initialized);
 
   plugin_int.plugin = plugin;
   plugin_int.dlhandle = dlhandle;
@@ -297,10 +297,11 @@ static void load_env_plugins(MYSQL *mysql) {
   free_env = plugs = my_strdup(key_memory_load_env_plugins, s, MYF(MY_WME));
 
   do {
-    if ((s = strchr(plugs, ';'))) *s = '\0';
+    s = strchr(plugs, ';');
+    if (s != nullptr) *s = '\0';
     mysql_load_plugin(mysql, plugs, -1, 0);
-    plugs = s + 1;
-  } while (s);
+    if (s != nullptr) plugs = s + 1;
+  } while (s != nullptr);
 
   my_free(free_env);
 }
@@ -467,7 +468,14 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
 
   DBUG_PRINT("info", ("dlopeninig %s", dlpath));
   /* Open new dll handle */
-  if (!(dlhandle = dlopen(dlpath, RTLD_NOW))) {
+#if defined(HAVE_ASAN) || defined(HAVE_LSAN)
+  // Do not unload the shared object during dlclose().
+  // LeakSanitizer needs this in order to match entries in lsan.supp
+  if (!(dlhandle = dlopen(dlpath, RTLD_NOW | RTLD_NODELETE)))
+#else
+  if (!(dlhandle = dlopen(dlpath, RTLD_NOW)))
+#endif
+  {
 #if defined(__APPLE__)
     /* Apple supports plugins with .so also, so try this as well */
     strxnmov(dlpath, sizeof(dlpath) - 1, plugindir, "/", name, ".so", NullS);

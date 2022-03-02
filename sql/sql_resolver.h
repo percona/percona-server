@@ -1,7 +1,7 @@
 #ifndef SQL_RESOLVER_INCLUDED
 #define SQL_RESOLVER_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#include <functional>
 
 class Item;
 class THD;
@@ -47,15 +49,43 @@ class mem_root_deque;
 void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables, bool nullable);
 
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
-                 List<Item> &fields, List<Item> &all_fields, ORDER *order);
-bool validate_gc_assignment(List<Item> *fields, List<Item> *values, TABLE *tab);
+                 mem_root_deque<Item *> *fields, ORDER *order);
+bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
+                            const mem_root_deque<Item *> &values, TABLE *tab);
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
-                        TABLE_LIST *tables, ORDER *order, List<Item> &fields,
-                        List<Item> &all_fields, bool is_group_field,
+                        TABLE_LIST *tables, ORDER *order,
+                        mem_root_deque<Item *> *fields, bool is_group_field,
                         bool is_window_order);
 
-#include "my_table_map.h"
-bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map);
+struct ReplaceResult {
+  enum {
+    // Immediately return with an error.
+    ERROR,
+
+    // Replace the given Item with the one in “replacement”;
+    // do not traverse further.
+    REPLACE,
+
+    // Leave this item alone, but keep traversing into its children.
+    KEEP_TRAVERSING
+  } action;
+  Item *replacement;  // Only for REPLACE.
+};
+
+/**
+  Walk through the conditions and functions below the given item, and allows the
+  given functor to replace it with new items. See ReplaceResult.
+
+  Note that this must not be used for permanent changes during optimization,
+  as all changes done during optimization will be rolled back if a prepared
+  statement is re-executed.
+
+  @return true on error.
+ */
+bool WalkAndReplace(
+    THD *thd, Item *item,
+    const std::function<ReplaceResult(Item *item, Item *parent,
+                                      unsigned argument_idx)> &get_new_item);
 
 #endif /* SQL_RESOLVER_INCLUDED */

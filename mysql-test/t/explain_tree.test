@@ -7,6 +7,8 @@
 
 set optimizer_switch='batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
 
+--source include/not_hypergraph.inc  # Everything in this test depends heavily on the plans chosen.
+
 # Basic table scan.
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
@@ -418,6 +420,14 @@ DROP TABLE t1;
 --error ER_NOT_SUPPORTED_YET
 EXPLAIN ANALYZE FOR CONNECTION 1;
 
+# EXPLAIN ANALYZE with FORMAT= is supported, but currently only for FORMAT=TREE.
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
+
 # An information_schema table.
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
 
@@ -438,4 +448,48 @@ INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 ANALYZE TABLE t1;
 --replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#17978975 EXPLAIN FOR MULTI-TABLE UPDATE/DELETE DOES NOT MENTION TEMPORARY TABLE
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+CREATE TABLE t2(a INT, b INT);
+ANALYZE TABLE t1,t2;
+# Show when the table is updated on the fly, or with a tmp table:
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1;
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
+EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
+EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #30941336: EXPLAIN ANAYLZE SELECT COUNT(*) FROM MYSQL.USER COREDUMP UNDER DEBUG VERSION
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #31559245: REGRESSION: CRASH/ASSERT IN SUBSELECT_HASH_SJ_ENGINE::ROOT_ACCESS_PATH
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
+--echo #
+
+# The important thing here is that the Materialize node has rows=3 and loops=1,
+# because even though it's been asked to materialize five times, it only materialized
+# one of them. The LIMIT is to avoid temporary table merging.
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
 DROP TABLE t1;

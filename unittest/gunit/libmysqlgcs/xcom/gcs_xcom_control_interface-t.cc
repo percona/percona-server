@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ class mock_gcs_xcom_view_change_control_interface
     m_joining_leaving_mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
   }
 
-  ~mock_gcs_xcom_view_change_control_interface() {
+  ~mock_gcs_xcom_view_change_control_interface() override {
     m_mutex_current_view.destroy();
     m_joining_leaving_mutex.destroy();
   }
@@ -150,7 +150,7 @@ class mock_gcs_xcom_view_change_control_interface
   MOCK_METHOD0(wait_for_view_change_end, void());
   MOCK_METHOD0(is_view_changing, bool());
 
-  bool start_leave() {
+  bool start_leave() override {
     bool retval = false;
 
     m_joining_leaving_mutex.lock();
@@ -161,13 +161,13 @@ class mock_gcs_xcom_view_change_control_interface
     return !retval;
   }
 
-  void end_leave() {
+  void end_leave() override {
     m_joining_leaving_mutex.lock();
     m_leaving = false;
     m_joining_leaving_mutex.unlock();
   }
 
-  bool is_leaving() {
+  bool is_leaving() override {
     bool retval;
 
     m_joining_leaving_mutex.lock();
@@ -177,7 +177,7 @@ class mock_gcs_xcom_view_change_control_interface
     return retval;
   }
 
-  bool start_join() {
+  bool start_join() override {
     bool retval = false;
 
     m_joining_leaving_mutex.lock();
@@ -188,13 +188,13 @@ class mock_gcs_xcom_view_change_control_interface
     return !retval;
   }
 
-  void end_join() {
+  void end_join() override {
     m_joining_leaving_mutex.lock();
     m_joining = false;
     m_joining_leaving_mutex.unlock();
   }
 
-  bool is_joining() {
+  bool is_joining() override {
     bool retval;
 
     m_joining_leaving_mutex.lock();
@@ -204,16 +204,18 @@ class mock_gcs_xcom_view_change_control_interface
     return retval;
   }
 
-  void set_current_view(Gcs_view *view) {
+  void set_current_view(Gcs_view *view) override {
     m_mutex_current_view.lock();
     delete m_current_view;
     m_current_view = view;
     m_mutex_current_view.unlock();
   }
 
-  void set_unsafe_current_view(Gcs_view *view) { set_current_view(view); }
+  void set_unsafe_current_view(Gcs_view *view) override {
+    set_current_view(view);
+  }
 
-  Gcs_view *get_current_view() {
+  Gcs_view *get_current_view() override {
     Gcs_view *view = nullptr;
 
     m_mutex_current_view.lock();
@@ -223,11 +225,13 @@ class mock_gcs_xcom_view_change_control_interface
     return view;
   }
 
-  Gcs_view *get_unsafe_current_view() { return m_current_view; }
+  Gcs_view *get_unsafe_current_view() override { return m_current_view; }
 
-  bool belongs_to_group() { return m_belongs_to_group; }
+  bool belongs_to_group() override { return m_belongs_to_group; }
 
-  void set_belongs_to_group(bool belong) { m_belongs_to_group = belong; }
+  void set_belongs_to_group(bool belong) override {
+    m_belongs_to_group = belong;
+  }
 };
 
 // This typedef is needed because GMock can't deal with multiple template args.
@@ -445,7 +449,7 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
                          xcom_proxy, xcom_group_management, gcs_engine,
                          state_exchange, view_control, boot, socket_util) {}
 
-  enum_gcs_error join() { return join(nullptr); }
+  enum_gcs_error join() override { return join(nullptr); }
 
   enum_gcs_error join(Gcs_view *view) {
     enum_gcs_error ret = GCS_NOK;
@@ -474,7 +478,7 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
     return ret;
   }
 
-  enum_gcs_error leave() {
+  enum_gcs_error leave() override {
     enum_gcs_error ret = GCS_NOK;
 
     if (!m_view_control->start_leave()) {
@@ -505,11 +509,11 @@ void finalize_xcom() { extern_xcom_control_if->do_leave(); }
 
 class XComControlTest : public GcsBaseTest {
  protected:
-  XComControlTest() {}
+  XComControlTest() = default;
 
-  virtual ~XComControlTest() {}
+  ~XComControlTest() override = default;
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_wait_called = false;
     m_wait_called_mutex.init(PSI_NOT_INSTRUMENTED, nullptr);
     m_wait_called_cond.init(PSI_NOT_INSTRUMENTED);
@@ -536,11 +540,9 @@ class XComControlTest : public GcsBaseTest {
         xcom_node_address, peers, *group_id, &proxy, xcom_group_mgm,
         &gcs_engine, mock_se, mock_vce, true, mock_socket_util);
     extern_xcom_control_if = xcom_control_if;
-
-    My_xp_util::init_time();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     gcs_engine.finalize(finalize_xcom);
 
     delete mock_socket_util;
@@ -776,7 +778,7 @@ TEST_F(XComControlTest, JoinTestWithoutBootNorPeers) {
 
 TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   connection_descriptor *con =
-      (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+      (connection_descriptor *)malloc(sizeof(connection_descriptor));
   con->fd = 0;
 
   EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
@@ -2262,12 +2264,11 @@ TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _))
-      .Times(3)  // twice for expulsion, once for leave
+      .Times(2)  // once for expulsion, once for leave
       .WillOnce(WithArgs<0>(Invoke(suspect_is_2)))
-      .WillOnce(WithArgs<0>(Invoke(suspect_is_me)))
       .WillOnce(WithArgs<0>(Invoke(suspect_is_me)));
   EXPECT_CALL(proxy, delete_node_address(_, _))
-      .Times(4);  // once for boot, twice for expulsion, once for leave
+      .Times(3);  // once for boot, once for expulsion, once for leave
 
   enum_gcs_error result = xcom_control_if->join(create_fake_view());
   ASSERT_EQ(GCS_OK, result);
@@ -2313,7 +2314,7 @@ TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
   ASSERT_EQ(mgr->has_majority(), false);
 
   /* Test expulsion of me.
-     We should issue the expel, as specified in the EXPECT_CALL(proxy,
+     We should NOT issue the expel, as specified in the EXPECT_CALL(proxy,
      xcom_client_remove_node(_, _)) above. */
   // Build vector with suspect nodes
   member_suspect_nodes = std::vector<Gcs_member_identifier *>{me.get()};

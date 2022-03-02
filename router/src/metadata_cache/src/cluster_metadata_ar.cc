@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ using mysqlrouter::strtoi_checked;
 using mysqlrouter::strtoui_checked;
 IMPORT_LOG_FUNCTIONS()
 
-ARClusterMetadata::~ARClusterMetadata() {}
+ARClusterMetadata::~ARClusterMetadata() = default;
 
 ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
     const std::vector<metadata_cache::ManagedInstance> &instances,
@@ -126,8 +126,7 @@ bool ARClusterMetadata::get_member_view_id(mysqlrouter::MySQLSession &session,
                                            unsigned &result) {
   std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where "
-      "member_id = @@server_uuid";
-
+      "CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)";
   if (!cluster_id.empty()) {
     query += " and cluster_id = " + session.quote(cluster_id);
   }
@@ -152,7 +151,8 @@ ARClusterMetadata::fetch_instances_from_member(
   // later be compared against current topology (what exists NOW) obtained by
   // comparing to other members view of the world
   std::string query =
-      "select M.member_id, I.endpoint, I.xendpoint, M.member_role from "
+      "select M.member_id, I.endpoint, I.xendpoint, M.member_role, "
+      "I.attributes from "
       "mysql_innodb_cluster_metadata.v2_ar_members M join "
       "mysql_innodb_cluster_metadata.v2_instances I on I.instance_id = "
       "M.instance_id join mysql_innodb_cluster_metadata.v2_ar_clusters C on "
@@ -164,20 +164,20 @@ ARClusterMetadata::fetch_instances_from_member(
 
   // example response
   // clang-format off
-  // +--------------------------------------+----------------+-----------------+-------------+
-  // | member_id                            | endpoint       | xendpoint       | member_role |
-  // +--------------------------------------+----------------+-----------------+-------------+
-  // | dc46223b-d620-11e9-9f25-0800276c00e7 | 127.0.0.1:5000 | 127.0.0.1:50000 | PRIMARY     |
-  // | f167ceb4-d620-11e9-9155-0800276c00e7 | 127.0.0.1:5001 | 127.0.0.1:50010 | SECONDARY   |
-  // | 06c519c9-d621-11e9-9451-0800276c00e7 | 127.0.0.1:5002 | 127.0.0.1:50020 | SECONDARY   |
-  // +--------------------------------------+----------------+-----------------+-------------+
+  // +--------------------------------------+----------------+-----------------+-------------+--------------------------------------------------------------------+
+  // | member_id                            | endpoint       | xendpoint       | member_role | attributes                                                         |
+  // +--------------------------------------+----------------+-----------------+-------------+--------------------------------------------------------------------+
+  // | dc46223b-d620-11e9-9f25-0800276c00e7 | 127.0.0.1:5000 | 127.0.0.1:50000 | PRIMARY     | {"tags": {"_hidden": true}, "joinTime": "2020-03-18 09:36:50.416"} |
+  // | f167ceb4-d620-11e9-9155-0800276c00e7 | 127.0.0.1:5001 | 127.0.0.1:50010 | SECONDARY   | {"joinTime": "2020-03-18 09:36:51.000"}                            |
+  // | 06c519c9-d621-11e9-9451-0800276c00e7 | 127.0.0.1:5002 | 127.0.0.1:50020 | SECONDARY   | {"joinTime": "2020-03-18 09:36:53.456"}                            |
+  // +--------------------------------------+----------------+-----------------+-------------+--------------------------------------------------------------------+
   // clang-format on
 
   auto result_processor = [&result](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 4) {
+    if (row.size() != 5) {
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
-          "Expected = 4, got = " +
+          "Expected = 5, got = " +
           std::to_string(row.size()));
     }
 
@@ -192,12 +192,11 @@ ARClusterMetadata::fetch_instances_from_member(
                         ? metadata_cache::ServerMode::ReadWrite
                         : metadata_cache::ServerMode::ReadOnly;
 
+    set_instance_attributes(instance, get_string(row[4]));
+
     // remainig fields are for compatibility with existing interface so we go
     // with defaults
     instance.replicaset_name = "default";
-    instance.role = "HA";
-    instance.weight = 0;
-    instance.version_token = 0;
 
     result.push_back(instance);
     return true;  // get next row if available

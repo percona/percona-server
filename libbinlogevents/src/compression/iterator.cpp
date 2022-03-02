@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,12 +94,12 @@ Iterable_buffer::iterator::iterator(Iterable_buffer &parent)
 Iterable_buffer::iterator::iterator(const iterator &rhs) { (*this) = rhs; }
 Iterable_buffer::iterator::iterator(iterator &&rhs) { (*this) = rhs; }
 
-Iterable_buffer::iterator::~iterator() {}
+Iterable_buffer::iterator::~iterator() = default;
 
 Iterable_buffer::iterator &Iterable_buffer::iterator::operator=(
     const Iterable_buffer::iterator &rhs) {
   m_target = rhs.m_target;
-  if (rhs.m_reader != nullptr) {
+  if (rhs.m_target != nullptr) {
     m_reader = std::make_unique<binary_log::Event_reader>(
         m_target->m_decompressed_buffer, m_target->m_decompressed_buffer_size);
     m_reader->go_to(rhs.m_reader->position());
@@ -124,7 +124,7 @@ Iterable_buffer::iterator &Iterable_buffer::iterator::operator++() {
   if (has_next_buffer()) {
     auto ptr = m_reader->ptr();
     m_reader->forward(EVENT_LEN_OFFSET);
-    uint32_t event_len = m_reader->read_and_letoh<uint32_t>();
+    uint32_t event_len = m_reader->read<uint32_t>();
     m_reader->go_to((ptr - m_reader->buffer()) + event_len);
   }
 

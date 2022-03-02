@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -34,7 +35,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
@@ -42,7 +43,7 @@
 #include "sql/sql_show.h"        // append_identifier
 #include "sql_string.h"          // String
 
-enum class SubqueryExecMethod : int;
+enum class Subquery_strategy : int;
 class Item;
 class JOIN;
 class Opt_hints_table;
@@ -82,6 +83,7 @@ enum opt_hints_enum {
   JOIN_INDEX_HINT_ENUM,
   GROUP_INDEX_HINT_ENUM,
   ORDER_INDEX_HINT_ENUM,
+  DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -191,7 +193,7 @@ class Opt_hints {
         resolved(false),
         resolved_children(0) {}
 
-  virtual ~Opt_hints() {}
+  virtual ~Opt_hints() = default;
 
   bool is_specified(opt_hints_enum type_arg) const {
     return hints_map.is_specified(type_arg);
@@ -284,7 +286,7 @@ class Opt_hints {
   */
   virtual PT_hint *get_complex_hints(
       opt_hints_enum type MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr; /* error C4716: must return a value */
   }
 
@@ -369,7 +371,7 @@ class PT_qb_level_hint;
 */
 
 class Opt_hints_qb : public Opt_hints {
-  uint select_number;    // SELECT_LEX number
+  uint select_number;    // Query_block number
   LEX_CSTRING sys_name;  // System QB name
   char buff[32];         // Buffer to hold sys name
 
@@ -448,7 +450,7 @@ class Opt_hints_qb : public Opt_hints {
 
     @return true if semijoin is enabled
   */
-  bool semijoin_enabled(THD *thd) const;
+  bool semijoin_enabled(const THD *thd) const;
 
   /**
     Returns bit mask of which semi-join strategies are enabled for this query
@@ -464,11 +466,11 @@ class Opt_hints_qb : public Opt_hints {
     Returns which subquery execution strategy has been specified by hints
     for this query block.
 
-    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
-    @retval EXEC_EXISTS In-to-exists execution should be used
-    @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
+    @retval SUBQ_MATERIALIZATION  Subquery Materialization should be used
+    @retval SUBQ_EXISTS           In-to-exists execution should be used
+    @retval UNSPECIFIED           No SUBQUERY hint for this query block
   */
-  SubqueryExecMethod subquery_strategy() const;
+  Subquery_strategy subquery_strategy() const;
 
   void print_irregular_hints(const THD *thd, String *str) override;
 
@@ -503,7 +505,7 @@ class Compound_key_hint {
     pt_hint = nullptr;
   }
 
-  virtual ~Compound_key_hint() {}
+  virtual ~Compound_key_hint() = default;
 
   void set_pt_hint(PT_key_level_hint *pt_hint_arg) { pt_hint = pt_hint_arg; }
   PT_key_level_hint *get_pt_hint() { return pt_hint; }
@@ -578,7 +580,7 @@ class Opt_hints_table : public Opt_hints {
     @param table      Pointer to TABLE_LIST object
   */
   void adjust_key_hints(TABLE_LIST *table);
-  virtual PT_hint *get_complex_hints(opt_hints_enum type) override;
+  PT_hint *get_complex_hints(opt_hints_enum type) override;
 
   void set_resolved() override {
     Opt_hints::set_resolved();
@@ -618,7 +620,7 @@ class Opt_hints_table : public Opt_hints {
     if (type_arg == JOIN_INDEX_HINT_ENUM) return &join_index;
     if (type_arg == GROUP_INDEX_HINT_ENUM) return &group_index;
     if (type_arg == ORDER_INDEX_HINT_ENUM) return &order_index;
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
 
@@ -780,6 +782,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 /**
   Returns true if index merge hint state is on otherwise returns false.
 
+  @param thd                       Thread handler
   @param table                     Pointer to TABLE object
   @param use_cheapest_index_merge  IN/OUT Returns true if INDEX_MERGE hint is
                                           used without any specified key.
@@ -787,7 +790,8 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
   @return true if index merge hint state is on otherwise returns false.
 */
 
-bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge);
+bool idx_merge_hint_state(THD *thd, const TABLE *table,
+                          bool *use_cheapest_index_merge);
 
 int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
                    const CHARSET_INFO *cs);

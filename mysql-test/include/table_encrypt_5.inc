@@ -17,23 +17,22 @@
 
 # Suppress warnings
 -- disable_query_log
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("Operating system error number");
 call mtr.add_suppression("The error means the system cannot find the path specified");
 call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
 call mtr.add_suppression("Could not find a valid tablespace file");
 call mtr.add_suppression("Ignoring tablespace");
 call mtr.add_suppression("Failed to find tablespace for table");
-call mtr.add_suppression("Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
 call mtr.add_suppression("\\[Warning\\] .* Please refer to .* for how to resolve the issue");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm that keyring is loaded");
 call mtr.add_suppression("\\[ERROR\\] .* Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'Could not create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] .* Tablespace [0-9]+, name 'tde_db.*t_encrypt.*', unable to open file '.*tde_db.*t_encrypt.*.ibd' - Data structure corruption");
-call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Check keyring fail, please check the keyring is loaded.");
 -- enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -41,7 +40,7 @@ let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 --echo # Starting server with keyring plugin  
 --let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 #------------------------------------------------------------------------------
@@ -166,7 +165,7 @@ CREATE TABLE tde_db.t_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
---echo # new non encrypt table 
+--echo # new non encrypt table
 CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
                        c4 JSON ,
@@ -183,16 +182,16 @@ eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLU
 --echo #-----------------------------------------------------------------------
 --echo # Test 1 : Restart with same keyring option , all tables accesible
 --echo # restart with --early-plugin-load 
---let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring1_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
 --echo # restart with same --early-plugin-load and keyring_file_data option
---let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring1_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 # All tables accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -269,8 +268,8 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_
 --echo # accessible but rest are.
 --echo # restart with --early-plugin-load to load initial data
 
---let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring1_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
@@ -315,7 +314,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
---echo # encrypt table not accessible 
+--echo # encrypt table not accessible
 --error 3185
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 --error 3185
@@ -332,8 +331,8 @@ DROP DATABASE tde_db;
 --echo # Initial setup
 --echo # Starting server with keyring plugin 
 
---let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring1_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --disable_warnings
@@ -426,7 +425,7 @@ eval $select_keyring_variable_statement;
 --echo # init tables
 call tde_db.init_setup();
 --let $restart_parameters = $keyring_setup_without_plugin_param
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --echo # Install keyring plugin
@@ -531,15 +530,15 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo # And creation of new encrypt,non encrypt table is also posible
 #------------------------------------------------------------------------------
 --echo # restart with --early-plugin-load to load initial data
---let $restart_parameters = $KEYRING1_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring1_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
 --echo # restart with with different keyring_file_data file
---let $restart_parameters = $KEYRING2_RESTART_PARAM
---let $restart_hide_args = 1
+--let $restart_parameters = $keyring2_restart_param
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --echo # encrypt table not accessible
@@ -578,7 +577,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
---echo # old encrypt table not accessible 
+--echo # old encrypt table not accessible
 --error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE

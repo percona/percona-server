@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,7 @@
 
 #include <memory>
 
+#include "../sql-common/client_extensions_macros.h"
 #include "client_settings.h"
 #include "mysql_trace.h"
 #include "sql_common.h"
@@ -235,7 +236,7 @@ static void append_wild(char *to, char *end, const char *wild) {
 **************************************************************************/
 
 void STDCALL mysql_debug(const char *debug MY_ATTRIBUTE((unused))) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char *env;
   if (debug) {
     DBUG_PUSH(debug);
@@ -362,6 +363,44 @@ void read_user_name(char *name) {
 
 #endif
 
+/**
+  Checks if the file name supplied by the server is a valid name.
+
+  Name is valid if it's either equal to or starts with the value stored
+  in the mysql options.
+  If the value in the options is NULL then no name is valid.
+
+  Note that we rely that the options name, if supplied, is normalized before
+  being stored.
+
+  @note Will allocate the extension if not already allocated
+
+  @param options the options to read the load_data_file_from.
+  @param net_filename the path to check
+  @retval true the name is valid
+  @retval false the name is invalid
+*/
+static bool is_valid_local_infile_name(st_mysql_options *options,
+                                       const char *net_filename) {
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+
+  ENSURE_EXTENSIONS_PRESENT(options);
+
+  // null load_data_dir means no exceptions (compatibility)
+  if (options->extension->load_data_dir == nullptr) return false;
+
+  // make fully qualified name
+  if (my_realpath(buff1, net_filename, 0)) return false;
+
+  // with uniform directory separators
+  convert_dirname(buff2, buff1, NullS);
+
+  /* if the name supplied starts with load_data_dir accept it */
+  int ret = strncmp(options->extension->load_data_dir, buff2,
+                    strlen(options->extension->load_data_dir));
+  return ret == 0;
+}
+
 bool handle_local_infile(MYSQL *mysql, const char *net_filename) {
   bool result = true;
   uint packet_length = MY_ALIGN(mysql->net.max_packet - 16, IO_SIZE);
@@ -371,6 +410,23 @@ bool handle_local_infile(MYSQL *mysql, const char *net_filename) {
   char *buf;    /* buffer to be filled by local_infile_read */
   struct st_mysql_options *options = &mysql->options;
   DBUG_TRACE;
+
+  /*
+    Throw an error if --local-infile is not specified and the
+    file requested is not "safe" (i.e. within the supplied directory
+    to MYSQL_OPT_LOAD_DATA_LOCAL_DIR.
+    If --local-infile is specified then no need to check the file name.
+  */
+  if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES) &&
+      !is_valid_local_infile_name(&(mysql->options), net_filename)) {
+    MYSQL_TRACE(SEND_FILE, mysql, (0, nullptr));
+    (void)my_net_write(net, (const uchar *)"", 0); /* Server needs one packet */
+    net_flush(net);
+    MYSQL_TRACE(PACKET_SENT, mysql, (0));
+    set_mysql_error(mysql, CR_LOAD_DATA_LOCAL_INFILE_REJECTED,
+                    unknown_sqlstate);
+    return true;
+  }
 
   /* check that we've got valid callback functions */
   if (!(options->local_infile_init && options->local_infile_read &&
@@ -907,14 +963,14 @@ ulong STDCALL mysql_thread_id(MYSQL *mysql) {
 }
 
 const char *STDCALL mysql_character_set_name(MYSQL *mysql) {
-  return mysql->charset->csname;
+  return replace_utf8_utf8mb3(mysql->charset->csname);
 }
 
 void STDCALL mysql_get_character_set_info(MYSQL *mysql,
                                           MY_CHARSET_INFO *csinfo) {
   csinfo->number = mysql->charset->number;
   csinfo->state = mysql->charset->state;
-  csinfo->csname = mysql->charset->csname;
+  csinfo->csname = replace_utf8_utf8mb3(mysql->charset->csname);
   csinfo->name = mysql->charset->name;
   csinfo->comment = mysql->charset->comment;
   csinfo->mbminlen = mysql->charset->mbminlen;
@@ -1139,25 +1195,6 @@ static bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 
 static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 
-/*
-  Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
-  values stored in network buffer.
-*/
-
-/* 1 (length) + 2 (year) + 1 (month) + 1 (day) */
-#define MAX_DATE_REP_LENGTH 5
-
-/*
-  1 (length) + 1 (is negative) + 4 (day count) + 1 (hour)
-  + 1 (minute) + 1 (seconds) + 4 (microseconds)
-*/
-#define MAX_TIME_REP_LENGTH 13
-
-constexpr int MAX_DATETIME_REP_LENGTH =
-    1 /* length */ + 2 /* year */ + 1 /* month */ + 1 /* day */ + 1 /* hour */ +
-    1 /* minute */ + 1 /* second */ + 4 /* microseconds */ +
-    2 /* time zone displacement (signed) */;
-
 #define MAX_DOUBLE_STRING_REP_LENGTH 331
 
 /* A macro to check truncation errors */
@@ -1176,41 +1213,6 @@ constexpr int MAX_DATETIME_REP_LENGTH =
 
 /**************** Misc utility functions ****************************/
 
-/*
-  Reallocate the NET package to have at least length bytes available.
-
-  SYNPOSIS
-    my_realloc_str()
-    net                 The NET structure to modify.
-    length              Ensure that net->buff has space for at least
-                        this number of bytes.
-
-  RETURN VALUES
-    0   Success.
-    1   Error, i.e. out of memory or requested packet size is bigger
-        than max_allowed_packet. The error code is stored in net->last_errno.
-*/
-
-static bool my_realloc_str(NET *net, ulong length) {
-  ulong buf_length = (ulong)(net->write_pos - net->buff);
-  bool res = false;
-  DBUG_TRACE;
-  if (buf_length + length > net->max_packet) {
-    res = net_realloc(net, buf_length + length);
-    if (res) {
-      if (net->last_errno == ER_OUT_OF_RESOURCES)
-        net->last_errno = CR_OUT_OF_MEMORY;
-      else if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
-        net->last_errno = CR_NET_PACKET_TOO_LARGE;
-
-      my_stpcpy(net->sqlstate, unknown_sqlstate);
-      my_stpcpy(net->last_error, ER_CLIENT(net->last_errno));
-    }
-    net->write_pos = net->buff + buf_length;
-  }
-  return res;
-}
-
 static void stmt_clear_error(MYSQL_STMT *stmt) {
   if (stmt->last_errno) {
     stmt->last_errno = 0;
@@ -1228,7 +1230,7 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
                     const char *err) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER_CLIENT(errcode)));
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
 
   if (err == nullptr) err = ER_CLIENT(errcode);
 
@@ -1248,7 +1250,7 @@ void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d/%s '%s'", net->last_errno, net->sqlstate,
                        net->last_error));
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
 
   stmt->last_errno = net->last_errno;
   if (net->last_error[0] != '\0') my_stpcpy(stmt->last_error, net->last_error);
@@ -1523,7 +1525,7 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
   MEM_ROOT *fields_mem_root = &stmt->extension->fields_mem_root;
   MYSQL *mysql = stmt->mysql;
 
-  DBUG_ASSERT(stmt->field_count);
+  assert(stmt->field_count);
 
   free_root(fields_mem_root, MYF(0));
 
@@ -1584,7 +1586,8 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
 
 static void update_stmt_fields(MYSQL_STMT *stmt) {
   MYSQL_FIELD *field = stmt->mysql->fields;
-  MYSQL_FIELD *field_end = field + stmt->field_count;
+  MYSQL_FIELD *field_end =
+      field != nullptr ? field + stmt->field_count : nullptr;
   MYSQL_FIELD *stmt_field = stmt->fields;
   MYSQL_BIND *my_bind = stmt->bind_result_done ? stmt->bind : nullptr;
 
@@ -1706,191 +1709,6 @@ MYSQL_RES *STDCALL mysql_stmt_param_metadata(MYSQL_STMT *stmt) {
   return nullptr;
 }
 
-/* Store type of parameter in network buffer. */
-
-static void store_param_type(unsigned char **pos, MYSQL_BIND *param) {
-  uint typecode = param->buffer_type | (param->is_unsigned ? 32768 : 0);
-  int2store(*pos, typecode);
-  *pos += 2;
-}
-
-/*
-  Functions to store parameter data in network packet.
-
-  SYNOPSIS
-    store_param_xxx()
-    net			MySQL NET connection
-    param		MySQL bind param
-
-  DESCRIPTION
-    These funtions are invoked from mysql_stmt_execute() by
-    MYSQL_BIND::store_param_func pointer. This pointer is set once per
-    many executions in mysql_stmt_bind_param(). The caller must ensure
-    that network buffer have enough capacity to store parameter
-    (MYSQL_BIND::buffer_length contains needed number of bytes).
-*/
-
-static void store_param_tinyint(NET *net, MYSQL_BIND *param) {
-  *(net->write_pos++) = *(uchar *)param->buffer;
-}
-
-static void store_param_short(NET *net, MYSQL_BIND *param) {
-  short value = *(short *)param->buffer;
-  int2store(net->write_pos, value);
-  net->write_pos += 2;
-}
-
-static void store_param_int32(NET *net, MYSQL_BIND *param) {
-  int32 value = *(int32 *)param->buffer;
-  int4store(net->write_pos, value);
-  net->write_pos += 4;
-}
-
-static void store_param_int64(NET *net, MYSQL_BIND *param) {
-  longlong value = *(longlong *)param->buffer;
-  int8store(net->write_pos, value);
-  net->write_pos += 8;
-}
-
-static void store_param_float(NET *net, MYSQL_BIND *param) {
-  float value = *(float *)param->buffer;
-  float4store(net->write_pos, value);
-  net->write_pos += 4;
-}
-
-static void store_param_double(NET *net, MYSQL_BIND *param) {
-  double value = *(double *)param->buffer;
-  float8store(net->write_pos, value);
-  net->write_pos += 8;
-}
-
-static void store_param_time(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
-  uchar buff[MAX_TIME_REP_LENGTH], *pos;
-  uint length;
-
-  pos = buff + 1;
-  pos[0] = tm->neg ? 1 : 0;
-  int4store(pos + 1, tm->day);
-  pos[5] = (uchar)tm->hour;
-  pos[6] = (uchar)tm->minute;
-  pos[7] = (uchar)tm->second;
-  int4store(pos + 8, tm->second_part);
-  if (tm->second_part)
-    length = 12;
-  else if (tm->hour || tm->minute || tm->second || tm->day)
-    length = 8;
-  else
-    length = 0;
-  buff[0] = (char)length++;
-  memcpy((char *)net->write_pos, buff, length);
-  net->write_pos += length;
-}
-
-static void net_store_datetime(NET *net, MYSQL_TIME *tm) {
-  uchar buff[MAX_DATETIME_REP_LENGTH], *pos;
-  // The content of the buffer's length byte.
-  uchar length_byte;
-
-  pos = buff + 1;
-
-  int2store(pos, static_cast<std::uint16_t>(tm->year));
-  pos[2] = static_cast<std::uint8_t>(tm->month);
-  pos[3] = static_cast<std::uint8_t>(tm->day);
-  pos[4] = static_cast<std::uint8_t>(tm->hour);
-  pos[5] = static_cast<std::uint8_t>(tm->minute);
-  pos[6] = static_cast<std::uint8_t>(tm->second);
-  int4store(pos + 7, static_cast<std::uint32_t>(tm->second_part));
-  if (tm->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
-    int tzd = tm->time_zone_displacement;
-    DBUG_ASSERT(tzd % SECS_PER_MIN == 0);
-    DBUG_ASSERT(std::abs(tzd) <= MAX_TIME_ZONE_HOURS * SECS_PER_HOUR);
-    int2store(pos + 11, static_cast<std::uint16_t>(tzd / SECS_PER_MIN));
-    length_byte = 13;
-  } else if (tm->second_part)
-    length_byte = 11;
-  else if (tm->hour || tm->minute || tm->second)
-    length_byte = 7;
-  else if (tm->year || tm->month || tm->day)
-    length_byte = 4;
-  else
-    length_byte = 0;
-
-  buff[0] = length_byte;
-
-  size_t buffer_length = length_byte + 1;
-  memcpy(net->write_pos, buff, buffer_length);
-  net->write_pos += buffer_length;
-}
-
-static void store_param_date(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME tm = *((MYSQL_TIME *)param->buffer);
-  tm.hour = tm.minute = tm.second = tm.second_part = 0;
-  net_store_datetime(net, &tm);
-}
-
-static void store_param_datetime(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
-  net_store_datetime(net, tm);
-}
-
-static void store_param_str(NET *net, MYSQL_BIND *param) {
-  /* param->length is always set in mysql_stmt_bind_param */
-  ulong length = *param->length;
-  uchar *to = net_store_length(net->write_pos, length);
-  memcpy(to, param->buffer, length);
-  net->write_pos = to + length;
-}
-
-/*
-  Mark if the parameter is NULL.
-
-  SYNOPSIS
-    store_param_null()
-    net			MySQL NET connection
-    param		MySQL bind param
-
-  DESCRIPTION
-    A data package starts with a string of bits where we set a bit
-    if a parameter is NULL. Unlike bit string in result set row, here
-    we don't have reserved bits for OK/error packet.
-*/
-
-static void store_param_null(NET *net, MYSQL_BIND *param) {
-  uint pos = param->param_number;
-  net->buff[pos / 8] |= (uchar)(1 << (pos & 7));
-}
-
-/*
-  Store one parameter in network packet: data is read from
-  client buffer and saved in network packet by means of one
-  of store_param_xxxx functions.
-*/
-
-static bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param) {
-  NET *net = &stmt->mysql->net;
-  DBUG_TRACE;
-  DBUG_PRINT("enter",
-             ("type: %d  buffer: %p  length: %lu  is_null: %d",
-              param->buffer_type, (param->buffer ? param->buffer : NullS),
-              *param->length, *param->is_null));
-
-  if (*param->is_null)
-    store_param_null(net, param);
-  else {
-    /*
-      Param->length should ALWAYS point to the correct length for the type
-      Either to the length pointer given by the user or param->buffer_length
-    */
-    if ((my_realloc_str(net, *param->length))) {
-      set_stmt_errmsg(stmt, net);
-      return true;
-    }
-    (*param->store_param_func)(net, param);
-  }
-  return false;
-}
-
 static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
                                  MYSQL_ROWS ***prev_ptr) {
   MYSQL_ROWS *row;
@@ -1910,12 +1728,22 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
   return 0;
 }
 
-/*
+/**
   Auxilary function to send COM_STMT_EXECUTE packet to server and read reply.
-  Used from cli_stmt_execute, which is in turn used by mysql_stmt_execute.
-*/
 
-static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
+  Used from @ref cli_stmt_execute, which is in turn used by
+  @ref mysql_stmt_execute.
+
+  @param stmt the stmt to execute
+  @param packet the data for the parameters
+  @param length number of bytes in the buffer "data"
+  @param send_param_count ON if the server properly processes the
+     PARAMETER_COUNT_AVAILABLE flag, so we can send it.
+  @retval false success
+  @retval true failure. error set
+*/
+static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
+                    bool send_param_count) {
   MYSQL *mysql = stmt->mysql;
   NET *net = &mysql->net;
   uchar buff[4 /* size of stmt id */ + 5 /* execution flags */];
@@ -1927,7 +1755,22 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
   DBUG_DUMP("packet", (uchar *)packet, length);
 
   int4store(buff, stmt->stmt_id); /* Send stmt id to server */
-  buff[4] = (char)stmt->flags;
+  uchar flags = (uchar)stmt->flags;
+
+  /*
+    If the server supports query attributes raise the flag that we
+    are going to be sending the parameter block.
+    Unfortunately there's a bug in processing the flags in servers
+    earlier than 8.0.26 that conflates all the flags into a single
+    boolean. Thus we need to cut off sending PARAMETER_COUNT_AVAILABLE
+    for these
+  */
+  if ((mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0 &&
+      send_param_count) {
+    DBUG_PRINT("prep_stmt_exec", ("Setting PARAMETER_COUNT_AVAILABLE"));
+    flags |= PARAMETER_COUNT_AVAILABLE;
+  }
+  buff[4] = (char)(flags);
   int4store(buff + 5, 1); /* iteration count */
 
   res = (cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
@@ -1965,7 +1808,7 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
         return true;
 
       if (is_data_packet) {
-        DBUG_ASSERT(stmt->result.rows == 0);
+        assert(stmt->result.rows == 0);
         prev_ptr = &stmt->result.data;
         if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) return true;
       } else {
@@ -2004,17 +1847,24 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
 
 int cli_stmt_execute(MYSQL_STMT *stmt) {
   DBUG_TRACE;
-
-  if (stmt->param_count) {
-    MYSQL *mysql = stmt->mysql;
-    NET *net = &mysql->net;
-    MYSQL_BIND *param, *param_end;
-    char *param_data;
-    ulong length;
-    uint null_count;
+  MYSQL *mysql = stmt->mysql;
+  bool send_named_params =
+      (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
+  bool can_deal_with_flags =
+      mysql->server_version && mysql_get_server_version(mysql) >= 80026;
+  /*
+    When the server can deal with flags properly we should send the 0 param
+    count even when there's no parameters when the server supports named
+    parameters to signify there's no query attributes either. We are setting the
+    PARAMETER_COUNT_AVAILABLE later on the same condition in execute()
+  */
+  if (stmt->param_count || send_named_params) {
+    uchar *param_data = nullptr;
     bool result;
+    unsigned long param_length = 0;
 
-    if (!stmt->bind_param_done) {
+    if (!stmt->bind_param_done &&
+        (!send_named_params || stmt->param_count != 0)) {
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate, nullptr);
       return 1;
     }
@@ -2024,58 +1874,28 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
       return 1;
     }
 
-    if (net->vio)
-      net_clear(net, true); /* Sets net->write_pos */
+    if (mysql->net.vio)
+      net_clear(&mysql->net, true); /* Sets net->write_pos */
     else {
-      set_stmt_errmsg(stmt, net);
+      set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
 
-    /* Reserve place for null-marker bytes */
-    null_count = (stmt->param_count + 7) / 8;
-    if (my_realloc_str(net, null_count + 1)) {
-      set_stmt_errmsg(stmt, net);
+    if (mysql_int_serialize_param_data(
+            &mysql->net, stmt->param_count, stmt->params, NULL, 1, &param_data,
+            &param_length, stmt->send_types_to_server, send_named_params, false,
+            can_deal_with_flags)) {
+      set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
-    memset(net->write_pos, 0, null_count);
-    net->write_pos += null_count;
-    param_end = stmt->params + stmt->param_count;
 
-    /* In case if buffers (type) altered, indicate to server */
-    *(net->write_pos)++ = (uchar)stmt->send_types_to_server;
-    if (stmt->send_types_to_server) {
-      if (my_realloc_str(net, 2 * stmt->param_count)) {
-        set_stmt_errmsg(stmt, net);
-        return 1;
-      }
-      /*
-        Store types of parameters in first in first package
-        that is sent to the server.
-      */
-      for (param = stmt->params; param < param_end; param++)
-        store_param_type(&net->write_pos, param);
-    }
-
-    for (param = stmt->params; param < param_end; param++) {
-      /* check if mysql_stmt_send_long_data() was used */
-      if (param->long_data_used)
-        param->long_data_used = false; /* Clear for next execute call */
-      else if (store_param(stmt, param))
-        return 1;
-    }
-    length = (ulong)(net->write_pos - net->buff);
-    /* TODO: Look into avoding the following memdup */
-    if (!(param_data = pointer_cast<char *>(
-              my_memdup(PSI_NOT_INSTRUMENTED, net->buff, length, MYF(0))))) {
-      set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, nullptr);
-      return 1;
-    }
-    result = execute(stmt, param_data, length);
+    result = execute(stmt, pointer_cast<char *>(param_data), param_length,
+                     can_deal_with_flags);
     stmt->send_types_to_server = false;
     my_free(param_data);
     return result;
   }
-  return (int)execute(stmt, nullptr, 0);
+  return (int)execute(stmt, nullptr, 0, can_deal_with_flags);
 }
 
 /*
@@ -2465,9 +2285,6 @@ uint64_t STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt) {
   return stmt->insert_id;
 }
 
-static bool int_is_null_true = true; /* Used for MYSQL_TYPE_NULL */
-static bool int_is_null_false = false;
-
 /*
   Set up input data buffers for a statement.
 
@@ -2656,93 +2473,55 @@ bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind) {
 
   for (param = stmt->params, end = param + stmt->param_count; param < end;
        param++) {
-    param->param_number = count++;
-    param->long_data_used = false;
-
-    /* If param->is_null is not set, then the value can never be NULL */
-    if (!param->is_null) param->is_null = &int_is_null_false;
-
-    /* Setup data copy functions for the different supported types */
-    switch (param->buffer_type) {
-      case MYSQL_TYPE_NULL:
-        param->is_null = &int_is_null_true;
-        break;
-      case MYSQL_TYPE_TINY:
-        /* Force param->length as this is fixed for this type */
-        param->length = &param->buffer_length;
-        param->buffer_length = 1;
-        param->store_param_func = store_param_tinyint;
-        break;
-      case MYSQL_TYPE_SHORT:
-        param->length = &param->buffer_length;
-        param->buffer_length = 2;
-        param->store_param_func = store_param_short;
-        break;
-      case MYSQL_TYPE_LONG:
-        param->length = &param->buffer_length;
-        param->buffer_length = 4;
-        param->store_param_func = store_param_int32;
-        break;
-      case MYSQL_TYPE_LONGLONG:
-        param->length = &param->buffer_length;
-        param->buffer_length = 8;
-        param->store_param_func = store_param_int64;
-        break;
-      case MYSQL_TYPE_FLOAT:
-        param->length = &param->buffer_length;
-        param->buffer_length = 4;
-        param->store_param_func = store_param_float;
-        break;
-      case MYSQL_TYPE_DOUBLE:
-        param->length = &param->buffer_length;
-        param->buffer_length = 8;
-        param->store_param_func = store_param_double;
-        break;
-      case MYSQL_TYPE_TIME:
-        param->store_param_func = store_param_time;
-        param->buffer_length = MAX_TIME_REP_LENGTH;
-        break;
-      case MYSQL_TYPE_DATE:
-        param->store_param_func = store_param_date;
-        param->buffer_length = MAX_DATE_REP_LENGTH;
-        break;
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_TIMESTAMP:
-        param->store_param_func = store_param_datetime;
-        param->buffer_length = MAX_DATETIME_REP_LENGTH;
-        break;
-      case MYSQL_TYPE_TINY_BLOB:
-      case MYSQL_TYPE_MEDIUM_BLOB:
-      case MYSQL_TYPE_LONG_BLOB:
-      case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_VARCHAR:
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_DECIMAL:
-      case MYSQL_TYPE_NEWDECIMAL:
-      case MYSQL_TYPE_JSON:
-        param->store_param_func = store_param_str;
-        /*
-          For variable length types user must set either length or
-          buffer_length.
-        */
-        break;
-      default:
-        my_stpcpy(stmt->sqlstate, unknown_sqlstate);
-        sprintf(stmt->last_error,
-                ER_CLIENT(stmt->last_errno = CR_UNSUPPORTED_PARAM_TYPE),
-                param->buffer_type, count);
-        return true;
+    if (fix_param_bind(param, count++)) {
+      my_stpcpy(stmt->sqlstate, unknown_sqlstate);
+      sprintf(stmt->last_error,
+              ER_CLIENT(stmt->last_errno = CR_UNSUPPORTED_PARAM_TYPE),
+              param->buffer_type, count);
+      return true;
     }
-    /*
-      If param->length is not given, change it to point to buffer_length.
-      This way we can always use *param->length to get the length of data
-    */
-    if (!param->length) param->length = &param->buffer_length;
   }
   /* We have to send/resend type information to MySQL */
   stmt->send_types_to_server = true;
   stmt->bind_param_done = true;
+  return false;
+}
+
+bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
+                              MYSQL_BIND *binds, const char **names) {
+  MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
+
+  mysql_extension_bind_free(ext);
+
+  /* if any of the above is empty our work here is done */
+  if (!n_params || !binds || !names) return false;
+
+  ext->bind_info.n_params = n_params;
+  ext->bind_info.bind = (MYSQL_BIND *)my_malloc(
+      PSI_NOT_INSTRUMENTED, sizeof(MYSQL_BIND) * n_params, MYF(0));
+  ext->bind_info.names = (char **)my_malloc(PSI_NOT_INSTRUMENTED,
+                                            sizeof(char *) * n_params, MYF(0));
+
+  memcpy(ext->bind_info.bind, binds, sizeof(MYSQL_BIND) * n_params);
+
+  MYSQL_BIND *param = ext->bind_info.bind;
+  for (uint idx = 0; idx < n_params; idx++, param++) {
+    ext->bind_info.names[idx] =
+        names[idx] ? my_strdup(PSI_NOT_INSTRUMENTED, names[idx], MYF(0))
+                   : nullptr;
+    if (fix_param_bind(param, idx)) {
+      my_stpcpy(mysql->net.sqlstate, unknown_sqlstate);
+      sprintf(mysql->net.last_error,
+              ER_CLIENT(mysql->net.last_errno = CR_UNSUPPORTED_PARAM_TYPE),
+              param->buffer_type, idx);
+      for (uint idx2 = 0; idx2 <= idx; idx2++)
+        my_free(ext->bind_info.names[idx]);
+      my_free(ext->bind_info.names);
+      my_free(ext->bind_info.bind);
+      memset(&ext->bind_info, 0, sizeof(ext->bind_info));
+      return true;
+    }
+  }
   return false;
 }
 
@@ -2793,7 +2572,7 @@ bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
                                        const char *data, ulong length) {
   MYSQL_BIND *param;
   DBUG_TRACE;
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
   DBUG_PRINT("enter", ("param no: %d  data: %p, length : %ld", param_number,
                        data, length));
 
@@ -3063,6 +2842,41 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
 }
 
+// Convert an integer (signed or unsigned) to float/double, with checking
+// for loss of precision in the conversion. (double can represent all integers
+// up to 2^53 exactly, but only certain integers above this limit. For instance,
+// 2^53 + 1 is rounded off, while 2^53 + 2 is exact.)
+template <class Int, class Float>
+static inline Float convert_with_inexact_check(Int i, bool *is_inexact) {
+  /*
+    We need to mark the local variable volatile to
+    workaround Intel FPU executive precision feature.
+    (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
+   */
+  volatile Float f = static_cast<Float>(i);
+
+  // If i is positive, it is possible for it to have been rounded outside
+  // Int's range. If so, converting back to check is undefined behavior,
+  // and UBSan will complain. Thus, we need to check before we convert.
+  // Rounding of 2^64 - 1 (and similarly for int64_t) to float/double is
+  // platform-dependent, so we need a bit of trickery to get the right
+  // value in a safe manner.
+  //
+  // For both int64_t and uint64_t, the minimum possible value is a
+  // (negative) power of two, which is exact, so the test is applicable
+  // for max() only.
+  constexpr Float out_of_range =
+      static_cast<Float>(1ULL << (std::numeric_limits<Int>::digits - 1)) *
+      (std::numeric_limits<Int>::is_signed ? 1.0 : 2.0);
+  if (f >= out_of_range) {
+    // Obviously inexact.
+    *is_inexact = true;
+  } else {
+    *is_inexact = static_cast<Int>(f) != i;
+  }
+  return f;
+}
+
 /*
   Convert integer value to client buffer of any type.
 
@@ -3100,31 +2914,24 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       *param->error = param->is_unsigned != is_unsigned && value < 0;
       break;
     case MYSQL_TYPE_FLOAT: {
-      /*
-        We need to mark the local variable volatile to
-        workaround Intel FPU executive precision feature.
-        (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
-      */
-      volatile float data;
+      float data;
       if (is_unsigned) {
-        data = (float)ulonglong2double(value);
-        *param->error = ((ulonglong)value) != ((ulonglong)data);
+        data =
+            convert_with_inexact_check<ulonglong, float>(value, param->error);
       } else {
-        data = (float)value;
-        *param->error = value != ((longlong)data);
+        data = convert_with_inexact_check<longlong, float>(value, param->error);
       }
       floatstore(buffer, data);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
-      volatile double data;
+      double data;
       if (is_unsigned) {
-        data = ulonglong2double(value);
-        *param->error = data >= static_cast<double>(ULLONG_MAX) ||
-                        ((ulonglong)value) != ((ulonglong)data);
+        data =
+            convert_with_inexact_check<ulonglong, double>(value, param->error);
       } else {
-        data = (double)value;
-        *param->error = value != ((longlong)data);
+        data =
+            convert_with_inexact_check<longlong, double>(value, param->error);
       }
       doublestore(buffer, data);
       break;
@@ -3368,6 +3175,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   uint field_is_unsigned = field->flags & UNSIGNED_FLAG;
 
   switch (field_type) {
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY: {
       uchar value = **row;
       /* sic: we need to cast to 'signed char' as 'char' may be unsigned */
@@ -3721,7 +3529,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_BIT:
-      DBUG_ASSERT(param->buffer_length != 0);
+      assert(param->buffer_length != 0);
       param->fetch_result = fetch_result_bin;
       break;
     case MYSQL_TYPE_VAR_STRING:
@@ -3730,7 +3538,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_JSON:
-      DBUG_ASSERT(param->buffer_length != 0);
+      assert(param->buffer_length != 0);
       param->fetch_result = fetch_result_str;
       break;
     default:
@@ -3890,8 +3698,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row) {
     Precondition: if stmt->field_count is zero or row is NULL, read_row_*
     function must return no data.
   */
-  DBUG_ASSERT(stmt->field_count);
-  DBUG_ASSERT(row);
+  assert(stmt->field_count);
+  assert(row);
 
   if (!stmt->bind_result_done) {
     /* If output parameters were not bound we should just return success */
@@ -3936,7 +3744,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row) {
 int cli_unbuffered_fetch(MYSQL *mysql, char **row) {
   ulong len = 0;
   bool is_data_packet;
-  if (packet_error == cli_safe_read(mysql, &is_data_packet)) {
+  if (packet_error == (len = cli_safe_read(mysql, &is_data_packet))) {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
   }
@@ -4048,7 +3856,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
    We could have read one row in execute() due to the lack of a cursor,
    but one at most.
   */
-  DBUG_ASSERT(result->rows <= 1);
+  assert(result->rows <= 1);
   if (result->rows == 1) prev_ptr = &result->data->next;
 
   while ((pkt_len = cli_safe_read(mysql, &is_data_packet)) != packet_error) {
@@ -4116,7 +3924,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   uchar *row = (uchar *)data->data;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uchar *row_end = row + data->length;
 #endif
 
@@ -4129,7 +3937,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
       field = stmt->fields;
        my_bind < end; my_bind++, field++) {
     if (!(*null_ptr & bit)) (*my_bind->skip_result)(my_bind, field, &row);
-    DBUG_ASSERT(row <= row_end);
+    assert(row <= row_end);
     if (!((bit <<= 1) & 255)) {
       bit = 1; /* To next uchar */
       null_ptr++;
@@ -4218,8 +4026,8 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt) {
   }
 
   /* Assert that if there was a cursor, all rows have been fetched */
-  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY ||
-              (mysql->server_status & SERVER_STATUS_LAST_ROW_SENT));
+  assert(mysql->status != MYSQL_STATUS_READY ||
+         (mysql->server_status & SERVER_STATUS_LAST_ROW_SENT));
 
   if (stmt->update_max_length) {
     MYSQL_ROWS *cur = result->data;
@@ -4430,7 +4238,7 @@ bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt) {
 
 bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
   if (!stmt->mysql) {
     /* mysql can be reset in mysql_close called from mysql_reconnect */
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, nullptr);
@@ -4629,6 +4437,7 @@ int STDCALL mysql_reset_connection(MYSQL *mysql) {
     mysql->affected_rows = ~(uint64_t)0;
     free_old_query(mysql);
     mysql->status = MYSQL_STATUS_READY;
+    mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
     return 0;
   }
 }

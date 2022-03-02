@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,10 @@
 #include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
+#include "sql/debug_sync.h"
 
 #include "plugin/x/src/helper/get_system_variable.h"
+#include "plugin/x/src/module_mysqlx.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/query_string_builder.h"
@@ -51,12 +53,6 @@ namespace details {
 
 class Admin_session_factory {
  public:
-  Admin_session_factory()
-      : m_registry{mysql_plugin_registry_acquire()},
-        m_admin_session{"mysql_admin_session", m_registry} {}
-
-  ~Admin_session_factory() { mysql_plugin_registry_release(m_registry); }
-
   MYSQL_SESSION create(srv_session_error_cb error_cb, void *context) {
     if (!m_admin_session.is_valid()) return nullptr;
 
@@ -64,8 +60,17 @@ class Admin_session_factory {
   }
 
  private:
-  SERVICE_TYPE(registry) * m_registry;
-  my_service<SERVICE_TYPE(mysql_admin_session)> m_admin_session;
+  class Registry_holder {
+   public:
+    Registry_holder() : m_registry{mysql_plugin_registry_acquire()} {}
+    ~Registry_holder() { mysql_plugin_registry_release(m_registry); }
+
+    SERVICE_TYPE(registry) *const m_registry;
+  };
+
+  Registry_holder m_registry_holder;
+  my_service<SERVICE_TYPE(mysql_admin_session)> m_admin_session{
+      "mysql_admin_session", m_registry_holder.m_registry};
 };
 
 }  // namespace details
@@ -111,15 +116,37 @@ ngs::Error_code Sql_data_context::init(const bool is_admin) {
     log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }
+
+  m_pre_authenticate_event_fired = false;
+  m_authentication_code = ngs::Error_code();
+
   return ngs::Error_code();
 }
 
 void Sql_data_context::deinit() {
   if (m_mysql_session) {
+    if (m_pre_authenticate_event_fired && !attach()) {
+      if (!m_authentication_code) {
+        // In case of successfull login, connect event has been generated
+        // earlier. Time for generating disconnect event.
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            get_thd(), MYSQL_AUDIT_CONNECTION_DISCONNECT);
+      } else {
+        modules::Module_mysqlx::get_instance_services()
+            ->m_audit_api->emit_with_errorcode(get_thd(),
+                                               MYSQL_AUDIT_CONNECTION_CONNECT,
+                                               m_authentication_code.error);
+      }
+    }
+
+    m_pre_authenticate_event_fired = false;
+    m_authentication_code = ngs::Error_code();
+
     srv_session_detach(m_mysql_session);
 
     log_debug("sqlsession deinit: %p [%i]", m_mysql_session,
               srv_session_info_get_session_id(m_mysql_session));
+
     srv_session_close(m_mysql_session);
     m_mysql_session = nullptr;
   }
@@ -132,7 +159,7 @@ void Sql_data_context::deinit() {
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
-}
+}  // namespace xpl
 
 static void kill_completion_handler(void *, unsigned int sql_errno,
                                     const char *err_msg) {
@@ -163,6 +190,7 @@ bool Sql_data_context::kill() {
           Query_string_builder qb;
           qb.put("KILL ").put(mysql_session_id());
 
+          memset(&data, 0, sizeof(data));
           data.com_query.query = qb.get().c_str();
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
@@ -225,21 +253,16 @@ void Sql_data_context::switch_to_local_user(const std::string &user) {
   if (error) throw error;
 }
 
-ngs::Error_code Sql_data_context::authenticate(
+ngs::Error_code Sql_data_context::authenticate_internal(
     const char *user, const char *host, const char *ip, const char *db,
     const std::string &passwd,
     const iface::Authentication &account_verification,
     bool allow_expired_passwords) {
-  m_password_expired = false;
-
-  ngs::Error_code error = switch_to_user(user, host, ip, db);
-
-  if (error) return ngs::SQLError_access_denied();
-
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();
 
-  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);
+  ngs::Error_code error =
+      switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);
 
   if (error) {
     const char *session_user = MYSQL_SESSION_USER;
@@ -252,6 +275,8 @@ ngs::Error_code Sql_data_context::authenticate(
         authenticated_user_name, authenticated_user_host, passwd);
   }
 
+  ngs::Error_code switch_error = switch_to_user(user, host, ip, db);
+
   if (error.error == ER_MUST_CHANGE_PASSWORD_LOGIN) {
     m_password_expired = true;
 
@@ -263,7 +288,7 @@ ngs::Error_code Sql_data_context::authenticate(
     if (error) return error;
   }
 
-  error = switch_to_user(user, host, ip, db);
+  error = switch_error;
 
   if (!error) {
     if (db && *db) {
@@ -285,19 +310,6 @@ ngs::Error_code Sql_data_context::authenticate(
     std::string user_name = get_user_name();
     std::string host_or_ip = get_host_or_ip();
 
-    /*
-      Instead of modifying the current security context in switch_user()
-      method above, we must create a security_context to do the
-      security_context_lookup() on newly created security_context then set
-      that in the THD. Until that happens, we have to get the existing security
-      context and set that again in the THD. The latter opertion is nedded as
-      it may toggle the system_user flag in THD iff security_context has
-      SYSTEM_USER privilege.
-    */
-    MYSQL_SECURITY_CONTEXT scontext;
-    thd_get_security_context(get_thd(), &scontext);
-    thd_set_security_context(get_thd(), scontext);
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_account)
     (user_name.c_str(), static_cast<int>(user_name.length()),
@@ -308,6 +320,60 @@ ngs::Error_code Sql_data_context::authenticate(
   }
 
   log_error(ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT, user);
+
+  return error;
+}
+
+ngs::Error_code Sql_data_context::authenticate(
+    const char *user, const char *host, const char *ip, const char *db,
+    const std::string &passwd,
+    const iface::Authentication &account_verification,
+    bool allow_expired_passwords) {
+  m_password_expired = false;
+
+  m_using_password = passwd.size() > 0;
+
+  ngs::Error_code error = switch_to_user(user, host, ip, db);
+
+  if (error) error = ngs::SQLError_access_denied();
+
+  m_authentication_code = error;
+
+  if (!m_pre_authenticate_event_fired) {
+    attach();
+    int audit_result =
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            static_cast<void *>(get_thd()),
+            MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE);
+    detach();
+
+    if (audit_result != 0)
+      return ngs::Fatal(ER_AUDIT_API_ABORT, my_get_err_msg(ER_AUDIT_API_ABORT),
+                        "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE",
+                        audit_result);
+
+    m_pre_authenticate_event_fired = true;
+  }
+
+  if (error) return error;
+
+  error = authenticate_internal(user, host, ip, db, passwd,
+                                account_verification, allow_expired_passwords);
+
+  m_authentication_code = error;
+
+  if (!error) {
+    attach();
+    int audit_result =
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            static_cast<void *>(get_thd()), MYSQL_AUDIT_CONNECTION_CONNECT);
+    detach();
+
+    if (audit_result != 0)
+      m_authentication_code = error =
+          ngs::Fatal(ER_AUDIT_API_ABORT, my_get_err_msg(ER_AUDIT_API_ABORT),
+                     "MYSQL_AUDIT_CONNECTION_CONNECT", audit_result);
+  }
 
   return error;
 }
@@ -385,19 +451,46 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
     return ngs::Fatal(ER_X_SERVICE_ERROR,
                       "Error getting security context for session");
 
+  attach();
+  CONDITIONAL_SYNC_POINT("xpl_switch_to_user_enter");
+
   // security_context_lookup - doesn't make a copy of username, hostname, addres
   //                           or db thus we need to make a copy of them
-  //                           and pass our pointers to security_context_lookup
-  m_username = username ? username : "";
-  m_hostname = hostname ? hostname : "";
-  m_address = address ? address : "";
-  m_db = db ? db : "";
+  //                           and pass our pointers to security_context_lookup.
+  //                           If we change pass different pointers than in last
+  //                           invocation of `switch_to_user`, then it might
+  //                           cause an invalid memory access while listing all
+  //                           sessions. Thus we must use memory regions that
+  //                           can hold values of maximum length.
+  memset(m_username, 0, sizeof(m_username));
+  memset(m_hostname, 0, sizeof(m_hostname));
+  memset(m_address, 0, sizeof(m_address));
+  memset(m_db, 0, sizeof(m_db));
+
+  if (username) {
+    strncpy(m_username, username, sizeof(m_username) - 1);
+  }
+
+  if (hostname) {
+    strncpy(m_hostname, hostname, sizeof(m_hostname) - 1);
+  }
+
+  if (address) {
+    strncpy(m_address, address, sizeof(m_address) - 1);
+  }
+
+  if (db) {
+    strncpy(m_db, db, sizeof(m_db) - 1);
+  }
+
+  CONDITIONAL_SYNC_POINT("xpl_switch_to_user_execute");
+  detach();
 
   log_debug("Switching security context to user %s@%s [%s]", username, hostname,
             address);
 
-  if (security_context_lookup(scontext, m_username.c_str(), hostname,
-                              m_address.c_str(), m_db.c_str())) {
+  if (security_context_lookup(scontext, m_username, m_hostname, m_address,
+                              m_db)) {
     log_debug("Unable to switch security context to user %s@%s [%s]", username,
               hostname, address);
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",
@@ -424,7 +517,12 @@ void Sql_data_context::default_completion_handler(void *ctx,
 }
 
 bool Sql_data_context::is_killed() const {
-  return srv_session_info_killed(m_mysql_session);
+  const auto kill = thd_killed(get_thd());
+  DBUG_LOG("debug", "is_killed:" << kill);
+
+  if (0 == kill) return false;
+
+  return ER_QUERY_INTERRUPTED != kill;
 }
 
 bool Sql_data_context::is_api_ready() {
@@ -442,7 +540,9 @@ MYSQL_THD Sql_data_context::get_thd() const {
 ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
                                           iface::Resultset *rset) {
   const auto error = execute_sql(sql, sql_len, rset);
-  if (m_password_expired && !error) {
+  if (error) return error;
+
+  if (m_password_expired) {
     // if a SQL command succeeded while password is expired, it means the user
     // probably changed the password
     // we run a command to check just in case... (some commands are still
@@ -452,17 +552,14 @@ ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
     if (!execute_sql(cmd.c_str(), cmd.length(), &rs))
       m_password_expired = false;
   }
-
-  if (is_killed())
-    throw ngs::Fatal(ER_QUERY_INTERRUPTED, "Query execution was interrupted");
-
-  return error;
+  return ngs::Success();
 }
 
 ngs::Error_code Sql_data_context::execute_sql(const char *sql,
                                               std::size_t sql_len,
                                               iface::Resultset *rset) {
   COM_DATA data;
+  memset(&data, 0, sizeof(data));
   data.com_query.query = sql;
   data.com_query.length = static_cast<unsigned int>(sql_len);
   return execute_server_command(COM_QUERY, data, rset);
@@ -525,39 +622,39 @@ ngs::Error_code Sql_data_context::execute_prep_stmt(
   return execute_server_command(COM_STMT_EXECUTE, cmd, rset);
 }
 
+ngs::Error_code Sql_data_context::reset() {
+  COM_DATA data{};
+  Empty_resultset rset;
+  return execute_server_command(COM_RESET_CONNECTION, data, &rset);
+}
+
 ngs::Error_code Sql_data_context::execute_server_command(
     const enum_server_command cmd, const COM_DATA &cmd_data,
     iface::Resultset *rset) {
   ngs::Command_delegate &deleg = rset->get_callbacks();
   deleg.reset();
-  if (command_service_run_command(
-          m_mysql_session, cmd, &cmd_data, mysqld::get_default_charset(),
-          deleg.callbacks(), deleg.representation(), &deleg)) {
-    return ngs::Error_code(ER_X_SERVICE_ERROR,
-                           "Internal error executing command");
-  }
-  const ngs::Error_code error = deleg.get_error();
-  if (error)
-    log_debug("Error running server command: (%i %s)", error.error,
-              error.message.c_str());
-  return error;
-}
+  const auto fail = command_service_run_command(
+      m_mysql_session, cmd, &cmd_data, mysqld::get_default_charset(),
+      deleg.callbacks(), deleg.representation(), &deleg);
 
-ngs::Error_code Sql_data_context::reset() {
-  COM_DATA data;
-  Callback_command_delegate deleg;
-  if (command_service_run_command(m_mysql_session, COM_RESET_CONNECTION, &data,
-                                  mysqld::get_default_charset(),
-                                  deleg.callbacks(), deleg.representation(),
-                                  &deleg)) {
-    return ngs::Error_code(ER_X_SERVICE_ERROR,
-                           "Internal error executing command");
+  ngs::Error_code error = deleg.get_error();
+
+  if (fail) {
+    if (error) {
+      log_debug("Error running server command: (%i:%s)", error.error,
+                error.message.c_str());
+      return error;
+    }
+    return ngs::Error(ER_X_SERVICE_ERROR, "Internal error executing command");
   }
-  const ngs::Error_code &error = deleg.get_error();
-  if (error)
-    log_debug("Error reseting sql session: (%i %s)", error.error,
-              error.message.c_str());
-  return error;
+
+  if (!error) return ngs::Success();
+
+  log_debug("Error running server command: (%i:%s; killed: %i:%i)", error.error,
+            error.message.c_str(), static_cast<int>(is_killed()),
+            static_cast<int>(deleg.killed()));
+
+  return is_killed() ? ngs::Fatal(error) : error;
 }
 
 bool Sql_data_context::is_sql_mode_set(const std::string &mode) {

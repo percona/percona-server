@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -35,7 +36,7 @@
 
 #include "lex_string.h"
 #include "my_command.h"
-#include "my_dbug.h"
+
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "mysql_com.h"  // USERNAME_LENGTH
@@ -100,9 +101,9 @@ enum ACL_internal_access_result {
 */
 class ACL_internal_table_access {
  public:
-  ACL_internal_table_access() {}
+  ACL_internal_table_access() = default;
 
-  virtual ~ACL_internal_table_access() {}
+  virtual ~ACL_internal_table_access() = default;
 
   /**
     Check access to an internal table.
@@ -135,9 +136,9 @@ class ACL_internal_table_access {
 */
 class ACL_internal_schema_access {
  public:
-  ACL_internal_schema_access() {}
+  ACL_internal_schema_access() = default;
 
-  virtual ~ACL_internal_schema_access() {}
+  virtual ~ACL_internal_schema_access() = default;
 
   /**
     Check access to an internal schema.
@@ -180,13 +181,14 @@ class ACL_internal_schema_registry {
 */
 class IS_internal_schema_access : public ACL_internal_schema_access {
  public:
-  IS_internal_schema_access() {}
+  IS_internal_schema_access() = default;
 
-  ~IS_internal_schema_access() {}
+  ~IS_internal_schema_access() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 
-  const ACL_internal_table_access *lookup(const char *name) const;
+  const ACL_internal_table_access *lookup(const char *name) const override;
 };
 
 /* Data Structures */
@@ -416,7 +418,7 @@ class User_table_schema {
   // Added in 8.0.14
   virtual uint user_attributes_idx() = 0;
 
-  virtual ~User_table_schema() {}
+  virtual ~User_table_schema() = default;
 };
 
 /*
@@ -424,80 +426,104 @@ class User_table_schema {
  */
 class User_table_current_schema : public User_table_schema {
  public:
-  uint host_idx() { return MYSQL_USER_FIELD_HOST; }
-  uint user_idx() { return MYSQL_USER_FIELD_USER; }
+  uint host_idx() override { return MYSQL_USER_FIELD_HOST; }
+  uint user_idx() override { return MYSQL_USER_FIELD_USER; }
   // not available
-  uint password_idx() {
-    DBUG_ASSERT(0);
+  uint password_idx() override {
+    assert(0);
     return MYSQL_USER_FIELD_COUNT;
   }
-  uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV; }
-  uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV; }
-  uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV; }
-  uint delete_priv_idx() { return MYSQL_USER_FIELD_DELETE_PRIV; }
-  uint create_priv_idx() { return MYSQL_USER_FIELD_CREATE_PRIV; }
-  uint drop_priv_idx() { return MYSQL_USER_FIELD_DROP_PRIV; }
-  uint reload_priv_idx() { return MYSQL_USER_FIELD_RELOAD_PRIV; }
-  uint shutdown_priv_idx() { return MYSQL_USER_FIELD_SHUTDOWN_PRIV; }
-  uint process_priv_idx() { return MYSQL_USER_FIELD_PROCESS_PRIV; }
-  uint file_priv_idx() { return MYSQL_USER_FIELD_FILE_PRIV; }
-  uint grant_priv_idx() { return MYSQL_USER_FIELD_GRANT_PRIV; }
-  uint references_priv_idx() { return MYSQL_USER_FIELD_REFERENCES_PRIV; }
-  uint index_priv_idx() { return MYSQL_USER_FIELD_INDEX_PRIV; }
-  uint alter_priv_idx() { return MYSQL_USER_FIELD_ALTER_PRIV; }
-  uint show_db_priv_idx() { return MYSQL_USER_FIELD_SHOW_DB_PRIV; }
-  uint super_priv_idx() { return MYSQL_USER_FIELD_SUPER_PRIV; }
-  uint create_role_priv_idx() { return MYSQL_USER_FIELD_CREATE_ROLE_PRIV; }
-  uint drop_role_priv_idx() { return MYSQL_USER_FIELD_DROP_ROLE_PRIV; }
-  uint create_tmp_table_priv_idx() {
+  uint select_priv_idx() override { return MYSQL_USER_FIELD_SELECT_PRIV; }
+  uint insert_priv_idx() override { return MYSQL_USER_FIELD_INSERT_PRIV; }
+  uint update_priv_idx() override { return MYSQL_USER_FIELD_UPDATE_PRIV; }
+  uint delete_priv_idx() override { return MYSQL_USER_FIELD_DELETE_PRIV; }
+  uint create_priv_idx() override { return MYSQL_USER_FIELD_CREATE_PRIV; }
+  uint drop_priv_idx() override { return MYSQL_USER_FIELD_DROP_PRIV; }
+  uint reload_priv_idx() override { return MYSQL_USER_FIELD_RELOAD_PRIV; }
+  uint shutdown_priv_idx() override { return MYSQL_USER_FIELD_SHUTDOWN_PRIV; }
+  uint process_priv_idx() override { return MYSQL_USER_FIELD_PROCESS_PRIV; }
+  uint file_priv_idx() override { return MYSQL_USER_FIELD_FILE_PRIV; }
+  uint grant_priv_idx() override { return MYSQL_USER_FIELD_GRANT_PRIV; }
+  uint references_priv_idx() override {
+    return MYSQL_USER_FIELD_REFERENCES_PRIV;
+  }
+  uint index_priv_idx() override { return MYSQL_USER_FIELD_INDEX_PRIV; }
+  uint alter_priv_idx() override { return MYSQL_USER_FIELD_ALTER_PRIV; }
+  uint show_db_priv_idx() override { return MYSQL_USER_FIELD_SHOW_DB_PRIV; }
+  uint super_priv_idx() override { return MYSQL_USER_FIELD_SUPER_PRIV; }
+  uint create_role_priv_idx() override {
+    return MYSQL_USER_FIELD_CREATE_ROLE_PRIV;
+  }
+  uint drop_role_priv_idx() override { return MYSQL_USER_FIELD_DROP_ROLE_PRIV; }
+  uint create_tmp_table_priv_idx() override {
     return MYSQL_USER_FIELD_CREATE_TMP_TABLE_PRIV;
   }
-  uint lock_tables_priv_idx() { return MYSQL_USER_FIELD_LOCK_TABLES_PRIV; }
-  uint execute_priv_idx() { return MYSQL_USER_FIELD_EXECUTE_PRIV; }
-  uint repl_slave_priv_idx() { return MYSQL_USER_FIELD_REPL_SLAVE_PRIV; }
-  uint repl_client_priv_idx() { return MYSQL_USER_FIELD_REPL_CLIENT_PRIV; }
-  uint create_view_priv_idx() { return MYSQL_USER_FIELD_CREATE_VIEW_PRIV; }
-  uint show_view_priv_idx() { return MYSQL_USER_FIELD_SHOW_VIEW_PRIV; }
-  uint create_routine_priv_idx() {
+  uint lock_tables_priv_idx() override {
+    return MYSQL_USER_FIELD_LOCK_TABLES_PRIV;
+  }
+  uint execute_priv_idx() override { return MYSQL_USER_FIELD_EXECUTE_PRIV; }
+  uint repl_slave_priv_idx() override {
+    return MYSQL_USER_FIELD_REPL_SLAVE_PRIV;
+  }
+  uint repl_client_priv_idx() override {
+    return MYSQL_USER_FIELD_REPL_CLIENT_PRIV;
+  }
+  uint create_view_priv_idx() override {
+    return MYSQL_USER_FIELD_CREATE_VIEW_PRIV;
+  }
+  uint show_view_priv_idx() override { return MYSQL_USER_FIELD_SHOW_VIEW_PRIV; }
+  uint create_routine_priv_idx() override {
     return MYSQL_USER_FIELD_CREATE_ROUTINE_PRIV;
   }
-  uint alter_routine_priv_idx() { return MYSQL_USER_FIELD_ALTER_ROUTINE_PRIV; }
-  uint create_user_priv_idx() { return MYSQL_USER_FIELD_CREATE_USER_PRIV; }
-  uint event_priv_idx() { return MYSQL_USER_FIELD_EVENT_PRIV; }
-  uint trigger_priv_idx() { return MYSQL_USER_FIELD_TRIGGER_PRIV; }
-  uint create_tablespace_priv_idx() {
+  uint alter_routine_priv_idx() override {
+    return MYSQL_USER_FIELD_ALTER_ROUTINE_PRIV;
+  }
+  uint create_user_priv_idx() override {
+    return MYSQL_USER_FIELD_CREATE_USER_PRIV;
+  }
+  uint event_priv_idx() override { return MYSQL_USER_FIELD_EVENT_PRIV; }
+  uint trigger_priv_idx() override { return MYSQL_USER_FIELD_TRIGGER_PRIV; }
+  uint create_tablespace_priv_idx() override {
     return MYSQL_USER_FIELD_CREATE_TABLESPACE_PRIV;
   }
-  uint ssl_type_idx() { return MYSQL_USER_FIELD_SSL_TYPE; }
-  uint ssl_cipher_idx() { return MYSQL_USER_FIELD_SSL_CIPHER; }
-  uint x509_issuer_idx() { return MYSQL_USER_FIELD_X509_ISSUER; }
-  uint x509_subject_idx() { return MYSQL_USER_FIELD_X509_SUBJECT; }
-  uint max_questions_idx() { return MYSQL_USER_FIELD_MAX_QUESTIONS; }
-  uint max_updates_idx() { return MYSQL_USER_FIELD_MAX_UPDATES; }
-  uint max_connections_idx() { return MYSQL_USER_FIELD_MAX_CONNECTIONS; }
-  uint max_user_connections_idx() {
+  uint ssl_type_idx() override { return MYSQL_USER_FIELD_SSL_TYPE; }
+  uint ssl_cipher_idx() override { return MYSQL_USER_FIELD_SSL_CIPHER; }
+  uint x509_issuer_idx() override { return MYSQL_USER_FIELD_X509_ISSUER; }
+  uint x509_subject_idx() override { return MYSQL_USER_FIELD_X509_SUBJECT; }
+  uint max_questions_idx() override { return MYSQL_USER_FIELD_MAX_QUESTIONS; }
+  uint max_updates_idx() override { return MYSQL_USER_FIELD_MAX_UPDATES; }
+  uint max_connections_idx() override {
+    return MYSQL_USER_FIELD_MAX_CONNECTIONS;
+  }
+  uint max_user_connections_idx() override {
     return MYSQL_USER_FIELD_MAX_USER_CONNECTIONS;
   }
-  uint plugin_idx() { return MYSQL_USER_FIELD_PLUGIN; }
-  uint authentication_string_idx() {
+  uint plugin_idx() override { return MYSQL_USER_FIELD_PLUGIN; }
+  uint authentication_string_idx() override {
     return MYSQL_USER_FIELD_AUTHENTICATION_STRING;
   }
-  uint password_expired_idx() { return MYSQL_USER_FIELD_PASSWORD_EXPIRED; }
-  uint password_last_changed_idx() {
+  uint password_expired_idx() override {
+    return MYSQL_USER_FIELD_PASSWORD_EXPIRED;
+  }
+  uint password_last_changed_idx() override {
     return MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED;
   }
-  uint password_lifetime_idx() { return MYSQL_USER_FIELD_PASSWORD_LIFETIME; }
-  uint account_locked_idx() { return MYSQL_USER_FIELD_ACCOUNT_LOCKED; }
-  uint password_reuse_history_idx() {
+  uint password_lifetime_idx() override {
+    return MYSQL_USER_FIELD_PASSWORD_LIFETIME;
+  }
+  uint account_locked_idx() override { return MYSQL_USER_FIELD_ACCOUNT_LOCKED; }
+  uint password_reuse_history_idx() override {
     return MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY;
   }
-  uint password_reuse_time_idx() {
+  uint password_reuse_time_idx() override {
     return MYSQL_USER_FIELD_PASSWORD_REUSE_TIME;
   }
-  uint password_require_current_idx() {
+  uint password_require_current_idx() override {
     return MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT;
   }
-  uint user_attributes_idx() { return MYSQL_USER_FIELD_USER_ATTRIBUTES; }
+  uint user_attributes_idx() override {
+    return MYSQL_USER_FIELD_USER_ATTRIBUTES;
+  }
 };
 
 /*
@@ -552,72 +578,100 @@ class User_table_old_schema : public User_table_schema {
     MYSQL_USER_FIELD_COUNT_56
   };
 
-  uint host_idx() { return MYSQL_USER_FIELD_HOST_56; }
-  uint user_idx() { return MYSQL_USER_FIELD_USER_56; }
-  uint password_idx() { return MYSQL_USER_FIELD_PASSWORD_56; }
-  uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV_56; }
-  uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV_56; }
-  uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV_56; }
-  uint delete_priv_idx() { return MYSQL_USER_FIELD_DELETE_PRIV_56; }
-  uint create_priv_idx() { return MYSQL_USER_FIELD_CREATE_PRIV_56; }
-  uint drop_priv_idx() { return MYSQL_USER_FIELD_DROP_PRIV_56; }
-  uint reload_priv_idx() { return MYSQL_USER_FIELD_RELOAD_PRIV_56; }
-  uint shutdown_priv_idx() { return MYSQL_USER_FIELD_SHUTDOWN_PRIV_56; }
-  uint process_priv_idx() { return MYSQL_USER_FIELD_PROCESS_PRIV_56; }
-  uint file_priv_idx() { return MYSQL_USER_FIELD_FILE_PRIV_56; }
-  uint grant_priv_idx() { return MYSQL_USER_FIELD_GRANT_PRIV_56; }
-  uint references_priv_idx() { return MYSQL_USER_FIELD_REFERENCES_PRIV_56; }
-  uint index_priv_idx() { return MYSQL_USER_FIELD_INDEX_PRIV_56; }
-  uint alter_priv_idx() { return MYSQL_USER_FIELD_ALTER_PRIV_56; }
-  uint show_db_priv_idx() { return MYSQL_USER_FIELD_SHOW_DB_PRIV_56; }
-  uint super_priv_idx() { return MYSQL_USER_FIELD_SUPER_PRIV_56; }
-  uint create_tmp_table_priv_idx() {
+  uint host_idx() override { return MYSQL_USER_FIELD_HOST_56; }
+  uint user_idx() override { return MYSQL_USER_FIELD_USER_56; }
+  uint password_idx() override { return MYSQL_USER_FIELD_PASSWORD_56; }
+  uint select_priv_idx() override { return MYSQL_USER_FIELD_SELECT_PRIV_56; }
+  uint insert_priv_idx() override { return MYSQL_USER_FIELD_INSERT_PRIV_56; }
+  uint update_priv_idx() override { return MYSQL_USER_FIELD_UPDATE_PRIV_56; }
+  uint delete_priv_idx() override { return MYSQL_USER_FIELD_DELETE_PRIV_56; }
+  uint create_priv_idx() override { return MYSQL_USER_FIELD_CREATE_PRIV_56; }
+  uint drop_priv_idx() override { return MYSQL_USER_FIELD_DROP_PRIV_56; }
+  uint reload_priv_idx() override { return MYSQL_USER_FIELD_RELOAD_PRIV_56; }
+  uint shutdown_priv_idx() override {
+    return MYSQL_USER_FIELD_SHUTDOWN_PRIV_56;
+  }
+  uint process_priv_idx() override { return MYSQL_USER_FIELD_PROCESS_PRIV_56; }
+  uint file_priv_idx() override { return MYSQL_USER_FIELD_FILE_PRIV_56; }
+  uint grant_priv_idx() override { return MYSQL_USER_FIELD_GRANT_PRIV_56; }
+  uint references_priv_idx() override {
+    return MYSQL_USER_FIELD_REFERENCES_PRIV_56;
+  }
+  uint index_priv_idx() override { return MYSQL_USER_FIELD_INDEX_PRIV_56; }
+  uint alter_priv_idx() override { return MYSQL_USER_FIELD_ALTER_PRIV_56; }
+  uint show_db_priv_idx() override { return MYSQL_USER_FIELD_SHOW_DB_PRIV_56; }
+  uint super_priv_idx() override { return MYSQL_USER_FIELD_SUPER_PRIV_56; }
+  uint create_tmp_table_priv_idx() override {
     return MYSQL_USER_FIELD_CREATE_TMP_TABLE_PRIV_56;
   }
-  uint lock_tables_priv_idx() { return MYSQL_USER_FIELD_LOCK_TABLES_PRIV_56; }
-  uint execute_priv_idx() { return MYSQL_USER_FIELD_EXECUTE_PRIV_56; }
-  uint repl_slave_priv_idx() { return MYSQL_USER_FIELD_REPL_SLAVE_PRIV_56; }
-  uint repl_client_priv_idx() { return MYSQL_USER_FIELD_REPL_CLIENT_PRIV_56; }
-  uint create_view_priv_idx() { return MYSQL_USER_FIELD_CREATE_VIEW_PRIV_56; }
-  uint show_view_priv_idx() { return MYSQL_USER_FIELD_SHOW_VIEW_PRIV_56; }
-  uint create_routine_priv_idx() {
+  uint lock_tables_priv_idx() override {
+    return MYSQL_USER_FIELD_LOCK_TABLES_PRIV_56;
+  }
+  uint execute_priv_idx() override { return MYSQL_USER_FIELD_EXECUTE_PRIV_56; }
+  uint repl_slave_priv_idx() override {
+    return MYSQL_USER_FIELD_REPL_SLAVE_PRIV_56;
+  }
+  uint repl_client_priv_idx() override {
+    return MYSQL_USER_FIELD_REPL_CLIENT_PRIV_56;
+  }
+  uint create_view_priv_idx() override {
+    return MYSQL_USER_FIELD_CREATE_VIEW_PRIV_56;
+  }
+  uint show_view_priv_idx() override {
+    return MYSQL_USER_FIELD_SHOW_VIEW_PRIV_56;
+  }
+  uint create_routine_priv_idx() override {
     return MYSQL_USER_FIELD_CREATE_ROUTINE_PRIV_56;
   }
-  uint alter_routine_priv_idx() {
+  uint alter_routine_priv_idx() override {
     return MYSQL_USER_FIELD_ALTER_ROUTINE_PRIV_56;
   }
-  uint create_user_priv_idx() { return MYSQL_USER_FIELD_CREATE_USER_PRIV_56; }
-  uint event_priv_idx() { return MYSQL_USER_FIELD_EVENT_PRIV_56; }
-  uint trigger_priv_idx() { return MYSQL_USER_FIELD_TRIGGER_PRIV_56; }
-  uint create_tablespace_priv_idx() {
+  uint create_user_priv_idx() override {
+    return MYSQL_USER_FIELD_CREATE_USER_PRIV_56;
+  }
+  uint event_priv_idx() override { return MYSQL_USER_FIELD_EVENT_PRIV_56; }
+  uint trigger_priv_idx() override { return MYSQL_USER_FIELD_TRIGGER_PRIV_56; }
+  uint create_tablespace_priv_idx() override {
     return MYSQL_USER_FIELD_CREATE_TABLESPACE_PRIV_56;
   }
-  uint ssl_type_idx() { return MYSQL_USER_FIELD_SSL_TYPE_56; }
-  uint ssl_cipher_idx() { return MYSQL_USER_FIELD_SSL_CIPHER_56; }
-  uint x509_issuer_idx() { return MYSQL_USER_FIELD_X509_ISSUER_56; }
-  uint x509_subject_idx() { return MYSQL_USER_FIELD_X509_SUBJECT_56; }
-  uint max_questions_idx() { return MYSQL_USER_FIELD_MAX_QUESTIONS_56; }
-  uint max_updates_idx() { return MYSQL_USER_FIELD_MAX_UPDATES_56; }
-  uint max_connections_idx() { return MYSQL_USER_FIELD_MAX_CONNECTIONS_56; }
-  uint max_user_connections_idx() {
+  uint ssl_type_idx() override { return MYSQL_USER_FIELD_SSL_TYPE_56; }
+  uint ssl_cipher_idx() override { return MYSQL_USER_FIELD_SSL_CIPHER_56; }
+  uint x509_issuer_idx() override { return MYSQL_USER_FIELD_X509_ISSUER_56; }
+  uint x509_subject_idx() override { return MYSQL_USER_FIELD_X509_SUBJECT_56; }
+  uint max_questions_idx() override {
+    return MYSQL_USER_FIELD_MAX_QUESTIONS_56;
+  }
+  uint max_updates_idx() override { return MYSQL_USER_FIELD_MAX_UPDATES_56; }
+  uint max_connections_idx() override {
+    return MYSQL_USER_FIELD_MAX_CONNECTIONS_56;
+  }
+  uint max_user_connections_idx() override {
     return MYSQL_USER_FIELD_MAX_USER_CONNECTIONS_56;
   }
-  uint plugin_idx() { return MYSQL_USER_FIELD_PLUGIN_56; }
-  uint authentication_string_idx() {
+  uint plugin_idx() override { return MYSQL_USER_FIELD_PLUGIN_56; }
+  uint authentication_string_idx() override {
     return MYSQL_USER_FIELD_AUTHENTICATION_STRING_56;
   }
-  uint password_expired_idx() { return MYSQL_USER_FIELD_PASSWORD_EXPIRED_56; }
+  uint password_expired_idx() override {
+    return MYSQL_USER_FIELD_PASSWORD_EXPIRED_56;
+  }
 
   // those fields are not available in 5.6 db schema
-  uint password_last_changed_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint password_lifetime_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint account_locked_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint create_role_priv_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint drop_role_priv_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint password_reuse_history_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint password_reuse_time_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint password_require_current_idx() { return MYSQL_USER_FIELD_COUNT_56; }
-  uint user_attributes_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+  uint password_last_changed_idx() override {
+    return MYSQL_USER_FIELD_COUNT_56;
+  }
+  uint password_lifetime_idx() override { return MYSQL_USER_FIELD_COUNT_56; }
+  uint account_locked_idx() override { return MYSQL_USER_FIELD_COUNT_56; }
+  uint create_role_priv_idx() override { return MYSQL_USER_FIELD_COUNT_56; }
+  uint drop_role_priv_idx() override { return MYSQL_USER_FIELD_COUNT_56; }
+  uint password_reuse_history_idx() override {
+    return MYSQL_USER_FIELD_COUNT_56;
+  }
+  uint password_reuse_time_idx() override { return MYSQL_USER_FIELD_COUNT_56; }
+  uint password_require_current_idx() override {
+    return MYSQL_USER_FIELD_COUNT_56;
+  }
+  uint user_attributes_idx() override { return MYSQL_USER_FIELD_COUNT_56; }
 };
 
 class User_table_schema_factory {
@@ -630,7 +684,7 @@ class User_table_schema_factory {
   }
 
   virtual bool is_old_user_table_schema(TABLE *table);
-  virtual ~User_table_schema_factory() {}
+  virtual ~User_table_schema_factory() = default;
 };
 
 extern bool mysql_user_table_is_in_short_password_format;
@@ -684,6 +738,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists);
 bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
                      bool drop_role);
 bool mysql_rename_user(THD *thd, List<LEX_USER> &list);
+bool acl_can_access_user(THD *thd, LEX_USER *user);
 
 /* sql_auth_cache */
 void init_acl_memory();
@@ -768,6 +823,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+                                             bool *fake_lock_tables_acl);
 bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
 
@@ -803,8 +860,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                         const List<LEX_USER> *users,
                                         const List<LEX_USER> *roles);
 void roles_graphml(THD *thd, String *);
-bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
-                              const LEX_CSTRING &role_host);
+bool has_grant_role_privilege(THD *thd, const List<LEX_USER> *roles);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 std::string create_authid_str_from(const LEX_USER *user);
 std::pair<std::string, std::string> get_authid_from_quoted_string(
@@ -816,11 +872,14 @@ bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                      LEX_CSTRING role_host);
 bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
                        bool *is_mandatory);
-bool check_show_access(THD *thd, TABLE_LIST *table);
 bool check_global_access(THD *thd, ulong want_access);
 
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
+bool is_acl_table_name(const char *name);
+#ifndef NDEBUG
+bool is_acl_table(const TABLE *table);
+#endif
 
 typedef enum ssl_artifacts_status {
   SSL_ARTIFACTS_NOT_FOUND = 0,
@@ -861,7 +920,7 @@ typedef std::function<bool(Security_context *,
 template <class Derived>
 class Create_authid : public Security_context_policy {
  public:
-  bool operator()(Security_context *sctx, Operation op) {
+  bool operator()(Security_context *sctx, Operation op) override {
     if (op == Precheck && static_cast<Derived *>(this)->precheck(sctx))
       return true;
     if (op == Execute && static_cast<Derived *>(this)->create(sctx))
@@ -873,7 +932,7 @@ class Create_authid : public Security_context_policy {
 template <class Derived>
 class Grant_privileges : public Security_context_policy {
  public:
-  bool operator()(Security_context *sctx, Operation op) {
+  bool operator()(Security_context *sctx, Operation op) override {
     if (op == Precheck && static_cast<Derived *>(this)->precheck(sctx))
       return true;
     if (op == Execute && static_cast<Derived *>(this)->grant_privileges(sctx))
@@ -916,7 +975,7 @@ class Security_context_factory {
         m_static_privileges(std::move(static_priv)),
         m_drop_policy(std::move(drop_policy)) {}
 
-  Sctx_ptr<Security_context> create(MEM_ROOT *mem_root);
+  Sctx_ptr<Security_context> create();
 
  private:
   bool apply_pre_constructed_policies(Security_context *sctx);
@@ -1046,4 +1105,6 @@ typedef std::list<std::vector<std::string>> Userhostpassword_list;
 bool send_password_result_set(THD *thd,
                               const Userhostpassword_list &generated_passwords);
 bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
+bool mysql_alter_user_comment(THD *thd, const List<LEX_USER> *users,
+                              const std::string &json_blob, bool expect_text);
 #endif /* AUTH_COMMON_INCLUDED */

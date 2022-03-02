@@ -435,7 +435,7 @@
         colon you may add a <b>\@<em>platform</em></b> to have the
         test disabled only on a specific platform. Basic OS names as
         reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
-        supported. Alternatively, <b>@!<em>platform</i></b> will
+        supported. Alternatively, <b>@!<em>platform</em></b> will
         disable the test on all except the named platform.
 
         <b>BUG#<em>nnnnn</em></b> or <b>WL#<em>nnnn</em></b> indicates
@@ -931,8 +931,7 @@
   Test cases which use <b>not_parallel.inc</b> are run at the end with
   a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
   option value. Such test cases will be executed at the end of the test
-  run one at a time. These tests also require
-  <b>`--non-parallel-test`</b> option to be ON.
+  run one at a time.
 */
 
 ###############################################################################
@@ -1426,7 +1425,7 @@
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  Warning 1366  Incorrect integer value: 'hej' for column 'a' at row 1
   DROP TABLE t1;
   @endverbatim
 
@@ -2905,11 +2904,10 @@
       supports fractions of a second. For example, <b>sleep 0.2</b>;
       sleeps 0.2 seconds.
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands
-      more than necessary. The more of them there are, the slower the
-      test suite becomes. In some cases, heavy reliance on sleep
-      operations is an indicator that the logic of a test should be
-      reconsidered.
+      Try not to use the <b>sleep</b> command more than necessary.
+      The more of them there are, the slower the test suite becomes.
+      In some cases, heavy reliance on sleep operations is an indicator
+      that the logic of a test should be reconsidered.
     </li>
 
     <li>
@@ -3378,17 +3376,6 @@
     </li>
 
     <li>
-      <tt>`--sleep`=<b>num</b>, -T <b>num</b></tt>
-
-      Cause all <b>sleep</b> commands in the test case file to sleep
-      <b><em>num</em></b> seconds. This option does not affect
-      <b>real_sleep</b> commands.
-
-      An option value of 0 can also be used, which effectively
-      disables <b>sleep</b> commands in the test case.
-    </li>
-
-    <li>
       <tt>`--socket`=<b>path</b>, -S <b>path</b></tt>
 
       The socket file to use when connecting to <b>localhost</b>
@@ -3823,6 +3810,18 @@
         Users have to make sure this variable is set to the same path
         on all environments, and that this common path is mounted on
         all the environments.
+     <tr>
+      <td><tt>MYSQL_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having mysql binaries.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_CLIENT_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having client binaries.
+      </td>
+    </tr>
     <tr>
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
@@ -4627,10 +4626,12 @@
       tests are run. An excluded list (<b>excludenoskip.list</b>) is
       maintained to track which tests should continue to be skipped.
       The <b>`--no-skip`</b> option continues to skip the tests that
-      are named in the excluded list. The default value of
-      <b>--no-skip</b> introduced variable is OFF, which implies users
-      are not forced to run all tests unless the <b>--no-skip</b> is
-      explicitly used.
+      are named in the excluded list. In case the test or file invoking
+      the <b>`--skip`</b> command is not present in the excluded list, the
+      outcome of the test will be identified as <b>[ noskip-pass ]</b> or
+      <b>[ noskip-fail ]</b> .The default value of <b>--no-skip</b>
+      introduced variable is OFF, which implies users are not forced to
+      run all tests unless the <b>--no-skip</b> is explicitly used.
 
       @verbatim
   shell> mysql-test-run.pl --suite=innodb --no-skip
@@ -4856,15 +4857,6 @@
     </li>
 
     <li>
-      <tt>`--non-parallel-test`</tt>
-
-      Allow tests marked as "non-parallel" to run. Tests can be thus
-      marked by including the line
-      <b>`--source` include/not_parallel.inc</b>, and they will only
-      be run if this option is enabled.
-    </li>
-
-    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -4943,13 +4935,6 @@
       <b>`--skip-*`</b> options not otherwise recognized by @ref
       PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" are passed to the
       master server.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>N</b></tt>
-
-      Pass <b>`--sleep`=<em>N</em></b> to @ref PAGE_MYSQLTEST
-      "mysqltest".
     </li>
 
     <li>
@@ -5308,9 +5293,12 @@
     </li>
 
     <li>
-      <tt>`--with-ndbcluster-only`</tt>
+      <tt>`--with-ndbcluster-only`, `--with-ndb-only`</tt>
 
-      Run only test cases that have <b>ndb</b> in their name.
+      Run only <b>ndb</b> tests. If no suites are explicitly given, this
+      option also skip all non <b>ndb</b> suites without checking
+      individual test names.
+
     </li>
 
     <li>
@@ -5838,6 +5826,22 @@
     </li>
 
     <li>
+      <tt>assert (<b>expr</b>)</tt>
+
+      Assert that <b>expr</b> is true; otherwise terminate the test program
+      with an error message indicating that <b>expr</b> failed.
+      <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
+      as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
+
+      @verbatim
+        assert(1);
+        assert($x);
+        assert(!$x);
+        assert(`select count(*) from t1`);
+      @endverbatim
+    </li>
+
+    <li>
       <tt>cat_file <b>file_name</b></tt>
 
       <b>cat_file</b> writes the contents of the file to the output.
@@ -5966,6 +5970,10 @@
             </li>
 
             <li>
+              <tt>SSL</tt>:Use SSL network protocol to have encrypted connection.
+            </li>
+
+            <li>
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
 
@@ -5998,13 +6006,6 @@
           to be applied when zstd compression algorithm is used. It is passed to
           the <b>mysql_options()</b> C API function using the
           <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
-        </li>
-
-        <li>
-          <b><em>compression algorithm</em></b> is the name of compression
-          algorithm to be used to comrpess data transferred between client
-          server. It is passed to the <b>mysql_options()</b> C API function
-          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
 
         <li>
@@ -6231,6 +6232,23 @@
       @verbatim
   --disable_abort_on_error
   --enable_abort_on_error
+      @endverbatim
+    </li>
+
+    <li>
+      <tt>disable_async_client</tt>, <tt>enable_async_client</tt>
+
+      Disable or enable asynchronous communication between the client and
+      the server. With this setting enabled, @ref PAGE_MYSQLTEST "mysqltest"
+      uses non-blocking C API's to communicate with the server.<br> Please
+      note that <b>disable_async_client</b> disables asynchronous
+      communication if it had been enabled either by the
+      <b>--enable_async_client</b> command or the <b>--async-client</b>
+      command line option.
+
+      @verbatim
+  --disable_async_client
+  --enable_async_client
       @endverbatim
     </li>
 
@@ -6774,7 +6792,6 @@
       issue, the command can be retried for a <b>retry</b> number
       of times. Each retry happens after an interval of one second.
 
-
       @verbatim
   file_exists /etc/passwd;
   file_exists /etc/passwd 5;
@@ -7006,7 +7023,6 @@
       can be retried for a <b>retry</b> number of times. Each retry
       happens after an interval of one second.
 
-
       @verbatim
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out;
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out 5;
@@ -7127,21 +7143,26 @@
     </li>
 
     <li>
-      <tt>real_sleep <b>num</b></tt>
+      <tt>--let <b>$var</b> = escape(<b>characters</b>,<b>string</b>)</tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. Unlike the <b>sleep</b> command,
-      <b>real_sleep</b> is not affected by the
-      <b>`--sleep command-line`</b> option.
+      Insert a backslash character before every character in
+      <b>string</b> that occurs in <b>characters</b>, and assign the
+      result to <b>$var</b>.
+
+      <b>characters</b> must not contain newline. If it contains a
+      comma, it must be the first character.  All whitespace is
+      significant and preserved in both arguments, so you typically
+      want to omit the space after the comma for this command.
+
+      This can be useful when you need to include <b>string</b> in an
+      SQL string in a query, and <b>string</b> may contain quote
+      characters.
 
       @verbatim
-  --real_sleep 10
-  real_sleep 5;
-     @endverbatim
-
-     Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-     than necessary. The more of them there are, the slower the test
-     suite becomes.
+      --let <b>$var</b> = escape(\',The 'path separator' in Windows is \.)
+      --echo $var
+      # Prints: The \'path separator\' in Windows is \\.
+      @endverbatim
     </li>
 
     <li>
@@ -7239,7 +7260,7 @@
       than <em> -1e10 </em></b> are represented using the
       exponential notation after they are rounded off.
 
-     @verbatim
+      @verbatim
   --replace_numeric_round 6
   SELECT 12379.79459775333;
   12379.794598
@@ -7247,7 +7268,7 @@
   replace_numeric_round 0;
   SELECT 876.87302;
   877
-     @endverbatim
+      @endverbatim
     </li>
 
 
@@ -7483,21 +7504,17 @@
     <li>
       <tt>sleep <b>num</b></tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. If the <b>`--sleep`</b> command-line option
-      was given, the option value overrides the value given in the
-      <b>sleep</b> command. For example, if @ref PAGE_MYSQLTEST
-      "mysqltest" is started with <b>`--sleep`=10</b>, the command
-      <b>sleep 15</b> sleeps 10 seconds, not 15.
+      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> need not be
+      a whole number and can have a fractional part as well i.e., the
+      command supports sleeping for intervals shorter than 1 second.
 
       @verbatim
   --sleep 10
   sleep 0.5;
       @endverbatim
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-      than necessary. The more of them there are, the slower the test
-      suite becomes.
+      Try not to use <b>sleep</b> command more than necessary. The
+      more of them there are, the slower the test suite becomes.
     </li>
 
     <li>
@@ -8178,7 +8195,7 @@
 
   @section SECTION_WRITING_UNIT_TESTS Writing Unit Tests for Google Test
 
-  The Google Test unit test files are located in the
+  Most of The Google Test unit test files are located in the
   <b>unittest/gunit</b> directory. You can look at these files to
   see how tests are written. Here are some examples:
 
@@ -8193,11 +8210,6 @@
   Most MyTAP-based tests are likely easily converted to Google Test.
   However, there might be low-level tests that absolutely must be run
   on every platform, and thus require MyTAP.
-
-  As currently implemented, the Google Test unit-test programs produce
-  TAP output rather than the “plain” alternative. This can be disabled
-  by using the <b>`--disable-tap-output`</b> command-line option
-  when running a test executable.
 
   To see what options are available, run a test executable with the
   <b>`--help`</b> option.

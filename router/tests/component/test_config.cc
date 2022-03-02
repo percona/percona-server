@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,17 @@
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
+using namespace std::chrono_literals;
 using testing::StartsWith;
 
 class RouterConfigTest : public RouterComponentTest {
  protected:
-  TcpPortPool port_pool_;
+  auto &launch_router(const std::vector<std::string> &params,
+                      int expected_exit_code,
+                      std::chrono::milliseconds wait_ready = -1s) {
+    return ProcessManager::launch_router(params, expected_exit_code, true,
+                                         false, wait_ready);
+  }
 };
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE

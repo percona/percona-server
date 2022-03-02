@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -163,8 +163,8 @@ int ha_blackhole::rnd_next(uchar *) {
       for (Field **field_ptr = table->field; *field_ptr != nullptr;
            ++field_ptr) {
         auto current_field = *field_ptr;
-        if ((current_field->flags & BLOB_FLAG) != 0 &&
-            bitmap_is_set(table->write_set, current_field->field_index)) {
+        if ((current_field->is_flag_set(BLOB_FLAG)) != 0 &&
+            bitmap_is_set(table->write_set, current_field->field_index())) {
           auto bfield = down_cast<Field_blob *>(current_field);
           bfield->set_keep_old_value(true);
           bfield->keep_old_value();
@@ -179,13 +179,13 @@ int ha_blackhole::rnd_next(uchar *) {
 
 int ha_blackhole::rnd_pos(uchar *, uchar *) {
   DBUG_TRACE;
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 void ha_blackhole::position(const uchar *) {
   DBUG_TRACE;
-  DBUG_ASSERT(0);
+  assert(0);
 }
 
 int ha_blackhole::info(uint flag) {

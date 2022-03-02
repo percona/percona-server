@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,7 +45,8 @@ namespace temptable {
 
 class Table {
  public:
-  Table(TABLE *mysql_table, bool all_columns_are_fixed_size);
+  Table(TABLE *mysql_table, Block *shared_block,
+        bool all_columns_are_fixed_size);
 
   /* The `m_rows` member is too expensive to copy around. */
   Table(const Table &) = delete;
@@ -67,6 +68,8 @@ class Table {
   const Columns &columns() const;
 
   size_t number_of_rows() const;
+
+  uint64_t get_mem_counter() const;
 
   const Index &index(size_t i) const;
 
@@ -184,12 +187,16 @@ inline const Columns &Table::columns() const { return m_columns; }
 
 inline size_t Table::number_of_rows() const { return m_rows.size(); }
 
+inline uint64_t Table::get_mem_counter() const {
+  return m_allocator.get_allocated_mem_counter();
+}
+
 inline const Index &Table::index(size_t i) const {
   return *m_index_entries[i].m_index;
 }
 
 inline const Column &Table::column(size_t i) const {
-  DBUG_ASSERT(i < m_columns.size());
+  assert(i < m_columns.size());
   return m_columns[i];
 }
 
@@ -197,16 +204,16 @@ inline const Storage &Table::rows() const { return m_rows; }
 
 inline void Table::row(const Storage::Iterator &pos,
                        unsigned char *mysql_row) const {
-  DBUG_ASSERT(m_mysql_row_length == m_mysql_table_share->rec_buff_length);
+  assert(m_mysql_row_length == m_mysql_table_share->rec_buff_length);
 
   const Storage::Element *storage_element = *pos;
 
   if (m_all_columns_are_fixed_size) {
-    DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
+    assert(m_rows.element_size() == m_mysql_row_length);
 
     memcpy(mysql_row, storage_element, m_mysql_row_length);
   } else {
-    DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
+    assert(m_rows.element_size() == sizeof(Row));
 
     const Row *row = static_cast<const Row *>(storage_element);
     row->copy_to_mysql_row(m_columns, mysql_row, m_mysql_row_length);

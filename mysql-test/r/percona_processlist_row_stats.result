@@ -11,11 +11,11 @@ SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FO
 SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-###	event_scheduler	###	NULL	Daemon	###	###	NULL	0	0
-###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0
-###	root	###	test	Query	###	###	CREATE TABLE t1 (a INT)	0	0
-###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	2	5
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	0	0
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	0	0
+###	root	###	test	Query	###	###	CREATE TABLE t1 (a INT)	###	0	0
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	###	2	5
 SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined
 ###	NULL	0	0
@@ -35,11 +35,11 @@ SET DEBUG_SYNC= 'sent_row SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_
 SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-###	event_scheduler	###	NULL	Daemon	###	###	NULL	0	0
-###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0
-###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a < 15	1	0
-###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	1	0
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	0	0
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	0	0
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a < 15	###	1	0
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	###	1	0
 SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined
 ###	NULL	0	0
@@ -63,11 +63,11 @@ SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FO
 UPDATE t2 SET a = 15 WHERE a = 10;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-###	event_scheduler	###	NULL	Daemon	###	###	NULL	0	0
-###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0
-###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 20	0	5
-###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 10	0	5
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	###	0	0
+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	0	0
+###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 20	###	0	5
+###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 10	###	0	5
 SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined
 ###	NULL	0	0

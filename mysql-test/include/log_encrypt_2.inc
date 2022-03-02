@@ -52,7 +52,7 @@ if (`select locate("KEYRING_KEY", "$redo_log_mode") > 0`) {
 
 # KEYRING_KEY related tests
 
-SELECT rotate_system_key("percona_redo");
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
 
 --let $wait_condition = select variable_value = 2 from performance_schema.global_status where variable_name = 'innodb_encryption_redo_key_version'
 --source include/wait_condition.inc
@@ -66,7 +66,7 @@ SELECT rotate_system_key("percona_redo");
 --let SEARCH_FILE=$MYSQL_TMP_DIR/mysecret_keyring2
 --source include/search_pattern_in_file.inc
 
-SELECT rotate_system_key("percona_redo");
+ALTER INSTANCE ROTATE REDO SYSTEM KEY;
 
 --let $wait_condition = select variable_value = 3 from performance_schema.global_status where variable_name = 'innodb_encryption_redo_key_version'
 --source include/wait_condition.inc
@@ -111,7 +111,7 @@ INSERT INTO t1 SELECT * FROM t1;
 
 # Restart to confirm the encryption info can be retrieved properly.
 --let $restart_parameters= restart: $KEYRING_PARAMS
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/kill_and_restart_mysqld.inc
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";

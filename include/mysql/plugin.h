@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -852,8 +852,7 @@ enum mysql_trx_stat_type {
   @param[in]    value   the value of statistics
 */
 void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
-                            enum mysql_trx_stat_type type,
-                            unsigned long long value);
+                            enum mysql_trx_stat_type type, uint64_t value);
 
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 
@@ -883,9 +882,8 @@ int thd_is_background_thread(const MYSQL_THD thd);
 int mysql_tmpfile(const char *prefix);
 
 /**
-  Check the killed state of a connection
+  Check the killed state of a connection.
 
-  @details
   In MySQL support for the KILL statement is cooperative. The KILL
   statement only sets a "killed" flag. This function returns the value
   of that flag.  A thread should check it often, especially inside
@@ -994,6 +992,10 @@ void thd_kill(unsigned long id);
   @return ft_query_extra_word_chars value
 */
 int thd_get_ft_query_extra_word_chars(void);
+
+typedef bool (*ssl_reload_callback_t)(void *);
+bool register_ssl_reload_callback(ssl_reload_callback_t);
+bool deregister_ssl_reload_callback(ssl_reload_callback_t);
 
 #ifdef __cplusplus
 }

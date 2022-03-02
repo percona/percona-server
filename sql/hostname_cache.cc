@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ Host_errors::Host_errors()
       m_init_connect(0),
       m_local(0) {}
 
-Host_errors::~Host_errors() {}
+Host_errors::~Host_errors() = default;
 
 void Host_errors::reset() {
   m_connect = 0;
@@ -320,7 +320,7 @@ static void add_hostname_impl(const char *ip_string, const char *hostname,
       hostname_cache_by_ip->erase(hostname_cache_lru->front()->ip_key);
       hostname_cache_lru->pop_front();
     }
-    DBUG_ASSERT(hostname_cache_lru->size() < hostname_cache_max_size);
+    assert(hostname_cache_lru->size() < hostname_cache_max_size);
     hostname_cache_lru->emplace_front(entry);
     hostname_cache_by_ip->emplace(entry->ip_key, hostname_cache_lru->begin());
   }
@@ -435,6 +435,7 @@ static inline bool is_hostname_valid(const char *hostname) {
   @return Error status
   @retval 0 Success
   @retval RC_BLOCKED_HOST The host is blocked.
+  @retval RC_LONG_HOSTNAME The hostname is longer than HOSTNAME_LENGTH.
 
   The function does not set/report MySQL server error in case of failure.
   It's caller's responsibility to handle failures of this function
@@ -556,7 +557,13 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   });
 
   DBUG_EXECUTE_IF("getnameinfo_fake_max_length", {
-    std::string s(NI_MAXHOST - 1, 'a');
+    std::string s(HOSTNAME_LENGTH, 'a');
+    strcpy(hostname_buffer, s.c_str());
+    err_code = 0;
+  });
+
+  DBUG_EXECUTE_IF("getnameinfo_fake_max_length_plus_1", {
+    std::string s(HOSTNAME_LENGTH + 1, 'a');
     strcpy(hostname_buffer, s.c_str());
     err_code = 0;
   });
@@ -629,6 +636,11 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
     add_hostname(ip_string, hostname_buffer, false, &errors);
 
     return false;
+  }
+
+  /* Prevent hostnames longer than HOSTNAME_LENGTH from connecting */
+  if (strlen(hostname_buffer) > HOSTNAME_LENGTH) {
+    return RC_LONG_HOSTNAME;
   }
 
   /* Get IP-addresses for the resolved host name (FCrDNS technique). */
@@ -917,7 +929,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
       err_status = vio_get_normalized_ip_string(addr_info->ai_addr,
                                                 addr_info->ai_addrlen,
                                                 ip_buffer, sizeof(ip_buffer));
-      DBUG_ASSERT(!err_status);
+      assert(!err_status);
     }
 
     DBUG_PRINT("info", ("  - '%s'", ip_buffer));
@@ -953,13 +965,13 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
          addr_info = addr_info->ai_next) {
       char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool err_status =
 #endif
           vio_get_normalized_ip_string(addr_info->ai_addr,
                                        addr_info->ai_addrlen, ip_buffer,
                                        sizeof(ip_buffer));
-      DBUG_ASSERT(!err_status);
+      assert(!err_status);
 
       LogErr(INFORMATION_LEVEL, ER_ADDRESSES_FOR_HOSTNAME_LIST_ITEM, ip_buffer);
     }

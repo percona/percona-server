@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
@@ -39,7 +36,7 @@ using my_testing::Server_initializer;
 
 class CostModelTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Add a storage engine to the hton2plugin array.
     // This is needed for the cost model to add cost constants
     // for the storage engine
@@ -48,7 +45,7 @@ class CostModelTest : public ::testing::Test {
     insert_hton2plugin(0, new st_plugin_int())->name = engine_name;
     initializer.SetUp();
   }
-  virtual void TearDown() {
+  void TearDown() override {
     initializer.TearDown();
     delete remove_hton2plugin(0);
   }

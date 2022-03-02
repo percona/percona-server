@@ -1290,7 +1290,7 @@ int ha_tokudb::alter_table_add_or_drop_column(
       memset(&column_dbt, 0, sizeof column_dbt);
       column_dbt.data = column_extra;
       column_dbt.size = num_column_extra;
-      DBUG_ASSERT(num_column_extra <= max_column_extra_size);
+      assert(num_column_extra <= max_column_extra_size);
       error = share->key_file[i]->update_broadcast(
           share->key_file[i], ctx->alter_txn, &column_dbt, DB_IS_RESETTING_OP);
       if (error) {
@@ -1571,7 +1571,9 @@ int ha_tokudb::alter_table_expand_columns(TABLE *altered_table,
 }
 
 // Return true if the field is an unsigned int
-static bool is_unsigned(Field *f) { return (f->flags & UNSIGNED_FLAG) != 0; }
+static bool is_unsigned(Field *f) {
+  return (f->is_flag_set(UNSIGNED_FLAG)) != 0;
+}
 
 // Return the starting offset in the value for a particular index (selected by
 // idx) of a particular field (selected by expand_field_num)

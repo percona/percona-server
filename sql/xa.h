@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator
-#include "sql/psi_memory_key.h"    // key_memory_Recovered_xa_transactions
+#include "sql/psi_memory_key.h"    // key_memory_xa_recovered_transactions
 #include "sql/sql_cmd.h"           // Sql_cmd
 #include "sql/sql_list.h"          // List
 #include "sql/sql_plugin_ref.h"    // plugin_ref
@@ -69,9 +69,9 @@ class Sql_cmd_xa_start : public Sql_cmd {
   Sql_cmd_xa_start(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_START; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_XA_START; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_start(THD *thd);
@@ -89,9 +89,9 @@ class Sql_cmd_xa_end : public Sql_cmd {
   Sql_cmd_xa_end(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_END; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_XA_END; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_end(THD *thd);
@@ -109,11 +109,11 @@ class Sql_cmd_xa_prepare : public Sql_cmd {
  public:
   explicit Sql_cmd_xa_prepare(xid_t *xid_arg) : m_xid(xid_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_PREPARE;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_prepare(THD *thd);
@@ -131,11 +131,11 @@ class Sql_cmd_xa_recover : public Sql_cmd {
   explicit Sql_cmd_xa_recover(bool print_xid_as_hex)
       : m_print_xid_as_hex(print_xid_as_hex) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_RECOVER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool check_xa_recover_privilege(THD *thd) const;
@@ -155,9 +155,11 @@ class Sql_cmd_xa_commit : public Sql_cmd {
   Sql_cmd_xa_commit(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_XA_COMMIT; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_XA_COMMIT;
+  }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   enum xa_option_words get_xa_opt() const { return m_xa_opt; }
 
@@ -179,11 +181,11 @@ class Sql_cmd_xa_rollback : public Sql_cmd {
  public:
   explicit Sql_cmd_xa_rollback(xid_t *xid_arg) : m_xid(xid_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_XA_ROLLBACK;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   bool trans_xa_rollback(THD *thd);
@@ -257,7 +259,7 @@ typedef struct xid_t {
   const char *get_data() const { return data; }
 
   void set_data(const void *v, long l) {
-    DBUG_ASSERT(l <= XIDDATASIZE);
+    assert(l <= XIDDATASIZE);
     memcpy(data, v, l);
   }
 
@@ -313,7 +315,7 @@ typedef struct xid_t {
     return serialize_xid(buf, formatID, gtrid_length, bqual_length, data);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Get printable XID value.
 
@@ -324,7 +326,14 @@ typedef struct xid_t {
   */
   char *xid_to_str(char *buf) const;
 #endif
+  /**
+    Check if equal to another xid.
 
+    @param[in]  xid   the id of another X/Open XA transaction
+
+    @return true iff formats, gtrid_length, bqual_length and the content of
+            gtrid_length+bqual_length bytes is exactly the same
+  */
   bool eq(const xid_t *xid) const {
     return xid->formatID == formatID && xid->gtrid_length == gtrid_length &&
            xid->bqual_length == bqual_length &&
@@ -449,7 +458,7 @@ class XID_STATE {
   }
 
   void start_normal_xa(const XID *xid) {
-    DBUG_ASSERT(m_xid.is_null());
+    assert(m_xid.is_null());
     xa_state = XA_ACTIVE;
     m_xid.set(xid);
     in_recovery = false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,9 +196,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const char *routine_name, bool is_proc, ulong rights,
                           bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-void grant_tables_setup_for_open(
-    TABLE_LIST *tables, thr_lock_type lock_type = TL_WRITE,
-    enum_mdl_type mdl_type = MDL_SHARED_NO_READ_WRITE);
+void acl_tables_setup_for_read(TABLE_LIST *tables);
 
 void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
@@ -333,4 +331,10 @@ bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
 */
 bool check_system_user_privilege(THD *thd, List<LEX_USER> list);
 
+bool read_user_application_user_metadata_from_table(LEX_CSTRING user,
+                                                    LEX_CSTRING host,
+                                                    String *metadata_str,
+                                                    TABLE *table,
+                                                    bool mode_no_backslash);
+bool is_expected_or_transient_error(THD *thd);
 #endif /* AUTH_INTERNAL_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 #ifndef WINDOWS_INCLUDED
 #define WINDOWS_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 #include <cstring>  // std::memcpy
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
@@ -62,7 +62,7 @@ class Temp_table_param;
   accesses, cf. #Window::m_frame_buffer_positions.
 */
 enum class Window_retrieve_cached_row_reason {
-  WONT_UPDATE_HINT = -1,  // special value when using restore_special_record
+  WONT_UPDATE_HINT = -1,  // special value when using restore_special_row
   FIRST_IN_PARTITION = 0,
   CURRENT = 1,
   FIRST_IN_FRAME = 2,
@@ -98,11 +98,10 @@ class Window {
    *
    *------------------------------------------------------------------------*/
  protected:
-  SELECT_LEX *m_select;                 ///< The SELECT the window is on
+  Query_block *m_query_block;           ///< The SELECT the window is on
   PT_order_list *const m_partition_by;  ///< \<window partition clause\>
   PT_order_list *const m_order_by;      ///< \<window order clause\>
   ORDER *m_sorting_order;               ///< merged partition/order by
-  bool m_sort_redundant;                ///< Can use sort from previous w
   PT_frame *const m_frame;              ///< \<window frame clause\>
   Item_string *m_name;                  ///< \<window name\>
   /**
@@ -141,7 +140,7 @@ class Window {
     (At least) one window function needs the cardinality of the partition of
     the current row to evaluate the wf for the current row
   */
-  bool m_needs_card;
+  bool m_needs_partition_cardinality;
 
   /**
     The functions are optimizable with ROW unit. For example SUM is, MAX is
@@ -346,7 +345,12 @@ class Window {
 
   /**
      Keys for m_frame_buffer_cache and m_special_rows_cache, for special
-     rows.
+     rows (see the comment on m_special_row_cache). Note that they are negative,
+     so that they will never collide with actual row numbers in the frame.
+     This allows us to treat them interchangeably with real row numbers
+     as function arguments; e.g., bring_back_frame_row() can restore either
+     a “normal” row from the frame, or one of the special rows, and does not
+     need to take in separate flags for the two.
   */
   enum Special_keys {
     /**
@@ -372,9 +376,10 @@ class Window {
   Temp_table_param *m_frame_buffer_param;
 
   /**
-    Execution state: Holds the temporary output table (for next step) parameters
+    Holds whether this window should be “short-circuit”, ie., goes directly
+    to the query output instead of to a temporary table.
   */
-  Temp_table_param *m_outtable_param;
+  bool m_short_circuit = false;
 
   /**
     Execution state: used iff m_needs_frame_buffering. Holds the TABLE
@@ -411,7 +416,10 @@ class Window {
 
   /**
     Holds a fixed number of copies of special rows; each copy can use up to
-    #m_special_rows_cache_max_length bytes.
+    #m_special_rows_cache_max_length bytes. Special rows are those that are
+    not part of our frame, but that we need to store away nevertheless, because
+    they might be in the table's buffers, which we need for our own purposes
+    during window processing.
     cf. the Special_keys enumeration.
   */
   uchar *m_special_rows_cache;
@@ -594,11 +602,10 @@ class Window {
   */
   Window(Item_string *name, PT_order_list *part, PT_order_list *ord,
          PT_frame *frame, bool is_reference, Item_string *inherit)
-      : m_select(nullptr),
+      : m_query_block(nullptr),
         m_partition_by(part),
         m_order_by(ord),
         m_sorting_order(nullptr),
-        m_sort_redundant(false),
         m_frame(frame),
         m_name(name),
         m_def_pos(0),
@@ -607,7 +614,7 @@ class Window {
         m_needs_frame_buffering(false),
         m_needs_peerset(false),
         m_needs_last_peer_in_frame(false),
-        m_needs_card(false),
+        m_needs_partition_cardinality(false),
         m_row_optimizable(true),
         m_range_optimizable(true),
         m_static_aggregates(false),
@@ -618,7 +625,6 @@ class Window {
         m_ancestor(nullptr),
         m_tmp_pos(nullptr, -1),
         m_frame_buffer_param(nullptr),
-        m_outtable_param(nullptr),
         m_frame_buffer(nullptr),
         m_frame_buffer_total_rows(0),
         m_frame_buffer_partition_offset(0),
@@ -700,7 +706,7 @@ class Window {
 
   /**
     Get the ORDER BY, if any. That is, the first we find along
-    the ancestor chain. Uniqueness checked in #setup_windows
+    the ancestor chain. Uniqueness checked in #setup_windows1
     SQL 2011 7.11 GR 1.b.i.5.A-C
   */
   const PT_order_list *effective_order_by() const {
@@ -738,7 +744,7 @@ class Window {
         p = w->m_partition_by;
       } else {
         /* See #setup_windows for checking */
-        DBUG_ASSERT(w->m_partition_by == nullptr);
+        assert(w->m_partition_by == nullptr);
       }
       w = w->m_ancestor;
     }
@@ -781,9 +787,15 @@ class Window {
 
   /**
     Check that the semantic requirements for window functions over this
-    window are fulfilled, and accumulate evaluation requirements
+    window are fulfilled, and accumulate evaluation requirements.
+    This is run at resolution.
   */
-  bool check_window_functions(THD *thd, SELECT_LEX *select);
+  bool check_window_functions1(THD *thd, Query_block *select);
+  /**
+    Like check_window_functions1() but contains checks which must wait until
+    the start of the execution phase.
+  */
+  bool check_window_functions2(THD *thd);
 
   /**
     For RANGE frames we need to do computations involving add/subtract and
@@ -855,8 +867,8 @@ class Window {
   */
   bool at_partition_border() const { return m_partition_border; }
 
-  void save_special_record(uint64 special_rowno, TABLE *t);
-  void restore_special_record(uint64 special_rowno, uchar *record);
+  void save_special_row(uint64 special_rowno, TABLE *t);
+  void restore_special_row(uint64 special_rowno, uchar *record);
 
   /**
     Resolve any named window to its definition
@@ -865,7 +877,7 @@ class Window {
   static bool resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window);
 
   /**
-    Semantic checking of windows.
+    Semantic checking of windows. Run at resolution.
 
     * Process any window inheritance, that is a window, that in its
     specification refer to another named window.
@@ -896,42 +908,50 @@ class Window {
     @param select           The select for which we are doing windowing
     @param ref_item_array   The base ref items
     @param tables           The list of tables involved
-    @param fields           The list of selected fields
-    @param all_fields       The list of all fields, including hidden ones
+    @param fields           The list of all fields, including hidden ones
     @param windows          The list of windows defined for this select
 
     @return false if success, true if error
   */
-  static bool setup_windows(THD *thd, SELECT_LEX *select,
-                            Ref_item_array ref_item_array, TABLE_LIST *tables,
-                            List<Item> &fields, List<Item> &all_fields,
-                            List<Window> &windows);
+  static bool setup_windows1(THD *thd, Query_block *select,
+                             Ref_item_array ref_item_array, TABLE_LIST *tables,
+                             mem_root_deque<Item *> *fields,
+                             List<Window> &windows);
+  /**
+    Like setup_windows1() but contains operations which must wait until
+    the start of the execution phase.
+
+    @param thd              The session's execution thread
+    @param windows          The list of windows defined for this select
+
+    @return false if success, true if error
+  */
+  static bool setup_windows2(THD *thd, List<Window> &windows);
 
   /**
-    Remove unused window definitions. Do this only after syntactic and
-    semantic checking for errors has been performed.
+    Check window definitions to remove unused windows. We do this
+    only after syntactic and semantic checking for errors has been performed.
+    Eliminate redundant sorts after unused windows are removed.
 
-    @param thd             The session's execution thread
     @param windows         The list of windows defined for this select
   */
-  static void remove_unused_windows(THD *thd, List<Window> &windows);
+  static void eliminate_unused_objects(List<Window> &windows);
 
   /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
 
     @param thd              The session's execution thread
-    @param ref_item_array
+    @param ref_item_array   The base ref items
     @param tables           The list of tables involved
-    @param fields           The list of selected fields
-    @param all_fields       The list of all fields, including hidden ones
+    @param fields           The list of all fields, including hidden ones
     @param o                A list of order by expressions
     @param partition_order  If true, o represent a windowing PARTITION BY,
            else it represents a windowing ORDER BY
     @returns false if success, true if error
   */
   bool resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
-                               TABLE_LIST *tables, List<Item> &fields,
-                               List<Item> &all_fields, ORDER *o,
+                               TABLE_LIST *tables,
+                               mem_root_deque<Item *> *fields, ORDER *o,
                                bool partition_order);
   /**
     Return true if this window's name is not unique in windows
@@ -950,7 +970,7 @@ class Window {
 
     @returns false if success, true if error
   */
-  bool setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
+  bool setup_ordering_cached_items(THD *thd, Query_block *select,
                                    const PT_order_list *o,
                                    bool partition_order);
 
@@ -961,8 +981,8 @@ class Window {
     @return true if we have such a clause, which means we need to sort the
             input table before evaluating the window functions, unless it has
             been made redundant by a previous windowing step, cf.
-            m_sort_redundant, or due to a single row result set, cf.
-            SELECT_LEX::is_implicitly_grouped().
+            reorder_and_eliminate_sorts, or due to a single row result set,
+            cf. Query_block::is_implicitly_grouped().
   */
   bool needs_sorting() const { return m_sorting_order != nullptr; }
 
@@ -990,7 +1010,9 @@ class Window {
     some window function(s) on this window,
     @returns true if that is the case, else false
   */
-  bool needs_card() const { return m_needs_card; }
+  bool needs_partition_cardinality() const {
+    return m_needs_partition_cardinality;
+  }
 
   /**
     Return true if the set of window functions are all ROW unit optimizable.
@@ -1065,15 +1087,10 @@ class Window {
   */
   void set_frame_buffer(TABLE *tab) { m_frame_buffer = tab; }
 
-  /**
-   Getter for m_outtable_param, q.v.
-   */
-  Temp_table_param *outtable_param() const { return m_outtable_param; }
-
-  /**
-   Setter for m_outtable_param, q.v.
-   */
-  void set_outtable_param(Temp_table_param *p) { m_outtable_param = p; }
+  bool short_circuit() const { return m_short_circuit; }
+  void set_short_circuit(bool short_circuit) {
+    m_short_circuit = short_circuit;
+  }
 
   /**
     Getter for m_part_row_number, q.v., the current row number within the
@@ -1194,7 +1211,7 @@ class Window {
     See #m_is_last_row_in_frame
   */
   bool is_last_row_in_frame() const {
-    return m_is_last_row_in_frame || m_select->table_list.elements == 0;
+    return m_is_last_row_in_frame || m_query_block->table_list.elements == 0;
   }
 
   /**
@@ -1288,9 +1305,14 @@ class Window {
   /**
     Free up any resource used to process the window functions of this window,
     e.g. temporary files and in-memory data structures. Called when done
-    with all window processing steps from SELECT_LEX::cleanup.
+    with all window processing steps from Query_block::cleanup.
   */
-  void cleanup(THD *thd);
+  void cleanup();
+
+  /**
+    Free structures that were set up during preparation of window functions
+  */
+  void destroy();
 
   /**
    Reset window state for a new partition.
@@ -1370,16 +1392,8 @@ class Window {
     windows.
 
     @param windows     list of windows
-    @param first_exec  if true, the as done a part of a first prepare, not a
-                       reprepare. On a reprepare the analysis part will be
-                       skipped, since the flag m_sort_redundant flag is stable
-                       across prepares.
-    @todo in WL#6570 we may set m_sorting_order only once, during preparation,
-    then Window::m_sort_redundant could be removed, as well as the first_exec
-    argument.
   */
-  static void reorder_and_eliminate_sorts(List<Window> &windows,
-                                          bool first_exec);
+  static void reorder_and_eliminate_sorts(List<Window> &windows);
 
   /**
     Return true of the physical[1] sort orderings for the two windows are the
@@ -1409,17 +1423,22 @@ class Window {
   bool check_constant_bound(THD *thd, PT_border *border);
 
   /**
-    Check that frame borders are sane, e.g. they are not negative .
+    Check that frame borders are sane; resolution phase.
 
     @param thd      Session thread
-    @param w        The window whose frame we are checking
-    @param f        The frame to check, if any
-    @param prepare  false at EXECUTE ps prepare time, else true
 
-   @returns true if error
+    @returns true if error
   */
-  static bool check_border_sanity(THD *thd, Window *w, const PT_frame *f,
-                                  bool prepare);
+  bool check_border_sanity1(THD *thd);
+  /**
+    Like check_border_sanity1() but contains checks which must wait until
+    the start of the execution phase.
+
+    @param thd      Session thread
+
+    @returns true if error
+  */
+  bool check_border_sanity2(THD *thd);
 };
 
 /**

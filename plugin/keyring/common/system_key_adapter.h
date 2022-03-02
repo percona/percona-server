@@ -35,92 +35,92 @@ class System_key_adapter : public IKey {
 
   uint get_key_version() const noexcept { return key_version; }
 
-  virtual std::string *get_key_signature() const {
-    DBUG_ASSERT(keyring_key != nullptr);
+  std::string *get_key_signature() const override {
+    assert(keyring_key != nullptr);
     return keyring_key->get_key_signature();
   }
 
-  virtual std::string *get_key_type_as_string() {
-    DBUG_ASSERT(keyring_key != nullptr);
+  std::string *get_key_type_as_string() override {
+    assert(keyring_key != nullptr);
     return keyring_key->get_key_type_as_string();
   }
 
-  virtual Key_type get_key_type() const {
-    DBUG_ASSERT(keyring_key != nullptr);
+  Key_type get_key_type() const override {
+    assert(keyring_key != nullptr);
     return keyring_key->get_key_type();
   }
-  virtual std::string *get_key_id() {
-    DBUG_ASSERT(keyring_key != nullptr);
+  std::string *get_key_id() override {
+    assert(keyring_key != nullptr);
     return keyring_key->get_key_id();
   }
-  virtual std::string *get_user_id() {
-    DBUG_ASSERT(keyring_key != nullptr);
+  std::string *get_user_id() override {
+    assert(keyring_key != nullptr);
     return keyring_key->get_user_id();
   }
-  virtual uchar *get_key_data() {
-    DBUG_ASSERT(keyring_key != nullptr);
+  uchar *get_key_data() override {
+    assert(keyring_key != nullptr);
 
     if (system_key_data.key_data.load() == nullptr) construct_system_key_data();
 
     return system_key_data.key_data.load();
   }
-  virtual size_t get_key_data_size() {
-    DBUG_ASSERT(keyring_key != nullptr);
+  size_t get_key_data_size() override {
+    assert(keyring_key != nullptr);
 
     if (system_key_data.key_data.load() == nullptr) construct_system_key_data();
 
     return system_key_data.key_data_size;
   }
-  virtual size_t get_key_pod_size() const noexcept {
-    DBUG_ASSERT(false);
+  size_t get_key_pod_size() const noexcept override {
+    assert(false);
     return 0;
   }
-  virtual uchar *release_key_data() noexcept {
-    DBUG_ASSERT(false);
+  uchar *release_key_data() noexcept override {
+    assert(false);
     return nullptr;
   }
-  virtual void xor_data(uchar *, size_t) noexcept { DBUG_ASSERT(false); }
-  virtual void xor_data() noexcept { DBUG_ASSERT(false); }
-  virtual void set_key_data(uchar *key_data, size_t key_data_size) {
-    DBUG_ASSERT(keyring_key != nullptr);
+  void xor_data(uchar *, size_t) noexcept override { assert(false); }
+  void xor_data() noexcept override { assert(false); }
+  void set_key_data(uchar *key_data, size_t key_data_size) override {
+    assert(keyring_key != nullptr);
     keyring_key->set_key_data(key_data, key_data_size);
   }
-  virtual void set_key_type(const std::string *key_type) {
-    DBUG_ASSERT(keyring_key != nullptr);
+  void set_key_type(const std::string *key_type) override {
+    assert(keyring_key != nullptr);
     keyring_key->set_key_type(key_type);
   }
-  virtual bool load_from_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
-                                size_t *buffer_position MY_ATTRIBUTE((unused)),
-                                size_t input_buffer_size
-                                    MY_ATTRIBUTE((unused))) noexcept {
-    DBUG_ASSERT(false);
+  bool load_from_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
+                        size_t *buffer_position MY_ATTRIBUTE((unused)),
+                        size_t input_buffer_size
+                            MY_ATTRIBUTE((unused))) noexcept override {
+    assert(false);
     return false;
   }
-  virtual void store_in_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
-                               size_t *buffer_position
-                                   MY_ATTRIBUTE((unused))) const noexcept {
-    DBUG_ASSERT(false);
+  void store_in_buffer(uchar *buffer MY_ATTRIBUTE((unused)),
+                       size_t *buffer_position
+                           MY_ATTRIBUTE((unused))) const noexcept override {
+    assert(false);
   }
-  virtual bool is_key_type_valid() {
-    DBUG_ASSERT(false);
+  bool is_key_type_valid() override {
+    assert(false);
     return false;
   }
-  virtual bool is_key_id_valid() {
-    DBUG_ASSERT(false);
+  bool is_key_id_valid() override {
+    assert(false);
     return false;
   }
-  virtual bool is_key_valid() {
-    DBUG_ASSERT(false);
+  bool is_key_valid() override {
+    assert(false);
     return false;
   }
-  virtual bool is_key_length_valid() {
-    DBUG_ASSERT(false);
+  bool is_key_length_valid() override {
+    assert(false);
     return false;
   }
 
  protected:
-  virtual void set_key_type_enum(const std::string *key_type) {
-    DBUG_ASSERT(keyring_key != nullptr);
+  void set_key_type_enum(const std::string *key_type) override {
+    assert(keyring_key != nullptr);
     keyring_key->set_key_type(key_type);
   }
 

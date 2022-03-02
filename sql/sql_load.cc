@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,10 @@
 // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <atomic>
+#include <limits>
 
 #include "libbinlogevents/include/load_data_events.h"
 #include "m_ctype.h"
@@ -71,8 +73,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_rli.h"  // Relay_log_info
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"   // Relay_log_info
 #include "sql/sql_base.h"  // fill_record_n_invoke_before_triggers
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
@@ -114,9 +116,9 @@ XML_TAG::XML_TAG(int l, String f, String v) {
 
 class READ_INFO {
   File file;
-  uchar *buffer,    /* Buffer for read text */
-      *end_of_buff; /* Data in bufferts ends here */
-  uint buff_length; /* Length of buffer */
+  uchar *buffer;      /* Buffer for read text */
+  uchar *end_of_buff; /* Data in buffer ends here */
+  size_t buff_length; /* Length of buffer */
   const uchar *field_term_ptr, *line_term_ptr;
   const char *line_start_ptr, *line_start_end;
   size_t field_term_length, line_term_length, enclosed_length;
@@ -127,13 +129,24 @@ class READ_INFO {
   IO_CACHE cache;
   int level; /* for load xml */
 
+  size_t max_size() { return std::numeric_limits<size_t>::max() - 1; }
+
+  size_t check_length(size_t length, size_t grow) {
+    // Adding new element to the end of the buffer in amortized constant time is
+    // possible only if buffer capacity grows geometrically (capacity * 2) when
+    // buffer is full.
+    const size_t new_length = length + std::max(length, grow);
+    return ((new_length < length || new_length > max_size()) ? max_size()
+                                                             : new_length);
+  }
+
  public:
   bool error, line_truncated, found_null, enclosed;
   uchar *row_start, /* Found row starts here */
       *row_end;     /* Found row ends here */
   const CHARSET_INFO *read_charset;
 
-  READ_INFO(File file, uint tot_length, const CHARSET_INFO *cs,
+  READ_INFO(File file, size_t tot_length, const CHARSET_INFO *cs,
             const String &field_term, const String &line_start,
             const String &line_term, const String &enclosed, int escape,
             bool get_it_from_net, bool is_fifo);
@@ -147,6 +160,7 @@ class READ_INFO {
   /* load xml */
   List<XML_TAG> taglist;
   int read_value(int delim, String *val);
+  int read_cdata(String *val, bool *have_cdata);
   bool read_xml();
   void clear_level(int level);
 
@@ -193,7 +207,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   const String *escaped = m_exchange.field.escaped;
   const String *enclosed = m_exchange.field.enclosed;
   bool is_fifo = false;
-  SELECT_LEX *select = thd->lex->select_lex;
+  Query_block *select = thd->lex->query_block;
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status = THD::NOT_KILLED;
   bool is_concurrent;
@@ -291,10 +305,15 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   is_concurrent =
       (table_list->lock_descriptor().type == TL_WRITE_CONCURRENT_INSERT);
 
-  if (m_opt_fields_or_vars.is_empty()) {
+  if (m_opt_fields_or_vars.empty()) {
     Field_iterator_table_ref field_iterator;
     field_iterator.set(table_list);
     for (; !field_iterator.end_of_fields(); field_iterator.next()) {
+      // Do not include user hidden fields.
+      if (field_iterator.field() != nullptr &&
+          field_iterator.field()->is_hidden())
+        continue;
+
       Item *item;
       if (!(item = field_iterator.create_item(thd))) return true;
 
@@ -309,29 +328,35 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, Ref_item_array(), m_opt_set_fields, INSERT_ACL,
-                     nullptr, false, true) ||
-        setup_fields(thd, Ref_item_array(), m_opt_set_exprs, SELECT_ACL,
-                     nullptr, false, false))
+    if (setup_fields(thd, /*want_privilege=*/INSERT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/true, /*typed_items=*/nullptr,
+                     &m_opt_set_fields, Ref_item_array()) ||
+        setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/false, /*typed_items=*/nullptr,
+                     &m_opt_set_exprs, Ref_item_array()))
       return true;
   } else {  // Part field list
     /*
       Because m_opt_fields_or_vars may contain user variables,
       pass false for column_update in first call below.
     */
-    if (setup_fields(thd, Ref_item_array(), m_opt_fields_or_vars, INSERT_ACL,
-                     nullptr, false, false) ||
-        setup_fields(thd, Ref_item_array(), m_opt_set_fields, INSERT_ACL,
-                     nullptr, false, true))
+    if (setup_fields(thd, /*want_privilege=*/INSERT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/false, /*typed_items=*/nullptr,
+                     &m_opt_fields_or_vars, Ref_item_array()) ||
+        setup_fields(thd, /*want_privilege=*/INSERT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/true, /*typed_items=*/nullptr,
+                     &m_opt_set_fields, Ref_item_array()))
       return true;
 
     /*
       Special updatability test is needed because m_opt_fields_or_vars may
       contain a mix of column references and user variables.
     */
-    Item *item;
-    List_iterator<Item> it(m_opt_fields_or_vars);
-    while ((item = it++)) {
+    for (Item *item : m_opt_fields_or_vars) {
       if ((item->type() == Item::FIELD_ITEM ||
            item->type() == Item::REF_ITEM) &&
           item->field_for_view_update() == nullptr) {
@@ -345,8 +370,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           that corresponding Item_func_get_user_var items are resolved as
           non-const items.
         */
-        Item_func_set_user_var *user_var = new (thd->mem_root)
-            Item_func_set_user_var(item->item_name, item, false);
+        Item_func_set_user_var *user_var =
+            new (thd->mem_root) Item_func_set_user_var(item->item_name, item);
         if (user_var == nullptr) return true;
         thd->lex->set_var_list.push_back(user_var);
       }
@@ -374,8 +399,10 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     if (check_that_all_fields_are_given_values(thd, table, table_list))
       return true;
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, Ref_item_array(), m_opt_set_exprs, SELECT_ACL,
-                     nullptr, false, false))
+    if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/false, /*typed_items=*/nullptr,
+                     &m_opt_set_exprs, Ref_item_array()))
       return true;
   }
 
@@ -394,7 +421,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
     may need a default for columns other than columns1 and columns2.
   */
-  const bool manage_defaults = m_opt_fields_or_vars.elements != 0;
+  const bool manage_defaults = !m_opt_fields_or_vars.empty();
   COPY_INFO info(COPY_INFO::INSERT_OPERATION, &m_opt_fields_or_vars,
                  &m_opt_set_fields, manage_defaults, handle_duplicates,
                  escape_char);
@@ -407,23 +434,23 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
 
   prepare_triggers_for_insert_stmt(thd, table);
 
-  uint tot_length = 0;
+  size_t tot_length = 0;
   bool use_blobs = false, use_vars = false;
-  List_iterator_fast<Item> it(m_opt_fields_or_vars);
-  Item *item;
 
-  while ((item = it++)) {
+  for (Item *item : m_opt_fields_or_vars) {
     const Item *real_item = item->real_item();
 
     if (real_item->type() == Item::FIELD_ITEM) {
       const Field *field = down_cast<const Item_field *>(real_item)->field;
-      if (field->flags & BLOB_FLAG) {
+      if (field->is_flag_set(BLOB_FLAG)) {
         use_blobs = true;
-        tot_length += 256;  // Will be extended if needed
-      } else
+        tot_length += 4096;  // Will be extended if needed
+      } else {
         tot_length += field->field_length;
-    } else if (item->type() == Item::STRING_ITEM)
+      }
+    } else if (item->type() == Item::STRING_ITEM) {
       use_vars = true;
+    }
   }
   if (use_blobs && m_exchange.line.line_term->is_empty() &&
       field_term->is_empty()) {
@@ -458,10 +485,11 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
                   rli->slave_patternload_file_size)) {
         /*
           LOAD DATA INFILE in the slave SQL Thread can only read from
-          --slave-load-tmpdir". This should never happen. Please, report a bug.
+          --replica-load-tmpdir". This should never happen. Please, report a
+          bug.
         */
         LogErr(ERROR_LEVEL, ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY);
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--replica-load-tmpdir");
         return true;
       }
     } else if (!is_secure_file_path(name)) {
@@ -649,10 +677,9 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(
-      table->file->has_transactions() ||
-      !(info.stats.copied || info.stats.deleted) ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(table->file->has_transactions() ||
+         !(info.stats.copied || info.stats.deleted) ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   return error;
 }
@@ -700,8 +727,36 @@ bool Sql_cmd_load_table::write_execute_load_query_log_event(
   return mysql_bin_log.write_event(&e);
 }
 
+namespace {
+/**
+  Checks if an item is a hidden generated column.
+
+  @param table       Pointer to TABLE object
+  @param item        Item to check
+
+  @returns true if checked item is a hidden generated column.
+*/
+inline bool is_hidden_generated_column(TABLE *table, Item *item) {
+  Item *real_item = item->real_item();
+  if (table->has_gcol() && real_item->type() == Item::FIELD_ITEM) {
+    const Field *field = down_cast<Item_field *>(real_item)->field;
+    if (bitmap_is_set(&table->fields_for_functional_indexes,
+                      field->field_index()))
+      return true;
+  }
+  return false;
+}
+}  // namespace
+
 /**
   Read of rows of fixed size + optional garbage + optional newline
+
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
 
   @returns true if error
 */
@@ -709,7 +764,6 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
                                            TABLE_LIST *table_list,
                                            READ_INFO &read_info,
                                            ulong skip_lines) {
-  List_iterator_fast<Item> it(m_opt_fields_or_vars);
   TABLE *table = table_list->table;
   bool err;
   DBUG_TRACE;
@@ -729,7 +783,6 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
       skip_lines--;
       continue;
     }
-    it.rewind();
     uchar *pos = read_info.row_start;
 
     restore_record(table, s->default_values);
@@ -744,13 +797,14 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
 
     Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
 
-    Item *item;
-    while ((item = it++)) {
+    for (Item *item : m_opt_fields_or_vars) {
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
       /*
         There is no variables in fields_vars list in this format so
         this conversion is safe (no need to check for STRING_ITEM).
       */
-      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+      assert(item->real_item()->type() == Item::FIELD_ITEM);
       Item_field *sql_field = static_cast<Item_field *>(item->real_item());
       Field *field = sql_field->field;
       if (field == table->next_number_field)
@@ -857,6 +911,16 @@ class Field_tmp_nullability_guard {
 };
 
 /**
+  Read rows in delimiter-separated formats.
+
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param enclosed    ENCLOSED BY character
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
+
   @returns true if error
 */
 bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
@@ -864,8 +928,6 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                                         READ_INFO &read_info,
                                         const String &enclosed,
                                         ulong skip_lines) {
-  List_iterator_fast<Item> it(m_opt_fields_or_vars);
-  Item *item;
   TABLE *table = table_list->table;
   size_t enclosed_length;
   bool err;
@@ -873,7 +935,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
   enclosed_length = enclosed.length();
 
-  for (;; it.rewind()) {
+  for (;;) {
     if (thd->killed) {
       thd->send_kill_message();
       return true;
@@ -891,10 +953,15 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
     Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
 
-    while ((item = it++)) {
+    auto it = m_opt_fields_or_vars.begin();
+    for (; it != m_opt_fields_or_vars.end(); ++it) {
+      Item *item = *it;
       uint length;
       uchar *pos;
       Item *real_item;
+
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
 
       if (read_info.read_field()) break;
 
@@ -930,8 +997,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
             field->set_null();
           }
         } else if (item->type() == Item::STRING_ITEM) {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
               ->set_null_value(read_info.read_charset);
         }
@@ -947,8 +1013,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
           table->autoinc_field_has_explicit_non_null_value = true;
         field->store((char *)pos, length, read_info.read_charset);
       } else if (item->type() == Item::STRING_ITEM) {
-        DBUG_ASSERT(nullptr !=
-                    dynamic_cast<Item_user_var_as_out_param *>(item));
+        assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
             ->set_value((char *)pos, length, read_info.read_charset);
       }
@@ -961,10 +1026,12 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
       skip_lines--;
       continue;
     }
-    if (item) {
+    if (it != m_opt_fields_or_vars.end()) {
       /* Have not read any field, thus input file is simply ended */
-      if (item == m_opt_fields_or_vars.head()) break;
-      for (; item; item = it++) {
+      if (it == m_opt_fields_or_vars.begin()) break;
+
+      for (; it != m_opt_fields_or_vars.end(); ++it) {
+        Item *item = *it;
         Item *real_item = item->real_item();
         if (real_item->type() == Item::FIELD_ITEM) {
           Field *field = ((Item_field *)real_item)->field;
@@ -992,8 +1059,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         } else if (item->type() == Item::STRING_ITEM) {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
               ->set_null_value(read_info.read_charset);
         }
@@ -1015,9 +1081,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
         fill_record_n_invoke_before_triggers() after all trigger instructions
         has been executed.
       */
-      it.rewind();
-
-      while ((item = it++)) {
+      for (Item *item : m_opt_fields_or_vars) {
         Item *real_item = item->real_item();
         if (real_item->type() == Item::FIELD_ITEM)
           ((Item_field *)real_item)
@@ -1067,19 +1131,24 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 /**
   Read rows in xml format
 
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
+
   @returns true if error
 */
 bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                                         TABLE_LIST *table_list,
                                         READ_INFO &read_info,
                                         ulong skip_lines) {
-  List_iterator_fast<Item> it(m_opt_fields_or_vars);
-  Item *item;
   TABLE *table = table_list->table;
   const CHARSET_INFO *cs = read_info.read_charset;
   DBUG_TRACE;
 
-  for (;; it.rewind()) {
+  for (;;) {
     if (thd->killed) {
       thd->send_kill_message();
       return true;
@@ -1092,7 +1161,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
     xmlit.rewind();
     XML_TAG *tag = nullptr;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("read_xml_field", ("skip_lines=%d", (int)skip_lines));
     while ((tag = xmlit++)) {
       DBUG_PRINT("read_xml_field", ("got tag:%i '%s' '%s'", tag->level,
@@ -1112,9 +1181,15 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
 
     Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
 
-    while ((item = it++)) {
+    auto it = m_opt_fields_or_vars.begin();
+    Item *item = nullptr;
+    for (; it != m_opt_fields_or_vars.end(); ++it) {
+      item = *it;
       /* If this line is to be skipped we don't want to fill field or var */
       if (skip_lines) continue;
+
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
 
       /* find field in tag list */
       xmlit.rewind();
@@ -1142,8 +1217,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
         } else {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
         }
         continue;
@@ -1156,8 +1230,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
           table->autoinc_field_has_explicit_non_null_value = true;
         field->store(tag->value.ptr(), tag->value.length(), cs);
       } else {
-        DBUG_ASSERT(nullptr !=
-                    dynamic_cast<Item_user_var_as_out_param *>(item));
+        assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
             ->set_value(tag->value.ptr(), tag->value.length(), cs);
       }
@@ -1170,11 +1243,11 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
       continue;
     }
 
-    if (item) {
+    if (item != nullptr) {
       /* Have not read any field, thus input file is simply ended */
-      if (item == m_opt_fields_or_vars.head()) break;
+      if (it == m_opt_fields_or_vars.begin()) break;
 
-      for (; item; item = it++) {
+      for (; it != m_opt_fields_or_vars.end(); item = *it++) {
         if (item->type() == Item::FIELD_ITEM) {
           /*
             QQ: We probably should not throw warning for each field.
@@ -1188,8 +1261,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         } else {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
         }
       }
@@ -1256,7 +1328,7 @@ char READ_INFO::unescape(char chr) {
   If last line is empty (in line mode) then it isn't outputed
 */
 
-READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
+READ_INFO::READ_INFO(File file_par, size_t tot_length, const CHARSET_INFO *cs,
                      const String &field_term, const String &line_start,
                      const String &line_term, const String &enclosed_par,
                      int escape, bool get_it_from_net, bool is_fifo)
@@ -1309,10 +1381,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   length = std::max(length, line_start.length());
   stack = stack_pos = (int *)(*THR_MALLOC)->Alloc(sizeof(int) * length);
 
-  if (!(buffer = (uchar *)my_malloc(key_memory_READ_INFO, buff_length + 1,
-                                    MYF(MY_WME))))
+  if (buff_length > max_size() ||
+      !(buffer = (uchar *)my_malloc(key_memory_READ_INFO, buff_length + 1,
+                                    MYF(MY_WME)))) {
     error = true; /* purecov: inspected */
-  else {
+  } else {
     end_of_buff = buffer + buff_length;
     if (init_io_cache(
             &cache, (get_it_from_net) ? -1 : file, 0,
@@ -1361,7 +1434,7 @@ READ_INFO::~READ_INFO() {
       if (chr1 != my_b_EOF) {                           \
         len = my_mbcharlen_2((cs), (chr), chr1);        \
         /* Character is gb18030 or invalid (len = 0) */ \
-        DBUG_ASSERT(len == 0 || len == 2 || len == 4);  \
+        assert(len == 0 || len == 2 || len == 4);       \
       }                                                 \
       if (len != 0) PUSH(chr1);                         \
     }                                                   \
@@ -1552,18 +1625,19 @@ bool READ_INFO::read_field() {
       }
       *to++ = (uchar)chr;
     }
-    /*
-    ** We come here if buffer is too small. Enlarge it and continue
-    */
-    if (!(new_buffer =
+    // We come here if buffer is too small. Enlarge it and continue. Fail if we
+    // cannot extend buffer anymore.
+    const size_t new_buffer_length = check_length(buff_length, IO_SIZE);
+    if ((new_buffer_length == buff_length) ||
+        !(new_buffer =
               (uchar *)my_realloc(key_memory_READ_INFO, (char *)buffer,
-                                  buff_length + 1 + IO_SIZE, MYF(MY_WME)))) {
+                                  new_buffer_length + 1, MYF(MY_WME)))) {
       error = true;
       return true;
     }
     to = new_buffer + (to - buffer);
     buffer = new_buffer;
-    buff_length += IO_SIZE;
+    buff_length = new_buffer_length;
     end_of_buff = buffer + buff_length;
   }
 
@@ -1797,6 +1871,63 @@ int READ_INFO::read_value(int delim, String *val) {
 }
 
 /*
+  Read CDATA value if any.
+  Ignore multibyte and XML escape.
+  Note: the last character read must be '<' before calling this function.
+
+  @param[out] val           Resulting CDATA string.
+  @param[out] have_cdata    Set if really read CDATA.
+
+  @returns    Last character read or
+              my_b_EOF in case of unexpected EOF.
+*/
+int READ_INFO::read_cdata(String *val, bool *have_cdata) {
+  const char cdata_head[] = "![CDATA[";
+  const char *head_ptr = cdata_head;
+
+  /* Check for CDATA head "![CDATA[" */
+  for (size_t i = 0; i < strlen(cdata_head); i++) {
+    int chr = GET;
+
+    if (chr != *head_ptr++) {
+      /*
+        Didn't find "![CDATA[" head,
+        push back the last (unmatched) character
+      */
+      PUSH(chr);
+      /* and all matched from the head. */
+      while (i--) PUSH(*--head_ptr);
+
+      *have_cdata = false;
+      return '<';
+    }
+  }
+
+  int tail[3]{0};
+  for (tail[2] = GET; tail[2] != my_b_EOF; tail[2] = GET) {
+    /* Check for CDATA tail "]]>" */
+    if (tail[0] == ']' && tail[1] == ']' && tail[2] == '>') {
+      /* Cut last two characters ("]]") which were appended to val. */
+      assert(val->length() >= 2);
+      val->length(val->length() - 2);
+
+      *have_cdata = true;
+      return '>';
+    }
+    /* Shift the tail */
+    tail[0] = tail[1];
+    tail[1] = tail[2];
+
+    val->append(tail[2]);
+  }
+
+  /* Didn't find CDATA tail "]]>", the last character read must be my_b_EOF. */
+  assert(tail[2] == my_b_EOF);
+  *have_cdata = false;
+  return my_b_EOF;
+}
+
+/*
   Read a record in xml format
   tags and attributes are stored in taglist
   when tag set in ROWS IDENTIFIED BY is closed, we are ready and return
@@ -1890,8 +2021,16 @@ bool READ_INFO::read_xml() {
           read in the upcoming call to read_value()
          */
         PUSH(chr);
-        chr = read_value('<', &value);
-        if (chr == my_b_EOF) goto found_eof;
+
+        /* Read <![CDATA[ ... ]]> and tag's value. */
+        bool have_cdata;
+        do {
+          chr = read_value('<', &value);
+          if (chr == my_b_EOF) goto found_eof;
+
+          chr = read_cdata(&value, &have_cdata);
+          if (chr == my_b_EOF) goto found_eof;
+        } while (have_cdata);
 
         /* save value to list */
         if (tag.length() > 0 && value.length() > 0) {

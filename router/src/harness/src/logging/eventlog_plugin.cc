@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,8 @@
 #include <Windows.h>
 #include <cstdarg>
 
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::LogTimestampPrecision;
-
-constexpr const char *kEventSourceName = "MySQL Router";
 
 constexpr const char *kRegistryPrefix =
     "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
@@ -73,13 +67,14 @@ static WORD logger_to_eventlog_severity(LogLevel level) {
  *
  */
 
-static void create_eventlog_registry_entry() {
+static void create_eventlog_registry_entry(
+    const std::string &event_source_name) {
   HKEY hRegKey = NULL;
   TCHAR szPath[MAX_PATH];
   DWORD dwTypes;
 
   const std::string registryKey =
-      std::string(kRegistryPrefix) + kEventSourceName;
+      std::string(kRegistryPrefix) + event_source_name;
 
   // Opens the event source registry key; creates it first if required.
   auto dwError =
@@ -89,7 +84,9 @@ static void create_eventlog_registry_entry() {
     if (dwError == ERROR_ACCESS_DENIED) {
       throw std::runtime_error(
           "Could not create or access the registry key needed "
-          "for the MySQL Router application\n"
+          "for the " +
+          event_source_name +
+          " application\n"
           "to log to the Windows EventLog. Run the application "
           "with sufficient\n"
           "privileges once to create the key, add the key "
@@ -99,7 +96,9 @@ static void create_eventlog_registry_entry() {
 
     throw std::runtime_error(
         "Could not create the registry key needed "
-        "for the MySQL Router application\n"
+        "for the " +
+        event_source_name +
+        " application\n"
         "Error: " +
         std::to_string(dwError));
   }
@@ -138,14 +137,17 @@ static void create_eventlog_registry_entry() {
   }
 }
 
-EventlogHandler::EventlogHandler(bool format_messages,
-                                 mysql_harness::logging::LogLevel level,
-                                 bool create_registry_entries /*= true*/)
+EventlogHandler::EventlogHandler(
+    bool format_messages, mysql_harness::logging::LogLevel level,
+    bool create_registry_entries /*= true*/,
+    const std::string event_source_name /*= kDefaultEventSourceName*/)
     : mysql_harness::logging::Handler(format_messages, level,
-                                      LogTimestampPrecision::kSec) {
-  if (create_registry_entries) create_eventlog_registry_entry();
+                                      LogTimestampPrecision::kSec),
+      event_source_name_{event_source_name} {
+  if (create_registry_entries)
+    create_eventlog_registry_entry(event_source_name_);
 
-  event_src_ = RegisterEventSourceA(NULL, kEventSourceName);
+  event_src_ = RegisterEventSourceA(NULL, event_source_name_.c_str());
   if (!event_src_) {
     throw std::runtime_error("Cannot create event log source, error: " +
                              std::to_string(GetLastError()));
@@ -156,7 +158,7 @@ EventlogHandler::~EventlogHandler() { DeregisterEventSource(event_src_); }
 
 void EventlogHandler::do_log(
     const mysql_harness::logging::Record &record) noexcept {
-  LPCSTR strings[] = {kEventSourceName, record.domain.c_str(),
+  LPCSTR strings[] = {event_source_name_.c_str(), record.domain.c_str(),
                       record.message.c_str()};
 
   const auto severity = logger_to_eventlog_severity(record.level);
@@ -166,9 +168,9 @@ void EventlogHandler::do_log(
 }
 
 extern "C" {
-Plugin harness_plugin_eventlog = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
+mysql_harness::Plugin harness_plugin_eventlog = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Logging using eventlog",
     VERSION_NUMBER(0, 0, 1),
     0,
@@ -179,5 +181,6 @@ Plugin harness_plugin_eventlog = {
     nullptr,  // deinit,
     nullptr,  // start,
     nullptr,  // stop
+    false,    // declares_readiness
 };
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +45,8 @@ enum SCHEMA_OP_TYPE {
   SOT_CREATE_DB = 5,
   SOT_ALTER_DB = 6,
   SOT_CLEAR_SLOCK = 7,
-  SOT_TABLESPACE = 8,
-  SOT_LOGFILE_GROUP = 9,
+  SOT_TABLESPACE = 8,     // Never sent since 8.0.14, still reserved
+  SOT_LOGFILE_GROUP = 9,  // Never sent since 8.0.14, still reserved
   SOT_RENAME_TABLE = 10,
   SOT_TRUNCATE_TABLE = 11,
   SOT_RENAME_TABLE_PREPARE = 12,
@@ -149,6 +149,8 @@ class Ndb_schema_dist_client {
   };
   std::vector<Schema_op_result> m_schema_op_results;
 
+  static bool m_ddl_blocked;
+
   void push_and_clear_schema_op_results();
 
   bool log_schema_op_impl(Ndb *ndb, const char *query, int query_length,
@@ -198,6 +200,9 @@ class Ndb_schema_dist_client {
 
   ~Ndb_schema_dist_client();
 
+  static void block_ddl(bool ddl_blocked) { m_ddl_blocked = ddl_blocked; }
+  static bool is_ddl_blocked() { return m_ddl_blocked; }
+
   /*
     @brief Generate unique id for distribution of objects which doesn't have
            global id in NDB.
@@ -229,7 +234,7 @@ class Ndb_schema_dist_client {
            The rename case is different as two different "keys" may be used
            and need to be prepared.
     @param db database name
-    @param table_name table name
+    @param tabname table name
     @param new_db new database name
     @param new_tabname new table name
     @note Always done early to avoid changing metadata which is
@@ -256,7 +261,7 @@ class Ndb_schema_dist_client {
           code(or none at all) should be returned for this error.
     @note Always done early to avoid changing metadata which is
           hard to rollback at a later stage.
-    @param invalid_identifer The name of the identifier that failed the check
+    @param invalid_identifier The name of the identifier that failed the check
     @return true if check succeed
   */
   bool check_identifier_limits(std::string &invalid_identifier);
@@ -282,7 +287,6 @@ class Ndb_schema_dist_client {
 
   /**
    * @brief Convert SCHEMA_OP_TYPE to string
-   * @param type
    * @return string describing the type
    */
   static const char *type_name(SCHEMA_OP_TYPE type);
@@ -314,9 +318,6 @@ class Ndb_schema_dist_client {
   bool acl_notify(const char *db, const char *query, uint query_length,
                   bool participants_must_refresh);
   bool acl_notify(std::string user_list);
-
-  bool tablespace_changed(const char *tablespace_name, int id, int version);
-  bool logfilegroup_changed(const char *logfilegroup_name, int id, int version);
 
   bool create_tablespace(const char *tablespace_name, int id, int version);
   bool alter_tablespace(const char *tablespace_name, int id, int version);

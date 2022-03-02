@@ -52,7 +52,7 @@ let $field= Info;
 let $condition= = 'UPDATE t1 SET c2 = 3 WHERE c1 = 1';
 source include/wait_show_condition.inc;
 
-send STOP SLAVE;
+send STOP REPLICA;
 
 --source include/rpl_connection_slave.inc
 ROLLBACK;

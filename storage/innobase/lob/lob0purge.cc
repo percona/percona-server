@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0index.h"
 #include "lob0inf.h"
 #include "lob0lob.h"
+#include "row0purge.h"
 #include "row0upd.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -129,6 +130,9 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     });
 #endif /* UNIV_DEBUG */
 
+    /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+    do not make conflicting modifications. */
+    ut_ad(!local_mtr.conflicts_with(ctx->get_mtr()));
     mtr_commit(&local_mtr);
 
     DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_middle_of_lob_rollback",
@@ -169,6 +173,10 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ctx->x_latch_rec_page(&local_mtr);
   ref.set_page_no(FIL_NULL, &local_mtr);
   ut_ad(ref.length() == 0);
+
+  /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+  do not make conflicting modifications. */
+  ut_ad(!local_mtr.conflicts_with(ctx->get_mtr()));
   mtr_commit(&local_mtr);
 
   DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_end_of_lob_rollback", 0);
@@ -232,6 +240,9 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     });
 #endif /* UNIV_DEBUG */
 
+    /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+    do not make conflicting modifications. */
+    ut_ad(!local_mtr.conflicts_with(ctx->get_mtr()));
     mtr_commit(&local_mtr);
 
     DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_middle_of_lob_rollback",
@@ -267,16 +278,20 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 }
 
 /** Purge a compressed LOB.
-@param[in]	ctx		the delete operation context information.
-@param[in]	index		clustered index in which LOB is present
-@param[in]	trxid		the transaction that is being purged.
-@param[in]	undo_no		during rollback to savepoint, purge only upto
-                                this undo number.
-@param[in]	rec_type	undo record type. */
+@param[in]	ctx	      the delete operation context information.
+@param[in]	index	      clustered index in which LOB is present
+@param[in]	trxid	      the transaction that is being purged.
+@param[in]	undo_no	      during rollback to savepoint, purge only upto
+                              this undo number.
+@param[in]	rec_type      undo record type.
+@param[in,out]  purge_node    if nullptr, free the complete LOB. Otherwise,
+                              save the first page of LOB in this purge node. */
 static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-                    undo_no_t undo_no, ulint rec_type) {
+                    undo_no_t undo_no, ulint rec_type,
+                    purge_node_t *purge_node) {
   const bool is_rollback = ctx->m_rollback;
   ref_t &ref = ctx->m_blobref;
+  const page_size_t page_size(dict_table_page_size(index->table));
 
   if (is_rollback) {
     z_rollback(ctx, index, trxid, undo_no, rec_type);
@@ -284,20 +299,62 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 
   mtr_t *mtr = ctx->get_mtr();
+  page_no_t first_page_no = ref.page_no();
+  page_id_t page_id(ref.space_id(), first_page_no);
+
+  /* Hold exclusive access to LOB */
+  z_first_page_t btr_first(mtr, index);
+  btr_first.load_x(page_id, page_size);
+
+  const trx_id_t last_trx_id = btr_first.get_last_trx_id();
+  const undo_no_t last_undo_no = btr_first.get_last_trx_undo_no();
+
+  bool ok_to_free_2 = (rec_type == TRX_UNDO_UPD_EXIST_REC ||
+                       rec_type == TRX_UNDO_UPD_DEL_REC) &&
+                      !btr_first.can_be_partially_updated() &&
+                      (last_trx_id == trxid) && (last_undo_no == undo_no);
+
+  if (rec_type == TRX_UNDO_DEL_MARK_REC || ok_to_free_2) {
+    if (dict_index_is_online_ddl(index)) {
+      row_log_table_blob_free(index, ref.page_no());
+    }
+
+    if (purge_node == nullptr) {
+      btr_first.destroy();
+    } else {
+      /* In this case, the LOB is left with only the first page.  Subsequently
+      the LOB first page number in the LOB reference is set to FIL_NULL.
+      This means that the LOB page is only accessible via an in-memory
+      reference held in the purge node. If a crash happens after the btr_mtr
+      commit and before freeing the LOB first page, then the LOB first page
+      will be leaked. We need to come up with a mechanism to avoid this leak.*/
+      btr_first.make_empty();
+      purge_node->add_lob_page(index, page_id);
+    }
+
+    if (ctx->get_page_zip() != nullptr) {
+      ref.set_page_no(FIL_NULL, nullptr);
+      ref.set_length(0, nullptr);
+      ctx->zblob_write_blobref(ctx->m_field_no, mtr);
+    } else {
+      /* Note that page_zip will be NULL in
+      row_purge_upd_exist_or_extern(). */
+      ref.set_page_no(FIL_NULL, mtr);
+      ref.set_length(0, mtr);
+    }
+
+    return;
+  }
+
   mtr_t lob_mtr;
   mtr_start(&lob_mtr);
   lob_mtr.set_log_mode(mtr->get_log_mode());
-
-  page_no_t first_page_no = ref.page_no();
-  page_id_t page_id(ref.space_id(), first_page_no);
 
   z_first_page_t first(&lob_mtr, index);
   first.load_x(first_page_no);
 
   ut_ad(first.validate());
 
-  trx_id_t last_trx_id = first.get_last_trx_id();
-  undo_no_t last_undo_no = first.get_last_trx_undo_no();
   ut_ad(first.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
   flst_base_node_t *flst = first.index_list();
@@ -336,23 +393,6 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 
   mtr_commit(&lob_mtr);
-  first.set_mtr(mtr);
-  first.load_x(first_page_no);
-
-  bool ok_to_free_2 = (rec_type == TRX_UNDO_UPD_EXIST_REC) &&
-                      !first.can_be_partially_updated() &&
-                      (last_trx_id == trxid) && (last_undo_no == undo_no);
-
-  if (rec_type == TRX_UNDO_DEL_MARK_REC || ok_to_free_2) {
-    if (dict_index_is_online_ddl(index)) {
-      row_log_table_blob_free(index, ref.page_no());
-    }
-
-    first.destroy();
-
-  } else {
-    ut_ad(first.validate());
-  }
 
   if (ctx->get_page_zip() != nullptr) {
     ref.set_page_no(FIL_NULL, nullptr);
@@ -367,7 +407,8 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 }
 
 void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf) {
+           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf,
+           purge_node_t *purge_node) {
   DBUG_TRACE;
   mtr_t lob_mtr;
 
@@ -376,6 +417,11 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   const mtr_log_t log_mode = mtr->get_log_mode();
   const bool is_rollback = ctx->m_rollback;
 
+  /* Update the context object based on the persistent cursor. */
+  if (ctx->need_recalc()) {
+    ctx->recalc();
+  }
+
   if (ref.is_null()) {
     /* In the rollback, we may encounter a clustered index
     record with some unwritten off-page columns. There is
@@ -383,6 +429,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     ut_a(ctx->m_rollback);
     return;
   }
+
   /* In case ref.length()==0, the LOB might be partially deleted (for example
   a crash has happened during a rollback() of insert operation) and we want
   to make sure we delete the remaining parts of the LOB so we don't exit here.
@@ -398,31 +445,6 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     /* Undo record contains LOB diffs.  So purge shouldn't look
     at the LOB. */
     return;
-  }
-
-  /* The purpose of the following block is to ensure that the parent mtr does
-  not hold any redo log while creating child mtrs. */
-  if (ctx->m_pcur != nullptr) {
-    /* Below we will restart the btr_mtr.  Between the cursor store and restore,
-    it is possible that the position of the record changes and hence the lob
-    reference could become invalid.  Reset it to correct value. */
-    ctx->restart_mtr();
-    byte *field_ref = ctx->get_field_ref(ctx->m_field_no);
-    ref.set_ref(field_ref);
-  } else {
-    /* Since pcur is not available, take latches to ensure that the record
-    position does not change.  We imitate the purge thread for the latches
-    taken and the order in which they are taken.  Kindly refer to the
-    function row_purge_upd_exist_or_extern_func(). */
-    mtr_start(&lob_mtr);
-    mtr_sx_lock(dict_index_get_lock(index), &lob_mtr);
-    btr_root_get(index, &lob_mtr);
-    ctx->x_latch_rec_page(&lob_mtr);
-    ctx->restart_mtr();
-    mtr_sx_lock(dict_index_get_lock(index), mtr);
-    btr_root_get(index, mtr);
-    ctx->x_latch_rec_page(mtr);
-    mtr_commit(&lob_mtr);
   }
 
   if (!ctx->is_ref_valid()) {
@@ -456,7 +478,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 
   if (page_type == FIL_PAGE_TYPE_ZLOB_FIRST) {
-    z_purge(ctx, index, trxid, undo_no, rec_type);
+    z_purge(ctx, index, trxid, undo_no, rec_type, purge_node);
     return;
   }
 
@@ -467,6 +489,43 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     return;
   }
 
+  /* Hold exclusive access to LOB */
+  first_page_t btr_first(mtr, index);
+  btr_first.load_x(page_id, page_size);
+  const trx_id_t last_trx_id = btr_first.get_last_trx_id();
+  const undo_no_t last_undo_no = btr_first.get_last_trx_undo_no();
+
+  /* Check if the LOB has to be destroyed. */
+  bool ok_to_free = (rec_type == TRX_UNDO_UPD_EXIST_REC ||
+                     rec_type == TRX_UNDO_UPD_DEL_REC) &&
+                    !btr_first.can_be_partially_updated() &&
+                    (last_trx_id == trxid) && (last_undo_no == undo_no);
+
+  if (rec_type == TRX_UNDO_DEL_MARK_REC || ok_to_free) {
+    ut_ad(btr_first.get_page_type() == FIL_PAGE_TYPE_LOB_FIRST);
+
+    if (dict_index_is_online_ddl(index)) {
+      row_log_table_blob_free(index, ref.page_no());
+    }
+    if (purge_node == nullptr) {
+      btr_first.destroy();
+    } else {
+      /* In this case, the LOB is left with only the first page.  Subsequently
+      the LOB first page number in the LOB reference is set to FIL_NULL.
+      This means that the LOB page is only accessible via an in-memory
+      reference held in the purge node. If a crash happens after the btr_mtr
+      commit and before freeing the LOB first page, then the LOB first page
+      will be leaked. We need to come up with a mechanism to avoid this leak.*/
+      btr_first.make_empty();
+      purge_node->add_lob_page(index, page_id);
+    }
+
+    ref.set_page_no(FIL_NULL, mtr);
+    ref.set_length(0, mtr);
+
+    return;
+  }
+
   mtr_start(&lob_mtr);
   lob_mtr.set_log_mode(log_mode);
 
@@ -474,9 +533,6 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   index_entry_t cur_entry(&lob_mtr, index);
   first_page_t first(&lob_mtr, index);
   first.load_x(page_id, page_size);
-
-  trx_id_t last_trx_id = first.get_last_trx_id();
-  undo_no_t last_undo_no = first.get_last_trx_undo_no();
 
   flst_base_node_t *flst = first.index_list();
   flst_base_node_t *free_list = first.free_list();
@@ -504,28 +560,19 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
 
+    /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+    do not make conflicting modifications. */
+    ut_ad(!lob_mtr.conflicts_with(mtr));
     mtr_commit(&lob_mtr);
     mtr_start(&lob_mtr);
     lob_mtr.set_log_mode(log_mode);
     first.load_x(page_id, page_size);
   }
 
+  /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+  do not make conflicting modifications. */
+  ut_ad(!lob_mtr.conflicts_with(mtr));
   mtr_commit(&lob_mtr);
-  first.set_mtr(ctx->get_mtr());
-  first.load_x(page_id, page_size);
-
-  bool ok_to_free = (rec_type == TRX_UNDO_UPD_EXIST_REC) &&
-                    !first.can_be_partially_updated() &&
-                    (last_trx_id == trxid) && (last_undo_no == undo_no);
-
-  if (rec_type == TRX_UNDO_DEL_MARK_REC || ok_to_free) {
-    ut_ad(first.get_page_type() == FIL_PAGE_TYPE_LOB_FIRST);
-
-    if (dict_index_is_online_ddl(index)) {
-      row_log_table_blob_free(index, ref.page_no());
-    }
-    first.destroy();
-  }
 
   ref.set_page_no(FIL_NULL, mtr);
   ref.set_length(0, mtr);

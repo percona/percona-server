@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -134,7 +134,8 @@ retry:
   ut_a(success);
 
   btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, node->trx->id,
-                             node->undo_no, node->rec_type, &mtr, &node->pcur);
+                             node->undo_no, node->rec_type, &mtr, &node->pcur,
+                             nullptr);
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
@@ -145,7 +146,8 @@ retry:
 
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }
@@ -249,7 +251,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     only matters when deleting a record that contains
     externally stored columns. */
     ut_ad(!index->is_clustered());
-    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr);
+    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr,
+                               &pcur, nullptr);
   }
 func_exit:
   btr_pcur_close(&pcur);
@@ -292,7 +295,8 @@ retry:
   if (err != DB_SUCCESS && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }
@@ -328,7 +332,7 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
 
   /* Skip the UNDO if we can't find the table or the .ibd file. */
   if (node->table == nullptr) {
-  } else if (node->table->file_unreadable) {
+  } else if (node->table->ibd_file_missing) {
   close_table:
     dd_table_close(node->table, thd, mdl, false);
 

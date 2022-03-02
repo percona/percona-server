@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ class Service_visitor : public Select_lex_visitor {
       : m_processor(processor), m_arg(arg) {}
 
  protected:
-  bool visit_item(Item *item) {
+  bool visit_item(Item *item) override {
     switch (item->type()) {
         // These are all the literals.
       case Item::PARAM_ITEM:
@@ -119,9 +119,9 @@ class Plugin_error_handler : public Internal_error_handler {
     if (handle_error != nullptr) thd->push_internal_handler(this);
   }
 
-  virtual bool handle_condition(THD *, uint sql_errno_u, const char *sqlstate,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) {
+  bool handle_condition(THD *, uint sql_errno_u, const char *sqlstate,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     int sql_errno = static_cast<int>(sql_errno_u);
     if (m_handle_error != nullptr)
       return m_handle_error(sql_errno, sqlstate, msg, m_state) != 0;
@@ -130,7 +130,7 @@ class Plugin_error_handler : public Internal_error_handler {
 
   const char *get_message() { return m_message; }
 
-  ~Plugin_error_handler() {
+  ~Plugin_error_handler() override {
     if (m_handle_error != nullptr) m_thd->pop_internal_handler();
   }
 };
@@ -146,7 +146,7 @@ MYSQL_THD mysql_parser_open_session() {
 
   thd->security_context()->set_host_ptr(STRING_WITH_LEN(my_localhost));
   thd->lex = new LEX;
-  thd->lex->set_current_select(nullptr);
+  thd->lex->set_current_query_block(nullptr);
 
   thd->variables.character_set_client = old_thd->variables.character_set_client;
 

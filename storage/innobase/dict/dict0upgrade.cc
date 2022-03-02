@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -244,7 +244,16 @@ static bool dd_upgrade_match_single_col(const Field *field, dict_col_t *col) {
 
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->mtype == col_type););
 
-  if (col->mtype != col_type) {
+  /* The columns of datatype MYSQL_TYPE_GEOMETRY were represented in InnoDB
+  as DATA_BLOB until 5.7 where they were changed to DATA_GEOMETRY type.
+  However, the following check fails while upgrading a 5.7 database with
+  GEOMETRY columns originally created with 5.6.
+  It is safe to ignore this datatype mismatch here so that upgrade can proceed
+  without affecting anything else. The correct datatype will be reflected in the
+  metadata once it is upgraded. */
+  if (col_type == DATA_GEOMETRY && col->mtype == DATA_BLOB) {
+    ib::warn(ER_IB_WRN_OLD_GEOMETRY_TYPE, field->field_name);
+  } else if (col->mtype != col_type) {
     ib::error(ER_IB_MSG_239)
         << "Column datatype mismatch for col: " << field->field_name;
     failure = true;
@@ -277,9 +286,9 @@ static bool dd_upgrade_match_single_col(const Field *field, dict_col_t *col) {
   ulint long_true_varchar = 0;
 
   if (field->type() == MYSQL_TYPE_VARCHAR) {
-    col_len -= ((Field_varstring *)field)->length_bytes;
+    col_len -= field->get_length_bytes();
 
-    if (((Field_varstring *)field)->length_bytes == 2) {
+    if (field->get_length_bytes() == 2) {
       long_true_varchar = DATA_LONG_TRUE_VARCHAR;
     }
   }
@@ -518,7 +527,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
   for (ulint i = 0; i < key->user_defined_key_parts; i++) {
     KEY_PART_INFO *key_part = key->key_part + i;
 
-    Field *field = srv_table->field[key_part->field->field_index];
+    Field *field = srv_table->field[key_part->field->field_index()];
     if (field == nullptr) ut_error;
 
     const char *field_name = key_part->field->field_name;
@@ -544,8 +553,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
         (key_part->length < field->pack_length() &&
          field->type() != MYSQL_TYPE_VARCHAR) ||
         (field->type() == MYSQL_TYPE_VARCHAR &&
-         key_part->length <
-             field->pack_length() - ((Field_varstring *)field)->length_bytes)) {
+         key_part->length < field->pack_length() - field->get_length_bytes())) {
       switch (col_type) {
         default:
           prefix_len = key_part->length;
@@ -681,6 +689,33 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t *index,
   }
 }
 
+/** Ensures that the ib_table->dd_space_id is properly initialized.
+@param[in]  thd       The THD to identify as during lookup
+@param[in]  ib_table  The instance to be initialized
+@return true iff it succeeded */
+static bool dd_upgrade_ensure_has_dd_space_id(THD *thd,
+                                              dict_table_t *ib_table) {
+  if (ib_table->dd_space_id != dd::INVALID_OBJECT_ID) {
+    /* Already initialized, nothing to do. */
+    return true;
+  }
+  if (ib_table->space == SYSTEM_TABLE_SPACE) {
+    ib_table->dd_space_id = dict_sys_t::s_dd_sys_space_id;
+    /* Tables in system tablespace cannot be discarded. */
+    ut_ad(!dict_table_is_discarded(ib_table));
+    return true;
+  }
+  dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+  dd::Tablespace *dd_space =
+      dd_upgrade_get_tablespace(thd, dd_client, ib_table);
+  if (dd_space == nullptr) {
+    return false;
+  }
+  ib_table->dd_space_id = dd_space->id();
+  return true;
+}
+
 /** Migrate partitions to new dictionary
 @param[in]	thd		Server thread object
 @param[in]	norm_name	partition table name
@@ -749,39 +784,13 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
           dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
     }
 
-    /* Set Discarded attribute in DD table se_private_data */
-    if (dict_table_is_discarded(part_table)) {
-      part_obj->se_private_data().set(dd_table_key_strings[DD_TABLE_DISCARD],
-                                      true);
-    }
+    /* We don't support upgrade from 5.7 with discarded Tablespaces.
+     Upgrade should stop in a dd_upgrade_tablespace function. */
+    ut_ad(!dict_table_is_discarded(part_table));
 
-    dd::Object_id dd_space_id;
-
-    if (part_table->space == SYSTEM_TABLE_SPACE) {
-      dd_space_id = dict_sys_t::s_dd_sys_space_id;
-      /* Tables in system tablespace cannot be discarded. */
-      ut_ad(!dict_table_is_discarded(part_table));
-    } else {
-      dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
-      dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-      dd::Tablespace *dd_space =
-          dd_upgrade_get_tablespace(thd, dd_client, part_table);
-      ut_ad(dd_space != nullptr);
-
-      if (dd_space == nullptr) {
-        dict_table_close(part_table, false, false);
-        return (true);
-      }
-
-      dd_space_id = dd_space->id();
-      /* If table is discarded, set discarded attribute in tablespace
-      object */
-      if (dict_table_is_discarded(part_table)) {
-        dd_tablespace_set_state(dd_space, DD_SPACE_STATE_DISCARDED);
-        if (dd_client->update(dd_space)) {
-          ut_ad(0);
-        }
-      }
+    if (!dd_upgrade_ensure_has_dd_space_id(thd, part_table)) {
+      ut_ad(false);
+      return true;
     }
 
     dd_set_table_options(part_obj, part_table);
@@ -793,13 +802,12 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                           << "Partition Index " << part_index->name()
                           << " from server for table: " << part_table->name;);
 
-      for (dict_index_t *index = UT_LIST_GET_FIRST(part_table->indexes);
-           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+      for (auto index : part_table->indexes) {
         if (strcmp(part_index->name().c_str(), index->name()) == 0) {
           uint64_t read_auto_inc = 0;
-          dd_upgrade_process_index(part_index, index, dd_space_id, has_auto_inc,
-                                   auto_inc_index_name, auto_inc_col_name,
-                                   &read_auto_inc);
+          dd_upgrade_process_index(part_index, index, part_table->dd_space_id,
+                                   has_auto_inc, auto_inc_index_name,
+                                   auto_inc_col_name, &read_auto_inc);
           ++processed_indexes_num;
           if (has_auto_inc) {
             max_auto_inc = std::max(max_auto_inc, read_auto_inc);
@@ -921,6 +929,10 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     return (true);
   }
 
+  /* We don't support upgrade from 5.7 with discarded Tablespaces.
+   Upgrade should stop in a dd_upgrade_tablespace function. */
+  ut_ad(!dict_table_is_discarded(ib_table));
+
   /* If all FTS index are dropped but Innodb still retains the
   FTS_DOC_ID column then add FTS_DOC_ID column and index to DD table */
   bool added_fts_col = dd_upgrade_fix_fts_column(dd_table, ib_table);
@@ -939,31 +951,9 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                                      ib_table->id);
   }
 
-  dd::Object_id dd_space_id;
-  if (ib_table->space == SYSTEM_TABLE_SPACE) {
-    dd_space_id = dict_sys_t::s_dd_sys_space_id;
-    /* Tables in system tablespace cannot be discarded. */
-    ut_ad(!dict_table_is_discarded(ib_table));
-  } else {
-    dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-    dd::Tablespace *dd_space =
-        dd_upgrade_get_tablespace(thd, dd_client, ib_table);
-
-    if (dd_space == nullptr) {
-      dict_table_close(ib_table, false, false);
-      return (true);
-    }
-
-    dd_space_id = dd_space->id();
-    /* If table is discarded, set discarded attribute in tablespace
-    object */
-    if (dict_table_is_discarded(ib_table)) {
-      dd_tablespace_set_state(dd_space, DD_SPACE_STATE_DISCARDED);
-      if (dd_client->update(dd_space)) {
-        ut_ad(0);
-      }
-    }
+  if (!dd_upgrade_ensure_has_dd_space_id(thd, ib_table)) {
+    dict_table_close(ib_table, false, false);
+    return true;
   }
 
   dd_table->set_se_private_id(ib_table->id);
@@ -973,12 +963,6 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     ut_ad(dict_table_is_file_per_table(ib_table));
     dd_table->se_private_data().set(
         dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
-  }
-
-  /* Set Discarded attribute in DD table se_private_data */
-  if (dict_table_is_discarded(ib_table)) {
-    dd_table->se_private_data().set(dd_table_key_strings[DD_TABLE_DISCARD],
-                                    true);
   }
 
   /* Set row_type */
@@ -1017,16 +1001,15 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                         << "Index " << dd_index->name()
                         << " from server for table: " << ib_table->name;);
 
-    for (dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (auto index : ib_table->indexes) {
       if (strcmp(dd_index->name().c_str(), index->name()) == 0) {
         if (!dd_index->is_hidden()) {
           failure = dd_upgrade_match_index(srv_table, index);
         }
 
-        dd_upgrade_process_index(dd_index, index, dd_space_id, has_auto_inc,
-                                 auto_inc_index_name, auto_inc_col_name,
-                                 &auto_inc);
+        dd_upgrade_process_index(dd_index, index, ib_table->dd_space_id,
+                                 has_auto_inc, auto_inc_index_name,
+                                 auto_inc_col_name, &auto_inc);
         ++processed_indexes_num;
         break;
       }
@@ -1050,16 +1033,16 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     ib_table->autoinc = auto_inc == 0 ? 0 : auto_inc + 1;
   }
 
-  if (dict_table_has_fts_index(ib_table)) {
+  if (dict_table_has_fts_index(ib_table) || added_fts_col) {
     dberr_t err = fts_upgrade_aux_tables(ib_table);
 
     if (err != DB_SUCCESS) {
       dict_table_close(ib_table, false, false);
       return (true);
     } else {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       dict_table_prevent_eviction(ib_table);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       tables_with_fts.push_back(ib_table->name.m_name);
     }
@@ -1136,9 +1119,9 @@ static uint32_t dd_upgrade_register_tablespace(
 /** Migrate tablespace entries from InnoDB SYS_TABLESPACES to new data
 dictionary. FTS Tablespaces are not registered as they are handled differently.
 FTS tablespaces have table_id in their name and we increment table_id of each
-table by DICT_MAX_DD_TABLES.
-@param[in,out]  thd             THD
-@return MySQL error code*/
+table by DICT_MAX_DD_TABLES
+@param[in,out]	thd		THD
+@return MySQL error code */
 int dd_upgrade_tablespace(THD *thd) {
   DBUG_TRACE;
   btr_pcur_t pcur;
@@ -1146,10 +1129,15 @@ int dd_upgrade_tablespace(THD *thd) {
   mem_heap_t *heap;
   mtr_t mtr;
 
+  if (has_discarded_tablespaces) {
+    ib::error(ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES);
+    return HA_ERR_TABLESPACE_MISSING;
+  }
+
   heap = mem_heap_create(1000);
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   mtr_start(&mtr);
 
   /* Pattern for matching the FTS auxiliary tablespace name which starts with
@@ -1168,7 +1156,7 @@ int dd_upgrade_tablespace(THD *thd) {
     err_msg = dict_process_sys_tablespaces(heap, rec, &space, &name, &flags);
 
     mtr_commit(&mtr);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     std::string tablespace_name(name);
 
     if (!err_msg && !regex_search(tablespace_name, fts_regex)) {
@@ -1208,9 +1196,9 @@ int dd_upgrade_tablespace(THD *thd) {
         }
       }
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       char *filename = dict_get_first_path(space);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       std::string orig_name(filename);
       ut_free(filename);
@@ -1230,9 +1218,9 @@ int dd_upgrade_tablespace(THD *thd) {
 
         /* Validate whether the tablespace file exists before making
         the entry in dd::tablespaces*/
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
         fil_space_t *fil_space = fil_space_get(space);
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
 
         /* If the file is not already opened, check for its existence
         by opening it in read-only mode. */
@@ -1266,12 +1254,12 @@ int dd_upgrade_tablespace(THD *thd) {
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     mtr_start(&mtr);
   }
 
   mtr_commit(&mtr);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* These are file_per_table tablespaces(created using 5.5 or
   earlier). These are not found in SYS_TABLESPACES but discovered
@@ -1310,16 +1298,16 @@ int dd_upgrade_tablespace(THD *thd) {
   return 0;
 }
 
-/** Add server version number to tablespace while upgrading.
-@param[in]      space_id              space id of tablespace
-@param[in]      server_version_only   leave space version unchanged
+/** Add server and space version number to tablespace while upgrading.
+@param[in]	space_id		space id of tablespace
+@param[in]	server_version_only	leave space version unchanged
 @return false on success, true on failure. */
 bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
   buf_block_t *block;
   page_t *page;
   mtr_t mtr;
 
-  fil_space_t *space = fil_space_acquire(space_id);
+  fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
     return (true);
@@ -1368,8 +1356,8 @@ bool upgrade_space_version(dd::Tablespace *tablespace) {
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
 first 256 table_ids are reserved for dictionary.
-@param[in,out]  thd             THD
-@return MySQL error code*/
+@param[in,out]	thd		THD
+@return MySQL error code */
 int dd_upgrade_logs(THD *thd) {
   int error = 0; /* return zero for success */
   DBUG_TRACE;
@@ -1399,7 +1387,7 @@ the end of successful upgrade */
 static void dd_upgrade_drop_sys_tables() {
   ut_ad(srv_is_upgrade_mode);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   bool found;
   const page_size_t page_size(
@@ -1439,7 +1427,7 @@ static void dd_upgrade_drop_sys_tables() {
   dict_sys->sys_fields = nullptr;
   dict_sys->sys_virtual = nullptr;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** Stat backup tables(innodb_*_stats_backup57) are created by server before
@@ -1461,7 +1449,7 @@ static void dd_upgrade_drop_57_backup_spaces() {
       continue;
     }
 
-    auto err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+    auto err = fil_delete_tablespace(space_id, BUF_REMOVE_NONE);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL, space_name);
@@ -1481,7 +1469,7 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
     if (ib_table != nullptr) {
       fts_upgrade_rename(ib_table, failed_upgrade);
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       /* Do not mark the table ready for eviction if there is
       a foreign key relationship on this table */
@@ -1489,7 +1477,7 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
         dict_table_allow_eviction(ib_table);
       }
       dict_table_close(ib_table, true, false);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
   }
 }
@@ -1544,7 +1532,7 @@ bool dd_upgrade_get_compression_dict_data(
     return (false);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   mem_heap_t *heap = mem_heap_create(1000);
   mtr_t mtr;
@@ -1566,7 +1554,7 @@ bool dd_upgrade_get_compression_dict_data(
                                         &name_len, &data, &data_len);
 
     mtr_commit(&mtr);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (!err_msg) {
       data_vector.push_back(std::make_pair(std::string(name, name_len),
@@ -1580,13 +1568,13 @@ bool dd_upgrade_get_compression_dict_data(
     mem_heap_empty(heap);
 
     /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     mtr_start(&mtr);
     rec = dict_getnext_system(&pcur, &mtr);
   }
 
   mtr_commit(&mtr);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   mem_heap_free(heap);
 
   return (false);

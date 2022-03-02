@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,18 @@
 
 #include "sql/sql_show_status.h"
 
-#include <stddef.h>
-
 #include "lex_string.h"
 #include "m_string.h"  // STRING_WITH_LEN
+#include "my_alloc.h"  // operator new
 #include "my_sqlcommand.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/mem_root_array.h"
-#include "sql/parse_tree_items.h"  // PTI_simple_ident_ident
-#include "sql/parse_tree_nodes.h"  // PT_select_item_list
-#include "sql/sql_class.h"         // THD
-#include "sql/sql_lex.h"           // Query_options
+#include "sql/parse_tree_items.h"      // PTI_simple_ident_ident
+#include "sql/parse_tree_node_base.h"  // Parse_context
+#include "sql/parse_tree_nodes.h"      // PT_select_item_list
+#include "sql/parser_yystype.h"        // Create_col_name_list
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_lex.h"               // Query_options
 #include "sql/strfunc.h"
 #include "sql_string.h"
 
@@ -82,10 +83,10 @@
               WHERE @<where_clause@>
   </code>
 */
-static SELECT_LEX *build_query(const POS &pos, THD *thd,
-                               enum_sql_command command,
-                               const LEX_CSTRING &table_name,
-                               const String *wild, Item *where_cond) {
+static Query_block *build_query(const POS &pos, THD *thd,
+                                enum_sql_command command,
+                                const LEX_CSTRING &table_name,
+                                const String *wild, Item *where_cond) {
   /*
     MAINTAINER:
     This code builds a parsed tree for a query.
@@ -99,8 +100,6 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   static const LEX_CSTRING col_value = {STRING_WITH_LEN("VARIABLE_VALUE")};
   static const LEX_CSTRING as_value = {STRING_WITH_LEN("Value")};
   static const LEX_CSTRING pfs = {STRING_WITH_LEN("performance_schema")};
-
-  static const LEX_CSTRING star = {STRING_WITH_LEN("*")};
 
   static const Query_options options = {
       0 /* query_spec_options */
@@ -197,8 +196,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   if (table_reference_list1.push_back(derived_table)) return nullptr;
 
   /* SELECT * ... */
-  PTI_simple_ident_ident *ident_star;
-  ident_star = new (thd->mem_root) PTI_simple_ident_ident(pos, star);
+  Item_asterisk *ident_star;
+  ident_star = new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr);
   if (ident_star == nullptr) return nullptr;
 
   PT_select_item_list *item_list1;
@@ -229,9 +228,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
     if (wild_string == nullptr) return nullptr;
 
     /* ... Variable_name LIKE <value> ... */
-    Item_func_like *func_like;
-    func_like = new (thd->mem_root)
-        Item_func_like(pos, ident_name_where, wild_string, nullptr);
+    Item_func_like *func_like =
+        new (thd->mem_root) Item_func_like(pos, ident_name_where, wild_string);
     if (func_like == nullptr) return nullptr;
 
     /* ... WHERE Variable_name LIKE <value> ... */
@@ -257,8 +255,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   if (query_expression2 == nullptr) return nullptr;
 
   LEX *lex = thd->lex;
-  SELECT_LEX *current_select = lex->current_select();
-  Parse_context pc(thd, current_select);
+  Query_block *current_query_block = lex->current_query_block();
+  Parse_context pc(thd, current_query_block);
   if (thd->is_error()) return nullptr;
 
   lex->sql_command = SQLCOM_SELECT;
@@ -267,27 +265,28 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   /* contextualize sets to COM_SELECT */
   lex->sql_command = command;
 
-  return current_select;
+  return current_query_block;
 }
 
-SELECT_LEX *build_show_session_status(const POS &pos, THD *thd,
-                                      const String *wild, Item *where_cond) {
+Query_block *build_show_session_status(const POS &pos, THD *thd,
+                                       const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_status")};
 
   return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild,
                      where_cond);
 }
 
-SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
-                                     const String *wild, Item *where_cond) {
+Query_block *build_show_global_status(const POS &pos, THD *thd,
+                                      const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("global_status")};
 
   return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild,
                      where_cond);
 }
 
-SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
-                                         const String *wild, Item *where_cond) {
+Query_block *build_show_session_variables(const POS &pos, THD *thd,
+                                          const String *wild,
+                                          Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_variables")};
 
   DBUG_EXECUTE_IF("catch_show_gtid_mode", {
@@ -306,8 +305,8 @@ SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
                      where_cond);
 }
 
-SELECT_LEX *build_show_global_variables(const POS &pos, THD *thd,
-                                        const String *wild, Item *where_cond) {
+Query_block *build_show_global_variables(const POS &pos, THD *thd,
+                                         const String *wild, Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("global_variables")};
 
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,

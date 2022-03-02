@@ -30,6 +30,7 @@
 /* MyRocks header files */
 #include "./rdb_cf_options.h"
 #include "./rdb_datadic.h"
+#include "./rdb_global.h"
 
 namespace myrocks {
 
@@ -47,7 +48,7 @@ namespace myrocks {
   - CFs are created in a synchronized way. We can't remove them, yet.
 */
 
-class Rdb_cf_manager {
+class Rdb_cf_manager : public Ensure_initialized {
   std::map<std::string, std::shared_ptr<rocksdb::ColumnFamilyHandle>>
       m_cf_name_map;
   std::map<uint32_t, std::shared_ptr<rocksdb::ColumnFamilyHandle>> m_cf_id_map;
@@ -74,7 +75,7 @@ class Rdb_cf_manager {
 
   /*
     Used by CREATE TABLE.
-    - cf_name=nullptr means use default column family
+    - cf_name requires non-empty string
     - create=true means create cf if missing, otherwise return nullptr
   */
   std::shared_ptr<rocksdb::ColumnFamilyHandle> get_or_create_cf(

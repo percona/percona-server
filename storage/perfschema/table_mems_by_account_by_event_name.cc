@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_mems_by_account_by_event_name.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -178,7 +178,7 @@ int table_mems_by_account_by_event_name::rnd_pos(const void *pos) {
 int table_mems_by_account_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_mems_by_account_by_event_name *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_mems_by_account_by_event_name);
   m_opened_index = result;
   m_index = result;
@@ -236,6 +236,7 @@ int table_mems_by_account_by_event_name::make_row(PFS_account *account,
     return HA_ERR_RECORD_DELETED;
   }
 
+  visitor.m_stat.normalize(false);
   m_row.m_stat.set(&visitor.m_stat);
 
   return 0;
@@ -248,21 +249,21 @@ int table_mems_by_account_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
         case 1: /* HOST */
-          m_row.m_account.set_field(f->field_index, f);
+          m_row.m_account.set_field(f->field_index(), f);
           break;
         case 2: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);
           break;
         default: /* 3, ... HIGH_NUMBER_OF_BYTES_USED */
-          m_row.m_stat.set_field(f->field_index - 3, f);
+          m_row.m_stat.set_field(f->field_index() - 3, f);
           break;
       }
     }

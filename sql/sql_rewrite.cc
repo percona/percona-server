@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,8 +86,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // GRANT_ACL
 #include "sql/handler.h"
-#include "sql/log_event.h"  // append_query_string
-#include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
+#include "sql/log_event.h"    // append_query_string
+#include "sql/rpl_replica.h"  // SLAVE_SQL, SLAVE_IO
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"  // Sql_cmd_clone
 #include "sql/sql_class.h"  // THD
@@ -101,7 +101,7 @@
 #include "sql_string.h"  // String
 #include "violite.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define HASH_STRING_WITH_QUOTE \
   "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
@@ -182,7 +182,7 @@ bool append_str(String *str, bool comma, const char *key, const char *val) {
 */
 void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
                     String *str) {
-  DBUG_ASSERT(thd);
+  assert(thd);
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_host(user->host.str, user->host.length, system_charset_info);
   if (comma) str->append(',');
@@ -256,10 +256,10 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params,
       rw.reset(new Rewriter_show_create_user(thd, type, params));
       break;
     case SQLCOM_CHANGE_MASTER:
-      rw.reset(new Rewriter_change_master(thd, type));
+      rw.reset(new Rewriter_change_replication_source(thd, type));
       break;
     case SQLCOM_SLAVE_START:
-      rw.reset(new Rewriter_slave_start(thd, type));
+      rw.reset(new Rewriter_replica_start(thd, type));
       break;
     case SQLCOM_CREATE_SERVER:
       rw.reset(new Rewriter_create_server(thd, type));
@@ -283,6 +283,9 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params,
     */
     case SQLCOM_PREPARE:
       rw.reset(new Rewriter_prepare(thd, type));
+      break;
+    case SQLCOM_START_GROUP_REPLICATION:
+      rw.reset(new Rewriter_start_group_replication(thd, type));
       break;
     case SQLCOM_CLONE: {
       rw.reset(new Rewriter_clone(thd, type));
@@ -332,10 +335,10 @@ void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
   String rlb;
 
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   // We should not come through here twice for the same query.
-  DBUG_ASSERT(thd->rewritten_query().length() == 0);
+  assert(thd->rewritten_query().length() == 0);
 
   if (thd->lex->contains_plaintext_password) {
     rewrite_query(thd, type, params, rlb);
@@ -381,10 +384,10 @@ void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
 
 I_rewriter::I_rewriter(THD *thd, Consumer_type type)
     : m_thd(thd), m_consumer_type(type) {
-  DBUG_ASSERT(thd);
+  assert(thd);
 }
 
-I_rewriter::~I_rewriter() {}
+I_rewriter::~I_rewriter() = default;
 /**
   Reset the previous consumer type.
 
@@ -423,8 +426,53 @@ bool Rewriter_user::rewrite(String &rlb) const {
   rewrite_password_reuse(lex, &rlb);
   rewrite_password_require_current(lex, &rlb);
   rewrite_account_lock_state(lex, &rlb);
+  rewrite_user_application_user_metadata(lex, &rlb);
   return false;
 }
+
+/**
+  Use the LEX for reconstructing the ATTRIBUTE or COMMENT clause.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_user::rewrite_in_memory_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  if (lex->alter_user_attribute ==
+      enum_alter_user_attribute::ALTER_USER_ATTRIBUTE) {
+    str->append(" ATTRIBUTE '");
+  } else if (lex->alter_user_attribute ==
+             enum_alter_user_attribute::ALTER_USER_COMMENT) {
+    str->append(" COMMENT '");
+  }
+  if (lex->alter_user_attribute !=
+      enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
+    str->append(lex->alter_user_comment_text);
+    str->append("'");
+  }
+}
+
+/**
+  Default implementaiton of the the rewriter for user applicatiton
+  user metadata.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_create_user::rewrite_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  parent::rewrite_in_memory_user_application_user_metadata(lex, str);
+}
+
+/**
+  Default implementaiton of the the rewriter for user applicatiton
+  user metadata.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_alter_user::rewrite_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  parent::rewrite_in_memory_user_application_user_metadata(lex, str);
+}
+
 /**
   Append the literal \<secret\> in place of password to the output string
 
@@ -481,7 +529,7 @@ void Rewriter_user::rewrite_ssl_properties(const LEX *lex, String *str) const {
         str->append(STRING_WITH_LEN(" NONE"));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -571,7 +619,7 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
       // Do nothing
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
@@ -650,11 +698,12 @@ void Rewriter_user::rewrite_password_reuse(const LEX *lex, String *str) const {
     str->append(STRING_WITH_LEN(" DAY"));
   }
 }
+
 /**
   Fetch the users from user_list in LEX struct and append them to the String.
 
-  @param [in]       lex
-  @param [in, out]  str
+  @param [in]       lex     LEX struct to check if clause is specified
+  @param [in, out]  str     The string in which clause is suffixed
 */
 void Rewriter_user::rewrite_users(LEX *lex, String *str) const {
   bool comma = false;
@@ -859,6 +908,12 @@ Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
 
 /**
   Rewrite the query for the SHOW CREATE USER statement.
+  This method takes an additional parameter from the
+  Show_user_params to reconstruct the ATTRIBUTE clause.
+  These parameters must be read form disk which is done
+  in mysql_show_create_user()
+
+  @sa mysql_show_create_user()
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
@@ -868,6 +923,23 @@ bool Rewriter_show_create_user::rewrite(String &rlb) const {
   rlb.append("CREATE USER ");
   parent::rewrite(rlb);
   return true;
+}
+
+/**
+  Overrides implementaiton of the the rewriter for user application
+  user metadata. This is needed because we have to read the
+  ATTRIBUTE data from disk.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_show_create_user::rewrite_user_application_user_metadata(
+    const LEX *lex MY_ATTRIBUTE((unused)), String *str) const {
+  /* Only show the ATTRIBUTE operator if there's any attribute to show. */
+  if (show_params_->metadata_str->length() > 0) {
+    str->append(" ATTRIBUTE '");
+    str->append(*show_params_->metadata_str);
+    str->append("'");
+  }
 }
 
 /**
@@ -930,7 +1002,7 @@ void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
                                                       bool comma,
                                                       String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  DBUG_ASSERT(m_thd->lex->contains_plaintext_password == false);
+  assert(m_thd->lex->contains_plaintext_password == false);
   str->append(STRING_WITH_LEN(" IDENTIFIED"));
   append_plugin_name(user, str);
   if (user->auth.length > 0) {
@@ -990,7 +1062,7 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
     if (m_users == nullptr || m_users->size() == 0) return ret_val;
 
     /* SET PASSWORD should always have one user */
-    DBUG_ASSERT(m_users->size() == 1);
+    assert(m_users->size() == 1);
     bool set_temp_string = false;
     /*
       Setting this flag will generate the password hash string which
@@ -1002,7 +1074,7 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
     String current_host(user->host.str, user->host.length, system_charset_info);
     String auth_str;
     if (set_temp_string) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       auth_str = String(HASH_STRING_WITH_QUOTE, strlen(HASH_STRING_WITH_QUOTE),
                         system_charset_info);
 #endif
@@ -1047,7 +1119,7 @@ Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
 bool Rewriter_grant::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
 
-  TABLE_LIST *first_table = lex->select_lex->table_list.first;
+  TABLE_LIST *first_table = lex->query_block->table_list.first;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
@@ -1069,14 +1141,12 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     rlb.append(STRING_WITH_LEN("PROXY"));
   else if (lex->all_privileges)
     rlb.append(STRING_WITH_LEN("ALL PRIVILEGES"));
-  else if (lex->grant_privilege)
-    rlb.append(STRING_WITH_LEN("GRANT OPTION"));
   else {
     bool comma = false;
     ulong priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
-      if (priv == GRANT_ACL) continue;
+      if (priv == GRANT_ACL && !lex->grant_privilege) continue;
 
       bool comma_inner = false;
 
@@ -1107,14 +1177,17 @@ bool Rewriter_grant::rewrite(String &rlb) const {
       if (comma_inner || (lex->grant & priv))  // show privilege name
       {
         comma_maybe(&rlb, &comma);
-        rlb.append(global_acls_vector[c].c_str(),
-                   global_acls_vector[c].length());
+        if (priv == GRANT_ACL)
+          rlb.append(STRING_WITH_LEN("GRANT OPTION"));
+        else
+          rlb.append(global_acls_vector[c].c_str(),
+                     global_acls_vector[c].length());
         if (!(lex->grant & priv))  // general outranks specific
           rlb.append(cols);
       }
     }
     /* List extended global privilege IDs */
-    if (!first_table && !lex->current_select()->db) {
+    if (!first_table && !lex->current_query_block()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
       LEX_CSTRING *privilege;
       while ((privilege = it++)) {
@@ -1147,22 +1220,14 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     user_name = get_current_user(m_thd, tmp_user_name);
     if (user_name) append_auth_id(m_thd, user_name, comma, &rlb);
   } else if (first_table) {
-    if (first_table->is_view()) {
-      append_identifier(m_thd, &rlb, first_table->view_db.str,
-                        first_table->view_db.length);
-      rlb.append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, &rlb, first_table->view_name.str,
-                        first_table->view_name.length);
-    } else {
-      append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
-      rlb.append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, &rlb, first_table->table_name,
-                        strlen(first_table->table_name));
-    }
+    append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
+    rlb.append(STRING_WITH_LEN("."));
+    append_identifier(m_thd, &rlb, first_table->table_name,
+                      strlen(first_table->table_name));
   } else {
-    if (lex->current_select()->db)
-      append_identifier(m_thd, &rlb, lex->current_select()->db,
-                        strlen(lex->current_select()->db));
+    if (lex->current_query_block()->db)
+      append_identifier(m_thd, &rlb, lex->current_query_block()->db,
+                        strlen(lex->current_query_block()->db));
     else
       rlb.append("*");
     rlb.append(STRING_WITH_LEN(".*"));
@@ -1211,7 +1276,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
             rlb.append(STRING_WITH_LEN("NONE"));
             break;
           default:
-            DBUG_ASSERT(false);
+            assert(false);
             rlb.append(STRING_WITH_LEN("NONE"));
             break;
         }
@@ -1221,44 +1286,45 @@ bool Rewriter_grant::rewrite(String &rlb) const {
   return true;
 }
 
-Rewriter_change_master::Rewriter_change_master(THD *thd, Consumer_type type)
+Rewriter_change_replication_source::Rewriter_change_replication_source(
+    THD *thd, Consumer_type type)
     : I_rewriter(thd, type) {}
 
 /**
-  Rewrite the query for the CHANGE MASTER statement.
+  Rewrite the query for the CHANGE REPLICATION SOURCE statement.
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
   @retval        true    the query was rewritten
   @retval        false   otherwise
 */
-bool Rewriter_change_master::rewrite(String &rlb) const {
+bool Rewriter_change_replication_source::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
-  rlb.append(STRING_WITH_LEN("CHANGE MASTER TO "));
+  rlb.append(STRING_WITH_LEN("CHANGE REPLICATION SOURCE TO "));
   bool comma = false;
-  comma = append_str(&rlb, comma, "MASTER_BIND =", lex->mi.bind_addr);
-  comma = append_str(&rlb, comma, "MASTER_HOST =", lex->mi.host);
-  comma = append_str(&rlb, comma, "MASTER_USER =", lex->mi.user);
+  comma = append_str(&rlb, comma, "SOURCE_BIND =", lex->mi.bind_addr);
+  comma = append_str(&rlb, comma, "SOURCE_HOST =", lex->mi.host);
+  comma = append_str(&rlb, comma, "SOURCE_USER =", lex->mi.user);
 
   if (lex->mi.password) {
     comma_maybe(&rlb, &comma);
-    rlb.append(STRING_WITH_LEN("MASTER_PASSWORD = <secret>"));
+    rlb.append(STRING_WITH_LEN("SOURCE_PASSWORD = <secret>"));
   }
-  comma = append_int(&rlb, comma, STRING_WITH_LEN("MASTER_PORT ="),
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_PORT ="),
                      lex->mi.port, lex->mi.port > 0);
-  // condition as per rpl_slave.cc
-  comma = append_int(&rlb, comma, STRING_WITH_LEN("MASTER_CONNECT_RETRY ="),
+  // condition as per rpl_replica.cc
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_CONNECT_RETRY ="),
                      lex->mi.connect_retry, lex->mi.connect_retry > 0);
   comma = append_int(
-      &rlb, comma, STRING_WITH_LEN("MASTER_RETRY_COUNT ="), lex->mi.retry_count,
+      &rlb, comma, STRING_WITH_LEN("SOURCE_RETRY_COUNT ="), lex->mi.retry_count,
       lex->mi.retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
-  // MASTER_DELAY 0..MASTER_DELAY_MAX; -1 == unspecified
-  comma = append_int(&rlb, comma, STRING_WITH_LEN("MASTER_DELAY ="),
+  // SOURCE_DELAY 0..SOURCE_DELAY_MAX; -1 == unspecified
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_DELAY ="),
                      lex->mi.sql_delay, lex->mi.sql_delay >= 0);
 
   if (lex->mi.heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
     comma_maybe(&rlb, &comma);
-    rlb.append(STRING_WITH_LEN("MASTER_HEARTBEAT_PERIOD = "));
+    rlb.append(STRING_WITH_LEN("SOURCE_HEARTBEAT_PERIOD = "));
     if (lex->mi.heartbeat_opt == LEX_MASTER_INFO::LEX_MI_DISABLE)
       rlb.append(STRING_WITH_LEN("0"));
     else {
@@ -1269,12 +1335,12 @@ bool Rewriter_change_master::rewrite(String &rlb) const {
   }
 
   // log file (slave I/O thread)
-  comma = append_str(&rlb, comma, "MASTER_LOG_FILE =", lex->mi.log_file_name);
-  // MASTER_LOG_POS is >= BIN_LOG_HEADER_SIZE; 0 == unspecified in stmt.
-  comma = append_int(&rlb, comma, STRING_WITH_LEN("MASTER_LOG_POS ="),
+  comma = append_str(&rlb, comma, "SOURCE_LOG_FILE =", lex->mi.log_file_name);
+  // SOURCE_LOG_POS is >= BIN_LOG_HEADER_SIZE; 0 == unspecified in stmt.
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_LOG_POS ="),
                      lex->mi.pos, lex->mi.pos != 0);
   comma = append_int(
-      &rlb, comma, STRING_WITH_LEN("MASTER_AUTO_POSITION ="),
+      &rlb, comma, STRING_WITH_LEN("SOURCE_AUTO_POSITION ="),
       (lex->mi.auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
       lex->mi.auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
@@ -1285,36 +1351,36 @@ bool Rewriter_change_master::rewrite(String &rlb) const {
                      lex->mi.relay_log_pos, lex->mi.relay_log_pos != 0);
 
   // SSL
-  comma = append_int(&rlb, comma, STRING_WITH_LEN("MASTER_SSL ="),
+  comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_SSL ="),
                      lex->mi.ssl == LEX_MASTER_INFO::LEX_MI_ENABLE ? 1 : 0,
                      lex->mi.ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
-  comma = append_str(&rlb, comma, "MASTER_SSL_CA =", lex->mi.ssl_ca);
-  comma = append_str(&rlb, comma, "MASTER_SSL_CAPATH =", lex->mi.ssl_capath);
-  comma = append_str(&rlb, comma, "MASTER_SSL_CERT =", lex->mi.ssl_cert);
-  comma = append_str(&rlb, comma, "MASTER_SSL_CRL =", lex->mi.ssl_crl);
-  comma = append_str(&rlb, comma, "MASTER_SSL_CRLPATH =", lex->mi.ssl_crlpath);
-  comma = append_str(&rlb, comma, "MASTER_SSL_KEY =", lex->mi.ssl_key);
-  comma = append_str(&rlb, comma, "MASTER_SSL_CIPHER =", lex->mi.ssl_cipher);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CA =", lex->mi.ssl_ca);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CAPATH =", lex->mi.ssl_capath);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CERT =", lex->mi.ssl_cert);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CRL =", lex->mi.ssl_crl);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CRLPATH =", lex->mi.ssl_crlpath);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_KEY =", lex->mi.ssl_key);
+  comma = append_str(&rlb, comma, "SOURCE_SSL_CIPHER =", lex->mi.ssl_cipher);
   comma = append_int(
-      &rlb, comma, STRING_WITH_LEN("MASTER_SSL_VERIFY_SERVER_CERT ="),
+      &rlb, comma, STRING_WITH_LEN("SOURCE_SSL_VERIFY_SERVER_CERT ="),
       (lex->mi.ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1
                                                                          : 0,
       lex->mi.ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
-  comma = append_str(&rlb, comma, "MASTER_TLS_VERSION =", lex->mi.tls_version);
+  comma = append_str(&rlb, comma, "SOURCE_TLS_VERSION =", lex->mi.tls_version);
   if (LEX_MASTER_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
     comma_maybe(&rlb, &comma);
-    rlb.append(STRING_WITH_LEN("MASTER_TLS_CIPHERSUITES = NULL"));
+    rlb.append(STRING_WITH_LEN("SOURCE_TLS_CIPHERSUITES = NULL"));
   } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
-    comma = append_str(&rlb, comma, "MASTER_TLS_CIPHERSUITES =",
+    comma = append_str(&rlb, comma, "SOURCE_TLS_CIPHERSUITES =",
                        lex->mi.tls_ciphersuites_string);
   }
 
   // Public key
   comma = append_str(&rlb, comma,
-                     "MASTER_PUBLIC_KEY_PATH =", lex->mi.public_key_path);
+                     "SOURCE_PUBLIC_KEY_PATH =", lex->mi.public_key_path);
   comma = append_int(
-      &rlb, comma, STRING_WITH_LEN("GET_MASTER_PUBLIC_KEY ="),
+      &rlb, comma, STRING_WITH_LEN("GET_SOURCE_PUBLIC_KEY ="),
       (lex->mi.get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
       lex->mi.get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
@@ -1333,11 +1399,21 @@ bool Rewriter_change_master::rewrite(String &rlb) const {
     rlb.append(STRING_WITH_LEN(" )"));
   }
   if (lex->mi.compression_algorithm)
-    comma = append_str(&rlb, comma, "MASTER_COMPRESSION_ALGORITHMS = ",
+    comma = append_str(&rlb, comma, "SOURCE_COMPRESSION_ALGORITHMS = ",
                        lex->mi.compression_algorithm);
   comma = append_int(
-      &rlb, comma, STRING_WITH_LEN("MASTER_ZSTD_COMPRESSION_LEVEL = "),
+      &rlb, comma, STRING_WITH_LEN("SOURCE_ZSTD_COMPRESSION_LEVEL = "),
       lex->mi.zstd_compression_level, lex->mi.zstd_compression_level != 0);
+
+  // SOURCE_CONNECTION_AUTO_FAILOVER
+  comma = append_int(&rlb, comma,
+                     STRING_WITH_LEN("SOURCE_CONNECTION_AUTO_FAILOVER ="),
+                     (lex->mi.m_source_connection_auto_failover ==
+                      LEX_MASTER_INFO::LEX_MI_ENABLE)
+                         ? 1
+                         : 0,
+                     lex->mi.m_source_connection_auto_failover !=
+                         LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)
@@ -1345,20 +1421,20 @@ bool Rewriter_change_master::rewrite(String &rlb) const {
   return true;
 }
 
-Rewriter_slave_start::Rewriter_slave_start(THD *thd, Consumer_type type)
+Rewriter_replica_start::Rewriter_replica_start(THD *thd, Consumer_type type)
     : I_rewriter(thd, type) {}
 
 /**
-  Rewrite the query for the SLAVE START statement.
+  Rewrite the query for the SLAVE REPLICA statement.
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
   @retval        true    The query was rewritten.
 */
-bool Rewriter_slave_start::rewrite(String &rlb) const {
+bool Rewriter_replica_start::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
 
-  rlb.append(STRING_WITH_LEN("START SLAVE"));
+  rlb.append(STRING_WITH_LEN("START REPLICA"));
 
   /* thread_types */
 
@@ -1386,10 +1462,10 @@ bool Rewriter_slave_start::rewrite(String &rlb) const {
     rlb.append(STRING_WITH_LEN(" UNTIL SQL_AFTER_MTS_GAPS"));
   }
 
-  // MASTER_LOG_FILE/POS
+  // SOURCE_LOG_FILE/POS
   else if (lex->mi.log_file_name) {
-    append_str(&rlb, false, " UNTIL MASTER_LOG_FILE =", lex->mi.log_file_name);
-    append_int(&rlb, true, STRING_WITH_LEN("MASTER_LOG_POS ="), lex->mi.pos,
+    append_str(&rlb, false, " UNTIL SOURCE_LOG_FILE =", lex->mi.log_file_name);
+    append_int(&rlb, true, STRING_WITH_LEN("SOURCE_LOG_POS ="), lex->mi.pos,
                lex->mi.pos > 0);
   }
 
@@ -1525,4 +1601,37 @@ Rewriter_clone::Rewriter_clone(THD *thd, Consumer_type type)
 bool Rewriter_clone::rewrite(String &rlb) const {
   auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(m_thd->lex->m_sql_cmd);
   return (clone_cmd->rewrite(m_thd, rlb));
+}
+
+Rewriter_start_group_replication::Rewriter_start_group_replication(
+    THD *thd, Consumer_type type)
+    : I_rewriter(thd, type) {}
+
+/**
+  Rewrite the query for the START GROUP_REPLICATION command.
+
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval true  the query is rewritten
+*/
+bool Rewriter_start_group_replication::rewrite(String &rlb) const {
+  LEX *lex = m_thd->lex;
+  bool comma = false;
+
+  rlb.append(STRING_WITH_LEN("START GROUP_REPLICATION"));
+
+  if (lex->slave_connection.user) {
+    comma = append_str(&rlb, comma, " USER =", lex->slave_connection.user);
+  }
+
+  if (lex->slave_connection.password) {
+    comma = append_str(&rlb, comma, " PASSWORD =", "<secret>");
+  }
+
+  if (lex->slave_connection.plugin_auth) {
+    comma = append_str(&rlb, comma,
+                       " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
+  }
+
+  return true;
 }

@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -47,16 +47,6 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
 ADD_CUSTOM_TARGET(GenClientError ALL
   DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
 
-
-IF(BUILD_BUNDLED_LZ4)
-  ADD_LIBRARY(lz4_lib STATIC
-    ../extra/lz4/lz4.c
-    ../extra/lz4/lz4frame.c
-    ../extra/lz4/lz4hc.c
-    ../extra/lz4/xxhash.c
-  )
-ENDIF()
-
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 
 # Create localized error message files, <language>/errmsg.sys
@@ -72,14 +62,14 @@ FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 # Please see errmsg_readme.txt in the same directory for more information.
 #
 ADD_CUSTOM_COMMAND(OUTPUT
-  ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  ${PROJECT_BINARY_DIR}/include/mysqld_error.h
   ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   COMMAND comp_err
   --charset=${PROJECT_SOURCE_DIR}/share/charsets
   --out-dir=${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/
-  --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h
   --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   --errmsg_file=${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   --in_file_errlog=${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
@@ -91,7 +81,7 @@ ADD_CUSTOM_COMMAND(OUTPUT
 
 
 ADD_CUSTOM_TARGET(GenError ALL
-  DEPENDS 
+  DEPENDS
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
   ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
@@ -141,13 +131,11 @@ IF(BUILD_BUNDLED_LZ4)
     )
 ENDIF()
 
-IF(BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
-  MYSQL_ADD_EXECUTABLE(zlib_decompress
-    zlib_decompress.cc
-    COMPONENT Server
-    LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
-    )
-ENDIF()
+MYSQL_ADD_EXECUTABLE(zlib_decompress
+  zlib_decompress.cc
+  COMPONENT Server
+  LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
+  )
 
 # All targets below belong to COMPONENT Server and depend on InnoDB.
 IF(WITHOUT_SERVER)
@@ -155,30 +143,6 @@ IF(WITHOUT_SERVER)
 ENDIF()
 
 ADD_DEFINITIONS(-DHAVE_LZ4=1)
-
-IF(NOT MSVC)
-  IF(NOT CMAKE_CROSSCOMPILING)
-    CHECK_C_SOURCE_RUNS(
-      "#include<stdint.h>
-      int main()
-      {
-        unsigned char       a = 0;
-        unsigned char       b = 0;
-        unsigned char       c = 1;
-
-        __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
-        __atomic_compare_exchange(&a, &b, &c, 0,
-                                __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
-        return(0);
-      }"
-      HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
-      )
-  ENDIF()
-
-  IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
-    ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
-  ENDIF()
-ENDIF(NOT MSVC)
 
 # Add path to the InnoDB headers and DD
 INCLUDE_DIRECTORIES(
@@ -198,6 +162,13 @@ TARGET_COMPILE_DEFINITIONS(innochecksum PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(innochecksum.cc
     COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
+ENDIF()
+
+# This compiler says -Werror=stringop-overflow= for:
+# memcmp(&space_id, buf.begin() + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4)
+IF(MY_COMPILER_IS_GNU_8)
+  ADD_COMPILE_FLAGS(innochecksum.cc COMPILE_FLAGS "-Wno-stringop-overflow")
+  MY_TARGET_LINK_OPTIONS(innochecksum "-Wno-stringop-overflow")
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ibd2sdi

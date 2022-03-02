@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -402,6 +402,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_servers.h"  // FOREIGN_SERVER, get_server_by_name
+#include "sql_common.h"
 #include "template_utils.h"
 #include "unsafe_string_append.h"
 
@@ -932,7 +933,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
       (*field)->set_null();
       (*field)->reset();
     } else {
-      if (bitmap_is_set(table->read_set, (*field)->field_index)) {
+      if (bitmap_is_set(table->read_set, (*field)->field_index())) {
         (*field)->set_notnull();
 
         // Field_json::store expects the incoming data to be in utf8mb4_bin, so
@@ -943,9 +944,9 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
           (*field)->store(*row, *lengths, &my_charset_bin);
         }
 
-        if ((*field)->flags & BLOB_FLAG) {
+        if ((*field)->is_flag_set(BLOB_FLAG)) {
           Field_blob *blob_field = down_cast<Field_blob *>(*field);
-          size_t length = blob_field->get_length(blob_field->ptr);
+          size_t length = blob_field->get_length();
           // BLOB data is not stored inside record. It only contains a
           // pointer to it. Copy the BLOB data into a separate memory
           // area so that it is not overwritten by subsequent calls to
@@ -953,7 +954,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
           if (length > 0) {
             unsigned char *new_blob = new (&m_blob_root) unsigned char[length];
             if (new_blob == nullptr) return HA_ERR_OUT_OF_MEM;
-            memcpy(new_blob, blob_field->get_ptr(), length);
+            memcpy(new_blob, blob_field->get_blob_data(), length);
             blob_field->set_ptr(length, new_blob);
           }
         }
@@ -1408,7 +1409,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
     prepare_for_next_key_part:
       if (store_length >= length) break;
       DBUG_PRINT("info", ("remainder %d", remainder));
-      DBUG_ASSERT(remainder > 1);
+      assert(remainder > 1);
       length -= store_length;
       /*
         For nullable columns, null-byte is already skipped before, that is
@@ -1566,7 +1567,7 @@ int ha_federated::open(const char *name, int, uint, const dd::Table *) {
   if (!(share = get_share(name, table))) return 1;
   thr_lock_data_init(&share->lock, &lock, nullptr);
 
-  DBUG_ASSERT(mysql == nullptr);
+  assert(mysql == nullptr);
 
   ref_length = sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
@@ -1601,7 +1602,7 @@ int ha_federated::close(void) {
     it will reconnect again and quit silently.
   */
   if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
-    mysql->net.error = 2;
+    mysql->net.error = NET_ERROR_SOCKET_UNUSABLE;
 
   /* Disconnect from mysql */
   mysql_close(mysql);
@@ -1663,7 +1664,7 @@ bool ha_federated::append_stmt_insert(String *query) {
     list and the fields list that match the current query id
   */
   for (field = table->field; *field; field++) {
-    if (bitmap_is_set(table->write_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->write_set, (*field)->field_index())) {
       /* append the field name */
       append_ident(&insert_string, (*field)->field_name,
                    strlen((*field)->field_name), ident_quote_char);
@@ -1750,7 +1751,7 @@ int ha_federated::write_row(uchar *) {
     list and the fields list that is part of the write set
   */
   for (field = table->field; *field; field++) {
-    if (bitmap_is_set(table->write_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->write_set, (*field)->field_index())) {
       if ((*field)->is_null())
         values_string.append(STRING_WITH_LEN(" NULL "));
       else {
@@ -1865,7 +1866,7 @@ void ha_federated::start_bulk_insert(ha_rows rows) {
 
   page_size = (uint)my_getpagesize();
 
-  if (init_dynamic_string(&bulk_insert, nullptr, page_size, page_size)) return;
+  if (init_dynamic_string(&bulk_insert, nullptr, page_size)) return;
 
   bulk_insert.length = 0;
 }
@@ -2031,7 +2032,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
   */
 
   for (Field **field = table->field; *field; field++) {
-    if (bitmap_is_set(table->write_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->write_set, (*field)->field_index())) {
       size_t field_name_length = strlen((*field)->field_name);
       append_ident(&update_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
@@ -2053,7 +2054,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
       update_string.append(STRING_WITH_LEN(", "));
     }
 
-    if (bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->read_set, (*field)->field_index())) {
       size_t field_name_length = strlen((*field)->field_name);
       append_ident(&where_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
@@ -2141,7 +2142,7 @@ int ha_federated::delete_row(const uchar *) {
   for (Field **field = table->field; *field; field++) {
     Field *cur_field = *field;
     found++;
-    if (bitmap_is_set(table->read_set, cur_field->field_index)) {
+    if (bitmap_is_set(table->read_set, cur_field->field_index())) {
       append_ident(&delete_string, (*field)->field_name,
                    strlen((*field)->field_name), ident_quote_char);
       data_string.length(0);
@@ -2340,7 +2341,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   String sql_query(sql_query_buffer, sizeof(sql_query_buffer), &my_charset_bin);
   DBUG_TRACE;
 
-  DBUG_ASSERT(!(start_key == nullptr && end_key == nullptr));
+  assert(!(start_key == nullptr && end_key == nullptr));
 
   sql_query.length(0);
   sql_query.append(share->select_query);
@@ -2541,7 +2542,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result) {
 void ha_federated::position(const uchar *record MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(stored_result);
+  assert(stored_result);
 
   position_called = true;
   /* Store result set address. */
@@ -2569,7 +2570,7 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos) {
 
   /* Get stored result set. */
   memcpy(&result, pos, sizeof(MYSQL_RES *));
-  DBUG_ASSERT(result);
+  assert(result);
   /* Set data cursor position. */
   memcpy(&result->data_cursor, pos + sizeof(MYSQL_RES *),
          sizeof(MYSQL_ROW_OFFSET));
@@ -2777,7 +2778,7 @@ int ha_federated::reset(void) {
   Item_sum_count_distinct::clear(), and Item_func_group_concat::clear().
   Called from sql_delete.cc by mysql_delete().
   Called from sql_select.cc by JOIN::reinit().
-  Called from sql_union.cc by st_select_lex_unit::exec().
+  Called from sql_union.cc by st_query_block_query_expression::exec().
 */
 
 int ha_federated::delete_all_rows() {
@@ -2924,7 +2925,7 @@ int ha_federated::real_connect() {
   */
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  DBUG_ASSERT(mysql == nullptr);
+  assert(mysql == nullptr);
 
   if (!(mysql = mysql_init(nullptr))) {
     remote_error_number = HA_ERR_OUT_OF_MEM;
@@ -2990,14 +2991,29 @@ int ha_federated::real_connect() {
 }
 
 int ha_federated::real_query(const char *query, size_t length) {
+  THD *thd = current_thd;
   int rc = 0;
+  ulong len = static_cast<ulong>(length);
   DBUG_TRACE;
 
   if (!mysql && (rc = real_connect())) goto end;
 
   if (!query || !length) goto end;
 
-  rc = mysql_real_query(mysql, query, static_cast<ulong>(length));
+  rc = mysql_real_query(mysql, query, len);
+  if (rc) {
+    /*
+      We want to reconnect here because error can occur on reading query
+      result in the case of timeout exceeding. See PS-7999 for details.
+    */
+    if (!mysql || (mysql_errno(mysql) != CR_SERVER_LOST &&
+                   mysql->net.error != NET_ERROR_SOCKET_UNUSABLE))
+      goto end;
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    if (!mysql->reconnect || mysql_reconnect(mysql)) goto end;
+    rc = mysql_real_query(mysql, query, len);
+  }
 
 end:
   return rc;

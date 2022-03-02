@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,6 @@ int Sasl_client::read_method_name_from_server() {
   if (rc_server_read >= 0 && rc_server_read <= max_method_name_len) {
     strncpy(m_mechanism, (const char *)packet, rc_server_read);
     m_mechanism[rc_server_read] = '\0';
-
     if (strcmp(m_mechanism, SASL_GSSAPI) == 0) {
       /*
         If user tries to use kerberos without kerberos libs are installed,
@@ -135,8 +134,17 @@ int Sasl_client::read_method_name_from_server() {
       m_sasl_mechanism = NULL;
       log_info("Kerberos lib not installed, not creting kerberos objects.");
 #endif
-    } else {
+    } else if ((strcmp(m_mechanism, SASL_SCRAM_SHA1) == 0) ||
+               (strcmp(m_mechanism, SASL_SCRAM_SHA256) == 0)) {
       m_sasl_mechanism = new Sasl_mechanism();
+    } else {
+      rc_server_read = SASL_ERROR_INVALID_METHOD;
+      log_stream << "SASL METHOD:" << m_mechanism[0];
+      log_stream << " is not supported, please make sure correct "
+                    "method is set in "
+                 << "LDAP SASL server side plug-in";
+      m_mechanism[0] = '\0';
+      log_error(log_stream.str());
     }
     log_stream << "Sasl_client::read_method_name_from_server : " << m_mechanism;
     log_dbg(log_stream.str());
@@ -172,7 +180,19 @@ int Sasl_client::initilize() {
 
   if (m_sasl_mechanism) {
     m_sasl_mechanism->set_user_info(m_user_name, m_user_pwd);
-    m_sasl_mechanism->pre_authentication();
+    /**
+       This method try to get kerberos TGT if user name and password are not
+       empty. If method fails, We should not start SASL authentication process.
+       Otherwise SASL authentication may consume existing TGT and authentication
+       process will start.
+    */
+    if (!m_sasl_mechanism->pre_authentication()) {
+      log_error(
+          "Plug-in has failed to obtained Kerberos TGT, authentication process "
+          "will be aborted. Please provide valid configuration, user name and "
+          "password.");
+      return rc_sasl;
+    }
     m_sasl_mechanism->get_ldap_host(m_ldap_server_host);
   }
 #if defined(KERBEROS_LIB_CONFIGURED)
@@ -207,15 +227,6 @@ Sasl_client::~Sasl_client() {
   }
   delete m_sasl_mechanism;
   m_sasl_mechanism = nullptr;
-}
-
-void Sasl_client::sasl_client_done_wrapper() {
-#if (SASL_VERSION_MAJOR >= 2) && (SASL_VERSION_MINOR >= 1) && \
-    (SASL_VERSION_STEP >= 24) && (!defined __APPLE__) && (!defined __sun)
-  sasl_client_done();
-#else
-  sasl_done();
-#endif
 }
 
 int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
@@ -580,8 +591,6 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 }
 
 static int deinitialize_plugin() {
-  Sasl_client::sasl_client_done_wrapper();
-
   delete g_logger_client;
   g_logger_client = nullptr;
 

@@ -33,7 +33,16 @@ Installation
    :glob:
 
    installation
-   upgrading_guide
+   installation/post-installation
+
+Run in Docker
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   installation/docker
 
 Scalability Improvements
 ================================================================================
@@ -51,11 +60,15 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/adaptive_network_buffers
    performance/aio_page_requests
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
    performance/prefix_index_queries_optimization
    performance/query_limit_records
+   performance/jemalloc-profiling
+   performance/procfs-plugin
+
 
 Flexibility Improvements
 ================================================================================
@@ -96,14 +109,13 @@ Management Improvements
    management/udf_percona_toolkit
    management/kill_idle_trx
    management/changed_page_tracking
+   management/enforce_engine
    management/pam_plugin
    management/innodb_expanded_fast_index_creation
    management/backup_locks
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
-   management/data_at_rest_encryption
-   management/ssl-improvement
    management/utility_user
 
 Security Improvements
@@ -115,9 +127,13 @@ Security Improvements
 
   security/pam_plugin
   security/simple-ldap
+  security/simple-ldap-variables
+  security/selinux
+  security/apparmor
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin
+  security/using-kmip
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces
@@ -129,7 +145,6 @@ Security Improvements
   security/encrypting-threads
   security/encrypting-doublewrite-buffers
   security/verifying-encryption
-  security/data-scrubbing
   security/ssl-improvement
   security/data-masking
 
@@ -148,7 +163,27 @@ Diagnostics Improvements
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
    diagnostics/innodb_fragmentation_count
+   diagnostics/stacktrace
+   diagnostics/libcoredumper
 
+Percona MyRocks
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   MyRocks Introduction <myrocks/index>
+   MyRocks Installation <myrocks/install>
+   MyRocks Limitations <myrocks/limitations>
+   MyRocks Differences <myrocks/differences>
+   MyRocks Information Schema Tables <myrocks/information-schema-tables>
+   MyRocks Server Variables <myrocks/variables>
+   MyRocks Status Variables <myrocks/status_variables>
+   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
+   MyRocks Data Loading <myrocks/data_loading>
+   MyRocks ZenFS <myrocks/zenfs>
+   
 TokuDB
 ================================================================================
 
@@ -168,25 +203,17 @@ TokuDB
    tokudb/tokudb_fractal_tree_indexing
    tokudb/tokudb_troubleshooting
    tokudb/tokudb_performance_schema
-   tokudb/toku_backup
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
-Percona MyRocks
+Release notes
 ================================================================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
-   MyRocks Introduction <myrocks/index>
-   MyRocks Installation <myrocks/install>
-   MyRocks Limitations <myrocks/limitations>
-   MyRocks Differences <myrocks/differences>
-   MyRocks Server Variables <myrocks/variables>
-   MyRocks Status Variables <myrocks/status_variables>
-   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
-   MyRocks Data Loading <myrocks/data_loading>
+   release-notes/release-notes_index
 
 Reference
 ================================================================================
@@ -202,7 +229,6 @@ Reference
    index_info_schema_tables
    faq
    copyright
-   release-notes/release-notes_index
    glossary
 
 * :ref:`genindex`

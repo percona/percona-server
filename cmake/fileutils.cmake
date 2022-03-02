@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,22 @@ ENDFUNCTION()
 
 
 IF(WIN32)
+  IF(NOT WIN32_CLANG AND NOT EXISTS "${CMAKE_LINKER}")
+    MESSAGE(WARNING "CMAKE_LINKER not found:\n ${CMAKE_LINKER}")
+    MESSAGE(WARNING "It seems you have upgraded Visual Studio")
+    MESSAGE(WARNING "You should do a clean build")
+    MESSAGE(WARNING
+      "\n or remove these files:"
+      "\n CMakeFiles/${CMAKE_VERSION}/CMakeCCompiler.cmake"
+      "\n CMakeFiles/${CMAKE_VERSION}/CMakeCXXCompiler.cmake"
+      "\n and re-run cmake"
+      "\n"
+      )
+    UNSET(DUMPBIN_EXECUTABLE)
+    UNSET(DUMPBIN_EXECUTABLE CACHE)
+    UNSET(CMAKE_LINKER)
+    UNSET(CMAKE_LINKER CACHE)
+  ENDIF()
   GET_FILENAME_COMPONENT(CMAKE_LINKER_PATH "${CMAKE_LINKER}" DIRECTORY)
   FIND_PROGRAM(DUMPBIN_EXECUTABLE dumpbin PATHS "${CMAKE_LINKER_PATH}")
 
@@ -123,3 +139,32 @@ IF(LINUX)
   ENDFUNCTION()
 
 ENDIF()
+
+
+# Adds a convenience target TARGET_NAME to show soname and dependent libs
+# (and misc other info depending on platform) for FILE_NAME.
+FUNCTION(ADD_OBJDUMP_TARGET TARGET_NAME FILE_NAME)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    ""
+    ""
+    "DEPENDENCIES"
+    ${ARGN}
+    )
+
+  IF(WIN32)
+    SET(OBJDUMP_COMMAND "${DUMPBIN_EXECUTABLE}" /dependents /headers /exports)
+  ELSEIF(APPLE)
+    SET(OBJDUMP_COMMAND otool -L)
+  ELSEIF(SOLARIS)
+    SET(OBJDUMP_COMMAND elfdump -d)
+  ELSE()
+    SET(OBJDUMP_COMMAND objdump -p)
+  ENDIF()
+
+  ADD_CUSTOM_TARGET(${TARGET_NAME} COMMAND ${OBJDUMP_COMMAND} "${FILE_NAME}")
+
+  IF(ARG_DEPENDENCIES)
+    ADD_DEPENDENCIES(${TARGET_NAME} ${ARG_DEPENDENCIES})
+  ENDIF()
+
+ENDFUNCTION()

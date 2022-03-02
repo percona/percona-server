@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Hypergraph optimizer does not call range optimizer.
+
 --echo # Bug#17769777 EXCESSIVE MEMORY CONSUMPTION WITH MANY AND / BETWEEN
 --echo #              ITEMS
 --echo # Bug#17413040 USING MANY WHERE CONDITIONS MAKES RANGE SCAN DISABLED
@@ -18,9 +20,6 @@ SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 
 DROP TABLE t1;
-
---source include/force_myisam_default.inc
---source include/have_myisam.inc
 
 #Running the entire test suite for range queries to increase the test
 #coverage

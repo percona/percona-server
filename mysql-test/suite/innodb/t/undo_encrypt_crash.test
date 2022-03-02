@@ -4,10 +4,6 @@
 
 --source include/have_debug.inc
 
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* [InnoDB] Assertion failure: srv0start.cc");
---enable_query_log
-
 --echo #########
 --echo # SETUP #
 --echo #########

@@ -20,6 +20,8 @@ WITH_JEMALLOC=''
 WITH_MECAB_OPTION=''
 DEBUG_EXTRA=''
 WITH_SSL='/usr'
+WITH_ZENFS='OFF'
+ZENFS_EXTRA=''
 OPENSSL_INCLUDE=''
 OPENSSL_LIBRARY=''
 CRYPTO_LIBRARY=''
@@ -29,6 +31,8 @@ CMAKE_BUILD_TYPE=''
 COMMON_FLAGS=''
 #
 TOKUDB_BACKUP_VERSION=''
+# enable asan
+ENABLE_ASAN=0
 #
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -37,7 +41,7 @@ TAR=${TAR:-tar}
 if ! getopt --test
 then
     go_out="$(getopt --options=iqdvj:m:t: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-ssl:,tag: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-zenfs,with-mecab:,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -56,7 +60,12 @@ do
         shift
         CMAKE_BUILD_TYPE='Debug'
         BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
-        DEBUG_EXTRA="-DDEBUG_EXTNAME=OFF"
+        TARBALL_SUFFIX="-debug"
+        DEBUG_EXTRA="-DDEBUG_EXTNAME=OFF -DWITH_DEBUG=ON"
+        ;;
+    -a | --asan )
+        shift
+        ENABLE_ASAN=1
         ;;
     -v | --valgrind )
         shift
@@ -97,6 +106,12 @@ do
             exit 3
         fi
         ;;
+    --with-zenfs )
+        shift
+        TARBALL_SUFFIX="-zenfs"
+        WITH_ZENFS="ON"
+        ZENFS_EXTRA="-DROCKSDB_PLUGINS=zenfs -DWITH_ZENFS_UTILITY=ON"
+        ;;
     -t | --tag )
         shift
         TAG="$1"
@@ -135,7 +150,7 @@ fi
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/VERSION" || exit 2
+test -e "$SOURCEDIR/MYSQL_VERSION" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -146,7 +161,7 @@ else
 fi
 
 # Extract version from the VERSION file
-source "$SOURCEDIR/VERSION"
+source "$SOURCEDIR/MYSQL_VERSION"
 MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
 PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-//')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
@@ -163,7 +178,7 @@ else
     REVISION=""
 fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL${BUILD_COMMENT:-}-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}"
+PRODUCT_FULL="$PRODUCT_FULL-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}${TARBALL_SUFFIX:-}"
 COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
@@ -172,12 +187,14 @@ export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 
 # If gcc >= 4.8 we can use ASAN in debug build but not if valgrind build also
-if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
-  GCC_VERSION=$(${CC} -dumpversion)
-  GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
-  if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
-    DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
-  fi
+if [[ $ENABLE_ASAN -eq 1 ]]; then
+    if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
+        GCC_VERSION=$(${CC} -dumpversion)
+        GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
+        if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
+            DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
+        fi
+    fi
 fi
 
 # TokuDB cmake flags
@@ -197,7 +214,6 @@ then
         CMAKE_OPTS="${CMAKE_OPTS:-} -DUSE_VALGRIND=ON"
     fi
 fi
-
 #
 # Attempt to remove any optimisation flags from the debug build
 # BLD-238 - bug1408232
@@ -246,17 +262,23 @@ fi
     cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTRA \
+        $ZENFS_EXTRA \
         -DFEATURE_SET=community \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
+        -DROUTER_INSTALL_LIBDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/private" \
+        -DROUTER_INSTALL_PLUGINDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/plugin" \
         -DCOMPILATION_COMMENT="$COMMENT" \
         -DWITH_PAM=ON \
         -DWITH_ROCKSDB=ON \
+        -DROCKSDB_DISABLE_AVX2=1 \
+        -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
         -DWITH_INNODB_MEMCACHED=ON \
-        -DWITH_ZLIB=system \
+        -DWITH_ZLIB=bundled \
         -DWITH_NUMA=ON \
-        -DWITH_LDAP=ON \
+        -DWITH_LDAP=system \
         -DDOWNLOAD_BOOST=1 \
+        -DWITH_PACKAGE_FLAGS=OFF \
         -DFORCE_INSOURCE_BUILD=1 \
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \
@@ -287,34 +309,40 @@ fi
     fi
 )
 
-# Patch needed libraries
 (
-    cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
-    if [ ! -d lib/private ]; then
-        mkdir -p lib/private
-    fi
-
-    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libcurl.so libldap liblber libssh libbrotlidec.so libbrotlicommon.so libgssapi_krb5.so libkrb5.so libkrb5support.so libk5crypto.so librtmp.so libgssapi.so libcrypt.so libfreebl3.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libssl3.so libplds4.so"
-    DIRLIST="bin lib lib/private lib/plugin"
+    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libssl3.so libplds4.so libncurses.so.5 libtinfo.so.5"
+    DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     LIBPATH=""
 
     function gather_libs {
         local elf_path=$1
-        for lib in $LIBLIST; do
-            for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+        for lib in ${LIBLIST}; do
+            for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
                 IFS=$'\n'
-                for libfromelf in $(ldd $elf | grep $lib | awk '{print $3}'); do
-                    if [ ! -f lib/private/$(basename $(readlink -f $libfromelf)) ] && [ ! -L lib/$(basename $(readlink -f $libfromelf)) ]; then
-                        echo "Copying lib $(basename $(readlink -f $libfromelf))"
-                        cp $(readlink -f $libfromelf) lib/private
+                for libfromelf in $(ldd ${elf} | grep ${lib} | awk '{print $3}'); do
+                    lib_realpath="$(readlink -f ${libfromelf})"
+                    lib_realpath_basename="$(basename $(readlink -f ${libfromelf}))"
+                    lib_without_version_suffix=$(echo ${lib_realpath_basename} | awk -F"." 'BEGIN { OFS = "." }{ print $1, $2}')
 
-                        echo "Symlinking lib $(basename $(readlink -f $libfromelf))"
-                        cd lib
-                        ln -s private/$(basename $(readlink -f $libfromelf)) $(basename $(readlink -f $libfromelf))
+                    if [ ! -f "lib/private/${lib_realpath_basename}" ] && [ ! -L "lib/private/${lib_without_version_suffix}" ]; then
+                    
+                        echo "Copying lib ${lib_realpath_basename}"
+                        cp ${lib_realpath} lib/private
+
+                        echo "Symlinking lib from ${lib_realpath_basename} to ${lib_without_version_suffix}"
+                        cd lib/
+                        ln -s private/${lib_realpath_basename} ${lib_without_version_suffix}
                         cd -
-                        
-                        LIBPATH+=" $(echo $libfromelf | grep -v $(pwd))"
+                        if [ ${lib_realpath_basename} != ${lib_without_version_suffix} ]; then
+                            cd lib/private
+                            ln -s ${lib_realpath_basename} ${lib_without_version_suffix}
+                            cd -
+                        fi
+
+                        patchelf --set-soname ${lib_without_version_suffix} lib/private/${lib_realpath_basename}
+
+                        LIBPATH+=" $(echo ${libfromelf} | grep -v $(pwd))"
                     fi
                 done
                 unset IFS
@@ -326,48 +354,99 @@ fi
         # Set proper runpath for bins but check before doing anything
         local elf_path=$1
         local r_path=$2
-        for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
-            echo "Checking LD_RUNPATH for $elf"
-            if [ -z $(patchelf --print-rpath $elf) ]; then
-                echo "Changing RUNPATH for $elf"
-                patchelf --set-rpath $r_path $elf
+        local mode=${3:-}
+        for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+            echo "Checking LD_RUNPATH for ${elf}"
+            if [[ -z $(patchelf --print-rpath ${elf}) ]]; then
+                echo "Changing RUNPATH for ${elf}"
+                patchelf --set-rpath ${r_path} ${elf}
+            elif [[ ! -z ${mode} ]] && [[ ${mode} == "override" ]]; then
+                echo "Overriding RUNPATH for ${elf}"
+                patchelf --set-rpath ${r_path} ${elf}
             fi
         done
     }
 
     function replace_libs {
         local elf_path=$1
-        for libpath_sorted in $LIBPATH; do
-            for elf in $(find $elf_path -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
-                LDD=$(ldd $elf | grep $libpath_sorted|head -n1|awk '{print $1}')
+        for libpath_sorted in ${LIBPATH}; do
+            for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+                LDD=$(ldd ${elf} | grep ${libpath_sorted}|head -n1|awk '{print $1}')
+                lib_realpath_basename="$(basename $(readlink -f ${libpath_sorted}))"
+                lib_without_version_suffix="$(echo ${lib_realpath_basename} | awk -F"." 'BEGIN { OFS = "." }{ print $1, $2}')"
                 if [[ ! -z $LDD  ]]; then
-                    echo "Replacing lib $(basename $(readlink -f $libpath_sorted)) for $elf"
-                    patchelf --replace-needed $LDD $(basename $(readlink -f $libpath_sorted)) $elf
-                fi
-                # Add if present in LDD to NEEDED
-                if [[ ! -z $LDD ]] && [[ -z "$(readelf -d $elf | grep $(basename $libpath_sorted | awk -F'.' '{print $1}'))" ]]; then
-                    patchelf --add-needed $(basename $(readlink -f $libpath_sorted)) $elf
+                    echo "Replacing lib ${lib_realpath_basename} to ${lib_without_version_suffix} for ${elf}"
+                    patchelf --replace-needed ${LDD} ${lib_without_version_suffix} ${elf}
                 fi
             done
         done
     }
 
-    # Gather libs
-    for DIR in $DIRLIST; do
-        gather_libs $DIR
-    done
+    function check_libs {
+        local elf_path=$1
+        for elf in $(find ${elf_path} -maxdepth 1 -exec file {} \; | grep 'ELF ' | cut -d':' -f1); do
+            if ! ldd ${elf}; then
+                exit 1
+            fi
+        done
+    }
 
-    # Set proper runpath
-    set_runpath bin '$ORIGIN/../lib/private/'
-    set_runpath lib '$ORIGIN/private/'
-    set_runpath lib/plugin '$ORIGIN/../private/'
-    set_runpath lib/private '$ORIGIN'
+    function link {
+        if [ ! -d lib/private ]; then
+            mkdir -p lib/private
+        fi
+        # Gather libs
+        for DIR in ${DIRLIST}; do
+            gather_libs ${DIR}
+        done
+        # Set proper runpath
+        set_runpath bin '$ORIGIN/../lib/private/'
+        if [[ ${CMAKE_BUILD_TYPE} == "Debug" ]]; then
+            set_runpath lib '$ORIGIN/private/' override
+            set_runpath lib/plugin '$ORIGIN/../private/' override
+        else
+            set_runpath lib '$ORIGIN/private/'
+            set_runpath lib/plugin '$ORIGIN/../private/'
+        fi
+        set_runpath lib/private '$ORIGIN'
+        # LIBS MYSQLROUTER
+        set_runpath lib/mysqlrouter/plugin '$ORIGIN/:$ORIGIN/../private/:$ORIGIN/../../private/' override
+        set_runpath lib/mysqlrouter/private '$ORIGIN/:$ORIGIN/../plugin/:$ORIGIN/../../private/' override
+        #  BINS MYSQLROUTER
+        set_runpath bin/mysqlrouter_passwd '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/' override
+        set_runpath bin/mysqlrouter_plugin_info '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/' override
+        set_runpath bin/mysqlrouter '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/' override
+        set_runpath bin/mysqlrouter_keyring '$ORIGIN/../lib/mysqlrouter/private/:$ORIGIN/../lib/mysqlrouter/plugin/:$ORIGIN/../lib/private/' override
+        # Replace libs
+        for DIR in ${DIRLIST}; do
+            replace_libs ${DIR}
+        done
+        # Make final check in order to determine any error after linkage
+        for DIR in ${DIRLIST}; do
+            check_libs ${DIR}
+        done
+    }
 
-    # Replace libs
-    for DIR in $DIRLIST; do
-        replace_libs $DIR
-    done
+    if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
+        mkdir $INSTALLDIR/usr/local/minimal
+        cp -r "$INSTALLDIR/usr/local/$PRODUCT_FULL" "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+    fi
 
+    # NORMAL TARBALL
+    if [[ ${WITH_ZENFS} != "ON" ]]; then
+        cd "$INSTALLDIR/usr/local/$PRODUCT_FULL"
+        link
+    fi
+
+    # MIN TARBALL
+    if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
+        cd "$INSTALLDIR/usr/local/minimal/$PRODUCT_FULL-minimal"
+        rm -rf mysql-test 2> /dev/null
+        find . -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
+        if [[ ${WITH_ZENFS} != "ON" ]]; then
+            link
+        fi
+    fi
 )
 
 # Package the archive
@@ -377,9 +456,11 @@ fi
     find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 
-    rm -rf $PRODUCT_FULL/mysql-test 2> /dev/null
-    find $PRODUCT_FULL -type f -exec file '{}' \; | grep ': ELF ' | cut -d':' -f1 | xargs strip --strip-unneeded
-    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL
+    if [[ $CMAKE_BUILD_TYPE != "Debug" ]]; then
+        cd "$INSTALLDIR/usr/local/minimal/"
+        find $PRODUCT_FULL-minimal -type f -name 'COPYING.AGPLv3' -delete
+        $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL-minimal.tar.gz" $PRODUCT_FULL-minimal
+    fi
 )
 
 # Clean up

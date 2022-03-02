@@ -34,7 +34,7 @@ commit;
 
 # We are restarting mysql to be sure that redo log was proceed and we get a clean checkout
 # in no_checkpoint_start (tables were created and no write to page0 will be in a redo log)
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --innodb-doublewrite=0
 --source include/restart_mysqld.inc
 
@@ -69,20 +69,20 @@ let $cleanup= drop table t1,t2,t3,t4;
 
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$error_log
---let SEARCH_PATTERN=\[InnoDB\] The page \[page id: space=4, page number=[1-9]\] in file '\./test/t1\.ibd' cannot be decrypted\. Are you using correct keyring?
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id . in file t4\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table. Please provide the correct keyring\.
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=\[InnoDB\] The page \[page id: space=5, page number=[1-9]\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id . in file t3\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=\[InnoDB\] The page \[page id: space=6, page number=[1-9]\] in file '\./test/t3\.ibd' cannot be decrypted\. Are you using correct keyring?
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id . in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=\[InnoDB\] The page \[page id: space=7, page number=[1-9]\] in file '\./test/t4\.ibd' cannot be decrypted\. Are you using correct keyring?
+--let SEARCH_PATTERN=\[InnoDB\] Tablespace id . in file t2\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring\.
 --source include/search_pattern_in_file.inc
 
 # In above server does start but InnoDB refuses to start
 # thus we need to restart server with correct key file
 
 --echo # Restart mysqld
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
 --source include/start_mysqld.inc
 

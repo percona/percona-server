@@ -20,10 +20,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -51,10 +48,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -83,10 +77,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -114,10 +105,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -159,10 +147,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -191,10 +176,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -244,10 +226,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -276,10 +255,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -308,10 +284,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=514 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=514 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -331,9 +304,6 @@ drop table t2, t1;
 # restore meta (disable indexes)
 # restore data (disable indexes)
 # show meta
-
-ndb_show_tables completed.....
-
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -363,10 +333,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -396,10 +363,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -435,10 +399,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`b1`, `c1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -468,10 +429,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`b1`, `c1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-
-ndb_show_tables completed.....
-
+) ENGINE=ndbcluster AUTO_INCREMENT=513 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select type,name from ndb_show_tables_results
 where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
@@ -516,7 +474,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table db2.t1;
 # restore particular table and check for fk problem
 # verify the tables present
@@ -525,13 +483,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table db2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table db1.t1, db2.t1;
 # verify that restoring table with FK whose parent doesn't exist, fails
 # cleanup

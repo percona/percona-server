@@ -2613,6 +2613,7 @@ INSERT INTO t1 VALUES ('2000-01-01 10:00:00.000002');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000000');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000001');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000002');
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001', '2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
@@ -2626,6 +2627,7 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (0.000001,0);
 --echo # Testing IN with index: involves field->store_packed()
 --echo #
 ALTER TABLE t1 ADD KEY(a);
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001','2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
@@ -4493,6 +4495,7 @@ INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000000');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000001');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000002');
 SELECT * FROM t1;
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001', '2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 # This returns an empty set with a warning:
@@ -4514,6 +4517,7 @@ SELECT * FROM t1 WHERE a IN (0e0, 0.000001e0);
 --echo # Testing IN with index: involves field->store_packed()
 --echo #
 ALTER TABLE t1 ADD KEY(a);
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001', '2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
@@ -5626,7 +5630,6 @@ SET @a=20010101112233.123456;
 SELECT * FROM t1 WHERE a=@a;
 SET @a=20010101000000.1e0;
 SELECT @a;
-# Nothing is found, not enough precision for DOUBLE
 SELECT * FROM t1 WHERE a=@a;
 SET @a=NULL;
 SELECT a INTO @a FROM t1 LIMIT 1;
@@ -6378,6 +6381,7 @@ CREATE TABLE t1 (
   col_datetime_4_not_null_key datetime(4) NOT NULL,
   KEY col_time_3_not_null_key (col_time_3_not_null_key),
   KEY col_datetime_4_not_null_key (col_datetime_4_not_null_key));
+--skip_if_hypergraph   # Different warnings.
 SELECT col_time_3_not_null_key 
 FROM t1 
 WHERE col_datetime_4_not_null_key > 7;
@@ -6531,6 +6535,8 @@ INSERT INTO t1 VALUES
   ('0000-00-00 00:00:00.00','0000-00-00 00:00:00.00000','00:20:04','23:19:52','2011-07-19 17:37:13.26725'),
   ('0000-00-00 00:00:00.00','2008-06-04 23:05:50.03642','00:20:03','22:28:03','2011-07-19 17:37:14.26725'),
   ('2000-10-22 23:52:09.01',NULL,'00:20:07','00:20:07','2011-07-19 17:37:15.26725');
+# Different warnings in the hypergraph optimizer.
+--disable_warnings
 SELECT col_datetime_2_not_null_key AS c1, col_time_not_null AS c2
 FROM t1
 WHERE
@@ -6541,6 +6547,7 @@ WHERE
 OR
   col_datetime_5 = CURRENT_DATE()
 ORDER BY 1;
+--enable_warnings
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 
@@ -7394,6 +7401,7 @@ CREATE TABLE t1 (
 key (col_datetime_6_not_null_key),
 key (col_datetime_3_key)) ENGINE=innodb;
 CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+--skip_if_hypergraph   # Different warnings.
 SELECT col_datetime_3_key AS c1 FROM v1
 WHERE SYSDATE() IS NULL
 OR col_datetime_6_not_null_key < TIMEDIFF('0000-00-00','2002-11-24' )
@@ -8006,3 +8014,21 @@ DROP TABLE t1;
 --echo #
 
 do date_add(utc_time(), interval(oct(-11779)) microsecond);
+
+--echo #
+--echo # Bug #31054071 UBSAN: SIGNED INTEGER OVERFLOW IN
+--echo #               ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+--echo #
+
+CREATE TABLE t(a TIME(1), b DECIMAL(55,13));
+INSERT INTO t(a,b) VALUES
+('-765:38:03.6',999999999999999999999999999999999999999999.9999999999999);
+SELECT a - INTERVAL(b) MICROSECOND FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #30324587 	ASSERTION FAILED: (*REF)->IS_TEMPORAL()
+--echo #
+
+SELECT current_date IN ( MAX(NULL), 1 );
+SELECT current_time IN ( MAX(NULL), 1 );

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,9 @@ static void test_noop() {
   psi_thread_service->set_thread_db(nullptr, 0);
   psi_thread_service->set_thread_command(1);
   psi_thread_service->set_thread_start_time(1);
+  psi_thread_service->set_thread_start_time_usec(1000000);
+  psi_thread_service->set_thread_rows_sent(0);
+  psi_thread_service->set_thread_rows_examined(0);
   psi_thread_service->set_thread_info(nullptr, 0);
   psi_thread_service->set_thread(nullptr);
   psi_thread_service->aggregate_thread_status(nullptr);

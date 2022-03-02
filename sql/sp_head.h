@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -405,7 +405,13 @@ class sp_head {
       b) because in CONTAINS SQL case they don't provide enough
       information anyway.
      */
-    MODIFIES_DATA = 4096
+    MODIFIES_DATA = 4096,
+    /**
+      Set when a stored program contains sub-statement(s) that creates or drops
+      temporary table(s). When set, used to mark invoking statement as unsafe to
+      be binlogged in STATEMENT format, when in MIXED mode.
+    */
+    HAS_TEMP_TABLE_DDL = 8192
   };
 
  public:
@@ -645,7 +651,7 @@ class sp_head {
     @return Error status.
   */
 
-  bool execute_procedure(THD *thd, List<Item> *args);
+  bool execute_procedure(THD *thd, mem_root_deque<Item *> *args);
 
   /**
     Add instruction to SP.
@@ -664,6 +670,14 @@ class sp_head {
     @sa Comment for MODIFIES_DATA flag.
   */
   bool modifies_data() const { return m_flags & MODIFIES_DATA; }
+
+  /**
+    @returns true if stored program has sub-statement(s) to CREATE/DROP
+    temporary table(s).
+      @retval true   if HAS_TEMP_TABLE_DDL is set in m_flags.
+      @retval false  Otherwise.
+  */
+  bool has_temp_table_ddl() const { return m_flags & HAS_TEMP_TABLE_DDL; }
 
   uint instructions() { return static_cast<uint>(m_instructions.size()); }
 
@@ -799,7 +813,7 @@ class sp_head {
              HAS_COMMIT_OR_ROLLBACK | HAS_SQLCOM_RESET | HAS_SQLCOM_FLUSH));
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Return the routine instructions as a result set.
     @return Error status.
@@ -824,6 +838,12 @@ class sp_head {
     DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x", this, name(),
                         unsafe_flags));
     prelocking_ctx->set_stmt_unsafe_flags(unsafe_flags);
+
+    /*
+      If temporary table is created or dropped in the stored program then
+      statement is unsafe to be logged in STATEMENT format, when in MIXED mode.
+    */
+    if (has_temp_table_ddl()) prelocking_ctx->set_stmt_unsafe_with_mixed_mode();
   }
 
   /**

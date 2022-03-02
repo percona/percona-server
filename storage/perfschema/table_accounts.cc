@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_accounts.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -149,22 +149,22 @@ int table_accounts::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
         case 1: /* HOST */
-          m_row.m_account.set_field(f->field_index, f);
+          m_row.m_account.set_field(f->field_index(), f);
           break;
         case 2: /* CURRENT_CONNECTIONS */
         case 3: /* TOTAL_CONNECTIONS */
-          m_row.m_connection_stat.set_field(f->field_index - 2, f);
+          m_row.m_connection_stat.set_field(f->field_index() - 2, f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

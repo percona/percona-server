@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,13 +29,14 @@
 
 #include "sql/sql_join_buffer.h"
 
+#include <assert.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <unordered_map>
 
 #include "my_alloc.h"
 #include "my_bitmap.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
@@ -78,7 +79,7 @@
 
 static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
   TABLE *table = tab->table();
-  DBUG_ASSERT(tab->dynamic_range() && table->vfield);
+  assert(tab->dynamic_range() && table->vfield);
 
   for (uint key = 0; key < table->s->keys; ++key) {
     /*
@@ -155,7 +156,7 @@ void add_virtual_gcol_base_cols(TABLE *table, MEM_ROOT *mem_root,
   table->read_set = completed_read_set;
   for (Field **field_ptr = table->field; *field_ptr != nullptr; ++field_ptr) {
     Field *field = *field_ptr;
-    if (bitmap_is_set(table->read_set, field->field_index)) {
+    if (bitmap_is_set(table->read_set, field->field_index())) {
       if (field->is_virtual_gcol()) {
         table->mark_gcol_in_maps(field);
       }

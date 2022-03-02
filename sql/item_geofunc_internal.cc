@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,11 @@
 
 #include "sql/item_geofunc_internal.h"
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
+#include <iterator>
+#include <memory>
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>
@@ -33,8 +36,6 @@
 #include <boost/geometry/index/predicates.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <iterator>
-#include <memory>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -45,8 +46,8 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/item_func.h"
 #include "sql/mdl.h"
-#include "sql/parse_tree_node_base.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/parse_location.h"  // POS
+#include "sql/sql_class.h"       // THD
 #include "sql/srs_fetcher.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
@@ -58,7 +59,7 @@ class Spatial_reference_system;
 
 bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
   DBUG_TRACE;
-  DBUG_ASSERT(srid != 0);
+  assert(srid != 0);
 
   char id_str[11];  // uint32 => max 10 digits + \0
   longlong10_to_str(srid, id_str, 10);
@@ -96,7 +97,7 @@ bool Srs_fetcher::acquire_for_modification(gis::srid_t srid,
 }
 
 bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists) {
-  DBUG_ASSERT(exists);
+  assert(exists);
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
   Srs_fetcher fetcher(thd);
@@ -106,20 +107,11 @@ bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists) {
   return false;
 }
 
-/**
-  Merge all components as appropriate so that the object contains only
-  components that don't overlap.
-
-  @tparam Coordsys Coordinate system type, specified using those defined in
-          boost::geometry::cs.
-  @param[out] pnull_value takes back null_value set during the operation.
- */
 template <typename Coordsys>
 void BG_geometry_collection::merge_components(bool *pnull_value) {
   if (is_comp_no_overlapped()) return;
 
-  POS pos;
-  Item_func_st_union ifsu(pos, nullptr, nullptr);
+  Item_func_st_union ifsu(POS{{nullptr, nullptr}, {nullptr, nullptr}}, nullptr, nullptr);
   bool do_again = true;
   uint32 last_composition[6] = {0}, num_unchanged_composition = 0;
   size_t last_num_geos = 0;
@@ -213,7 +205,7 @@ bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
                               g2->get_flags(), g2->get_srid());
       res = bg::is_valid(mplgn);
     } else
-      DBUG_ASSERT(false);
+      assert(false);
 
     return res;
   }
@@ -287,7 +279,7 @@ class Is_target_geometry {
 
 class Rtree_entry_compare {
  public:
-  Rtree_entry_compare() {}
+  Rtree_entry_compare() = default;
 
   bool operator()(const BG_rtree_entry &re1, const BG_rtree_entry &re2) const {
     return re1.second < re2.second;
@@ -336,7 +328,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
       min corner point have greater coordinates than the max corner point,
       the box isn't valid and the rtree can be empty.
      */
-    DBUG_ASSERT(rtree_result.size() != 0);
+    assert(rtree_result.size() != 0);
 
     // Sort rtree_result by Rtree_entry::second in order to make
     // components in fixed order.
@@ -502,7 +494,7 @@ inline void reassemble_geometry(Geometry *g) {
 template <typename BG_geotype>
 bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
                      String *res) {
-  DBUG_ASSERT(geout.has_geom_header_space());
+  assert(geout.has_geom_header_space());
   reassemble_geometry(&geout);
 
   // Such objects returned by BG never have overlapped components.
@@ -562,15 +554,15 @@ class Is_empty_geometry : public WKB_scanner_event_handler {
 
   Is_empty_geometry() : is_empty(true) {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *, uint32, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                    const void *, uint32, bool) override {
     if (is_empty && geotype != Geometry::wkb_geometrycollection)
       is_empty = false;
   }
 
-  virtual void on_wkb_end(const void *) {}
+  void on_wkb_end(const void *) override {}
 
-  virtual bool continue_scan() const { return is_empty; }
+  bool continue_scan() const override { return is_empty; }
 };
 
 bool is_empty_geocollection(const Geometry *g) {

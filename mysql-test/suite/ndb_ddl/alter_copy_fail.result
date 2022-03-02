@@ -14,7 +14,7 @@ t8	CREATE TABLE `t8` (
   `c` datetime NOT NULL,
   `d` int unsigned DEFAULT NULL,
   `e` int NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t8 ORDER BY a;
 a	b	c	d	e
 1	1-t8	2017-10-20 09:13:01	NULL	1
@@ -38,7 +38,43 @@ t8	CREATE TABLE `t8` (
   `c` datetime NOT NULL,
   `d` int unsigned DEFAULT NULL,
   `e` int NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+# Bug#31546868 NDB : HA_NDBCLUSTER NOT ROLLING BACK TRANSACTION BEFORE ROLLING BACK DDL
+USE ndb_ddl_test;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+# Following alter should fail with ER_CHECK_CONSTRAINT_VIOLATED
+# as a row violates the check constraint it is trying to enforce
+ALTER TABLE t1
+ADD CONSTRAINT t1_c1 CHECK(a < 5),
+ALGORITHM = COPY;
+ERROR HY000: Check constraint 't1_c1' is violated.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
@@ -53,7 +89,7 @@ t1	CREATE TABLE `t1` (
   `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set debug='+d,ndb_simulate_alter_failure_rename1';
 ALTER TABLE t1
 ADD COLUMN c INT,
@@ -68,7 +104,7 @@ t1	CREATE TABLE `t1` (
   `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
@@ -84,7 +120,7 @@ t1	CREATE TABLE `t1` (
   `c` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Failure during the second rename
 #
@@ -103,7 +139,7 @@ t1	CREATE TABLE `t1` (
   `c` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
@@ -118,7 +154,7 @@ t1	CREATE TABLE `t1` (
   `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Failure after the table has been renamed to new name
 #
@@ -136,7 +172,7 @@ t1	CREATE TABLE `t1` (
   `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
@@ -151,4 +187,4 @@ t1_new	CREATE TABLE `t1_new` (
   `b` int NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

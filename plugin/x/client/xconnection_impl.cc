@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-
-// MySQL DB access module, for use by plugins and others
-// For the module that implements interactive DB functionality see mod_db
 
 #include "plugin/x/client/xconnection_impl.h"
 
@@ -58,6 +55,9 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif  // HAVE_SYS_UN_H
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 
 #ifdef WIN32
 #define SHUT_RD SD_RECEIVE
@@ -170,23 +170,10 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
   }
 
   /*
-    Use OpenSSL certificate matching functions instead of our own if we
-    have OpenSSL. The X509_check_* functions return 1 on success.
+    For OpenSSL 1.0.2 and up we already set certificate verification
+    parameters in the new_VioSSLFd() to perform automatic checks.
   */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  const int check_result_for_ip =
-      X509_check_ip_asc(server_cert, server_hostname.c_str(), 0);
-  const int check_result_for_host =
-      X509_check_host(server_cert, server_hostname.c_str(),
-                      server_hostname.length(), 0, nullptr);
-  if ((check_result_for_host != 1) && (check_result_for_ip != 1)) {
-    return XError{
-        CR_SSL_CONNECTION_ERROR,
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions",
-        true};
-  }
-#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
   /*
      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
      Use deprecated X509_get_subject_name() instead.
@@ -232,7 +219,7 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     return XError{CR_SSL_CONNECTION_ERROR, "SSL certificate validation failure",
                   true};
   }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
   return {};
 }
@@ -250,7 +237,123 @@ inline int get_shutdown_consts(const Shutdown_type type) {
   return 0;
 }
 
+class Non_blocking {
+ public:
+  Non_blocking(Vio *vio) : m_vio(vio) { vio_set_blocking_flag(vio, false); }
+
+  ~Non_blocking() {
+    vio_set_blocking_flag(m_vio, true);
+    // Setting blocking flag, sets the socket into the blocking/nonblocking
+    // mode. Both the blocking flag and socket mode are in sync only at linux,
+    // on these systems VIO sets blocking flag leaving socket in
+    // non-blocking mode.
+    //
+    // The described behavior is a workaround in VIO, for constant
+    // "MSG_DONTWAIT" which is not supported on FreeBSD, Solaris, MacOS.
+    // This forces our code to write workaround below:
+#if !defined(__linux__)
+    vio_set_blocking(m_vio, false);
+#endif  // !defined(__linux__)
+  }
+
+ private:
+  Vio *m_vio;
+};
+
+enum Wait_flags {
+  k_wait_flag_read = 1,
+  k_wait_flag_write = 2,
+};
+
+#if !defined(_WIN32)
+#define SOCKET_WAIT_INITIALIZE(FD, TIMEOUT)         \
+  struct pollfd pfd;                                \
+  int wait_timeout = (TIMEOUT >= 0 ? TIMEOUT : -1); \
+  memset(&pfd, 0, sizeof(pfd));                     \
+  pfd.fd = FD;
+#define SOCKET_WAIT_READ() pfd.events |= POLLIN | POLLPRI;
+#define SOCKET_WAIT_WRITE() pfd.events |= POLLOUT;
+#define SOCKET_WAIT() poll(&pfd, 1, wait_timeout);
+#define SOCKET_WAIT_CAN_READ() pfd.revents &POLLIN
+#define SOCKET_WAIT_CAN_WRITE() pfd.revents &POLLOUT
+
+#elif defined(_WIN32)
+#define SOCKET_WAIT_INITIALIZE(FD, TIMEOUT)                       \
+  fd_set sockwait_readfds, sockwait_writefds, sockwait_exceptfds; \
+  struct timeval sockwait_tm;                                     \
+  my_socket sockwait_socket = FD;                                 \
+  auto sockwait_timeout = TIMEOUT;                                \
+  if (TIMEOUT >= 0) {                                             \
+    sockwait_tm.tv_sec = TIMEOUT / 1000;                          \
+    sockwait_tm.tv_usec = (TIMEOUT % 1000) * 1000;                \
+  }                                                               \
+  FD_ZERO(&sockwait_readfds);                                     \
+  FD_ZERO(&sockwait_writefds);                                    \
+  FD_ZERO(&sockwait_exceptfds);                                   \
+  FD_SET(sockwait_socket, &sockwait_exceptfds);
+#define SOCKET_WAIT_READ() FD_SET(sockwait_socket, &sockwait_readfds);
+#define SOCKET_WAIT_WRITE() FD_SET(sockwait_socket, &sockwait_writefds);
+#define SOCKET_WAIT()                                                       \
+  select((int)(sockwait_socket + 1), &sockwait_readfds, &sockwait_writefds, \
+         &sockwait_exceptfds, (sockwait_timeout >= 0) ? &sockwait_tm : NULL);
+#define SOCKET_WAIT_CAN_READ() FD_ISSET(sockwait_socket, &sockwait_readfds)
+#define SOCKET_WAIT_CAN_WRITE() FD_ISSET(sockwait_socket, &sockwait_writefds)
+#endif
+
+int do_wait_for_socket(MYSQL_SOCKET sd, int wait_flags, const int timeout) {
+  int ret;
+  SOCKET_WAIT_INITIALIZE(sd.fd, timeout * 1000);
+
+  MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
+  MYSQL_START_SOCKET_WAIT(locker, &state, sd, PSI_SOCKET_SELECT, 0);
+
+  while (wait_flags) {
+    if (k_wait_flag_read & wait_flags) {
+      SOCKET_WAIT_READ();
+      wait_flags = wait_flags & (~k_wait_flag_read);
+      continue;
+    } else if (k_wait_flag_write & wait_flags) {
+      SOCKET_WAIT_WRITE()
+      wait_flags = wait_flags & (~k_wait_flag_write);
+      continue;
+    }
+  }
+
+  /*
+    Wait for the I/O event and return early in case of
+    error or timeout.
+  */
+  ret = SOCKET_WAIT();
+
+  MYSQL_END_SOCKET_WAIT(locker, 0);
+
+  switch (ret) {
+    case -1:
+      /* On error, -1 is returned. */
+      return -1;
+    case 0:
+      errno = SOCKET_ETIMEDOUT;
+      return 0;
+  }
+
+  if (SOCKET_WAIT_CAN_WRITE()) return k_wait_flag_write;
+
+  if (SOCKET_WAIT_CAN_READ()) return k_wait_flag_read;
+
+  return -1;
+}
+
 }  // namespace details
+
+static bool should_retry(const int error) {
+#if SOCKET_EAGAIN == SOCKET_EWOULDBLOCK
+  return (error == SOCKET_EAGAIN);
+#else
+  return (error == SOCKET_EAGAIN || error == SOCKET_EWOULDBLOCK);
+#endif
+}
+
+const int k_socket_want_write = static_cast<int>(VIO_SOCKET_WANT_WRITE);
 
 Connection_impl::Connection_impl(std::shared_ptr<Context> context)
     : m_vioSslFd(nullptr),
@@ -427,6 +530,9 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   set_write_timeout(details::make_vio_timeout(
       (write_timeout < 0) ? -1 : write_timeout / 1000));
 
+  m_buffer.reset(
+      new Cyclic_buffer(m_context->m_connection_config.m_buffer_receive_size));
+
   return XError();
 }
 
@@ -569,6 +675,8 @@ XError Connection_impl::activate_tls() {
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
 
+  const bool verify_identity =
+      Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode;
   m_vioSslFd = new_VioSSLConnectorFd(
       details::null_when_empty(m_context->m_ssl_config.m_key),
       details::null_when_empty(m_context->m_ssl_config.m_cert),
@@ -578,7 +686,7 @@ XError Connection_impl::activate_tls() {
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),
-      ssl_ctx_flags);
+      ssl_ctx_flags, verify_identity ? m_hostname.c_str() : nullptr);
 
   if (nullptr == m_vioSslFd) return get_ssl_init_error(m_ssl_init_error);
 
@@ -589,7 +697,7 @@ XError Connection_impl::activate_tls() {
     return get_ssl_error(error);
   }
 
-  if (Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode) {
+  if (verify_identity) {
     auto error = details::ssl_verify_server_cert(m_vio, m_hostname);
 
     if (error) return error;
@@ -609,32 +717,74 @@ XError Connection_impl::shutdown(const Shutdown_type how_to_shutdown) {
   return XError();
 }
 
+XError Connection_impl::wait_for_socket_and_read_to_buffer() {
+  const auto wait_flag = details::do_wait_for_socket(
+      m_vio->mysql_socket,
+      details::k_wait_flag_read | details::k_wait_flag_write, m_write_timeout);
+
+  switch (wait_flag) {
+    case 0:
+      return XError{CR_X_WRITE_TIMEOUT, ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING};
+    case details::k_wait_flag_write:
+      break;
+    case details::k_wait_flag_read: {
+      uint8_t *out_ptr;
+      uint64_t out_size;
+
+      while (m_buffer->begin_direct_update(&out_ptr, &out_size)) {
+        auto result = static_cast<int>(vio_read(m_vio, out_ptr, out_size));
+
+        if (0 >= result) break;
+        m_buffer->end_direct_update(result);
+      }
+    } break;
+    default: {
+      const int vio_error = vio_errno(m_vio);
+      return get_socket_error(0 != vio_error ? vio_error : SOCKET_ECONNRESET);
+    }
+  }
+
+  return {};
+}
 XError Connection_impl::write(const uint8_t *data,
                               const std::size_t data_length) {
-  DBUG_DUMP("Connection_impl", data, data_length);
   std::size_t left_data_to_write = data_length;
   const unsigned char *data_to_send = (const unsigned char *)data;
 
   if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
+  details::Non_blocking non_blocking(m_vio);
+
   do {
-    const int result =
+    const int number_of_byte_send =
         static_cast<int>(vio_write(m_vio, data_to_send, left_data_to_write));
 
-    if (-1 == result) {
-      const int vio_error = vio_errno(m_vio);
+    const bool should_wait_for_read_or_write =
+        number_of_byte_send == k_socket_want_write ||
+        (-1 == number_of_byte_send && should_retry(vio_errno(m_vio)));
 
-      if (SOCKET_EWOULDBLOCK == vio_error || vio_was_timeout(m_vio)) {
-        return XError{CR_X_WRITE_TIMEOUT, ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING};
-      }
-
-      return get_socket_error(0 != vio_error ? vio_error : SOCKET_ECONNRESET);
-    } else if (0 == result) {
+    if (0 == number_of_byte_send) {
       return get_socket_error(SOCKET_ECONNRESET);
     }
 
-    left_data_to_write -= result;
-    data_to_send += result;
+    if (should_wait_for_read_or_write) {
+      const auto error = wait_for_socket_and_read_to_buffer();
+
+      if (error) return error;
+      continue;
+    }
+
+    if (number_of_byte_send < 0) {
+      const int vio_error = vio_errno(m_vio);
+
+      if (SOCKET_EWOULDBLOCK == vio_error || vio_was_timeout(m_vio))
+        return XError{CR_X_WRITE_TIMEOUT, ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING};
+
+      return get_socket_error(0 != vio_error ? vio_error : SOCKET_ECONNRESET);
+    }
+
+    left_data_to_write -= number_of_byte_send;
+    data_to_send += number_of_byte_send;
   } while (left_data_to_write > 0);
 
   return XError();
@@ -649,8 +799,12 @@ XError Connection_impl::read(uint8_t *data_head,
   if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
   do {
-    result = static_cast<int>(
-        vio_read(m_vio, reinterpret_cast<uint8_t *>(data), data_to_send));
+    if (m_buffer->space_used()) {
+      result = m_buffer->get(data_head, data_length);
+    } else {
+      result = static_cast<int>(
+          vio_read(m_vio, reinterpret_cast<uint8_t *>(data), data_to_send));
+    }
 
     if (-1 == result) {
       int vio_error = vio_errno(m_vio);
@@ -691,7 +845,9 @@ XError Connection_impl::set_write_timeout(const int deadline_seconds) {
                   ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED, true};
   }
 
+  m_write_timeout = deadline_seconds;
   vio_timeout(m_vio, 1, deadline_seconds);
+
   return {};
 }
 
@@ -704,7 +860,6 @@ const XConnection::State &Connection_impl::state() {
 
 void Connection_impl::close() {
   if (m_vio) {
-    ::closesocket(vio_fd(m_vio));
     vio_delete(m_vio);
     m_connected = false;
     m_ssl_active = false;

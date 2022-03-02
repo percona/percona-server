@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "trx0undo.h"
+#include "ut0dbg.h"
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "fsp0sysspace.h"
@@ -64,20 +65,17 @@ class Spatial_reference_system;
 
 /** Writes the mtr log entry of the inserted undo log record on the undo log
  page. */
-UNIV_INLINE
-void trx_undof_page_add_undo_rec_log(
+static inline void trx_undof_page_add_undo_rec_log(
     page_t *undo_page, /*!< in: undo log page */
     ulint old_free,    /*!< in: start offset of the inserted entry */
     ulint new_free,    /*!< in: end offset of the entry */
     mtr_t *mtr)        /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   const byte *log_end;
   ulint len;
 
-  log_ptr = mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN);
-
-  if (log_ptr == nullptr) {
+  if (!mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN, log_ptr)) {
     return;
   }
 
@@ -140,9 +138,8 @@ byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
 #ifndef UNIV_HOTBACKUP
 /** Calculates the free space left for extending an undo log record.
  @return bytes left */
-UNIV_INLINE
-ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
-                    const byte *ptr)    /*!< in: pointer to page */
+static inline ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
+                                  const byte *ptr) /*!< in: pointer to page */
 {
   /* The '- 10' is a safety margin, in case we have some small
   calculation error below */
@@ -775,8 +772,12 @@ log of an update or delete marking of a clustered index record.
 @param[out]	ext_buf		buffer to hold the prefix data and BLOB pointer
 @param[in]	prefix_len	prefix size to store in the undo log
 @param[in]	page_size	page size
-@param[in]	field		an externally stored column
-@param[in]	is_sdi		true for SDI indexes
+@param[in]	field		an externally stored column */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	len		input: length of field; output: used length of
 ext_buf
 @return ext_buf */
@@ -823,8 +824,12 @@ static byte *trx_undo_page_fetch_ext_func(trx_t *trx, dict_index_t *index,
 @param[in]	page_size	page size
 @param[in,out]	field		the locally stored part of the externally
 stored column
-@param[in,out]	len		length of field, in bytes
-@param[in]	is_sdi		true for SDI indexes
+@param[in,out]	len		length of field, in bytes */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	spatial_status	whether the column is used by spatial index or
                                 regular index
 @return undo log position */
@@ -1008,7 +1013,7 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
 @param[in]	update		the update vector containing partial update
                                 information on LOBs.
 @param[in]	fld		the field to which the LOB belongs.
-@param[in]	mtr		the mini transaction context.
+@param[in]	mtr		the mini-transaction context.
 @return the undo record pointer where new data can be written.
 @return nullptr when there is not enough space in undo page. */
 static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
@@ -1763,6 +1768,8 @@ byte *trx_undo_update_rec_get_update(
 
   update = upd_create(n_fields + 2, heap);
 
+  update->table = index->table;
+
   update->info_bits = info_bits;
 
   /* Store first trx id and roll ptr to update vector */
@@ -2099,9 +2106,6 @@ byte *trx_undo_parse_erase_page_end(
     page_t *page,                         /*!< in: page or NULL */
     mtr_t *mtr)                           /*!< in: mtr or NULL */
 {
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
-
   if (page == nullptr) {
     return (ptr);
   }
@@ -2244,11 +2248,9 @@ dberr_t trx_undo_report_row_operation(
   }
 
   page_no = undo->last_page_no;
-
-  undo_block = buf_page_get_gen(
-      page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
-      buf_pool_is_obsolete(undo->withdraw_clock) ? nullptr : undo->guess_block,
-      Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
+  undo_block = buf_page_get_gen(page_id_t(undo->space, page_no),
+                                undo->page_size, RW_X_LATCH, undo->guess_block,
+                                Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
 
   buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 
@@ -2310,14 +2312,13 @@ dberr_t trx_undo_report_row_operation(
       mtr_commit(&mtr);
     } else {
       /* Success */
-      undo->withdraw_clock = buf_withdraw_clock;
+      undo->guess_block = undo_block;
       mtr_commit(&mtr);
 
       undo->empty = FALSE;
       undo->top_page_no = page_no;
       undo->top_offset = offset;
       undo->top_undo_no = trx->undo_no;
-      undo->guess_block = undo_block;
 
       trx->undo_no++;
       trx->undo_rseg_space = undo_ptr->rseg->space_id;
@@ -2661,8 +2662,8 @@ bool trx_undo_prev_version_build(
 /** Read virtual column value from undo log
 @param[in]	table		the table
 @param[in]	ptr		undo log pointer
-@param[in,out]	row		the row struct to fill
-@param[in]	in_purge	called by purge thread
+@param[in,out]	row		the dtuple to fill
+@param[in]	in_purge        called by purge thread
 @param[in]	online		true if this is from online DDL log
 @param[in]	col_map		online rebuild column map
 @param[in,out]	heap		memory heap to keep value when necessary */

@@ -181,8 +181,6 @@ SELECT 1 FROM t GROUP BY ST_ASGEOJSON(POINT(1, 1)) WITH ROLLUP;
 1
 1
 1
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, COUNT(DISTINCT a)
 FROM t GROUP BY je WITH ROLLUP;
 je	COUNT(DISTINCT a)
@@ -269,6 +267,24 @@ SUM(col_int)	col_int
 4572643328	NULL
 DROP VIEW view1;
 DROP TABLE D;
+#
+# BUG: PS-7212 - Datatype inside JSON column changes unexpectedly
+#
+CREATE TABLE json (
+id int NOT NULL,
+j json DEFAULT NULL,
+s tinyint NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT INTO json VALUES (2, '{"amount": 70.0}', 1);
+SELECT json_type(j->"$.amount") FROM json;
+json_type(j->"$.amount")
+DOUBLE
+INSERT INTO json VALUES (2, '{}', 1) ON DUPLICATE KEY UPDATE j=if(s=0, '{}', j);
+SELECT json_type(j->"$.amount") FROM json;
+json_type(j->"$.amount")
+DOUBLE
+DROP TABLE json;
 #
 # Bug#29669251: !THD->IS_ERROR() IN JOIN_READ_CONST_TABLE()
 #

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,10 +66,6 @@ struct dict_table_t;
 only one buffer pool instance is used. */
 #define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
 
-/** Parse temporary tablespace configuration.
- @return true if ok, false on parse error */
-bool srv_parse_temp_data_file_paths_and_sizes(
-    char *str); /*!< in/out: the data file path string */
 /** Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
  and srv_parse_log_group_home_dirs(). */
 void srv_free_paths_and_sizes(void);
@@ -80,6 +76,11 @@ void srv_free_paths_and_sizes(void);
 char *srv_add_path_separator_if_needed(
     char *str); /*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
+
+/** Open an undo tablespace.
+@param[in]  undo_space  Undo tablespace
+@return DB_SUCCESS or error code */
+dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space);
 
 /** Upgrade undo tablespaces by deleting the old undo tablespaces
 referenced by the TRX_SYS page.
@@ -113,23 +114,9 @@ void srv_start_threads(bool bootstrap);
 complete DD recovery(post the DDL recovery) */
 void srv_start_threads_after_ddl_recovery();
 
-/** Shut down all InnoDB background tasks that may look up objects in
-the data dictionary. */
-void srv_pre_dd_shutdown();
-
-/** Shut down the InnoDB database. */
-void srv_shutdown();
-
-/** Shut down all InnoDB background threads. */
-void srv_shutdown_all_bg_threads();
-
 /** Start purge threads. During upgrade we start
 purge threads early to apply purge. */
 void srv_start_purge_threads();
-
-/** If early redo/undo log encryption processing is done.
-@return true if it's done. */
-bool is_early_redo_undo_encryption_done();
 
 /** Copy the file path component of the physical file to parameter. It will
  copy up to and including the terminating path separator.
@@ -160,58 +147,13 @@ extern bool srv_sys_tablespaces_open;
 /** true if the server is being started, before rolling back any
 incomplete transactions */
 extern bool srv_startup_is_before_trx_rollback_phase;
-#ifdef UNIV_DEBUG
-/** true if srv_pre_dd_shutdown() has been completed */
-extern bool srv_is_being_shutdown;
-#endif /* UNIV_DEBUG */
 
 /** TRUE if a raw partition is in use */
 extern ibool srv_start_raw_disk_in_use;
 
-/** Shutdown state */
-enum srv_shutdown_t {
-  /** Database running normally. */
-  SRV_SHUTDOWN_NONE = 0,
-
-  /** Stopping all extra background tasks. This includes the purge threads and
-  every other thread in Srv_threads except:
-    - master thread,
-    - redo log threads,
-    - page cleaner threads,
-    - LRU manager threads,
-    - archiver threads.
-  At this phase the purge threads must be stopped. */
-  SRV_SHUTDOWN_CLEANUP,
-
-  /** Stopping the master thread. */
-  SRV_SHUTDOWN_MASTER_STOP,
-
-  /** Once we enter this phase the page_cleaners can clean up the buffer pool
-  and exit. Redo log threads write and flush the log buffer and exit after
-  page cleaners (and within this phase). Then we switch to the LAST_PHASE. */
-  SRV_SHUTDOWN_FLUSH_PHASE,
-
-  /** Last phase after ensuring that all data have been flushed to disk and
-  the flushed_lsn has been updated in the header of system tablespace.
-  During this phase we close all files and ensure archiver has archived all. */
-  SRV_SHUTDOWN_LAST_PHASE,
-
-  /** Exit all threads and free resources. */
-  SRV_SHUTDOWN_EXIT_THREADS
-};
-
-/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
-SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-extern std::atomic<enum srv_shutdown_t> srv_shutdown_state;
-
-/** true if shared MDL is taken by background thread for all tablespaces, for
- *  which (un)encryption is to be rolled forward*/
-extern bool shared_mdl_is_taken;
-
-/** Call exit(3) */
-void srv_fatal_error() MY_ATTRIBUTE((noreturn));
-/**
-Shutdown all background threads created by InnoDB. */
-void srv_shutdown_all_bg_threads();
+/** check if there is no encryption conflicts when setting
+either Master Key or Keyring encryption for undo */
+dberr_t check_mk_and_keyring_encrypt_exclusion_for_undo(
+    bool should_acquire_space, THD *thd);
 
 #endif

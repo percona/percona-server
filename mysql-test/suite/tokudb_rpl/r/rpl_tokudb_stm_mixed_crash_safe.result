@@ -35,8 +35,10 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY (`Channel_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -54,7 +56,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_bitmap` blob NOT NULL,
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -73,8 +75,10 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY (`Channel_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -92,7 +96,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_bitmap` blob NOT NULL,
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
 include/start_slave.inc
 rpl_mixing_engines.inc [commands=configure]
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -202,7 +206,7 @@ END|
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -224,12 +228,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -251,12 +255,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -280,12 +284,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -313,12 +317,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -354,12 +358,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -397,12 +401,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -440,12 +444,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -481,12 +485,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -524,12 +528,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
@@ -567,12 +571,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -594,12 +598,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -621,12 +625,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -650,12 +654,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -683,12 +687,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -724,12 +728,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -767,12 +771,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -810,12 +814,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -851,12 +855,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -894,12 +898,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
@@ -937,12 +941,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -964,12 +968,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -991,12 +995,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1020,12 +1024,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1053,12 +1057,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1094,12 +1098,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1137,12 +1141,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1180,12 +1184,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1221,12 +1225,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1264,12 +1268,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
@@ -1307,12 +1311,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1334,12 +1338,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1361,12 +1365,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1390,12 +1394,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1423,12 +1427,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1464,12 +1468,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1507,12 +1511,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1550,12 +1554,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1591,12 +1595,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1634,12 +1638,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_before_update_pos";;
 FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
@@ -1677,7 +1681,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 ###################################################################################
 #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
@@ -1685,7 +1689,7 @@ include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
@@ -1707,12 +1711,12 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
@@ -1734,12 +1738,12 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 
 
 
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
@@ -1763,7 +1767,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 include/rpl_reconnect.inc
-START SLAVE;
+START REPLICA;
 include/wait_for_slave_to_start.inc
 ###################################################################################
 #                               CHECK CONSISTENCY

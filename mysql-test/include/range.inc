@@ -39,6 +39,7 @@ ANALYZE TABLE t1;
 --enable_result_log
 
 explain select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 explain select event_date,type,event_id from t1 WHERE type = 100601 and event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
@@ -87,7 +88,7 @@ INSERT INTO t1 VALUES (1,0,0), (3,1,1), (4,1,1), (8,2,2), (9,2,2), (17,3,2),
 (15,2,2), (6,1,1), (34,6,2), (35,6,2), (16,3,2), (7,1,1), (36,7,2), (18,3,2),
 (26,5,2), (27,5,2), (183,4,2), (38,7,2), (25,5,2), (37,7,2), (21,4,2),
 (19,3,2), (5,1,1), (179,5,2);
-SELECT * FROM t1 WHERE level = 1 AND parent_id = 1;
+SELECT * FROM t1 WHERE level = 1 AND parent_id = 1 order by id;
 # The following select returned 0 rows in 3.23.8
 SELECT * FROM t1 WHERE level = 1 AND parent_id = 1 order by id;
 drop table t1;
@@ -266,6 +267,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 ( a int not null, b int not null, INDEX ab(a,b) );
 INSERT INTO t1 VALUES (47,1), (70,1), (15,1), (15, 4);
+--sorted_result
 SELECT * FROM t1
 WHERE
 (
@@ -298,6 +300,7 @@ KEY recount( owner, line )
 
 INSERT into t1 (owner,id,columnid,line) values (11,15,15,1),(11,13,13,5);
 
+--sorted_result
 SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner=11 AND ((columnid IN ( 15, 13, 14 ) AND line IN ( 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 31 )) OR (columnid IN ( 13, 14 ) AND line IN ( 15 ))) LIMIT 0 , 30;
 drop table t1;
 
@@ -398,12 +401,16 @@ select count(*) from t1;
 select count(*) from t2;
 
 analyze table t1,t2;
-
+--disable_warnings
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
-
+--enable_warnings
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 
@@ -467,12 +474,16 @@ ANALYZE TABLE t1;
 --enable_result_log
 
 explain select * from t1 where a <> -1;
+--sorted_result
 select * from t1 where a <> -1;
 explain select * from t1 where a > -1 or a < -1;
+--sorted_result
 select * from t1 where a > -1 or a < -1;
 explain select * from t1 where a > -1;
+--sorted_result
 select * from t1 where a > -1;
 explain select * from t1 where a < -1;
+--sorted_result
 select * from t1 where a < -1;
 
 drop table t1;
@@ -600,6 +611,7 @@ SELECT s.oxid FROM t1 v, t1 s
         v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
         s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 
+--sorted_result
 SELECT s.oxid FROM t1 v, t1 s 
   WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
         v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
@@ -618,6 +630,7 @@ create table t1 (
 insert into t1 (c1) values ('1'),('1'),('1'),('1');
 
 # This must run without crash and fast:
+--skip_if_hypergraph  # Warnings depend on the range optimizer being called.
 select * from t1 where
      c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
             "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
@@ -834,8 +847,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (name varchar(15) NOT NULL, KEY idx(name));
 INSERT INTO t1 VALUES ('Betty'), ('Anna');
 
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1 WHERE name NOT LIKE 'A%a';
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -968,6 +983,7 @@ SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 
 EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;  # Tests printing of sort_union.
 
 DROP TABLE t1;
@@ -1189,6 +1205,7 @@ ANALYZE TABLE t1, t2, t3;
 # Problem#1 Test queries. Will give missing results unless Problem#1 is fixed.
 # With one exception, they are independent of Problem#2.
 #
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a < 5 OR 
 5 < a AND b = 3 OR
@@ -1201,6 +1218,7 @@ SELECT * FROM t1 WHERE
 3 <= a;
 
 # Query below: Tests both Problem#1 and Problem#2 (EXPLAIN differs as well)
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a < 5 OR 
 5 <= a AND b = 3 OR
@@ -1212,6 +1230,7 @@ SELECT * FROM t1 WHERE
 5 <= a AND b = 3 OR
 3 <= a;
 
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a <= 5 OR 
 5 <= a AND b = 3 OR
@@ -1223,6 +1242,7 @@ SELECT * FROM t1 WHERE
 5 <= a AND b = 3 OR
 3 <= a;
 
+--sorted_result
 SELECT * FROM t1 WHERE
 3 <= a AND a <= 5 OR 
 3 <= a;
@@ -1237,6 +1257,7 @@ SELECT * FROM t1 WHERE
 # These queries will give missing results if Problem#1 is fixed.
 # But Problem#1 also hides this bug.
 #
+--sorted_result
 SELECT * FROM t2 WHERE
 5 <= a AND a < 10 AND b = 1 OR
 15 <= a AND a < 20 AND b = 3
@@ -1250,6 +1271,7 @@ SELECT * FROM t2 WHERE
 OR
 1 <= a AND b = 1;
 
+--sorted_result
 SELECT * FROM t2 WHERE
 5 <= a AND a < 10 AND b = 2 OR
 15 <= a AND a < 20 AND b = 3
@@ -1263,6 +1285,7 @@ SELECT * FROM t2 WHERE
 OR
 1 <= a AND b = 1;
 
+--sorted_result
 SELECT * FROM t3 WHERE
 5 <= a AND a < 10 AND b = 3 OR 
 a < 5 OR
@@ -1514,6 +1537,7 @@ SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
 # Also tests printing of index condition pushdown on EQRefIterator.
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+--skip_if_hypergraph  # No ICP in the hypergraph optimizer yet.
 EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
@@ -1763,12 +1787,14 @@ ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 
 --replace_column 10 # 11 #
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 --echo # need FLUSH so that InnoDB statistics change and thus plan changes
 FLUSH TABLES;
 --replace_column 10 # 11 #
 eval EXPLAIN $query;
+--skip_if_hypergraph  # No DynamicRangeIterator in the hypergraph optimizer.
 eval EXPLAIN FORMAT=tree $query;  # Tests printing of DynamicRangeIterator.
 eval $query;
 
@@ -1839,11 +1865,12 @@ WHERE ( table1.pk > 226 AND
         ) 
       )
 ;
-
-ALTER TABLE t1 DISABLE KEYS;
+SET UNIQUE_CHECKS = 0;
+SET FOREIGN_KEY_CHECKS = 0;
 sorted_result;
 eval $query;
-ALTER TABLE t1 ENABLE KEYS;
+SET FOREIGN_KEY_CHECKS = 1;
+SET UNIQUE_CHECKS = 1;
 
 eval CREATE TABLE t2 $query;
 
@@ -1864,10 +1891,7 @@ CREATE TABLE t1 (
  PRIMARY KEY (c,a), KEY (a),KEY (a)
 ) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
 INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
-# Disabled by WL#5094
---disable_warnings
 UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
---enable_warnings
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -1940,6 +1964,7 @@ ANALYZE TABLE t1, t2;
 --echo # range/ref access cannot be used for this query
 --echo
 EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
+--sorted_result
 SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 
 let $query_ab=SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
@@ -2480,16 +2505,19 @@ ANALYZE TABLE t1;
 --enable_query_log
 --enable_result_log
 
-Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
-Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
-Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(127);
+Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(127);
+Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(127);
 
 eval EXPLAIN $query1;
 eval EXPLAIN $query2;
 eval EXPLAIN $query3;
 
+--skip_if_hypergraph  # Warnings depend on the query plan.
 eval $query1;
+--skip_if_hypergraph  # Warnings depend on the query plan.
 eval $query2;
+--skip_if_hypergraph  # Warnings depend on the query plan.
 eval $query3;
 
 DROP TABLE t1;
@@ -2864,6 +2892,7 @@ eval EXPLAIN $query1;
 SET optimizer_trace="enabled=on";
 eval $query1;
 SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT @trace RLIKE "range_uses_more_keyparts";
 SET optimizer_trace="enabled=off";
 
@@ -3001,7 +3030,7 @@ let query1=
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c
+ORDER BY c, a
 LIMIT 1;
 
 # test with descending order
@@ -3009,7 +3038,7 @@ let query2=
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
-ORDER BY c DESC
+ORDER BY c DESC, a DESC
 LIMIT 1;
 
 eval EXPLAIN $query1;
@@ -3019,3 +3048,20 @@ eval EXPLAIN $query2;
 eval $query2;
 
 DROP TABLE test_ref;
+
+--echo #
+--echo # Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
+--echo #                WHERE_CLAUSE
+--echo #
+
+CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
+INSERT INTO t VALUES(0,0);
+ANALYZE TABLE t;
+
+# Test if adjacent ranges when rounded off to the same value by range
+# optimizer return correct results. Note that range scan is not chosen as the
+# final range would be 0 < id <= 0 which is "where true". So range optimizer
+# will not have any range to work on.
+SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
+
+DROP TABLE t;

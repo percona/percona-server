@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -207,8 +207,6 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     return (DB_IO_ERROR);
   }
 
-  dberr_t err = DB_SUCCESS;
-
   /* Write SDI Index */
   if (has_sdi) {
     dict_mutex_enter_for_mysql();
@@ -218,21 +216,21 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     dict_mutex_exit_for_mysql();
 
     ut_ad(index != nullptr);
-    err = row_quiesce_write_one_index(index, file, thd);
+    const auto err = row_quiesce_write_one_index(index, file, thd);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
   }
 
   /* Write the table indexes meta data. */
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
-    err = row_quiesce_write_one_index(index, file, thd);
+  for (const dict_index_t *index : table->indexes) {
+    const auto err = row_quiesce_write_one_index(index, file, thd);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
   }
 
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  return (err);
+  return DB_SUCCESS;
 }
 
 /** Write the metadata (table columns) config file. Serialise the contents
@@ -367,7 +365,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   // The table is read locked so it will not be dropped
   ut_ad(space != NULL);
   /* Write the current meta-data version number. */
-  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V5;
+  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V6;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
@@ -491,6 +489,20 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_IO_ERROR);
   }
 
+  if (cfg_version >= IB_EXPORT_CFG_VERSION_V6) {
+    /* Write compression type info. */
+    uint8_t compression_type =
+        static_cast<uint8_t>(fil_get_compression(table->space));
+    mach_write_to_1(value, compression_type);
+
+    if (fwrite(&value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                  strerror(errno), "while writing compression type info.");
+
+      return DB_IO_ERROR;
+    }
+  }
+
   return (DB_SUCCESS);
 }
 
@@ -511,8 +523,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   FILE *file = fopen(name, "w+b");
 
   if (file == nullptr) {
-    ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
-            strerror(errno));
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
+                strerror(errno));
 
     err = DB_IO_ERROR;
   } else {
@@ -650,7 +662,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   /* Get the encryption key and iv from space */
   /* For encrypted table, before we discard the tablespace,
-  we need save the encryption information into table, otherwise,
+  we need to save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
   if (table->encryption_key == nullptr) {
@@ -679,8 +691,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   FILE *file = fopen(name, "w+b");
 
   if (file == nullptr) {
-    ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
-            strerror(errno));
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
+                strerror(errno));
 
     err = DB_IO_ERROR;
   } else {
@@ -724,8 +736,7 @@ static bool row_quiesce_table_has_fts_index(
 
   dict_mutex_enter_for_mysql();
 
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (const dict_index_t *index : table->indexes) {
     if (index->type & DICT_FTS) {
       exists = true;
       break;
@@ -737,10 +748,10 @@ static bool row_quiesce_table_has_fts_index(
   return (exists);
 }
 
-/** Quiesce the tablespace that the table resides in. */
-void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
-                             trx_t *trx) /*!< in/out: transaction/session */
-{
+/** Quiesce the tablespace that the table resides in.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_start(dict_table_t *table, trx_t *trx) {
   ut_a(trx->mysql_thd != nullptr);
   ut_a(srv_n_purge_threads > 0);
   ut_ad(!srv_read_only_mode);
@@ -804,11 +815,10 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
   ut_a(err == DB_SUCCESS);
 }
 
-/** Cleanup after table quiesce. */
-void row_quiesce_table_complete(
-    dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx)          /*!< in/out: transaction/session */
-{
+/** Cleanup after table quiesce.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_complete(dict_table_t *table, trx_t *trx) {
   ulint count = 0;
 
   ut_a(trx->mysql_thd != nullptr);
@@ -823,8 +833,7 @@ void row_quiesce_table_complete(
           << "Waiting for quiesce of " << table->name << " to complete";
     }
 
-    /* Sleep for a second. */
-    os_thread_sleep(1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     ++count;
   }

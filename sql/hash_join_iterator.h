@@ -1,7 +1,7 @@
 #ifndef SQL_HASH_JOIN_ITERATOR_H_
 #define SQL_HASH_JOIN_ITERATOR_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,21 +26,25 @@
 #include <stdio.h>
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "my_alloc.h"
-#include "my_inttypes.h"
+#include "my_base.h"
+#include "my_table_map.h"
+#include "prealloced_array.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/hash_join_chunk.h"
+#include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
+#include "sql/pack_rows.h"
 #include "sql/row_iterator.h"
-#include "sql/table.h"
 #include "sql_string.h"
 
+class Item;
+class JOIN;
 class THD;
-class QEP_TAB;
 
 struct ChunkPair {
   HashJoinChunk probe_chunk;
@@ -82,7 +86,7 @@ struct ChunkPair {
 /// from the probe input is already located in the table record buffers, and the
 /// matching row stored in the hash table is restored back to the record buffers
 /// where it originally came from. For details around how rows are stored and
-/// restored, see comments on hash_join_buffer::StoreFromTableBuffers.
+/// restored, see comments on pack_rows::StoreFromTableBuffers.
 ///
 /// The size of the in-memory hash table is controlled by the system variable
 /// join_buffer_size. If we run out of memory during step 2, we degrade into a
@@ -255,17 +259,28 @@ class HashJoinIterator final : public RowIterator {
   /// @param build_input
   ///   the iterator for the build input
   /// @param build_input_tables
-  ///   a bitmap of all the tables in the build input. The tables are needed for
+  ///   a list of all the tables in the build input. The tables are needed for
   ///   two things:
   ///   1) Accessing the columns when creating the join key during creation of
   ///   the hash table,
   ///   2) and accessing the column data when creating the row to be stored in
   ///   the hash table and/or the chunk file on disk.
+  /// @param estimated_build_rows
+  ///   How many rows we assume there will be when reading the build input.
+  ///   This is used to choose how many chunks we break it into on disk.
   /// @param probe_input
   ///   the iterator for the probe input
   /// @param probe_input_tables
   ///   the probe input tables. Needed for the same reasons as
   ///   build_input_tables.
+  /// @param store_rowids whether we need to make sure row ids are available
+  ///   for all tables below us, after Read() has been called. used only if
+  ///   we are below a weedout operation.
+  /// @param tables_to_get_rowid_for a map of which tables we need to call
+  ///   position() for ourselves. tables that are in build_input_tables
+  ///   but not in this map, are expected to be handled by some other iterator.
+  ///   tables that are in this map but not in build_input_tables will be
+  ///   ignored.
   /// @param max_memory_available
   ///   the amount of memory available, in bytes, for this hash join iterator.
   ///   This can be user-controlled by setting the system variable
@@ -277,20 +292,32 @@ class HashJoinIterator final : public RowIterator {
   ///   cases where we have a LIMIT in the query
   /// @param join_type
   ///   The join type.
-  /// @param join
-  ///   The join we are a part of.
   /// @param extra_conditions
   ///   A list of extra conditions that the iterator will evaluate after a
   ///   lookup in the hash table is done, but before the row is returned. The
   ///   conditions are AND-ed together into a single Item.
+  /// @param probe_input_batch_mode
+  ///   Whether we need to enable batch mode on the probe input table.
+  ///   Only make sense if it is a single table, and we are not on the
+  ///   outer side of any nested loop join.
+  /// @param hash_table_generation
+  ///   If this is non-nullptr, it is a counter of how many times the query
+  ///   block the iterator is a part of has been asked to clear hash tables,
+  ///   since outer references may have changed value. It is used to know when
+  ///   we need to drop our hash table; when the value changes, we need to drop
+  ///   it. If it is nullptr, we _always_ drop it on Init().
   HashJoinIterator(THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
-                   qep_tab_map build_input_tables,
+                   const Prealloced_array<TABLE *, 4> &build_input_tables,
+                   double estimated_build_rows,
                    unique_ptr_destroy_only<RowIterator> probe_input,
-                   qep_tab_map probe_input_tables, size_t max_memory_available,
+                   const Prealloced_array<TABLE *, 4> &probe_input_tables,
+                   bool store_rowids, table_map tables_to_get_rowid_for,
+                   size_t max_memory_available,
                    const std::vector<HashJoinCondition> &join_conditions,
                    bool allow_spill_to_disk, JoinType join_type,
-                   const JOIN *join,
-                   const std::vector<Item *> &extra_conditions);
+                   const Mem_root_array<Item *> &extra_conditions,
+                   bool probe_input_batch_mode,
+                   uint64_t *hash_table_generation);
 
   bool Init() override;
 
@@ -309,13 +336,6 @@ class HashJoinIterator final : public RowIterator {
   void UnlockRow() override {
     // Since both inputs may have been materialized to disk, we cannot unlock
     // them.
-  }
-
-  std::vector<std::string> DebugString() const override;
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_probe_input.get(), ""},
-                              {m_build_input.get(), "Hash"}};
   }
 
  private:
@@ -476,21 +496,25 @@ class HashJoinIterator final : public RowIterator {
   };
 
   State m_state;
+  uint64_t *m_hash_table_generation;
+  uint64_t m_last_hash_table_generation;
 
   const unique_ptr_destroy_only<RowIterator> m_build_input;
   const unique_ptr_destroy_only<RowIterator> m_probe_input;
 
-  // An iterator for reading rows from the hash table.
-  // hash_join_buffer::HashJoinRowBuffer::Iterator m_hash_map_iterator;
-  hash_join_buffer::HashJoinRowBuffer::hash_map_iterator m_hash_map_iterator;
-  hash_join_buffer::HashJoinRowBuffer::hash_map_iterator m_hash_map_end;
+  // The last row that was read from the hash table, or nullptr if none.
+  // All rows under the same key are linked together (see the documentation
+  // for LinkedImmutableString), so this allows iterating through the rows
+  // until the end.
+  LinkedImmutableString m_current_row{nullptr};
 
   // These structures holds the tables and columns that are needed for the hash
   // join. Rows/columns that are not needed are filtered out in the constructor.
   // We need to know which tables that belong to each iterator, so that we can
   // compute the join key when needed.
-  hash_join_buffer::TableCollection m_probe_input_tables;
-  hash_join_buffer::TableCollection m_build_input_tables;
+  pack_rows::TableCollection m_probe_input_tables;
+  pack_rows::TableCollection m_build_input_tables;
+  const table_map m_tables_to_get_rowid_for;
 
   // An in-memory hash table that holds rows from the build input (directly from
   // the build input iterator, or from a chunk file). See the class comment for
@@ -509,19 +533,22 @@ class HashJoinIterator final : public RowIterator {
   // It is incremented during the state LOADING_NEXT_CHUNK_PAIR.
   int m_current_chunk{-1};
 
-  // The seeds that are used by xxHash64 when calculating the hash from a join
-  // key. We need one seed for the hashing done in the in-memory hash table,
-  // and one seed when calculating the hash that is used for determining which
-  // chunk file a row should be placed in (in case of on-disk hash join). If we
-  // were to use the same seed for both operations, we would get a really bad
-  // hash table when loading a chunk file to the hash table. The numbers are
-  // chosen randomly and have no special meaning.
-  static constexpr uint32_t kHashTableSeed{156211};
+  // The seed that is by xxHash64 when calculating the hash from a join
+  // key. We use xxHash64 when calculating the hash that is used for
+  // determining which chunk file a row should be placed in (in case of
+  // on-disk hash join); if we used the same hash function (and seed) for
+  // both operation, we would get a really bad hash table when loading
+  // a chunk file to the hash table. The number is chosen randomly and have
+  // no special meaning.
   static constexpr uint32_t kChunkPartitioningHashSeed{899339};
 
   // Which row we currently are reading from each of the hash join chunk file.
   ha_rows m_build_chunk_current_row = 0;
   ha_rows m_probe_chunk_current_row = 0;
+
+  // How many rows we assume there will be when reading the build input.
+  // This is used to choose how many chunks we break it into on disk.
+  const double m_estimated_build_rows;
 
   // The maximum number of HashJoinChunks that is allocated for each of the
   // inputs in case we spill to disk. We might very well end up with an amount
@@ -547,8 +574,9 @@ class HashJoinIterator final : public RowIterator {
   String m_temporary_row_and_join_key_buffer;
 
   // Whether we should turn on batch mode for the probe input. Batch mode is
-  // enabled if the probe input consists of exactly one table, and
-  // QEP_TAB::pfs_batch_update() returns true for this table.
+  // enabled if the probe input consists of exactly one table, and said table
+  // can return more than one row and has no associated subquery condition.
+  // (See ShouldEnableBatchMode().)
   bool m_probe_input_batch_mode{false};
 
   // Whether we are allowed to spill to disk.
@@ -625,11 +653,5 @@ class HashJoinIterator final : public RowIterator {
   // probe row read.
   bool m_probe_row_match_flag{false};
 };
-
-/// For each of the given tables, request that the row ID is filled in
-/// (the equivalent of calling file->position()) if needed.
-///
-/// @param tables The tables to request row IDs for.
-void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables);
 
 #endif  // SQL_HASH_JOIN_ITERATOR_H_

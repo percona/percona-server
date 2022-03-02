@@ -1,6 +1,5 @@
 /*****************************************************************************
-
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -32,12 +31,14 @@ Atomic writes handling. */
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
+#include "fil0crypt.h"
 #include "os0thread-create.h"
 #include "page0zip.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "ut0mpmcbq.h"
-#include "os0enc.h"
+#include "ut0mutex.h"
+#include "ut0test.h"
 
 #include <iomanip>
 #include <iostream>
@@ -45,7 +46,6 @@ Atomic writes handling. */
 #include <vector>
 
 /** Doublewrite buffer */
-/* @{ */
 
 /** fseg header of the fseg containing the doublewrite buffer */
 constexpr ulint DBLWR_V1_FSEG = 0;
@@ -100,7 +100,37 @@ struct File {
 
   /** Number of batched pages per doublwrite file. */
   static uint32_t s_n_pages;
+
+  /** Serialize the object into JSON format.
+  @return the object in JSON format. */
+  std::string to_json() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    std::ostringstream out;
+    out << "{";
+    out << "\"className\": \"dblwr::File\",";
+    out << "\"m_id\": \"" << m_id << "\",";
+    out << "\"m_name\": \"" << m_name << "\",";
+    out << "\"s_n_pages\": \"" << s_n_pages << "\"";
+    out << "}";
+
+    return out.str();
+  }
+
+  /** Print this object into the given stream.
+  @param[in]  out  output stream into which the current object is printed.
+  @return the output stream. */
+  std::ostream &print(std::ostream &out) const noexcept {
+    out << to_json();
+    return out;
+  }
 };
+
+/** Overload the global output operator to work with dblwr::File type.
+@param[in]  out  output stream into which the object is printed.
+@param[in]  obj  An object to type dblwr::File.
+@return the output stream. */
+inline std::ostream &operator<<(std::ostream &out, const File &obj) noexcept {
+  return obj.print(out);
+}
 
 uint32_t File::s_n_pages{};
 
@@ -179,6 +209,12 @@ class Pages {
   tablespace IDs */
   void check_missing_tablespaces() const noexcept;
 
+  /** Object the vector of pages.
+  @return the vector of pages. */
+  Buffers &get_pages() noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return m_pages;
+  }
+
  private:
   /** Recovered doublewrite buffer page frames */
   Buffers m_pages;
@@ -222,10 +258,25 @@ class Double_write {
     }
 
     /** Add a page to the collection.
-    @param[in] bpage            Page to write. */
-    void push_back(buf_page_t *bpage) noexcept {
+    @param[in] bpage     Page to write.
+    @param[in] e_block   encrypted block.
+    @param[in] e_len     length of data in e_block. */
+    void push_back(buf_page_t *bpage, const file::Block *e_block,
+                   uint32_t e_len) noexcept {
       ut_a(m_size < m_pages.capacity());
-      m_pages[m_size++] = bpage;
+#ifdef UNIV_DEBUG
+      {
+        byte *e_frame =
+            (e_block == nullptr) ? nullptr : os_block_get_frame(e_block);
+        if (e_frame != nullptr) {
+          ut_ad(mach_read_from_4(e_frame + FIL_PAGE_OFFSET) ==
+                bpage->page_no());
+          ut_ad(mach_read_from_4(e_frame + FIL_PAGE_SPACE_ID) ==
+                bpage->space());
+        }
+      }
+#endif /* UNIV_DEBUG */
+      m_pages[m_size++] = std::make_tuple(bpage, e_block, e_len);
     }
 
     /** Clear the collection. */
@@ -238,9 +289,12 @@ class Double_write {
     uint32_t size() const noexcept { return m_size; }
 
     /** @return the capacity of the collection. */
-    uint32_t capacity() const noexcept { return m_pages.capacity(); }
+    uint32_t capacity() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+      return m_pages.capacity();
+    }
 
-    using Pages = std::vector<buf_page_t *>;
+    typedef std::tuple<buf_page_t *, const file::Block *, uint32_t> Dblwr_tuple;
+    using Pages = std::vector<Dblwr_tuple, ut_allocator<Dblwr_tuple>>;
 
     /** Collection of pages. */
     Pages m_pages{};
@@ -271,9 +325,9 @@ class Double_write {
   @param[in] buf_pool_index     Buffer pool instance number.
   @param[in] flush_type         LRU or Flush list write.
   @return instance that will handle the flush to disk. */
-  static Double_write *instance(
-      buf_flush_t flush_type,
-      uint32_t buf_pool_index) noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  static Double_write *instance(buf_flush_t flush_type,
+                                uint32_t buf_pool_index) noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
     ut_a(buf_pool_index < srv_buf_pool_instances);
 
     auto midpoint = s_instances->size() / 2;
@@ -352,16 +406,25 @@ class Double_write {
 
   /** Add a page to the flush batch. If the flush batch is full then write
   the batch to disk.
-  @param[in] flush_type         Flush type.
-  @param[in] bpage              Page to flush to disk. */
-  void enqueue(buf_flush_t flush_type, buf_page_t *bpage) noexcept {
+  @param[in] flush_type     Flush type.
+  @param[in] bpage          Page to flush to disk.
+  @param[in] e_block        Encrypted block frame or nullptr.
+  @param[in] e_len          Encrypted data length if e_block is valid. */
+  void enqueue(buf_flush_t flush_type, buf_page_t *bpage,
+               const file::Block *e_block, uint32_t e_len) noexcept {
     ut_ad(buf_page_in_file(bpage));
 
     void *frame{};
     uint32_t len{};
+    byte *e_frame =
+        (e_block == nullptr) ? nullptr : os_block_get_frame(e_block);
 
-    file::Block_ptr enc_block;
-    prepare(bpage, &frame, &len, enc_block);
+    if (e_frame != nullptr) {
+      frame = e_frame;
+      len = e_len;
+    } else {
+      prepare(bpage, &frame, &len);
+    }
 
     ut_a(len <= univ_page_size.physical());
 
@@ -381,7 +444,7 @@ class Double_write {
       ut_ad(!mutex_own(&m_mutex));
     }
 
-    m_buf_pages.push_back(bpage);
+    m_buf_pages.push_back(bpage, e_block, e_len);
 
     mutex_exit(&m_mutex);
   }
@@ -401,14 +464,40 @@ class Double_write {
   /** Create the batch write segments.
   @param[in] segments_per_file  Number of configured segments per file.
   @return DB_SUCCESS or error code. */
-  static dberr_t create_batch_segments(
-      uint32_t segments_per_file) noexcept MY_ATTRIBUTE((warn_unused_result));
+  static dberr_t create_batch_segments(uint32_t segments_per_file) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Create the single page flush segments.
   @param[in] segments_per_file  Number of configured segments per file.
   @return DB_SUCCESS or error code. */
-  static dberr_t create_single_segments(
-      uint32_t segments_per_file) noexcept MY_ATTRIBUTE((warn_unused_result));
+  static dberr_t create_single_segments(uint32_t segments_per_file) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Get the instance that handles a particular page's IO. Submit the
+  write request to the a double write queue that is empty.
+  @param[in]  flush_type        Flush type.
+  @param[in]	bpage             Page from the buffer pool.
+  @param[in]  e_block    compressed + encrypted frame contents or nullptr.
+  @param[in]  e_len      encrypted data length. */
+  static void submit(buf_flush_t flush_type, buf_page_t *bpage,
+                     const file::Block *e_block, uint32_t e_len) noexcept {
+    if (s_instances == nullptr) {
+      return;
+    }
+
+    auto dblwr = instance(flush_type, bpage);
+    dblwr->enqueue(flush_type, bpage, e_block, e_len);
+  }
+
+  /** Writes a single page to the doublewrite buffer on disk, syncs it,
+  then writes the page to the datafile.
+  @param[in]	bpage             Data page to write to disk.
+  @param[in]	e_block           Encrypted data block.
+  @param[in]	e_len             Encrypted data length.
+  @return DB_SUCCESS or error code */
+  static dberr_t sync_page_flush(buf_page_t *bpage, file::Block *e_block,
+                                 uint32_t e_len) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   // clang-format off
   /** @return the double write instance to use for flushing.
@@ -420,15 +509,8 @@ class Double_write {
     return instance(flush_type, buf_pool_index(buf_pool_from_bpage(bpage)));
   }
 
-  /** Writes a single page to the doublewrite buffer on disk, syncs it,
-  then writes the page to the datafile.
-  @param[in]	bpage             Data page to write to disk.
-  @return DB_SUCCESS or error code */
-  static dberr_t sync_page_flush(buf_page_t *bpage) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
-
   /** Updates the double write buffer when a write request is completed.
-  @param[in,out] bpage          Block that has just been writtent to disk.
+  @param[in,out] bpage          Block that has just been written to disk.
   @param[in] flush_type         Flush type that triggered the write. */
   static void write_complete(buf_page_t *bpage, buf_flush_t flush_type)
       noexcept;
@@ -451,24 +533,14 @@ class Double_write {
   /** Writes a page that has already been written to the
   doublewrite buffer to the data file. It is the job of the
   caller to sync the datafile.
-  @param[in]	in_bpage          Page to write.
+  @param[in]  in_bpage          Page to write.
   @param[in]  sync              true if it's a synchronous write.
+  @param[in]  e_block           block containing encrypted data frame.
+  @param[in]  e_len             encrypted data length.
   @return DB_SUCCESS or error code */
-  static dberr_t write_to_datafile(const buf_page_t *in_bpage, bool sync)
+  static dberr_t write_to_datafile(const buf_page_t *in_bpage, bool sync,
+      const file::Block* e_block, uint32_t e_len)
       noexcept MY_ATTRIBUTE((warn_unused_result));
-
-  /** Get the instance that handles a particular page's IO. Submit the
-  write request to the a double write queue that is empty.
-  @param[in]  flush_type        Flush type.
-  @param[in]	bpage             Page from the buffer pool. */
-  static void submit(buf_flush_t flush_type, buf_page_t *bpage) noexcept {
-    if (s_instances == nullptr) {
-      return;
-    }
-
-    auto dblwr = instance(flush_type, bpage);
-    dblwr->enqueue(flush_type, bpage);
-  }
 
   /** Force a flush of the page queue.
   @param[in] flush_type           FLUSH LIST or LRU LIST flush.
@@ -524,20 +596,11 @@ class Double_write {
   }
 #endif /* _WIN32 */
 
-  /** Write the data to disk synchronously.
-  @param[in]  segment         Segement to write to.
-  @param[in]	bpage           Page to write. */
-  static void single_write(Segment *segment, const buf_page_t *bpage) noexcept;
-
   /** Extract the data and length to write to the doublewrite file
-  @param[in]	bpage		Page to write
-  @param[out]	ptr		Start of buffer to write
-  @param[out]	len		Length of the data to write
-  @param[out]	enc_block	if innodb_parallel_dblwr_encrypt is true,
-  then encrypted block is returned and the ptr is set to the encrypted
-  frame and len to encrypted length */
-  static void prepare(const buf_page_t *bpage, void **ptr, uint32_t *len,
-                      file::Block_ptr &enc_block)
+  @param[in]	bpage		          Page to write
+  @param[out]	ptr		            Start of buffer to write
+  @param[out]	len		            Length of the data to write */
+  static void prepare(const buf_page_t *bpage, void **ptr, uint32_t *len)
       noexcept;
 
   /** Free the data structures. */
@@ -559,8 +622,16 @@ class Double_write {
 
   // clang-format on
 
+  /** Write the data to disk synchronously.
+  @param[in]    segment      Segment to write to.
+  @param[in]	bpage        Page to write.
+  @param[in]    e_block      Encrypted block.  Can be nullptr.
+  @param[in]    e_len        Encrypted data length in e_block. */
+  static void single_write(Segment *segment, const buf_page_t *bpage,
+                           file::Block *e_block, uint32_t e_len) noexcept;
+
  private:
-  /** Create the singletone instance, start the flush thread
+  /** Create the singleton instance, start the flush thread
   @return DB_SUCCESS or error code */
   static dberr_t start() noexcept MY_ATTRIBUTE((warn_unused_result));
 
@@ -647,7 +718,7 @@ class Segment {
         m_end(m_start + (n_pages * univ_page_size.physical())) {}
 
   /** Destructor. */
-  virtual ~Segment() {}
+  virtual ~Segment() = default;
 
   /** Write to the segment.
   @param[in] ptr                Start writing from here.
@@ -658,8 +729,8 @@ class Segment {
 
     req.dblwr();
 
-    auto err = os_file_write(req, m_file.m_name.c_str(), m_file.m_pfs, ptr,
-                             m_start, len);
+    auto err = os_file_write_retry(req, m_file.m_name.c_str(), m_file.m_pfs,
+                                   ptr, m_start, len);
     ut_a(err == DB_SUCCESS);
   }
 
@@ -697,7 +768,7 @@ class Batch_segment : public Segment {
   }
 
   /** Destructor. */
-  virtual ~Batch_segment() noexcept {
+  ~Batch_segment() noexcept override {
     ut_a(m_written.load(std::memory_order_relaxed) == 0);
     ut_a(m_batch_size.load(std::memory_order_relaxed) == 0);
   }
@@ -752,12 +823,12 @@ class Batch_segment : public Segment {
   /** The instance that is being written to disk. */
   Double_write *m_dblwr{};
 
-  byte m_pad1[INNOBASE_CACHE_LINE_SIZE];
+  byte m_pad1[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Size of the batch. */
   std::atomic_int m_batch_size{};
 
-  byte m_pad2[INNOBASE_CACHE_LINE_SIZE];
+  byte m_pad2[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Number of pages to write. */
   std::atomic_int m_written{};
@@ -778,7 +849,7 @@ Double_write::Double_write(uint16_t id, uint32_t n_pages) noexcept
   ut_a(m_buffer.capacity() / UNIV_PAGE_SIZE == m_buf_pages.capacity());
 
   mutex_create(LATCH_ID_DBLWR, &m_mutex);
-  m_event = os_event_create("dblwr_event");
+  m_event = os_event_create();
 }
 
 Double_write::~Double_write() noexcept {
@@ -786,8 +857,8 @@ Double_write::~Double_write() noexcept {
   os_event_destroy(m_event);
 }
 
-void Double_write::prepare(const buf_page_t *bpage, void **ptr, uint32_t *len,
-                           file::Block_ptr &enc_block) noexcept {
+void Double_write::prepare(const buf_page_t *bpage, void **ptr,
+                           uint32_t *len) noexcept {
   auto block = reinterpret_cast<const buf_block_t *>(bpage);
   auto state = buf_block_get_state(block);
 
@@ -807,8 +878,9 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr, uint32_t *len,
   } else {
     if (state != BUF_BLOCK_FILE_PAGE) {
       ib::fatal(ER_IB_MSG_DBLWR_1297)
-          << "Invalid page state: state: " << state
-          << " block state: " << buf_page_get_state(bpage);
+          << "Invalid page state: state: " << static_cast<unsigned>(state)
+          << " block state: "
+          << static_cast<unsigned>(buf_page_get_state(bpage));
     } else {
       ut_ad(state == buf_block_get_state(block));
     }
@@ -820,26 +892,19 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr, uint32_t *len,
 
     *len = bpage->size.logical();
   }
-
-  if (srv_parallel_dblwr_encrypt) {
-    page_t *in_page = static_cast<page_t *>(*ptr);
-    ulint enc_block_len = 0;
-    bool success = os_dblwr_encrypt_page(block->page.id.space(), in_page,
-                                         enc_block, enc_block_len);
-    if (success) {
-      *ptr = ut_align(enc_block.get()->m_ptr, os_io_ptr_align);
-      *len = enc_block_len;
-    }
-  }
 }
 
-void Double_write::single_write(Segment *segment,
-                                const buf_page_t *bpage) noexcept {
+void Double_write::single_write(Segment *segment, const buf_page_t *bpage,
+                                file::Block *e_block, uint32_t e_len) noexcept {
   uint32_t len{};
   void *frame{};
 
-  file::Block_ptr enc_block;
-  prepare(bpage, &frame, &len, enc_block);
+  if (e_block != nullptr) {
+    frame = os_block_get_frame(e_block);
+    len = e_len;
+  } else {
+    prepare(bpage, &frame, &len);
+  }
 
   ut_ad(len <= univ_page_size.physical());
 
@@ -1021,35 +1086,25 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
   croak(block);
 }
 
-dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage,
-                                        bool sync) noexcept {
+dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
+                                        const file::Block *e_block,
+                                        uint32_t e_len) noexcept {
   ut_ad(buf_page_in_file(in_bpage));
+  ut_ad(in_bpage->current_thread_has_io_responsibility());
+  ut_ad(in_bpage->is_io_fix_write());
+  uint32_t len;
+  void *frame{};
 
-  page_t *frame;
+  if (e_block == nullptr) {
+    Double_write::prepare(in_bpage, &frame, &len);
+  } else {
+    frame = os_block_get_frame(e_block);
+    len = e_len;
+  }
 
   /* Our IO API is common for both reads and writes and is
   therefore geared towards a non-const parameter. */
   auto bpage = const_cast<buf_page_t *>(in_bpage);
-
-  switch (buf_page_get_state(bpage)) {
-    case BUF_BLOCK_ZIP_DIRTY:
-      frame = bpage->zip.data;
-      break;
-
-    case BUF_BLOCK_FILE_PAGE:
-      frame = bpage->zip.data;
-
-      if (frame == nullptr) {
-        frame = reinterpret_cast<buf_block_t *>(bpage)->frame;
-      }
-      break;
-
-    default:
-      ib::fatal(ER_IB_MSG_DBLWR_1316)
-          << "Invalid page state: ID: " << bpage->id
-          << ", state: " << buf_page_get_state(bpage);
-      frame = nullptr;
-  }
 
   uint32_t type = IORequest::WRITE;
 
@@ -1058,20 +1113,33 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage,
   }
 
   IORequest io_request(type);
+  io_request.set_encrypted_block(e_block);
 
-  auto err = fil_io(io_request, sync, bpage->id, bpage->size, 0,
-                    bpage->size.physical(), frame, bpage);
+#ifdef UNIV_DEBUG
+  {
+    byte *page = static_cast<byte *>(frame);
+    ut_ad(mach_read_from_4(page + FIL_PAGE_OFFSET) == bpage->page_no());
+    ut_ad(mach_read_from_4(page + FIL_PAGE_SPACE_ID) == bpage->space());
+  }
+#endif /* UNIV_DEBUG */
 
-  ut_a(err == DB_SUCCESS);
+  auto err =
+      fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame, bpage);
+
+  /* When a tablespace is deleted with BUF_REMOVE_NONE, fil_io() might
+  return DB_PAGE_IS_STALE or DB_TABLESPACE_DELETED. */
+  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED ||
+       err == DB_PAGE_IS_STALE);
 
   return err;
 }
 
-dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
+dberr_t Double_write::sync_page_flush(buf_page_t *bpage, file::Block *e_block,
+                                      uint32_t e_len) noexcept {
 #ifdef UNIV_DEBUG
   ut_d(auto page_id = bpage->id);
 
-  if (dblwr::Force_crash.equals_to(page_id)) {
+  if (dblwr::Force_crash == page_id) {
     auto frame = reinterpret_cast<const buf_block_t *>(bpage)->frame;
     const auto p = reinterpret_cast<byte *>(frame);
 
@@ -1083,10 +1151,10 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
   Segment *segment{};
 
   while (!s_single_segments->dequeue(segment)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
-  single_write(segment, bpage);
+  single_write(segment, bpage, e_block, e_len);
 
 #ifndef _WIN32
   if (is_fsync_required()) {
@@ -1095,15 +1163,21 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
 #endif /* !_WIN32 */
 
 #ifdef UNIV_DEBUG
-  if (dblwr::Force_crash.equals_to(page_id)) {
+  if (dblwr::Force_crash == page_id) {
     DBUG_SUICIDE();
   }
 #endif /* UNIV_DEBUG */
 
-  auto err = write_to_datafile(bpage, true);
-  ut_a(err == DB_SUCCESS);
+  auto err = write_to_datafile(bpage, true, e_block, e_len);
 
-  fil_flush(bpage->id.space());
+  if (err == DB_SUCCESS) {
+    fil_flush(bpage->id.space());
+  } else {
+    /* This block is not freed if the write_to_datafile doesn't succeed. */
+    if (e_block != nullptr) {
+      os_free_block(e_block);
+    }
+  }
 
   while (!s_single_segments->enqueue(segment)) {
     UT_RELAX_CPU();
@@ -1411,7 +1485,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
                                               : s_flush_list_batch_segments;
 
   while (!segments->dequeue(batch_segment)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   batch_segment->start(this);
@@ -1429,17 +1503,36 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
   batch_segment->set_batch_size(m_buf_pages.size());
 
   for (uint32_t i = 0; i < m_buf_pages.size(); ++i) {
-    const auto bpage = m_buf_pages.m_pages[i];
+    const auto bpage = std::get<0>(m_buf_pages.m_pages[i]);
 
     ut_d(auto page_id = bpage->id);
 
     bpage->set_dblwr_batch_id(batch_segment->id());
 
-    auto err = write_to_datafile(bpage, false);
-    ut_a(err == DB_SUCCESS);
+    ut_d(bpage->take_io_responsibility());
+    auto err =
+        write_to_datafile(bpage, false, std::get<1>(m_buf_pages.m_pages[i]),
+                          std::get<2>(m_buf_pages.m_pages[i]));
+
+    if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
+      write_complete(bpage, flush_type);
+      buf_page_free_stale_during_write(
+          bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+
+      const file::Block *block = std::get<1>(m_buf_pages.m_pages[i]);
+      if (block != nullptr) {
+        os_free_block(const_cast<file::Block *>(block));
+      }
+    } else {
+      ut_a(err == DB_SUCCESS);
+    }
+    /* We don't hold io_responsibility here no matter which path through ifs and
+    elses we've got here, but we can't assert:
+      ut_ad(!bpage->current_thread_has_io_responsibility());
+    because bpage could be freed by the time we got here. */
 
 #ifdef UNIV_DEBUG
-    if (dblwr::Force_crash.equals_to(page_id)) {
+    if (dblwr::Force_crash == page_id) {
       DBUG_SUICIDE();
     }
 #endif /* UNIV_DEBUG */
@@ -1547,43 +1640,181 @@ dberr_t Double_write::create_single_segments(
   return DB_SUCCESS;
 }
 
+file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
+                                        uint32_t &e_len) noexcept {
+  space_id_t space_id = bpage->space();
+  page_no_t page_no = bpage->page_no();
+
+  if (page_no == 0) {
+    /* The first page of any tablespace is never encrypted.
+    So return early. */
+    return nullptr;
+  }
+
+  if (space_id == TRX_SYS_SPACE && page_no == TRX_SYS_PAGE_NO) {
+    return nullptr;
+  }
+
+  if (fsp_is_undo_tablespace(space_id) && !srv_undo_log_encrypt) {
+    /* It is an undo tablespace and undo encryption is not enabled. */
+    return nullptr;
+  }
+
+  fil_space_t *space = bpage->get_space();
+  if (space->encryption_op_in_progress == DECRYPTION ||
+      (!space->is_encrypted() && (space->crypt_data == nullptr ||
+                                  space->crypt_data->max_key_version ==
+                                      ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED))) {
+    return nullptr;
+  }
+
+  /* Don't encrypt pages of system tablespace upto TRX_SYS_PAGE(including). The
+  doublewrite buffer header is on TRX_SYS_PAGE */
+  if (fsp_is_system_tablespace(space_id) && space->crypt_data == nullptr &&
+      page_no <= FSP_TRX_SYS_PAGE_NO) {
+    return nullptr;
+  }
+
+  if (!space->can_encrypt()) {
+    /* Encryption key information is not available. */
+    return nullptr;
+  }
+
+  if (space->encryption_type == Encryption::KEYRING) {
+    ut_ad(space->crypt_data != nullptr);
+    if (space->crypt_data->encryption == FIL_ENCRYPTION_ON ||
+        space->crypt_data->encryption_rotation ==
+            Encryption_rotation::ENCRYPTING ||
+        space->crypt_data->encryption_rotation ==
+            Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+      // Keyring encrypted. Encryption info set via get_encryption_info()
+
+    } else {
+      return nullptr;
+    }
+  }
+
+  IORequest type(IORequest::WRITE);
+  void *frame{};
+  uint32_t len{};
+
+  fil_node_t *node = space->get_file_node(&page_no);
+  type.block_size(node->block_size);
+
+  Double_write::prepare(bpage, &frame, &len);
+
+  ulint n = len;
+
+  file::Block *compressed_block{};
+
+  /* Transparent page compression (TPC) is disabled if punch hole is not
+  supported. A similar check is done in Fil_shard::do_io(). */
+  const bool do_compression =
+      space->is_compressed() && !bpage->size.is_compressed() &&
+      IORequest::is_punch_hole_supported() && node->punch_hole;
+
+  if (do_compression) {
+    /* @note Compression needs to be done before encryption. */
+
+    /* The page size must be a multiple of the OS punch hole size. */
+    ut_ad(n % type.block_size() == 0);
+
+    type.compression_algorithm(space->compression_type);
+    compressed_block = os_file_compress_page(type, frame, &n);
+  }
+
+  space->get_encryption_info(type.get_encryption_info());
+  type.encryption_algorithm(space->encryption_type);
+  page_size_t page_size(space->flags);
+
+  if (page_size.is_compressed()) {
+    type.mark_page_zip_compressed();
+    type.set_zip_page_physical_size(page_size.physical());
+    ut_ad(page_size.physical() > 0);
+  }
+
+  auto e_block = os_file_encrypt_page(type, frame, &n);
+
+  if (compressed_block != nullptr) {
+    file::Block::free(compressed_block);
+  }
+
+  e_len = n;
+  return e_block;
+}
+
 dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
                      bool sync) noexcept {
   dberr_t err;
+  const space_id_t space_id = bpage->id.space();
 
-  if (srv_read_only_mode || fsp_is_system_temporary(bpage->id.space()) ||
-      !dblwr::enabled || Double_write::s_instances == nullptr) {
-    /* Disable use of double-write buffer for temporary tablespace.
-    Temporary tablespaces are never recovered, therefore we don't
-    care about torn writes. */
+  ut_ad(bpage->current_thread_has_io_responsibility());
+  /* This is not required for correctness, but it aborts the processing early.
+   */
+  if (bpage->was_stale()) {
+    /* Disable batch completion in write_complete(). */
+    bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
+    buf_page_free_stale_during_write(
+        bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+    /* We don't hold io_responsibility here no matter which path through ifs and
+    elses we've got here, but we can't assert:
+      ut_ad(!bpage->current_thread_has_io_responsibility());
+    because bpage could be freed by the time we got here. */
+    return DB_SUCCESS;
+  }
 
-    err = Double_write::write_to_datafile(bpage, sync);
-    if (err == DB_SUCCESS && sync) {
-      fil_flush(bpage->id.space());
+  if (srv_read_only_mode || fsp_is_system_temporary(space_id) ||
+      !dblwr::enabled || Double_write::s_instances == nullptr ||
+      mtr_t::s_logging.dblwr_disabled()) {
+    /* Skip the double-write buffer since it is not needed. Temporary
+    tablespaces are never recovered, therefore we don't care about
+    torn writes. */
+    bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
+    err = Double_write::write_to_datafile(bpage, sync, nullptr, 0);
+    if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
+      buf_page_free_stale_during_write(
+          bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+      err = DB_SUCCESS;
+    } else if (sync) {
+      ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
+      if (err == DB_SUCCESS) {
+        fil_flush(space_id);
+      }
       /* true means we want to evict this page from the LRU list as well. */
       buf_page_io_complete(bpage, true);
     }
+
   } else {
     ut_d(auto page_id = bpage->id);
+
+    /* Encrypt the page here, so that the same encrypted contents are written
+    to the dblwr file and the data file. */
+    uint32_t e_len{};
+    file::Block *e_block = dblwr::get_encrypted_frame(bpage, e_len);
 
     if (!sync && flush_type != BUF_FLUSH_SINGLE_PAGE) {
       MONITOR_INC(MONITOR_DBLWR_ASYNC_REQUESTS);
 
-      Double_write::submit(flush_type, bpage);
+      ut_d(bpage->release_io_responsibility());
+      Double_write::submit(flush_type, bpage, e_block, e_len);
       err = DB_SUCCESS;
 #ifdef UNIV_DEBUG
-      if (dblwr::Force_crash.equals_to(page_id)) {
+      if (dblwr::Force_crash == page_id) {
         force_flush(flush_type, buf_pool_index(buf_pool_from_bpage(bpage)));
       }
 #endif /* UNIV_DEBUG */
     } else {
       MONITOR_INC(MONITOR_DBLWR_SYNC_REQUESTS);
+      /* Disable batch completion in write_complete(). */
       bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
-      err = Double_write::sync_page_flush(bpage);
+      err = Double_write::sync_page_flush(bpage, e_block, e_len);
     }
   }
-
+  /* We don't hold io_responsibility here no matter which path through ifs and
+  elses we've got here, but we can't assert:
+    ut_ad(!bpage->current_thread_has_io_responsibility());
+  because bpage could be freed by the time we got here. */
   return err;
 }
 
@@ -1618,7 +1849,7 @@ void Double_write::write_complete(buf_page_t *bpage,
           fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
           while (!segments->enqueue(batch_segment)) {
-            os_thread_yield();
+            std::this_thread::yield();
           }
         }
       }
@@ -1648,37 +1879,34 @@ void dblwr::recv::recover(recv::Pages *pages, fil_space_t *space) noexcept {
 @return DB_SUCCESS if all went well. */
 static dberr_t dblwr_file_open(const std::string &dir_name, int id,
                                dblwr::File &file, ulint file_type) noexcept {
-  bool exists;
+  bool dir_exists;
+  bool file_exists;
   os_file_type_t type;
   std::string dir(dir_name);
 
   Fil_path::normalize(dir);
 
-  auto success = os_file_status(dir.c_str(), &exists, &type);
+  os_file_status(dir.c_str(), &dir_exists, &type);
 
-  if (exists) {
-    if (!success) {
-      return DB_CANNOT_OPEN_FILE;
+  switch (type) {
+    case OS_FILE_TYPE_DIR:
+      /* This is an existing directory. */
+      break;
+    case OS_FILE_TYPE_MISSING:
+      /* This path is missing but otherwise usable. It will be created. */
+      ut_ad(!dir_exists);
+      break;
+    case OS_FILE_TYPE_LINK:
+    case OS_FILE_TYPE_FILE:
+    case OS_FILE_TYPE_BLOCK:
+    case OS_FILE_TYPE_UNKNOWN:
+    case OS_FILE_TYPE_FAILED:
+    case OS_FILE_PERMISSION_ERROR:
+    case OS_FILE_TYPE_NAME_TOO_LONG:
 
-    } else {
-      switch (type) {
-        case OS_FILE_TYPE_DIR:
-          break;
+      ib::error(ER_IB_MSG_DBLWR_1290, dir_name.c_str());
 
-        case OS_FILE_TYPE_LINK:
-        case OS_FILE_TYPE_FILE:
-        case OS_FILE_TYPE_BLOCK:
-        case OS_FILE_TYPE_MISSING:
-        case OS_FILE_TYPE_UNKNOWN:
-        case OS_FILE_TYPE_FAILED:
-        case OS_FILE_PERMISSION_ERROR:
-        case OS_FILE_TYPE_NAME_TOO_LONG:
-
-          ib::error(ER_IB_MSG_DBLWR_1290, dir_name.c_str());
-
-          return DB_WRONG_FILE_NAME;
-      }
-    }
+      return DB_WRONG_FILE_NAME;
   }
 
   file.m_id = id;
@@ -1689,37 +1917,34 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
 
   file.m_name += dot_ext[DWR];
 
-  success = os_file_status(file.m_name.c_str(), &exists, &type);
-
   uint32_t mode;
+  if (dir_exists) {
+    os_file_status(file.m_name.c_str(), &file_exists, &type);
 
-  if (exists) {
-    if (!success) {
-      ib::error(ER_IB_MSG_DBLWR_1291, file.m_name.c_str());
-
-      return DB_CANNOT_OPEN_FILE;
-
-    } else if (type != OS_FILE_TYPE_FILE) {
-      ib::error(ER_IB_MSG_DBLWR_1292, file.m_name.c_str());
+    if (type == OS_FILE_TYPE_FILE) {
+      mode = OS_FILE_OPEN;
+    } else if (type == OS_FILE_TYPE_MISSING) {
+      mode = OS_FILE_CREATE;
+    } else {
+      ib::error(ER_IB_MSG_BAD_DBLWR_FILE_NAME, file.m_name.c_str());
 
       return DB_CANNOT_OPEN_FILE;
     }
-
-    mode = OS_FILE_OPEN;
-
   } else {
     auto err = os_file_create_subdirs_if_needed(file.m_name.c_str());
-
     if (err != DB_SUCCESS) {
       return err;
-    } else if (id >= (int)Double_write::s_n_instances) {
-      /* Don't create files if not configured by the user. */
-      return DB_NOT_FOUND;
     }
 
     mode = OS_FILE_CREATE;
   }
 
+  if (mode == OS_FILE_CREATE && id >= (int)Double_write::s_n_instances) {
+    /* Don't create files if not configured by the user. */
+    return DB_NOT_FOUND;
+  }
+
+  bool success;
   file.m_pfs =
       os_file_create(innodb_dblwr_file_key, file.m_name.c_str(), mode,
                      OS_FILE_NORMAL, file_type, srv_read_only_mode, &success);
@@ -1874,6 +2099,92 @@ bool dblwr::v1::is_inside(page_no_t page_no) noexcept {
   return false;
 }
 
+/** Check if the dblwr page is corrupted.
+@param[in]  page  the dblwr page.
+@param[in]  space  tablespace to which the page belongs.
+@param[in]  page_no  page_no within the actual tablespace.
+@param[out]  err     error code to check if decryption or decompression failed.
+@return true if dblwr page is corrupted, false otherwise. */
+static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
+                                    page_no_t page_no, dberr_t *err) noexcept {
+  const page_size_t page_size(space->flags);
+  const bool is_checksum_disabled = fsp_is_checksum_disabled(space->id);
+  bool corrupted = false;
+
+  BlockReporter dblwr_page(true, page, page_size, is_checksum_disabled);
+
+  if (dblwr_page.is_encrypted() || (space->crypt_data != nullptr &&
+                                    space->crypt_data->max_key_version !=
+                                        ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED)) {
+    Encryption en;
+    IORequest req_type;
+    size_t z_page_size;
+
+    space->get_encryption_info(en);
+    req_type.encryption_algorithm(space->encryption_type);
+    fil_node_t *node = space->get_file_node(&page_no);
+    req_type.block_size(node->block_size);
+
+    page_type_t page_type = fil_page_get_type(page);
+    ut_ad(fil_is_page_type_valid(page_type));
+
+    if (page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
+      uint16_t z_len = mach_read_from_2(page + FIL_PAGE_COMPRESS_SIZE_V1);
+      z_page_size = z_len + FIL_PAGE_DATA;
+
+      /* @note The block size needs to be the same when the page was compressed
+      and encrypted. */
+      z_page_size = ut_calc_align(z_page_size, req_type.block_size());
+    } else {
+      z_page_size = page_size.physical();
+    }
+
+    *err = en.decrypt(req_type, const_cast<byte *>(page), z_page_size, nullptr,
+                      z_page_size);
+    if (*err != DB_SUCCESS) {
+      /* Could not decrypt.  Consider it corrupted. */
+      corrupted = true;
+
+      if (*err == DB_IO_DECRYPT_FAIL) {
+        std::ostringstream out;
+        out << "space_id=" << space->id << ", page_no=" << page_no
+            << ", page_size=" << z_page_size << ", space_name=" << space->name;
+        ib::warn(ER_IB_DBLWR_DECRYPT_FAILED, out.str().c_str());
+
+        if (en.is_none()) {
+          std::ostringstream out;
+          out << "space_id=" << space->id << ", space_name=" << space->name;
+          ib::warn(ER_IB_DBLWR_KEY_MISSING, out.str().c_str());
+        }
+      }
+
+    } else {
+      /* Check if the page is compressed. */
+      page_type_t page_type = fil_page_get_type(page);
+      ut_ad(fil_is_page_type_valid(page_type));
+
+      if (page_type == FIL_PAGE_COMPRESSED) {
+        *err =
+            os_file_decompress_page(true, const_cast<byte *>(page), nullptr, 0);
+
+        if (*err != DB_SUCCESS) {
+          /* Could not decompress.  Consider it corrupted. */
+          size_t orig_size = mach_read_from_2(page + FIL_PAGE_ORIGINAL_SIZE_V1);
+          ib::error(ER_IB_DBLWR_DECOMPRESS_FAILED, *err, orig_size);
+          corrupted = true;
+        }
+      }
+    }
+  }
+
+  if (!corrupted) {
+    BlockReporter check(true, page, page_size, is_checksum_disabled);
+    corrupted = check.is_corrupted();
+  }
+
+  return (corrupted);
+}
+
 /** Recover a page from the doublewrite buffer.
 @param[in]	dblwr_page_no	      Page number if the doublewrite buffer
 @param[in]	space		            Tablespace the page belongs to
@@ -1881,7 +2192,7 @@ bool dblwr::v1::is_inside(page_no_t page_no) noexcept {
 @param[in]	page		            Data to write to <space, page_no>
 @return true if page was restored to the tablespace */
 static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
-                               page_no_t page_no, byte *page) noexcept {
+                               page_no_t page_no, const byte *page) noexcept {
   /* For cloned database double write pages should be ignored. However,
   given the control flow, we read the pages in anyway but don't recover
   from the pages we read in. */
@@ -1927,26 +2238,28 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
   BlockReporter data_file_page(true, buffer.begin(), page_size,
                                fsp_is_checksum_disabled(space->id));
 
-  BlockReporter dblwr_page(true, page, page_size,
-                           fsp_is_checksum_disabled(space->id));
-
-  DBUG_EXECUTE_IF("force_dblwr_decryption",
-                  Encryption::dblwr_decrypt_page(space, page););
-
   if (data_file_page.is_corrupted()) {
     ib::info(ER_IB_MSG_DBLWR_1315) << "Database page corruption or"
                                    << " a failed file read of page " << page_id
                                    << ". Trying to recover it from the"
                                    << " doublewrite file.";
 
-    bool success = Encryption::dblwr_decrypt_page(space, page);
+    dberr_t dblwr_err;
 
-    if (!success || dblwr_page.is_corrupted()) {
-      ib::error(ER_IB_MSG_DBLWR_1304);
+    const bool dblwr_corrupted =
+        is_dblwr_page_corrupted(page, space, page_no, &dblwr_err);
+
+    if (dblwr_corrupted) {
+      std::ostringstream out;
+
+      out << "Dumping the data file page (page_id=" << page_id << "):";
+      ib::error(ER_IB_MSG_DBLWR_1304, out.str().c_str());
 
       buf_page_print(buffer.begin(), page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-      ib::error(ER_IB_MSG_DBLWR_1295, dblwr_page_no);
+      out.str("");
+      out << "Dumping the DBLWR page (dblwr_page_no=" << dblwr_page_no << "):";
+      ib::error(ER_IB_MSG_DBLWR_1295, out.str().c_str());
 
       buf_page_print(page, page_size, BUF_PAGE_PRINT_NO_CRASH);
 
@@ -1954,24 +2267,24 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
     }
 
   } else {
-    auto t1 = buf_page_is_zeroes(buffer.begin(), page_size);
-    auto t2 = buf_page_is_zeroes(page, page_size);
-    const auto checksum_on = fsp_is_checksum_disabled(space->id);
-    auto reporter = BlockReporter(true, page, page_size, checksum_on);
-    auto t3 = reporter.is_corrupted();
+    bool data_page_zeroes = buf_page_is_zeroes(buffer.begin(), page_size);
+    bool dblwr_zeroes = buf_page_is_zeroes(page, page_size);
+    dberr_t dblwr_err;
 
-    if (t1 && !(t2 || t3)) {
+    if (data_page_zeroes && !dblwr_zeroes &&
+        !is_dblwr_page_corrupted(page, space, page_no, &dblwr_err)) {
       /* Database page contained only zeroes, while a valid copy is
       available in dblwr buffer. */
     } else {
+      /* Database page is fine.  No need to restore from dblwr. */
       return false;
     }
   }
 
+  ut_ad(!Encryption::is_encrypted_page(page));
+
   /* Recovered data file pages are written out as uncompressed. */
-
   IORequest write_request(IORequest::WRITE);
-
   write_request.disable_compression();
 
   /* Write the good page from the doublewrite buffer to the
@@ -1980,7 +2293,7 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
   err = fil_io(write_request, true, page_id, page_size, 0, page_size.physical(),
                const_cast<byte *>(page), nullptr);
 
-  ut_a(err == DB_SUCCESS);
+  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 
   ib::info(ER_IB_MSG_DBLWR_1308)
       << "Recovered page " << page_id << " from the doublewrite buffer.";
@@ -2105,7 +2418,8 @@ void recv::Pages::check_missing_tablespaces() const noexcept {
     auto space_id = page_get_space_id(buffer.begin());
 
     /* Skip messages for undo tablespaces that are being truncated since
-    they can be deleted during undo truncation without an MLOG_FILE_DELETE. */
+    they can be deleted during undo truncation without an MLOG_FILE_DELETE.
+  */
 
     if (!fsp_is_undo_tablespace(space_id)) {
       /* If the tablespace was in the missing IDs then we
@@ -2260,3 +2574,48 @@ void dblwr::recv::destroy(recv::Pages *&pages) noexcept {
 void dblwr::recv::check_missing_tablespaces(const recv::Pages *pages) noexcept {
   pages->check_missing_tablespaces();
 }
+
+namespace dblwr {
+
+#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
+static bool is_encrypted_page(const byte *page) noexcept {
+  ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
+
+  return page_type == FIL_PAGE_ENCRYPTED ||
+         page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED ||
+         page_type == FIL_PAGE_ENCRYPTED_RTREE;
+}
+
+bool has_encrypted_pages() noexcept {
+  bool st = false;
+  for (dblwr::File &file : Double_write::s_files) {
+    dblwr::recv::Pages pages;
+    TLOG("Loading= " << file);
+
+    dberr_t err = Double_write::load(file, &pages);
+    if (err != DB_SUCCESS) {
+      TLOG("Failed to load= " << file);
+      return st;
+    }
+
+    for (const auto &page : pages.get_pages()) {
+      auto &buffer = page->m_buffer;
+      byte *frame = buffer.begin();
+      page_type_t page_type = fil_page_get_type(frame);
+
+      TLOG("space_id=" << page_get_space_id(frame)
+                       << ", page_no=" << page_get_page_no(frame)
+                       << ", page_type=" << fil_get_page_type_str(page_type));
+
+      if (is_encrypted_page(frame)) {
+        st = true;
+      }
+    }
+  }
+  return st;
+}
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
+
+}  // namespace dblwr

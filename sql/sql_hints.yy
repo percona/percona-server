@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,14 +26,27 @@
 */
 
 %{
-#include "my_inttypes.h"
+#include <assert.h>
+#include <climits>
+#include <cstdlib>
+
+#include "lex_string.h"
+#include "m_string.h"
+
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "mysqld_error.h"
 #include "sql/derror.h"
+#include "sql/item.h"
 #include "sql/item_subselect.h"
+#include "sql/lexer_yystype.h"
+#include "sql/opt_hints.h"
 #include "sql/parse_tree_helpers.h"  // check_resource_group_name_len
 #include "sql/parse_tree_hints.h"
 #include "sql/parser_yystype.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_hints.yy.h"
 #include "sql/sql_lex_hints.h"
 
 #define NEW_PTN new (thd->mem_root)
@@ -114,6 +127,15 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token NO_GROUP_INDEX_HINT 1044
 %token ORDER_INDEX_HINT 1045
 %token NO_ORDER_INDEX_HINT 1046
+%token DERIVED_CONDITION_PUSHDOWN_HINT 1047
+%token NO_DERIVED_CONDITION_PUSHDOWN_HINT 1048
+%token HINT_ARG_FLOATING_POINT_NUMBER 1049
+
+/*
+  YYUNDEF in internal to Bison. Please don't change its number, or change
+  it in sync with YYUNDEF in sql_yacc.yy.
+*/
+%token YYUNDEF 1150
 
 /*
   Please add new tokens right above this line.
@@ -158,6 +180,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %type <lexer.hint_string>
   HINT_ARG_IDENT
   HINT_ARG_NUMBER
+  HINT_ARG_FLOATING_POINT_NUMBER
   HINT_ARG_QB_NAME
   HINT_ARG_TEXT
   HINT_IDENT_OR_NUMBER_WITH_SCALE
@@ -419,8 +442,8 @@ semijoin_strategy:
 
 subquery_strategy:
           MATERIALIZATION_HINT { $$=
-                                   static_cast<long>(SubqueryExecMethod::EXEC_MATERIALIZATION); }
-        | INTOEXISTS_HINT      { $$= static_cast<long>(SubqueryExecMethod::EXEC_EXISTS); }
+                                   static_cast<long>(Subquery_strategy::SUBQ_MATERIALIZATION); }
+        | INTOEXISTS_HINT      { $$= static_cast<long>(Subquery_strategy::SUBQ_EXISTS); }
         ;
 
 
@@ -487,6 +510,10 @@ table_level_hint_type_on:
           {
             $$= DERIVED_MERGE_HINT_ENUM;
           }
+        | DERIVED_CONDITION_PUSHDOWN_HINT
+          {
+            $$= DERIVED_CONDITION_PUSHDOWN_HINT_ENUM;
+          }
         ;
 
 table_level_hint_type_off:
@@ -505,6 +532,10 @@ table_level_hint_type_off:
         | NO_DERIVED_MERGE_HINT
           {
             $$= DERIVED_MERGE_HINT_ENUM;
+          }
+        | NO_DERIVED_CONDITION_PUSHDOWN_HINT
+          {
+            $$= DERIVED_CONDITION_PUSHDOWN_HINT_ENUM;
           }
         ;
 
@@ -629,6 +660,10 @@ set_var_num_item:
                 YYABORT; // OOM
             }
           }
+        | HINT_ARG_FLOATING_POINT_NUMBER
+          {
+            $$= NEW_PTN Item_float($1.str, $1.length);
+          }
         | HINT_IDENT_OR_NUMBER_WITH_SCALE
           {
             longlong n;
@@ -645,7 +680,7 @@ set_var_num_item:
               case 'M': multiplier= 1024 * 1024; break;
               case 'G': multiplier= 1024 * 1024 * 1024; break;
               default:
-                DBUG_ASSERT(0); // should not happen
+                assert(0); // should not happen
                 YYABORT;        // for sure
               }
               if (1.0L * n * multiplier > LLONG_MAX)

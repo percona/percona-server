@@ -1,4 +1,4 @@
-#ifndef _PLUGIN_VARIABLES_MPALDAP_H
+#ifndef PLUGIN_VARIABLES_MPALDAP_H
 /* Copyright (c) 2019 Francisco Miguel Biete Banon. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-#define _PLUGIN_VARIABLES_MPALDAP_H
+#define PLUGIN_VARIABLES_MPALDAP_H
 
 #include "plugin/auth_ldap/include/plugin_common.h"
 #include "plugin/auth_ldap/include/pool.h"
@@ -30,6 +30,7 @@ static char *auth_method_name;
 static char *bind_base_dn;
 static char *bind_root_dn;
 static char *bind_root_pwd;
+static char *bind_root_pwd_real;
 static char *ca_path;
 static char *group_search_attr;
 static char *group_search_filter;
@@ -47,6 +48,8 @@ static mysql::plugin::auth_ldap::Pool *connPool;
 template <typename Copy_type>
 void update_sysvar(THD *, SYS_VAR *var, void *tgt, const void *save);
 
+void update_pwd_sysvar(THD *, SYS_VAR *var, void *tgt, const void *save);
+
 // System Variables
 static MYSQL_SYSVAR_STR(auth_method_name, auth_method_name,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -59,19 +62,21 @@ static MYSQL_SYSVAR_STR(bind_base_dn, bind_base_dn,
                         &update_sysvar<char *> /* update */,
                         nullptr /* default */);
 static MYSQL_SYSVAR_STR(bind_root_dn, bind_root_dn,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The root distinguished name (DN)", nullptr /* check */,
                         &update_sysvar<char *> /* update */,
                         nullptr /* default */);
 static MYSQL_SYSVAR_STR(bind_root_pwd, bind_root_pwd,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The password for the "
                         "root distinguished name",
-                        nullptr /* check */,
-                        &update_sysvar<char *> /* update */,
+                        nullptr /* check */, &update_pwd_sysvar /* update */,
                         nullptr /* default */);
 static MYSQL_SYSVAR_STR(ca_path, ca_path,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The absolute path of "
                         "the certificate authority file",
                         nullptr /* check */,
@@ -110,24 +115,26 @@ static MYSQL_SYSVAR_INT(log_status, log_status, PLUGIN_VAR_RQCMDARG,
                         1 /* default */, 1 /*minimum */, 5 /* maximum */,
                         0 /* blocksize */);
 static MYSQL_SYSVAR_STR(server_host, server_host,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_READONLY,
                         "The LDAP server host", nullptr /* check */,
                         &update_sysvar<char *> /* update */,
                         nullptr /* default */);
-static MYSQL_SYSVAR_UINT(server_port, server_port, PLUGIN_VAR_RQCMDARG,
+static MYSQL_SYSVAR_UINT(server_port, server_port,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                          "The LDAP server TCP/IP port number",
                          nullptr /* check */,
                          &update_sysvar<unsigned int> /* update */,
                          389 /* default */, 1 /*minimum */, 32376 /* maximum */,
                          0 /* blocksize */);
 static MYSQL_SYSVAR_BOOL(
-    ssl, ssl, PLUGIN_VAR_RQCMDARG,
+    ssl, ssl, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Whether connections "
     "by the plugin to the LDAP server are using the SSL protocol (ldaps://)",
     nullptr /* check */, &update_sysvar<bool> /* update */,
     false /* default */);
 static MYSQL_SYSVAR_BOOL(
-    tls, tls, PLUGIN_VAR_RQCMDARG,
+    tls, tls, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Whether connections "
     "by the plugin to the LDAP server are secured with STARTTLS (ldap://)",
     nullptr /* check */, &update_sysvar<bool> /* update */,
@@ -157,4 +164,4 @@ static SYS_VAR *mpaldap_sysvars[] = {MYSQL_SYSVAR(auth_method_name),
                                      MYSQL_SYSVAR(user_search_attr),
                                      nullptr};
 
-#endif  // _PLUGIN_VARIABLES_MPALDAP_H
+#endif  // PLUGIN_VARIABLES_MPALDAP_H

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,13 @@
 
 #include "sql/opt_hints.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
@@ -83,6 +84,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"JOIN_INDEX", false, false, false},
     {"GROUP_INDEX", false, false, false},
     {"ORDER_INDEX", false, false, false},
+    {"DERIVED_CONDITION_PUSHDOWN", true, true, false},
     {nullptr, false, false, false}};
 
 /**
@@ -190,7 +192,7 @@ void Opt_hints::check_unresolved(THD *thd) {
 PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   if (type == MAX_EXEC_TIME_HINT_ENUM) return max_exec_time;
 
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -216,7 +218,7 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
 
   if (type == SUBQUERY_HINT_ENUM) return subquery_hint;
 
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -234,7 +236,7 @@ Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr) {
   return tab;
 }
 
-bool Opt_hints_qb::semijoin_enabled(THD *thd) const {
+bool Opt_hints_qb::semijoin_enabled(const THD *thd) const {
   if (subquery_hint)  // SUBQUERY hint disables semi-join
     return false;
 
@@ -265,11 +267,11 @@ uint Opt_hints_qb::sj_enabled_strategies(uint opt_switches) const {
   return opt_switches;
 }
 
-SubqueryExecMethod Opt_hints_qb::subquery_strategy() const {
+Subquery_strategy Opt_hints_qb::subquery_strategy() const {
   if (subquery_hint)
-    return static_cast<SubqueryExecMethod>(subquery_hint->get_args());
+    return static_cast<Subquery_strategy>(subquery_hint->get_args());
 
-  return SubqueryExecMethod::EXEC_UNSPECIFIED;
+  return Subquery_strategy::UNSPECIFIED;
 }
 
 void Opt_hints_qb::print_irregular_hints(const THD *thd, String *str) {
@@ -362,7 +364,7 @@ static table_map get_other_dep(opt_hints_enum type, table_map hint_tab_map,
     case JOIN_ORDER_HINT_ENUM:
       return 0;  // No additional dependencies
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return 0;
@@ -515,12 +517,6 @@ static bool set_join_hint_deps(JOIN *join,
   return false;
 }
 
-/**
-  Function applies join order hints.
-
-  @param join pointer to JOIN object
-*/
-
 void Opt_hints_qb::apply_join_order_hints(JOIN *join) {
   for (uint hint_idx = 0; hint_idx < join_order_hints.size(); hint_idx++) {
     PT_qb_level_hint *hint = join_order_hints[hint_idx];
@@ -545,8 +541,9 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
   */
   if (keyinfo_array.size()) return;
 
-  if (tr->is_view_or_derived())
-    return;  // Names of keys are not known for derived tables
+  // Names of keys are not known for
+  // derived/internal temp/table_function tables.
+  if (!tr->is_base_table()) return;
 
   TABLE *table = tr->table;
   keyinfo_array.resize(table->s->keys, nullptr);
@@ -582,7 +579,7 @@ bool is_compound_hint(opt_hints_enum type_arg) {
 }
 
 PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type) {
-  DBUG_ASSERT(is_compound_hint(type));
+  assert(is_compound_hint(type));
   return get_compound_key_hint(type)->get_pt_hint();
 }
 
@@ -814,9 +811,9 @@ void Sys_var_hint::restore_vars(THD *thd) {
       /*
         There should be no error since original value is restored.
       */
-#ifndef DBUG_OFF
-      DBUG_ASSERT(!var->check(thd));
-      DBUG_ASSERT(!var->update(thd));
+#ifndef NDEBUG
+      assert(!var->check(thd));
+      assert(!var->update(thd));
 #else
       (void)var->check(thd);
       (void)var->update(thd);
@@ -853,7 +850,7 @@ void Sys_var_hint::print(const THD *thd, String *str) {
 
 static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
                            opt_hints_enum type_arg, bool *ret_val) {
-  DBUG_ASSERT(parent_hint);
+  assert(parent_hint);
 
   if (opt_hint_info[type_arg].switch_hint) {
     if (hint && hint->is_specified(type_arg)) {
@@ -939,11 +936,12 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
   return true;
 }
 
-bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge) {
-  bool force_index_merge = hint_table_state(
-      table->in_use, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
+bool idx_merge_hint_state(THD *thd, const TABLE *table,
+                          bool *use_cheapest_index_merge) {
+  bool force_index_merge =
+      hint_table_state(thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
   if (force_index_merge) {
-    DBUG_ASSERT(table->pos_in_table_list->opt_hints_table);
+    assert(table->pos_in_table_list->opt_hints_table);
     Opt_hints_table *table_hints = table->pos_in_table_list->opt_hints_table;
     /*
       If INDEX_MERGE hint is used without only specified index,

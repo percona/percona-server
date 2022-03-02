@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <functional>
@@ -29,7 +28,6 @@
 #include <random>
 #include <sstream>
 #include <vector>
-#include "my_config.h"
 
 #include "priority_queue.h"
 
@@ -531,7 +529,7 @@ inline void test_heap_of_handles(RandomAccessIterator first,
 
 class PriorityQueueTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     int xkeys[10] = {10, 4, 7, 8, 21, -5, 6, 10, 7, 9};
     memcpy(keys, xkeys, sizeof(xkeys));
     pq = Priority_queue<int>(xkeys, xkeys + 10);

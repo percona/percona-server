@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,28 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
-  Bug#16403708 SUBOPTIMAL CODE IN MY_STRNXFRM_SIMPLE()
-  Bug#68476    Suboptimal code in my_strnxfrm_simple()
-
-  Below we test some alternative implementations for my_strnxfrm_simple.
-  In order to do benchmarking, configure in optimized mode, and
-  generate a separate executable for this file:
-    cmake -DMERGE_UNITTESTS=0
-  You may want to tweak some constants below:
-   - experiment with num_iterations
-  run './strings_strnxfrm-t --disable-tap-output'
-    to see timing reports for your platform.
-
-
-  Benchmarking with gcc and clang indicates that:
-
-  There is insignificant difference between my_strnxfrm_simple and strnxfrm_new
-  when src != dst
-
-  my_strnxfrm_simple() is significantly faster than strnxfrm_new
-  when src == dst, especially for long strings.
-
-  Loop unrolling gives significant speedup for large strings.
+  In order to do benchmarking, configure in optimized mode, and build the
+  target
+    strings_strnxfrm-t
+  it is defined, but not built by default. Then run with:
+    ./bin/strings_strnxfrm-t --gtest_filter='Microbenchmarks*'
  */
 
 #include <gtest/gtest.h>
@@ -138,7 +121,7 @@ int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char *b) {
 
 }  // namespace
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // There is no point in benchmarking anything in debug mode.
 const size_t num_iterations = 1ULL;
 #else
@@ -150,7 +133,7 @@ const size_t num_iterations = 2ULL;
 
 class StrnxfrmTest : public ::testing::TestWithParam<size_t> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     m_length = GetParam();
     m_src.assign(m_length, 0x20);
     m_dst.assign(m_length, 0x20);
@@ -162,8 +145,8 @@ class StrnxfrmTest : public ::testing::TestWithParam<size_t> {
 
 size_t test_values[] = {1, 10, 100, 1000};
 
-INSTANTIATE_TEST_CASE_P(Strnxfrm, StrnxfrmTest,
-                        ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(Strnxfrm, StrnxfrmTest,
+                         ::testing::ValuesIn(test_values));
 
 TEST_P(StrnxfrmTest, OriginalSrcDst) {
   CHARSET_INFO *cs = init_collation("latin1_swedish_ci");

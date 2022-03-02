@@ -18,6 +18,10 @@ that configures :program:`yum` and installs the `Percona GPG key
 
 Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
+|Percona Server| is certified for Red Hat Enterprise Linux 8. This certification is based on common and secure best practices, and successful interoperability with the operating system. Percona Server is listed in the `Red Hat Ecosystem Catalog <https://catalog.redhat.com/software/applications/detail/5869161>`_. 
+
+
+
 What's in each RPM package?
 ===========================
 
@@ -30,15 +34,15 @@ Each of the |Percona Server| RPM packages have a particular purpose.
    * - Package
      - Contains
    * - percona-server-server
-     - The server itself (the ``mysqld`` binary)
+     - Server itself (the ``mysqld`` binary)
    * - percona-server-debuginfo
      - Debug symbols for the server
    * - percona-server-client
-     - The command line client
+     - Command line client
    * - percona-server-devel
-     - the header files needed to compile software using the client library.
+     - Header files needed to compile software using the client library.
    * - percona-server-shared
-     - The client shared library.
+     - Client shared library.
    * - percona-server-shared-compat
      - Shared libraries for software compiled against old versions of
        the client library. The following libraries are included in
@@ -46,7 +50,7 @@ Each of the |Percona Server| RPM packages have a particular purpose.
        ``libmysqlclient.so.14``, ``libmysqlclient.so.15``,
        ``libmysqlclient.so.16``, and ``libmysqlclient.so.18``.
    * - percona-server-test
-     - package includes the test suite for |Percona Server|.
+     - Includes the test suite for |Percona Server|.
 
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
@@ -54,8 +58,6 @@ Installing |Percona Server| from Percona ``yum`` repository
 Add ``sudo`` to percona-release and yum install commands.
 
 1. Install the Percona repository
-
-   You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
 
@@ -65,19 +67,24 @@ Add ``sudo`` to percona-release and yum install commands.
 
    .. code-block:: bash
 
-      Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-latest.noarch.rpm
-      Preparing...                ########################################### [100%]
-      1:percona-release        ########################################### [100%]
+      percona-release-latest.noarch-rpm               36 kB/s | 19 kb 00:00
+      =====================================================================
+        Package         Architecture      Version    Repository    Size
+      =====================================================================
+      Installing:
+         percona release    noarch         1.0-25     @commandline  19k
+      ...
 
 #. Enable the repository:
 
    .. code-block:: bash
 
       $ sudo percona-release setup ps80
+      On RedHat 8 systems it is needed to disable dnf mysql module to install Percona-Server
+      Do you want to disable it? [y/N] y
+      ...
 
 #. Install the packages
-
-   You can now install |Percona Server| by running:
 
    .. code-block:: bash
 
@@ -85,11 +92,11 @@ Add ``sudo`` to percona-release and yum install commands.
 
 .. note::
 
-   |Percona Server| 8.0 comes with the :ref:`TokuDB storage engine
-   <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines. These
-   storage engines are installed as plugins. You can find more information on how
-   to install and enable the |TokuDB| storage in the :ref:`tokudb_installation`
-   guide. More information about how to install |MyRocks| can be found in the
+   |Percona Server| 8.0 also provides the :ref:`TokuDB storage engine
+   <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines which can
+   be installed as plugins. For more information on how
+   to install and enable the |TokuDB| storage review the :ref:`tokudb_installation`
+   document. For information on how to install and enable |MyRocks| review the
    section :ref:`myrocks_install`.
 
 Percona `yum` Testing repository
@@ -99,7 +106,7 @@ Percona offers pre-release builds from our testing repository. To
 subscribe to the testing repository, you'll need to enable the testing
 repository in :file:`/etc/yum.repos.d/percona-release.repo`. To do so,
 set both ``percona-testing-$basearch`` and ``percona-testing-noarch``
-to ``enabled = 1`` (Note that there are 3 sections in this file:
+to ``enabled = 1`` (Note that there are three sections in this file:
 release, testing and experimental - in this case it is the second
 section that requires updating). **NOTE:** You'll need to install the
 Percona repository first (ref above) if this hasn't been done already.
@@ -113,53 +120,52 @@ Installing |Percona Server| using downloaded rpm packages
 1. Download the packages of the desired series for your architecture from the
    `download page <http://www.percona.com/downloads/Percona-Server-8.0/>`_. The
    easiest way is to download bundle which contains all the packages. Following
-   example will download |Percona Server| 8.0.13-3 release packages for *CentOS*
-   7:
+   example will download |Percona Server| 8.0.21-12 release packages for *CentOS*
+   8:
 
    .. code-block:: bash
 
-      $ wget https://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.13-3/binary/redhat/7/x86_64/Percona-Server-8.0.13-3-r63dafaf-el7-x86_64-bundle.tar
+      $ wget https://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.21-12/binary/redhat/8/x86_64/Percona-Server-8.0.21-12-r7ddfdfe-el8-x86_64-bundle.tar
 
-2. You should then unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.13-3-r63dafaf-el7-x86_64-bundle.tar`
+2. Unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.21-12-r7ddfdfe-el8-x86_64-bundle.tar`
 
-   After you unpack the bundle you should see the following packages when running :bash:`ls *.rpm`:
+3. To view a list of packages, run the following command:
 
-   .. admonition:: Output
+   .. code-block:: bash
 
-      .. code-block:: guess
+      $ ls *.rpm
 
-	 percona-server-80-debuginfo-8.0.13-3.el7.x86_64.rpm
-	 percona-server-client-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-devel-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-server-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-shared-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-shared-compat-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-test-80-8.0.13-3.el7.x86_64.rpm
-	 percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm
+      percona-mysql-router-8.0.21-12.2.el8.x86_64.rpm
+      percona-mysql-router-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-client-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-client-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-debugsource-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-devel-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-rocksdb-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-rocksdb-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-server-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-server-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona- server-shared-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-shared-compat-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-shared-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-test-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-test-debuginfo-8.0.21-12.2.el8.x86_64.rpm
+      percona-server-tokudb-8.0.21-12.2.el8.x86_64.rpm
 
-  .. note::
+4. Install ``jemalloc`` with the following command, if needed:
 
-    For an RHEL 8 package installation, Percona Server requires the mysql module to be disabled.
+  .. code-block:: bash
+
+     $ wget https://repo.percona.com/yum/release/8/RPMS/x86_64/jemalloc-3.6.0-1.el8.x86_64.rpm
+
+5.  For a RHEL/CentOS 8 package installation, |Percona Server| requires the mysql module to be disabled before installing the packages: 
 
     .. code-block:: bash
 
-        $ sudo yum module disable mysql
+       $ sudo yum module disable mysql 
 
-3. Now you can install |Percona Server| 8.0 by running:
-
-   .. code-block:: bash
-
-      $ sudo rpm -ivh percona-server-server-80-8.0.13-3.el7.x86_64.rpm \
-      percona-server-client-80-8.0.13-3.el7.x86_64.rpm \
-      percona-server-shared-80-8.0.13-3.el7.x86_64.rpm
-
-This will install only packages required to run the |Percona Server|
-8.0. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by
-adding the ``percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm`` to the command
-above. You can find more information on how to install and enable the |TokuDB|
-storage in the :ref:`tokudb_installation` guide.
-
-To install all the packages (for debugging, testing, etc.) you should run:
+6. Install all the packages (for debugging, testing, etc.) with the following command:
 
    .. code-block:: bash
 
@@ -167,10 +173,11 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
 .. note::
 
-   When installing packages manually like this, you'll need to make sure to
-   resolve all the dependencies and install missing packages yourself.
+   When installing packages manually, you must make sure to
+   resolve all dependencies and install any missing packages yourself.
 
 The following table lists the default locations for files:
+
 
 .. list-table::
     :widths: 30 30
@@ -191,16 +198,16 @@ You can use the following command to locate the Data directory:
 
 .. code-block:: bash
 
-    grep datadir /etc/my.cnf
-
+    $ grep datadir /etc/my.cnf
     datadir=/var/lib/mysql
 
-
 Running |Percona Server|
-========================
+
 
 1. |Percona Server| does not start automatically on *RHEL* and *CentOS* after
    the installation. You should start the server by running:
+   
+* Review the service status with the following command:
 
    .. code-block:: bash
 
@@ -211,7 +218,7 @@ Running |Percona Server|
    .. code-block:: bash
 
       $ sudo service mysql status
-
+      
 3. You can stop the service by running:
    
    .. code-block:: bash
@@ -229,13 +236,20 @@ Running |Percona Server|
    *RHEL* 7 and *CentOS* 7 come with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default
    system and service manager so you can invoke all the above commands
-   with ``sytemctl`` instead of ``service``. Currently both are
+   with ``sytemctl`` instead of ``service``. Currently, both are
    supported.
+
+Working with SELinux
+======================
+
+For information on working with SELinux, see :ref:`selinux`.
 
 Uninstalling |Percona Server|
 =============================
 
-To completely uninstall |Percona Server| you'll need to remove all the installed packages and data files.
+To completely uninstall |Percona Server|, remove all the installed packages and data files.
+
+1.  Stop the |Percona Server| service:
 
 .. warning::
 
@@ -245,7 +259,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
     .. code-block:: bash
 
-     service mysql stop
+       $ service mysql stop
 
 2. Remove the packages
 
@@ -253,12 +267,19 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
       $ sudo yum remove percona-server*
 
-#. Remove the data and configuration files
+#. Remove the data and configuration files:
+
+.. warning::
+
+    This step removes all the packages and deletes all the data files (databases,
+    tables, logs, etc.). Take a backup before doing this in case you need the data.
+
 
    .. code-block:: bash
 
-     $ rm -rf /var/lib/mysql
-     $ rm -f /etc/my.cnf
+      $ rm -rf /var/lib/mysql
+      $ rm -f /etc/my.cnf
+
 
 
 

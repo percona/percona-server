@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
    values, or it will break replication between version.
 
    context is encoded as following:
-   SELECT - SELECT_LEX::options
+   SELECT - Query_block::options
    THD    - THD::options
    intern - neither. used only as
             func(..., select_node->options | thd->options | OPTION_XXX, ...)
@@ -87,8 +87,7 @@
 #define OPTION_RELAXED_UNIQUE_CHECKS (1ULL << 27)  // THD, user, binlog
 #define SELECT_NO_UNLOCK (1ULL << 28)              // SELECT, intern
 #define OPTION_SCHEMA_TABLE (1ULL << 29)           // SELECT, intern
-/** Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE (1ULL << 30)  // intern
+#define OPTION_SETUP_TABLES_DONE (1ULL << 30)      // OBSOLETE
 /** If not set then the thread will ignore all warnings with level notes. */
 #define OPTION_SQL_NOTES (1ULL << 31)  // THD, user
 

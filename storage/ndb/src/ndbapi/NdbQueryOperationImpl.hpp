@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -301,20 +301,23 @@ private:
 
     explicit OrderedFragSet();
 
-    ~OrderedFragSet(); 
+    ~OrderedFragSet();
 
-    /** 
+    /**
      * Prepare internal datastructures.
      * param[in] allocator For allocating arrays of pointers.
      * param[in] ordering Possible scan ordering.
      * param[in] capacity Max no of SPJ-worker results.
-     * @return 0 if ok, else errorcode
+     * param[in] keyRecord Describe index used for ordering.
+     * param[in] resultRecord Format of row retrieved.
+     * param[in] resultMask BitMap of columns present in result.
      */
     void prepare(NdbBulkAllocator& allocator,
-                 NdbQueryOptions::ScanOrdering ordering, 
-                 int capacity,  
+                 NdbQueryOptions::ScanOrdering ordering,
+                 int capacity,
                  const NdbRecord* keyRecord,
-                 const NdbRecord* resultRecord);
+                 const NdbRecord* resultRecord,
+                 const unsigned char* resultMask);
 
     /**
      * Add worker results with completed ResultSets to this OrderedFragSet.
@@ -373,6 +376,9 @@ private:
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
+    /** Bitmap of columns present in m_resultRecord. */
+    const unsigned char* m_resultMask;
+
     /**
      * Worker results where some tuples in the current ResultSet has not 
      * yet been consumed.
@@ -622,7 +628,6 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
-  SpjTreeNodeMask getDescendants() const;
   SpjTreeNodeMask getDependants() const;
 
   /** A shorthand for getting the root operation. */
@@ -668,20 +673,14 @@ public:
 
   /** Process result data for this operation. Return true if batch complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
-  
-  /** Process absence of result data for this operation. (Only used when the 
+
+  /** Process absence of result data for this operation. (Only used when the
    * root operation is a lookup.)
    * @return true if query complete.*/
   bool execTCKEYREF(const NdbApiSignal* aSignal);
 
-  /** Called once per complete (within batch) fragment when a SCAN_TABCONF 
-   * signal is received.
-   * @param tcPtrI
-   * @param rowCount Number of rows for this fragment, including all rows from
-   * descendant lookup operations.
-   * @param resultsMask
-   * @param completedMask
-   * @param receiver The receiver object that shall process the results.*/
+  /** Called once per complete (within batch) fragment when a SCAN_TABCONF
+   * signal is received. */
   bool execSCAN_TABCONF(Uint32 tcPtrI,
                         Uint32 rowCount,
                         Uint32 resultsMask,
@@ -776,7 +775,7 @@ public:
 
 private:
 
-  STATIC_CONST (MAGIC = 0xfade1234);
+  static constexpr Uint32 MAGIC = 0xfade1234;
 
   /** Interface for the application developer.*/
   NdbQueryOperation m_interface;

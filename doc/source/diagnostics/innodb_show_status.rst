@@ -95,8 +95,8 @@ output is: ::
   srv_master_thread loops: 1 srv_active, 0 srv_shutdown, 11844 srv_idle
   srv_master_thread log flush and writes: 11844
 
-|InnoDB| has a master thread which performs background tasks depending on the
-server state, once per second. If the server is under workload, the master
+|InnoDB| has a source thread which performs background tasks depending on the
+server state, once per second. If the server is under workload, the source
 thread runs the following: performs background table drops; performs change
 buffer merge, adaptively; flushes the redo log to disk; evicts tables from the
 dictionary cache if needed to satisfy its size limit; makes a checkpoint. If
@@ -126,7 +126,7 @@ for idle server states.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the number of times the |InnoDB| master thread has written
+This variable shows the number of times the |InnoDB| source thread has written
 and flushed the redo log.
 
 SEMAPHORES
@@ -224,9 +224,14 @@ between the current LSN and the LSN of the last completed checkpoint.
      :vartype: Numeric
      :scope: Global
 
-This variable shows the maximum allowed checkppoint age above which the redo
+This variable shows the maximum allowed checkpoint age above which the redo
 log is close to full and a checkpoint must happen before any further redo log
 writes.
+
+.. note:: 
+
+        This variable was removed in |Percona Server| 8.0.13-4 due to a change
+        in MySQL. The variable is identical to log capacity.
 
 BUFFER POOL AND MEMORY
 ----------------------

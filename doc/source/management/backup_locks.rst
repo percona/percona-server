@@ -8,6 +8,11 @@ Backup Locks
 lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and
 logical backups.
 
+.. note::
+
+        As of |Percona Server| 8.0.13-4, ``LOCK TABLES FOR BACKUP`` requires the
+        ``BACKUP_ADMIN`` privilege.
+
 LOCK TABLES FOR BACKUP
 ================================================================================
 

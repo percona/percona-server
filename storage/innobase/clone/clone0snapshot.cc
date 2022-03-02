@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -743,8 +743,9 @@ bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
   auto encryption_info = log_header + offset;
 
   /* Get log Encryption Key and IV. */
+  Encryption_key e_key{encryption_key, encryption_iv};
   auto success = Encryption::decode_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, false);
+      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
 
   if (success) {
     /* Encrypt with master key and fill encryption information. */
@@ -765,8 +766,9 @@ bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
   auto encryption_info = page_data + offset;
 
   /* Get tablespace Encryption Key and IV. */
+  Encryption_key e_key{encryption_key, encryption_iv};
   auto success = Encryption::decode_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, false);
+      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
   if (!success) {
     return (false);
   }
@@ -811,10 +813,10 @@ void Clone_Snapshot::page_update_for_flush(const page_size_t &page_size,
     auto data_size = page_size.physical();
     page_zip_set_size(&page_zip, data_size);
     page_zip.data = page_data;
-#ifdef UNIV_DEBUG
-    page_zip.m_start =
-#endif /* UNIV_DEBUG */
-        page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
+    ut_d(page_zip.m_start = 0);
+    page_zip.m_end = 0;
+    page_zip.n_blobs = 0;
+    page_zip.m_nonempty = false;
 
     buf_flush_init_for_writing(nullptr, page_data, &page_zip, page_lsn, false,
                                false);
@@ -847,8 +849,8 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   buf_page_mutex_enter(block);
   ut_ad(!fsp_is_checksum_disabled(bpage->id.space()));
   /* Get oldest and newest page modification LSN for dirty page. */
-  auto oldest_lsn = bpage->oldest_modification;
-  auto newest_lsn = bpage->newest_modification;
+  auto oldest_lsn = bpage->get_oldest_lsn();
+  auto newest_lsn = bpage->get_newest_lsn();
   buf_page_mutex_exit(block);
 
   bool page_is_dirty = (oldest_lsn > 0);

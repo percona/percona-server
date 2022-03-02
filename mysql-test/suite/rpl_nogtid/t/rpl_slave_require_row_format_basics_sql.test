@@ -3,7 +3,7 @@
 # Require_row_format enabled.
 #
 # This test does not run with GTIDs as the command
-#   CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
+#   CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 # when MASTER_AUTO_POSITION =1 will always delete all relay log files
 #
 #
@@ -43,6 +43,7 @@
 
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
+-- source include/not_hypergraph.inc  # Gets confused by the extra logging.
 
 --echo #
 --echo # 0. Add suppressions for the test.
@@ -60,7 +61,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --source include/rpl_connection_slave.inc
 
-  CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
   --source include/start_slave_io.inc
   --source include/rpl_connection_master.inc
@@ -70,7 +71,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --source include/stop_slave.inc
 
-  --eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='$relay_log_file';
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='$relay_log_file';
 
   START SLAVE;
 
@@ -81,7 +82,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
   STOP SLAVE;
 
   --let $assert_text = The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_slave_require_row_format_basics_sql.2.err
+  --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
   --let $assert_select = The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found
   --let $assert_count = $error_count
   --source include/assert_grep.inc
@@ -91,7 +92,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --echo # No issues when REQUIRE_ROW_FORMAT = 0
 
-  --eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='$relay_log_file';
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='$relay_log_file';
 
   --source include/start_slave.inc
 
@@ -114,6 +115,11 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 END_OF_PROCEDURE
 
 --let $error_count = 1
+
+# Record the number of temp tables present
+
+--source include/rpl_connection_slave.inc
+--let $_number_temp_tables = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
 
 # Create tables for testing
 
@@ -197,7 +203,7 @@ CREATE TEMPORARY TABLE temp1 (k INT PRIMARY KEY);
 --echo #
 --echo # 6.1 Check the slave SQL thread fails
 
---let $assert_cond= [SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
+--let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = No temporary table was created
 --source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
 
@@ -209,7 +215,8 @@ DROP TEMPORARY TABLE temp1;
 --echo #
 --echo # 7.1 Check the slave SQL thread fails
 
---let $assert_cond= [SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
+--inc $_number_temp_tables
+--let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = There is still a temporary table
 --source $MYSQL_TMP_DIR/check_slave_SQL_error.inc
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,8 @@
 
 #include "mysql/service_ssl_wrapper.h"
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/document_id_generator.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
-#include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
-#include "plugin/x/ngs/include/ngs/vio_wrapper.h"
+#include "plugin/x/src/helper/multithread/initializer.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/connection_acceptor.h"
 #include "plugin/x/src/interface/protocol_monitor.h"
@@ -43,6 +39,12 @@
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/ngs/document_id_generator.h"
+#include "plugin/x/src/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/ngs/scheduler.h"
+#include "plugin/x/src/ngs/server_client_timeout.h"
+#include "plugin/x/src/ngs/socket_acceptors_task.h"
+#include "plugin/x/src/ngs/vio_wrapper.h"
 #include "plugin/x/src/server/builder/ssl_context_builder.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/variables/system_variables.h"
@@ -50,8 +52,7 @@
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#include "my_systime.h"   // my_sleep() NOLINT(build/include_subdir)
-#include "scope_guard.h"  // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
 
 namespace ngs {
 
@@ -78,7 +79,7 @@ Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
 void Server::run_task(std::shared_ptr<xpl::iface::Server_task> handler) {
   handler->pre_loop();
 
-  while (m_state.is(State_running)) {
+  while (m_state.is(State_running) && !m_gracefull_shutdown) {
     handler->loop();
   }
 
@@ -106,21 +107,13 @@ bool Server::is_terminating() {
 
 void Server::delayed_start_tasks() {
   m_accept_scheduler->post([this]() {
-    srv_session_init_thread(xpl::plugin_handle);
-    auto guard_of_server_start = create_scope_guard([]() {
-      srv_session_deinit_thread();
-      ssl_wrapper_thread_cleanup();
-    });
+    xpl::Server_thread_initializer thread_initializer;
 
     /* Wait until SQL api is ready,
        server shouldn't handle any client before that. */
     if (xpl::Sql_data_context::wait_api_ready(
             [this]() { return is_terminating(); })) {
-#ifndef DBUG_OFF
-      while (DBUG_EVALUATE_IF("xplugin_init_wait", true, false)) {
-        my_sleep(100000);
-      }
-#endif  // DBUG_OFF
+      SYNC_POINT_CHECK("xplugin_init_wait");
 
       xpl::Sql_data_context sql_context;
       const bool admin_session = true;
@@ -139,6 +132,10 @@ void Server::delayed_start_tasks() {
       start_tasks();
     }
   });
+}
+
+void Server::reload_ssl_context() {
+  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
 }
 
 void Server::start_tasks() {
@@ -183,8 +180,24 @@ bool Server::prepare() {
   return true;
 }
 
+void Server::gracefull_shutdown() {
+  log_debug("Server::graceful_shutdown state=%i",
+            static_cast<int>(m_state.get()));
+  m_gracefull_shutdown = true;
+
+  if (m_state.exchange(State::State_initializing, State_failure)) {
+    start_failed();
+  }
+
+  for (auto &task : m_tasks) {
+    task->stop(Stop_cause::k_normal_shutdown);
+  }
+
+  graceful_close_all_clients();
+}
+
 /** Stop the network acceptor loop */
-void Server::stop(const bool is_called_from_timeout_handler) {
+void Server::stop() {
   m_stop_called = true;
   if (m_state.exchange(State::State_initializing, State_failure)) {
     start_failed();
@@ -197,15 +210,11 @@ void Server::stop(const bool is_called_from_timeout_handler) {
   if (State_terminating == m_state.set_and_return_old(State_terminating))
     return;
 
-  const Stop_cause cause = is_called_from_timeout_handler
-                               ? Stop_cause::k_server_task_triggered_event
-                               : Stop_cause::k_normal_shutdown;
-
   for (auto &task : m_tasks) {
-    task->stop(cause);
+    task->stop(Stop_cause::k_normal_shutdown);
   }
 
-  close_all_clients();
+  graceful_close_all_clients();
   wait_for_clients_closure();
 
   if (m_worker_scheduler) {
@@ -213,7 +222,7 @@ void Server::stop(const bool is_called_from_timeout_handler) {
     m_worker_scheduler.reset();
   }
 
-  if (m_accept_scheduler && !is_called_from_timeout_handler) {
+  if (m_accept_scheduler) {
     m_accept_scheduler->stop();
     m_accept_scheduler.reset();
   }
@@ -251,7 +260,7 @@ void Server::go_through_all_clients(
   }
 }
 
-void Server::close_all_clients() {
+void Server::graceful_close_all_clients() {
   using Client_ptr = std::shared_ptr<xpl::iface::Client>;
   go_through_all_clients(
       [](Client_ptr client) { client->on_server_shutdown(); });

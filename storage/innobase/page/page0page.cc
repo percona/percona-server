@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -188,13 +188,13 @@ static ibool page_dir_slot_check(const page_dir_slot_t *slot) /*!< in: slot */
   return (TRUE);
 }
 
-/** Sets the max trx id field value. */
-void page_set_max_trx_id(
-    buf_block_t *block,       /*!< in/out: page */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    trx_id_t trx_id,          /*!< in: transaction id */
-    mtr_t *mtr)               /*!< in/out: mini-transaction, or NULL */
-{
+/** Sets the max trx id field value.
+@param[in,out] block Page
+@param[in,out] page_zip Compressed page, or NULL
+@param[in] trx_id Transaction id
+@param[in,out] mtr Mini-transaction, or NULL */
+void page_set_max_trx_id(buf_block_t *block, page_zip_des_t *page_zip,
+                         trx_id_t trx_id, mtr_t *mtr) {
   page_t *page = buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
   ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -252,13 +252,12 @@ byte *page_mem_alloc_heap(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of page creation
-@param[in]	frame		a buffer frame where the page is created
-@param[in]	mtr		mini-transaction handle
+@param[in]	frame		A buffer frame where the page is created
+@param[in]	mtr		Mini-transaction handle
 @param[in]	comp		TRUE=compact page format
-@param[in]	page_type	page type */
-UNIV_INLINE
-void page_create_write_log(buf_frame_t *frame, mtr_t *mtr, ibool comp,
-                           page_type_t page_type) {
+@param[in]	page_type	Page type */
+static inline void page_create_write_log(buf_frame_t *frame, mtr_t *mtr,
+                                         ibool comp, page_type_t page_type) {
   mlog_id_t type;
 
   switch (page_type) {
@@ -367,10 +366,10 @@ void page_parse_create(buf_block_t *block, ulint comp, page_type_t page_type) {
 }
 
 /** Create an uncompressed B-tree or R-tree or SDI index page.
-@param[in]	block		a buffer block where the page is created
-@param[in]	mtr		mini-transaction handle
+@param[in]	block		A buffer block where the page is created
+@param[in]	mtr		Mini-transaction handle
 @param[in]	comp		nonzero=compact page format
-@param[in]	page_type	page type
+@param[in]	page_type	Page type
 @return pointer to the page */
 page_t *page_create(buf_block_t *block, mtr_t *mtr, ulint comp,
                     page_type_t page_type) {
@@ -379,13 +378,13 @@ page_t *page_create(buf_block_t *block, mtr_t *mtr, ulint comp,
 }
 
 /** Create a compressed B-tree index page.
-@param[in,out]	block		buffer frame where the page is created
-@param[in]	index		index of the page, or NULL when applying
+@param[in,out]	block		Buffer frame where the page is created
+@param[in]	index		Index of the page, or NULL when applying
                                 TRUNCATE log record during recovery
-@param[in]	level		the B-tree level of the page
+@param[in]	level		The B-tree level of the page
 @param[in]	max_trx_id	PAGE_MAX_TRX_ID
-@param[in]	mtr		mini-transaction handle
-@param[in]	page_type	page_type to be created. Only FIL_PAGE_INDEX,
+@param[in]	mtr		Mini-transaction handle
+@param[in]	page_type	Page type to be created. Only FIL_PAGE_INDEX,
                                 FIL_PAGE_RTREE, FIL_PAGE_SDI allowed
 @return pointer to the page */
 page_t *page_create_zip(buf_block_t *block, dict_index_t *index, ulint level,
@@ -423,11 +422,11 @@ page_t *page_create_zip(buf_block_t *block, dict_index_t *index, ulint level,
   return (page);
 }
 
-/** Empty a previously created B-tree index page. */
-void page_create_empty(buf_block_t *block,  /*!< in/out: B-tree block */
-                       dict_index_t *index, /*!< in: the index of the page */
-                       mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+/** Empty a previously created B-tree index page.
+@param[in,out] block B-tree block
+@param[in] index The index of the page
+@param[in,out] mtr Mini-transaction */
+void page_create_empty(buf_block_t *block, dict_index_t *index, mtr_t *mtr) {
   trx_id_t max_trx_id = 0;
   page_t *page = buf_block_get_frame(block);
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
@@ -797,25 +796,24 @@ rec_t *page_copy_rec_list_start(
 }
 
 /** Writes a log record of a record list end or start deletion. */
-UNIV_INLINE
-void page_delete_rec_list_write_log(
+static inline void page_delete_rec_list_write_log(
     rec_t *rec,          /*!< in: record on page */
     dict_index_t *index, /*!< in: record descriptor */
     mlog_id_t type,      /*!< in: operation type:
                          MLOG_LIST_END_DELETE, ... */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ut_ad(type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE ||
         type == MLOG_COMP_LIST_END_DELETE ||
         type == MLOG_COMP_LIST_START_DELETE);
 
-  log_ptr = mlog_open_and_write_index(mtr, rec, index, type, 2);
-  if (log_ptr) {
-    /* Write the parameter as a 2-byte ulint */
-    mach_write_to_2(log_ptr, page_offset(rec));
-    mlog_close(mtr, log_ptr + 2);
+  if (!mlog_open_and_write_index(mtr, rec, index, type, 2, log_ptr)) {
+    return;
   }
+  /* Write the parameter as a 2-byte ulint */
+  mach_write_to_2(log_ptr, page_offset(rec));
+  mlog_close(mtr, log_ptr + 2);
 }
 #else /* !UNIV_HOTBACKUP */
 #define page_delete_rec_list_write_log(rec, index, type, mtr) ((void)0)
@@ -1230,8 +1228,7 @@ ibool page_move_rec_list_start(
 /** Used to delete n slots from the directory. This function updates
  also n_owned fields in the records, so that the first slot after
  the deleted ones inherits the records of the deleted slots. */
-UNIV_INLINE
-void page_dir_delete_slot(
+static inline void page_dir_delete_slot(
     page_t *page,             /*!< in/out: the index page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     ulint slot_no)            /*!< in: slot to be deleted */
@@ -1275,8 +1272,7 @@ void page_dir_delete_slot(
 /** Used to add n slots to the directory. Does not set the record pointers
  in the added slots or update n_owned values: this is the responsibility
  of the caller. */
-UNIV_INLINE
-void page_dir_add_slot(
+static inline void page_dir_add_slot(
     page_t *page,             /*!< in/out: the index page */
     page_zip_des_t *page_zip, /*!< in/out: comprssed page, or NULL */
     ulint start)              /*!< in: the slot above which the new slots
@@ -1298,13 +1294,13 @@ void page_dir_add_slot(
           (n_slots - 1 - start) * PAGE_DIR_SLOT_SIZE);
 }
 
-/** Splits a directory slot which owns too many records. */
-void page_dir_split_slot(
-    page_t *page,             /*!< in/out: index page */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page whose
-                             uncompressed part will be written, or NULL */
-    ulint slot_no)            /*!< in: the directory slot */
-{
+/** Splits a directory slot which owns too many records.
+@param[in,out] page Index page
+@param[in,out] page_zip Compressed page whose uncompressed part will be written,
+or null
+@param[in] slot_no The directory slot */
+void page_dir_split_slot(page_t *page, page_zip_des_t *page_zip,
+                         ulint slot_no) {
   rec_t *rec;
   page_dir_slot_t *new_slot;
   page_dir_slot_t *prev_slot;
@@ -1357,12 +1353,12 @@ void page_dir_split_slot(
 
 /** Tries to balance the given directory slot with too few records with the
  upper neighbor, so that there are at least the minimum number of records owned
- by the slot; this may result in the merging of two slots. */
-void page_dir_balance_slot(
-    page_t *page,             /*!< in/out: index page */
-    page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    ulint slot_no)            /*!< in: the directory slot */
-{
+ by the slot; this may result in the merging of two slots.
+@param[in,out] page Index page
+@param[in,out] page_zip Compressed page, or null
+@param[in] slot_no The directory slot */
+void page_dir_balance_slot(page_t *page, page_zip_des_t *page_zip,
+                           ulint slot_no) {
   page_dir_slot_t *slot;
   page_dir_slot_t *up_slot;
   ulint n_owned;
@@ -1526,10 +1522,10 @@ ulint page_rec_get_n_recs_before(
 
 #ifndef UNIV_HOTBACKUP
 /** Prints record contents including the data relevant only in
- the index page context. */
-void page_rec_print(const rec_t *rec,     /*!< in: physical record */
-                    const ulint *offsets) /*!< in: record descriptor */
-{
+ the index page context.
+@param[in] rec Physical record
+@param[in] offsets Record descriptor */
+void page_rec_print(const rec_t *rec, const ulint *offsets) {
   ut_a(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
   rec_print_new(stderr, rec, offsets);
   if (page_rec_is_comp(rec)) {
@@ -2187,13 +2183,13 @@ ibool page_validate(
     trx_id_t max_trx_id = page_get_max_trx_id(page);
     /* This will be 0 during recv_apply_hashed_log_recs(TRUE),
     because the transaction system has not been initialized yet */
-    trx_id_t sys_max_trx_id = trx_sys_get_max_trx_id();
+    trx_id_t sys_next_trx_id_or_no = trx_sys_get_next_trx_id_or_no();
 
     if (max_trx_id == 0 ||
-        (sys_max_trx_id != 0 && max_trx_id > sys_max_trx_id)) {
+        (sys_next_trx_id_or_no != 0 && max_trx_id >= sys_next_trx_id_or_no)) {
       ib::error(ER_IB_MSG_898)
           << "PAGE_MAX_TRX_ID out of bounds: " << max_trx_id << ", "
-          << sys_max_trx_id;
+          << sys_next_trx_id_or_no;
       goto func_exit2;
     }
   }

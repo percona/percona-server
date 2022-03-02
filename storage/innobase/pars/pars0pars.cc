@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,8 +101,7 @@ void pars_close() { mutex_free(&pars_mutex); }
 
 /********************************************************************
 Get user function with the given name.*/
-UNIV_INLINE
-pars_user_func_t *pars_info_lookup_user_func(
+static inline pars_user_func_t *pars_info_lookup_user_func(
     /* out: user func, or NULL if not
     found */
     pars_info_t *info, /* in: info struct */
@@ -128,8 +127,7 @@ pars_user_func_t *pars_info_lookup_user_func(
 
 /********************************************************************
 Get bound identifier with the given name.*/
-UNIV_INLINE
-pars_bound_id_t *pars_info_lookup_bound_id(
+static inline pars_bound_id_t *pars_info_lookup_bound_id(
     /* out: bound literal, or NULL if
     not found */
     pars_info_t *info, /* in: info struct */
@@ -155,8 +153,7 @@ pars_bound_id_t *pars_info_lookup_bound_id(
 
 /********************************************************************
 Get bound literal with the given name.*/
-UNIV_INLINE
-pars_bound_lit_t *pars_info_lookup_bound_lit(
+static inline pars_bound_lit_t *pars_info_lookup_bound_lit(
     /* out: bound literal, or NULL if
     not found */
     pars_info_t *info, /* in: info struct */
@@ -871,7 +868,7 @@ sel_node_t *pars_select_statement(
          que_node_list_get_len(select_node->select_list));
   }
 
-  UT_LIST_INIT(select_node->copy_variables, &sym_node_t::col_var_list);
+  UT_LIST_INIT(select_node->copy_variables);
 
   pars_resolve_exp_list_columns(table_list, select_node->select_list);
   pars_resolve_exp_list_variables_and_types(select_node,
@@ -1090,7 +1087,7 @@ upd_node_t *pars_update_statement(
   pars_retrieve_table_def(table_sym);
   node->table = table_sym->table;
 
-  UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
+  UT_LIST_INIT(node->columns);
 
   /* Make the single table node into a list of table nodes of length 1 */
 
@@ -1670,11 +1667,12 @@ que_fork_t *pars_procedure_definition(
   return (fork);
 }
 
-/** Retrieves characters to the lexical analyzer. */
-int pars_get_lex_chars(char *buf,       /*!< in/out: buffer where to copy */
-                       size_t max_size) /*!< in: maximum number of characters
-                                        which fit in the buffer */
-{
+/** Retrieves characters to the lexical analyzer.
+@param[in,out] buf Buffer where to copy
+@param[in] max_size Maximum number of characters which fit in the buffer
+@return number of characters copied or 0 on EOF
+*/
+int pars_get_lex_chars(char *buf, size_t max_size) {
   int len;
 
   len = static_cast<int>(pars_sym_tab_global->string_len -
@@ -1710,7 +1708,6 @@ void yyerror(const char *s MY_ATTRIBUTE((unused)))
 que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
                 const char *str)   /*!< in: SQL string */
 {
-  sym_node_t *sym_node;
   mem_heap_t *heap;
   que_t *graph;
 
@@ -1720,7 +1717,7 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   /* Currently, the parser is not reentrant: */
   ut_ad(mutex_own(&pars_mutex));
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   pars_sym_tab_global = sym_tab_create(heap);
 
@@ -1732,12 +1729,8 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   yyparse();
 
-  sym_node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
-
-  while (sym_node) {
+  for (auto sym_node : pars_sym_tab_global->sym_list) {
     ut_a(sym_node->resolved);
-
-    sym_node = UT_LIST_GET_NEXT(sym_list, sym_node);
   }
 
   graph = pars_sym_tab_global->query_graph;
@@ -1808,15 +1801,16 @@ void pars_info_free(pars_info_t *info) /*!< in, own: info struct */
   mem_heap_free(info->heap);
 }
 
-/** Add bound literal. */
-void pars_info_add_literal(pars_info_t *info,   /*!< in: info struct */
-                           const char *name,    /*!< in: name */
-                           const void *address, /*!< in: address */
-                           ulint length,        /*!< in: length of data */
-                           ulint type,   /*!< in: type, e.g. DATA_FIXBINARY */
-                           ulint prtype) /*!< in: precise type, e.g.
-                                         DATA_UNSIGNED */
-{
+/** Add bound literal.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] address Address
+@param[in] length Length of data
+@param[in] type Type, e.g. data_fixbinary
+@param[in] prtype Precise type, e.g. data_unsigned */
+void pars_info_add_literal(pars_info_t *info, const char *name,
+                           const void *address, ulint length, ulint type,
+                           ulint prtype) {
   pars_bound_lit_t *pbl;
 
   ut_ad(!pars_info_get_bound_lit(info, name));
@@ -1876,14 +1870,14 @@ void pars_info_bind_literal(pars_info_t *info,   /* in: info struct */
   }
 }
 
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry.*/
-void pars_info_bind_varchar_literal(pars_info_t *info, /*!< in: info struct */
-                                    const char *name,  /*!< in: name */
-                                    const byte *str,   /*!< in: string */
-                                    ulint str_len)     /*!< in: string length */
-{
+/** If the literal value already exists then it rebinds otherwise it
+creates a new entry.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] str String
+@param[in] str_len String length */
+void pars_info_bind_varchar_literal(pars_info_t *info, const char *name,
+                                    const byte *str, ulint str_len) {
   pars_bound_lit_t *pbl;
 
   pbl = pars_info_lookup_bound_lit(info, name);
@@ -1918,9 +1912,9 @@ void pars_info_add_int4_literal(pars_info_t *info, /*!< in: info struct */
 
 /** If the literal value already exists then it rebinds otherwise it creates a
 new entry.
-@param[in]	info	info struct
-@param[in]	name 	name
-@param[in]	val	value */
+@param[in]  info  Info struct
+@param[in]  name  Name
+@param[in]  val   Value */
 void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
                                  const ib_uint32_t *val) {
   pars_bound_lit_t *pbl;
@@ -1939,9 +1933,9 @@ void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
 
 /** If the literal value already exists then it rebinds otherwise it creates a
 new entry.
-@param[in]	info	info struct
-@param[in]	name 	name
-@param[in]	val	value */
+@param[in]  info  Info struct
+@param[in]  name  Name
+@param[in]  val   Value */
 void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
                                  const ib_uint64_t *val) {
   pars_bound_lit_t *pbl;
@@ -1978,11 +1972,12 @@ void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
 }
 
 /** If the literal value already exists then it rebinds otherwise it
- creates a new entry. */
-void pars_info_bind_ull_literal(pars_info_t *info,      /*!< in: info struct */
-                                const char *name,       /*!< in: name */
-                                const ib_uint64_t *val) /*!< in: value */
-{
+ creates a new entry.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] val Value */
+void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
+                                const ib_uint64_t *val) {
   pars_bound_lit_t *pbl;
 
   pbl = pars_info_lookup_bound_lit(info, name);
@@ -1997,13 +1992,13 @@ void pars_info_bind_ull_literal(pars_info_t *info,      /*!< in: info struct */
   }
 }
 
-/** Add user function. */
-void pars_info_bind_function(
-    pars_info_t *info,        /*!< in: info struct */
-    const char *name,         /*!< in: function name */
-    pars_user_func_cb_t func, /*!< in: function address */
-    void *arg)                /*!< in: user-supplied argument */
-{
+/** Add user function.
+@param[in] info Info struct
+@param[in] name Function name
+@param[in] func Function address
+@param[in] arg User-supplied argument */
+void pars_info_bind_function(pars_info_t *info, const char *name,
+                             pars_user_func_cb_t func, void *arg) {
   pars_user_func_t *puf;
 
   puf = pars_info_lookup_user_func(info, name);

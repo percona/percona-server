@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -281,7 +281,7 @@ static bool rtr_pcur_getnext_from_path(
       if (!srv_read_only_mode && mode != PAGE_CUR_RTREE_INSERT &&
           mode != PAGE_CUR_RTREE_LOCATE) {
         ut_ad(rtr_info->thr);
-        lock_place_prdt_page_lock(space, next_page_no, index, rtr_info->thr);
+        lock_place_prdt_page_lock({space, next_page_no}, index, rtr_info->thr);
       }
       new_split = true;
 #ifdef UNIV_GIS_DEBUG
@@ -422,16 +422,16 @@ static bool rtr_pcur_getnext_from_path(
 /** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to next page
-@param[in]	tuple		data tuple; NOTE: n_fields_cmp in tuple
+@param[in]	tuple		Data tuple; NOTE: n_fields_cmp in tuple
                                 must be set so that it cannot get compared
                                 to the node ptr page number field!
-@param[in]	mode		cursor search mode
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]	mode		Cursor search mode
+@param[in]	sel_mode	Select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	cursor		persistent cursor; NOTE that the function
+@param[in]	cursor		Persistent cursor; NOTE that the function
                                 may release the page latch
-@param[in]	cur_level	current level
-@param[in]	mtr		mini-transaction
+@param[in]	cur_level	Current level
+@param[in]	mtr		Mini-transaction
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
 bool rtr_pcur_move_to_next(const dtuple_t *tuple, page_cur_mode_t mode,
@@ -824,17 +824,14 @@ func_exit:
   }
 }
 
-/** Create a RTree search info structure */
-rtr_info_t *rtr_create_rtr_info(
-    /******************/
-    bool need_prdt,      /*!< in: Whether predicate lock
-                         is needed */
-    bool init_matches,   /*!< in: Whether to initiate the
-                         "matches" structure for collecting
-                         matched leaf records */
-    btr_cur_t *cursor,   /*!< in: tree search cursor */
-    dict_index_t *index) /*!< in: index struct */
-{
+/** Create a RTree search info structure
+@param[in] need_prdt Whether predicate lock is needed
+@param[in] init_matches Whether to initiate the "matches" structure for
+collecting matched leaf records
+@param[in] cursor Tree search cursor
+@param[in] index Index struct */
+rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
+                                btr_cur_t *cursor, dict_index_t *index) {
   rtr_info_t *rtr_info;
 
   index = index ? index : cursor->index;
@@ -872,13 +869,10 @@ rtr_info_t *rtr_create_rtr_info(
   return (rtr_info);
 }
 
-/** Update a btr_cur_t with rtr_info */
-void rtr_info_update_btr(
-    /******************/
-    btr_cur_t *cursor,    /*!< in/out: tree cursor */
-    rtr_info_t *rtr_info) /*!< in: rtr_info to set to the
-                          cursor */
-{
+/** Update a btr_cur_t with rtr_info
+@param[in,out] cursor Tree cursor
+@param[in] rtr_info Rtr_info to set to the cursor */
+void rtr_info_update_btr(btr_cur_t *cursor, rtr_info_t *rtr_info) {
   ut_ad(rtr_info);
 
   cursor->rtr_info = rtr_info;
@@ -992,8 +986,10 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
         UT_DELETE(rtr_info->matches->matched_recs);
       }
 
-      rw_lock_free(&(rtr_info->matches->block.lock));
+      /* Clear any space references in the page copied. */
+      buf_page_prepare_for_free(&rtr_info->matches->block.page);
 
+      rw_lock_free(&(rtr_info->matches->block.lock));
       mutex_destroy(&rtr_info->matches->rtr_match_mutex);
     }
 
@@ -1068,13 +1064,12 @@ static void rtr_rebuild_path(
   }
 }
 
-/** Check whether a discarding page is in anyone's search path */
-void rtr_check_discard_page(
-    dict_index_t *index, /*!< in: index */
-    btr_cur_t *cursor,   /*!< in: cursor on the page to discard: not on
-                         the root page */
-    buf_block_t *block)  /*!< in: block of page to be discarded */
-{
+/** Check whether a discarding page is in anyone's search path
+@param[in] index Index
+@param[in,out] cursor Cursor on the page to discard: not on the root page
+@param[in] block Block of page to be discarded */
+void rtr_check_discard_page(dict_index_t *index, btr_cur_t *cursor,
+                            buf_block_t *block) {
   page_no_t pageno = block->page.id.page_no();
   rtr_info_t *rtr_info;
   rtr_info_active::iterator it;
@@ -1123,10 +1118,9 @@ void rtr_check_discard_page(
 
   mutex_exit(&index->rtr_track->rtr_active_mutex);
 
-  lock_mutex_enter();
+  locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_hash);
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
-  lock_mutex_exit();
 }
 
 /** Restore the stored position of a persistent cursor bufferfixing the page */
@@ -1157,10 +1151,12 @@ static bool rtr_cur_restore_position(
 
   ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
 
-  if (!buf_pool_is_obsolete(r_cursor->m_withdraw_clock) &&
-      buf_page_optimistic_get(RW_X_LATCH, r_cursor->m_block_when_stored,
-                              r_cursor->m_modify_clock, Page_fetch::NORMAL,
-                              __FILE__, __LINE__, mtr)) {
+  if (r_cursor->m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+        return hint != nullptr &&
+               buf_page_optimistic_get(
+                   RW_X_LATCH, hint, r_cursor->m_modify_clock,
+                   Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
+      })) {
     ut_ad(r_cursor->m_pos_state == BTR_PCUR_IS_POSITIONED);
 
     ut_ad(r_cursor->m_rel_pos == BTR_PCUR_ON);
@@ -1372,39 +1368,38 @@ static void rtr_non_leaf_insert_stack_push(
                           mbr_inc);
 }
 
-/** Copy a buf_block_t strcuture, except "block->lock", "block->mutex" and
-"block->debug_latch."
+/** Copy a buf_block_t structure, except "block->lock",
+"block->mutex","block->debug_latch", "block->n_pointers and block->frame."
 @param[in,out]	matches	copy to match->block
 @param[in]	block	block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
+  /* Clear any space references in the page if it was copied before. */
+  buf_page_prepare_for_free(&matches->block.page);
+
   /* Copy all members of "block" to "matches->block" except "mutex"
-  and "lock". We skip "mutex" and "lock" because they are not used
-  from the dummy buf_block_t we create here and because memcpy()ing
-  them generates (valid) compiler warnings that the vtable pointer
-  will be copied. It is also undefined what will happen with the
-  newly memcpy()ed mutex if the source mutex was acquired by
-  (another) thread while it was copied. */
+  and "lock". We skip "mutex" and "lock" because we can't copy mutex nor rwlock.
+  We don't copy pointer to frame as well, because we would have two rw_locks
+  protecting that frame (one from original block and one from dummy)*/
   new (&matches->block.page) buf_page_t(block->page);
-  matches->block.frame = block->frame;
   matches->block.unzip_LRU = block->unzip_LRU;
 
   ut_d(matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list);
   ut_d(matches->block.in_withdraw_list = block->in_withdraw_list);
 
   /* Skip buf_block_t::mutex */
-  /* Skip buf_block_t::lock */
+  /* Skip buf_block_t::lock as it was already initialized by rtr_create_rtr_info
+   */
+  ut_ad(rw_lock_validate(&matches->block.lock));
   matches->block.lock_hash_val = block->lock_hash_val;
-  matches->block.modify_clock = block->modify_clock;
   matches->block.n_hash_helps = block->n_hash_helps;
+  matches->block.n_bytes = block->n_bytes;
   matches->block.n_fields = block->n_fields;
   matches->block.left_side = block->left_side;
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-  matches->block.n_pointers = block->n_pointers;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   matches->block.curr_n_fields = block->curr_n_fields;
   matches->block.curr_left_side = block->curr_left_side;
   matches->block.index = block->index;
   matches->block.made_dirty_with_no_latch = block->made_dirty_with_no_latch;
+  matches->block.modify_clock = block->modify_clock;
 
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
@@ -1415,6 +1410,8 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   because an std::atomic<bool> member was added and rw_lock_t became explicitly
   non copyable. */
   UNIV_MEM_INVALID(&matches->block.debug_latch, sizeof(rw_lock_t));
+  UNIV_MEM_INVALID(&matches->block.mutex, sizeof(BPageMutex));
+  UNIV_MEM_INVALID(&matches->block.n_pointers, sizeof(std::atomic<ulint>));
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 }
@@ -1444,11 +1441,12 @@ static void rtr_init_match(
 #endif /* RTR_SEARCH_DIAGNOSTIC */
 }
 
-/** Get the bounding box content from an index record */
-void rtr_get_mbr_from_rec(const rec_t *rec,     /*!< in: data tuple */
-                          const ulint *offsets, /*!< in: offsets array */
-                          rtr_mbr_t *mbr)       /*!< out MBR */
-{
+/** Get the bounding box content from an index record
+@param[in] rec Data tuple
+@param[in] offsets Offsets array
+@param[out] mbr Mbr */
+void rtr_get_mbr_from_rec(const rec_t *rec, const ulint *offsets,
+                          rtr_mbr_t *mbr) {
   ulint rec_f_len;
   const byte *data;
 
@@ -1474,16 +1472,16 @@ void rtr_get_mbr_from_tuple(const dtuple_t *dtuple, /*!< in: data tuple */
   rtr_read_mbr(data, mbr);
 }
 
-/** Searches the right position in rtree for a page cursor. */
-bool rtr_cur_search_with_match(
-    const buf_block_t *block, /*!< in: buffer block */
-    dict_index_t *index,      /*!< in: index descriptor */
-    const dtuple_t *tuple,    /*!< in: data tuple */
-    page_cur_mode_t mode,     /*!< in: PAGE_CUR_RTREE_INSERT,
-                              PAGE_CUR_RTREE_LOCATE etc. */
-    page_cur_t *cursor,       /*!< in/out: page cursor */
-    rtr_info_t *rtr_info)     /*!< in/out: search stack */
-{
+/** Searches the right position in rtree for a page cursor.
+@param[in] block Buffer block
+@param[in] index Index descriptor
+@param[in] tuple Data tuple
+@param[in] mode Page_cur_l, page_cur_le, page_cur_g, or page_cur_ge
+@param[in,out] cursor Page cursor
+@param[in,out] rtr_info Search stack */
+bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
+                               const dtuple_t *tuple, page_cur_mode_t mode,
+                               page_cur_t *cursor, rtr_info_t *rtr_info) {
   bool found = false;
   const page_t *page;
   const rec_t *rec;
@@ -1580,12 +1578,12 @@ bool rtr_cur_search_with_match(
           break;
         case PAGE_CUR_RTREE_INSERT:
           double increase;
-          double area;
 
           cmp = cmp_dtuple_rec_with_gis(tuple, rec, offsets, PAGE_CUR_WITHIN,
                                         index->rtr_srs.get());
 
           if (cmp != 0) {
+            double area{0.0};
             increase = rtr_rec_cal_increase(tuple, rec, offsets, &area,
                                             index->rtr_srs.get());
             /* Once it goes beyond DBL_MAX or
@@ -1661,7 +1659,7 @@ bool rtr_cur_search_with_match(
           if (!srv_read_only_mode && (rtr_info->need_page_lock || !is_loc)) {
             /* Lock the page, preventing it
             from being shrunk */
-            lock_place_prdt_page_lock(space, page_no, index, rtr_info->thr);
+            lock_place_prdt_page_lock({space, page_no}, index, rtr_info->thr);
           }
         } else {
           ut_ad(orig_mode != PAGE_CUR_RTREE_LOCATE);

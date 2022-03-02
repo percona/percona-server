@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,17 @@
 
 #include "sql/item_xmlfunc.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <assert.h>
 #include <sys/types.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <memory>
 
-#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"
-#include "my_macros.h"
+
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -184,7 +184,7 @@ class Item_nodeset_func : public Item_str_func {
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
   bool resolve_type(THD *) override {
-    max_length = MAX_BLOB_WIDTH;
+    set_data_type_string(uint32{MAX_BLOB_WIDTH});
     // To avoid premature evaluation, mark all nodeset functions as non-const.
     used_tables_cache = RAND_TABLE_BIT;
     return false;
@@ -406,10 +406,6 @@ class Item_nodeset_context_cache : public Item_nodeset_func {
     if (!m_is_empty)
       nodeset->push_back({m_num, m_pos, static_cast<uint>(m_size)});
   }
-  bool resolve_type(THD *) override {
-    max_length = MAX_BLOB_WIDTH;
-    return false;
-  }
   void set_element(uint32 num, uint32 pos, size_t size) {
     m_num = num;
     m_pos = pos;
@@ -423,7 +419,7 @@ class Item_func_xpath_position : public Item_int_func {
   explicit Item_func_xpath_position(Item *a) : Item_int_func(a) {}
   const char *func_name() const override { return "xpath_position"; }
   bool resolve_type(THD *) override {
-    max_length = 10;
+    set_data_type_string(10U);
     return false;
   }
   longlong val_int() override {
@@ -440,7 +436,7 @@ class Item_func_xpath_count : public Item_int_func {
   explicit Item_func_xpath_count(Item *a) : Item_int_func(a) {}
   const char *func_name() const override { return "xpath_count"; }
   bool resolve_type(THD *) override {
-    max_length = 10;
+    set_data_type_string(10U);
     return false;
   }
   longlong val_int() override {
@@ -880,10 +876,10 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
 */
 static Item_nodeset_func *nametestfunc(MY_XPATH *xpath, int type, Item *arg,
                                        const char *beg, size_t len) {
-  DBUG_ASSERT(arg != nullptr);
-  DBUG_ASSERT(arg->type() == Item::XPATH_NODESET);
-  DBUG_ASSERT(beg != nullptr);
-  DBUG_ASSERT(len > 0);
+  assert(arg != nullptr);
+  assert(arg->type() == Item::XPATH_NODESET);
+  assert(beg != nullptr);
+  assert(len > 0);
 
   Item_nodeset_func *res;
   switch (type) {
@@ -2213,13 +2209,13 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
         (spv = spc->find_variable(name_str, name_length, false))) {
       Item_splocal *splocal = new Item_splocal(
           Name_string(name_str, name_length, false), spv->offset, spv->type, 0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (splocal) splocal->m_sp = lex->sphead;
 #endif
-      xpath->item = down_cast<Item *>(splocal);
+      xpath->item = splocal;
     } else {
       xpath->item = nullptr;
-      DBUG_ASSERT(xpath->query.end > dollar_pos);
+      assert(xpath->query.end > dollar_pos);
       size_t len = xpath->query.end - dollar_pos;
       len = std::min(len, size_t(32));
       my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'",
@@ -2243,7 +2239,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
 */
 static int my_xpath_parse_NodeTest_QName(MY_XPATH *xpath) {
   if (!my_xpath_parse_QName(xpath)) return 0;
-  DBUG_ASSERT(xpath->context);
+  assert(xpath->context);
   size_t len = xpath->prevtok.end - xpath->prevtok.beg;
   xpath->context =
       nametestfunc(xpath, xpath->axis, xpath->context, xpath->prevtok.beg, len);
@@ -2251,7 +2247,7 @@ static int my_xpath_parse_NodeTest_QName(MY_XPATH *xpath) {
 }
 static int my_xpath_parse_NodeTest_asterisk(MY_XPATH *xpath) {
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_ASTERISK)) return 0;
-  DBUG_ASSERT(xpath->context);
+  assert(xpath->context);
   xpath->context = nametestfunc(xpath, xpath->axis, xpath->context, "*", 1);
   return 1;
 }
@@ -2284,8 +2280,8 @@ static int my_xpath_parse(MY_XPATH *xpath, const char *str,
          my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF);
 }
 
-bool Item_xml_str_func::resolve_type(THD *) {
-  nodeset_func = nullptr;
+bool Item_xml_str_func::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count)) return true;
 
@@ -2295,7 +2291,7 @@ bool Item_xml_str_func::resolve_type(THD *) {
     /* UCS2 is not supported */
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Character set '%s' is not supported by XPATH", MYF(0),
-                    collation.collation->csname);
+                    replace_utf8_utf8mb3(collation.collation->csname));
     return true;
   }
 
@@ -2306,6 +2302,8 @@ bool Item_xml_str_func::resolve_type(THD *) {
   }
 
   if (args[1]->const_item() && parse_xpath(args[1])) return true;
+
+  if (nodeset_func != nullptr) nodeset_func_permanent = true;
 
   return false;
 }
@@ -2332,6 +2330,7 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
     return true;
   }
 
+  assert(nodeset_func == nullptr);
   nodeset_func = xpath.item;
   if (nodeset_func && nodeset_func->fix_fields(current_thd, &nodeset_func))
     return true;
@@ -2368,7 +2367,7 @@ int xml_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
 
   node.parent = data->parent;  // Set parent for the new node to old parent
   data->parent = data->pxml->size();  // Remember current node as new parent
-  DBUG_ASSERT(data->level < MAX_LEVEL);
+  assert(data->level < MAX_LEVEL);
   data->pos[data->level] = data->pxml->size();
   if (data->level < MAX_LEVEL - 1)
     node.level = data->level++;
@@ -2424,7 +2423,7 @@ extern "C" int xml_leave(MY_XML_PARSER *st, const char *attr, size_t len);
 
 int xml_leave(MY_XML_PARSER *st, const char *, size_t) {
   auto *data = reinterpret_cast<MY_XML_USER_DATA *>(st->user_data);
-  DBUG_ASSERT(data->level > 0);
+  assert(data->level > 0);
   data->level--;
 
   data->parent = data->pxml->at(data->parent).parent;
@@ -2484,7 +2483,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
   String *res;
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
     return nullptr;
   }
@@ -2503,7 +2502,7 @@ String *Item_func_xml_update::val_str(String *str) {
 
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     null_value = true;
     return nullptr;
   }

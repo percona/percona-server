@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <ndb_global.h>
 
+#include <EventLogger.hpp>
 #include <SocketClient.hpp>
 
 #include <TransporterRegistry.hpp>
@@ -38,6 +39,7 @@
 #include <NdbThread.h>
 
 #include "ndb_socket.h"
+
 
 #define DISCONNECT_ERRNO(e, sz) ( \
                 (sz == 0) || \
@@ -288,7 +290,7 @@ protected:
   NDB_SOCKET_TYPE theSocket;
 private:
   SocketClient *m_socket_client;
-  struct in_addr m_connect_address;
+  struct in6_addr m_connect_address;
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;
@@ -535,14 +537,10 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
     }
     if (!compute(iov[iovi].iov_base, nb))
     {
-      fprintf(stderr,
-              "Transporter::checksum_state::computev() failed on IOV %u/%u "
-              "byteCount %llu off %llu nb %u\n",
-              iovi,
-              iovcnt,
-              Uint64(bytecnt),
-              Uint64(off),
-              nb);
+      g_eventLogger->info(
+          "Transporter::checksum_state::computev() failed on IOV %u/%u "
+          "byteCount %llu off %llu nb %u",
+          iovi, iovcnt, Uint64(bytecnt), Uint64(off), nb);
       /* TODO : Dump more IOV + bytecnt details */
       return false;
     }
@@ -550,11 +548,10 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
   }
   if (bytecnt != SIZE_T_MAX && bytecnt != off)
   {
-    fprintf(stderr,
-            "Transporter::checksum_state::computev() failed : "
-            "bytecnt %llu off %llu\n",
-            Uint64(bytecnt),
-            Uint64(off));
+    g_eventLogger->info(
+        "Transporter::checksum_state::computev() failed : "
+        "bytecnt %llu off %llu",
+        Uint64(bytecnt), Uint64(off));
     ok = false;
   }
   return ok;

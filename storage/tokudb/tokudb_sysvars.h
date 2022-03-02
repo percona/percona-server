@@ -77,6 +77,7 @@ extern char *data_dir;
 extern ulong debug;
 extern bool directio;
 extern bool enable_partial_eviction;
+extern bool enabled;
 extern int fs_reserve_percent;
 extern uint fsync_log_period;
 extern char *log_dir;

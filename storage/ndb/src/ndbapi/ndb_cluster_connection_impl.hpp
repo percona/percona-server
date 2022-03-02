@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,6 +82,7 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection
 
   inline unsigned get_connect_count() const;
   inline unsigned get_min_db_version() const;
+  inline unsigned get_min_api_version() const;
 public:
   inline Uint64 *get_latest_trans_gci() { return &m_latest_trans_gci; }
 
@@ -129,8 +130,8 @@ private:
   Uint32 m_my_node_id;
   Uint32 m_max_api_nodeid;
   Uint32 m_my_location_domain_id;
-  int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
-  int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
+  int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration* config);
+  int configure(Uint32 nodeid, const ndb_mgm_configuration *config);
   void connect_thread();
   void set_name(const char *name);
   int set_service_uri(const char *, const char *, int, const char *);
@@ -182,7 +183,7 @@ private:
   unsigned m_latest_error;
 
   // Scan batch configuration parameters
-  NdbApiConfig m_config;
+  NdbApiConfig m_ndbapiconfig;
 
   // Avoid transid reuse with Block ref reuse
   Vector<Uint32> m_next_transids;
@@ -204,6 +205,9 @@ private:
 
   // system.name copied from configuration
   BaseString m_system_name;
+
+  // Config generation of used configuration
+  Uint32 m_config_generation{0};
 };
 
 #endif

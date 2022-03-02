@@ -21,7 +21,7 @@ optimize table t1;
 
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
---exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 test > /dev/null
+--exec $MYSQL_DUMP --skip-comments --single-transaction --source-data=2 test > /dev/null
 
 # verifying block cache was not filled
 select case when variable_value - @a > 5 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';

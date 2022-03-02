@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -369,6 +369,11 @@ static monitor_info_t innodb_counter_info[] = {
     {"buffer_flush_n_to_flush_requested", "buffer",
      "Number of pages requested for flushing.", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_N_TO_FLUSH_REQUESTED},
+
+    {"buffer_flush_n_to_flush_by_dirty_page", "buffer",
+     "Number of pages targeted by dirty page percentage for flushing.",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_FLUSH_N_TO_FLUSH_BY_DIRTY_PAGE},
 
     {"buffer_flush_n_to_flush_by_age", "buffer",
      "Number of pages targeted by LSN Age for flushing.", MONITOR_NONE,
@@ -772,6 +777,9 @@ static monitor_info_t innodb_counter_info[] = {
     {"trx_active_transactions", "transaction", "Number of active transactions",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_ACTIVE},
 
+    {"trx_allocations", "transaction", "Number of trx_t allocations",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_ALLOCATIONS},
+
     MONITOR_WAIT_STATS("trx_on_log_", "transaction",
                        "Waits for redo during transaction commits",
                        MONITOR_TRX_ON_LOG_),
@@ -840,32 +848,10 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of times undo truncation was initiated", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_COUNT},
 
-    {"undo_truncate_sweep_count", "undo",
-     "Number of times undo truncation invalidates old pages from the buffer "
-     "pool",
-     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_SWEEP_COUNT},
-
-    {"undo_truncate_sweep_usec", "undo",
-     "Time (in microseconds) spent during undo truncation invalidating old "
-     "pages from the buffer pool",
-     MONITOR_NONE, MONITOR_DEFAULT_START,
-     MONITOR_UNDO_TRUNCATE_SWEEP_MICROSECOND},
-
     {"undo_truncate_start_logging_count", "undo",
      "Number of times during undo truncation a log file was started",
      MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_UNDO_TRUNCATE_START_LOGGING_COUNT},
-
-    {"undo_truncate_flush_count", "undo",
-     "Number of times undo truncation flushed new pages from the buffer pool "
-     "to disk",
-     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_FLUSH_COUNT},
-
-    {"undo_truncate_flush_usec", "undo",
-     "Time (in microseconds) spent during undo truncation flushing new pages "
-     "from the buffer pool to disk",
-     MONITOR_NONE, MONITOR_DEFAULT_START,
-     MONITOR_UNDO_TRUNCATE_FLUSH_MICROSECOND},
 
     {"undo_truncate_done_logging_count", "undo",
      "Number of times during undo truncation a log file was deleted",
@@ -1269,48 +1255,39 @@ static monitor_info_t innodb_counter_info[] = {
                                  MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_SRV_PAGE_SIZE},
 
-    {"innodb_rwlock_s_spin_waits", "server",
-     "Number of rwlock spin waits due to shared latch request",
+    {"innodb_rwlock_s_spin_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_SPIN_WAITS},
 
-    {"innodb_rwlock_x_spin_waits", "server",
-     "Number of rwlock spin waits due to exclusive latch request",
+    {"innodb_rwlock_x_spin_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
 
-    {"innodb_rwlock_sx_spin_waits", "server",
-     "Number of rwlock spin waits due to sx latch request",
+    {"innodb_rwlock_sx_spin_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS},
 
-    {"innodb_rwlock_s_spin_rounds", "server",
-     "Number of rwlock spin loop rounds due to shared latch request",
+    {"innodb_rwlock_s_spin_rounds", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS},
 
-    {"innodb_rwlock_x_spin_rounds", "server",
-     "Number of rwlock spin loop rounds due to exclusive latch request",
+    {"innodb_rwlock_x_spin_rounds", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
 
-    {"innodb_rwlock_sx_spin_rounds", "server",
-     "Number of rwlock spin loop rounds due to sx latch request",
+    {"innodb_rwlock_sx_spin_rounds", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS},
 
-    {"innodb_rwlock_s_os_waits", "server",
-     "Number of OS waits due to shared latch request",
+    {"innodb_rwlock_s_os_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_OS_WAITS},
 
-    {"innodb_rwlock_x_os_waits", "server",
-     "Number of OS waits due to exclusive latch request",
+    {"innodb_rwlock_x_os_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_OS_WAITS},
 
-    {"innodb_rwlock_sx_os_waits", "server",
-     "Number of OS waits due to sx latch request",
+    {"innodb_rwlock_sx_os_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_OS_WAITS},
 
@@ -1854,39 +1831,16 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_RWLOCK_S_SPIN_WAITS:
-      value = rw_lock_stats.rw_s_spin_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_X_SPIN_WAITS:
-      value = rw_lock_stats.rw_x_spin_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS:
-      value = rw_lock_stats.rw_sx_spin_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:
-      value = rw_lock_stats.rw_s_spin_round_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS:
-      value = rw_lock_stats.rw_x_spin_round_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS:
-      value = rw_lock_stats.rw_sx_spin_round_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_S_OS_WAITS:
-      value = rw_lock_stats.rw_s_os_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_X_OS_WAITS:
-      value = rw_lock_stats.rw_x_os_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_SX_OS_WAITS:
-      value = rw_lock_stats.rw_sx_os_wait_count;
+      /* Deprecated counter. remained for compatibility. */
+      value = 0;
       break;
 
     case MONITOR_OVLD_BUFFER_POOL_SIZE:
@@ -1979,7 +1933,7 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_N_FILE_OPENED:
-      value = fil_n_file_opened;
+      value = fil_n_files_open;
       break;
 
     case MONITOR_OVLD_IBUF_MERGE_INSERT:

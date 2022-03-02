@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,19 +25,20 @@
 #include "sql/auth/sql_authentication.h"
 
 #include <fcntl.h>
+#include <mysql/components/my_service.h>
+#include <sql/ssl_acceptor_context_operator.h>
+#include <sql/ssl_init_callback.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #include <string> /* std::string */
 #include <utility>
 #include <vector> /* std::vector */
 
-#include "include/compression.h"
-
-#include <mysql/components/my_service.h>
-#include <sql/ssl_acceptor_context.h>
 #include "crypt_genhash_impl.h"  // generate_user_salt
+#include "include/compression.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"  // Mutex_lock
@@ -52,11 +53,11 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_mysql_password_policy.h"
@@ -807,6 +808,10 @@ const uint MAX_UNKNOWN_ACCOUNTS = 1000;
 */
 Map_with_rw_lock<Auth_id, uint> *unknown_accounts = nullptr;
 
+inline const char *client_plugin_name(plugin_ref ref) {
+  return ((st_mysql_auth *)(plugin_decl(ref)->info))->client_auth_plugin;
+}
+
 LEX_CSTRING validate_password_plugin_name = {
     STRING_WITH_LEN("validate_password")};
 
@@ -1334,8 +1339,8 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
 */
 static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
                                          uint data_len) {
-  DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
-  DBUG_ASSERT(data_len <= 255);
+  assert(mpvio->status == MPVIO_EXT::FAILURE);
+  assert(data_len <= 255);
   Protocol_classic *protocol = mpvio->protocol;
 
   char *buff = (char *)my_alloca(1 + SERVER_VERSION_LENGTH + data_len + 64);
@@ -1352,7 +1357,16 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 
   protocol->add_client_capability(CAN_CLIENT_COMPRESS);
 
-  if (SslAcceptorContext::have_ssl()) {
+  bool have_ssl = false;
+  if (current_thd->is_admin_connection() && g_admin_ssl_configured == true) {
+    Lock_and_access_ssl_acceptor_context context(mysql_admin);
+    have_ssl = context.have_ssl();
+  } else {
+    Lock_and_access_ssl_acceptor_context context(mysql_main);
+    have_ssl = context.have_ssl();
+  }
+
+  if (have_ssl) {
     protocol->add_client_capability(CLIENT_SSL);
     protocol->add_client_capability(CLIENT_SSL_VERIFY_SERVER_CERT);
   }
@@ -1382,7 +1396,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
           compression->compression_optional = true;
           break;
         case enum_compression_algorithm::MYSQL_INVALID:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
       it++;
@@ -1422,7 +1436,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 
   end = my_stpnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
 
-  DBUG_ASSERT(sizeof(my_thread_id) == 4);
+  assert(sizeof(my_thread_id) == 4);
   int4store((uchar *)end, mpvio->thread_id);
   end += 4;
 
@@ -1449,8 +1463,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   end = (char *)memcpy(end, data + AUTH_PLUGIN_DATA_PART_1_LENGTH,
                        data_len - AUTH_PLUGIN_DATA_PART_1_LENGTH);
   end += data_len - AUTH_PLUGIN_DATA_PART_1_LENGTH;
-  end = strmake(end, plugin_name(mpvio->plugin)->str,
-                plugin_name(mpvio->plugin)->length);
+  end = strmake(end, client_plugin_name(mpvio->plugin),
+                strlen(client_plugin_name(mpvio->plugin)));
 
   int res = protocol->write((uchar *)buff, (size_t)(end - buff + 1)) ||
             protocol->flush();
@@ -1619,8 +1633,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 */
 static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
                                        uint data_len) {
-  DBUG_ASSERT(mpvio->packets_written == 1);
-  DBUG_ASSERT(mpvio->packets_read == 1);
+  assert(mpvio->packets_written == 1);
+  assert(mpvio->packets_read == 1);
   static uchar switch_plugin_request_buf[] = {254};
 
   DBUG_TRACE;
@@ -1632,11 +1646,12 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   if (initialized)
     mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
 
+  /* Send the client side authentication plugin name */
   std::string client_auth_plugin(
       ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
           ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin.c_str());
+  assert(client_auth_plugin.c_str());
 
   DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
     client_auth_plugin.clear();
@@ -1655,7 +1670,7 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   */
   if (!(mpvio->protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
     DBUG_PRINT("info", ("old client sent a COM_CHANGE_USER"));
-    DBUG_ASSERT(mpvio->cached_client_reply.pkt);
+    assert(mpvio->cached_client_reply.pkt);
     /* get the status back so the read can process the cached result */
     mpvio->status = MPVIO_EXT::RESTART;
     return false;
@@ -1788,7 +1803,7 @@ ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
 static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
-  DBUG_ASSERT(mpvio->acl_user == nullptr);
+  assert(mpvio->acl_user == nullptr);
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock(false)) return true;
@@ -1842,7 +1857,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
           PLUGIN_MYSQL_NATIVE_PASSWORD, mpvio->acl_user->plugin) &&
       !(mpvio->protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
     /* user account requires non-default plugin and the client is too old */
-    DBUG_ASSERT(!Cached_authentication_plugins::compare_plugin(
+    assert(!Cached_authentication_plugins::compare_plugin(
         PLUGIN_MYSQL_NATIVE_PASSWORD, mpvio->acl_user->plugin));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT, "%s",
@@ -2145,6 +2160,8 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (ptr + 1 < end) {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       return true;
+    // skip over the charset's 2 bytes
+    ptr += 2;
   }
 
   /* Convert database and user names to utf8 */
@@ -2182,12 +2199,12 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 
   const char *client_plugin;
   if (protocol->has_client_capability(CLIENT_PLUGIN_AUTH)) {
-    client_plugin = ptr + 2;
+    client_plugin = ptr;
     /*
       ptr needs to be updated to point to correct position so that
       connection attributes are read properly.
     */
-    ptr = ptr + 2 + strlen(client_plugin) + 1;
+    ptr = ptr + strlen(client_plugin) + 1;
 
     if (client_plugin >= end) {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
@@ -2197,6 +2214,10 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     client_plugin = Cached_authentication_plugins::get_plugin_name(
         PLUGIN_MYSQL_NATIVE_PASSWORD);
 
+  if (ptr > end) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
   size_t bytes_remaining_in_packet = end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
@@ -2355,8 +2376,7 @@ static char *get_56_lenc_string(char **buffer, size_t *max_bytes_available,
 
   size_t len_len = (size_t)(*buffer - begin);
 
-  DBUG_ASSERT((*max_bytes_available >= len_len) &&
-              (len_len == required_length));
+  assert((*max_bytes_available >= len_len) && (len_len == required_length));
 
   if (*string_length > *max_bytes_available - len_len) return nullptr;
 
@@ -2423,7 +2443,7 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
       protocol->has_client_capability(CLIENT_COMPRESS);
   bool is_server_supports_zstd =
       protocol->has_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
-  DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
+  assert(mpvio->status == MPVIO_EXT::FAILURE);
 
   uint charset_code = 0;
   end = (char *)protocol->get_net()->read_pos;
@@ -2495,17 +2515,26 @@ skip_to_ssl:
   */
   if (protocol->has_client_capability(CLIENT_SSL)) {
     unsigned long errptr;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     uint ssl_charset_code = 0;
 #endif
 
-    SslAcceptorContext::AutoLock c;
+    /*
+      We need to make sure that reference count for
+      SSL context is kept till the end of function
+    */
+    std::unique_ptr<Lock_and_access_ssl_acceptor_context> context;
+    if (thd->is_admin_connection() && g_admin_ssl_configured == true)
+      context =
+          std::make_unique<Lock_and_access_ssl_acceptor_context>(mysql_admin);
+    else
+      context =
+          std::make_unique<Lock_and_access_ssl_acceptor_context>(mysql_main);
     /* Do the SSL layering. */
-    if (c.empty()) return packet_error;
-
+    if (!context.get()->have_ssl()) return packet_error;
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(c, protocol->get_vio(), protocol->get_net()->read_timeout,
-                  &errptr)) {
+    if (sslaccept(*(context.get()), protocol->get_vio(),
+                  protocol->get_net()->read_timeout, &errptr)) {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
     }
@@ -2535,7 +2564,7 @@ skip_to_ssl:
     if (protocol->has_client_capability(CLIENT_PROTOCOL_41)) {
       packet_has_required_size =
           bytes_remaining_in_packet >= AUTH_PACKET_HEADER_SIZE_PROTO_41;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       ssl_charset_code =
           (uint)(uchar) * ((char *)protocol->get_net()->read_pos + 8);
       DBUG_PRINT("info", ("client_character_set: %u", ssl_charset_code));
@@ -2549,7 +2578,7 @@ skip_to_ssl:
       end = (char *)protocol->get_net()->read_pos +
             AUTH_PACKET_HEADER_SIZE_PROTO_40;
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       /**
         Old clients didn't have their own charset. Instead the assumption
         was that they used what ever the server used.
@@ -2557,7 +2586,7 @@ skip_to_ssl:
       ssl_charset_code = global_system_variables.character_set_client->number;
 #endif
     }
-    DBUG_ASSERT(charset_code == ssl_charset_code);
+    assert(charset_code == ssl_charset_code);
     if (!packet_has_required_size) return packet_error;
   }
 
@@ -2730,9 +2759,9 @@ skip_to_ssl:
   }
 
   /*
-    if the acl_user needs a different plugin to authenticate
-    (specified in GRANT ... AUTHENTICATED VIA plugin_name ..)
-    we need to restart the authentication in the server.
+    If the acl_user needs a different plugin to authenticate then
+    the server default plugin we need to restart the authentication
+    in the server.
     But perhaps the client has already used the correct plugin -
     in that case the authentication on the client may not need to be
     restarted and a server auth plugin will read the data that the client
@@ -2740,6 +2769,7 @@ skip_to_ssl:
   */
   if (my_strcasecmp(system_charset_info, mpvio->acl_user_plugin.str,
                     plugin_name(mpvio->plugin)->str) != 0) {
+    /* Server default plugin didn't match user plugin */
     mpvio->cached_client_reply.pkt = passwd;
     mpvio->cached_client_reply.pkt_len = passwd_len;
     mpvio->cached_client_reply.plugin = client_plugin;
@@ -2753,12 +2783,25 @@ skip_to_ssl:
     the authentication on the client. Do it here, the server plugin
     doesn't need to know.
   */
-  const char *client_auth_plugin =
-      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
-
-  if (client_auth_plugin &&
-      my_strcasecmp(system_charset_info, client_plugin, client_auth_plugin)) {
+  plugin_ref user_plugin =
+      g_cached_authentication_plugins->get_cached_plugin_ref(
+          &mpvio->acl_user_plugin);
+  if (user_plugin == nullptr) return packet_error;
+  auto user_client_plugin_name = client_plugin_name(user_plugin);
+  if (my_strcasecmp(system_charset_info, client_plugin,
+                    user_client_plugin_name)) {
+    /*
+      Client plugins don't match - send request to client to use a
+      different plugin and restart authentication process.
+    */
     mpvio->cached_client_reply.plugin = client_plugin;
+    /*
+      Inject error here for testing purpose.
+      See auth_sec.server_send_client_plugin
+    */
+    DBUG_EXECUTE_IF("assert_authentication_roundtrips",
+                    { return packet_error; });
+
     if (send_plugin_request_packet(mpvio,
                                    (uchar *)mpvio->cached_server_packet.pkt,
                                    mpvio->cached_server_packet.pkt_len))
@@ -2836,9 +2879,16 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   if (mpvio->packets_written == 0)
     res = send_server_handshake_packet(
         mpvio, pointer_cast<const char *>(packet), packet_len);
-  else if (mpvio->status == MPVIO_EXT::RESTART)
+  else if (mpvio->status == MPVIO_EXT::RESTART) {
+    /*
+      Inject error here for testing purpose.
+      See auth_sec.server_send_client_plugin
+    */
+    DBUG_EXECUTE_IF("assert_authentication_roundtrips", {
+      return -1;  // Crash here.
+    });
     res = send_plugin_request_packet(mpvio, packet, packet_len);
-  else
+  } else
     res = wrap_plguin_data_into_proper_command(protocol->get_net(), packet,
                                                packet_len);
   mpvio->packets_written++;
@@ -2877,20 +2927,17 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
       pkt_len = protocol->get_packet_length();
     }
   } else if (mpvio->cached_client_reply.pkt) {
-    DBUG_ASSERT(mpvio->status == MPVIO_EXT::RESTART);
-    DBUG_ASSERT(mpvio->packets_read > 0);
+    assert(mpvio->status == MPVIO_EXT::RESTART);
+    assert(mpvio->packets_read > 0);
     /*
-      if the have the data cached from the last server_mpvio_read_packet
-      (which can be the case if it's a restarted authentication)
+      If the data cached from the last server_mpvio_read_packet
       and a client has used the correct plugin, then we can return the
       cached data straight away and avoid one round trip.
     */
-    const char *client_auth_plugin =
-        ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
-            ->client_auth_plugin;
-    if (client_auth_plugin == nullptr ||
+    auto client_auth_plugin_name = client_plugin_name(mpvio->plugin);
+    if (client_auth_plugin_name == nullptr ||
         my_strcasecmp(system_charset_info, mpvio->cached_client_reply.plugin,
-                      client_auth_plugin) == 0) {
+                      client_auth_plugin_name) == 0) {
       mpvio->status = MPVIO_EXT::FAILURE;
       *buf = const_cast<uchar *>(
           pointer_cast<const uchar *>(mpvio->cached_client_reply.pkt));
@@ -2922,6 +2969,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
     pkt_len = protocol->get_packet_length();
   }
 
+  DBUG_EXECUTE_IF("simulate_packet_error", pkt_len = packet_error;);
   if (pkt_len == packet_error) goto err;
 
   mpvio->packets_read++;
@@ -3031,7 +3079,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->ip = thd->security_context()->ip().str;
   mpvio->host = thd->security_context()->host().str;
   mpvio->charset_adapter = charset_adapter;
-  mpvio->restrictions = new (mpvio->mem_root) Restrictions(mpvio->mem_root);
+  mpvio->restrictions = new (mpvio->mem_root) Restrictions();
 }
 
 static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {
@@ -3090,7 +3138,7 @@ static bool check_password_lifetime(THD *thd, const ACL_USER *acl_user) {
         password_time_expired =
             my_time_compare(password_change_by, cur_time) >= 0 ? false : true;
       else {
-        DBUG_ASSERT(false);
+        assert(false);
         /* Make the compiler happy. */
       }
     }
@@ -3208,7 +3256,7 @@ static void check_and_update_password_lock_state(MPVIO_EXT &mpvio, THD *thd,
     ACL_USER *acl_user_ptr = find_acl_user(
         acl_user->host.get_host(), acl_user->user ? acl_user->user : "", true);
     long days_remaining = 0;
-    DBUG_ASSERT(acl_user_ptr != nullptr);
+    assert(acl_user_ptr != nullptr);
     if (acl_user_ptr && acl_user_ptr->password_locked_state.update(
                             thd, res == CR_OK, &days_remaining)) {
       uint failed_logins =
@@ -3264,7 +3312,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
   DBUG_TRACE;
   static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
-  DBUG_ASSERT(command == COM_CONNECT || command == COM_CHANGE_USER);
+  assert(command == COM_CONNECT || command == COM_CHANGE_USER);
 
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);
   /*
@@ -3278,7 +3326,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   /* acl_authenticate() takes the data from net->read_pos */
   thd->get_protocol_classic()->get_net()->read_pos =
       thd->get_protocol_classic()->get_raw_packet();
-  DBUG_PRINT("info", ("com_change_user_pkt_len=%u",
+  DBUG_PRINT("info", ("com_change_user_pkt_len=%lu",
                       mpvio.protocol->get_packet_length()));
 
   if (command == COM_CHANGE_USER) {
@@ -3295,8 +3343,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       goto end;
     }
 
-    DBUG_ASSERT(mpvio.status == MPVIO_EXT::RESTART ||
-                mpvio.status == MPVIO_EXT::SUCCESS);
+    assert(mpvio.status == MPVIO_EXT::RESTART ||
+           mpvio.status == MPVIO_EXT::SUCCESS);
   } else {
     /* mark the thd as having no scramble yet */
     mpvio.scramble[SCRAMBLE_LENGTH] = 1;
@@ -3316,10 +3364,10 @@ int acl_authenticate(THD *thd, enum_server_command command) {
    we found that we need to switch to a non-default plugin
   */
   if (mpvio.status == MPVIO_EXT::RESTART) {
-    DBUG_ASSERT(mpvio.acl_user);
-    DBUG_ASSERT(command == COM_CHANGE_USER ||
-                my_strcasecmp(system_charset_info, auth_plugin_name.str,
-                              mpvio.acl_user->plugin.str));
+    assert(mpvio.acl_user);
+    assert(command == COM_CHANGE_USER ||
+           my_strcasecmp(system_charset_info, auth_plugin_name.str,
+                         mpvio.acl_user->plugin.str));
     auth_plugin_name = mpvio.acl_user->plugin;
     res = do_auth_once(thd, auth_plugin_name, &mpvio);
   }
@@ -3376,7 +3424,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
     if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS) {
       Host_errors errors;
-      DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
+      assert(mpvio.status == MPVIO_EXT::FAILURE);
       switch (res) {
         case CR_AUTH_PLUGIN_ERROR:
           errors.m_auth_plugin = 1;
@@ -3473,7 +3521,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                             auth_user, acl_user->user));
         acl_cache_lock.unlock();
       }
-      DBUG_ASSERT(mpvio.restrictions);
+      assert(mpvio.restrictions);
       sctx->set_master_access(acl_user->access, *(mpvio.restrictions));
       assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
       /* Assign default role */
@@ -3819,7 +3867,7 @@ static int compare_native_password_with_hash(const char *hash,
   /** empty password results in an empty hash */
   if (!hash_length && !cleartext_length) return 0;
 
-  DBUG_ASSERT(hash_length <= SCRAMBLED_PASSWORD_CHAR_LENGTH);
+  assert(hash_length <= SCRAMBLED_PASSWORD_CHAR_LENGTH);
 
   /* calculate the hash from the clear text */
   my_make_scrambled_password_sha1(buffer, cleartext, cleartext_length);
@@ -4119,7 +4167,7 @@ static int compare_sha256_password_with_hash(const char *hash,
   const char *user_salt_end;
 
   DBUG_TRACE;
-  DBUG_ASSERT(cleartext_length <= SHA256_PASSWORD_MAX_PASSWORD_LENGTH);
+  assert(cleartext_length <= SHA256_PASSWORD_MAX_PASSWORD_LENGTH);
 
   if (cleartext_length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH) return -1;
 
@@ -4459,7 +4507,7 @@ class File_IO {
   File_IO &operator<<(const Sql_string_t &output_string);
 
  protected:
-  File_IO() {}
+  File_IO() = default;
   File_IO(const Sql_string_t filename, bool read)
       : m_file_name(filename), m_read(read), m_error_state(false), m_file(-1) {
     file_open();
@@ -4502,7 +4550,7 @@ class File_IO {
   @returns File_IO reference. Optionally sets error.
 */
 File_IO &File_IO::operator>>(Sql_string_t &s) {
-  DBUG_ASSERT(read_mode() && file_is_open());
+  assert(read_mode() && file_is_open());
 
   my_off_t off = my_seek(m_file, 0, SEEK_END, MYF(MY_WME));
   if (off == MY_FILEPOS_ERROR || resize_no_exception(s, off) == false)
@@ -4527,7 +4575,7 @@ File_IO &File_IO::operator>>(Sql_string_t &s) {
   @returns File_IO reference. Optionally sets error.
 */
 File_IO &File_IO::operator<<(const Sql_string_t &output_string) {
-  DBUG_ASSERT(!read_mode() && file_is_open());
+  assert(!read_mode() && file_is_open());
 
   if (!output_string.size() ||
       MY_FILE_ERROR ==
@@ -4547,7 +4595,7 @@ File_IO &File_IO::operator<<(const Sql_string_t &output_string) {
 */
 class File_creator {
  public:
-  File_creator() {}
+  File_creator() = default;
 
   ~File_creator() {
     for (std::vector<File_IO *>::iterator it = m_file_vector.begin();
@@ -4591,7 +4639,7 @@ class RSA_gen {
   RSA_gen(uint32_t key_size = 2048, uint32_t exponent = RSA_F4)
       : m_key_size(key_size), m_exponent(exponent) {}
 
-  ~RSA_gen() {}
+  ~RSA_gen() = default;
 
   /**
     Passing key type is a violation against the principle of generic
@@ -4641,7 +4689,7 @@ static EVP_PKEY *evp_pkey_generate(RSA *rsa) {
   @returns Sql_string_t object with private key stored in it.
 */
 static Sql_string_t rsa_priv_key_write(RSA *rsa) {
-  DBUG_ASSERT(rsa);
+  assert(rsa);
   BIO *buf = BIO_new(BIO_s_mem());
   Sql_string_t read_buffer;
   if (PEM_write_bio_RSAPrivateKey(buf, rsa, nullptr, nullptr, 0, nullptr,
@@ -4664,7 +4712,7 @@ static Sql_string_t rsa_priv_key_write(RSA *rsa) {
   @returns Sql_string_t object with public key stored in it.
 */
 static Sql_string_t rsa_pub_key_write(RSA *rsa) {
-  DBUG_ASSERT(rsa);
+  assert(rsa);
   BIO *buf = BIO_new(BIO_s_mem());
   Sql_string_t read_buffer;
   if (PEM_write_bio_RSA_PUBKEY(buf, rsa)) {
@@ -4697,9 +4745,9 @@ class X509_gen {
     X509V3_CTX v3ctx;
     X509_NAME *name = nullptr;
 
-    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
-    DBUG_ASSERT(serial != 0);
-    DBUG_ASSERT(self_sign || (ca_x509 != nullptr && ca_pkey != nullptr));
+    assert(cn.length() <= MAX_CN_NAME_LENGTH);
+    assert(serial != 0);
+    assert(self_sign || (ca_x509 != nullptr && ca_pkey != nullptr));
     if (!x509) goto err;
 
     /** Set certificate version */
@@ -4782,7 +4830,7 @@ static X509 *x509_cert_read(const Sql_string_t &input_string) {
   @returns certificate information in string format.
 */
 static Sql_string_t x509_cert_write(X509 *cert) {
-  DBUG_ASSERT(cert);
+  assert(cert);
   BIO *buf = BIO_new(BIO_s_mem());
   Sql_string_t read_buffer;
   if (PEM_write_bio_X509(buf, cert)) {
@@ -4827,7 +4875,7 @@ static EVP_PKEY *x509_key_read(const Sql_string_t &input_string) {
   @returns private key information in string format.
 */
 static Sql_string_t x509_key_write(EVP_PKEY *pkey) {
-  DBUG_ASSERT(pkey);
+  assert(pkey);
   BIO *buf = BIO_new(BIO_s_mem());
   RSA *rsa = EVP_PKEY_get1_RSA(pkey);
   Sql_string_t read_buffer;
@@ -5021,7 +5069,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
   MY_MODE file_creation_mode = get_file_perm(USER_READ | USER_WRITE);
   MY_MODE saved_umask = umask(~(file_creation_mode));
 
-  DBUG_ASSERT(priv_key_filename.size() && pub_key_filename.size());
+  assert(priv_key_filename.size() && pub_key_filename.size());
 
   RSA *rsa = rsa_gen();
   DBUG_EXECUTE_IF("null_rsa_error", {
@@ -5139,7 +5187,7 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
       LogErr(INFORMATION_LEVEL, ER_AUTH_USING_EXISTING_CERTS);
       return true;
     } else {
-      DBUG_ASSERT(auto_detection_status == SSL_ARTIFACTS_NOT_FOUND);
+      assert(auto_detection_status == SSL_ARTIFACTS_NOT_FOUND);
       /* Initialize the key pair generator. It can also be used stand alone */
       RSA_gen rsa_gen;
       /*

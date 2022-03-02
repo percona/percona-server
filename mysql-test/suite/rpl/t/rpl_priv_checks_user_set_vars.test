@@ -11,7 +11,7 @@
 #     without privileges.
 # R2. Variables `gtid_next`, `original_commit_timestamp`,
 #     `original_server_version`, `immediate_server_version` and
-#     `pseudo_slave_mode` are allowed to be set when having `SUPER`,
+#     `pseudo_replica_mode` are allowed to be set when having `SUPER`,
 #     `SYSTEM_VARIABLES_ADMIN`, `SESSION_VARIABLES_ADMIN` or
 #     `REPLICATION_APPLIER` privileges.
 # R3. Variables `pseudo_thread_id` and `sql_require_primary_key` are allowed to
@@ -90,12 +90,10 @@
 --echo #
 
 # 1) Create a table on the master and insert a record.
---source include/rpl_use_privilege_db.inc
 CREATE TABLE t_system (c1 INT);
 INSERT INTO t_system VALUES (1), (2);
 
 --source include/rpl_connection_slave.inc
---source include/rpl_use_privilege_db.inc
 CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 

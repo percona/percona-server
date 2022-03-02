@@ -14,14 +14,14 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
 tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 tt	1	c	1	c	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-tt	1	d	1	d	A	2000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	d	1	d	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 set global tokudb_cardinality_scale_percent = 100;
 show indexes from tt;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
 tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-tt	1	c	1	c	A	2000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-tt	1	d	1	d	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	d	1	d	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 set global tokudb_cardinality_scale_percent = 200;
 Warnings:
 Warning	1292	Truncated incorrect tokudb_cardinality_scale_percent value: '200'
@@ -29,5 +29,5 @@ show indexes from tt;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
 tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-tt	1	c	1	c	A	2000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-tt	1	d	1	d	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	d	1	d	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL

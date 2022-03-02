@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 set ndb_table_temporary=0;
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
 ( server_id INT UNSIGNED NOT NULL,
 epoch BIGINT UNSIGNED NOT NULL,
@@ -36,7 +36,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -109,7 +109,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -196,7 +196,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
@@ -283,7 +283,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`t`))
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
@@ -382,7 +382,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
@@ -462,7 +462,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
@@ -552,7 +552,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 SHOW CREATE TABLE t1;
@@ -628,7 +628,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`t`))
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
@@ -714,7 +714,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Show that tables on slave ---
@@ -790,7 +790,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still right type ---
@@ -867,7 +867,7 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
@@ -931,6 +931,6 @@ DELETE FROM t1;
 --- End test 5 key partition testing ---
 --- Do Cleanup ---
 DROP TABLE t1;
-set @@global.slave_exec_mode= 'STRICT';
+set @@global.replica_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;
 include/rpl_end.inc

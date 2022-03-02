@@ -100,7 +100,7 @@ std::string mask_outer(const char *str, const unsigned long str_length,
                   maskchar);
 
   // Mask right
-  if (static_cast<unsigned long>(margin2) < (str_length - 1))
+  if (static_cast<unsigned long>(margin2) < str_length)
     std::generate_n(str_masked.end() - margin2, margin2, maskchar);
 
   return str_masked;

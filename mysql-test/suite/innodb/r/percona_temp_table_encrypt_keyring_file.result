@@ -1,4 +1,4 @@
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring is loaded.");
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit');

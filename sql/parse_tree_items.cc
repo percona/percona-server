@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 #include "sql/parse_tree_items.h"
 
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -35,6 +35,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/item_create.h"
+#include "sql/item_subselect.h"
 #include "sql/mysqld.h"  // using_udf_functions
 #include "sql/parse_tree_nodes.h"
 #include "sql/protocol.h"
@@ -74,7 +75,7 @@ static Item *change_truth_value_of_condition(Parse_context *pc, Item *expr,
     case Item::BOOL_NOT_FALSE:
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
   // Ensure that all incomplete predicates are made complete:
   if (!expr->is_bool_func()) {
@@ -132,7 +133,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
 
     if (expr2->substype() == Item_subselect::SINGLEROW_SUBS) {
       Item_singlerow_subselect *expr3 = (Item_singlerow_subselect *)expr2;
-      SELECT_LEX *subselect;
+      Query_block *subselect;
 
       /*
         Implement the mandated change, by altering the semantic tree:
@@ -142,7 +143,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
         which is represented as
           Item_in_subselect(left, subselect)
       */
-      subselect = expr3->invalidate_and_restore_select_lex();
+      subselect = expr3->invalidate_and_restore_query_block();
       result = new (pc->mem_root) Item_in_subselect(left, subselect);
 
       if (!equal)
@@ -159,18 +160,6 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
     result = new (pc->mem_root) Item_func_ne(left, expr);
 
   return result;
-}
-
-bool PTI_table_wild::itemize(Parse_context *pc, Item **item) {
-  if (super::itemize(pc, item)) return true;
-
-  schema = pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA)
-               ? nullptr
-               : schema;
-  *item = new (pc->mem_root) Item_field(POS(), schema, table, "*");
-  if (*item == nullptr || (*item)->itemize(pc, item)) return true;
-  pc->select->with_wild++;
-  return false;
 }
 
 bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
@@ -275,7 +264,7 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc,
       *res = Create_udf_func::s_singleton.create(thd, udf, opt_udf_expr_list);
     } else {
       builder = find_qualified_function_builder(thd);
-      DBUG_ASSERT(builder);
+      assert(builder);
       *res = builder->create_func(thd, ident, opt_udf_expr_list);
     }
   }
@@ -305,7 +294,7 @@ bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res) {
   if (sp_check_name(&func)) return true;
 
   Create_qfunc *builder = find_qualified_function_builder(pc->thd);
-  DBUG_ASSERT(builder);
+  assert(builder);
   *res = builder->create(pc->thd, db, func, true, opt_expr_list);
   return *res == nullptr || (*res)->itemize(pc, res);
 }
@@ -314,7 +303,7 @@ bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
 
   uint repertoire = is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
-  DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
+  assert(my_charset_is_ascii_based(national_charset_info));
   init(literal.str, literal.length, national_charset_info, DERIVATION_COERCIBLE,
        repertoire);
   return false;
@@ -371,7 +360,7 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
   if (pctx && (spv = pctx->find_variable(ident.str, ident.length, false))) {
     sp_head *sp = lex->sphead;
 
-    DBUG_ASSERT(sp);
+    assert(sp);
 
     /* We're compiling a stored procedure and found a variable */
     if (!lex->parsing_options.allows_variable) {
@@ -421,9 +410,9 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
   sp_head *sp = lex->sphead;
 
   /*
-    FIXME This will work ok in simple_ident_nospvar case because
-    we can't meet simple_ident_nospvar in trigger now. But it
-    should be changed in future.
+    References with OLD and NEW designators can be used in expressions in
+    triggers. Semantic checks must ensure they are not used in invalid
+    contexts, such as assignment targets.
   */
   if (sp && sp->m_type == enum_sp_type::TRIGGER &&
       (!my_strcasecmp(system_charset_info, table, "NEW") ||
@@ -442,8 +431,8 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
       return true;
     }
 
-    DBUG_ASSERT(!new_row || (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-                             sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+    assert(!new_row || (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+                        sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
     const bool read_only =
         !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
     Item_trigger_field *trg_fld = new (pc->mem_root)
@@ -451,7 +440,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
                            SELECT_ACL, read_only);
     if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
       return true;
-    DBUG_ASSERT(trg_fld->type() == TRIGGER_FIELD_ITEM);
+    assert(trg_fld->type() == TRIGGER_FIELD_ITEM);
 
     /*
       Let us add this item to list of all Item_trigger_field objects
@@ -519,7 +508,7 @@ bool PTI_text_literal_concat::itemize(Parse_context *pc, Item **res) {
   Item *tmp_head;
   if (super::itemize(pc, res) || head->itemize(pc, &tmp_head)) return true;
 
-  DBUG_ASSERT(tmp_head->type() == STRING_ITEM);
+  assert(tmp_head->type() == STRING_ITEM);
   Item_string *head_str = down_cast<Item_string *>(tmp_head);
   head_str->append(literal.str, literal.length);
   if ((head_str->collation.repertoire & MY_REPERTOIRE_EXTENDED) == 0) {
@@ -552,7 +541,7 @@ bool PTI_variable_aux_set_var::itemize(Parse_context *pc, Item **res) {
   return lex->set_var_list.push_back(this);
 }
 
-bool PTI_variable_aux_ident_or_text::itemize(Parse_context *pc, Item **res) {
+bool PTI_user_variable::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
@@ -594,9 +583,9 @@ bool PTI_variable_aux_3d::itemize(Parse_context *pc, Item **res) {
     component_var.length = tmp_name.length();
     variable->str = nullptr;
     variable->length = 0;
-    *res = get_system_var(pc, var_type, component_var, *variable);
+    *res = get_system_var(pc, var_type, component_var, *variable, true);
   } else
-    *res = get_system_var(pc, var_type, ident1, ident2);
+    *res = get_system_var(pc, var_type, ident1, ident2, true);
   if (*res == nullptr) return true;
   if (is_identifier(ident1, "warning_count") ||
       is_identifier(ident1, "error_count")) {
@@ -608,9 +597,6 @@ bool PTI_variable_aux_3d::itemize(Parse_context *pc, Item **res) {
     */
     lex->keep_diagnostics = DA_KEEP_COUNTS;
   }
-  if (!down_cast<Item_func_get_system_var *>(*res)->is_written_to_binlog())
-    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
-
   return false;
 }
 
@@ -666,27 +652,34 @@ bool PTI_odbc_date::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_int_splocal::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;  // OOM
 
-  LEX *lex = pc->thd->lex;
-  sp_head *sp = lex->sphead;
+  LEX *const lex = pc->thd->lex;
+  sp_head *const sp = lex->sphead;
   const char *query_start_ptr =
       sp ? sp->m_parser_data.get_current_stmt_start_ptr() : nullptr;
 
-  Item_splocal *v = create_item_for_sp_var(
-      pc->thd, ident, nullptr, query_start_ptr, ident_loc.start, ident_loc.end);
-  if (v == nullptr) return true;
-
-  lex->safe_to_cache_query = false;
-
+  Item_splocal *v =
+      create_item_for_sp_var(pc->thd, m_name, nullptr, query_start_ptr,
+                             m_location.raw.start, m_location.raw.end);
+  if (v == nullptr) {
+    return true;  // undefined variable or OOM
+  }
   if (v->type() != Item::INT_ITEM) {
-    my_error(ER_WRONG_SPVAR_TYPE_IN_LIMIT, MYF(0));
+    pc->thd->syntax_error_at(m_location, ER_SPVAR_NONINTEGER_TYPE, m_name.str);
     return true;
   }
 
-  v->limit_clause_param = true;
+  lex->safe_to_cache_query = false;
   *res = v;
+  return false;
+}
+
+bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;
+  auto *v = down_cast<Item_splocal *>(*res);
+  v->limit_clause_param = true;
   return false;
 }
 
@@ -703,9 +696,8 @@ bool PTI_limit_option_param_marker::itemize(Parse_context *pc, Item **res) {
     parameter with "this" pointer of Item_param object, so we can skip
     the check and the assignment.
   */
-  DBUG_ASSERT(tmp_param == param_marker);
+  assert(tmp_param == param_marker);
 
-  param_marker->limit_clause_param = true;
   *res = param_marker;
   return false;
 }
@@ -723,9 +715,9 @@ bool PTI_context::itemize(Parse_context *pc, Item **res) {
   }
 
   // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(pc->select->parsing_place == m_parsing_place);
+  assert(pc->select->parsing_place == m_parsing_place);
   pc->select->parsing_place = CTX_NONE;
-  DBUG_ASSERT(expr != nullptr);
+  assert(expr != nullptr);
   expr->apply_is_true();
 
   *res = expr;

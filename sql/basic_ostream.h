@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class Basic_ostream {
      @retval true  Error.
   */
   virtual bool write(const unsigned char *buffer, my_off_t length) = 0;
-  virtual ~Basic_ostream() {}
+  virtual ~Basic_ostream() = default;
 };
 
 /**
@@ -86,7 +86,7 @@ class Truncatable_ostream : public Basic_ostream {
   */
   virtual bool sync() = 0;
 
-  virtual ~Truncatable_ostream() {}
+  ~Truncatable_ostream() override = default;
 };
 
 /**
@@ -157,11 +157,11 @@ template <int BUFFER_SIZE>
 class StringBuffer_ostream : public Basic_ostream,
                              public StringBuffer<BUFFER_SIZE> {
  public:
-  StringBuffer_ostream() {}
+  StringBuffer_ostream() = default;
   StringBuffer_ostream(const StringBuffer_ostream &) = delete;
   StringBuffer_ostream &operator=(const StringBuffer_ostream &) = delete;
 
-  virtual bool write(const unsigned char *buffer, my_off_t length) override {
+  bool write(const unsigned char *buffer, my_off_t length) override {
     return StringBuffer<BUFFER_SIZE>::append(
         reinterpret_cast<const char *>(buffer), length);
   }
@@ -173,7 +173,7 @@ class Compressed_ostream : public Basic_ostream {
 
  public:
   Compressed_ostream();
-  virtual ~Compressed_ostream() override;
+  ~Compressed_ostream() override;
   Compressed_ostream(const Compressed_ostream &) = delete;
   Compressed_ostream &operator=(const Compressed_ostream &) = delete;
   binary_log::transaction::compression::Compressor *get_compressor();

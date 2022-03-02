@@ -21,6 +21,7 @@
 #include "utils_string.h"
 */
 
+#include "include/my_io.h"
 #include "plugin/data_masking/include/plugin.h"
 #include "plugin/data_masking/include/udf/udf_gen_dictionary_load.h"
 #include "plugin/data_masking/include/udf/udf_utils.h"
@@ -28,6 +29,10 @@
 
 #include <fstream>
 #include <iostream>
+
+/* Server functions */
+extern bool is_secure_file_path(const char *path);
+extern size_t dirname_part(char *to, const char *name, size_t *to_res_length);
 
 static bool gen_dictionary_load_init(UDF_INIT *initid, UDF_ARGS *args,
                                      char *message) {
@@ -44,6 +49,13 @@ static bool gen_dictionary_load_init(UDF_INIT *initid, UDF_ARGS *args,
       args->arg_type[1] != STRING_RESULT) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Wrong argument type: gen_dictionary_load(string, string)");
+    DBUG_RETURN(true);
+  }
+
+  if (mysql::plugins::Charset_service::set_return_value_charset(initid) ||
+      mysql::plugins::Charset_service::set_args_charset(args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for UDF");
     DBUG_RETURN(true);
   }
 
@@ -95,6 +107,22 @@ static std::string _gen_dictionary_load(const char *dictionary_path,
   std::string s_dictname(dictionary_name);
   mysql::plugins::tolower(s_dictname);
 
+  /* Extract directory part of the filename */
+  char directory[FN_REFLEN] = {0};
+  size_t dir_len = 0;
+  dirname_part(directory, dictionary_path, &dir_len);
+
+  if (dir_len == 0) {
+    DBUG_RETURN("ERROR: File path is not valid");
+  }
+
+  /* Check if dictionary file is present in --secure_file_priv directory */
+  if (!is_secure_file_path(directory)) {
+    DBUG_RETURN(
+        "ERROR: File is not in directory set by --secure_file_priv. Please "
+        "copy the file to secure_file_priv directory and try again");
+  }
+
   std::ifstream file(dictionary_path);
   // Check if the file exist in disk
   if (file) {
@@ -131,8 +159,11 @@ static char *gen_dictionary_load(UDF_INIT *, UDF_ARGS *args, char *result,
   DBUG_ENTER("gen_dictionary_load");
 
   std::string res = _gen_dictionary_load(args->args[0], args->args[1]);
-  *length = res.size();
-  strcpy(result, res.c_str());
+  assert(res.size() < *length);
+
+  *length = std::min<unsigned long>(res.size(), *length - 1);
+  strncpy(result, res.c_str(), *length);
+  result[*length] = '\0';
 
   DBUG_RETURN(result);
 }

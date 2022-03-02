@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,16 +24,19 @@
 
 #include "gr_notifications_listener.h"
 
+#include <algorithm>
+#include <map>
+#include <system_error>
+#include <thread>
+
 #include "common.h"  // rename_thread()
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/poll.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysqld_error.h"
 #include "mysqlx_error.h"
 #include "mysqlxclient/xsession.h"
-#include "socket_operations.h"
-
-#include <algorithm>
-#include <map>
-#include <thread>
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -51,13 +54,9 @@ const auto kXSesssionPingTimeout = kXSesssionWaitTimeout / 2;
 
 namespace {
 struct NodeId {
-#ifdef _WIN32
-  using native_handle_type = SOCKET;
-  static const native_handle_type kInvalidSocket{INVALID_SOCKET};
-#else
-  using native_handle_type = int;
-  static const native_handle_type kInvalidSocket{-1};
-#endif
+  using native_handle_type = net::impl::socket::native_handle_type;
+  static const native_handle_type kInvalidSocket{
+      net::impl::socket::kInvalidSocket};
 
   std::string host;
   uint16_t port;
@@ -92,12 +91,11 @@ struct GRNotificationListener::Impl {
   std::map<NodeId, NodeSession> sessions_;
   bool sessions_changed_{false};
   std::mutex configuration_data_mtx_;
-  bool mysqlx_wait_timeout_set_{false};
+  std::atomic<bool> mysqlx_wait_timeout_set_{false};
 
   std::unique_ptr<std::thread> listener_thread;
   std::atomic<bool> terminate{false};
   NotificationClb notification_callback;
-  std::string last_view_id;
 
   std::chrono::steady_clock::time_point last_ping_timepoint =
       std::chrono::steady_clock::now();
@@ -139,20 +137,12 @@ xcl::Handler_result GRNotificationListener::Impl::notice_handler(
       Mysqlx::Notice::Frame::Type::Frame_Type_GROUP_REPLICATION_STATE_CHANGED) {
     Mysqlx::Notice::GroupReplicationStateChanged change;
     change.ParseFromArray(payload, static_cast<int>(payload_size));
-    log_debug("Got notification from the cluster. type=%d; view_id=%s; ",
-              change.type(), change.view_id().c_str());
+    log_debug(
+        "Got notification from the cluster. type=%d; view_id=%s; Refreshing "
+        "metadata.",
+        change.type(), change.view_id().c_str());
 
-    const bool view_id_changed =
-        change.view_id().empty() || (change.view_id() != last_view_id);
-    if (view_id_changed) {
-      log_debug(
-          "Cluster notification: new view_id='%s'; previous view_id='%s'. "
-          "Refreshing metadata.",
-          change.view_id().c_str(), last_view_id.c_str());
-
-      notify = true;
-      last_view_id = change.view_id();
-    }
+    notify = true;
   }
 
   if (notify && notification_callback) {
@@ -247,21 +237,21 @@ void GRNotificationListener::Impl::listener_thread_func() {
       check_mysqlx_wait_timeout();
     }
 
-    const int poll_res = mysql_harness::SocketOperations::instance()->poll(
-        fds.get(), sessions_qty, kPollTimeout);
-    if (poll_res <= 0) {
-      // poll has timed out or failed
-      const int err_no =
-          mysql_harness::SocketOperations::instance()->get_errno();
-      // if this is timeout or EINTR just sleep and go to the next iteration
-      if (poll_res == 0 || EINTR == err_no) {
+    const auto poll_res =
+        net::impl::poll::poll(fds.get(), sessions_qty, kPollTimeout);
+    if (!poll_res) {
+      // poll has failed
+      if (poll_res.error() == make_error_condition(std::errc::interrupted)) {
+        // got interrupted. Sleep a bit more
         std::this_thread::sleep_for(kPollTimeout);
+      } else if (poll_res.error() == make_error_code(std::errc::timed_out)) {
+        // poll has timed out, sleep time already passed.
       } else {
         // any other error is fatal
         log_error(
             "poll() failed with error: %d, clearing all the sessions in the GR "
             "Notice thread",
-            err_no);
+            poll_res.error().value());
         sessions_.clear();
         sessions_changed_ = true;
       }

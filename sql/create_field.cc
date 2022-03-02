@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,12 +32,6 @@
 
 #include <cmath>
 
-// Definition of static constexpr data members in Create_field.
-constexpr size_t Create_field::TINYBLOB_MAX_SIZE_IN_BYTES;
-constexpr size_t Create_field::BLOB_MAX_SIZE_IN_BYTES;
-constexpr size_t Create_field::MEDIUMBLOB_MAX_SIZE_IN_BYTES;
-constexpr size_t Create_field::LONGBLOB_MAX_SIZE_IN_BYTES;
-
 /**
     Constructs a column definition from an object representing an actual
     column. This is a reverse-engineering procedure that creates a column
@@ -63,7 +57,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       comment(old_field->comment),
       sql_type(old_field->real_type()),
       decimals(old_field->decimals()),
-      flags(old_field->flags),
+      flags(old_field->all_flags()),
       auto_flags(old_field->auto_flags),
       charset(old_field->charset()),  // May be NULL ptr
       is_explicit_collation(false),
@@ -81,6 +75,8 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       m_default_val_expr(old_field->m_default_val_expr),
       is_array(old_field->is_array()),
       zip_dict_id(0),
+      m_engine_attribute(old_field->m_engine_attribute),
+      m_secondary_engine_attribute(old_field->m_secondary_engine_attribute),
       m_max_display_width_in_codepoints(old_field->char_length()) {
   switch (sql_type) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -126,19 +122,19 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       buffer pointer.
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
-      old_field->ptr != nullptr && orig_field != nullptr) {
-    bool default_now = false;
+      old_field->field_ptr() != nullptr && orig_field != nullptr) {
     if (real_type_with_now_as_default(sql_type)) {
       // The SQL type of the new field allows a function default:
-      default_now = orig_field->has_insert_default_datetime_value_expression();
+      const bool default_now =
+          orig_field->has_insert_default_datetime_value_expression();
       auto_flags = default_now ? Field::DEFAULT_NOW : Field::NONE;
       if (orig_field->has_update_default_datetime_value_expression())
         auto_flags |= Field::ON_UPDATE_NOW;
       if (orig_field->has_insert_default_general_value_expression())
         auto_flags |= Field::GENERATED_FROM_EXPRESSION;
     }
-    if (!default_now)  // Give a constant default
-    {
+
+    if (orig_field->has_insert_default_constant_expression()) {
       /* Get the value from default_values */
       ptrdiff_t diff = orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);  // Points now at default_values
@@ -192,7 +188,7 @@ bool Create_field::init(
     THD *thd, const char *fld_name, enum_field_types fld_type,
     const char *display_width_in_codepoints, const char *fld_decimals,
     uint fld_type_modifier, Item *fld_default_value, Item *fld_on_update_value,
-    LEX_CSTRING *fld_comment, const char *fld_change,
+    const LEX_CSTRING *fld_comment, const char *fld_change,
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
     const LEX_CSTRING *fld_zip_dict_name, Value_generator *fld_gcol_info,
@@ -203,7 +199,7 @@ bool Create_field::init(
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(!(has_explicit_collation && fld_charset == nullptr));
+  assert(!(has_explicit_collation && fld_charset == nullptr));
 
   field = nullptr;
   field_name = fld_name;
@@ -257,7 +253,7 @@ bool Create_field::init(
   change = fld_change;
   interval = nullptr;
   geom_type = static_cast<Field::geometry_type>(fld_geom_type);
-  interval_list.empty();
+  interval_list.clear();
 
   comment = *fld_comment;
   gcol_info = fld_gcol_info;
@@ -273,7 +269,7 @@ bool Create_field::init(
   // Initialize data for a virtual field or default value expression
   if (gcol_info || m_default_val_expr) {
     if (gcol_info) {
-      DBUG_ASSERT(gcol_info->expr_item);
+      assert(gcol_info->expr_item);
       stored_in_db = gcol_info->get_field_stored();
 
       /*
@@ -355,6 +351,8 @@ bool Create_field::init(
       allowed_type_modifier = AUTO_INCREMENT_FLAG;
       break;
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
+    case MYSQL_TYPE_BOOL:
       break;
     case MYSQL_TYPE_NEWDECIMAL: {
       ulong precision = static_cast<ulong>(m_max_display_width_in_codepoints);
@@ -477,7 +475,7 @@ bool Create_field::init(
           and 19 as length of 4.1 compatible representation.  Silently
           shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
         */
-        DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
+        assert(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
         if (m_max_display_width_in_codepoints !=
             UINT_MAX) /* avoid overflow; is safe because of min() */
           m_max_display_width_in_codepoints =
@@ -518,7 +516,7 @@ bool Create_field::init(
       break;
     }
     case MYSQL_TYPE_VAR_STRING:
-      DBUG_ASSERT(0); /* Impossible. */
+      assert(0); /* Impossible. */
       break;
     case MYSQL_TYPE_BIT: {
       if (!display_width_in_codepoints) {
@@ -534,7 +532,7 @@ bool Create_field::init(
     }
     case MYSQL_TYPE_DECIMAL:
     default:
-      DBUG_ASSERT(0); /* Was obsolete */
+      assert(0); /* Was obsolete */
   }
 
   if (!(flags & BLOB_FLAG) &&
@@ -563,9 +561,9 @@ bool Create_field::init(
     can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at the
     same time.
   */
-  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
-                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
-                (auto_flags & Field::NEXT_NUMBER) != 0));
+  assert(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                          Field::GENERATED_FROM_EXPRESSION)) != 0 &&
+           (auto_flags & Field::NEXT_NUMBER) != 0));
 
   return false; /* success */
 }
@@ -592,7 +590,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   DBUG_PRINT("enter", ("sql_type: %d, length: %u", sql_type_arg, length_arg));
 
   /* Init members needed for correct execution of make_field(). */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const uint32 FIELDFLAG_MAX_DEC = 31;
 #endif
 
@@ -606,11 +604,11 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
       break;
 
     case MYSQL_TYPE_NEWDECIMAL:
-      DBUG_ASSERT(decimals_arg <= DECIMAL_MAX_SCALE);
+      assert(decimals_arg <= DECIMAL_MAX_SCALE);
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
-      DBUG_ASSERT(decimals_arg <= FIELDFLAG_MAX_DEC);
+      assert(decimals_arg <= FIELDFLAG_MAX_DEC);
       decimals = decimals_arg;
       break;
 
@@ -632,8 +630,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 
 size_t Create_field::max_display_width_in_codepoints() const {
   if (sql_type == MYSQL_TYPE_ENUM || sql_type == MYSQL_TYPE_SET) {
-    DBUG_ASSERT(interval != nullptr);
-    DBUG_ASSERT(charset != nullptr);
+    assert(interval != nullptr);
+    assert(charset != nullptr);
 
     size_t max_display_width_in_codepoints = 0;
     for (size_t i = 0; i < interval->count; i++) {
@@ -659,19 +657,19 @@ size_t Create_field::max_display_width_in_codepoints() const {
     return std::min(max_display_width_in_codepoints,
                     static_cast<size_t>(MAX_FIELD_WIDTH - 1));
   } else if (sql_type == MYSQL_TYPE_TINY_BLOB) {
-    return TINYBLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_TINY_BLOB_WIDTH / charset->mbmaxlen;
   } else if (sql_type == MYSQL_TYPE_BLOB && !explicit_display_width()) {
     // For BLOB and TEXT, the user can give a display width explicitly in CREATE
     // TABLE (BLOB(25), TEXT(25)) where the expected behavior is that the server
     // will find the smallest possible BLOB/TEXT type that will fit the given
     // display width. If the user has given an explicit display width, return
     // that instead of the max BLOB size.
-    return BLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_SHORT_BLOB_WIDTH / charset->mbmaxlen;
   } else if (sql_type == MYSQL_TYPE_MEDIUM_BLOB) {
-    return MEDIUMBLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_MEDIUM_BLOB_WIDTH / charset->mbmaxlen;
   } else if (sql_type == MYSQL_TYPE_LONG_BLOB || sql_type == MYSQL_TYPE_JSON ||
              sql_type == MYSQL_TYPE_GEOMETRY) {
-    return LONGBLOB_MAX_SIZE_IN_BYTES / charset->mbmaxlen;
+    return Field::MAX_LONG_BLOB_WIDTH / charset->mbmaxlen;
   } else {
     return m_max_display_width_in_codepoints;
   }
@@ -685,35 +683,35 @@ size_t Create_field::max_display_width_in_bytes() const {
   // max_display_width_in_codepoints() will return 1073741823 (truncated from
   // 1073741823.75), and multiplying that by four again will give 4294967292
   // which is the wrong result.
-  DBUG_ASSERT(charset != nullptr);
+  assert(charset != nullptr);
   if (is_numeric_type(sql_type) || is_temporal_real_type(sql_type) ||
       sql_type == MYSQL_TYPE_YEAR || sql_type == MYSQL_TYPE_BIT) {
     // Numeric types, temporal types, YEAR or BIT are never multi-byte.
     return max_display_width_in_codepoints();
   } else if (sql_type == MYSQL_TYPE_TINY_BLOB) {
-    return TINYBLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_TINY_BLOB_WIDTH;
   } else if (sql_type == MYSQL_TYPE_BLOB && !explicit_display_width()) {
     // For BLOB and TEXT, the user can give a display width (BLOB(25), TEXT(25))
     // where the expected behavior is that the server will find the smallest
     // possible BLOB/TEXT type that will fit the given display width. If the
     // user has given an explicit display width, return that instead of the
     // max BLOB size.
-    return BLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_SHORT_BLOB_WIDTH;
   } else if (sql_type == MYSQL_TYPE_MEDIUM_BLOB) {
-    return MEDIUMBLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_MEDIUM_BLOB_WIDTH;
   } else if (sql_type == MYSQL_TYPE_LONG_BLOB || sql_type == MYSQL_TYPE_JSON ||
              sql_type == MYSQL_TYPE_GEOMETRY) {
-    return LONGBLOB_MAX_SIZE_IN_BYTES;
+    return Field::MAX_LONG_BLOB_WIDTH;
   } else {
     // If the user has given a display width to the TEXT type where the display
     // width is 2^32-1, the below computation will exceed
-    // LONGBLOB_MAX_SIZE_IN_BYTES if the character set is multi-byte. So we must
+    // MAX_LONG_BLOB_WIDTH if the character set is multi-byte. So we must
     // ensure that we never return a value greater than
-    // LONGBLOB_MAX_SIZE_IN_BYTES.
+    // MAX_LONG_BLOB_WIDTH.
     std::int64_t display_width = max_display_width_in_codepoints() *
                                  static_cast<std::int64_t>(charset->mbmaxlen);
     return static_cast<size_t>(std::min(
-        display_width, static_cast<std::int64_t>(LONGBLOB_MAX_SIZE_IN_BYTES)));
+        display_width, static_cast<std::int64_t>(Field::MAX_LONG_BLOB_WIDTH)));
   }
 }
 
@@ -730,7 +728,7 @@ size_t Create_field::pack_length(bool dont_override) const {
                                                       : interval->count);
     }
     case MYSQL_TYPE_NEWDECIMAL: {
-      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
+      assert(decimals <= DECIMAL_MAX_SCALE);
       uint precision = my_decimal_length_to_precision(
           max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
       precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
@@ -781,4 +779,13 @@ size_t Create_field::key_length() const {
 
 bool is_field_for_functional_index(const Create_field *create_field) {
   return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
+}
+
+bool is_hidden_by_system(const Create_field *create_field) {
+  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
+         create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
+}
+
+bool is_hidden_by_user(const Create_field *create_field) {
+  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_USER;
 }

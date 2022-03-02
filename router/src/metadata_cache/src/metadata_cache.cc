@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,11 @@
 
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+
+using namespace std::chrono_literals;
+using namespace std::string_literals;
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -101,7 +105,14 @@ void MetadataCache::refresh_thread() {
   while (!terminated_) {
     bool refresh_ok{false};
     try {
+      // Component tests are using this log message as a indicator of metadata
+      // refresh start
+      log_debug("Started refreshing the cluster metadata");
       refresh_ok = refresh();
+      // Component tests are using this log message as a indicator of metadata
+      // refresh finish
+      log_debug("Finished refreshing the cluster metadata");
+      on_refresh_completed();
     } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
       log_info(
           "Cluster metadata upgrade in progress, aborting the metada refresh");
@@ -111,6 +122,12 @@ void MetadataCache::refresh_thread() {
     }
 
     if (refresh_ok) {
+      if (!ready_announced_) {
+        ready_announced_ = true;
+        mysql_harness::on_service_ready(
+            "metadata_cache:" +
+            metadata_cache::MetadataCacheAPI::instance()->instance_name());
+      }
       // we want to update the router version in the routers table once
       // when we start
       if (!version_updated_) {
@@ -157,12 +174,21 @@ void MetadataCache::refresh_thread() {
     // wait for up to TTL until next refresh, unless some replicaset loses an
     // online (primary or secondary) server - in that case, "emergency mode" is
     // enabled and we refresh every 1s until "emergency mode" is called off.
-    while (ttl_left > std::chrono::milliseconds(0)) {
+    while (ttl_left > 0ms) {
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
 
       {
         std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
+        // frist check if we were not told to leave or refresh again while we
+        // were outside of the wait_for
+        if (terminated_) return;
+        if (refresh_requested_) {
+          auth_cache_force_update = true;
+          refresh_requested_ = false;
+          break;  // go to the refresh() in the outer loop
+        }
+
         if (sleep_for >= auth_cache_ttl_left) {
           refresh_wait_.wait_for(lock, auth_cache_ttl_left);
           ttl_left -= auth_cache_ttl_left;
@@ -219,18 +245,16 @@ void MetadataCache::start() {
  */
 void MetadataCache::stop() noexcept {
   {
-    std::unique_lock<std::mutex> lk(refresh_wait_mtx_);
+    std::unique_lock<std::mutex> lk(refresh_wait_mtx_, std::defer_lock);
+    std::unique_lock<std::mutex> lk2(refresh_completed_mtx_, std::defer_lock);
+    std::lock(lk, lk2);
     terminated_ = true;
   }
   refresh_wait_.notify_one();
+  refresh_completed_.notify_one();
   refresh_thread_.join();
 }
 
-/**
- * Return a list of servers that are part of a replicaset.
- *
- * @param replicaset_name The replicaset that is being looked up.
- */
 MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
     const std::string &replicaset_name) {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
@@ -249,34 +273,27 @@ MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
 bool metadata_cache::ManagedInstance::operator==(
     const ManagedInstance &other) const {
   return mysql_server_uuid == other.mysql_server_uuid &&
-         replicaset_name == other.replicaset_name && role == other.role &&
-         mode == other.mode &&
-         std::fabs(weight - other.weight) <
-             0.001 &&  // 0.001 = reasonable guess, change if needed
-         host == other.host &&
-         port == other.port && version_token == other.version_token &&
-         xport == other.xport;
+         replicaset_name == other.replicaset_name && mode == other.mode &&
+         host == other.host && port == other.port && xport == other.xport &&
+         hidden == other.hidden &&
+         disconnect_existing_sessions_when_hidden ==
+             other.disconnect_existing_sessions_when_hidden;
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
     const std::string &p_replicaset_name,
-    const std::string &p_mysql_server_uuid, const std::string &p_role,
-    const ServerMode p_mode, const float p_weight,
-    const unsigned int p_version_token, const std::string &p_host,
-    const uint16_t p_port, const uint16_t p_xport)
+    const std::string &p_mysql_server_uuid, const ServerMode p_mode,
+    const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
     : replicaset_name(p_replicaset_name),
       mysql_server_uuid(p_mysql_server_uuid),
-      role(p_role),
       mode(p_mode),
-      weight(p_weight),
-      version_token(p_version_token),
       host(p_host),
       port(p_port),
       xport(p_xport) {}
 
 metadata_cache::ManagedInstance::ManagedInstance(const TCPAddress &addr) {
-  host = addr.addr == "localhost" ? "127.0.0.1" : addr.addr;
-  port = addr.port;
+  host = addr.address() == "localhost" ? "127.0.0.1" : addr.address();
+  port = addr.port();
 }
 
 metadata_cache::ManagedInstance::operator TCPAddress() const {
@@ -326,9 +343,24 @@ std::string to_string(metadata_cache::ServerMode mode) {
   }
 }
 
+std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
+  std::string result;
+  // if both values are default return empty string
+  if (instance.hidden || !instance.disconnect_existing_sessions_when_hidden) {
+    result =
+        "hidden=" + (instance.hidden ? "yes"s : "no"s) +
+        " disconnect_when_hidden=" +
+        (instance.disconnect_existing_sessions_when_hidden ? "yes"s : "no"s);
+  }
+
+  return result;
+}
+
 void MetadataCache::on_refresh_failed(bool terminated) {
-  refresh_failed_++;
-  last_refresh_failed_ = std::chrono::system_clock::now();
+  stats_([](auto &stats) {
+    stats.refresh_failed++;
+    stats.last_refresh_failed = std::chrono::system_clock::now();
+  });
 
   // we failed to fetch metadata from any of the metadata servers
   if (!terminated)
@@ -352,24 +384,31 @@ void MetadataCache::on_refresh_failed(bool terminated) {
 
 void MetadataCache::on_refresh_succeeded(
     const metadata_cache::ManagedInstance &metadata_server) {
-  last_refresh_succeeded_ = std::chrono::system_clock::now();
-  last_metadata_server_host_ = metadata_server.host;
-  last_metadata_server_port_ = metadata_server.port;
-  refresh_succeeded_++;
+  stats_([&metadata_server](auto &stats) {
+    stats.last_refresh_succeeded = std::chrono::system_clock::now();
+    stats.last_metadata_server_host = metadata_server.host;
+    stats.last_metadata_server_port = metadata_server.port;
+    stats.refresh_succeeded++;
+  });
 }
 
 void MetadataCache::on_instances_changed(const bool md_servers_reachable,
                                          unsigned view_id) {
+  // Socket acceptors state will be updated when processing new instances
+  // information.
+  trigger_acceptor_update_on_next_refresh_ = false;
+
   auto instances = replicaset_lookup("" /*cluster_name_*/);
   {
     std::lock_guard<std::mutex> lock(
         replicaset_instances_change_callbacks_mtx_);
 
-    for (auto &replicaset_clb : listeners_) {
+    for (auto &replicaset_clb : state_listeners_) {
       const std::string replicaset_name = replicaset_clb.first;
 
-      for (auto each : listeners_[replicaset_name]) {
-        each->notify(instances, md_servers_reachable, view_id);
+      for (auto each : state_listeners_[replicaset_name]) {
+        each->notify_instances_changed(instances, md_servers_reachable,
+                                       view_id);
       }
     }
   }
@@ -380,6 +419,25 @@ void MetadataCache::on_instances_changed(const bool md_servers_reachable,
   }
 }
 
+void MetadataCache::on_handle_sockets_acceptors() {
+  auto instances = replicaset_lookup("" /*cluster_name_*/);
+  {
+    std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+
+    trigger_acceptor_update_on_next_refresh_ = false;
+    for (auto &callbacks_info : acceptor_update_listeners_) {
+      const std::string replicaset_name = callbacks_info.first;
+
+      for (const auto &callback : acceptor_update_listeners_[replicaset_name]) {
+        // If setting up any acceptor failed we should retry on next md refresh
+        if (!callback->update_socket_acceptor_state(instances)) {
+          trigger_acceptor_update_on_next_refresh_ = true;
+        }
+      }
+    }
+  }
+}
+
 void MetadataCache::on_refresh_requested() {
   {
     std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
@@ -387,6 +445,8 @@ void MetadataCache::on_refresh_requested() {
   }
   refresh_wait_.notify_one();
 }
+
+void MetadataCache::on_refresh_completed() { refresh_completed_.notify_one(); }
 
 void MetadataCache::mark_instance_reachability(
     const std::string &instance_id, metadata_cache::InstanceStatus status) {
@@ -441,40 +501,96 @@ void MetadataCache::mark_instance_reachability(
   }
 }
 
-bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
-                                          int timeout) {
-  log_debug("Waiting for failover to happen in '%s' for %is",
-            replicaset_name.c_str(), timeout);
-  time_t stime = std::time(nullptr);
-  while (std::time(nullptr) - stime <= timeout) {
-    {
-      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {
-        return true;
-      }
+/**
+ * check if primary has changed.
+ *
+ * - hidden members are ignored
+ *
+ * @param members container current membership info
+ * @param primary_server_uuid server-uuid of the previous PRIMARY
+ */
+static bool primary_has_changed(
+    const std::vector<metadata_cache::ManagedInstance> &members,
+    const std::string &primary_server_uuid) {
+  // if we have a member, that's PRIMARY and not "server_uuid" -> success
+  for (auto const &member : members) {
+    if (member.hidden) continue;
+
+    if (member.mode != metadata_cache::ServerMode::ReadWrite) continue;
+
+    if (member.mysql_server_uuid != primary_server_uuid) {
+      return true;
     }
-    std::this_thread::sleep_for(metadata_cache::kDefaultMetadataTTL);
   }
+
   return false;
 }
 
-void MetadataCache::add_listener(
-    const std::string &replicaset_name,
-    metadata_cache::ReplicasetStateListenerInterface *listener) {
-  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  listeners_[replicaset_name].insert(listener);
+bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
+                                          const std::string &server_uuid,
+                                          const std::chrono::seconds &timeout) {
+  log_debug(
+      "Waiting for PRIMARY of replicaset '%s' to change from [%s] to another "
+      "member for %lds",
+      replicaset_name.c_str(), server_uuid.c_str(),
+      static_cast<long>(timeout.count()));
+
+  using clock_type = std::chrono::steady_clock;
+  const auto end_time = clock_type::now() + timeout;
+  do {
+    if (terminated_) return false;
+
+    // if we have a member, that's PRIMARY and not "server_uuid" -> success
+    if (primary_has_changed(replicaset_lookup(replicaset_name), server_uuid)) {
+      return true;
+    }
+
+    // wait until a refresh finished.
+    std::unique_lock<std::mutex> lock(refresh_completed_mtx_);
+    const auto wait_res = refresh_completed_.wait_until(lock, end_time);
+    if (wait_res == std::cv_status::timeout) {
+      // timed out waiting for refresh to finish.
+      //
+      // Either the wait-time was smaller than the metadata-cache-ttl or the
+      // metadata-cache refresh took longer than expected.
+      break;
+    }
+  } while (clock_type::now() < end_time);
+
+  // if we have a member, that's PRIMARY and not "server_uuid" -> success
+  return primary_has_changed(replicaset_lookup(replicaset_name), server_uuid);
 }
 
-void MetadataCache::remove_listener(
+void MetadataCache::add_state_listener(
     const std::string &replicaset_name,
     metadata_cache::ReplicasetStateListenerInterface *listener) {
   std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  listeners_[replicaset_name].erase(listener);
+  state_listeners_[replicaset_name].insert(listener);
+}
+
+void MetadataCache::remove_state_listener(
+    const std::string &replicaset_name,
+    metadata_cache::ReplicasetStateListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
+  state_listeners_[replicaset_name].erase(listener);
+}
+
+void MetadataCache::add_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    metadata_cache::AcceptorUpdateHandlerInterface *listener) {
+  std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+  acceptor_update_listeners_[replicaset_name].insert(listener);
+}
+
+void MetadataCache::remove_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    metadata_cache::AcceptorUpdateHandlerInterface *listener) {
+  std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+  acceptor_update_listeners_[replicaset_name].erase(listener);
 }
 
 void MetadataCache::check_auth_metadata_timers() const {
-  if (auth_cache_ttl_ > std::chrono::milliseconds(0) &&
-      auth_cache_ttl_ < ttl_) {
+  if (auth_cache_ttl_ > 0ms && auth_cache_ttl_ < ttl_) {
     throw std::invalid_argument(
         "'auth_cache_ttl' option value '" +
         std::to_string(static_cast<float>(auth_cache_ttl_.count()) / 1000) +
@@ -489,8 +605,7 @@ void MetadataCache::check_auth_metadata_timers() const {
         "' cannot be less than the 'ttl' value which is '" +
         std::to_string(static_cast<float>(ttl_.count()) / 1000) + "'");
   }
-  if (auth_cache_ttl_ > std::chrono::milliseconds(0) &&
-      auth_cache_refresh_interval_ > auth_cache_ttl_) {
+  if (auth_cache_ttl_ > 0ms && auth_cache_refresh_interval_ > auth_cache_ttl_) {
     throw std::invalid_argument(
         "'auth_cache_ttl' option value '" +
         std::to_string(static_cast<float>(auth_cache_ttl_.count()) / 1000) +
@@ -504,29 +619,38 @@ void MetadataCache::check_auth_metadata_timers() const {
 
 std::pair<bool, MetaData::auth_credentials_t::mapped_type>
 MetadataCache::get_rest_user_auth_data(const std::string &user) {
-  // negative TTL is treated as infinite
-  if (auth_cache_ttl_.count() >= 0 &&
-      last_credentials_update_ + auth_cache_ttl_ <
-          std::chrono::system_clock::now()) {
-    // auth cache expired
-    return {false, std::make_pair("", rapidjson::Document{})};
-  }
+  auto auth_cache_ttl = auth_cache_ttl_;
 
-  auto pos = rest_auth_data_.find(user);
-  if (pos == std::end(rest_auth_data_))
-    return {false, std::make_pair("", rapidjson::Document{})};
+  return rest_auth_([&user, auth_cache_ttl](auto &rest_auth)
+                        -> std::pair<
+                            bool, MetaData::auth_credentials_t::mapped_type> {
+    // negative TTL is treated as infinite
+    if (auth_cache_ttl.count() >= 0 &&
+        rest_auth.last_credentials_update_ + auth_cache_ttl <
+            std::chrono::system_clock::now()) {
+      // auth cache expired
+      return {false, std::make_pair("", rapidjson::Document{})};
+    }
 
-  auto &auth_data = pos->second;
-  rapidjson::Document temp_privileges;
-  temp_privileges.CopyFrom(auth_data.second, auth_data.second.GetAllocator());
-  return {true, std::make_pair(auth_data.first, std::move(temp_privileges))};
+    auto pos = rest_auth.rest_auth_data_.find(user);
+    if (pos == std::end(rest_auth.rest_auth_data_))
+      return {false, std::make_pair("", rapidjson::Document{})};
+
+    auto &auth_data = pos->second;
+    rapidjson::Document temp_privileges;
+    temp_privileges.CopyFrom(auth_data.second, auth_data.second.GetAllocator());
+    return {true, std::make_pair(auth_data.first, std::move(temp_privileges))};
+  });
 }
 
 bool MetadataCache::update_auth_cache() {
   if (meta_data_ && auth_metadata_fetch_enabled_) {
     try {
-      rest_auth_data_ = meta_data_->fetch_auth_credentials(cluster_name_);
-      last_credentials_update_ = std::chrono::system_clock::now();
+      rest_auth_([this](auto &rest_auth) {
+        rest_auth.rest_auth_data_ =
+            meta_data_->fetch_auth_credentials(cluster_name_);
+        rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
+      });
       return true;
     } catch (const std::exception &e) {
       log_warning("Updating the authentication credentials failed: %s",

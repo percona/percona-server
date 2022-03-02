@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class Suma : public SimulatedBlock {
   BLOCK_DEFINES(Suma);
 public:
   Suma(Block_context& ctx);
-  virtual ~Suma();
+  ~Suma() override;
 
   /**
    * Private interface
@@ -142,11 +142,11 @@ public:
   // m_dummy is used to pass value.
   union FragmentDescriptor { 
     struct  {
-      Uint16 m_fragmentNo;
-      Uint8 m_lqhInstanceKey;
-      Uint8 m_nodeId;
+      Uint32 m_fragmentNo;
+      Uint16 m_lqhInstanceKey;
+      Uint16 m_nodeId;
     } m_fragDesc;
-    Uint32 m_dummy;
+    Uint32 m_dummy[2];
   };
   
   /**
@@ -569,7 +569,7 @@ public:
   const NodeBitmask& getSubscriberNodes() const { return c_subscriber_nodes; }
 
 protected:
-  virtual bool getParam(const char * param, Uint32 * retVal);
+  bool getParam(const char * param, Uint32 * retVal) override;
 
 private:
   /**
@@ -703,12 +703,12 @@ private:
   };
   typedef ArrayPool<Buffer_page> Buffer_page_pool;
   
-  STATIC_CONST( NO_OF_BUCKETS = 24 ); // 24 = 4*3*2*1! 
+  static constexpr Uint32 NO_OF_BUCKETS = 24; // 24 = 4*3*2*1! 
   Uint32 c_no_of_buckets;
   struct Bucket c_buckets[NO_OF_BUCKETS];
   Uint32 c_subscriber_per_node[MAX_NODES];
 
-  STATIC_CONST( BUCKET_MASK_SIZE = (((NO_OF_BUCKETS+31)>> 5)) );
+  static constexpr Uint32 BUCKET_MASK_SIZE = (((NO_OF_BUCKETS+31)>> 5));
   typedef Bitmask<BUCKET_MASK_SIZE> Bucket_mask;
   Bucket_mask m_active_buckets;
   Bucket_mask m_switchover_buckets;  
@@ -756,8 +756,8 @@ private:
 
   struct Page_chunk
   {
-    STATIC_CONST( CHUNK_PAGE_SIZE = 32768 );
-    STATIC_CONST( PAGES_PER_CHUNK = 16 );
+    static constexpr Uint32 CHUNK_PAGE_SIZE = 32768;
+    static constexpr Uint32 PAGES_PER_CHUNK = 16;
 
     Uint32 m_page_id;
     Uint32 m_size;
@@ -799,7 +799,7 @@ private:
   */
   Uint32 m_max_gcp_rep_counter_index;
 
-  STATIC_CONST(MAX_LDM_EPOCH_LAG = 50);
+  static constexpr Uint32 MAX_LDM_EPOCH_LAG = 50;
   SubGcpCompleteCounter m_gcp_rep_counter[MAX_LDM_EPOCH_LAG];
 
   Uint32 m_oldest_gcp_inflight_index;

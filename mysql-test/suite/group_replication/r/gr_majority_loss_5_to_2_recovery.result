@@ -28,13 +28,15 @@ GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 # 3. Configure member 2 to use replication user, so that it
 #    will be forced to recover from member 5, since it will
 #    not be able to authenticate on any other member.
 [connection server2]
-CHANGE MASTER TO MASTER_USER="recovery_user", MASTER_PASSWORD="recovery_password" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="recovery_user", SOURCE_PASSWORD="recovery_password" FOR CHANNEL "group_replication_recovery";
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");

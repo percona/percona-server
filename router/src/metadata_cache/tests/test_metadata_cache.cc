@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
 class MetadataCacheTest2 : public ::testing::Test {
  public:
   // per-test setup
-  virtual void SetUp() override {
+  void SetUp() override {
     session.reset(new MySQLSessionReplayer(true));
     mysql_harness::DIM::instance().set_MySQLSession(
         [this]() { return session.get(); },  // provide pointer to session
@@ -112,7 +112,8 @@ class MetadataCacheTest2 : public ::testing::Test {
         "@@SESSION.character_set_results=utf8, "
         "@@SESSION.character_set_connection=utf8, "
         "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
-        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
+        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+        "@@SESSION.optimizer_switch='derived_merge=on'");
     m.then_ok();
     m.expect_execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
     m.then_ok();
@@ -127,8 +128,7 @@ class MetadataCacheTest2 : public ::testing::Test {
                      });
 
     m.expect_query(
-        "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, "
+        "SELECT R.replicaset_name, I.mysql_server_uuid, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
@@ -138,18 +138,15 @@ class MetadataCacheTest2 : public ::testing::Test {
         "AND R.attributes->>'$.group_replication_group_name' = '0000-0001'");
     m.then_return(
         8,
-        {// replicaset_name, mysql_server_uuid, role, weight, version_token,
+        {// replicaset_name, mysql_server_uuid,
          // I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server1"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server2"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server3"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
 

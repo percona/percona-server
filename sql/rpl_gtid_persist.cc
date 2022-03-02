@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write) {
       the main transaction thanks to rejection to update
       'mysql.gtid_executed' by XA main transaction.
     */
-    DBUG_ASSERT(
+    assert(
         (*thd)->get_transaction()->xid_state()->has_state(XID_STATE::XA_IDLE) ||
         (*thd)->get_transaction()->xid_state()->has_state(
             XID_STATE::XA_PREPARED));
@@ -177,7 +177,7 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
 
   /*
     This fails on errors committing the info, or when
-    slave_preserve_commit_order is enabled and a previous transaction
+    replica_preserve_commit_order is enabled and a previous transaction
     has failed.  In both cases, the error is reported already.
   */
   err = this->close_table(thd, table, &m_backup, 0 != error, need_commit);
@@ -354,21 +354,24 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid) {
     goto end;
   }
 
-  /* Save the gtid info into table. */
-  error = write_row(table, buf, gtid->gno, gtid->gno);
+  /* Write directly to gtid_executed table only to satisfy debug test. */
+  DBUG_EXECUTE_IF("disable_se_persists_gtid",
+                  { error = write_row(table, buf, gtid->gno, gtid->gno); });
+
+  thd->request_persist_gtid_by_se();
+
+  DBUG_EXECUTE_IF("simulate_err_on_write_gtid_into_table", {
+    error = -1;
+    table->file->print_error(error, MYF(0));
+    thd->reset_gtid_persisted_by_se();
+  });
 
 end:
-  if (table_access_ctx.deinit(thd, table, 0 != error, false)) error = -1;
-
-  /* Do not protect m_atomic_count for improving transactions' concurrency */
-  if (error == 0 && gtid_executed_compression_period != 0) {
-    uint32 count = (uint32)m_atomic_count++;
-    if (count == gtid_executed_compression_period ||
-        DBUG_EVALUATE_IF("compress_gtid_table", 1, 0)) {
-      set_compression_and_signal_compressor();
-    }
+  if (table_access_ctx.deinit(thd, table, 0 != error, false)) {
+    thd->reset_gtid_persisted_by_se();
+    error = -1;
   }
-
+  /* Compression is triggered by GTID background thread as required. */
   return error;
 }
 
@@ -402,7 +405,10 @@ end:
   /* Notify compression thread to compress gtid_executed table. */
   if (error == 0 && compress &&
       DBUG_EVALUATE_IF("dont_compress_gtid_table", 0, 1)) {
-    set_compression_and_signal_compressor();
+    mysql_mutex_lock(&LOCK_compress_gtid_table);
+    should_compress = true;
+    mysql_cond_signal(&COND_compress_gtid_table);
+    mysql_mutex_unlock(&LOCK_compress_gtid_table);
   }
 
   return ret;
@@ -440,7 +446,7 @@ int Gtid_table_persistor::save(TABLE *table, const Gtid_set *gtid_set) {
     @retval 0    OK.
     @retval -1   Error.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static int dbug_test_on_compress(THD *thd) {
   DBUG_TRACE;
   /*
@@ -450,8 +456,8 @@ static int dbug_test_on_compress(THD *thd) {
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(5););
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", {
     const char act[] = "now signal fetch_thread_stage";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    assert(opt_debug_sync_timeout > 0);
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
   /* Sleep a little, so that we can always fetch the correct stage info. */
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(1););
@@ -462,8 +468,8 @@ static int dbug_test_on_compress(THD *thd) {
   */
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", {
     const char act[] = "now wait_for notified_thread_complete";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    assert(opt_debug_sync_timeout > 0);
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
 
@@ -483,8 +489,8 @@ int Gtid_table_persistor::compress(THD *thd) {
 
   DBUG_EXECUTE_IF("compress_gtid_table", {
     const char act[] = "now signal complete_compression";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    assert(opt_debug_sync_timeout > 0);
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
 
   return error;
@@ -511,7 +517,7 @@ int Gtid_table_persistor::compress_in_single_transaction(THD *thd,
 
   if ((error = compress_first_consecutive_range(table, is_complete))) goto end;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   error = dbug_test_on_compress(thd);
 #endif
 
@@ -596,6 +602,7 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
     */
     ret = update_row(table, sid.c_str(), gno_start, gno_end);
   }
+
   return ret;
 }
 
@@ -780,8 +787,8 @@ static void *compress_gtid_table(void *p_thd) {
         thd->clear_error();
         DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table", {
           const char act[] = "now signal compression_failed";
-          DBUG_ASSERT(opt_debug_sync_timeout > 0);
-          DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+          assert(opt_debug_sync_timeout > 0);
+          assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         };);
       }
     }
@@ -857,11 +864,4 @@ void terminate_compress_gtid_table_thread() {
   if (error != 0)
     LogErr(WARNING_LEVEL, ER_FAILED_TO_JOIN_GTID_TABLE_COMPRESSION_THREAD,
            error);
-}
-
-void Gtid_table_persistor::set_compression_and_signal_compressor() {
-  mysql_mutex_lock(&LOCK_compress_gtid_table);
-  should_compress = true;
-  mysql_cond_signal(&COND_compress_gtid_table);
-  mysql_mutex_unlock(&LOCK_compress_gtid_table);
 }

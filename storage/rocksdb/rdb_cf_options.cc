@@ -42,8 +42,8 @@ bool Rdb_cf_options::init(
     std::shared_ptr<rocksdb::TablePropertiesCollectorFactory> prop_coll_factory,
     const char *const default_cf_options,
     const char *const override_cf_options) {
-  DBUG_ASSERT(default_cf_options != nullptr);
-  DBUG_ASSERT(override_cf_options != nullptr);
+  assert(default_cf_options != nullptr);
+  assert(override_cf_options != nullptr);
 
   m_default_cf_opts.comparator = &s_pk_comparator;
   m_default_cf_opts.compaction_filter_factory.reset(
@@ -67,7 +67,7 @@ bool Rdb_cf_options::init(
 
 bool Rdb_cf_options::get(const std::string &cf_name,
                          rocksdb::ColumnFamilyOptions *const opts) {
-  DBUG_ASSERT(opts != nullptr);
+  assert(opts != nullptr);
 
   // Get defaults.
   rocksdb::GetColumnFamilyOptionsFromString(*opts, m_default_config, opts);
@@ -84,13 +84,13 @@ bool Rdb_cf_options::get(const std::string &cf_name,
 
 void Rdb_cf_options::update(const std::string &cf_name,
                             const std::string &cf_options) {
-  DBUG_ASSERT(!cf_name.empty());
-  DBUG_ASSERT(!cf_options.empty());
+  assert(!cf_name.empty());
+  assert(!cf_options.empty());
 
   // Always update. If we didn't have an entry before then add it.
   m_name_map[cf_name] = cf_options;
 
-  DBUG_ASSERT(!m_name_map.empty());
+  assert(!m_name_map.empty());
 }
 
 bool Rdb_cf_options::set_default(const std::string &default_config) {
@@ -114,7 +114,7 @@ bool Rdb_cf_options::set_default(const std::string &default_config) {
 
 // Skip over any spaces in the input string.
 void Rdb_cf_options::skip_spaces(const std::string &input, size_t *const pos) {
-  DBUG_ASSERT(pos != nullptr);
+  assert(pos != nullptr);
 
   while (*pos < input.size() && isspace(input[*pos])) ++(*pos);
 }
@@ -125,8 +125,8 @@ void Rdb_cf_options::skip_spaces(const std::string &input, size_t *const pos) {
 bool Rdb_cf_options::find_column_family(const std::string &input,
                                         size_t *const pos,
                                         std::string *const key) {
-  DBUG_ASSERT(pos != nullptr);
-  DBUG_ASSERT(key != nullptr);
+  assert(pos != nullptr);
+  assert(key != nullptr);
 
   const size_t beg_pos = *pos;
   size_t end_pos = *pos - 1;
@@ -152,8 +152,8 @@ bool Rdb_cf_options::find_column_family(const std::string &input,
 // braces.
 bool Rdb_cf_options::find_options(const std::string &input, size_t *const pos,
                                   std::string *const options) {
-  DBUG_ASSERT(pos != nullptr);
-  DBUG_ASSERT(options != nullptr);
+  assert(pos != nullptr);
+  assert(options != nullptr);
 
   // Make sure we have an open curly brace at the current position.
   if (*pos < input.size() && input[*pos] != '{') {
@@ -211,9 +211,9 @@ bool Rdb_cf_options::find_cf_options_pair(const std::string &input,
                                           size_t *const pos,
                                           std::string *const cf,
                                           std::string *const opt_str) {
-  DBUG_ASSERT(pos != nullptr);
-  DBUG_ASSERT(cf != nullptr);
-  DBUG_ASSERT(opt_str != nullptr);
+  assert(pos != nullptr);
+  assert(cf != nullptr);
+  assert(opt_str != nullptr);
 
   // Skip any spaces.
   skip_spaces(input, pos);
@@ -256,13 +256,21 @@ bool Rdb_cf_options::find_cf_options_pair(const std::string &input,
 }
 
 bool Rdb_cf_options::parse_cf_options(const std::string &cf_options,
-                                      Name_to_config_t *option_map) {
+                                      Name_to_config_t *option_map,
+                                      std::stringstream *output) {
   std::string cf;
   std::string opt_str;
+  std::stringstream ss;
   rocksdb::ColumnFamilyOptions options;
 
-  DBUG_ASSERT(option_map != nullptr);
-  DBUG_ASSERT(option_map->empty());
+  // Only print warnings if the caller didn't pass an output stream
+  bool print_warnings = (output == nullptr);
+  if (output == nullptr) {
+    output = &ss;
+  }
+
+  assert(option_map != nullptr);
+  assert(option_map->empty());
 
   // Loop through the characters of the string until we reach the end.
   size_t pos = 0;
@@ -270,15 +278,23 @@ bool Rdb_cf_options::parse_cf_options(const std::string &cf_options,
   while (pos < cf_options.size()) {
     // Attempt to find <cf>={<opt_str>}.
     if (!find_cf_options_pair(cf_options, &pos, &cf, &opt_str)) {
+      (*output) << "Failed to find options pair in override options (options: "
+                << cf_options.c_str() << ")";
+      if (print_warnings) {
+        // NO_LINT_DEBUG
+        LogPluginErrMsg(WARNING_LEVEL, 0, "%s", output->str().c_str());
+      }
       return false;
     }
 
     // Generate an error if we have already seen this column family.
     if (option_map->find(cf) != option_map->end()) {
-      LogPluginErrMsg(
-          WARNING_LEVEL, 0,
-          "Duplicate entry for %s in override options (options: %s)",
-          cf.c_str(), cf_options.c_str());
+      (*output) << "Duplicate entry for '" << cf.c_str()
+                << "' in override options (options: " << cf_options.c_str()
+                << ")";
+      if (print_warnings) {
+        LogPluginErrMsg(WARNING_LEVEL, 0, "%s", output->str().c_str());
+      }
       return false;
     }
 
@@ -286,10 +302,12 @@ bool Rdb_cf_options::parse_cf_options(const std::string &cf_options,
     rocksdb::Status s =
         rocksdb::GetColumnFamilyOptionsFromString(options, opt_str, &options);
     if (!s.ok()) {
-      LogPluginErrMsg(
-          WARNING_LEVEL, 0,
-          "Invalid cf config for %s in override options: %s (options: %s)",
-          cf.c_str(), s.getState(), cf_options.c_str());
+      (*output) << "Invalid cf config for '" << cf.c_str()
+                << "' in override options: " << s.getState()
+                << " (options: " << cf_options.c_str() << ")";
+      if (print_warnings) {
+        LogPluginErrMsg(WARNING_LEVEL, 0, "%s", output->str().c_str());
+      }
       return false;
     }
 
@@ -331,7 +349,7 @@ std::shared_ptr<rocksdb::MergeOperator> Rdb_cf_options::get_cf_merge_operator(
 
 bool Rdb_cf_options::get_cf_options(const std::string &cf_name,
                                     rocksdb::ColumnFamilyOptions *const opts) {
-  DBUG_ASSERT(opts != nullptr);
+  assert(opts != nullptr);
 
   *opts = m_default_cf_opts;
   bool ret = get(cf_name, opts);

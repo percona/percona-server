@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 
 #include "storage/perfschema/table_tlws_by_table.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -220,7 +220,7 @@ int table_tlws_by_table::rnd_pos(const void *pos) {
 
 int table_tlws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_tlws_by_table *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_tlws_by_table);
   m_opened_index = result;
   m_index = result;
@@ -273,16 +273,16 @@ int table_tlws_by_table::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* SCHEMA_NAME */
         case 2: /* OBJECT_NAME */
-          m_row.m_object.set_field(f->field_index, f);
+          m_row.m_object.set_field(f->field_index(), f);
           break;
         case 3: /* COUNT_STAR */
           set_field_ulonglong(f, m_row.m_stat.m_all.m_count);
@@ -492,7 +492,7 @@ int table_tlws_by_table::read_row_values(TABLE *table, unsigned char *buf,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

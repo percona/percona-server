@@ -68,11 +68,13 @@ FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 %	r2	localhost	u1	N
 %	r4	localhost	u1	N
 [connection slave]
-CHANGE MASTER TO MASTER_USER='u1';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13120]
 [connection master]
 ALTER USER u1@localhost DEFAULT ROLE ALL;
@@ -88,6 +90,8 @@ FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 %	r4	localhost	u1	N
 [connection slave]
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 
 # Verify if 'DEFAULT ROLE' clause is bin-logged.
@@ -206,7 +210,7 @@ slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u3@localhost DEFAULT ROLE r2
 slave-bin.000001	#	Query	#	#	use `test`; DROP ROLE r1, r2, r3,r4
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost, u2@localhost, u3@localhost
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

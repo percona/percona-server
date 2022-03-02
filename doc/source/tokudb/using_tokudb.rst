@@ -4,10 +4,22 @@
 Using TokuDB
 ============
 
+.. Important:: 
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+
  .. warning:: 
  
-    Do not move or modify any |TokuDB| files. You will break the database, and
-    need to recover the database from a backup.
+    Do not move or modify any *TokuDB* files. You will break the database, and
+    must recover the database from a backup.
  
 Fast Insertions and Richer Indexes
 ----------------------------------
@@ -290,8 +302,8 @@ the following values:
 Read Free Replication
 ---------------------
 
-|TokuDB| slaves can be configured to perform significantly less read IO in order
-to apply changes from the master. By utilizing the power of Fractal Tree
+|TokuDB| replicas can be configured to perform significantly less read IO in order
+to apply changes from the source. By utilizing the power of Fractal Tree
 indexes:
 
 * insert/update/delete operations can be configured to eliminate
@@ -303,13 +315,13 @@ indexes:
 
 To enable Read Free Replication, the servers must be configured as follows:
 
-* On the replication master:
+* On the replication source:
 
   * Enable row based replication: set ``BINLOG_FORMAT=ROW``
 
-* On the replication slave(s):
+* On the replication replica(s):
 
-  * The slave must be in read-only mode: set ``read_only=1``
+  * The replica must be in read-only mode: set ``read_only=1``
 
   * Disable unique checks: set ``tokudb_rpl_unique_checks=0``
 
@@ -317,19 +329,19 @@ To enable Read Free Replication, the servers must be configured as follows:
 
 .. note::
    
-   You can modify one or both behaviors on the slave(s).
+   You can modify one or both behaviors on the replica(s).
 
 .. note::
 
-   As long as the master is using row based replication, this optimization is
-   available on a |TokuDB| slave. This means that it's available even if the
-   master is using |InnoDB| or |MyISAM| tables, or running non-TokuDB binaries.
+   As long as the source is using row based replication, this optimization is
+   available on a |TokuDB| replica. This means that it's available even if the
+   source is using |InnoDB| or |MyISAM| tables, or running non-TokuDB binaries.
 
 .. warning::
 
    |TokuDB| Read Free Replication will not propagate ``UPDATE`` and ``DELETE``
    events reliably if |TokuDB| table is missing the primary key which will
-   eventually lead to data inconsistency on the slave.
+   eventually lead to data inconsistency on the replica.
 
 Transactions and ACID-compliant Recovery
 ----------------------------------------

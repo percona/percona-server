@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,13 @@
 #ifndef ABSTRACT_OPTION_INCLUDED
 #define ABSTRACT_OPTION_INCLUDED
 
+#include <assert.h>
 #include <functional>
 #include <string>
 #include <vector>
 
 #include "client/base/i_option_changed_listener.h"
-#include "my_dbug.h"
+
 #include "my_getopt.h"
 #include "mysql/service_mysql_alloc.h"
 
@@ -47,7 +48,7 @@ class Abstract_options_provider;
 template <typename T_type>
 class Abstract_option : public I_option {
  public:
-  virtual ~Abstract_option();
+  ~Abstract_option() override;
 
   /**
     Adds new callback for this option for option_parsed() event to callback
@@ -82,18 +83,19 @@ class Abstract_option : public I_option {
     To be used by Abstract_options_provider when preparing options array to
     return.
    */
-  my_option get_my_option();
+  my_option get_my_option() override;
 
   /**
     Method to set listener on option changed events.
     For use from Abstract_options_provider class only.
    */
-  void set_option_changed_listener(I_option_changed_listener *listener);
+  void set_option_changed_listener(
+      I_option_changed_listener *listener) override;
 
   my_option m_option_structure;
 
  private:
-  void call_callbacks(char *argument);
+  void call_callbacks(char *argument) override;
 
   std::vector<std::function<void(char *)> *> m_callbacks;
   I_option_changed_listener *m_option_changed_listener;
@@ -177,7 +179,7 @@ my_option Abstract_option<T_type>::get_my_option() {
 template <typename T_type>
 void Abstract_option<T_type>::set_option_changed_listener(
     I_option_changed_listener *listener) {
-  DBUG_ASSERT(this->m_option_changed_listener == nullptr);
+  assert(this->m_option_changed_listener == nullptr);
 
   this->m_option_changed_listener = listener;
 }

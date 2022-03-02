@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,7 +49,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL 10 /* seconds */
 
-#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() \
+  (srv_shutdown_state.load() >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS)
 
 /** Event to wake up the stats thread */
 os_event_t dict_stats_event = nullptr;
@@ -82,11 +83,6 @@ typedef recalc_pool_t::iterator recalc_pool_iterator_t;
 /** Pool where we store information on which tables are to be processed
 by background statistics gathering. */
 static recalc_pool_t *recalc_pool;
-
-/** Variable to initiate shutdown the dict stats thread. Note we don't
-use 'srv_shutdown_state' because we want to shutdown dict stats thread
-before purge thread. */
-static bool dict_stats_start_shutdown;
 
 /** Initialize the recalc pool, called once during thread initialization. */
 static void dict_stats_recalc_pool_init() {
@@ -169,7 +165,7 @@ void dict_stats_recalc_pool_del(
     const dict_table_t *table) /*!< in: table to remove */
 {
   ut_ad(!srv_read_only_mode);
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mutex_enter(&recalc_pool_mutex);
 
@@ -210,9 +206,9 @@ void dict_stats_wait_bg_to_stop_using_table(
 void dict_stats_thread_init() {
   ut_a(!srv_read_only_mode);
 
-  dict_stats_event = os_event_create(nullptr);
+  dict_stats_event = os_event_create();
 
-  ut_d(dict_stats_disabled_event = os_event_create(nullptr));
+  ut_d(dict_stats_disabled_event = os_event_create());
 
   /* The recalc_pool_mutex is acquired from:
   1) the background stats gathering thread before any other latch
@@ -254,7 +250,6 @@ void dict_stats_thread_deinit() {
 
   os_event_destroy(dict_stats_event);
   dict_stats_event = nullptr;
-  dict_stats_start_shutdown = false;
 }
 
 /** Get the first table that has been added for auto recalc and eventually
@@ -279,27 +274,27 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   /* We need to enter dict_sys->mutex for setting
   table->stats_bg_flag. This is for blocking other DDL, like drop
   table. */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   table = dd_table_open_on_id(table_id, thd, &mdl, true, true);
 
   if (table == nullptr) {
     /* table does not exist, must have been DROPped
     after its id was enqueued */
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return;
   }
 
   /* Check whether table is corrupted */
   if (table->is_corrupted()) {
     dd_table_close(table, thd, &mdl, true);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return;
   }
 
   /* Set bg flag. */
   table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* ut_time_monotonic() could be expensive, the current function
   is called once every time a table has been changed more than 10% and
@@ -319,12 +314,12 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
     dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* Set back bg flag */
   table->stats_bg_flag = BG_STAT_NONE;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* This call can't be moved into dict_sys->mutex protection,
   since it'll cause deadlock while release mdl lock. */
@@ -363,7 +358,7 @@ void dict_stats_thread() {
   ut_a(!srv_read_only_mode);
   THD *thd = create_thd(false, true, true, 0);
 
-  while (!dict_stats_start_shutdown) {
+  while (!SHUTTING_DOWN()) {
     /* Wake up periodically even if not signaled. This is
     because we may lose an event - if the below call to
     dict_stats_process_entry_from_recalc_pool() puts the entry back
@@ -374,14 +369,14 @@ void dict_stats_thread() {
 #ifdef UNIV_DEBUG
     while (innodb_dict_stats_disabled_debug) {
       os_event_set(dict_stats_disabled_event);
-      if (dict_stats_start_shutdown) {
+      if (SHUTTING_DOWN()) {
         break;
       }
       os_event_wait_time(dict_stats_event, 100000);
     }
 #endif /* UNIV_DEBUG */
 
-    if (dict_stats_start_shutdown) {
+    if (SHUTTING_DOWN()) {
       break;
     }
 
@@ -395,8 +390,6 @@ void dict_stats_thread() {
 
 /** Shutdown the dict stats thread. */
 void dict_stats_shutdown() {
-  dict_stats_start_shutdown = true;
   os_event_set(dict_stats_event);
-
   srv_threads.m_dict_stats.join();
 }

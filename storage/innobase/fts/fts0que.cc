@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -175,6 +175,7 @@ struct fts_query_t {
   /** number of docs fetched by query. This is to restrict the
   result with limit value */
   ulonglong n_docs;
+  ulint nested_exp_count; /*!< number of nested sub expression limit */
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -386,9 +387,8 @@ fts_query_terms_in_document(
 /********************************************************************
 Compare two fts_doc_freq_t doc_ids.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
-                        const void *p2) /*!< in: id2 */
+static inline int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
+                                      const void *p2) /*!< in: id2 */
 {
   const fts_doc_freq_t *fq1 = (const fts_doc_freq_t *)p1;
   const fts_doc_freq_t *fq2 = (const fts_doc_freq_t *)p2;
@@ -1449,9 +1449,9 @@ static dberr_t fts_merge_doc_ids(
 
 /** Skip non-whitespace in a string. Move ptr to the next word boundary.
  @return pointer to first whitespace character or end */
-UNIV_INLINE
-byte *fts_query_skip_word(byte *ptr,       /*!< in: start of scan */
-                          const byte *end) /*!< in: pointer to end of string */
+static inline byte *fts_query_skip_word(
+    byte *ptr,       /*!< in: start of scan */
+    const byte *end) /*!< in: pointer to end of string */
 {
   /* TODO: Does this have to be UTF-8 too ? */
   while (ptr < end && !(ispunct(*ptr) || isspace(*ptr))) {
@@ -1898,7 +1898,7 @@ static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
 Callback function to check whether a record was found or not. */
 static
 ibool
-fts_query_select(
+fts_query_query_block(
 	void*		row,		/*!< in:  sel_node_t* */
 	void*		user_arg)	/*!< in:  fts_doc_t* */
 {
@@ -1986,7 +1986,7 @@ fts_query_find_term(
 	select.min_pos = *min_pos;
 	select.word_freq = fts_query_add_word_freq(query, word->f_str);
 
-	pars_info_bind_function(info, "my_func", fts_query_select, &select);
+	pars_info_bind_function(info, "my_func", fts_query_query_block, &select);
 	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
 	/* Convert to "storage" byte order. */
@@ -2853,6 +2853,16 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
   bool multi_exist;
 
   DBUG_TRACE;
+
+  /* sub-expression list may contains sub-expressions.
+  So we increase sub-expression depth counter.
+  If this counter reaches to the threshold then
+  we abort the search opertion and reports an error */
+  if (query->nested_exp_count > FTS_MAX_NESTED_EXP) {
+    query->error = DB_FTS_TOO_MANY_NESTED_EXP;
+    return query->error;
+  }
+  query->nested_exp_count++;
 
   ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
@@ -4085,20 +4095,23 @@ static ibool fts_phrase_or_proximity_search(
       if (k == ib_vector_size(query->match_array[j])) {
         end_list = TRUE;
 
-        if (match[j]->doc_id != match[0]->doc_id) {
-          /* no match */
-          if (query->flags & FTS_PHRASE) {
-            ulint s;
-
-            match[0]->doc_id = 0;
-
-            for (s = i + 1; s < n_matched; s++) {
-              match[0] = static_cast<fts_match_t *>(
-                  ib_vector_get(query->match_array[0], s));
-              match[0]->doc_id = 0;
-            }
+        if (query->flags & FTS_PHRASE) {
+          ulint s;
+          /* Since i is the last doc id in the match_array[j],
+          remove all doc ids > i from the match_array[0]. */
+          fts_match_t *match_temp;
+          for (s = i + 1; s < n_matched; s++) {
+            match_temp = static_cast<fts_match_t *>(
+                ib_vector_get(query->match_array[0], s));
+            match_temp->doc_id = 0;
           }
+          if (match[j]->doc_id != match[0]->doc_id) {
+            /* no match */
+            match[0]->doc_id = 0;
+          }
+        }
 
+        if (match[j]->doc_id != match[0]->doc_id) {
           goto func_exit;
         }
       }

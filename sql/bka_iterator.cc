@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/bka_iterator.h"
 
+#include <assert.h>
 #include <math.h>
 #include <string.h>
 #include <sys/types.h>
@@ -34,23 +35,24 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/handler.h"
 #include "sql/hash_join_buffer.h"
-#include "sql/hash_join_iterator.h"
 #include "sql/item.h"
-#include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/table.h"
 
+class JOIN;
+
 using hash_join_buffer::BufferRow;
-using hash_join_buffer::TableCollection;
+using hash_join_buffer::LoadBufferRowIntoTableBuffers;
+using pack_rows::TableCollection;
 using std::string;
 using std::vector;
 
@@ -64,13 +66,14 @@ static size_t BytesNeededForMatchFlags(size_t rows) {
   return (rows + 7) / 8;
 }
 
-BKAIterator::BKAIterator(THD *thd, JOIN *join,
+BKAIterator::BKAIterator(THD *thd,
                          unique_ptr_destroy_only<RowIterator> outer_input,
-                         qep_tab_map outer_input_tables,
+                         const Prealloced_array<TABLE *, 4> &outer_input_tables,
                          unique_ptr_destroy_only<RowIterator> inner_input,
                          size_t max_memory_available,
                          size_t mrr_bytes_needed_for_single_inner_row,
                          float expected_inner_rows_per_outer_row,
+                         bool store_rowids, table_map tables_to_get_rowid_for,
                          MultiRangeRowIterator *mrr_iterator,
                          JoinType join_type)
     : RowIterator(thd),
@@ -78,41 +81,32 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       m_inner_input(move(inner_input)),
       m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
       m_rows(&m_mem_root),
-      m_outer_input_tables(join, outer_input_tables),
+      m_outer_input_tables(outer_input_tables, store_rowids,
+                           tables_to_get_rowid_for),
       m_max_memory_available(max_memory_available),
       m_mrr_bytes_needed_for_single_inner_row(
           mrr_bytes_needed_for_single_inner_row),
       m_mrr_iterator(mrr_iterator),
       m_join_type(join_type) {
-  DBUG_ASSERT(m_outer_input != nullptr);
-  DBUG_ASSERT(m_inner_input != nullptr);
+  assert(m_outer_input != nullptr);
+  assert(m_inner_input != nullptr);
 
   m_mrr_bytes_needed_per_row =
       lrint(mrr_bytes_needed_for_single_inner_row *
             std::max(expected_inner_rows_per_outer_row, 1.0f));
-
-  // Mark that this iterator will provide the row ID, so that iterators above
-  // this one does not call position(). See QEP_TAB::rowid_status for more
-  // details.
-  for (const hash_join_buffer::Table &it : m_outer_input_tables.tables()) {
-    if (it.qep_tab->rowid_status == NEED_TO_CALL_POSITION_FOR_ROWID) {
-      it.qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
-    }
-  }
-
-  m_mrr_iterator->set_outer_input_tables(join, outer_input_tables);
-  m_mrr_iterator->set_join_type(join_type);
 }
 
 bool BKAIterator::Init() {
   if (!m_outer_input_tables.has_blob_column()) {
     size_t upper_row_size =
-        hash_join_buffer::ComputeRowSizeUpperBound(m_outer_input_tables);
+        pack_rows::ComputeRowSizeUpperBound(m_outer_input_tables);
     if (m_outer_row_buffer.reserve(upper_row_size)) {
       my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
       return true;
     }
   }
+  PrepareForRequestRowId(m_outer_input_tables.tables(),
+                         m_outer_input_tables.tables_to_get_rowid_for());
 
   BeginNewBatch();
   m_end_of_outer_rows = false;
@@ -136,7 +130,7 @@ int BKAIterator::ReadOuterRows() {
       // rows into them, and in case we are reading from a join, Read() may
       // not update all of the tables.
       m_has_row_from_previous_batch = false;
-      hash_join_buffer::LoadIntoTableBuffers(
+      LoadBufferRowIntoTableBuffers(
           m_outer_input_tables,
           hash_join_buffer::Key(
               pointer_cast<const uchar *>(m_outer_row_buffer.ptr()),
@@ -152,7 +146,8 @@ int BKAIterator::ReadOuterRows() {
         m_end_of_outer_rows = true;
         break;
       }
-      RequestRowId(m_outer_input_tables.tables());
+      RequestRowId(m_outer_input_tables.tables(),
+                   m_outer_input_tables.tables_to_get_rowid_for());
 
       // Save the contents of all columns marked for reading.
       if (StoreFromTableBuffers(m_outer_input_tables, &m_outer_row_buffer)) {
@@ -194,7 +189,7 @@ int BKAIterator::ReadOuterRows() {
 
   // If we had no rows at all, we're done.
   if (m_rows.empty()) {
-    DBUG_ASSERT(!m_has_row_from_previous_batch);
+    assert(!m_has_row_from_previous_batch);
     m_state = State::END_OF_ROWS;
     return -1;
   }
@@ -205,8 +200,8 @@ int BKAIterator::ReadOuterRows() {
   if (m_bytes_used + mrr_buffer_size >= m_max_memory_available) {
     // Even if it will take us over budget, DS-MRR needs space for at least
     // one row to work.
-    DBUG_ASSERT(m_rows.size() ==
-                1);  // Otherwise, we would have stopped reading rows earlier.
+    assert(m_rows.size() ==
+           1);  // Otherwise, we would have stopped reading rows earlier.
     if (m_bytes_used + m_mrr_bytes_needed_for_single_inner_row >=
         m_max_memory_available) {
       mrr_buffer_size = m_mrr_bytes_needed_for_single_inner_row;
@@ -219,7 +214,7 @@ int BKAIterator::ReadOuterRows() {
     mrr_buffer_size = std::min(mrr_buffer_size * 2 + 16384,
                                m_max_memory_available - m_bytes_used);
   }
-  DBUG_ASSERT(mrr_buffer_size >= m_mrr_bytes_needed_for_single_inner_row);
+  assert(mrr_buffer_size >= m_mrr_bytes_needed_for_single_inner_row);
 
   // Ask the MRR iterator to do the actual read.
   m_mrr_iterator->set_rows(m_rows.begin(), m_rows.end());
@@ -247,7 +242,7 @@ void BKAIterator::BatchFinished() {
     m_state = State::END_OF_ROWS;
   } else {
     BeginNewBatch();
-    DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
+    assert(m_state == State::NEED_OUTER_ROWS);
   }
 }
 
@@ -259,8 +254,7 @@ int BKAIterator::MakeNullComplementedRow() {
     } else {
       // Return a NULL-complemented row. (Our table already has the NULL flag
       // set.)
-      hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
-                                             m_current_pos->data());
+      LoadIntoTableBuffers(m_outer_input_tables, m_current_pos->data());
       ++m_current_pos;
       return 0;
     }
@@ -323,38 +317,17 @@ int BKAIterator::Read() {
   }
 }
 
-vector<string> BKAIterator::DebugString() const {
-  switch (m_join_type) {
-    case JoinType::INNER:
-      return {"Batched key access inner join"};
-    case JoinType::SEMI:
-      return {"Batched key access semijoin"};
-    case JoinType::OUTER:
-      return {"Batched key access left join"};
-    case JoinType::ANTI:
-      return {"Batched key access antijoin"};
-    default:
-      DBUG_ASSERT(false);
-      return {"Batched key access unknown join"};
-  }
-}
-
-MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, Item *cache_idx_cond,
-                                             TABLE *table,
-                                             bool keep_current_rowid,
-                                             TABLE_REF *ref, int mrr_flags)
+MultiRangeRowIterator::MultiRangeRowIterator(
+    THD *thd, TABLE *table, TABLE_REF *ref, int mrr_flags, JoinType join_type,
+    const Prealloced_array<TABLE *, 4> &outer_input_tables, bool store_rowids,
+    table_map tables_to_get_rowid_for)
     : TableRowIterator(thd, table),
-      m_cache_idx_cond(cache_idx_cond),
-      m_keep_current_rowid(keep_current_rowid),
-      m_table(table),
       m_file(table->file),
       m_ref(ref),
-      m_mrr_flags(mrr_flags) {}
-
-void MultiRangeRowIterator::set_outer_input_tables(
-    JOIN *join, qep_tab_map outer_input_tables) {
-  m_outer_input_tables = TableCollection(join, outer_input_tables);
-}
+      m_mrr_flags(mrr_flags),
+      m_outer_input_tables(outer_input_tables, store_rowids,
+                           tables_to_get_rowid_for),
+      m_join_type(join_type) {}
 
 bool MultiRangeRowIterator::Init() {
   /*
@@ -370,22 +343,18 @@ bool MultiRangeRowIterator::Init() {
   }
   RANGE_SEQ_IF seq_funcs = {MultiRangeRowIterator::MrrInitCallbackThunk,
                             MultiRangeRowIterator::MrrNextCallbackThunk,
-                            nullptr, nullptr};
-  if (m_cache_idx_cond != nullptr) {
-    seq_funcs.skip_index_tuple =
-        MultiRangeRowIterator::MrrSkipIndexTupleCallbackThunk;
-  }
+                            nullptr};
   if (m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI) {
     seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
   }
   if (m_match_flag_buffer != nullptr) {
-    DBUG_ASSERT(NeedMatchFlags(m_join_type));
+    assert(NeedMatchFlags(m_join_type));
 
     // Reset all the match flags.
     memset(m_match_flag_buffer, 0,
            BytesNeededForMatchFlags(std::distance(m_begin, m_end)));
   } else {
-    DBUG_ASSERT(!NeedMatchFlags(m_join_type));
+    assert(!NeedMatchFlags(m_join_type));
   }
 
   /**
@@ -395,10 +364,6 @@ bool MultiRangeRowIterator::Init() {
 
      1. MrrInitCallback at the start, to initialize iteration.
      2. MrrNextCallback is called to yield ranges to scan, until it returns 1.
-     3. If we have dependent index conditions (see the comment on
-        m_cache_idx_cond), MrrSkipIndexTuple will be called back for each
-        range that returned an inner row, and can choose to discard the row
-        there and then if it doesn't match the dependent index condition.
    */
   return m_file->multi_range_read_init(&seq_funcs, this,
                                        std::distance(m_begin, m_end),
@@ -427,8 +392,7 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
       return 1;
     }
 
-    hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
-                                           *m_current_pos);
+    LoadBufferRowIntoTableBuffers(m_outer_input_tables, *m_current_pos);
 
     construct_lookup_ref(thd(), table(), m_ref);
     if (!m_ref->impossible_null_ref()) {
@@ -456,20 +420,6 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
   return 0;
 }
 
-bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
-  BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
-
-  // The index condition depends on fields from the outer tables (or we would
-  // not be called), so we need to load the relevant rows before checking it.
-  // range_info tells us which outer row we are talking about; it corresponds to
-  // range->ptr in MrrNextCallback(), and points to the serialized outer row in
-  // BKAIterator's m_row array.
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
-
-  // Skip this tuple if the index condition is false.
-  return !m_cache_idx_cond->val_int();
-}
-
 bool MultiRangeRowIterator::MrrSkipRecord(char *range_info) {
   BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
   return RowHasBeenRead(rec_ptr);
@@ -491,30 +441,9 @@ int MultiRangeRowIterator::Read() {
     // See bug #30594210.
   } while (m_join_type == JoinType::SEMI && RowHasBeenRead(rec_ptr));
 
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   m_last_row_returned = rec_ptr;
 
-  if (m_keep_current_rowid) {
-    m_file->position(m_table->record[0]);
-  }
-
   return 0;
-}
-
-vector<string> MultiRangeRowIterator::DebugString() const {
-  const KEY *key = &table()->key_info[m_ref->key];
-  string str = string("Multi-range index lookup on ") + table()->alias +
-               " using " + key->name + " (" +
-               RefToString(*m_ref, key, /*include_nulls=*/false) + ")";
-  if (table()->file->pushed_idx_cond != nullptr) {
-    str += ", with index condition: " +
-           ItemToString(table()->file->pushed_idx_cond);
-  }
-  if (m_cache_idx_cond != nullptr) {
-    str +=
-        ", with dependent index condition: " + ItemToString(m_cache_idx_cond);
-  }
-  str += table()->file->explain_extra();
-  return {str};
 }

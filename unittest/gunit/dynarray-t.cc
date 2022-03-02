@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ class MemRootTest : public ::testing::Test {
  protected:
   MemRootTest() : m_mem_root_p(&m_mem_root), m_array_std(m_mem_root_p) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     THR_MALLOC = &m_mem_root_p;
 
@@ -86,7 +86,7 @@ class MemRootTest : public ::testing::Test {
     destroy_counter = 0;
   }
 
-  virtual void TearDown() { free_root(&m_mem_root, MYF(0)); }
+  void TearDown() override { free_root(&m_mem_root, MYF(0)); }
 
   static void SetUpTestCase() {
     generate_test_data(test_data, table_list, num_elements);
@@ -134,7 +134,7 @@ TEST_F(MemRootTest, Reserve) {
 class DestroyCounter {
  public:
   DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {}
-  DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
+  DestroyCounter(const DestroyCounter &rhs) = default;
   explicit DestroyCounter(size_t *p) : p_counter(p) {}
   DestroyCounter &operator=(const DestroyCounter &) = default;
   ~DestroyCounter() { (*p_counter) += 1; }

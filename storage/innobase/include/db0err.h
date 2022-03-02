@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,9 +195,10 @@ enum dberr_t {
   DB_SCHEMA_MISMATCH,
   /** System has run out of resources. */
   DB_OUT_OF_RESOURCES,
-
-  DB_PAGE_CORRUPTED = 999, /*!< Page read from tablespace is
-                           corrupted. */
+  /** Page was discarded, was not written to storage. */
+  DB_PAGE_IS_STALE,
+  /** Failed to read as read was beyond file size. */
+  DB_FILE_READ_BEYOND_SIZE,
 
   /* The following are partial failure codes */
 
@@ -219,6 +220,8 @@ enum dberr_t {
   /** Column update or read failed because the types mismatch */
   DB_DATA_MISMATCH = 2000,
   /** Request the caller to cache records. */
-  DB_CACHE_RECORDS
+  DB_CACHE_RECORDS,
+  /* Too many nested sub expression in full-text search string */
+  DB_FTS_TOO_MANY_NESTED_EXP
 };
 #endif

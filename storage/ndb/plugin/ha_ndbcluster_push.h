@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/sql_bitmap.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
@@ -39,10 +40,6 @@ namespace AQP {
 class Join_plan;
 class Table_access;
 }  // namespace AQP
-
-void ndbcluster_build_key_map(const NdbDictionary::Table *table,
-                              const NDB_INDEX_DATA &index, const KEY *key_def,
-                              uint ix_map[]);
 
 /**
  * This type is used in conjunction with AQP::Join_plan and represents a set
@@ -113,7 +110,7 @@ class ndb_pushed_join {
 
   /** Get the table that is accessed by the i'th table access operation.*/
   TABLE *get_table(uint i) const {
-    DBUG_ASSERT(i < m_operation_count);
+    assert(i < m_operation_count);
     return m_tables[i];
   }
 

@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -347,6 +347,8 @@ SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   Require_row_format BOOLEAN NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  Assign_gtids_to_anonymous_transactions_type ENUM('OFF', 'LOCAL', 'UUID')  NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8 COLLATE utf8_bin  COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
@@ -386,6 +388,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
   Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.',
   Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.',
+  Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
@@ -418,7 +421,61 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
     source_uuid CHAR(36) NOT NULL COMMENT 'uuid of the source where the transaction was originally executed.',
     interval_start BIGINT NOT NULL COMMENT 'First number of interval.',
     interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
-    PRIMARY KEY(source_uuid, interval_start))";
+    PRIMARY KEY(source_uuid, interval_start)) STATS_PERSISTENT=0";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_asynchronous_connection_failover table
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_asynchronous_connection_failover (
+    Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The replication channel name that connects source and replica.',
+    Host CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The source hostname that the replica will attempt to switch over the replication connection to in case of a failure.',
+    Port INTEGER UNSIGNED NOT NULL COMMENT 'The source port that the replica will attempt to switch over the replication connection to in case of a failure.',
+    Network_namespace CHAR(64) COMMENT 'The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.',
+    Weight TINYINT UNSIGNED NOT NULL COMMENT 'The order in which the replica shall try to switch the connection over to when there are failures. Weight can be set to a number between 1 and 100, where 100 is the highest weight and 1 the lowest.',
+    Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
+    PRIMARY KEY(Channel_name, Host, Port, Network_namespace, Managed_name), KEY(Channel_name, Managed_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'The source configuration details'";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_asynchronous_connection_failover_managed table
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_asynchronous_connection_failover_managed (
+    Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The replication channel name that connects source and replica.',
+    Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the source which needs to be managed.',
+    Managed_type CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'Determines the managed type.',
+    Configuration JSON DEFAULT NULL COMMENT 'The data to help manage group. For Managed_type = GroupReplication, Configuration value should contain {\"Primary_weight\": 80, \"Secondary_weight\": 60}, so that it assigns weight=80 to PRIMARY of the group, and weight=60 for rest of the members in mysql.replication_asynchronous_connection_failover table.',
+    PRIMARY KEY(Channel_name, Managed_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'The managed source configuration details'";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_group_member_actions
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_group_member_actions (
+    name CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The action name.',
+    event CHAR(64) CHARACTER SET ASCII NOT NULL COMMENT 'The event that will trigger the action.',
+    enabled BOOLEAN NOT NULL COMMENT 'Whether the action is enabled.',
+    type CHAR(64) CHARACTER SET ASCII NOT NULL COMMENT 'The action type.',
+    priority TINYINT UNSIGNED NOT NULL COMMENT 'The order on which the action will be run, value between 1 and 100, lower values first.',
+    error_handling CHAR(64) CHARACTER SET ASCII NOT NULL COMMENT 'On errors during the action will be handled: IGNORE, CRITICAL.',
+    PRIMARY KEY(name, event), KEY(event)) DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=0 COMMENT 'The member actions configuration.'";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_group_configuration_version
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_group_configuration_version (
+    name CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The configuration name.',
+    version BIGINT UNSIGNED NOT NULL COMMENT 'The version of the configuration name.',
+    PRIMARY KEY(name)) DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=0 COMMENT 'The group configuration version.'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
 PREPARE stmt FROM @str;

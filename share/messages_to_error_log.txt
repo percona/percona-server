@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -306,7 +306,7 @@ ER_VERBOSE_REQUIRES_HELP
   eng "--verbose is for use with --help; did you mean --log-error-verbosity?"
 
 ER_POINTLESS_WITHOUT_SLOWLOG
-  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --slow-query-log is not set"
+  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes, --log-slow-replica-statements and --log-query-errors have no effect if --slow-query-log is not set"
 
 ER_WASTEFUL_NET_BUFFER_SIZE
   eng "net_buffer_length (%lu) is set to be larger than max_allowed_packet (%lu). Please rectify."
@@ -622,10 +622,10 @@ ER_INVALID_ERROR_LOG_NAME
   eng "Invalid log file name after expanding symlinks: '%s'"
 
 ER_RPL_INFINITY_DENIED
-  eng "using --replicate-same-server-id in conjunction with --log-slave-updates is impossible, it would lead to infinite loops in this server."
+  eng "using --replicate-same-server-id in conjunction with --log-replica-updates is impossible, it would lead to infinite loops in this server."
 
 ER_RPL_INFINITY_IGNORED
-  eng "using --replicate-same-server-id in conjunction with --log-slave-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined or your server is running with global transaction identiers enabled."
+  eng "using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined or your server is running with global transaction identiers enabled."
 
 OBSOLETE_ER_NDB_TABLES_NOT_READY
   eng "NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
@@ -711,7 +711,7 @@ ER_VALGRIND_COUNT_LEAKS
   eng "VALGRIND_COUNT_LEAKS reports %lu leaked bytes for query '%.*s'"
 
 ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY
-  eng "LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. Please, report a bug."
+  eng "LOAD DATA INFILE in the slave SQL Thread can only read from --replica-load-tmpdir. Please, report a bug."
 
 ER_UNKNOWN_ERROR_NUMBER
   eng "Got unknown error: %d"
@@ -1707,7 +1707,7 @@ ER_RPL_SLAVE_MASTER_UUID_HAS_CHANGED
   eng "The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was %s."
 
 ER_RPL_SLAVE_USES_CHECKSUM_AND_MASTER_PRE_50
-  eng "Found a master with MySQL server version older than 5.0. With checksums enabled on the slave, replication might not work correctly. To ensure correct replication, restart the slave server with --slave_sql_verify_checksum=0."
+  eng "Found a master with MySQL server version older than 5.0. With checksums enabled on the slave, replication might not work correctly. To ensure correct replication, restart the slave server with --replica_sql_verify_checksum=0."
 
 ER_RPL_SLAVE_SECONDS_BEHIND_MASTER_DUBIOUS
   eng "\"SELECT UNIX_TIMESTAMP()\" failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS. Error: %s (%d)"
@@ -1757,8 +1757,8 @@ ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD
 ER_RPL_SLAVE_ERROR_REQUESTING_BINLOG_DUMP
   eng "Failed on request_dump()%s"
 
-ER_RPL_LOG_ENTRY_EXCEEDS_SLAVE_MAX_ALLOWED_PACKET
-  eng "Log entry on master is longer than slave_max_allowed_packet (%lu) on slave. If the entry is correct, restart the server with a higher value of slave_max_allowed_packet"
+ER_RPL_LOG_ENTRY_EXCEEDS_REPLICA_MAX_ALLOWED_PACKET
+  eng "Log entry on master is longer than replica_max_allowed_packet (%lu) on slave. If the entry is correct, restart the server with a higher value of replica_max_allowed_packet"
 
 ER_RPL_SLAVE_STOPPING_AS_MASTER_OOM
   eng "Stopping slave I/O thread due to out-of-memory error from master"
@@ -1785,7 +1785,7 @@ ER_RPL_CANT_FIND_FOLLOWUP_FILE
   eng "Error looking for file after %s."
 
 ER_RPL_MTS_CHECKPOINT_PERIOD_DIFFERS_FROM_CNT
-  eng "This an error cnt != mts_checkpoint_period"
+  eng "This an error cnt != mta_checkpoint_period"
 
 ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED
   eng "Failed during slave worker thread creation%s"
@@ -1803,7 +1803,7 @@ ER_RPL_SLAVE_SQL_THREAD_STARTING
   eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s"
 
 ER_RPL_SLAVE_SKIP_COUNTER_EXECUTED
-  eng "'SQL_SLAVE_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' "
+  eng "'SQL_REPLICA_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' "
 
 ER_RPL_SLAVE_ADDITIONAL_ERROR_INFO_FROM_DA
   eng "Slave (additional info): %s Error_code: MY-%06d"
@@ -2223,7 +2223,7 @@ ER_RPL_WORKER_CANT_FIND_NEXT_RELAY_LOG
   eng "Failed to find next relay log when retrying the transaction, current relay log is %s"
 
 ER_RPL_MTS_SLAVE_COORDINATOR_HAS_WAITED
-  eng "Multi-threaded slave: Coordinator has waited %lu times hitting slave_pending_jobs_size_max; current event size = %zu."
+  eng "Multi-threaded slave: Coordinator has waited %lu times hitting replica_pending_jobs_size_max; current event size = %zu."
 
 ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES
   eng "Failed to write the DROP statement for temporary tables to binary log"
@@ -2741,8 +2741,8 @@ ER_AUDIT_WARNING
 OBSOLETE_ER_NDB_NUMBER_OF_CHANNELS
   eng "Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb"
 
-OBSOLETE_ER_NDB_SLAVE_PARALLEL_WORKERS
-  eng "Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb"
+OBSOLETE_ER_NDB_REPLICA_PARALLEL_WORKERS
+  eng "Slave SQL: Configuration 'replica_parallel_workers = %lu' is not supported when applying to Ndb"
 
 OBSOLETE_ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
@@ -2924,10 +2924,10 @@ ER_PERFSCHEMA_TABLES_INIT_FAILED
 ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING
   eng "The transaction_write_set_extraction must be set to %s when binlog_transaction_dependency_tracking is %s."
 
-ER_INVALID_REPLICATION_TIMESTAMPS
+OBSOLETE_ER_INVALID_REPLICATION_TIMESTAMPS
   eng "Invalid replication timestamps: original commit timestamp is more recent than the immediate commit timestamp. This may be an issue if delayed replication is active. Make sure that servers have their clocks set to the correct time. No further message will be emitted until after timestamps become valid again."
 
-ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL
+OBSOLETE_ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL
   eng "The replication timestamps have returned to normal values."
 
 ER_BINLOG_FILE_OPEN_FAILED
@@ -3540,7 +3540,7 @@ ER_SEMISYNC_TRX_SKIPPED_AT_POS
   eng "%s: Transaction skipped at (%s, %lu)."
 
 ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH
-  eng "Semi-sync master failed on net_flush() before waiting for slave reply."
+  eng "Semi-sync master failed on net_flush() before waiting for replica reply."
 
 ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER
   eng "The received ack is smaller than m_greatest_ack."
@@ -3612,7 +3612,7 @@ ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER
   eng "Master server does not support semi-sync, fallback to asynchronous replication"
 
 ER_SEMISYNC_SLAVE_SET_FAILED
-  eng "Set 'rpl_semi_sync_slave=1' on master failed"
+  eng "Set 'rpl_semi_sync_replica=1' on master failed"
 
 ER_SEMISYNC_FAILED_TO_STOP_ACK_RECEIVER_THD
   eng "Failed to stop ack receiver thread on my_thread_join, errno(%d)."
@@ -3707,10 +3707,10 @@ ER_AUDIT_LOG_JSON_READER_FAILED_TO_OPEN_FILE
 ER_AUDIT_LOG_JSON_READER_FILE_PARSING_ERROR
   eng "JSON file parsing error. Reading next file if exists"
 
-ER_AUDIT_LOG_FILTER_INVALID_COLUMN_COUNT
+OBSOLETE_ER_AUDIT_LOG_FILTER_INVALID_COLUMN_COUNT
   eng "Invalid column count in the '%s.%s' table."
 
-ER_AUDIT_LOG_FILTER_INVALID_COLUMN_DEFINITION
+OBSOLETE_ER_AUDIT_LOG_FILTER_INVALID_COLUMN_DEFINITION
   eng "Invalid column definition of the '%s.%s' table."
 
 ER_AUDIT_LOG_FILTER_FAILED_TO_STORE_TABLE_FLDS
@@ -4431,7 +4431,7 @@ ER_GRP_RPL_BROADCAST_COMMIT_TRANS_MSSG_FAILED
   eng "Broadcast of committed transactions message failed."
 
 ER_GRP_RPL_GROUP_NAME_PARSE_ERROR
-  eng "Unable to parse the group name during the Certification module initialization."
+  eng "Unable to parse the group_replication_group_name during the Certification module initialization."
 
 ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR
   eng "Unable to add the group_sid in the group_gtid_sid_map during the Certification module initialization."
@@ -4599,7 +4599,7 @@ ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR
   eng "Error when activating super_read_only mode on start. The member will now exit the group."
 
 ER_GRP_RPL_EXCEEDS_AUTO_INC_VALUE
-  eng "Group contains %lu members which is greater than auto_increment_increment value of %lu. This can lead to a higher transactional abort rate."
+  eng "Group contains %lu members which is greater than group_replication_auto_increment_increment value of %lu. This can lead to a higher transactional abort rate."
 
 ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM
   eng "Member with address '%s:%u' didn't provide any data during the last group change. Group information can be outdated and lead to errors on recovery."
@@ -4644,7 +4644,7 @@ ER_GRP_RPL_TRANS_WRITE_SET_EXTRACT_DIFF_FROM_GRP
   eng "The member is configured with a transaction-write-set-extraction option value '%s' different from the group '%s'. The member will now exit the group."
 
 ER_GRP_RPL_MEMBER_CFG_INCOMPATIBLE_WITH_GRP_CFG
-  eng "The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
+  eng "The member configuration is not compatible with the group configuration. Variables such as group_replication_single_primary_mode or group_replication_enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
 
 ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR
   eng "Error stopping all replication channels while server was leaving the group. %s"
@@ -4689,13 +4689,13 @@ ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED
   eng "Table %s has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication."
 
 ER_GRP_RPL_AUTO_INC_RESET
-  eng "auto_increment_increment is reset to %lu"
+  eng "group_replication_auto_increment_increment is reset to %lu"
 
 ER_GRP_RPL_AUTO_INC_OFFSET_RESET
   eng "auto_increment_offset is reset to %lu"
 
 ER_GRP_RPL_AUTO_INC_SET
-  eng "auto_increment_increment is set to %lu"
+  eng "group_replication_auto_increment_increment is set to %lu"
 
 ER_GRP_RPL_AUTO_INC_OFFSET_SET
   eng "auto_increment_offset is set to %lu"
@@ -4844,7 +4844,7 @@ ER_GRP_RPL_WRITE_IDENT_HASH_BASE64_ENCODING_FAILED
 ER_GRP_RPL_INVALID_BINLOG_FORMAT
   eng "Binlog format should be ROW for Group Replication"
 
-ER_GRP_RPL_BINLOG_CHECKSUM_SET
+OBSOLETE_ER_GRP_RPL_BINLOG_CHECKSUM_SET
   eng "binlog_checksum should be NONE for Group Replication"
 
 ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET
@@ -4913,7 +4913,7 @@ OBSOLETE_ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE
 OBSOLETE_ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED
   eng "Failed to reinit group replication commit cache for write on session %u"
 
-ER_GRP_RPL_PREV_REC_SESSION_RUNNING
+OBSOLETE_ER_GRP_RPL_PREV_REC_SESSION_RUNNING
   eng "A previous recovery session is still running. Please stop the group replication plugin and wait for it to stop"
 
 ER_GRP_RPL_FATAL_REC_PROCESS
@@ -4952,7 +4952,7 @@ ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS
 ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS
   eng "Error when trying to unblock non certified or consistent transactions. Check for consistency errors when restarting the service"
 
-ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
+OBSOLETE_ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
   eng "This server is working as secondary member with primary member address %s:%u."
 
 ER_GRP_RPL_FAILED_TO_START_WITH_INVALID_SERVER_ID
@@ -4983,10 +4983,10 @@ ER_GRP_RPL_FAILED_TO_CALL_GRP_COMMUNICATION_INTERFACE
   eng "Error calling group communication interfaces"
 
 ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP
-  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_name %s."
+  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_replication_group_name %s."
 
 ER_GRP_RPL_MEMBER_CONF_INFO
-  eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; "
+  eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; group_replication_view_change_uuid: \"%s\";"
 
 ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP
   eng "Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information."
@@ -5055,10 +5055,10 @@ ER_GRP_RPL_ALL_OBSERVERS_UNREGISTERED
   eng "All Group Replication server observers have been successfully unregistered"
 
 ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME
-  eng "Unable to parse the group name."
+  eng "Unable to parse the group_replication_group_name."
 
 ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP
-  eng "Unable to parse the group name."
+  eng "Unable to parse the group_replication_group_name."
 
 ER_GRP_RPL_APPLIER_NOT_STARTED_DUE_TO_RUNNING_PREV_SHUTDOWN
   eng "Cannot start the Group Replication applier as a previous shutdown is still running: The thread will stop once its task is complete."
@@ -5087,8 +5087,8 @@ ER_GRP_RPL_BINLOG_DISABLED
 ER_GRP_RPL_GTID_MODE_OFF
   eng "Gtid mode should be ON for Group Replication"
 
-ER_GRP_RPL_LOG_SLAVE_UPDATES_NOT_SET
-  eng "LOG_SLAVE_UPDATES should be ON for Group Replication"
+ER_GRP_RPL_LOG_REPLICA_UPDATES_NOT_SET
+  eng "LOG_REPLICA_UPDATES should be ON for Group Replication"
 
 ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE
   eng "Extraction of transaction write sets requires an hash algorithm configuration. Please, double check that the parameter transaction-write-set-extraction is set to a valid algorithm."
@@ -5100,25 +5100,25 @@ ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE
   eng "Master info repository must be set to TABLE."
 
 ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER
-  eng "In order to use parallel applier on Group Replication, parameter slave-parallel-type must be set to 'LOGICAL_CLOCK'."
+  eng "In order to use parallel applier on Group Replication, parameter replica-parallel-type must be set to 'LOGICAL_CLOCK'."
 
-ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET
-  eng "Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads."
+ER_GRP_RPL_REPLICA_PRESERVE_COMMIT_ORDER_NOT_SET
+  eng "Group Replication requires replica-preserve-commit-order to be set to ON when using more than 1 applier threads."
 
 ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE
-  eng "It is not allowed to run single primary mode with 'enforce_update_everywhere_checks' enabled."
+  eng "It is not allowed to run single primary mode with 'group_replication_enforce_update_everywhere_checks' enabled."
 
 ER_GRP_RPL_MODULE_TERMINATE_ERROR
   eng "error_message: %s"
 
 ER_GRP_RPL_GRP_NAME_OPTION_MANDATORY
-  eng "The group name option is mandatory"
+  eng "The group_replication_group_name option is mandatory"
 
 ER_GRP_RPL_GRP_NAME_IS_TOO_LONG
-  eng "The group name '%s' is not a valid UUID, its length is too big"
+  eng "The group_replication_group_name '%s' is not a valid UUID, its length is too big"
 
 ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID
-  eng "The group name '%s' is not a valid UUID"
+  eng "The group_replication_group_name '%s' is not a valid UUID"
 
 ER_GRP_RPL_FLOW_CTRL_MIN_QUOTA_GREATER_THAN_MAX_QUOTA
   eng "group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota"
@@ -5130,7 +5130,7 @@ ER_GRP_RPL_FLOW_CTRL_MAX_QUOTA_SMALLER_THAN_MIN_QUOTAS
   eng "group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota"
 
 ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING
-  eng "The given value for recovery ssl option '%s' is invalid as its length is beyond the limit"
+  eng "The given value for recovery ssl option 'group_replication_%s' is invalid as its length is beyond the limit"
 
 ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET
   eng "There is one group_replication_force_members operation already ongoing"
@@ -5139,7 +5139,7 @@ ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED
   eng "group_replication_force_members can only be updated when Group Replication is running and a majority of the members are unreachable"
 
 ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF
-  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_whitelist: '%s'; group_replication_communication_debug_options: '%s'; group_replication_member_expel_timeout: '%lu'; group_replication_communication_max_message_size: %lu; group_replication_message_cache_size: '%luu'"
+  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_allowlist: '%s'; group_replication_communication_debug_options: '%s'; group_replication_member_expel_timeout: '%lu'; group_replication_communication_max_message_size: %lu; group_replication_message_cache_size: '%luu'"
 
 ER_GRP_RPL_UNKNOWN_GRP_RPL_APPLIER_PIPELINE_REQUESTED
   eng "Unknown group replication applier pipeline requested"
@@ -6441,7 +6441,7 @@ ER_IB_MSG_UNEXPECTED_FILE_EXISTS
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
-  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d - %s. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
 
 ER_IB_MSG_304
   eng "Could not write the first page to tablespace '%s'"
@@ -6587,10 +6587,10 @@ ER_IB_MSG_350
 OBSOLETE_ER_IB_MSG_351
   eng "%s"
 
-ER_IB_MSG_352
-  eng "%s"
+ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED
+  eng "The datafile '%s' for tablespace %s is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories."
 
-ER_IB_MSG_353
+OBSOLETE_ER_IB_MSG_353
   eng "%s"
 
 ER_IB_MSG_354
@@ -6695,11 +6695,11 @@ ER_IB_MSG_386
 ER_IB_MSG_387
   eng "%s"
 
-ER_IB_MSG_388
-  eng "%s"
+ER_IB_MSG_GENERAL_TABLESPACE_UNDER_DATADIR
+  eng "A general tablespace cannot be located under the datadir. Cannot open file '%s'."
 
-ER_IB_MSG_389
-  eng "%s"
+ER_IB_MSG_IMPLICIT_TABLESPACE_IN_DATADIR
+  eng "A file-per-table tablespace cannot be located in the datadir. Cannot open file '%s'."
 
 ER_IB_MSG_390
   eng "%s"
@@ -7226,8 +7226,8 @@ ER_IB_MSG_563
 ER_IB_MSG_564
   eng "%s"
 
-ER_IB_MSG_565
-  eng "%s"
+ER_IB_MSG_INVALID_LOCATION_FOR_TABLE
+  eng "Cannot create a tablespace for table %s because the directory is not a valid location. %s"
 
 ER_IB_MSG_566
   eng "%s"
@@ -7451,10 +7451,10 @@ ER_IB_MSG_638
 ER_IB_MSG_639
   eng "%s"
 
-ER_IB_MSG_640
+OBSOLETE_ER_IB_MSG_640
   eng "%s"
 
-ER_IB_MSG_641
+OBSOLETE_ER_IB_MSG_641
   eng "%s"
 
 ER_IB_MSG_642
@@ -7539,7 +7539,7 @@ OBSOLETE_ER_IB_MSG_668
   eng "Cannot continue operation. ib_logfiles are too small for innodb_thread_concurrency %lu. The combined size of ib_logfiles should be bigger than 200 kB * innodb_thread_concurrency. To get mysqld to start up, set innodb_thread_concurrency in my.cnf to a lower value, for example, to 8. After an ERROR-FREE shutdown of mysqld you can adjust the size of ib_logfiles. %s"
 
 OBSOLETE_ER_IB_MSG_669
-  eng "Redo log was encrypted, but keyring plugin is not loaded."
+  eng "Redo log was encrypted, but keyring is not loaded."
 
 OBSOLETE_ER_IB_MSG_670
   eng "Read redo log encryption metadata successful."
@@ -7548,7 +7548,7 @@ OBSOLETE_ER_IB_MSG_671
   eng "Can't set redo log tablespace encryption metadata."
 
 OBSOLETE_ER_IB_MSG_672
-  eng "Cannot read the encryption information in log file header, please check if keyring plugin loaded and the key file exists."
+  eng "Cannot read the encryption information in log file header, please check if keyring loaded and the key file exists."
 
 OBSOLETE_ER_IB_MSG_673
   eng "Can't set redo log tablespace to be encrypted in read-only mode."
@@ -8727,7 +8727,7 @@ ER_IB_MSG_1064
   eng "Cannot create log files in read-only mode"
 
 ER_IB_MSG_1065
-  eng "Redo log encryption is enabled, but the keyring plugin is not loaded."
+  eng "Redo log encryption is enabled, but the keyring is not loaded."
 
 ER_IB_MSG_1066
   eng "Cannot create file for log file %s."
@@ -8783,7 +8783,7 @@ ER_IB_MSG_1082
 ER_IB_MSG_1083
   eng "Error reading encryption for %s"
 
-ER_IB_MSG_1084
+ER_IB_MSG_CANNOT_OPEN_57_UNDO
   eng "Unable to open undo tablespace number %lu"
 
 ER_IB_MSG_1085
@@ -8805,7 +8805,7 @@ ER_IB_MSG_1090
   eng "Created %llu undo tablespaces."
 
 ER_IB_MSG_1091
-  eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring plugin is initialized correctly"
+  eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring is initialized correctly"
 
 ER_IB_MSG_1092
   eng "Encryption is enabled for undo tablespace number %lu."
@@ -8885,7 +8885,7 @@ ER_IB_MSG_1116
 ER_IB_MSG_1117
   eng "%s"
 
-ER_IB_MSG_1118
+OBSOLETE_ER_IB_MSG_1118
   eng "%s"
 
 ER_IB_MSG_1119
@@ -8990,11 +8990,11 @@ ER_IB_MSG_1151
 ER_IB_MSG_1152
   eng "Waiting for purge to complete"
 
-ER_IB_MSG_1153
+OBSOLETE_ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
-  eng "Query counter shows %llu queries still inside InnoDB at shutdown"
+  eng "Query counter shows %lld queries still inside InnoDB at shutdown"
 
 ER_IB_MSG_1155
   eng "Shutdown completed; log sequence number %llu"
@@ -9029,37 +9029,37 @@ ER_IB_MSG_1164
 ER_IB_MSG_1165
   eng "%s"
 
-ER_IB_MSG_1166
+ER_IB_MSG_UNDO_TRUNCATE_FAIL_TO_READ_LOG_FILE
+  eng "Unable to read the existing undo truncate log file '%s'. The error is %s"
+
+ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE
+  eng "Undo tablespace %s is marked for truncate"
+
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_MDL
   eng "%s"
 
-ER_IB_MSG_1167
+ER_IB_MSG_UNDO_TRUNCATE_START
+  eng "Truncating UNDO tablespace %s"
+
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DDL_LOG_START
   eng "%s"
 
-ER_IB_MSG_1168
-  eng "%s"
-
-ER_IB_MSG_1169
-  eng "%s"
-
-ER_IB_MSG_1170
-  eng "%s"
-
-ER_IB_MSG_1171
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE
   eng "Cannot create truncate log for undo tablespace '%s'."
 
-ER_IB_MSG_1172
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_TRUNCATE
   eng "%s"
 
-ER_IB_MSG_1173
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_FAILURE
   eng "Failed to truncate undo tablespace '%s'."
 
-ER_IB_MSG_1174
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_STATE_UPDATE
   eng "%s"
 
-ER_IB_MSG_1175
-  eng "%s"
+ER_IB_MSG_UNDO_TRUNCATE_COMPLETE
+  eng "Completed truncate of undo tablespace %s."
 
-ER_IB_MSG_1176
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_TRUNCATE_DONE
   eng "%s"
 
 ER_IB_MSG_1177
@@ -9101,8 +9101,8 @@ ER_IB_MSG_1188
 ER_IB_MSG_1189
   eng "%s"
 
-ER_IB_MSG_1190
-  eng "%s"
+ER_IB_MSG_TRX_RECOVERY_ROLLBACK_COMPLETED
+  eng "Rollback of non-prepared transactions completed"
 
 ER_IB_MSG_1191
   eng "%s"
@@ -9279,7 +9279,7 @@ ER_IB_MSG_1248
   eng "Waiting for %s to exit."
 
 ER_IB_MSG_1249
-  eng "Waiting for %lu active transactions to finish"
+  eng "Waiting for rollback of %zu recovered transactions, before shutdown."
 
 ER_IB_MSG_1250
   eng "Waiting for master thread to be suspended."
@@ -9492,7 +9492,7 @@ ER_SERVER_ACL_TABLE_ERROR
   eng ""
 
 ER_SERVER_SLAVE_INIT_QUERY_FAILED
-  eng "Slave SQL thread aborted. Can't execute init_slave query, MY-%06d - '%s'"
+  eng "Slave SQL thread aborted. Can't execute init_replica query, MY-%06d - '%s'"
 
 ER_SERVER_SLAVE_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
@@ -9538,7 +9538,7 @@ ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%s'@'%s'. SUPER or AUDIT_ADMIN needed to perform operation"
 
 ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
-  eng "No keyring plugin installed."
+  eng "No keyring installed."
 
 ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
   eng "Invalid character in the host name."
@@ -9849,16 +9849,16 @@ ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
 ER_IB_MSG_NOT_END_WITH_IBU
   eng "Cannot use %s as an undo tablespace because it does not end with '.ibu'."
 
-ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE
+OBSOLETE_ER_IB_MSG_UNDO_TRUNCATE_EMPTY_FILE
   eng "ib_undo_trunc_empty_file"
 
-ER_IB_MSG_UNDO_TRUNC_BEFOR_DD_UPDATE
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DD_UPDATE
   eng "ib_undo_trunc_before_dd_update"
 
-ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_UNDO_LOGGING
   eng "ib_undo_trunc_before_done_logging"
 
-ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_RSEG
   eng "ib_undo_trunc_before_rsegs"
 
 ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
@@ -9867,8 +9867,8 @@ ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
 ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
   eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
 
-ER_IB_MSG_DIR_DOES_NOT_EXIST
-  eng "The directory '%s' does not exist."
+ER_IB_MSG_WRONG_TABLESPACE_DIR
+  eng "The directory for tablespace %s does not exist or is incorrect."
 
 ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
   eng "%s"
@@ -9898,10 +9898,10 @@ ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY_LOCATION
   eng "The innodb_undo_directory is not allowed to be an ancestor of the datadir."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
-  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+  eng "Failed to fetch key from keyring, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_KEY_NOT_FOUND
-  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+  eng "Can't find key from keyring, please check in the server log if a keyring is loaded and initialized successfully."
 
 ER_SERVER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
   eng "Fetched an invalid key from keyring."
@@ -9916,22 +9916,22 @@ ER_SERVER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
   eng "Key %s exists unexpected."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
-  eng "Failed to generate key, please check if keyring plugin is loaded."
+  eng "Failed to generate key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
-  eng "Failed to store key, please check if keyring plugin is loaded."
+  eng "Failed to store key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
-  eng "Failed to remove key, please check if keyring plugin is loaded."
+  eng "Failed to remove key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
-  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+  eng "Unable to recover binlog encryption master key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE
-  eng "Failed to initialize binlog encryption, please check if keyring plugin is loaded."
+  eng "Failed to initialize binlog encryption, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_ROTATE_MASTER_KEY_AT_STARTUP
-  eng "Failed to rotate binlog encryption master key at startup, please check if keyring plugin is loaded."
+  eng "Failed to rotate binlog encryption master key at startup, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_IGNORE_ROTATE_MASTER_KEY_AT_STARTUP
   eng "Ignoring binlog_rotate_encryption_master_key_at_startup because binlog_encryption option is disabled."
@@ -10156,7 +10156,7 @@ ER_SERVER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
   eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
 
 ER_SERVER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
-  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
 OBSOLETE_ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
   eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
@@ -10377,13 +10377,13 @@ ER_AUDIT_LOG_INVALID_FILE_CONTENT
   eng "Invalid audit log file content: '%s'"
 
 ER_AUDIT_LOG_CANNOT_READ_PASSWORD
-  eng "Cannot read password: '%.32s'"
+  eng "Cannot read password: '%.32s'."
 
 ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
-  eng "Cannot store password: '%.32s'"
+  eng "Cannot store password: '%.32s'."
 
 ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
-  eng "Cannot remove password: '%.32s'"
+  eng "Cannot remove password: '%.32s'."
 
 ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
   eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
@@ -10480,10 +10480,10 @@ ER_GRP_RPL_CANT_KILL_THREAD
   eng "The group replication plugin could not kill the plugin routine for %s. %s"
 
 ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD
-  eng "Due to the number of missing transactions being higher than the configured threshold of %llu, this member will start distributed recovery using clone."
+  eng "This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of %llu."
 
 ER_GRP_RPL_RECOVERY_STRAT_CLONE_PURGED
-  eng "As no ONLINE member has the missing data for recovering in its binary logs, this member will start distributed recovery using clone."
+  eng "This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs."
 
 ER_GRP_RPL_RECOVERY_STRAT_CHOICE
   eng "Distributed recovery will transfer data using: %s"
@@ -10534,7 +10534,7 @@ ER_GRP_RPL_SERVER_SET_TO_OFFLINE_MODE_DUE_TO_ERRORS
   eng "The server was automatically set into offline mode after an error was detected."
 
 ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR
-  eng "Message delivery error on message service of Group Replication. The server will now leave the group."
+  eng "A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group. Try to add the server back to the group and check if the problem persists, or check previous messages in the log for hints of what could be the problem."
 
 ER_WARN_WRONG_COMPRESSION_ALGORITHM_LOG
   eng "Invalid MASTER_COMPRESSION_ALGORITHMS '%.192s' found in repository for channel '%.192s'. Resetting to 'uncompressed' (no compression)."
@@ -10680,10 +10680,10 @@ ER_IB_MSG_DBLWR_1288
 ER_IB_MSG_DBLWR_1290
   eng "The page in the doublewrite file is corrupt. Cannot continue operation. You can try to recover the database with innodb_force_recovery=6"
 
-ER_IB_MSG_DBLWR_1291
-  eng "%s"
+ER_IB_MSG_BAD_DBLWR_FILE_NAME
+  eng "The doublewrite filename '%s' is incorrect."
 
-ER_IB_MSG_DBLWR_1292
+OBSOLETE_ER_IB_MSG_DBLWR_1292
   eng "%s"
 
 ER_IB_MSG_DBLWR_1293
@@ -10827,6 +10827,583 @@ ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
 ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
   eng "%s"
 
+ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+
+ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN
+  eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
+
+ER_GRP_RPL_IS_STARTING
+  eng "Plugin 'group_replication' is starting."
+
+ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE
+  eng "Cannot create tablespace %s because the directory is not a valid location. %s";
+
+ER_IB_MSG_INVALID_LOCATION_WRONG_DB
+  eng "Scanned file '%s' for tablespace %s cannot be opened because it is not in a sub-directory named for the schema.");
+
+ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE
+  eng "Cannot find undo tablespace %s with filename '%s' as indicated by the Data Dictionary. Did you move or delete this tablespace? Any undo logs in it cannot be used."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID
+  eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID_DONOR_ENDPOINT
+  eng "Received invalid recovery endpoints configuration from donor. This member is not a valid donor for recovery, so it will be skipped."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INTERFACES_IPS
+  eng "Failed to retrieve IP addresses from enabled host network interfaces."
+
+ER_WARN_TLS_CHANNEL_INITIALIZATION_ERROR
+  eng "Failed to initialize TLS for channel: %s. See below for the description of exact issue."
+
+ER_XPLUGIN_FAILED_TO_VALIDATE_ADDRESS
+  eng "Validation of value '%s' set to `Mysqlx_bind_address` failed: %s. Skipping this value."
+
+ER_XPLUGIN_FAILED_TO_BIND_INTERFACE_ADDRESS
+  eng "Value '%s' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value."
+
+ER_IB_ERR_RECOVERY_REDO_DISABLED
+  eng "Server was killed when InnoDB redo logging was disabled. Data files could be corrupt. You can try to restart the database with innodb_force_recovery=6"
+
+ER_IB_WRN_FAST_SHUTDOWN_REDO_DISABLED
+  eng "InnoDB cannot do cold shutdown 'innodb_fast_shutdown = 2' and is forcing 'innodb_fast_shutdown = 1' as redo logging is disabled. InnoDB would flush all dirty pages to ensure physical data consistency."
+
+ER_IB_WRN_REDO_DISABLED
+  eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash."
+
+ER_IB_WRN_REDO_ENABLED
+  eng "InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash."
+
+ER_TLS_CONFIGURED_FOR_CHANNEL
+  eng "Channel %s configured to support TLS. Encrypted connections are now supported for this channel."
+
+ER_TLS_CONFIGURATION_REUSED
+  eng "No TLS configuration was given for channel %s; re-using TLS configuration of channel %s."
+
+ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED
+  eng "Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!"
+
+ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
+  eng "Upgrade failed because database contains discarded tablespaces."
+
+ER_USERNAME_TRUNKATED
+  eng "The user name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
+ER_HOSTNAME_TRUNKATED
+  eng "The host name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
+ER_IB_MSG_TRX_RECOVERY_ROLLBACK_NOT_COMPLETED
+  eng "Rollback of non-prepared transactions not completed, due to fast shutdown"
+
+ER_AUTHCACHE_ROLE_EDGES_IGNORED_EMPTY_NAME
+  eng "Found an entry in the 'role_edges' table with empty authorization ID; Skipped"
+
+ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID
+  eng "Found an entry in the 'role_edges' table with unknown authorization ID '%s'; Skipped"
+
+ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME
+  eng "Found an entry in the 'default_roles' table with empty authorization ID; Skipped"
+
+ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID
+  eng "Found an entry in the 'default_roles' table with unknown authorization ID '%s'; Skipped"
+
+ER_IB_ERR_DDL_LOG_INSERT_FAILURE
+  eng "Couldn't insert entry in ddl log for ddl."
+
+ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION
+  eng "%s"
+
+ER_IB_RELOCK_LATCH_ORDER_VIOLATION
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1352
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1353
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1354
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1355
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1356
+  eng "%s"
+
+ER_IB_MSG_1357
+  eng "%s"
+
+ER_IB_MSG_1358
+  eng "%s"
+
+ER_IB_MSG_1359
+  eng "%s"
+
+ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE
+  eng "%s"
+
+ER_IB_UNABLE_TO_EXPAND_TEMPORARY_TABLESPACE_POOL
+  eng "%s"
+
+ER_IB_TMP_TABLESPACE_CANNOT_CREATE_DIRECTORY
+  eng "%s"
+
+ER_IB_MSG_SCANNING_TEMP_TABLESPACE_DIR
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_DOESNT_EXIST
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_EMPTY
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_CONTAINS_SEMICOLON
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_SUBDIR_OF_DATADIR
+  eng "%s"
+
+ER_IB_ERR_SCHED_SETAFFNINITY_FAILED
+  eng "%s"
+
+ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE
+  eng "%s"
+
+ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW
+  eng "%s"
+
+ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER
+  eng "%s"
+
+ER_IB_MSG_1372
+  eng "%s"
+
+ER_IB_MSG_1373
+  eng "%s"
+
+ER_IB_MSG_1374
+  eng "%s"
+
+ER_IB_MSG_1375
+  eng "%s"
+
+ER_IB_ERR_ZLIB_UNCOMPRESS_FAILED
+  eng "%s"
+
+ER_IB_ERR_ZLIB_BUF_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_MEM_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_DATA_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_UNKNOWN_ERROR
+  eng "%s"
+
+ER_IB_MSG_1381
+  eng "%s"
+
+ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER
+  eng "%s"
+
+ER_IB_ERR_INDEX_DUPLICATE_KEY
+  eng "%s"
+
+ER_IB_ERR_FOUND_N_DUPLICATE_KEYS
+  eng "%s"
+
+ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER
+  eng "%s"
+
+ER_IB_ERR_PARALLEL_READ_OOM
+  eng "%s"
+
+ER_IB_MSG_UNDO_MARKED_ACTIVE
+  eng "The state of undo tablespace %s is set to active implicitly."
+
+ER_IB_MSG_UNDO_ALTERED_ACTIVE
+  eng "The state of undo tablespace %s is set to 'active' by ALTER TABLESPACE."
+
+ER_IB_MSG_UNDO_ALTERED_INACTIVE
+  eng "The state of undo tablespace %s is set to 'inactive' by ALTER TABLESPACE."
+
+ER_IB_MSG_UNDO_MARKED_EMPTY
+  eng "The state of undo tablespace %s is set to 'empty'."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE
+  eng "Delaying truncate of undo tablespace %s due to clone activity."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL
+  eng "Delaying truncate of undo tablespace %s due to a metadata lock."
+
+ER_IB_MSG_INJECT_CRASH
+  eng "Injected debug crash point: %s"
+
+ER_IB_MSG_INJECT_FAILURE
+  eng "Injected debug failure point: %s"
+
+ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN
+  eng "Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt."
+
+ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE
+  eng "Failed to automatically re-connect to a different source, for channel '%s', because %s. To fix this %s."
+
+ER_UDF_REGISTER_SERVICE_ERROR
+  eng "Could not execute the installation of UDF functions. Check for other errors in the log"
+
+ER_UDF_REGISTER_ERROR
+  eng "Could not execute the installation of UDF function: %s. Check if the function is already present, if so, try to remove it."
+
+ER_UDF_UNREGISTER_ERROR
+  eng "Could not uninstall UDF functions. Try to remove them manually if present."
+
+ER_EMPTY_PRIVILEGE_NAME_IGNORED
+  eng "An empty or illegal privilege identifier was ignored when global privileges were read from disk."
+
+ER_IB_MSG_INCORRECT_SIZE
+  eng "%s"
+
+ER_TMPDIR_PATH_TOO_LONG
+  eng "A tmpdir temporary path \"%s\" is too long (> %zu) for this OS. This would not leave enough space for a temporary filename of length %zu within it."
+
+ER_ERROR_LOG_DESTINATION_NOT_A_FILE
+  eng "Error-log destination \"%s\" is not a file. Can not restore error log messages from previous run."
+
+ER_NO_ERROR_LOG_PARSER_CONFIGURED
+  eng "None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log."
+
+ER_UPGRADE_NONEXISTENT_SCHEMA
+  eng "The schema \"%.64s\" referenced by %.16s \"%.128s\" does not exist. Please clean up any orphan %.16s before upgrading."
+
+ER_IB_MSG_CREATED_UNDO_SPACE
+  eng "Created undo tablespace '%s'."
+
+ER_IB_MSG_DROPPED_UNDO_SPACE
+  eng "Dropped undo tablespace '%s'."
+
+ER_IB_MSG_MASTER_KEY_ROTATED
+  eng "The InnoDB Encryption Master Key has been rotated in %d tablespaces."
+
+ER_IB_DBLWR_DECOMPRESS_FAILED
+  eng "Failed to decompress a DBLWR page (err=%d).  The original size is %d. Reporting the dblwr page as corrupted."
+
+ER_IB_DBLWR_DECRYPT_FAILED
+  eng "Decrypting a page in doublewrite file failed: %s."
+
+ER_IB_DBLWR_KEY_MISSING
+  eng "Encryption key missing: %s."
+
+ER_INNODB_IO_WRITE_ERROR_RETRYING
+  eng "I/O error while writing to file: %s. Retrying ..."
+
+ER_INNODB_IO_WRITE_FAILED
+  eng "Failed to write data to file: %s"
+
+ER_LOG_COMPONENT_CANNOT_INIT
+  eng "Log component %s failed to initialize."
+
+ER_RPL_ASYNC_CHANNEL_CANT_CONNECT
+  eng "The Monitor IO thread failed to connect to the source (host:%s port:%u network_namespace:%s) for channel '%s', thence it will try to connect to another source."
+
+ER_RPL_ASYNC_SENDER_ADDED
+  eng  "The source (host:%s port:%u network_namespace:%s) for channel '%s' has joined the group (group_name: %s), and so added its entry into replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_SENDER_REMOVED
+  eng "The source (host:%s port:%u network_namespace:%s) for channel '%s' has left the group (group_name: %s), and so removed its entry from replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST
+  eng "The Monitor IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
+
+ER_RPL_ASYNC_CHANNEL_CANT_CONNECT_NO_QUORUM
+  eng "The IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
+
+ER_RPL_ASYNC_EXECUTING_QUERY
+  eng "%s on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
+
+ER_RPL_REPLICA_MONITOR_IO_THREAD_EXITING
+  eng "Replica Monitor IO thread exiting."
+
+ER_RPL_ASYNC_MANAGED_NAME_REMOVED
+  eng "The group (group_name: %s) for the channel '%s' has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_MANAGED_NAME_ADDED
+  eng "The group (group_name: %s) for the channel '%s' has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_READ_FAILOVER_TABLE
+  eng "Error reading failover sources for channel '%s' from replication_asynchronous_connection_failover table."
+
+ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL
+  eng "Error %s the channel '%s', the operation will be automatically retried."
+
+ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s', which is invalid when GTID_MODE <> ON. If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF and use the procedure for enabling GTIDs online (see the documentation). If you intend to use GTIDs on this replica and cannot enable GTIDs on the source, enable GTID_MODE = ON and leave ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>. If you intend to not use GTIDs at all in the replication topology, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS=OFF and leave GTID_MODE = '%s'."
+
+ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s' which is equal to group_replication_group_name. To fix this issue, either change the group_replication_group_name  or use a different value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS."
+
+ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
+  eng "The group_replication_group_name '%s' is the same as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS in a server channel"
+
+ER_WARN_GTID_THRESHOLD_BREACH
+  eng "The integer component of the GTID number is high. Suggest restarting the server with a new server_uuid to prevent it from reaching the maximum number 2^63-1, which will make it impossible to write the binary log and invoke the behavior specified by binlog_error_action."
+
+ER_HEALTH_INFO
+  eng "%s"
+
+ER_HEALTH_WARNING
+  eng "%s"
+
+ER_HEALTH_ERROR
+  eng "%s"
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_1
+  eng "%s: Warning Level 1 (%llu MiB): mount point = '%s', available = %llu MiB, total = %llu MiB, used = %.2f%%, low limit = %llu MiB, critical level = %llu MiB"
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_2
+  eng "%s: Warning Level 2 (%llu MiB): mount point = '%s', available = %llu MiB, total = %llu MiB, used = %.2f%%, low limit = %llu MiB, critical level = %llu MiB"
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_3
+  eng "%s: Warning Level 3 (%llu MiB): mount point = '%s', available = %llu MiB, total = %llu MiB, used = %.2f%%, low limit = %llu MiB, critical level = %llu MiB"
+
+ER_IB_INNODB_TBSP_OUT_OF_SPACE
+  eng "InnoDB: Size of tablespace %s is more than the maximum size allowed."
+
+ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING
+  eng "The group_replication_applier channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
+
+ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
+  eng "Detected misconfiguration: replication channel \'%.192s\' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL \'%.192s\', or change GTID_MODE to value ON, before starting the replica receiver thread."
+
+ER_FIREWALL_SERVICES_NOT_ACQUIRED
+  eng "Could not acquire required component services."
+
+ER_FIREWALL_UDF_REGISTER_FAILED
+  eng "Automatic registration of function(s) failed."
+
+ER_FIREWALL_PFS_TABLE_REGISTER_FAILED
+  eng "Automatic registration of Performance schema table(s) failed."
+
+ER_IB_MSG_STATS_SAMPLING_TOO_LARGE
+  eng "%s"
+
+ER_AUDIT_LOG_FILE_PRUNE_FAILED
+  eng "Failed to auto-prune file '%s', Error (%d): %s"
+
+ER_AUDIT_LOG_FILE_AUTO_PRUNED
+  eng "File '%s' auto-pruned"
+
+ER_COMPONENTS_INFRASTRUCTURE_MANIFEST_INIT
+  eng "Received an error while processing components from manifest file: %s"
+
+ER_COMPONENTS_INFRASTRUCTURE_MANIFEST_DEINIT
+  eng "Received an error while unloading components read from manifest file: %s"
+
+ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_NOT_RO
+  eng "Manifest file '%s' is not read-only. For better security, please make sure that the file is read-only."
+
+ER_WARN_NO_KEYRING_COMPONENT_SERVICE_FOUND
+  eng "No suitable '%s' service implementation found to fulfill the request."
+
+ER_NOTE_KEYRING_COMPONENT_INITIALIZED
+  eng "Keyring component initialized successfully."
+
+ER_KEYRING_COMPONENT_NOT_INITIALIZED
+  eng "The component is not initialized properly. Make sure that configuration is proper and use ALTER INSTANCE RELOAD KEYRING to reinitialize the component."
+
+ER_KEYRING_COMPONENT_EXCEPTION
+  eng "Keyring component encountered an exception while executing : '%s' API of service: '%s'"
+
+ER_KEYRING_COMPONENT_MEMORY_ALLOCATION_ERROR
+  eng "Failed to allocated memory for '%s' while executing: '%s' API of service: '%s'"
+
+ER_NOTE_KEYRING_COMPONENT_AES_INVALID_MODE_BLOCK_SIZE
+  eng "Empty or 0 values for AES encryption mode and/or block size are not permitted."
+
+ER_NOTE_KEYRING_COMPONENT_AES_DATA_IDENTIFIER_EMPTY
+  eng "A valid data identifier is required in order to fetch the key required for the AES operation."
+
+ER_NOTE_KEYRING_COMPONENT_AES_INVALID_KEY
+  eng "Key identified by Data ID: '%s' and Auth ID: '%s' is not of type AES."
+
+ER_NOTE_KEYRING_COMPONENT_AES_OPERATION_ERROR
+  eng "Encountered error: '%s' while executing '%s' API of keyring_aes service. Key details are Data ID: '%s' and Auth ID: '%s'."
+
+ER_NOTE_KEYRING_COMPONENT_READ_DATA_NOT_FOUND
+  eng "Could not find the data corresponding to Data ID: '%s', Auth ID: '%s'."
+
+ER_NOTE_KEYRING_COMPONENT_WRITE_MAXIMUM_DATA_LENGTH
+  eng "Maximum permissible size of data is '%zu' bits"
+
+ER_NOTE_KEYRING_COMPONENT_STORE_FAILED
+  eng "Error writing data for Data ID: '%s', Auth ID: '%s'. Either data already exists with same identifier or keyring backend encountered an error."
+
+ER_NOTE_KEYRING_COMPONENT_REMOVE_FAILED
+  eng "Error removing data for Data ID: '%s', Auth ID: '%s'. Either data already exists with same identifier or keyring backend encountered an error."
+
+ER_NOTE_KEYRING_COMPONENT_GENERATE_FAILED
+  eng "Error generating data for Data ID: '%s', Auth ID: '%s'. Either data already exists with same identifier or keyring backend encountered an error."
+
+ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED
+  eng "Failed to get metadata from current keys metadata iterator position."
+
+ER_NOTE_KEYRING_COMPONENT_METADATA_ITERATOR_INVALID_OUT_PARAM
+  eng "Key and value length parameters must not be null."
+
+ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE
+  eng "Innodb could not acquire service : %s"
+
+ER_IB_WRN_OLD_GEOMETRY_TYPE
+  eng "Column %s of type GEOMETRY is in old (5.6) format which could be deprecated in the future. To change the format to latest, please consider rebuilding the table after the upgrade."
+
+ER_NET_WAIT_ERROR2
+  eng "'wait_timeout' period of %s seconds was exceeded for %s. The idle time since last command was too long."
+
+ER_GRP_RPL_MEMBER_ACTION_TRIGGERED
+  eng "The member action "%s" for event "%s" with priority "%u" will be run."
+
+ER_GRP_RPL_MEMBER_ACTION_FAILURE_IGNORE
+  eng "The member action "%s" for event "%s" with priority "%u" failed, this error is ignored as instructed. Please check previous messages in the error log for hints about what could have caused this failure."
+
+ER_GRP_RPL_MEMBER_ACTION_FAILURE
+  eng "The member action "%s" for event "%s" with priority "%u" failed. Please check previous messages in the error log for hints about what could have caused this failure."
+
+ER_GRP_RPL_MEMBER_ACTION_PARSE_ON_RECEIVE
+  eng "Unable to parse the member actions configuration sent by the primary."
+
+ER_GRP_RPL_MEMBER_ACTION_UPDATE_ACTIONS
+  eng "Unable to update the member actions configuration with the one sent by the primary. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_GET_EXCHANGEABLE_DATA
+  eng "Unable to read the member actions configuration during group membership change. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_DEFAULT_CONFIGURATION
+  eng "This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one."
+
+ER_GRP_RPL_MEMBER_ACTION_UNABLE_TO_SET_DEFAULT_CONFIGURATION
+  eng "Unable to reset to member actions default configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_PARSE_ON_MEMBER_JOIN
+  eng "Unable to parse the member actions configuration sent by the group on member join."
+
+ER_GRP_RPL_MEMBER_ACTION_UPDATE_ACTIONS_ON_MEMBER_JOIN
+  eng "Unable to update the member actions configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_INVALID_ACTIONS_ON_MEMBER_JOIN
+  eng "The group members were unable to send their member actions configuration. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version' on all members."
+
+ER_GRP_RPL_MEMBER_ACTION_ENABLED
+  eng "Member action enabled: "%s", type: "%s", event: "%s", priority: "%u", error_handling: "%s"."
+
+ER_GRP_RPL_MEMBER_ACTION_DISABLED
+  eng "Member action disabled: "%s", type: "%s", event: "%s", priority: "%u", error_handling: "%s"."
+
+ER_GRP_RPL_MEMBER_ACTIONS_RESET
+  eng "Member actions configuration was reset."
+
+ER_DEPRECATED_TLS_VERSION_SESSION
+  eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
+
+ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
+  eng "A deprecated TLS version %s is enabled for channel %s"
+
+ER_FIREWALL_DEPRECATED_USER_PROFILE
+  eng "User profile \'%s\' loaded. Firewall user profiles are deprecated, consider migrating to group profiles."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_INVALID
+  eng "Invalid input value for group_replication_view_change_uuid '%s'. Please, provide a valid UUID."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_SAME_AS_GROUP_NAME
+  eng "Variable 'group_replication_view_change_uuid' cannot be set to the value of '%s'. If you want to use the UUID of 'group_replication_group_name' for the UUID of View_change_log_events, please set 'group_replication_view_change_uuid' to AUTOMATIC."
+
+ER_GRP_RPL_GROUP_NAME_SAME_AS_VIEW_CHANGE_UUID
+  eng "group_replication_group_name '%s', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC"
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
+  eng "The group_replication_view_change_uuid '%s' is the same as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS in a server channel"
+
+ER_GRP_RPL_GRP_VIEW_CHANGE_UUID_IS_INCOMPATIBLE_WITH_SERVER_UUID
+  eng "group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid %s matches server_uuid %s."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_DIFF_FROM_GRP
+  eng "The member is configured with a group_replication_view_change_uuid option value '%s' different from the group '%s'. The member will now exit the group."
+
+ER_WARN_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s' which is equal to group_replication_view_change_uuid. To fix this issue, either change the group_replication_view_change_uuid or use a different value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS."
+
+ER_GRP_RPL_FAILED_TO_PARSE_THE_VIEW_CHANGE_UUID
+  eng "Unable to parse the group_replication_view_change_uuid."
+
+ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_VIEW_CHANGE_UUID
+  eng "Unable to generate sidno for group_replication_view_change_uuid."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_PARSE_ERROR
+  eng "Unable to parse the group_replication_view_change_uuid during the Certification module initialization."
+
+ER_GRP_RPL_UPDATE_GRPGTID_VIEW_CHANGE_UUID_EXECUTED_ERROR
+  eng "Error updating group_gtid_executed GTID set with view change uuid during the Certification module initialization."
+
+ER_GRP_RPL_ADD_VIEW_CHANGE_UUID_TO_GRP_SID_MAP_ERROR
+  eng "Unable to add the group_replication_view_change_uuid sidno in the group_gtid_sid_map during the Certification module initialization."
+
+ER_GRP_RPL_DONOR_VIEW_CHANGE_UUID_TRANS_INFO_ERROR
+  eng "Unable to handle the donor's view change uuid transaction information when initializing the conflict detection component. Possible out of memory error."
+
+ER_WARN_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE
+  eng "Unable to retrieve group_replication_view_change_uuid during server checks on replication operations."
+
+ER_WARN_ADUIT_LOG_MAX_SIZE_AND_PRUNE_SECONDS_LOG
+  eng "Both audit_log_max_size and audit_log_prune_seconds are set to non-zero. audit_log_max_size takes precedence and audit_log_prune_seconds is ignored"
+
+ER_WARN_ADUIT_LOG_MAX_SIZE_CLOSE_TO_ROTATE_ON_SIZE_LOG
+  eng "audit_log_rotate_on_size is not granular enough for the value of audit_log_max_size supplied. Should be at least %d times smaller."
+
+ER_PLUGIN_INVALID_TABLE_DEFINITION
+  eng "Invalid table definition for '%s.%s'."
+
+ER_AUTH_KERBEROS_LOGGER_GENERIC_MSG
+  eng "%s"
+
+ER_INSTALL_PLUGIN_CONFLICT_LOG
+  eng "Cannot install the %.192s plugin when the %.192s plugin is installed."
+
+ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS
+  eng "The variable %s has been renamed to %s, and the old name deprecated. Only the old name was found in the persisted variable file. Next time the file is saved, both names will be stored. Issue any SET PERSIST command to save the file, get rid of this warning, and prepare the persisted configuration for when the variable is removed in a future version."
+
+ER_LOG_COMPONENT_FLUSH_FAILED
+  eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
+
+ER_IB_MSG_REENCRYPTED_TABLESPACE_KEY
+  eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you rebuild the table for better security."
+
+ER_IB_MSG_REENCRYPTED_GENERAL_TABLESPACE_KEY
+  eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you reencrypt the tablespace for better security."
+
+ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED
+  eng "Page Archiver's doublewrite buffer initialisation failed. Page tracking is at risk of losing tracked information."
+
+ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES
+  eng "There is not enough free space in the redo log during recovery to perform pending ibuf merges. Please retry starting MySQL with --innodb-force-recovery=4."
+
+ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED
+  eng "There is not enough free space in the redo log during recovery, restore from backup (or retry with --innodb-force-recovery=6)."
+
+ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON_LOG
+  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
+
+# This error is not supposed to be reported to the users. It is only
+# meant for internal use to signal that a statement should be
+# reprepared for the primary storage engine, without transformations.
+# The error should be caught and handled by the server.
+ER_PREPARE_FOR_PRIMARY_ENGINE
+  eng "Retry the statement using the primary storage engine."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -10882,7 +11459,7 @@ ER_XB_MSG_6
 ER_XB_UNDO_DELETE_FAILURE
   eng "Deletion of 5.7 undo tablespace %s failed"
 
-ER_UPGRADE_KEYRING_V1_ENCRYPTION
+ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION
   eng "Upgrade is not possible as there are tables that are KERYING encrypted. KEYRING encryption is still experimental feature in the version you are upgrading from. To upgrade please decrypt the tables encrypted with KEYRING encryption."
 
 ER_REDO_ENCRYPTION_CANT_BE_CHANGED
@@ -10904,10 +11481,10 @@ ER_REDO_ENCRYPTION_CANT_PARSE_KEY
   eng "Couldn't parse system key: %s"
 
 ER_REDO_ENCRYPTION_KEYRING
-  eng "Redo log cannot be encrypted if the keyring plugin is not loaded."
+  eng "Redo log cannot be encrypted if the keyring is not loaded."
 
 ER_UNDO_NO_KEYRING
-  eng "Undo log can't be encrypted if the keyring plugin is not loaded."
+  eng "Undo log can't be encrypted if the keyring is not loaded."
 
 ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
   eng "Couldn't fetch default percona_redo key. Please check if keyring is operational."
@@ -10915,8 +11492,32 @@ ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
 ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION
   eng "Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading."
 
+ER_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+  eng "Tablespace id %u in file %s is encrypted. Although server managed to find key_id=%u in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue reading table. Please provide the correct keyring."
+
+ER_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
+  eng "Tablespace id %u in file %s is encrypted. Although server managed to find all needed versions of key_id=%u in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue reading table. Please provide the correct keyring."
+
+ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY
+  eng "Tablespace id %u is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring.";
+
+ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+  eng "Tablespace id %u is encrypted. Although server managed to find key_id=%u in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue reading table. Please provide the correct keyring."
+
+ER_REDO_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
+  eng "Tablespace id %u is encrypted. Although server managed to find all needed versions of key_id=%u in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue reading table. Please provide the correct keyring."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB
+  eng "Delaying truncate of undo tablespace %s due to lock tables for backup."
+
+ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED
+  eng "X plugin failed to register SSL reload callback. ALTER INSTANCE RELOAD TLS will have no effect on the plugin."
+
 ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DOUBLEWRITE_PATH
   eng "Setting Percona-specific INNODB_PARALLEL_DOUBLEWRITE_PATH is deprecated and has no effect. Use INNODB_DOUBLEWRITE_DIR instead."
+
+ER_IB_MSG_DEPRECATED_INNODB_PARALLEL_DBLWR_ENCRYPT
+  eng "Setting Percona-specific INNODB_PARALLEL_DBLWR_ENCRYPT is deprecated and has no effect."
 
 #
 # End of Percona Server 8.0 server error log messages

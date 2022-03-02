@@ -1,4 +1,4 @@
-# Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,9 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   keyring_iterator_service_imp.cc
   log_builtins.cc
   log_builtins_filter.cc
+  log_sink_buffer.cc
+  log_sink_perfschema.cc
+  log_sink_trad.cc
   mysql_cond_service.cc
   mysql_connection_attributes_iterator_imp.cc
   mysql_current_thread_reader_imp.cc
@@ -47,7 +50,13 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   security_context_imp.cc
   server_component.cc
   system_variable_source_imp.cc
+  table_access_service.cc
   udf_metadata_imp.cc
+  audit_api_connection_service_imp.cc
+  mysql_query_attributes_imp.cc
+  mysql_server_keyring_lockable_imp.cc
+  mysql_system_variable_update_imp.cc
+  mysql_thd_attributes_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

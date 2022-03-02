@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 
 #include "storage/perfschema/table_setup_actors.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -115,8 +116,8 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
   bool history;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
           host = get_field_char_utf8(f, &host_data);
           break;
@@ -133,7 +134,7 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
           history_value = (enum_yes_no)get_field_enum(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -203,7 +204,7 @@ int table_setup_actors::rnd_pos(const void *pos) {
 
 int table_setup_actors::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_setup_actors *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_actors);
   m_opened_index = result;
   m_index = result;
@@ -275,11 +276,11 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
           set_field_char_utf8(f, m_row.m_hostname, m_row.m_hostname_length);
           break;
@@ -296,7 +297,7 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
           set_field_enum(f, (*m_row.m_history_ptr) ? ENUM_YES : ENUM_NO);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -311,8 +312,8 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
   enum_yes_no value;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
         case 1: /* USER */
         case 2: /* ROLE */
@@ -334,7 +335,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_history_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

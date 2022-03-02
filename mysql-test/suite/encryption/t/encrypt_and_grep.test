@@ -27,8 +27,13 @@ show warnings;
 create table t3 (a varchar(255)) engine=innodb encryption='N';
 create table t4 (a varchar(255)) engine=innodb encryption='KEYRING' encryption_key_id=5;
 
+# Disable ONLINE_TO_KEYRING encryption for a moment to create MK encrypted tablespace and table
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENCRYPTION="Y" ENGINE="InnoDB";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
 
 --error ER_INVALID_ENCRYPTION_OPTION
 CREATE TABLESPACE ts_keyring_encrypted ADD DATAFILE 'ts_keyring_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";
@@ -113,14 +118,15 @@ ALTER TABLE t6 ENCRYPTION='KEYRING', ALGORITHM=INPLACE;
 --let SEARCH_PATTERN=moresecret
 --source include/search_pattern_in_file.inc
 
-
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 -- source include/start_mysqld.inc
 
 --echo # Now turn off encryption and wait for threads to decrypt everything
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Three tables should stay encrypted - the ones with explicit encryption
 --let $wait_timeout= 600
@@ -131,6 +137,8 @@ SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = 3
 --source include/assert.inc
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
 --source include/shutdown_mysqld.inc
 
@@ -170,9 +178,9 @@ SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 -- source include/start_mysqld.inc
 
 --echo # Now turn on encryption and wait for threads to encrypt all spaces
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
-
---let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Wait max 10 min for key encryption threads to encrypt all spaces, apart from temporary and t3
 --let $wait_timeout= 600
@@ -271,6 +279,7 @@ alter table t4 encryption='n';
 drop table t1, t2, t3, t4, t5, t6;
 drop tablespace ts_encrypted;
 
+SET GLOBAL innodb_encryption_threads=0;
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
@@ -278,5 +287,5 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;

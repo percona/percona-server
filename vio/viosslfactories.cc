@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <sstream>
 #include <string>
 
 #include "m_ctype.h"
@@ -46,21 +47,19 @@
 
 #define TLS_VERSION_OPTION_SIZE 256
 
-using std::string;
-
 /*
   1. Cipher preference order: P1 > A1 > A2 > D1
   2. Blocked ciphers are not allowed
 */
 
-static const string mandatory_p1 = {
+static const char mandatory_p1[] = {
     "ECDHE-ECDSA-AES128-GCM-SHA256:"
     "ECDHE-ECDSA-AES256-GCM-SHA384:"
     "ECDHE-RSA-AES128-GCM-SHA256:"
     "ECDHE-ECDSA-AES128-SHA256:"
     "ECDHE-RSA-AES128-SHA256"};
 
-static const string optional_a1 = {
+static const char optional_a1[] = {
     "ECDHE-RSA-AES256-GCM-SHA384:"
     "ECDHE-ECDSA-AES256-SHA384:"
     "ECDHE-RSA-AES256-SHA384:"
@@ -73,7 +72,7 @@ static const string optional_a1 = {
     "DHE-DSS-AES256-SHA256:"
     "DHE-RSA-AES256-GCM-SHA384"};
 
-static const std::string optional_a2 = {
+static const char optional_a2[] = {
     "DH-DSS-AES128-GCM-SHA256:"
     "ECDH-ECDSA-AES128-GCM-SHA256:"
     "DH-DSS-AES256-GCM-SHA384:"
@@ -91,7 +90,7 @@ static const std::string optional_a2 = {
     "DH-RSA-AES256-SHA256:"
     "ECDH-RSA-AES256-SHA384"};
 
-static const std::string optional_d1 = {
+static const char optional_d1[] = {
     "ECDHE-RSA-AES128-SHA:"
     "ECDHE-ECDSA-AES128-SHA:"
     "ECDHE-RSA-AES256-SHA:"
@@ -117,7 +116,7 @@ static const std::string optional_d1 = {
     "AES256-SHA256:"
     "AES128-SHA"};
 
-static const string tls_cipher_blocked = {
+static const char tls_cipher_blocked[] = {
     "!aNULL:"
     "!eNULL:"
     "!EXPORT:"
@@ -212,7 +211,7 @@ static void report_errors() {
   DBUG_TRACE;
 
   while ((l = ERR_get_error_line_data(&file, &line, &data, &flags)) > 0) {
-#ifndef DBUG_OFF /* Avoid warning */
+#ifndef NDEBUG /* Avoid warning */
     char buf[200];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
@@ -231,10 +230,11 @@ static const char *ssl_error_string[] = {
     "SSL context is not usable without certificate and private key",
     "SSL_CTX_set_tmp_dh failed",
     "TLS version is invalid",
-    "Failed to set ecdh information"};
+    "Failed to set ecdh information",
+    "Failed to set X509 verification parameter"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
-  DBUG_ASSERT(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
+  assert(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
   return ssl_error_string[e];
 }
 
@@ -580,12 +580,12 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const char *ca_path, const char *cipher,
     const char *ciphersuites MY_ATTRIBUTE((unused)), bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags) {
+    const long ssl_ctx_flags, const char *server_host MY_ATTRIBUTE((unused))) {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   int ret_set_cipherlist = 0;
-  string cipher_list;
+  std::string cipher_list;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
   EC_KEY *eckey = nullptr;
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
@@ -656,7 +656,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
     NOTE: SSL_CTX_set_cipher_list will return 0 if
     none of the provided ciphers could be selected
   */
-  cipher_list += tls_cipher_blocked + ":";
+  cipher_list += tls_cipher_blocked;
+  cipher_list += ":";
 
   /*
     If ciphers are specified explicitly by caller, use them.
@@ -667,8 +668,10 @@ static struct st_VioSSLFd *new_VioSSLFd(
     worth of space.
   */
   if (cipher == nullptr) {
-    cipher_list += mandatory_p1 + ":" + optional_a1 + ":" + optional_a2 + ":" +
-                   optional_d1;
+    std::stringstream sstream;
+    sstream << mandatory_p1 << ":" << optional_a1 << ":" << optional_a2 << ":"
+            << optional_d1;
+    cipher_list.append(sstream.str());
   } else
     cipher_list.append(cipher);
 
@@ -749,6 +752,29 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+  /*
+    OpenSSL 1.0.2 and up provides support for hostname validation.
+    If server_host parameter is set it contains either IP address or
+    server's hostname. Pass it to the lib to perform automatic checks.
+  */
+  if (server_host) {
+    X509_VERIFY_PARAM *param = SSL_CTX_get0_param(ssl_fd->ssl_context);
+    assert(is_client);
+    /*
+      As we don't know if the server_host contains IP addr or hostname
+      call X509_VERIFY_PARAM_set1_ip_asc() first and if it returns an error
+      (not valid IP address), call X509_VERIFY_PARAM_set1_host().
+    */
+    if (1 != X509_VERIFY_PARAM_set1_ip_asc(param, server_host)) {
+      if (1 != X509_VERIFY_PARAM_set1_host(param, server_host, 0)) {
+        *error = SSL_INITERR_X509_VERIFY_PARAM;
+        goto error;
+      }
+    }
+  }
+#endif
+
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
 
@@ -798,7 +824,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags) {
+    const long ssl_ctx_flags, const char *server_host) {
   struct st_VioSSLFd *ssl_fd;
   int verify = SSL_VERIFY_PEER;
 
@@ -810,7 +836,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,
-                              ssl_ctx_flags))) {
+                              ssl_ctx_flags, server_host))) {
     return nullptr;
   }
 
@@ -831,7 +857,7 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
   int verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
-                              ssl_ctx_flags))) {
+                              ssl_ctx_flags, nullptr))) {
     return nullptr;
   }
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */

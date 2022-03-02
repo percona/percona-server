@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
@@ -312,8 +313,8 @@ const char *good_examples[] = {("[one]\n"
                                 "[one:my_key]\n"
                                 "foo = {one}a{two}\n")};
 
-INSTANTIATE_TEST_CASE_P(TestParsing, GoodParseTestAllowKey,
-                        ::testing::ValuesIn(good_examples));
+INSTANTIATE_TEST_SUITE_P(TestParsing, GoodParseTestAllowKey,
+                         ::testing::ValuesIn(good_examples));
 
 // Test fixture to compare option value with the result of
 // interpolating the value.
@@ -359,8 +360,8 @@ const Sample interpolate_examples[] = {
      R"(c:\foo\bar\{425432-5425432-5423534253-542342})"},
 };
 
-INSTANTIATE_TEST_CASE_P(TestParsing, TestInterpolate,
-                        ValuesIn(interpolate_examples));
+INSTANTIATE_TEST_SUITE_P(TestParsing, TestInterpolate,
+                         ValuesIn(interpolate_examples));
 
 TEST(TestConfig, RecursiveInterpolate) {
   const char *const config_text{
@@ -454,8 +455,8 @@ static const char *syntax_problems[] = {
      "foo = baz\n"),
 };
 
-INSTANTIATE_TEST_CASE_P(TestParsingSyntaxError, BadParseTestForbidKey,
-                        ::testing::ValuesIn(syntax_problems));
+INSTANTIATE_TEST_SUITE_P(TestParsingSyntaxError, BadParseTestForbidKey,
+                         ::testing::ValuesIn(syntax_problems));
 
 class BadParseTestAllowKeys : public ::testing::TestWithParam<const char *> {
  protected:
@@ -497,8 +498,8 @@ static const char *semantic_problems[] = {
      "foo = {one}a{two}\n"),
 };
 
-INSTANTIATE_TEST_CASE_P(TestParseErrorAllowKeys, BadParseTestAllowKeys,
-                        ::testing::ValuesIn(semantic_problems));
+INSTANTIATE_TEST_SUITE_P(TestParseErrorAllowKeys, BadParseTestAllowKeys,
+                         ::testing::ValuesIn(semantic_problems));
 
 TEST(TestConfig, ConfigUpdate) {
   const char *const configs[]{
@@ -724,11 +725,126 @@ static const std::array<InvalidConfigParam, 4> invalid_config_params = {{
      "characters and _ are valid."},
 }};
 
-INSTANTIATE_TEST_CASE_P(Spec, InvalidConfigTest,
-                        ::testing::ValuesIn(invalid_config_params),
-                        [](auto const &test_params) {
-                          return test_params.param.test_name;
-                        });
+INSTANTIATE_TEST_SUITE_P(Spec, InvalidConfigTest,
+                         ::testing::ValuesIn(invalid_config_params),
+                         [](auto const &test_params) {
+                           return test_params.param.test_name;
+                         });
+
+template <class T>
+struct InvalidUintOptionValueParam {
+  std::string value;
+  T min_value;
+  T max_value;
+  std::string expected_error;
+};
+
+class InvalidUint64OptionValueTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<
+          InvalidUintOptionValueParam<uint64_t>> {};
+
+TEST_P(InvalidUint64OptionValueTest, ensure_fails) {
+  try {
+    mysql_harness::option_as_uint<uint64_t>(GetParam().value, "invalid",
+                                            GetParam().min_value,
+                                            GetParam().max_value);
+
+    FAIL() << "expected to throw an exception, did not throw.";
+  } catch (const std::exception &e) {
+    EXPECT_EQ(std::string(e.what()), GetParam().expected_error);
+  } catch (...) {
+    FAIL() << "expected a std::exception, caught some other exception";
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, InvalidUint64OptionValueTest,
+                         ::testing::Values(
+                             InvalidUintOptionValueParam<uint64_t>{
+                                 "AB", 0, std::numeric_limits<int64_t>::max(),
+                                 "invalid needs value between 0 and "
+                                 "9223372036854775807 inclusive, was "
+                                 "'AB'"},
+                             InvalidUintOptionValueParam<uint64_t>{
+                                 "-1", 0, std::numeric_limits<int64_t>::max(),
+                                 "invalid needs value between 0 and "
+                                 "9223372036854775807 inclusive, was "
+                                 "'-1'"},
+                             InvalidUintOptionValueParam<uint64_t>{
+                                 "9223372036854775808", 0,
+                                 std::numeric_limits<int64_t>::max(),
+                                 "invalid needs value between 0 and "
+                                 "9223372036854775807 inclusive, was "
+                                 "'9223372036854775808'"},
+                             InvalidUintOptionValueParam<uint64_t>{
+                                 "5", 0, 4,
+                                 "invalid needs value between 0 and "
+                                 "4 inclusive, was "
+                                 "'5'"},
+                             InvalidUintOptionValueParam<uint64_t>{
+                                 "5", 6, 2000,
+                                 "invalid needs value between 6 and "
+                                 "2000 inclusive, was "
+                                 "'5'"}));
+
+template <class T>
+struct ValidUintOptionValueParam {
+  std::string value;
+  T min_value;
+  T max_value;
+  T expected_value;
+};
+
+class ValidUint64OptionValueTest : public ::testing::Test,
+                                   public ::testing::WithParamInterface<
+                                       ValidUintOptionValueParam<uint64_t>> {};
+
+TEST_P(ValidUint64OptionValueTest, ensure_ok) {
+  try {
+    EXPECT_EQ(GetParam().expected_value,
+              mysql_harness::option_as_uint<uint64_t>(GetParam().value, "valid",
+                                                      GetParam().min_value,
+                                                      GetParam().max_value));
+  } catch (const std::exception &e) {
+    FAIL() << "Unexpected exception: " << e.what();
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, ValidUint64OptionValueTest,
+    ::testing::Values(
+        ValidUintOptionValueParam<uint64_t>{
+            "1", 0, std::numeric_limits<int64_t>::max(), 1},
+        ValidUintOptionValueParam<uint64_t>{
+            "0", 0, std::numeric_limits<int64_t>::max(), 0},
+        ValidUintOptionValueParam<uint64_t>{"9223372036854775807", 0,
+                                            std::numeric_limits<int64_t>::max(),
+                                            9223372036854775807}));
+
+class InvalidUint8OptionValueTest : public ::testing::Test,
+                                    public ::testing::WithParamInterface<
+                                        InvalidUintOptionValueParam<uint8_t>> {
+};
+
+TEST_P(InvalidUint8OptionValueTest, ensure_fails) {
+  try {
+    mysql_harness::option_as_uint<uint8_t>(GetParam().value, "invalid",
+                                           GetParam().min_value,
+                                           GetParam().max_value);
+
+    FAIL() << "expected to throw an exception, did not throw.";
+  } catch (const std::exception &e) {
+    EXPECT_EQ(std::string(e.what()), GetParam().expected_error);
+  } catch (...) {
+    FAIL() << "expected a std::exception, caught some other exception";
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, InvalidUint8OptionValueTest,
+                         ::testing::Values(InvalidUintOptionValueParam<uint8_t>{
+                             "2", 0, 1,
+                             "invalid needs value between 0 and "
+                             "1 inclusive, was '2'"}));
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();

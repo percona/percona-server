@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -133,12 +133,6 @@ bool starts_with(const std::string &str, const std::string &prefix) {
   auto str_size = str.size();
   return (str_size >= prefix_size && str.compare(0, prefix_size, prefix) == 0);
 }
-
-#ifndef _WIN32
-std::string get_message_error(int errcode) {
-  return std::string(strerror(errcode));
-}
-#endif
 
 }  // namespace utility
 

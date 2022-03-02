@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,15 @@
   ST_Buffer().
 */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <memory>  // std::unique_ptr
+#include <vector>
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/buffer.hpp>
 #include <boost/geometry/strategies/agnostic/buffer_distance_symmetric.hpp>
@@ -45,8 +49,6 @@
 #include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <memory>  // std::unique_ptr
-#include <vector>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -63,7 +65,7 @@
 #include "sql/item_geofunc.h"
 #include "sql/item_geofunc_internal.h"
 #include "sql/item_strfunc.h"
-#include "sql/parse_tree_node_base.h"
+#include "sql/parse_location.h"  // POS
 #include "sql/spatial.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -173,11 +175,11 @@ Item_func_buffer_strategy::Item_func_buffer_strategy(const POS &pos,
   tmp_value.set(pbuf, 0, nullptr);
 }
 
-bool Item_func_buffer_strategy::resolve_type(THD *) {
-  collation.set(&my_charset_bin);
-  decimals = 0;
-  max_length = 16;
-  maybe_null = true;
+bool Item_func_buffer_strategy::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+  set_data_type_string(16, &my_charset_bin);
+  set_nullable(true);
   return false;
 }
 
@@ -185,7 +187,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   String str;
   String *strat_name = args[0]->val_str_ascii(&str);
   if ((null_value = args[0]->null_value)) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return nullptr;
   }
 
@@ -227,7 +229,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
 
       double val = args[1]->val_real();
       if ((null_value = args[1]->null_value)) {
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         return nullptr;
       }
       if (val <= 0) {
@@ -331,7 +333,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
         break;                                                               \
       }                                                                      \
       default:                                                               \
-        DBUG_ASSERT(false);                                                  \
+        assert(false);                                                       \
         break;                                                               \
     }                                                                        \
   } while (0)
@@ -347,7 +349,7 @@ namespace bgst = boost::geometry::strategy::buffer;
 
 String *Item_func_buffer::val_str(String *str_value_arg) {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String strat_bufs[side_strategy + 1];
 
   String *obj = args[0]->val_str(&tmp_value);
@@ -400,7 +402,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
     }
 
     if (!srs->is_cartesian()) {
-      DBUG_ASSERT(srs->is_geographic());
+      assert(srs->is_geographic());
       std::string parameters(geom->get_class_info()->m_name.str);
       parameters.append(", ...");
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
@@ -571,7 +573,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
                          bgst_join_miter, bgst_end_flat, bgst_point_square);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
 
@@ -641,7 +643,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
                            bgst_join_miter, bgst_end_flat, bgst_point_square);
             break;
           default:
-            DBUG_ASSERT(false);
+            assert(false);
             break;
         }
 

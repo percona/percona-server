@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "storage/perfschema/table_esms_by_program.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -178,7 +179,7 @@ int table_esms_by_program::rnd_pos(const void *pos) {
 
 int table_esms_by_program::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_esms_by_program *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_program);
   m_opened_index = result;
   m_index = result;
@@ -242,12 +243,12 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
     Set the null bits. It indicates how many fields could be null
     in the table.
   */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
           if (m_row.m_object_type != 0) {
             set_field_enum(f, m_row.m_object_type);
@@ -276,10 +277,10 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
         case 5: /* MIN_TIMER_WAIT */
         case 6: /* AVG_TIMER_WAIT */
         case 7: /* MAX_TIMER_WAIT */
-          m_row.m_sp_stat.set_field(f->field_index - 3, f);
+          m_row.m_sp_stat.set_field(f->field_index() - 3, f);
           break;
         default: /* 8, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stmt_stat.set_field(f->field_index - 8, f);
+          m_row.m_stmt_stat.set_field(f->field_index() - 8, f);
           break;
       }
     }

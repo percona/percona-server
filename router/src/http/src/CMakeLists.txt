@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,8 @@
 
 INCLUDE(GenerateExportHeader)
 
-IF(WITH_LIBEVENT STREQUAL "system")
-  MYSQL_CHECK_LIBEVENT_VERSION()
-  IF(SYSTEM_LIBEVENT_FOUND)
-    IF(SYSTEM_LIBEVENT_VERSION VERSION_LESS "2.1")
-      MESSAGE(FATAL_ERROR "At least version 2.1 is needed for libevent.")
-    ENDIF()
-  ENDIF()
+IF(LIBEVENT_VERSION VERSION_LESS "2.1")
+  MESSAGE(FATAL_ERROR "At least version 2.1 is needed for libevent.")
 ENDIF()
 
 ADD_LIBRARY(http_common
@@ -36,10 +31,11 @@ ADD_LIBRARY(http_common
   base64.cc
   http_common.cc
   http_time.cc
-  tls_error.cc
-  tls_context.cc
   )
 TARGET_LINK_LIBRARIES(http_common
+  PUBLIC
+  harness_tls
+  PRIVATE
   ${LIBEVENT_LIBRARIES}
   ${SSL_LIBRARIES}
   )
@@ -56,7 +52,7 @@ SET_TARGET_PROPERTIES(http_common PROPERTIES
 
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(http_common)
-SET_PATH_TO_SSL(http_common ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_common)
 
 INSTALL(TARGETS http_common
   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
@@ -96,7 +92,7 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_backend_lib PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}/../include/)
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(http_auth_backend_lib)
-SET_PATH_TO_SSL(http_auth_backend_lib ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_auth_backend_lib)
 
 
 ## the plugin
@@ -145,7 +141,7 @@ INSTALL(TARGETS http_auth_realm_lib
   )
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(http_auth_realm_lib)
-SET_PATH_TO_SSL(http_auth_realm_lib ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_auth_realm_lib)
 
 
 ADD_HARNESS_PLUGIN(http_auth_realm
@@ -172,8 +168,9 @@ ADD_HARNESS_PLUGIN(http_server
   http_server_component.cc
   http_server_plugin.cc
   static_files.cc
-  tls_server_context.cc
-  REQUIRES router_lib;http_common;http_auth_realm;${LIBRT};${LIBEVENT_OPENSSL}
+  REQUIRES router_lib;http_common;http_auth_realm;
+    ${LIBRT};
+    harness_stdx
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
@@ -192,11 +189,9 @@ ADD_LIBRARY(http_client
   SHARED
   http_client.cc
   rest_client.cc
-  tls_client_context.cc
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBEVENT_LIBRARIES}
-  ${LIBEVENT_OPENSSL}
   ${LIBRT}
   http_common)
 
@@ -208,7 +203,7 @@ TARGET_INCLUDE_DIRECTORIES(http_client PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
 
 ## the rpath for the bundled openssl
-SET_PATH_TO_SSL(http_client ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_client)
 
 # INSTALL(TARGETS http_client
 #   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,9 @@ void do_cb_xcom_expel();
 
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int cb_xcom_get_should_exit();
-void cb_xcom_handle_app_snap(blob *gcs_snap);
+void cb_xcom_handle_app_snap(blob *store_snap MY_ATTRIBUTE((unused)),
+                             synode_no start MY_ATTRIBUTE((unused)),
+                             synode_no end MY_ATTRIBUTE((unused)));
 int cb_xcom_socket_accept(int fd, site_def const *xcom_config);
 
 xcom_input_request_ptr cb_xcom_input_try_pop();
@@ -186,17 +188,15 @@ Gcs_xcom_interface::Gcs_xcom_interface()
       m_default_sink(nullptr),
       m_default_logger(nullptr),
       m_default_debugger(nullptr),
-      m_ip_whitelist(),
+      m_ip_allowlist(),
       m_ssl_init_state(-1),
       m_wait_for_ssl_init_cond(),
       m_wait_for_ssl_init_mutex() {
   // Initialize random seed
   srand(static_cast<unsigned int>(time(nullptr)));
-
-  My_xp_util::init_time();
 }
 
-Gcs_xcom_interface::~Gcs_xcom_interface() {}
+Gcs_xcom_interface::~Gcs_xcom_interface() = default;
 
 enum_gcs_error Gcs_xcom_interface::initialize_logging(
     const std::string *debug_file, const std::string *debug_path) {
@@ -275,7 +275,7 @@ enum_gcs_error Gcs_xcom_interface::finalize_logging() {
 
 enum_gcs_error Gcs_xcom_interface::initialize(
     const Gcs_interface_parameters &interface_params) {
-  const std::string *ip_whitelist_str = nullptr;
+  const std::string *ip_allowlist_str = nullptr;
   Gcs_interface_parameters validated_params;
 
   if (is_initialized()) return GCS_OK;
@@ -313,10 +313,10 @@ enum_gcs_error Gcs_xcom_interface::initialize(
   */
   Gcs_xcom_utils::init_net();
 
-  // validate whitelist
-  ip_whitelist_str = validated_params.get_parameter("ip_whitelist");
+  // validate allowlist
+  ip_allowlist_str = validated_params.get_parameter("ip_allowlist");
 
-  if (ip_whitelist_str && !m_ip_whitelist.is_valid(*ip_whitelist_str)) goto err;
+  if (ip_allowlist_str && !m_ip_allowlist.is_valid(*ip_allowlist_str)) goto err;
 
   /*
     ---------------------------------------------------------------
@@ -399,6 +399,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   map<std::string, gcs_xcom_group_interfaces *>::const_iterator
       registered_group;
   Gcs_xcom_control *xcom_control = nullptr;
+  const std::string *ip_allowlist_str{nullptr};
 
   // Error! Interface still not initialized or finalize has already been invoked
   if (!is_initialized()) return GCS_NOK;
@@ -420,23 +421,21 @@ enum_gcs_error Gcs_xcom_interface::configure(
    */
   if (!is_parameters_syntax_correct(validated_params)) return GCS_NOK;
 
-  // validate whitelist
-  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
-      interface_params.get_parameter("reconfigure_ip_whitelist"));
+  // validate allowlist
+  std::string *ip_allowlist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_allowlist"));
 
-  bool should_configure_whitelist = true;
-  if (ip_whitelist_reconfigure_str) {
-    should_configure_whitelist =
-        ip_whitelist_reconfigure_str->compare("on") == 0 ||
-        ip_whitelist_reconfigure_str->compare("true") == 0;
+  bool should_configure_allowlist = false;
+  if (ip_allowlist_reconfigure_str) {
+    should_configure_allowlist =
+        ip_allowlist_reconfigure_str->compare("on") == 0 ||
+        ip_allowlist_reconfigure_str->compare("true") == 0;
   }
 
-  if (should_configure_whitelist) {
-    const std::string *ip_whitelist_str =
-        validated_params.get_parameter("ip_whitelist");
-
-    if (!ip_whitelist_str || !m_ip_whitelist.is_valid(*ip_whitelist_str)) {
-      MYSQL_GCS_LOG_ERROR("The ip_whitelist parameter is not valid")
+  if (should_configure_allowlist) {
+    ip_allowlist_str = validated_params.get_parameter("ip_allowlist");
+    if (!ip_allowlist_str || !m_ip_allowlist.is_valid(*ip_allowlist_str)) {
+      MYSQL_GCS_LOG_ERROR("The ip_allowlist parameter is not valid")
       return GCS_NOK;
     }
   }
@@ -543,6 +542,13 @@ enum_gcs_error Gcs_xcom_interface::configure(
   // Set suspicion configuration parameters
   if (GCS_OK == configure_suspicions_mgr(
                     validated_params, xcom_control->get_suspicions_manager())) {
+    reconfigured |= true;
+  }
+
+  // ip_allowlist
+  if (should_configure_allowlist &&
+      GCS_OK == m_ip_allowlist.configure(*ip_allowlist_str)) {
+    // configure allowlist
     reconfigured |= true;
   }
 
@@ -842,8 +848,8 @@ bool Gcs_xcom_interface::initialize_xcom(
       interface_params.get_parameter("bootstrap_group");
   const std::string *poll_spin_loops_str =
       interface_params.get_parameter("poll_spin_loops");
-  const std::string *ip_whitelist_str =
-      interface_params.get_parameter("ip_whitelist");
+  const std::string *ip_allowlist_str =
+      interface_params.get_parameter("ip_allowlist");
   const std::string *xcom_cache_size_str =
       interface_params.get_parameter("xcom_cache_size");
 
@@ -877,8 +883,8 @@ bool Gcs_xcom_interface::initialize_xcom(
                         xcom_cache_size_str->c_str());
   }
 
-  // configure whitelist
-  if (ip_whitelist_str) m_ip_whitelist.configure(*ip_whitelist_str);
+  // configure allowlist
+  if (ip_allowlist_str) m_ip_allowlist.configure(*ip_allowlist_str);
 
   // Register XCom callbacks
   ::set_xcom_data_receiver(cb_xcom_receive_data);
@@ -887,7 +893,6 @@ bool Gcs_xcom_interface::initialize_xcom(
   ::set_port_matcher(cb_xcom_match_port);
   ::set_app_snap_handler(cb_xcom_handle_app_snap);
   ::set_should_exit_getter(cb_xcom_get_should_exit);
-  ::set_app_snap_getter(cb_xcom_get_app_snap);
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
   ::set_xcom_exit_cb(cb_xcom_exit);
@@ -1218,8 +1223,8 @@ enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
   return ret;
 }
 
-const Gcs_ip_whitelist &Gcs_xcom_interface::get_ip_whitelist() {
-  return m_ip_whitelist;
+Gcs_ip_allowlist &Gcs_xcom_interface::get_ip_allowlist() {
+  return m_ip_allowlist;
 }
 
 void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
@@ -1354,7 +1359,7 @@ void do_cb_xcom_receive_data(synode_no message_id,
   Gcs_xcom_communication *xcom_communication =
       static_cast<Gcs_xcom_communication *>(
           intf->get_communication_session(*destination));
-  DBUG_ASSERT(xcom_communication != nullptr);
+  assert(xcom_communication != nullptr);
 
   auto packet =
       Gcs_packet::make_incoming_packet(std::move(data), size, message_id,
@@ -1591,7 +1596,9 @@ end:
   delete xcom_nodes;
 }
 
-void cb_xcom_handle_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused))) {}
+void cb_xcom_handle_app_snap(blob *store_snap MY_ATTRIBUTE((unused)),
+                             synode_no start MY_ATTRIBUTE((unused)),
+                             synode_no end MY_ATTRIBUTE((unused))) {}
 
 synode_no cb_xcom_get_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused))) {
   return null_synode;
@@ -1693,7 +1700,7 @@ int cb_xcom_socket_accept(int fd, site_def const *xcom_config) {
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
 
-  const Gcs_ip_whitelist &wl = intf->get_ip_whitelist();
+  Gcs_ip_allowlist &wl = intf->get_ip_allowlist();
 
   return wl.shall_block(fd, xcom_config) ? 0 : 1;
 }

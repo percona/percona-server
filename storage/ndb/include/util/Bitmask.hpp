@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
  */
 class BitmaskImpl {
 public:
-  STATIC_CONST( NotFound = (unsigned)-1 );
+  static constexpr Uint32 NotFound = (unsigned)-1;
 
   /**
    * get - Check if bit n is set.
@@ -72,7 +72,7 @@ public:
                        unsigned len);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(unsigned size, Uint32 dst[], const Uint32 src[]);
 
@@ -385,7 +385,7 @@ inline bool
 BitmaskImpl::is_set(unsigned size, const Uint32 data[])
 {
   for (unsigned i = 0; i < size; i++) {
-    if (data[i] != -1U)
+    if (~data[i] != 0)
       return false;
   }
   return true;
@@ -843,9 +843,9 @@ public:
   
   Data rep;
 public:
-  STATIC_CONST( Size = size );
-  STATIC_CONST( NotFound = BitmaskImpl::NotFound );
-  STATIC_CONST( TextLength = size * 8 );
+  static constexpr Uint32 Size = size;
+  static constexpr Uint32 NotFound = BitmaskImpl::NotFound;
+  static constexpr Uint32 TextLength = size * 8;
 
   /**
    * Return the length- number of words required to store the bitmask.
@@ -882,12 +882,12 @@ public:
   unsigned max_size() const { return (size * 32) - 1; }
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   void assign(const typename BitmaskPOD<size>::Data & src);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
   static void assign(Uint32 dst[], const BitmaskPOD<size> & src);
@@ -897,9 +897,9 @@ public:
    * copy this to <em>dst</em>
    */
   void copyto(unsigned sz, Uint32 dst[]) const;
-  
+
   /**
-   * assign <em>this</em> according to <em>src/em>
+   * assign <em>this</em> according to <em>src</em>
    */
   void assign(unsigned sz, const Uint32 src[]);
 

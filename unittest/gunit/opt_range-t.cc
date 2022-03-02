@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -27,9 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/opt_range.cc"
+#include "sql/opt_range.h"
+#include "sql/opt_range_internal.h"
 #include "sql/parse_tree_helpers.h"
 #include "unittest/gunit/fake_range_opt_param.h"
 #include "unittest/gunit/fake_table.h"
@@ -94,13 +95,13 @@ class OptRangeTest : public ::testing::Test {
  protected:
   OptRangeTest() : m_opt_param(nullptr) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_alloc,
                    thd()->variables.range_alloc_block_size, 0);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete m_opt_param;
 
     initializer.TearDown();
@@ -315,7 +316,7 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
       break;
     default:
       result = nullptr;
-      DBUG_ASSERT(false);
+      assert(false);
       return result;
   }
   Item *itm = static_cast<Item *>(result);
@@ -434,7 +435,8 @@ const SEL_ARG *null_arg = nullptr;
 
 static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi) {
-  for (SEL_ARG *cur = sel_arg->first(); cur != null_element; cur = cur->right) {
+  for (SEL_ARG *cur = sel_arg->first(); cur != opt_range::null_element;
+       cur = cur->right) {
     String current_range;
     append_range(&current_range, kpi, cur->min_value, cur->max_value,
                  cur->min_flag | cur->max_flag);
@@ -1579,8 +1581,8 @@ static Item_row *new_Item_row(int a, int b) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1589,9 +1591,9 @@ static Item_row *new_Item_row(int a, int b, int c) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(c));
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
+  items.push_back(new Item_int(c));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1601,7 +1603,7 @@ static Item_row *new_Item_row(Field **fields, int count) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
+  mem_root_deque<Item *> items(*THR_MALLOC);
   for (int i = count - 1; i > 0; --i)
     items.push_front(new Item_field(fields[i]));
   return new Item_row(POS(), new Item_field(fields[0]), items);
@@ -1618,7 +1620,7 @@ TEST_F(OptRangeTest, RowConstructorIn2) {
   all_args->push_front(new_Item_row(3, 4));
   all_args->push_front(new_Item_row(m_opt_param->table->field, 2));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.
@@ -1648,7 +1650,7 @@ TEST_F(OptRangeTest, RowConstructorIn3) {
   all_args->push_front(new_Item_row(4, 5, 6));
   all_args->push_front(new_Item_row(m_opt_param->table->field, 3));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.
@@ -1773,8 +1775,8 @@ TEST_F(OptRangeTest, CombineAlways2) {
   always_root.min_flag = NO_MIN_RANGE;
   always_root.max_flag = NO_MAX_RANGE;
   SEL_ROOT always(&always_root), key_range(&key_range_root);
-  Mock_field_long field1("col_1", false);
-  Mock_field_long field2("col_2", false);
+  Mock_field_long field1("col_1", false, false);
+  Mock_field_long field2("col_2", false, false);
   Fake_TABLE table(&field1, &field2);
   String res(1000), so_far(1000);
   Fake_key_part_info key_part_info[] = {Fake_key_part_info(&field1),
@@ -1794,7 +1796,7 @@ TEST_F(OptRangeTest, CombineAlways2) {
 
 TEST_F(OptRangeTest, AppendRange) {
   String out(100);
-  Mock_field_long field("my_field", false);
+  Mock_field_long field("my_field", false, false);
   Fake_TABLE table(&field);
   KEY_PART_INFO kp;
   kp.field = &field;

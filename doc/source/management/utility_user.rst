@@ -4,9 +4,6 @@
  Utility user
 ==============
 
-:Availability: This feature is **Experimental** quality.
-
-
 |Percona Server| has implemented ability to have a |MySQL| user who has system access to do administrative tasks but limited access to user schema. This feature is especially useful to those operating |MySQL| As A Service. 
 
 This user has a mixed and special scope of abilities and protection:
@@ -19,7 +16,7 @@ This user has a mixed and special scope of abilities and protection:
 
   * Utility user doesn't have the ability create, modify, delete or see any schemas or data not specified (except for information_schema).
 
-  * Utility user may modify all visible, non read-only system variables (see :ref:`expanded_option_modifiers` functionality).
+  * Utility user may modify all visible, non read-only system variables (see `expanded_option_modifiers` functionality).
 
   * Utility user may see, create, modify and delete other system users only if given access to the mysql schema.
 
@@ -122,7 +119,7 @@ This variable can be used to specify a comma-separated list of extra access priv
 
 This variable was added in |Percona Server| 8.0.20-11.
 
-This variable allows a comma-separated list of extra access dynamic privileges to grant to the utility user. The supported values for the dynamic prvilieges are:
+This variable allows a comma-separated list of extra access dynamic privileges to grant to the utility user. The supported values for the dynamic privileges are:
 
 * APPLICATION_PASSWORD_ADMIN
 * AUDIT_ADMIN

@@ -118,13 +118,15 @@ SELECT @@session.default_table_encryption;
 @@session.default_table_encryption
 OFF
 SET SESSION default_table_encryption=ONLINE_TO_KEYRING;
+ERROR HY000: The default_table_encryption option cannot be changed, keyring plugin is not available
 SELECT @@session.default_table_encryption;
 @@session.default_table_encryption
-ONLINE_TO_KEYRING
+OFF
 SET SESSION default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+ERROR HY000: The default_table_encryption option cannot be changed, keyring plugin is not available
 SELECT @@session.default_table_encryption;
 @@session.default_table_encryption
-ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+OFF
 SET GLOBAL default_table_encryption=OFF;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
@@ -139,13 +141,15 @@ SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
 ON
 SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
+ERROR HY000: The default_table_encryption option cannot be changed, keyring plugin is not available
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-ONLINE_TO_KEYRING
+ON
 SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+ERROR HY000: The default_table_encryption option cannot be changed, keyring plugin is not available
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+ON
 SET PERSIST default_table_encryption=ON;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
@@ -182,13 +186,15 @@ SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
 OFF
 SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
+ERROR HY000: The default_table_encryption option cannot be changed, keyring plugin is not available
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-ONLINE_TO_KEYRING
+OFF
 SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+ERROR HY000: The default_table_encryption option cannot be changed, keyring plugin is not available
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+OFF
 SET PERSIST default_table_encryption=ON;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption

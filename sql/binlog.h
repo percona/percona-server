@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,13 +160,18 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_LOCK_index;
   /** The instrumentation key to use for @ LOCK_binlog_end_pos. */
   PSI_mutex_key m_key_LOCK_binlog_end_pos;
-
-  PSI_mutex_key m_key_COND_done;
-
+  /** The PFS instrumentation key for @ LOCK_commit_queue. */
   PSI_mutex_key m_key_LOCK_commit_queue;
+  /** The PFS instrumentation key for @ LOCK_done. */
   PSI_mutex_key m_key_LOCK_done;
+  /** The PFS instrumentation key for @ LOCK_flush_queue. */
   PSI_mutex_key m_key_LOCK_flush_queue;
+  /** The PFS instrumentation key for @ LOCK_sync_queue. */
   PSI_mutex_key m_key_LOCK_sync_queue;
+  /** The PFS instrumentation key for @ COND_done. */
+  PSI_mutex_key m_key_COND_done;
+  /** The PFS instrumentation key for @ COND_flush_queue. */
+  PSI_mutex_key m_key_COND_flush_queue;
   /** The instrumentation key to use for @ LOCK_commit. */
   PSI_mutex_key m_key_LOCK_commit;
   /** The instrumentation key to use for @ LOCK_sync. */
@@ -319,7 +324,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
 
   MYSQL_BIN_LOG(uint *sync_period, bool relay_log = false);
-  ~MYSQL_BIN_LOG();
+  ~MYSQL_BIN_LOG() override;
 
   void set_psi_keys(
       PSI_mutex_key key_LOCK_index, PSI_mutex_key key_LOCK_commit,
@@ -327,11 +332,12 @@ class MYSQL_BIN_LOG : public TC_LOG {
       PSI_mutex_key key_LOCK_flush_queue, PSI_mutex_key key_LOCK_log,
       PSI_mutex_key key_LOCK_binlog_end_pos, PSI_mutex_key key_LOCK_sync,
       PSI_mutex_key key_LOCK_sync_queue, PSI_mutex_key key_LOCK_xids,
-      PSI_cond_key key_COND_done, PSI_cond_key key_update_cond,
-      PSI_cond_key key_prep_xids_cond, PSI_file_key key_file_log,
-      PSI_file_key key_file_log_index, PSI_file_key key_file_log_cache,
-      PSI_file_key key_file_log_index_cache) {
+      PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue,
+      PSI_cond_key key_update_cond, PSI_cond_key key_prep_xids_cond,
+      PSI_file_key key_file_log, PSI_file_key key_file_log_index,
+      PSI_file_key key_file_log_cache, PSI_file_key key_file_log_index_cache) {
     m_key_COND_done = key_COND_done;
+    m_key_COND_flush_queue = key_COND_flush_queue;
 
     m_key_LOCK_commit_queue = key_LOCK_commit_queue;
     m_key_LOCK_done = key_LOCK_done;
@@ -404,7 +410,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
                       bool is_server_starting = false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param) {
-    DBUG_ASSERT(is_relay_log);
+    assert(is_relay_log);
     previous_gtid_set_relaylog = previous_gtid_set_param;
   }
   /**
@@ -463,7 +469,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   bool snapshot_lock_acquired;
 
-  int open(const char *opt_name) { return open_binlog(opt_name); }
+  int open(const char *opt_name) override { return open_binlog(opt_name); }
 
   /**
     Enter a stage of the ordered commit procedure.
@@ -564,7 +570,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     Pre-condition: transactions should have called ha_prepare_low, using
                    HA_IGNORE_DURABILITY, before entering here.
 
-    Stage#0 implements slave-preserve-commit-order for applier threads that
+    Stage#0 implements replica-preserve-commit-order for applier threads that
     write the binary log. i.e. it forces threads to enter the queue in the
     correct commit order.
 
@@ -587,7 +593,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     will wait until the last stage is finished.
 
     Stage 0 (SLAVE COMMIT ORDER):
-    1. If slave-preserve-commit-order and is slave applier worker thread, then
+    1. If replica-preserve-commit-order and is slave applier worker thread, then
        waits until its turn to commit i.e. till it is on the top of the queue.
     2. When it reaches top of the queue, it signals next worker in the commit
        order queue to awake.
@@ -636,11 +642,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  public:
   int open_binlog(const char *opt_name);
-  void close();
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all);
+  void close() override;
+  enum_result commit(THD *thd, bool all) override;
+  int rollback(THD *thd, bool all) override;
   bool truncate_relaylog_file(Master_info *mi, my_off_t valid_pos);
-  int prepare(THD *thd, bool all);
+  int prepare(THD *thd, bool all) override;
 #if defined(MYSQL_SERVER)
 
   void update_thd_next_event_pos(THD *thd);
@@ -653,15 +659,17 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
 
 #ifdef MYSQL_SERVER
-  void xlock(void);
-  void xunlock(void);
-  void slock(void) { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
-  void sunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+  void xlock(void) override;
+  void xunlock(void) override;
+  void slock(void) override { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) override {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+  }
 #else
-  void xlock(void) {}
-  void xunlock(void) {}
-  void slock(void) {}
-  void sunlock(void) {}
+  void xlock(void) override {}
+  void xunlock(void) override {}
+  void slock(void) override {}
+  void sunlock(void) override {}
 #endif /* MYSQL_SERVER */
 
   void set_max_size(ulong max_size_arg);
@@ -733,12 +741,14 @@ class MYSQL_BIN_LOG : public TC_LOG {
      any normal statement.
 
      @param[in] thd  the THD object of current thread.
-     @param[in] stmt the DELETE statement.
-     @param[in] stmt_len the length of DELETE statement.
+     @param[in] stmt the DML statement.
+     @param[in] stmt_len the length of the DML statement.
+     @param[in] sql_command the type of SQL command.
 
      @return Returns false if succeeds, otherwise true is returned.
   */
-  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len);
+  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len,
+                          enum enum_sql_command sql_command);
 
   void report_cache_write_error(THD *thd, bool is_transactional);
   bool check_write_error(const THD *thd);
@@ -832,6 +842,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
+  inline mysql_mutex_t *get_sync_lock() { return &LOCK_sync; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
 

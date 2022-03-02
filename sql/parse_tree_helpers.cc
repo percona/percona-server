@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,30 +22,42 @@
 
 #include "sql/parse_tree_helpers.h"
 
+#include <assert.h>
+#include <cstddef>
+#include <initializer_list>
+#include <utility>
+#include <vector>
+
+#include "lex_string.h"
 #include "m_string.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_alloc.h"
+
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/dd/info_schema/show.h"
 #include "sql/derror.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_location.h"
+#include "sql/parse_tree_column_attrs.h"
 #include "sql/parse_tree_nodes.h"
+#include "sql/parser_yystype.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
 #include "sql/sp_head.h"
 #include "sql/sp_instr.h"
 #include "sql/sp_pcontext.h"
+#include "sql/sql_alter.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/system_variables.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 
@@ -82,7 +94,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
     return nullptr;
   }
 
-  DBUG_ASSERT(pctx && spv);
+  assert(pctx && spv);
 
   if (lex->reparse_common_table_expr_at != 0) {
     /*
@@ -101,7 +113,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
   Item_splocal *item = new (thd->mem_root) Item_splocal(
       name, spv->offset, spv->type, spv_pos_in_query, spv_len_in_query);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (item) item->m_sp = lex->sphead;
 #endif
 
@@ -200,17 +212,17 @@ bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
 
-  DBUG_ASSERT(expr_item);
-  DBUG_ASSERT(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
-              (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-               sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+  assert(expr_item);
+  assert(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
+         (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+          sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
 
   Item_trigger_field *trg_fld = new (pc->mem_root) Item_trigger_field(
       POS(), TRG_NEW_ROW, trigger_field_name.str, UPDATE_ACL, false);
 
   if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
     return true;
-  DBUG_ASSERT(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
+  assert(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
 
   sp_instr_set_trigger_field *i = new (pc->mem_root)
       sp_instr_set_trigger_field(sp->instructions(), lex, trigger_field_name,
@@ -262,7 +274,7 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr) {
 
   /* Set new LEX as if we at start of set rule. */
   lex->sql_command = SQLCOM_SET_OPTION;
-  lex->var_list.empty();
+  lex->var_list.clear();
   lex->autocommit = false;
 
   /*
@@ -523,4 +535,9 @@ bool check_resource_group_name_len(
                         ER_THD(current_thd, ER_TOO_LONG_IDENT), name.str);
   }
   return true;
+}
+
+void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc) {
+  Table_ddl_parse_context *tpc = static_cast<Table_ddl_parse_context *>(tddlpc);
+  tpc->alter_info->cf_appliers = std::move(cpc->cf_appliers);
 }

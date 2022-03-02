@@ -1,0 +1,408 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+
+call mtr.add_suppression("Attempting backtrace");
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/server.log;
+
+# This test is to check if missing key, missing key versions or corrupted key versions
+# are discovered by the server. Pages in a table can be encrypted by different key versions,
+# while also having some pages unencrypted. We considere here different test scenarios:
+# 1. 100 pages encrypted by version 1 of key 1, rest of pages unencrypted.
+# 2. 20 pages encrypted by version 2 of key 1, 80 pages encrytped by version 1 of key 1,
+#    rest of the pages unencrypted.
+# 3. 100 pages encrypted by version 2 of key 1, rest of the pages encrypted by version 1
+#    of key 1.
+# 4. 100 pages decrypted, rest of the pages encrypted by version 1 of key 1.
+# 5. 20 pages decrypted, 80 pages encrypted by version 2 of key 1, rest of the pages
+#    encrypted by version 1 of key 1.
+
+
+# 1) Rotate 100 pages in t1
+# 2) Shut down the sever - this will make sure the t1's pages are flushed to disk
+#    However it will still simulated the server crash, as only 100 pages will get rotated
+#    and the updated to page0 of t1 will not be done
+# 3) Restart the server
+# 4) Make sure t1 rotation completes
+
+# Keys in std_data/validation_keyrings/m1 and std_data/validation_keyrings/m2
+# belong to the server with uuid 6d616e56-6ad1-11ea-b749-04ed33a8543. In order for
+# MTR server to be able to read those keys we need to assign this uuid to
+# server_uuid via auto.conf file.
+--let $uuid_file= auto.cnf
+--let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $datadir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
+--copy_file $datadir/$uuid_file $datadir/original_$uuid_file
+
+--remove_file $datadir/$uuid_file
+--write_file $datadir/$uuid_file
+[auto]
+server_uuid=6d616e56-6ad1-11ea-b749-04ed33a8543f
+EOF
+
+--echo # setup for 1st scenario:
+--echo # 100 pages encrypted by version 1 of key 1, rest of pages unencrypted.
+
+--echo # Restart server with keyring with key 0 and version 1 of key 1
+--echo # We will encrypted all tablespaces with key 0, apart from t1, which
+--echo # is going to be encrypted with key 1 (partially).
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --default-table-encryption=OFF
+--source include/restart_mysqld.inc
+
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+
+--let $id = `SELECT RAND()`
+--let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+
+delimiter //;
+create procedure innodb_insert_proc (repeat_count int)
+begin
+  declare current_num int;
+  set current_num = 0;
+  while current_num < repeat_count do
+    insert into t1 values (current_num,repeat('foobar',42));
+    set current_num = current_num + 1;
+  end while;
+end//
+delimiter ;//
+commit;
+
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+
+# Make sure encryption is disabled
+--let $assert_text= Make sure encryption is disabled
+--let $assert_cond= "[SELECT @@GLOBAL.default_table_encryption]" = 0
+--source include/assert.inc
+
+--let $assert_text= Make sure t1 is unencrypted
+--let $assert_cond= "[SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'test/t1\\']" = 0
+--source include/assert.inc
+
+--echo # We want only first 100 pages to be encrypted by version of 1 key 1
+--echo # (that's the default value for rotate_only_first_x_page_from_t1).
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+
+--echo # Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+# All tables should get encrypted. tables_count - 2 because temporary tablespace is not encrypted and t1 will only
+# have half of the pages encrypted and thus min_key_version will still be 0
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Table t1 should have min_key_version = 0 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
+--echo # have been rotatted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND ROTATING_OR_FLUSHING = 1
+--source include/wait_condition.inc
+
+--echo # Disable rotation threads
+SET GLOBAL innodb_encryption_threads = 0;
+--echo # Disable rotation of only first 100 pages
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+
+--source include/shutdown_mysqld.inc
+
+--echo # Make sure that t1 still contains foobar - as it is only encrypted in half
+--let SEARCH_PATTERN=foobar
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+--echo # t1 is partially encrypted with ver1 of key 1, now switch to keyring without key 1 -
+--echo # it should not be possible to open t1
+--let validation_condition=missing_key_1
+--source validation.inc
+
+--echo # t1 is partially encrypted with ver1 of key 1, now switch to keyring without
+--echo # version 1 of key 1 - it should not be possible to open t1
+--let validation_condition=missing_ver_1_of_key_1
+--source validation.inc
+
+--echo # t1 is partially encrypted with version 1 of key 1, now switch to keyring
+--echo # with corrupted version 1 of key 1 - it should not be possible to open t1
+--let validation_condition=corrupted_ver_1_of_key_1
+--source validation.inc
+
+--echo # setup for 2nd scenario:
+--echo # 20 pages encrypted by version 2 of key 1, 80 pages encrytped by version 1 of key 1,
+--echo # rest of the pages unencrypted.
+
+--echo # Restart the server that have both version 1 and version 2 of key 1. Next, rotate
+--echo # first 20 pages to version 2 of key 1. After this, t1 should have 20 pages encrypted
+--echo # with ver2 of key1, 80 pages encrypted with ver1 of key1 and the rest of the pages unencrypted
+--let $restart_parameters=restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--source include/start_mysqld.inc
+
+SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_rotate_key_age=1;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # Table t1 should have ROTATIONG_OR_FLUSHING set to 1 <= this means that only 20 pages
+--echo # have been rotatted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE ROTATING_OR_FLUSHING = 1
+--source include/wait_condition.inc
+
+SET GLOBAL debug="-d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+
+--source include/shutdown_mysqld.inc
+
+--echo # table t1 has some pages encrypted with version 2 of key 1. Switch to keyring without version 2 of key 1 -
+--echo # it should not be possible to open t1
+--let validation_condition=missing_ver_2_of_key_1
+--source validation.inc
+
+--echo # some pages are encrypted with version 1 of key 1 in t1, now switch to keyring without
+--echo # version 1 of key 1 - it should not be possible to open t1
+--let validation_condition=missing_ver_1_of_key_1
+--source validation.inc
+
+--echo # t1 is encrypted by key 1. It should not be possible to open t1 if this key is missing.
+--let validation_condition=missing_key_1
+--source validation.inc
+
+--echo # some pages are encrypted with version 1 of key 1, now switch to keyring with version 1 of key 1 corrupted -
+--echo # it should not be possible to open t1
+--let validation_condition=corrupted_ver_1_of_key_1
+--source validation.inc
+
+--echo # some pages are encrypted with version 2 of key 1, now switch to keyring with version 2 of key 1 corrupted -
+--echo # it should not be possible to open t1
+--let validation_condition=corrupted_ver_2_of_key_1
+--source validation.inc
+
+--echo # setup for 3rd scenario:
+--echo # 100 pages encrypted by version 2 of key 1, rest of the pages encrypted by version 1
+--echo # of key 1.
+
+--echo # Restart server without key 1 and drop t1. Although, key 1 is not available, it should still be possible
+--echo # to drop t1. Log errors to MYSQLD_LOG as we do not expect warnings in the default server log file.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=$MYSQLD_LOG
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+
+--echo # Now we will re-create t1 and encrypt it with version 1 of key 1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+
+--echo # Now we will re-encrypt first 100 pages of t1 with ver2 of key 1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2
+--source include/restart_mysqld.inc
+
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_rotate_key_age=1;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # Table t1 should ROTATIONG_OR_FLUSHING set to 1 <= this means that only 20 pages
+--echo # have been rotatted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE ROTATING_OR_FLUSHING = 1
+--source include/wait_condition.inc
+
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+--source include/shutdown_mysqld.inc
+
+--echo # some pages are encrypted with version 2 of key 1, now switch to keyring without version 2 of key 1 -
+--echo # it should not be possible to open t1
+--let validation_condition=missing_ver_2_of_key_1
+--source validation.inc
+
+--echo # some pages are encrypted with version 1 of key 1, now switch to keyring without version 1 of key 1 -
+--echo # it should not be possible to open t1
+--let validation_condition=missing_ver_1_of_key_1
+--source validation.inc
+
+--echo # pages are encrypted with key 1. It should not be possible to open t1 when key 1 is missing.
+--let $validation_condition=missing_key_1
+--source validation.inc
+
+--echo # pages are encrypted with version 1 and version 2 of key 1. It should not be possible to open
+--echo # t1, when version 1 of key 1 is corrupted.
+--let validation_condition=corrupted_ver_1_of_key_1
+--source validation.inc
+
+--echo # pages are encrypted with version 1 and version 2 of key 1. It should not be possible to open
+--echo # t1, when version 2 of key 1 is corrupted.
+--let validation_condition=corrupted_ver_2_of_key_1
+--source validation.inc
+
+--echo # setup for 4th scenario:
+--echo # 100 pages decrypted, rest of the pages encrypted by version 1 of key 1.
+--echo # First drop and re-create t1 (encrypt by key 1, version 1)
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=$MYSQLD_LOG
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+
+--echo # Now decrypt first 100 pages of t1
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # Table t1 should have ROTATIONG_OR_FLUSHING set to 1 and max_key_version set to 1<= this means that only 100 pages
+--echo # have been rotatted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MAX_KEY_VERSION=1 AND ROTATING_OR_FLUSHING = 1
+--source include/wait_condition.inc
+
+#TODO: The bug that it's type is still CRYPT_SCHEMA_1, although it should have been
+#CRYPT_SCHEMA_UNENCRYPTED, and possibly min_key_version should be equal to 0 ? hm - and max_
+#key_version to != 0
+
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=OFF;
+--echo # Disable rotation threads
+--echo # Disable rotation of only first 100 pages
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+#
+--source include/shutdown_mysqld.inc
+
+--echo # Some pages are encrypted with version 1 of key 1 in t1. Now switch to keyring with corrupted
+--echo # version 1 of key 1
+--let validation_condition=corrupted_ver_1_of_key_1
+--source validation.inc
+
+--echo # t1 is encrypted with version 1 and version 2 of key 1, now switch to keyring without key 1 -
+--echo # it should not be possible to open t1
+--let $validation_condition=missing_key_1
+--source validation.inc
+
+--echo # setup for 4th scenario:
+--echo # 20 pages decrypted, 80 pages encrypted by version 2 of key 1, rest of the pages
+--echo # encrypted by version 1 of key 1.
+
+--echo # First re-create t1, encrypted with key_id = 1, version 1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=$MYSQLD_LOG
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+
+--echo # Next, encrypt 100 pages with version 2
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2 --log-error=$MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+
+--let $wait_timeout= 600
+# All tables should get encrypted. tables_count - 2 because temporary tablespace is not encrypted and t1 max_key_version
+# is 2.
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND MAX_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Table t1 should have min_key_version = 1, max_key_version = 2 assigned and ROTATIONG_OR_FLUSHING=1 <= this
+--echo # means that only 100 pages have been rotatted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION=1 AND ROTATING_OR_FLUSHING=1 AND MAX_KEY_VERSION=2
+--source include/wait_condition.inc
+
+--echo # Now, we will decrypt first 20 pages
+SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
+
+--let $wait_timeout= 600
+# All tables, apart from t1 should be decrypted. t1 will have only 20 pages decrypted and min_key_version will be still 1.
+--let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Table t1 should have min_key_version = 1 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 20 pages
+--echo # have been rotatted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND ROTATING_OR_FLUSHING = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads = 0;
+
+--source include/shutdown_mysqld.inc
+
+--echo # some pages are encrypted with version 2 of key 1, now switch to keyring with version 2 of key 1 corrupted -
+--echo # it should not be possible to open t1
+--let validation_condition=corrupted_ver_2_of_key_1
+--source validation.inc
+
+--echo # some pages are encrypted with version 1 of key 1. Now switch to keyring with corrupted
+--echo # version 1 of key 1
+--let validation_condition=corrupted_ver_1_of_key_1
+--source validation.inc
+
+--echo # some pages are encrypted with version 1 of key 1. Now switch to keyring without version 1 of key 1 -
+--echo # it should not be possible to open t1
+--let validation_condition=missing_ver_1_of_key_1
+--source validation.inc
+
+
+--echo # some pages are encrypted with version 2 of key 1. Now switch to keyring without version 2 of key 1 -
+--echo # it should not be possible to open t1
+--let validation_condition=missing_ver_2_of_key_1
+--source validation.inc
+
+--echo # t1 is encrypted by version 1 and version 2 of key 1, now switch to keyring without key 1 -
+--echo # it should not be possible to open t1
+--let $validation_condition=missing_key_1
+--source validation.inc
+
+# cleanup
+
+--echo # Restart and decrypt all tables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2
+--source include/start_mysqld.inc
+
+DROP TABLE t1;
+DROP PROCEDURE innodb_insert_proc;
+
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let $wait_timeout= 600
+# All tables should get encrypted
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0 AND MAX_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,18 @@
 #ifndef FAKE_TABLE_H
 #define FAKE_TABLE_H
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <ostream>
 #include <string>
 #include <vector>
 
-#include "gmock/gmock-generated-nice-strict.h"
 #include "gtest/gtest.h"
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
@@ -64,8 +64,8 @@ static const uint MAX_TABLE_COLUMNS = sizeof(int) * 8;
 */
 class Fake_TABLE_LIST : public TABLE_LIST {
  public:
-  Fake_TABLE_LIST() {}
-  ~Fake_TABLE_LIST() {}
+  Fake_TABLE_LIST() = default;
+  ~Fake_TABLE_LIST() = default;
 };
 
 /*
@@ -94,7 +94,7 @@ class Fake_TABLE_SHARE : public TABLE_SHARE {
     EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields));
     bitmap_set_above(&all_set, 0, true);
   }
-  ~Fake_TABLE_SHARE() {}
+  ~Fake_TABLE_SHARE() = default;
 };
 
 /*
@@ -111,7 +111,6 @@ class Fake_TABLE : public TABLE {
   static const int max_record_length = MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS;
   uchar m_record[max_record_length];
 
-  Fake_TABLE_LIST table_list;
   Fake_TABLE_SHARE table_share;
   // Storage space for the handler's handlerton
   Fake_handlerton fake_handlerton;
@@ -119,7 +118,7 @@ class Fake_TABLE : public TABLE {
   uint32 write_set_buf;
   MY_BITMAP read_set_struct;
   uint32 read_set_buf;
-  Field *m_field_array[MAX_TABLE_COLUMNS];
+  Field *m_field_array[MAX_TABLE_COLUMNS]{};
   Mock_field_long *m_mock_field_array[MAX_TABLE_COLUMNS];
 
   // Counter for creating unique index id's. See create_index().
@@ -138,23 +137,22 @@ class Fake_TABLE : public TABLE {
     read_set = &read_set_struct;
     write_set = &write_set_struct;
     next_number_field = nullptr;  // No autoinc column
-    pos_in_table_list = &table_list;
-    pos_in_table_list->select_lex =
-        new (&mem_root) SELECT_LEX(&mem_root, nullptr, nullptr);
-    table_list.table = this;
+    pos_in_table_list = new (*THR_MALLOC) Fake_TABLE_LIST();
+    pos_in_table_list->table = this;
+    pos_in_table_list->query_block =
+        new (&mem_root) Query_block(&mem_root, nullptr, nullptr);
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
 
     const_table = false;
-    table_list.set_tableno(highest_table_id);
+    pos_in_table_list->set_tableno(highest_table_id);
     highest_table_id = (highest_table_id + 1) % MAX_TABLES;
     key_info = &m_keys[0];
     record[0] = &m_record[0];
     memset(record[0], 0, max_record_length);
     for (int i = 0; i < max_keys; i++)
       key_info[i].key_part = m_key_part_infos[i];
-    // We choose non-zero to avoid it working by coincidence.
-    highest_index_id = 3;
+    highest_index_id = 0;
 
     set_handler(&mock_handler);
     mock_handler.change_table_ptr(this, &table_share);
@@ -213,12 +211,13 @@ class Fake_TABLE : public TABLE {
   Fake_TABLE(int column_count, bool cols_nullable)
       : table_share(column_count),
         mock_handler(&fake_handlerton, &table_share) {
-    DBUG_ASSERT(static_cast<size_t>(column_count) <= sizeof(int) * 8);
+    assert(static_cast<size_t>(column_count) <= sizeof(int) * 8);
     initialize();
     for (int i = 0; i < column_count; ++i) {
       std::stringstream str;
       str << "field_" << (i + 1);
-      add(new (*THR_MALLOC) Mock_field_long(str.str().c_str(), cols_nullable),
+      add(new (*THR_MALLOC)
+              Mock_field_long(str.str().c_str(), cols_nullable, false),
           i);
     }
   }
@@ -237,10 +236,11 @@ class Fake_TABLE : public TABLE {
     for (size_t i = 0; i < column_values.size(); ++i) {
       std::stringstream s;
       s << "field_" << i + 1;
-      field[i] = new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
+      field[i] =
+          new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable, false);
       field[i]->table = this;
       const ptrdiff_t field_offset = i * MAX_FIELD_WIDTH;
-      field[i]->ptr = record[0] + field_offset + 1;
+      field[i]->set_field_ptr(record[0] + field_offset + 1);
       if (are_nullable) field[i]->set_null_ptr(record[0] + field_offset, 1);
     }
     int i = 0;
@@ -258,29 +258,54 @@ class Fake_TABLE : public TABLE {
   }
 
   // Defines an index over (column1, column2) and generates a unique id.
-  int create_index(Field *column1, Field *column2) {
-    column1->flags |= PART_KEY_FLAG;
-    column2->flags |= PART_KEY_FLAG;
+  int create_index(Field *column1, Field *column2, bool unique = false) {
+    column1->set_flag(PART_KEY_FLAG);
     int index_id = highest_index_id++;
     column1->key_start.set_bit(index_id);
     keys_in_use_for_query.set_bit(index_id);
+    column1->part_of_key.set_bit(index_id);
+
+    if (column2 != nullptr) {
+      column2->set_flag(PART_KEY_FLAG);
+      column2->part_of_key.set_bit(index_id);
+    }
+
+    KEY *key = &m_keys[index_id];
+    key->table = this;
+    if (unique) {
+      key->flags = key->actual_flags = HA_NOSAME;
+    } else {
+      key->flags = key->actual_flags = 0;
+    }
+    key->actual_key_parts = key->user_defined_key_parts = 1;
+    key->key_part[0].field = column1;
+    key->key_part[0].store_length = 8;
+    if (column2 != nullptr) {
+      key->actual_key_parts = key->user_defined_key_parts = 2;
+      key->key_part[1].field = column2;
+      key->key_part[1].store_length = 8;
+    }
+    key->name = "unittest_index";
+
+    ++s->keys;
     return index_id;
   }
 
   void set_handler(handler *h) { file = h; }
   TABLE_SHARE *get_share() { return &table_share; }
 
+  static void reset_highest_table_id() { highest_table_id = 0; }
+
  private:
   void add(Field *new_field, int pos) {
     field[pos] = new_field;
     new_field->table = this;
-    new_field->orig_table = this;
     static const char *table_name = "Fake";
     new_field->table_name = &table_name;
-    new_field->field_index = pos;
+    new_field->set_field_index(pos);
     bitmap_set_bit(read_set, pos);
     const ptrdiff_t field_offset = pos * MAX_FIELD_WIDTH;
-    new_field->ptr = record[0] + field_offset + 1;
+    new_field->set_field_ptr(record[0] + field_offset + 1);
     if (new_field->get_null_ptr() != nullptr)
       new_field->set_null_ptr(record[0] + field_offset, 1);
   }

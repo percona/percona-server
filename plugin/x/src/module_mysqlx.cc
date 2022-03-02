@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,9 @@
 #include <string>
 #include <utility>
 
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/module_cache.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/server/builder/server_builder.h"
@@ -122,10 +125,20 @@ void Module_mysqlx::unregister_udfs() {
   m_udf_register = nullptr;
 }
 
+static bool x_ssl_reload_cb(void *) {
+  auto server = Module_mysqlx::get_instance_server();
+  server->reload_ssl_context();
+  return true;
+}
+
 int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
   xpl::plugin_handle = plugin_handle;
 
   try {
+    DBUG_EXECUTE_IF("xplugin_shutdown_unixsocket", {
+      XSYNC_POINT_ENABLE({"xacceptor_stop_wait", "xacceptor_pre_loop_wait",
+                          "xacceptor_post_loop_wait"});
+    });
     xpl::init_performance_schema();
 
     provide_udfs();
@@ -191,12 +204,17 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
     return 1;
   }
 
+  if (!register_ssl_reload_callback(&x_ssl_reload_cb)) {
+    log_warning(ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED);
+  }
+
   return 0;
 }
 
 int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   // this flag will trigger the on_verify_server_state() timer to trigger an
   // acceptor thread exit
+  deregister_ssl_reload_callback(&x_ssl_reload_cb);
 
   if (m_server) m_server->stop();
 
@@ -219,8 +237,6 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   unregister_udfs();
 
   xpl::plugin_handle = nullptr;
-
-  google::protobuf::ShutdownProtobufLibrary();
 
   return 0;
 }

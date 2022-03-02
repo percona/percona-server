@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_redo_log_reader\fR
+.\"     Title: ndb_redo_log_reader
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_REDO_LOG_READER\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_REDO_LOG_READER" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,16 +45,15 @@ The C++ source files for
 can be found in the directory
 /storage/ndb/src/kernel/blocks/dblqh/redoLogReader\&.
 .PP
-The following table includes options that are specific to the NDB Cluster program
-\fBndb_redo_log_reader\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_redo_log_reader\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+Options that can be used with
+\fBndb_redo_log_reader\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.265.\ \&Command\-line options for the ndb_redo_log_reader program
+.B Table\ \&23.40.\ \&Command\-line options used with the program ndb_redo_log_reader
 .TS
 allbox tab(:);
 lB lB lB.
@@ -66,18 +65,18 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB-dump\fR\fB \fR
@@ -85,7 +84,7 @@ T}:T{
 Print dump info
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -94,7 +93,7 @@ T}:T{
 Print file descriptors only
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -103,7 +102,7 @@ T}:T{
 Print usage information
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -112,7 +111,7 @@ T}:T{
 Provide lap info, with max GCI started and completed
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -121,16 +120,16 @@ T}:T{
 Starting megabyte
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
 \fB \fR\fB-mbyteheaders\fR\fB \fR
 T}:T{
-Show only the first page header of every megabyte in the file
+Show only first page header of each megabyte in file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -139,7 +138,7 @@ T}:T{
 Do not check records for errors
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -148,7 +147,7 @@ T}:T{
 Do not print records
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -157,7 +156,7 @@ T}:T{
 Start with this page
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -166,7 +165,7 @@ T}:T{
 Show page headers only
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -175,7 +174,7 @@ T}:T{
 Start with this page index
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -184,7 +183,7 @@ T}:T{
 Bit-shifted dump
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -213,7 +212,7 @@ S
 varies according to the value of the
 NoOfFragmentLogFiles
 configuration parameter, whose default value is 16; thus, the default range of the number in the file name is 0\-15 inclusive\&. For more information, see
-\m[blue]\fBNDB Cluster Data Node File System Directory Files\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBNDB Cluster Data Node File System Directory\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The name of the file to be read may be followed by one or more of the options listed here:
 .sp
@@ -228,28 +227,21 @@ The name of the file to be read may be followed by one or more of the options li
 \fB\-dump\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -dump
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -268,28 +260,21 @@ Print dump info\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -filedescriptors
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -308,16 +293,9 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --help
 T}
@@ -337,28 +315,21 @@ T}
 \fB\-lap\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -lap
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -377,40 +348,33 @@ Provide lap info, with max GCI started and completed\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -mbyte #
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 15
 T}
@@ -432,28 +396,21 @@ is an integer in the range 0 to 15, inclusive\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -mbyteheaders
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -472,28 +429,21 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -noprint
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -512,28 +462,21 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -nocheck
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -552,40 +495,33 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -page #
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 31
 T}
@@ -607,28 +543,21 @@ is an integer in the range 0 to 31, inclusive\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -pageheaders
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -647,40 +576,33 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -pageindex #
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 12
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 12
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 8191
 T}
@@ -703,28 +625,21 @@ is an integer between 12 and 8191, inclusive\&.
 \fB\-twiddle\fR
 .TS
 allbox tab(:);
-lB lB.
+lB l
+lB l
+lB l.
 T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -twiddle
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -745,7 +660,7 @@ must be run on a cluster data node, since it accesses the data node file system 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -755,7 +670,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-NDB Cluster Data Node File System Directory Files
+NDB Cluster Data Node File System Directory
 .RS 4
 \%https://dev.mysql.com/doc/ndb-internals/en/ndb-internals-ndbd-filesystemdir-files.html
 .RE

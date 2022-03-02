@@ -155,8 +155,6 @@ Checking 't6': Column = 'int'
 column_match
 1
 ALTER TABLE t7 ENGINE=Memory;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't7'
 Checking 't7': Engine = 'MyISAM'
 engine_match
 1
@@ -164,8 +162,6 @@ Checking 't7': Column = 'varchar(1)'
 column_match
 1
 ALTER TABLE t8 MODIFY a INT, ENGINE=Memory;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't8'
 Checking 't8': Engine = 'MyISAM'
 engine_match
 1
@@ -173,8 +169,6 @@ Checking 't8': Column = 'int'
 column_match
 1
 ALTER TABLE t9 ENGINE=InnoDB;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't9'
 Checking 't9': Engine = 'MyISAM'
 engine_match
 1
@@ -182,8 +176,6 @@ Checking 't9': Column = 'varchar(1)'
 column_match
 1
 ALTER TABLE t10 MODIFY a INT, ENGINE=InnoDB;
-Warnings:
-Note	1266	Using storage engine MyISAM for table 't10'
 Checking 't10': Engine = 'MyISAM'
 engine_match
 1

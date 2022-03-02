@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -37,7 +37,6 @@ SET(MYSYS_SOURCES
   base64.cc
   charset.cc
   charset-def.cc
-  checksum.cc
   dbug.cc
   errors.cc
   lf_alloc-pin.cc
@@ -117,6 +116,8 @@ SET(MYSYS_SOURCES
   thr_rwlock.cc
   tree.cc
   typelib.cc
+  unhex.cc
+  keyring_operations_helper.cc
   # From deleted mysys_ssl library
   crypt_genhash_impl.cc
   my_crypt.cc
@@ -166,6 +167,10 @@ IF(FREEBSD)
   ADD_COMPILE_FLAGS(stacktrace.cc COMPILE_FLAGS ${LIBUNWIND_CFLAGS})
 ENDIF()
 
+IF (WITH_COREDUMPER)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/coredumper/include)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
   mytime
@@ -189,15 +194,12 @@ ENDIF()
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
 ENDIF()
+IF (WITH_COREDUMPER)
+  TARGET_LINK_LIBRARIES(mysys coredumper)
+ENDIF()
 # Needed to resolve OpenSSL dependency on Windows
 IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys crypt32)
-ENDIF()
-
-# Bug in std::call_once in optimized mode
-IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
-    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-  ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
 ENDIF()
 
 # MD5_Init() and others are deprecated.

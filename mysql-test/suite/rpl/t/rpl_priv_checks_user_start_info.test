@@ -54,7 +54,6 @@
 
 # 3) Ensure that the message in the log contains the user info.
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_priv_checks_user_start_info
 --let $assert_count = 1
 --let $assert_select = .*Slave SQL thread.*user: 'u1'@'localhost'.*
 --let $assert_text = Start slave message found in log contains applier user info
@@ -73,16 +72,21 @@
 # 2) Start the server.
 --let $rpl_server_number = 2
 --let $rpl_force_stop = 1
---let $rpl_server_parameters = --skip_slave_start=FALSE
+--let $rpl_server_parameters = --skip_replica_start=FALSE
 --source include/rpl_restart_server.inc
 --source include/wait_for_slave_to_start.inc
 
 # 3) Ensure that the message in the log contains the user info.
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_priv_checks_user_start_info
 --let $assert_count = 2
 --let $assert_select = .*Slave SQL thread.*user: 'u1'@'localhost'.*
 --let $assert_text = Start slave message with user info found twice in log, after restart
 --source include/assert_grep.inc
+
+# Cleanup
+--let $rpl_server_number = 2
+--let $rpl_server_parameters =
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
 
 --source include/rpl_end.inc

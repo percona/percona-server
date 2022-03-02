@@ -1,0 +1,92 @@
+# This test is to test scenario when keyring encrypted table is to be created, but a crash occured and
+# on restart keyring is not available. Since the keyring is not available the redo log for writing
+# keyring encryption info to page 0 will report an error.
+
+# Keys in validation_keyrings/std_data/keys2 and validation_keyrings/std_data/keys3 belong to the
+# server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
+--let $uuid_file= auto.cnf
+--let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $datadir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
+--copy_file $datadir/$uuid_file $datadir/original_$uuid_file
+
+--remove_file $datadir/$uuid_file
+--write_file $datadir/$uuid_file
+[auto]
+server_uuid=b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99
+EOF
+
+--echo
+--echo # Restart server with keys2.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN KEYRING_PLUGIN
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --default-table-encryption=ONLINE_TO_KEYRING
+--source include/restart_mysqld.inc
+
+--source include/no_checkpoint_start.inc
+
+create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=2;
+
+begin;
+--disable_query_log
+--let $i = 20
+begin;
+while ($i)
+{
+  eval insert into t1(a,c,b) values ($i, repeat('secret1',20), repeat('secret2',6000));
+  dec $i;
+}
+--enable_query_log
+
+commit;
+
+# If checkpoint happens we will skip this test.
+# If no checkpoint  happens, InnoDB refuses to
+# start as used encryption key is not found.
+
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+begin;
+update t1 set c = repeat('secret3', 20);
+insert into t1 (a,c,b) values (21, repeat('secret5',20), repeat('secret6',6000));
+COMMIT;
+
+let $cleanup= drop table t1;
+--let CLEANUP_IF_CHECKPOINT= $cleanup;
+--source include/no_checkpoint_end.inc
+
+--echo # restart
+
+--let $error_log=$MYSQLTEST_VARDIR/tmp/my_restart.err
+
+--error 1
+--exec $MYSQLD_CMD --core-file --log-error=$error_log --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt $KEYRING_PLUGIN_OPT --default-table-encryption=OFF --innodb-doublewrite=0
+
+# We should get error in error log as it should not be possible to apply update to page0
+# of encrypted tablespace when correct key is not available.
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ###############
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=Tablespace id 6 is encrypted\. Although server managed to find all needed versions of key_id=2 in keyring to decrypt it, the provided versions are either incorrect or corrupted\. Can't continue reading table. Please provide the correct keyring\.
+--source include/search_pattern_in_file.inc
+
+--remove_file $error_log
+
+# In above server does start but InnoDB refuses to start
+# thus we need to restart server with correct keyring file
+
+--echo # Restart mysqld
+--let $do_not_echo_parameters=1
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--source include/start_mysqld.inc
+
+drop table t1;
+
+# restore initial keyring_file and server_uuid
+--remove_file $datadir/$uuid_file
+--move_file $datadir/original_$uuid_file $datadir/$uuid_file
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/restart_mysqld.inc

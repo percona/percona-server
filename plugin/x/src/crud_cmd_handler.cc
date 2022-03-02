@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
@@ -35,14 +34,15 @@
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/notices.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"
 #include "plugin/x/src/view_statement_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 
@@ -80,7 +80,7 @@ void Crud_command_handler::notice_handling_common(
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
       notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
-    notices::send_warnings(m_session->data_context(), m_session->proto());
+    notices::send_warnings(&m_session->data_context(), &m_session->proto());
 
   if (!info.message.empty())
     m_session->proto().send_notice_txt_message(info.message);
@@ -101,8 +101,9 @@ ngs::Error_code Crud_command_handler::execute_crud_insert(
   ngs::Error_code error = id_agg.configue(&m_session->data_context());
   if (error) return error;
 
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Empty_resultset rset;
   return execute(Insert_statement_builder(gen, &id_agg), msg, rset,
                  &ngs::Common_status_variables::m_crud_insert,
@@ -155,8 +156,9 @@ void Crud_command_handler::notice_handling(
 // -- Update
 ngs::Error_code Crud_command_handler::execute_crud_update(
     const Mysqlx::Crud::Update &msg) {
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Empty_resultset rset;
   return execute(Update_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_update,
@@ -196,8 +198,9 @@ void Crud_command_handler::notice_handling(
 // -- Delete
 ngs::Error_code Crud_command_handler::execute_crud_delete(
     const Mysqlx::Crud::Delete &msg) {
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Empty_resultset rset;
   return execute(Delete_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_delete,
@@ -216,8 +219,9 @@ void Crud_command_handler::notice_handling(
 // -- Find
 ngs::Error_code Crud_command_handler::execute_crud_find(
     const Mysqlx::Crud::Find &msg) {
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Streaming_resultset<Crud_command_delegate> rset(m_session, false);
   return execute(Find_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_find, nullptr);

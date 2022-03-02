@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -111,19 +111,19 @@ struct i_s_locks_row_t {
 
   /** Information for record locks.  All these are
   ULINT_UNDEFINED for table locks. */
-  /* @{ */
+  /** @{ */
   space_id_t lock_space; /*!< tablespace identifier */
   page_no_t lock_page;   /*!< page number within the_space */
   ulint lock_rec;        /*!< heap number of the record
                          on the page */
-  /* @} */
+  /** @} */
 
   /** The following are auxiliary and not included in the table */
-  /* @{ */
+  /** @{ */
   table_id_t lock_table_id;
   /*!< table identifier from
   lock_get_table_id */
-  /* @} */
+  /** @} */
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_trx row */
@@ -234,8 +234,10 @@ int trx_i_s_possibly_fetch_data_into_cache(
 
 /** Returns TRUE if the data in the cache is truncated due to the memory
  limit posed by TRX_I_S_MEM_LIMIT.
+ @param[in]   cache   The cache
  @return true if truncated */
-ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache); /*!< in: cache */
+bool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache);
+
 /** The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating NUL.
 "%lu:%lu:%lu:%lu:%lu" -> 20*5+4 chars */

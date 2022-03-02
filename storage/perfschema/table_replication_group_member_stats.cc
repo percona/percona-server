@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -304,12 +304,12 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
                                                           bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /** channel_name */
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
@@ -352,7 +352,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

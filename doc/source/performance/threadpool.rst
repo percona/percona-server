@@ -12,13 +12,13 @@ In order to enable the thread pool variable :variable:`thread_handling` should b
 
  thread_handling=pool-of-threads
 
-to the |MySQL| configuration file :file:`my.cnf`.
-
-Although the default values for the thread pool should provide good performance, additional `tuning <https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_ can be performed with the dynamic system variables described below.
+Although the default values for the thread pool should provide good
+performance, additional tuning
+can be performed with the dynamic system variables.
 
 .. note::
- 
-  Current implementation of the thread pool is built in the server, unlike the upstream version which is implemented as a plugin. Another significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these things this implementation isn't compatible with the upstream one.
+
+  Current implementation of the thread pool is built in the server, unlike the upstream version which is implemented as a plugin. Another significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these differences, this implementation is not compatible with the upstream version.
 
 Priority connection scheduling
 ==============================
@@ -56,7 +56,7 @@ Such situations are prevented by throttling the low priority queue when the tota
 Handling of Long Network Waits
 ==============================
 
-Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_.
+Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156`.
 
 
 Version Specific Information
@@ -154,9 +154,9 @@ This variable can be used to define the number of threads that can use the CPU a
 
 The number of milliseconds before a running thread is considered stalled. When this limit is reached thread pool will wake up or create another thread. This is being used to prevent a long-running query from monopolizing the pool.
 
-.. rubric:: Upgrading from a version before 8.0.14 to 8.0.14 or higher 
+.. rubric:: Upgrading from a version before 8.0.14 to 8.0.14 or higher
 
-Starting with the release of version `8.0.141`, |Percona Server| uses the upstram implementation of the admin_port. The variables :variable:`extra_port` and :variable:`extra_max_connections` are removed and not supported. It is essential to remove the ``extra_port`` and ``extra_max_connections`` variables from your configuration file before you attempt to upgrade from a release before `8.0.14` to |Percona Server| version `8.0.14` or higher. Otherwise, a server produces a boot error and refuses to start.
+Starting with the release of version `8.0.141`, |Percona Server| uses the upstream implementation of the admin_port. The variables :variable:`extra_port` and :variable:`extra_max_connections` are removed and not supported. It is essential to remove the ``extra_port`` and ``extra_max_connections`` variables from your configuration file before you attempt to upgrade from a release before `8.0.14` to |Percona Server| version `8.0.14` or higher. Otherwise, a server produces a boot error and refuses to start.
 
 .. seealso::
     |MySQL| Documentation:
@@ -172,7 +172,7 @@ Starting with the release of version `8.0.141`, |Percona Server| uses the upstra
      :vartype: Numeric
      :default: 0
 
-This variable can be used to specify an additional port for |Percona Server| to listen on. This port can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled. 
+This variable can be used to specify an additional port for |Percona Server| to listen on. This port can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled.
 
 To connect to the extra port following command can be used:
 

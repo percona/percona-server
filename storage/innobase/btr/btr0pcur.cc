@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -75,9 +75,6 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   auto block = get_block();
 
-  if (!block && !btr_cur_get_index(get_btr_cur())->table->is_readable())
-    return; /* decryption failure */
-
   SRV_CORRUPT_TABLE_CHECK(block, return;);
 
   auto index = btr_cur_get_index(get_btr_cur());
@@ -144,28 +141,40 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
   m_old_rec = dict_index_copy_rec_order_prefix(index, rec, &m_old_n_fields,
                                                &m_old_rec_buf, &m_buf_size);
 
-  m_block_when_stored = block;
+  m_block_when_stored.store(block);
 
   /* Function try to check if block is S/X latch. */
   m_modify_clock = buf_block_get_modify_clock(block);
-  m_withdraw_clock = buf_withdraw_clock;
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
-  ut_free(dst->m_old_rec_buf);
+  {
+    const auto dst_old_rec_buf = dst->m_old_rec_buf;
+    const auto dst_buf_size = dst->m_buf_size;
 
-  dst->m_old_rec_buf = nullptr;
+    memcpy(dst, src, sizeof(*dst));
 
-  memcpy(dst, src, sizeof(*dst));
+    dst->m_old_rec_buf = dst_old_rec_buf;
+    dst->m_buf_size = dst_buf_size;
+  }
 
-  if (src->m_old_rec_buf != nullptr) {
-    dst->m_old_rec_buf = static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
+  if (src->m_old_rec != nullptr) {
+    /* We have an old buffer, but it is too small. */
+    if (dst->m_old_rec_buf != nullptr && dst->m_buf_size < src->m_buf_size) {
+      ut_free(dst->m_old_rec_buf);
+      dst->m_old_rec_buf = nullptr;
+    }
+    /* We don't have a buffer, but we should have one. */
+    if (dst->m_old_rec_buf == nullptr) {
+      dst->m_old_rec_buf =
+          static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
+      dst->m_buf_size = src->m_buf_size;
+    }
 
     memcpy(dst->m_old_rec_buf, src->m_old_rec_buf, src->m_buf_size);
 
     dst->m_old_rec = dst->m_old_rec_buf + (src->m_old_rec - src->m_old_rec_buf);
   }
-
   dst->m_old_n_fields = src->m_old_n_fields;
 }
 
@@ -193,7 +202,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
     m_pos_state = BTR_PCUR_IS_POSITIONED;
 
-    m_block_when_stored = get_block();
+    m_block_when_stored.clear();
 
     return (false);
   }
@@ -207,11 +216,11 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
        latch_mode == BTR_SEARCH_PREV || latch_mode == BTR_MODIFY_PREV) &&
       !m_btr_cur.index->table->is_intrinsic()) {
     /* Try optimistic restoration. */
-
-    if (!buf_pool_is_obsolete(m_withdraw_clock) &&
-        btr_cur_optimistic_latch_leaves(m_block_when_stored, m_modify_clock,
-                                        &latch_mode, &m_btr_cur, file, line,
-                                        mtr)) {
+    if (m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+          return hint != nullptr && btr_cur_optimistic_latch_leaves(
+                                        hint, m_modify_clock, &latch_mode,
+                                        &m_btr_cur, file, line, mtr);
+        })) {
       m_pos_state = BTR_PCUR_IS_POSITIONED;
 
       m_latch_mode = latch_mode;
@@ -291,14 +300,11 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     /* We have to store the NEW value for the modify clock,
     since the cursor can now be on a different page!
     But we can retain the value of old_rec */
-
-    m_block_when_stored = get_block();
-
-    m_modify_clock = buf_block_get_modify_clock(m_block_when_stored);
+    auto block = get_block();
+    m_block_when_stored.store(block);
+    m_modify_clock = buf_block_get_modify_clock(block);
 
     m_old_stored = true;
-
-    m_withdraw_clock = buf_withdraw_clock;
 
     mem_heap_free(heap);
 
@@ -353,9 +359,6 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
   auto next_block =
       btr_block_get(page_id_t(block->page.id.space(), next_page_no),
                     block->page.size, mode, get_btr_cur()->index, mtr);
-
-  if (!next_block && !get_btr_cur()->index->table->is_readable())
-    return; /* decryption failure */
 
   auto next_page = buf_block_get_frame(next_block);
 

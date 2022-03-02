@@ -159,6 +159,18 @@ const constexpr char RDB_TTL_DURATION_QUALIFIER[] = "ttl_duration";
 const constexpr char RDB_TTL_COL_QUALIFIER[] = "ttl_col";
 
 /*
+  Qualifier name for number of prefix keyparts in partial index
+*/
+const char *const RDB_PARTIAL_INDEX_KEYPARTS_QUALIFIER =
+    "partial_group_keyparts";
+
+/*
+  Qualifier name for materialization threshold in partial index
+*/
+const char *const RDB_PARTIAL_INDEX_THRESHOLD_QUALIFIER =
+    "partial_group_threshold";
+
+/*
   Default, minimal valid, and maximum valid sampling rate values when collecting
   statistics about table.
 */
@@ -251,8 +263,14 @@ const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
   MyRocks specific error codes. NB! Please make sure that you will update
   HA_ERR_ROCKSDB_LAST when adding new ones.  Also update the strings in
   rdb_error_messages to include any new error messages.
+
+  NOTE: Given that Oracle/Us keeps bumping up HA_ERR_LAST, we don't want to
+  start strictly from HA_ERR_LAST and instead we start from 500 and asserts
+  it is large
 */
-#define HA_ERR_ROCKSDB_FIRST (HA_ERR_LAST + 1)
+#define HA_ERR_ROCKSDB_FIRST (500)
+static_assert(HA_ERR_ROCKSDB_FIRST > HA_ERR_LAST,
+              "ROCKSDB err need to be larger than HA_ERR_LAST");
 #define HA_ERR_ROCKSDB_PK_REQUIRED (HA_ERR_ROCKSDB_FIRST + 0)
 #define HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED \
   (HA_ERR_ROCKSDB_FIRST + 1)
@@ -324,7 +342,7 @@ enum operation_type : int {
   ROWS_DELETED_BLIND,
   ROWS_EXPIRED,
   ROWS_FILTERED,
-  ROWS_HIDDEN_NO_SNAPSHOT,
+  ROWS_UNFILTERED_NO_SNAPSHOT,
   ROWS_MAX
 };
 
@@ -367,7 +385,7 @@ struct st_export_stats {
   ulonglong rows_deleted_blind;
   ulonglong rows_expired;
   ulonglong rows_filtered;
-  ulonglong rows_hidden_no_snapshot;
+  ulonglong rows_unfiltered_no_snapshot;
 
   ulonglong system_rows_deleted;
   ulonglong system_rows_inserted;
@@ -416,3 +434,11 @@ struct st_io_stall_stats {
         total_slowdown(0) {}
 };
 }  // namespace myrocks
+
+// We define ROCKSDB_NAMESPACE = my_rocksdb to avoid symbol conflicts
+// But keep code with rocksdb for clarity
+// Declare my_rocks namespace is needed to make namespace alias happy
+#ifdef ROCKSDB_CUSTOM_NAMESPACE
+namespace ROCKSDB_CUSTOM_NAMESPACE {};
+namespace rocksdb = ROCKSDB_CUSTOM_NAMESPACE;
+#endif

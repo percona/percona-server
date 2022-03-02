@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -69,7 +66,7 @@ const double default_io_block_read_cost = 1.0;
 
 class CostConstantsTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
 
     // Initilize some storage engines
@@ -86,7 +83,7 @@ class CostConstantsTest : public ::testing::Test {
     insert_hton2plugin(7, new st_plugin_int())->name = engine_name7;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     initializer.TearDown();
     delete remove_hton2plugin(0);
     delete remove_hton2plugin(1);

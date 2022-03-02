@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ struct CHANGED_TABLE_LIST {
 };
 
 Transaction_ctx::Transaction_ctx()
-    : m_savepoints(NULL),
+    : m_savepoints(nullptr),
       m_xid_state(),
       last_committed(0),
       sequence_number(0),

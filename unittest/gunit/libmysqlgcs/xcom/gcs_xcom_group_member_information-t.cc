@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,9 @@ namespace gcs_parameters_unittest {
 
 class GcsNodeAddressTest : public GcsBaseTest {
  protected:
-  GcsNodeAddressTest() {}
+  GcsNodeAddressTest() = default;
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsNodeAddressTest, TestNodeAddress) {
@@ -257,16 +257,16 @@ TEST_F(GcsNodeAddressTest, TestNodeAddressV6) {
 
 class GcsUUIDTest : public GcsBaseTest {
  protected:
-  GcsUUIDTest() {}
+  GcsUUIDTest() = default;
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsUUIDTest, TestGcsUUID) {
   /*
     Check that the UUIDs are different as expected.
   */
-  uchar *buffer = NULL;
+  uchar *buffer = nullptr;
   u_int size = 0;
   Gcs_xcom_uuid uuid_1 = Gcs_xcom_uuid::create_uuid();
 
@@ -293,7 +293,7 @@ TEST_F(GcsUUIDTest, TestGcsUUID) {
   */
   My_xp_util::sleep_seconds(1);
   Gcs_xcom_uuid uuid_2 = Gcs_xcom_uuid::create_uuid();
-  ASSERT_FALSE(uuid_2.decode(static_cast<uchar *>(NULL), size));
+  ASSERT_FALSE(uuid_2.decode(nullptr, size));
 
   /*
     Check that if we decode the buffer objects will have the same value.
@@ -307,9 +307,9 @@ TEST_F(GcsUUIDTest, TestGcsUUID) {
 
 class GcsNodeInformationTest : public GcsBaseTest {
  protected:
-  GcsNodeInformationTest() {}
+  GcsNodeInformationTest() = default;
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
@@ -394,9 +394,9 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
 
 class GcsNodesTest : public GcsBaseTest {
  protected:
-  GcsNodesTest() {}
+  GcsNodesTest() = default;
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsNodesTest, TestGcsNodesBasicProperties) {
@@ -411,7 +411,7 @@ TEST_F(GcsNodesTest, TestGcsNodesBasicProperties) {
   Gcs_xcom_node_information node_3("localhost:1033");
   node_3.set_node_no(3);
 
-  const Gcs_xcom_node_information *ret = NULL;
+  const Gcs_xcom_node_information *ret = nullptr;
 
   /*
     Initially the node's number is void and check whether the
@@ -455,7 +455,7 @@ TEST_F(GcsNodesTest, TestGcsNodesBasicProperties) {
   ASSERT_EQ(ret->get_member_id(), node_2.get_member_id());
 
   ret = nodes.get_node(node_3.get_member_id());
-  ASSERT_TRUE(ret == NULL);
+  ASSERT_TRUE(ret == nullptr);
 
   /*
     Trying to get a node using get_node(const std::string &member_id).
@@ -467,7 +467,7 @@ TEST_F(GcsNodesTest, TestGcsNodesBasicProperties) {
   ASSERT_EQ(ret->get_member_id(), node_2.get_member_id());
 
   ret = nodes.get_node(node_3.get_member_id().get_member_id());
-  ASSERT_TRUE(ret == NULL);
+  ASSERT_TRUE(ret == nullptr);
 
   /*
     Trying to get a node using get_node(unsigned int node_no).
@@ -479,7 +479,7 @@ TEST_F(GcsNodesTest, TestGcsNodesBasicProperties) {
   ASSERT_EQ(ret->get_member_id(), node_2.get_member_id());
 
   ret = nodes.get_node(node_3.get_member_id().get_member_id());
-  ASSERT_TRUE(ret == NULL);
+  ASSERT_TRUE(ret == nullptr);
 
   /*
     Trying to get a node using get_node(const Gcs_xcom_uuid &uuid).
@@ -504,9 +504,9 @@ TEST_F(GcsNodesTest, TestGcsNodesCopyingNodes) {
   node_2.set_node_no(2);
   nodes.add_node(node_2);
 
-  const Gcs_xcom_node_information *ret = NULL;
-  Gcs_xcom_node_information *ret_1 = NULL;
-  Gcs_xcom_node_information *ret_2 = NULL;
+  const Gcs_xcom_node_information *ret = nullptr;
+  Gcs_xcom_node_information *ret_1 = nullptr;
+  Gcs_xcom_node_information *ret_2 = nullptr;
 
   /*
     Copying nodes through the add_nodes method which cleans up
@@ -581,15 +581,15 @@ TEST_F(GcsNodesTest, TestGcsNodesEncoding) {
     addrs[n] -> Pointer to the member identifier as string.
     uuids[n] -> data.data_len and data.data_val.
   */
-  const Gcs_xcom_node_information *ret_1 = NULL;
-  const Gcs_xcom_node_information *ret_2 = NULL;
+  const Gcs_xcom_node_information *ret_1 = nullptr;
+  const Gcs_xcom_node_information *ret_2 = nullptr;
 
   Gcs_xcom_uuid uuid_1;
   Gcs_xcom_uuid uuid_2;
 
   unsigned int length = 0;
-  char **addrs = NULL;
-  blob *uuids = NULL;
+  char **addrs = nullptr;
+  blob *uuids = nullptr;
 
   nodes.encode(&length, &addrs, &uuids);
 
@@ -617,7 +617,7 @@ TEST_F(GcsNodesTest, TestGcsNodesEncoding) {
 }
 
 TEST_F(GcsNodesTest, TestGcsNodesConstructor) {
-  const Gcs_xcom_node_information *ret = NULL;
+  const Gcs_xcom_node_information *ret = nullptr;
 
   Gcs_xcom_uuid uuid_1 = Gcs_xcom_uuid::create_uuid();
   blob blob_1 = {{0, static_cast<char *>(malloc(uuid_1.actual_value.size()))}};

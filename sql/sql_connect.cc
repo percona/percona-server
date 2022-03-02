@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,7 @@
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -98,10 +99,7 @@
 using std::max;
 using std::min;
 
-#if defined(HAVE_OPENSSL)
 /*
-  Without SSL the handshake consists of one packet. This packet
-  has both client capabilites and scrambled password.
   With SSL the handshake might consist of two packets. If the first
   packet (client capabilities) has CLIENT_SSL flag set, we have to
   switch to SSL and read the second packet. The scrambled password
@@ -112,9 +110,6 @@ using std::min;
 #define SSL_HANDSHAKE_SIZE 2
 #define NORMAL_HANDSHAKE_SIZE 6
 #define MIN_HANDSHAKE_SIZE 2
-#else
-#define MIN_HANDSHAKE_SIZE 6
-#endif /* HAVE_OPENSSL */
 
 user_stats_t *global_user_stats;
 user_stats_t *global_client_stats;
@@ -136,8 +131,8 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
   char temp_user[USER_HOST_BUFF_SIZE];
   struct user_conn *uc = nullptr;
 
-  DBUG_ASSERT(user != 0);
-  DBUG_ASSERT(host != 0);
+  assert(user != nullptr);
+  assert(host != nullptr);
 
   user_len = strlen(user);
   temp_len = (my_stpcpy(my_stpcpy(temp_user, user) + 1, host) - temp_user) + 1;
@@ -507,7 +502,7 @@ end:
       that doesn't have a limit. Ensure the user is not using resources
       of someone else.
     */
-    thd->set_user_connect(NULL);
+    thd->set_user_connect(nullptr);
   }
   mysql_mutex_unlock(&LOCK_user_conn);
   if (error) {
@@ -537,7 +532,7 @@ end:
 void decrease_user_connections(USER_CONN *uc) {
   DBUG_TRACE;
   mysql_mutex_lock(&LOCK_user_conn);
-  DBUG_ASSERT(uc->connections);
+  assert(uc->connections);
   if (!--uc->connections && !mqh_used) {
     /* Last connection for user; Delete it */
     hash_user_connections->erase(std::string(uc->user, uc->len));
@@ -559,14 +554,14 @@ void release_user_connection(THD *thd) {
 
   if (uc) {
     mysql_mutex_lock(&LOCK_user_conn);
-    DBUG_ASSERT(uc->connections > 0);
+    assert(uc->connections > 0);
     thd->decrement_user_connections_counter();
     if (!uc->connections && !mqh_used) {
       /* Last connection for user; Delete it */
       hash_user_connections->erase(std::string(uc->user, uc->len));
     }
     mysql_mutex_unlock(&LOCK_user_conn);
-    thd->set_user_connect(NULL);
+    thd->set_user_connect(nullptr);
   }
 }
 
@@ -579,7 +574,7 @@ bool check_mqh(THD *thd, uint check_command) {
   bool error = false;
   const USER_CONN *uc = thd->get_user_connect();
   DBUG_TRACE;
-  DBUG_ASSERT(uc != 0);
+  assert(uc != nullptr);
 
   mysql_mutex_lock(&LOCK_user_conn);
 
@@ -728,11 +723,11 @@ static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("New connection received on %s", desc));
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   thd->set_active_vio(net->vio);
 
@@ -742,7 +737,13 @@ static int check_connection(THD *thd) {
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 
+    if (thd->is_admin_connection()) {
+      vio_force_skip_proxy(net->vio);
+    }
+
+    /* Set the remote (peer) port for this THD. */
     peer_rc = vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
+    mysql_thread_set_peer_port(thd->peer_port);
 
     /*
     ===========================================================================
@@ -821,7 +822,7 @@ static int check_connection(THD *thd) {
                                                 main_sctx_ip.length);
     if (!(specialflag & SPECIAL_NO_RESOLVE)) {
       int rc;
-      char *host;
+      char *host = nullptr;
       LEX_CSTRING main_sctx_host;
 
 #ifdef HAVE_SETNS
@@ -872,6 +873,11 @@ static int check_connection(THD *thd) {
               min<size_t>(main_sctx_host.length, HOSTNAME_LENGTH));
         thd->m_main_security_ctx.set_host_or_ip_ptr(main_sctx_host.str,
                                                     main_sctx_host.length);
+      }
+
+      if (rc == RC_LONG_HOSTNAME) {
+        my_error(ER_HOSTNAME_TOO_LONG, MYF(0), HOSTNAME_LENGTH);
+        return 1;
       }
 
       if (rc == RC_BLOCKED_HOST) {
@@ -955,6 +961,16 @@ static int check_connection(THD *thd) {
   */
   thd->set_ssl(net->vio);
 
+  if (net->vio->ssl_arg) {
+    int version = SSL_version((SSL *)net->vio->ssl_arg);
+    if (version == TLS1_VERSION || version == TLS1_1_VERSION) {
+      Security_context *sctx = thd->security_context();
+      LogErr(WARNING_LEVEL, ER_DEPRECATED_TLS_VERSION_SESSION,
+             SSL_get_version((SSL *)net->vio->ssl_arg), sctx->priv_user().str,
+             sctx->priv_host().str, sctx->host_or_ip().str, sctx->user().str);
+    }
+  }
+
   return auth_rc;
 }
 
@@ -1034,12 +1050,12 @@ void end_connection(THD *thd) {
   */
   release_user_connection(thd);
 
-  if (thd->killed || (net->error && net->vio != 0)) {
+  if (thd->killed || (net->error && net->vio != nullptr)) {
     aborted_threads++;
     thd->diff_lost_connections++;
   }
 
-  if (net->error && net->vio != 0) {
+  if (net->error && net->vio != nullptr) {
     if (!thd->killed) {
       Security_context *sctx = thd->security_context();
       LEX_CSTRING sctx_user = sctx->user();
@@ -1093,7 +1109,7 @@ static void prepare_new_connection_state(THD *thd) {
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
 
-  thd->proc_info = 0;
+  thd->set_proc_info(nullptr);
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
 
@@ -1131,7 +1147,7 @@ static void prepare_new_connection_state(THD *thd) {
                   sctx->host_or_ip().str, what, da->mysql_errno(),
                   da->message_text());
 
-      thd->lex->set_current_select(0);
+      thd->lex->set_current_query_block(nullptr);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
       thd->clear_error();
       net_new_transaction(net);
@@ -1157,7 +1173,7 @@ static void prepare_new_connection_state(THD *thd) {
       return;
     }
 
-    thd->proc_info = 0;
+    thd->set_proc_info(nullptr);
     thd->init_query_mem_roots();
   }
 }
@@ -1205,7 +1221,8 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
 
 bool thd_connection_alive(THD *thd) {
   NET *net = thd->get_protocol_classic()->get_net();
-  if (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
+  if (!net->error && net->vio != nullptr &&
+      !(thd->killed == THD::KILL_CONNECTION))
     return true;
   return false;
 }

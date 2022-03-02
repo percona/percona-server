@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@ using my_testing::Server_initializer;
 
 class DecimalTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -205,7 +205,7 @@ Mod_data mod_test_input[] = {{"234", "10", "4"},
                              {"999", "0.1", "0.0"},
                              {"999", "0.7", "0.1"},
                              {"10", "123", "10"},
-                             {NULL, NULL, NULL}};
+                             {nullptr, nullptr, nullptr}};
 
 TEST_F(DecimalTest, Modulo) {
   my_decimal expected_result;
@@ -260,7 +260,7 @@ TEST_F(DecimalTest, NegativeZeroAdd) {
   my_decimal sum;
   EXPECT_EQ(E_DEC_OK, decimal_add(&d1, &d2, &sum));
   EXPECT_TRUE(sum.sign());
-  // This one will DBUG_ASSERT
+  // This one will assert
   // EXPECT_EQ(0, my_decimal_cmp(&sum, &decimal_zero));
 }
 

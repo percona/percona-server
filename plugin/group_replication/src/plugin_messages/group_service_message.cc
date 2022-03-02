@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ Group_service_message::Group_service_message(const uchar *buf, size_t len)
   decode(buf, len);
 }
 
-Group_service_message::~Group_service_message() {}
+Group_service_message::~Group_service_message() = default;
 
 bool Group_service_message::set_data(const uchar *data,
                                      const size_t data_length) {
@@ -110,7 +110,7 @@ void Group_service_message::decode_payload(const uchar *buffer, const uchar *) {
 bool Group_service_message::set_tag(const char *tag) {
   DBUG_TRACE;
 
-  if (tag != NULL && strlen(tag) != 0) {
+  if (tag != nullptr && strlen(tag) != 0) {
     m_tag.assign(tag);
     return false;
   }

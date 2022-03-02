@@ -77,8 +77,7 @@ update t1 set c = 'bb' where a = 2;
 update t1 set c = 'aa' where a = 1;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 select count(*) from t1;
-count(*)
-2
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
 xa end 'a','c';
 ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
 xa rollback 'a','c';
@@ -513,3 +512,20 @@ XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	4	0	xid1
 XA ROLLBACK 'xid1';
+#
+# BUG 31030205 - XA PREPARED TXN WILL STAY AS "RECOVERED TRX" IF ROLLBACK
+#                XID HAS WRONG FORMATID
+#
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+INSERT INTO t1 VALUES (1);
+XA END X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+XA PREPARE X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',2;
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA RECOVER CONVERT XID;
+formatID	gtrid_length	bqual_length	data
+12345	6	6	0x1A2B3C4D5E6FF6E5D4C3B2A1
+XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+DROP TABLE t1;

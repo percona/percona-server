@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 enum status_severity { STATUS_VERBOSE, STATUS_INFO, STATUS_ERR };
 
-#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */
@@ -191,15 +191,8 @@ void buf_dump_generate_path(char *path, size_t path_size) {
   snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(), OS_PATH_SEPARATOR,
            srv_buf_dump_filename);
 
-  os_file_type_t type;
-  bool exists = false;
-  bool ret;
-
-  ret = os_file_status(buf, &exists, &type);
-
-  /* For realpath() to succeed the file must exist. */
-
-  if (ret && exists) {
+  /* Use this file if it exists. */
+  if (os_file_exists(buf)) {
     /* my_realpath() assumes the destination buffer is big enough
     to hold FN_REFLEN bytes. */
     ut_a(path_size >= FN_REFLEN);
@@ -246,7 +239,7 @@ static void buf_dump(ibool obey_shutdown) {
   buf_dump_status(STATUS_INFO, "Dumping buffer pool(s) to %s", full_filename);
 
   f = fopen(tmp_filename, "w");
-  if (f == NULL) {
+  if (f == nullptr) {
     buf_dump_status(STATUS_ERR, "Cannot open '%s' for writing: %s",
                     tmp_filename, strerror(errno));
     return;
@@ -256,10 +249,7 @@ static void buf_dump(ibool obey_shutdown) {
   /* walk through each buffer pool */
   for (i = 0; i < srv_buf_pool_instances && !SHOULD_QUIT(); i++) {
     buf_pool_t *buf_pool;
-    const buf_page_t *bpage;
     buf_dump_t *dump;
-    ulint n_pages;
-    ulint j;
 
     buf_pool = buf_pool_from_array(i);
 
@@ -267,7 +257,7 @@ static void buf_dump(ibool obey_shutdown) {
     UT_LIST_GET_LEN(buf_pool->LRU) could change */
     mutex_enter(&buf_pool->LRU_list_mutex);
 
-    n_pages = UT_LIST_GET_LEN(buf_pool->LRU);
+    size_t n_pages = UT_LIST_GET_LEN(buf_pool->LRU);
 
     /* skip empty buffer pools */
     if (n_pages == 0) {
@@ -287,28 +277,29 @@ static void buf_dump(ibool obey_shutdown) {
 
     dump = static_cast<buf_dump_t *>(ut_malloc_nokey(n_pages * sizeof(*dump)));
 
-    if (dump == NULL) {
+    if (dump == nullptr) {
       mutex_exit(&buf_pool->LRU_list_mutex);
       fclose(f);
-      buf_dump_status(STATUS_ERR, "Cannot allocate " ULINTPF " bytes: %s",
-                      (ulint)(n_pages * sizeof(*dump)), strerror(errno));
+      buf_dump_status(STATUS_ERR, "Cannot allocate %zu bytes: %s",
+                      n_pages * sizeof(*dump), strerror(errno));
       /* leave tmp_filename to exist */
       return;
     }
+    {
+      size_t j{0};
+      for (auto bpage : buf_pool->LRU) {
+        if (n_pages <= j) break;
+        ut_a(buf_page_in_file(bpage));
 
-    for (bpage = UT_LIST_GET_FIRST(buf_pool->LRU), j = 0;
-         bpage != NULL && j < n_pages;
-         bpage = UT_LIST_GET_NEXT(LRU, bpage), j++) {
-      ut_a(buf_page_in_file(bpage));
+        dump[j++] = BUF_DUMP_CREATE(bpage->id.space(), bpage->id.page_no());
+      }
 
-      dump[j] = BUF_DUMP_CREATE(bpage->id.space(), bpage->id.page_no());
+      ut_a(j == n_pages);
     }
-
-    ut_a(j == n_pages);
 
     mutex_exit(&buf_pool->LRU_list_mutex);
 
-    for (j = 0; j < n_pages && !SHOULD_QUIT(); j++) {
+    for (size_t j = 0; j < n_pages && !SHOULD_QUIT(); j++) {
       ret = fprintf(f, SPACE_ID_PF "," PAGE_NO_PF "\n", BUF_DUMP_SPACE(dump[j]),
                     BUF_DUMP_PAGE(dump[j]));
       if (ret < 0) {
@@ -322,10 +313,8 @@ static void buf_dump(ibool obey_shutdown) {
 
       if (j % 128 == 0) {
         buf_dump_status(STATUS_VERBOSE,
-                        "Dumping buffer pool"
-                        " " ULINTPF "/" ULINTPF
-                        ","
-                        " page " ULINTPF "/" ULINTPF,
+                        "Dumping buffer pool " ULINTPF "/" ULINTPF
+                        ", page %zu/%zu",
                         i + 1, srv_buf_pool_instances, j + 1, n_pages);
       }
     }
@@ -376,9 +365,9 @@ normal client queries.
 @param[in]	last_activity_count	activity count
 @param[in]	n_io			number of IO ops done since buffer
                                         pool load has started */
-UNIV_INLINE
-void buf_load_throttle_if_needed(ib_time_monotonic_ms_t *last_check_time,
-                                 ulint *last_activity_count, ulint n_io) {
+static inline void buf_load_throttle_if_needed(
+    ib_time_monotonic_ms_t *last_check_time, ulint *last_activity_count,
+    ulint n_io) {
   if (n_io % srv_io_capacity < srv_io_capacity - 1) {
     return;
   }
@@ -422,7 +411,7 @@ void buf_load_throttle_if_needed(ib_time_monotonic_ms_t *last_check_time,
   ut_time_monotonic_ms() that often may turn out to be too expensive. */
 
   if (elapsed_time < 1000 /* 1 sec (1000 milli secs) */) {
-    os_thread_sleep((1000 - elapsed_time) * 1000 /* micro secs */);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000 - elapsed_time));
   }
 
   *last_check_time = ut_time_monotonic_ms();
@@ -454,7 +443,7 @@ static void buf_load() {
   buf_load_status(STATUS_INFO, "Loading buffer pool(s) from %s", full_filename);
 
   f = fopen(full_filename, "r");
-  if (f == NULL) {
+  if (f == nullptr) {
     buf_load_status(STATUS_ERR, "Cannot open '%s' for reading: %s",
                     full_filename, strerror(errno));
     return;
@@ -506,7 +495,7 @@ static void buf_load() {
     return;
   }
 
-  if (dump == NULL) {
+  if (dump == nullptr) {
     fclose(f);
     buf_load_status(STATUS_ERR, "Cannot allocate " ULINTPF " bytes: %s",
                     (ulint)(dump_n * sizeof(*dump)), strerror(errno));
@@ -592,20 +581,20 @@ static void buf_load() {
     const space_id_t this_space_id = BUF_DUMP_SPACE(dump[i]);
 
     if (this_space_id != cur_space_id) {
-      if (space != NULL) {
+      if (space != nullptr) {
         fil_space_release(space);
       }
 
       cur_space_id = this_space_id;
       space = fil_space_acquire_silent(cur_space_id);
 
-      if (space != NULL) {
+      if (space != nullptr) {
         const page_size_t cur_page_size(space->flags);
         page_size.copy_from(cur_page_size);
       }
     }
 
-    if (space == NULL) {
+    if (space == nullptr) {
       continue;
     }
 
@@ -629,7 +618,7 @@ static void buf_load() {
     }
 
     if (buf_load_abort_flag) {
-      if (space != NULL) {
+      if (space != nullptr) {
         fil_space_release(space);
       }
       buf_load_abort_flag = FALSE;
@@ -648,7 +637,7 @@ static void buf_load() {
     buf_load_throttle_if_needed(&last_check_time, &last_activity_cnt, i);
   }
 
-  if (space != NULL) {
+  if (space != nullptr) {
     fil_space_release(space);
   }
 

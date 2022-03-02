@@ -22,7 +22,6 @@ let $eval_before_analyze=set global rocksdb_force_flush_memtable_now=1;
 # skipping because too unstable in MyRocks
 let $skip_ror_EXPLAIN_for_MyRocks = 1;
 let $random_rows_in_EXPLAIN = 1;
-let $sorted_result = 1;
 # According to Oracle: "InnoDB's estimate for the index cardinality
 # depends on a pseudo random number generator (it picks up random
 # pages to sample). After an optimization that was made in r2625 two

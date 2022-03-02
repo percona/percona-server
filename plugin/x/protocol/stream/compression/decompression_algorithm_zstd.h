@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class Decompression_algorithm_zstd : public Decompression_algorithm_interface {
         ZSTD_decompressStream(m_stream, &out_buffer, &m_in_buffer);
     if (ZSTD_isError(result)) {
       m_invalid = true;
-      DBUG_LOG("debug", "zstd error:" << ZSTD_getErrorName(result));
+      DBUG_LOG("debug", "ZSTD error: " << ZSTD_getErrorName(result));
       *out_size = 0;
       return false;
     }

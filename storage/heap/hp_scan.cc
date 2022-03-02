@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,6 @@ int heap_scan(HP_INFO *info, uchar *record) {
   if (hp_extract_record(info, record, info->current_ptr)) {
     return my_errno();
   }
-  info->current_hash_ptr = 0; /* Can't use read_next */
+  info->current_hash_ptr = nullptr; /* Can't use read_next */
   return 0;
 } /* heap_scan */

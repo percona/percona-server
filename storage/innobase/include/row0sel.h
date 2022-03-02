@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,8 +62,7 @@ void sel_col_prefetch_buf_free(
 @param[in]	node	select node
 @param[in]	i	get ith plan node
 @return plan node */
-UNIV_INLINE
-plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
+static inline plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 
 /** Performs a select step. This is a high-level function used in SQL execution
  graphs.
@@ -71,8 +70,7 @@ plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 que_thr_t *row_sel_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an open or close cursor statement node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
+static inline que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs a fetch for a cursor.
  @return query thread to run next or NULL */
 que_thr_t *fetch_step(que_thr_t *thr); /*!< in: query thread */
@@ -91,30 +89,34 @@ void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@param[out]	mysql_rec		        row in the MySQL format
-@param[in,out]	prebuilt		    prebuilt structure
-@param[in]	rec			            Innobase record in the index
-                                which was described in prebuilt's
-                                template, or in the clustered index;
-                                must be protected by a page latch
-@param[in]	vrow			          virtual columns
-@param[in]	rec_clust		        true if rec is in the clustered index instead
-                                of prebuilt->index
-@param[in]	index			          index of rec
-@param[in]	offsets			        array returned by rec_get_offsets(rec)
-@param[in]	clust_templ_for_sec	true if rec belongs to secondary index
-                                but the prebuilt->template is in
-                                clustered index format and it
-                                is used only for end range comparison
-@param[in]	lob_undo		        the LOB undo information.
-@param[in,out] blob_heap        If not null then use this heap for BLOBs.
+@param[out]     mysql_rec           row in the MySQL format
+@param[in,out]  prebuilt            prebuilt structure
+@param[in]      rec                 Innobase record in the index
+                                    which was described in prebuilt's
+                                    template, or in the clustered index;
+                                    must be protected by a page latch
+@param[in]      vrow                virtual columns
+@param[in]      rec_clust           true if rec is in the clustered index
+                                    instead of index which could belong to
+                                    prebuilt->index
+@param[in]      rec_index           index of rec
+@param[in]      prebuilt_index      prebuilt->index
+@param[in]      offsets             array returned by rec_get_offsets(rec)
+@param[in]      clust_templ_for_sec true if rec belongs to secondary index
+                                    but the prebuilt->template is in
+                                    clustered index format and it
+                                    is used only for end range comparison
+@param[in]      lob_undo            the LOB undo information.
+@param[in,out]  blob_heap           If not null then use this heap for BLOBs
 @return true on success, false if not all columns could be retrieved */
 // clang-format on
 bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
                              const rec_t *rec, const dtuple_t *vrow,
-                             bool rec_clust, const dict_index_t *index,
+                             bool rec_clust, const dict_index_t *rec_index,
+                             const dict_index_t *prebuilt_index,
                              const ulint *offsets, bool clust_templ_for_sec,
-                             lob::undo_vers_t *lob_undo, mem_heap_t *blob_heap);
+                             lob::undo_vers_t *lob_undo,
+                             mem_heap_t *&blob_heap);
 
 /** Converts a key value stored in MySQL format to an Innobase dtuple. The last
  field of the key value may be just a prefix of a fixed length field: hence
@@ -159,14 +161,13 @@ position and fetch next or fetch prev must not be tried to the cursor!
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INLINE
-dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
-                             row_prebuilt_t *prebuilt, ulint match_mode,
-                             ulint direction)
+static inline dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
+                                           row_prebuilt_t *prebuilt,
+                                           ulint match_mode, ulint direction)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
@@ -291,18 +292,14 @@ struct plan_t {
   ibool no_prefetch;       /*!< no prefetch for this table */
   sym_node_list_t columns; /*!< symbol table nodes for the columns
                            to retrieve from the table */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  end_conds; /*!< conditions which determine the
-             fetch limit of the index segment we
-             have to look at: when one of these
-             fails, the result set has been
-             exhausted for the cursor in this
-             index; these conditions are normalized
-             so that in a comparison the column
-             for this table is the first argument */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  other_conds;               /*!< the rest of search conditions we can
-                             test at this table in a join */
+  using Cond_list = UT_LIST_BASE_NODE_T_EXTERN(func_node_t, cond_list);
+  /** conditions which determine the fetch limit of the index segment we have to
+  look at: when one of these fails, the result set has been exhausted for the
+  cursor in this index; these conditions are normalized so that in a comparison
+  the column for this table is the first argument */
+  Cond_list end_conds;
+  /** the rest of search conditions we can test at this table in a join */
+  Cond_list other_conds;
   ibool must_get_clust;      /*!< TRUE if index is a non-clustered
                              index and we must also fetch the
                              clustered index record; this is the
@@ -366,23 +363,18 @@ struct sel_node_t {
   /*!< TRUE if the aggregate row has
   already been fetched for the current
   cursor */
-  ibool can_get_updated;       /*!< this is TRUE if the select
-                               is in a single-table explicit
-                               cursor which can get updated
-                               within the stored procedure,
-                               or in a searched update or
-                               delete; NOTE that to determine
-                               of an explicit cursor if it
-                               can get updated, the parser
-                               checks from a stored procedure
-                               if it contains positioned
-                               update or delete statements */
-  sym_node_t *explicit_cursor; /*!< not NULL if an explicit cursor */
-  UT_LIST_BASE_NODE_T(sym_node_t)
-  copy_variables; /*!< variables whose values we have to
-                  copy when an explicit cursor is opened,
-                  so that they do not change between
-                  fetches */
+
+  /** this is TRUE if the select is in a single-table explicit cursor which can
+  get updated within the stored procedure, or in a searched update or delete;
+  NOTE that to determine of an explicit cursor if it can get updated, the
+  parser checks from a stored procedure if it contains positioned update or
+  delete statements */
+  ibool can_get_updated;
+  /** not NULL if an explicit cursor */
+  sym_node_t *explicit_cursor;
+  /** variables whose values we have to copy when an explicit cursor is opened,
+  so that they do not change between fetches */
+  sym_node_list_t copy_variables;
 };
 
 /** Fetch statement node */
@@ -456,16 +448,23 @@ function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in]	templ		MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-@param[in]	index		InnoDB index
+@param[in]	index		InnoDB index */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no
+                                or templ->icp_rec_field_no */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	data		data to store
 @param[in]	len		length of the data
-@param[in]	prebuilt	use prebuilt->compress_heap only here
+@param[in]	prebuilt	use prebuilt->compress_heap only here */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	sec_field	secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
+#endif /* UNIV_DEBUG */
 void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               const mysql_row_templ_t *templ,
                                               const dict_index_t *index,

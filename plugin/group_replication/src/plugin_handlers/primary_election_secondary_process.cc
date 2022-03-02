@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ static void *launch_handler_thread(void *arg) {
   Primary_election_secondary_process *handler =
       (Primary_election_secondary_process *)arg;
   handler->secondary_election_process_handler();
-  return 0;
+  return nullptr;
 }
 
 Primary_election_secondary_process::Primary_election_secondary_process()
@@ -65,7 +65,7 @@ int Primary_election_secondary_process::launch_secondary_election_process(
   mysql_mutex_lock(&election_lock);
 
   // Callers should ensure the process is terminated
-  DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+  assert(election_process_thd_state.is_thread_dead());
   if (election_process_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&election_lock); /* purecov: inspected */
     return 2;                           /* purecov: inspected */
@@ -124,7 +124,7 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
   int error = 0;
   std::string err_msg;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
@@ -218,8 +218,8 @@ end:
   if (!election_process_aborted && !error) {
     Group_member_info *primary_member_info =
         group_member_mgr->get_group_member_info(primary_uuid);
-    if (primary_member_info != NULL) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY,
+    if (primary_member_info != nullptr) {
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port());
       delete primary_member_info;
@@ -299,7 +299,7 @@ bool Primary_election_secondary_process::kill_read_mode_query() {
   mysql_mutex_assert_owner(&election_lock);
 
   if (is_read_mode_set == SECONDARY_ELECTION_READ_MODE_BEING_SET) {
-    DBUG_ASSERT(read_mode_session_id != 0);
+    assert(read_mode_session_id != 0);
     Sql_service_command_interface *sql_command_interface =
         new Sql_service_command_interface();
     error = sql_command_interface->establish_session_connection(
@@ -355,7 +355,7 @@ int Primary_election_secondary_process::after_view_change(
 
   Group_member_info *member_info =
       group_member_mgr->get_group_member_info(primary_uuid);
-  if (member_info == NULL) {
+  if (member_info == nullptr) {
     if (!group_in_read_mode) {
       election_process_aborted = true;
     } else {
@@ -456,7 +456,7 @@ int Primary_election_secondary_process::terminate_election_process(bool wait) {
       mysql_cond_wait(&election_cond, &election_lock);
     }
 
-    DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+    assert(election_process_thd_state.is_thread_dead());
   }
   mysql_mutex_unlock(&election_lock);
 

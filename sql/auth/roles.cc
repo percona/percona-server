@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,7 +291,7 @@ bool Role_activation::activate_role_name() {
             std::back_inserter(backup_active_list));
   m_sctx->get_active_roles()->clear();
   List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(m_role_list)));
-  LEX_USER *role = 0;
+  LEX_USER *role = nullptr;
   while (ret == 0 && (role = it++)) {
     ret = m_sctx->activate_role(role->user, role->host, true);
   }

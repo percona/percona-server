@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 # 
 # Test session API
+
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_PLUGIN(test_session_in_thd
   test_session_in_thd.cc
@@ -60,10 +62,11 @@ MYSQL_ADD_PLUGIN(test_session_attach
   TEST_ONLY
   )
 
-IF(WIN32)
-  SET_TARGET_PROPERTIES(test_session_attach
-    PROPERTIES LINK_FLAGS
-    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def")
+# MYSQL_ADD_PLUGIN may have decided not to build it.
+IF(WIN32 AND TARGET test_session_attach)
+  MY_TARGET_LINK_OPTIONS(test_session_attach
+    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def"
+    )
 ENDIF()
 
 # Test SQL API
@@ -102,6 +105,12 @@ MYSQL_ADD_PLUGIN(test_sql_shutdown
   MODULE_ONLY
   MODULE_OUTPUT_NAME "libtest_sql_shutdown"
   TEST_ONLY
+  )
+MYSQL_ADD_PLUGIN(test_sql_sleep_is_connected
+  test_sql_sleep_is_connected.cc
+  TEST_ONLY
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "libtest_sql_sleep_is_connected"
   )
 MYSQL_ADD_PLUGIN(test_sql_stored_procedures_functions
   test_sql_stored_procedures_functions.cc

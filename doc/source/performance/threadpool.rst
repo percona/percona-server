@@ -61,7 +61,6 @@ Handling of Long Network Waits
 
 Certain workloads (large result sets, BLOBs, slow clients) can have long waits on the network I/O (socket reads and writes). Whenever the server waits, this should be communicated to the thread pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_.
 
-
 Version Specific Information
 ============================
 
@@ -181,7 +180,7 @@ Starting with the release of version `8.0.15-5`, |Percona Server| uses the upstr
      :vartype: Numeric
      :default: 0
 
-This variable can be used to specify an additional port for |Percona Server| to listen on. This port can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled. 
+This variable can be used to specify an additional port for |Percona Server| to listen on. This port can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled.
 
 To connect to the extra port following command can be used:
 

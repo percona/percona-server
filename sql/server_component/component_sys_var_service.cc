@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 #include <utility>
 
+#include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/log_builtins.h>
-#include "components/mysql_server/component_sys_var_service.h"
-#include "components/mysql_server/server_component.h"
+#include "component_sys_var_service_imp.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/component_sys_var_service.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -47,7 +48,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
@@ -110,33 +110,18 @@ int mysql_add_sysvar(sys_var *first) {
   return 0;
 }
 
-/**
-  Register system variables.
-
-  @param component_name Name of the component
-  @param var_name Name of the variable
-  @param flags tells about the variable type
-  @param comment variable comment information
-  @param check_func trigger function to be called at Check time
-  @param update_func trigger function to be called at Update time
-  @param check_arg type defined check constraints block
-  @param variable_value place holder for variable value
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                    (const char *component_name, const char *var_name, int flags,
                     const char *comment, mysql_sys_var_check_func check_func,
                     mysql_sys_var_update_func update_func, void *check_arg,
                     void *variable_value)) {
   try {
-    struct sys_var_chain chain = {NULL, NULL};
+    struct sys_var_chain chain = {nullptr, nullptr};
     sys_var *sysvar MY_ATTRIBUTE((unused));
     char *com_sys_var_name, *optname;
     int com_sys_var_len;
-    SYS_VAR *opt = NULL;
-    my_option *opts = NULL;
+    SYS_VAR *opt = nullptr;
+    my_option *opts = nullptr;
     bool ret = true;
     int opt_error;
     int *argc;
@@ -173,7 +158,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     opts->arg_source->m_path_name[0] = 0;
     opts->arg_source->m_source = enum_variable_source::COMPILED;
 
-    switch (flags & PLUGIN_VAR_TYPEMASK) {
+    switch (flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
       case PLUGIN_VAR_BOOL:
         SYSVAR_BOOL_TYPE(bool) * sysvar_bool;
 
@@ -337,7 +322,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       argc = get_remaining_argc();
       argv = get_remaining_argv();
     }
-    opt_error = handle_options(argc, argv, opts, NULL);
+    opt_error = handle_options(argc, argv, opts, nullptr);
     /* Add back the program name handle_options removes */
     (*argc)++;
     (*argv)--;
@@ -352,7 +337,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     sysvar = reinterpret_cast<sys_var *>(
         new sys_var_pluginvar(&chain, com_sys_var_name, opt));
 
-    if (sysvar == NULL) {
+    if (sysvar == nullptr) {
       LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
       goto end;
     }
@@ -421,9 +406,9 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   show->value = (char *)system_var;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  const char *variable_value =
-      get_one_variable(current_thd, show, OPT_GLOBAL, show->type, NULL, &fromcs,
-                       variable_data_buffer, &out_variable_data_length);
+  const char *variable_value = get_one_variable(
+      current_thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
+      variable_data_buffer, &out_variable_data_length);
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
@@ -459,19 +444,6 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   return val_buf;
 }
 
-/**
-  Get the system variable value from the global structure.
-
-  @param component_name Name of the component
-  @param var_name Name of the variable
-  @param[in,out] val On input: a buffer to hold the value. On output a pointer
-  to the value.
-  @param[in,out] out_length_of_val On input: size of longest string that the
-  buffer can contain. On output the length of the copied string.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
                    (const char *component_name, const char *var_name,
                     void **val, size_t *out_length_of_val)) {
@@ -504,15 +476,6 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
   return true;
 }
 
-/**
-  Unregister system variables.
-
-  @param component_name Name of the component
-  @param var_name Variable name
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
                    (const char *component_name, const char *var_name)) {
   try {

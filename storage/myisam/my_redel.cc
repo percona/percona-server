@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags) {
   MY_STAT statbuf;
 
-  if (my_stat(from, &statbuf, MyFlags) == NULL)
+  if (my_stat(from, &statbuf, MyFlags) == nullptr)
     return -1; /* Can't get stat on input file */
 
   if ((statbuf.st_mode & S_IFMT) != S_IFREG) return 1;

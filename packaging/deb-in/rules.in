@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,13 @@
 	dh $@
 
 export DH_VERBOSE=1
-export CFLAGS=
-export CXXFLAGS=
+
+ifeq (,$(MYSQL_BUILD_MAKE_JFLAG))
+	JOBS=-j8
+else
+	JOBS=$(MYSQL_BUILD_MAKE_JFLAG)
+endif
+
 
 override_dh_auto_configure:
 	@echo "RULES.$@"
@@ -39,7 +44,6 @@ override_dh_auto_configure:
 		-DBUILD_CONFIG=mysql_release \
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
-		-DROUTER_INSTALL_PLUGINDIR=lib/mysqlrouter/plugin \
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DWITH_INNODB_MEMCACHED=1 \
@@ -49,6 +53,7 @@ override_dh_auto_configure:
 		-DCOMPILATION_COMMENT_SERVER="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
 		-DINSTALL_LAYOUT=DEB \
 		-DREPRODUCIBLE_BUILD=OFF \
+		-DUSE_LD_LLD=OFF \
 		-DDEB_PRODUCT=@DEB_PRODUCT@ \
 		@DEB_CMAKE_EXTRAS@
 
@@ -58,7 +63,7 @@ override_dh_auto_build:
 	@echo "RULES.$@"
 	@DEB_RULES_DEBUG_MAKE@
 	cd release && \
-	$(MAKE) -j8 VERBOSE=1
+	$(MAKE) $(JOBS) VERBOSE=1
 	touch $@
 
 override_dh_auto_test:
@@ -82,17 +87,20 @@ override_dh_auto_install:
 	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql-@MYSQL_BASE_VERSION@/
 	# add apparmor profile
 	@DEB_RULES_INSTALL_APPARMOR@
-	# add systemd script
+	@DEB_RULES_INSTALL_APPARMOR_ROUTER@
+	# add systemd scripts
 	install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql-@MYSQL_BASE_VERSION@/
+	@DEB_RULES_INSTALL_ROUTER_SYSTEMD@
 	touch $@
 
 override_dh_installinit:
 	@echo "RULES.$@"
 	@DEB_RULES_APPARMOR_LOAD@
+	@DEB_RULES_APPARMOR_LOAD_ROUTER@
 	dh_systemd_enable --name=mysql
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysql@ -- disable
-	dh_installinit --name=mysqlrouter -- defaults 19 21
+	@DEB_RULES_INSTALLINIT_ROUTER@
 	dh_systemd_start --restart-after-upgrade
 	touch $@
 

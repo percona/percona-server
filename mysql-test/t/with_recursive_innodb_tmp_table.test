@@ -22,6 +22,7 @@ with qn as (select * from t1 limit 3) select * from qn;
 
 --echo # First all writes are done then two readers read
 
+--sorted_result
 with qn as (select * from t1 limit 3) select * from qn, qn qn1;
 
 --echo # Second, with one reader and one writer (reader is the query block

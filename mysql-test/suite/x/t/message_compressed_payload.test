@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/too_large.tmp
+--write_file $MYSQL_TMP_DIR/too_large.xpl
 -->import wait_until_disconnect.macro
 -->import connection.macro
 
@@ -221,7 +221,19 @@ Mysqlx.Crud.Find {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_crud_find_with_repeated_nested_objects	51
--->recverror ER_X_BAD_MESSAGE
+
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
+
 callmacro Wait_until_disconnect;
 
 EOF
@@ -243,7 +255,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=deflate_stream
   --schema xtest
-  --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1;
 
 echo;
 echo ## B. Execute the test with lz4;
@@ -254,7 +266,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=lz4_message
   --schema xtest
-  --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1;
 
 echo;
 echo ## C. Execute the test with zstd;
@@ -265,12 +277,10 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=zstd_stream
   --schema xtest
-  --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1;
 
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
-DROP SCHEMA xtest;
---remove_file $MYSQL_TMP_DIR/too_large.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

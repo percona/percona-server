@@ -162,11 +162,11 @@ if ($IS_57)
 }
 
 --echo # Copy and zip old version data directory.
---exec ln -s $MYSQLD_DATADIR data_upgrade
---exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip data_upgrade
+--exec ln -s $MYSQLD_DATADIR $MYSQLTEST_VARDIR/data_upgrade
+--exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip $MYSQLTEST_VARDIR/data_upgrade
 --file_exists $MYSQL_TMP_DIR/data_upgrade.zip
 --move_file $MYSQL_TMP_DIR/data_upgrade.zip  $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_EXTN.zip.new
---remove_file data_upgrade
+--remove_file $MYSQLTEST_VARDIR/data_upgrade
 
 if (!$NO_EXPORT)
 {
@@ -244,3 +244,7 @@ if (!$NO_EXT_PATH)
 }
 
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
+--enable_query_log

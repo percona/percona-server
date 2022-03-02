@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,16 +39,18 @@
 
 #define JAM_FILE_ID 339
 
+class FsReadWriteReq;
 
 class Lgman : public SimulatedBlock
 {
 public:
   Lgman(Block_context& ctx);
-  virtual ~Lgman();
+  ~Lgman() override;
   BLOCK_DEFINES(Lgman);
   
+public:
+  void execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */;
 protected:
-  
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -62,7 +64,6 @@ protected:
   void execDROP_FILE_IMPL_REQ(Signal* signal);
   void execDROP_FILEGROUP_IMPL_REQ(Signal* signal);
   
-  void execFSWRITEREQ(Signal*);
   void execFSWRITEREF(Signal*);
   void execFSWRITECONF(Signal*);
 
@@ -525,6 +526,7 @@ public:
     Uint32 len;
   };
 
+  Uint64 get_latest_lsn();
   Uint64 add_entry_simple(const Change*,
                           Uint32 cnt,
                           Uint32 alloc_size,

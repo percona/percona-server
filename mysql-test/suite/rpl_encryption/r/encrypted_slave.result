@@ -145,6 +145,8 @@ ANALYZE TABLE myisam_table_name_to_encrypt;
 CHECK TABLE innodb_table_name_to_encrypt_2;
 CHECKSUM TABLE innodb_table_name_to_encrypt, myisam_table_name_to_encrypt;
 RENAME USER user_name_to_encrypt to new_user_name_to_encrypt;
+Warnings:
+Warning	4005	User 'user_name_to_encrypt'@'%' is referenced as a definer account in a view.
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM new_user_name_to_encrypt;
 DROP DATABASE database_name_to_encrypt;
 DROP USER new_user_name_to_encrypt;

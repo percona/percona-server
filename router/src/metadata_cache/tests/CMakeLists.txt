@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ ELSE()
     perconaserverclient
     mysqlxclient_lite
     mysqlxmessages_lite
-    ${PROTOBUF_LIBRARY}-lite
+    ${PROTOBUF_LITE_LIBRARY}
     )
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
     PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
@@ -76,8 +76,7 @@ ELSE()
     PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 ENDIF()
 
-SET_PATH_TO_SSL(metadata_cache_tests
-  ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(metadata_cache_tests)
 
 SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY
@@ -87,9 +86,10 @@ SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
 TARGET_INCLUDE_DIRECTORIES(metadata_cache_tests PRIVATE ${include_dirs})
 
 SET(TEST_MODULE metadata_cache)
-FOREACH(test_file 
+FOREACH(test_file
     test_cache_plugin.cc
     test_failover.cc
+    test_instance_attributes.cc
     test_metadata.cc
     test_metadata_cache.cc
     test_plugin_config.cc
@@ -140,3 +140,6 @@ TARGET_COMPILE_DEFINITIONS(${test_target}
 ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

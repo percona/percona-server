@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <ndb_opts.h>
 #include <kernel/NodeBitmask.hpp>
 #include <portlib/ndb_daemon.h>
+#include "util/ndb_openssl_evp.h"
 
 #include "my_alloc.h"
 #include "ndbd.hpp"
@@ -38,7 +39,6 @@
 
 #define JAM_FILE_ID 485
 
-extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
   opt_initialstart, opt_verbose;
@@ -119,7 +119,11 @@ static struct my_option my_long_options[] =
   { "logbuffer-size", NDB_OPT_NOSHORT,
     "Size of the log buffer for data node ndb_x_out.log",
     (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    GET_ULONG, REQUIRED_ARG, 1024*1024, 2048, ULONG_MAX, 0, 0, 0
+#else
     GET_ULONG, REQUIRED_ARG, 32768, 2048, ULONG_MAX, 0, 0, 0
+#endif
   },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -161,7 +165,7 @@ real_main(int argc, char** argv)
 
   opts.set_usage_funcs(short_usage_sub);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
 
@@ -249,6 +253,9 @@ real_main(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-  return ndb_daemon_init(argc, argv, real_main, angel_stop,
-                         "ndbd", "MySQL Cluster Data Node Daemon");
+  ndb_openssl_evp::library_init();
+  int rc = ndb_daemon_init(argc, argv, real_main, angel_stop,
+                           "ndbd", "MySQL Cluster Data Node Daemon");
+  ndb_openssl_evp::library_end();
+  return rc;
 }

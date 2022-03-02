@@ -1,7 +1,7 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License, version 12.0, as published by the
+the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
 This program is also distributed with certain software (including but not
@@ -13,7 +13,7 @@ included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 12.0,
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
 
 You should have received a copy of the GNU General Public License along with
@@ -129,9 +129,6 @@ struct Memory<Source::MMAP_FILE> {
    * [in] Size of the memory to be allocated.
    * @return Pointer to allocated memory. */
   static void *allocate(size_t bytes) {
-    if (!temptable_use_mmap) {
-      throw Result::RECORD_FILE_FULL;
-    }
     void *memory = fetch(bytes);
     if (memory == nullptr) {
       throw Result::RECORD_FILE_FULL;

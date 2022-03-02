@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,11 +145,11 @@ struct THR_LOCK {
   /* write_lock_count is incremented for write locks and reset on read locks */
   ulong write_lock_count{0};
   uint read_no_write_count{0};
-  void (*get_status)(void *, int){0}; /* When one gets a lock */
-  void (*copy_status)(void *, void *){0};
-  void (*update_status)(void *){0};  /* Before release of write */
-  void (*restore_status)(void *){0}; /* Before release of read */
-  bool (*check_status)(void *){0};
+  void (*get_status)(void *, int){nullptr}; /* When one gets a lock */
+  void (*copy_status)(void *, void *){nullptr};
+  void (*update_status)(void *){nullptr};  /* Before release of write */
+  void (*restore_status)(void *){nullptr}; /* Before release of read */
+  bool (*check_status)(void *){nullptr};
 };
 
 extern LIST *thr_lock_thread_list;

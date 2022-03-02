@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ struct plugin_local_variables {
   MYSQL_PLUGIN plugin_info_ptr;
   unsigned int plugin_version;
   rpl_sidno group_sidno;
+  rpl_sidno view_change_sidno;
 
   mysql_mutex_t force_members_running_mutex;
   mysql_mutex_t plugin_running_mutex;
@@ -63,6 +64,7 @@ struct plugin_local_variables {
   bool wait_on_engine_initialization;
   int write_set_extraction_algorithm;
   bool abort_wait_on_start_process;
+  bool recovery_timeout_issue_on_stop;
 
   // (60min / 5min) * 24 * 7, i.e. a week.
   const uint MAX_AUTOREJOIN_TRIES = 2016;
@@ -75,12 +77,13 @@ struct plugin_local_variables {
     Initialize all variables, except mutexes.
   */
   void init() {
-    plugin_info_ptr = NULL;
+    plugin_info_ptr = nullptr;
     plugin_version = 0;
     group_sidno = 0;
+    view_change_sidno = 0;
 
-    online_wait_mutex = NULL;
-    plugin_stop_lock = NULL;
+    online_wait_mutex = nullptr;
+    plugin_stop_lock = nullptr;
     plugin_is_stopping = false;
     group_replication_running = false;
     group_replication_cloning = false;
@@ -100,10 +103,11 @@ struct plugin_local_variables {
     wait_on_engine_initialization = false;
     write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
     abort_wait_on_start_process = false;
+    recovery_timeout_issue_on_stop = false;
     // the default is 5 minutes (300 secs).
     rejoin_timeout = 300ULL;
 
-    auto_increment_handler = NULL;
+    auto_increment_handler = nullptr;
     reg_srv = nullptr;
   }
 };
@@ -118,11 +122,12 @@ struct plugin_local_variables {
 */
 struct plugin_options_variables {
   const char *ssl_fips_mode_values[4] = {"OFF", "ON", "STRICT",
-                                         (const char *)0};
+                                         (const char *)nullptr};
 
-  const char *bool_type_allowed_values[3] = {"OFF", "ON", (const char *)0};
+  const char *bool_type_allowed_values[3] = {"OFF", "ON",
+                                             (const char *)nullptr};
   TYPELIB plugin_bool_typelib_t = {2, "bool_type_typelib_t",
-                                   bool_type_allowed_values, NULL};
+                                   bool_type_allowed_values, nullptr};
 
   char *group_name_var;
   bool start_group_replication_at_boot_var;
@@ -132,7 +137,7 @@ struct plugin_options_variables {
   bool bootstrap_group_var;
   ulong poll_spin_loops_var;
 
-#define DEFAULT_MEMBER_EXPEL_TIMEOUT 0
+#define DEFAULT_MEMBER_EXPEL_TIMEOUT 5
 #define MAX_MEMBER_EXPEL_TIMEOUT 3600
 #define MIN_MEMBER_EXPEL_TIMEOUT 0
   ulong member_expel_timeout_var;
@@ -170,9 +175,9 @@ struct plugin_options_variables {
   char *recovery_tls_ciphersuites_var;
 
   const char *recovery_policies[3] = {"TRANSACTIONS_CERTIFIED",
-                                      "TRANSACTIONS_APPLIED", (char *)0};
+                                      "TRANSACTIONS_APPLIED", (char *)nullptr};
   TYPELIB recovery_policies_typelib_t = {2, "recovery_policies_typelib_t",
-                                         recovery_policies, NULL};
+                                         recovery_policies, nullptr};
   ulong recovery_completion_policy_var;
 
   ulong components_stop_timeout_var;
@@ -196,25 +201,26 @@ struct plugin_options_variables {
 
 #define DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE 1000000
 #define MIN_GTID_ASSIGNMENT_BLOCK_SIZE 1
-#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE MAX_GNO
+#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE GNO_END
   ulonglong gtid_assignment_block_size_var;
 
   const char *ssl_mode_values[5] = {"DISABLED", "REQUIRED", "VERIFY_CA",
-                                    "VERIFY_IDENTITY", (char *)0};
+                                    "VERIFY_IDENTITY", (char *)nullptr};
   TYPELIB ssl_mode_values_typelib_t = {4, "ssl_mode_values_typelib_t",
-                                       ssl_mode_values, NULL};
+                                       ssl_mode_values, nullptr};
   ulong ssl_mode_var;
 
-#define IP_WHITELIST_STR_BUFFER_LENGTH 1024
+#define IP_ALLOWLIST_STR_BUFFER_LENGTH 1024
   char *ip_whitelist_var;
+  char *ip_allowlist_var;
 
 #define DEFAULT_COMMUNICATION_MAX_MESSAGE_SIZE 10485760
-#define MAX_COMMUNICATION_MAX_MESSAGE_SIZE get_max_slave_max_allowed_packet()
+#define MAX_COMMUNICATION_MAX_MESSAGE_SIZE get_max_replica_max_allowed_packet()
 #define MIN_COMMUNICATION_MAX_MESSAGE_SIZE 0
   ulong communication_max_message_size_var;
 
 #define DEFAULT_MESSAGE_CACHE_SIZE 1073741824
-#define MIN_MESSAGE_CACHE_SIZE DEFAULT_MESSAGE_CACHE_SIZE
+#define MIN_MESSAGE_CACHE_SIZE 134217728
 #define MAX_MESSAGE_CACHE_SIZE ULONG_MAX
   ulong message_cache_size_var;
 
@@ -222,9 +228,9 @@ struct plugin_options_variables {
   bool enforce_update_everywhere_checks_var;
 
   const char *flow_control_mode_values[3] = {"DISABLED", "QUOTA",
-                                             (const char *)0};
+                                             (const char *)nullptr};
   TYPELIB flow_control_mode_typelib_t = {2, "flow_control_mode_typelib_t",
-                                         flow_control_mode_values, NULL};
+                                         flow_control_mode_values, nullptr};
   ulong flow_control_mode_var;
 #define DEFAULT_FLOW_CONTROL_THRESHOLD 25000
 #define MAX_FLOW_CONTROL_THRESHOLD INT_MAX32
@@ -235,14 +241,16 @@ struct plugin_options_variables {
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
-  ulong transaction_size_limit_var;
+  /** Base variable that feeds the value to an atomic variable */
+  ulong transaction_size_limit_base_var;
+  std::atomic<ulong> transaction_size_limit_var;
 
   char *communication_debug_options_var;
 
   const char *exit_state_actions[4] = {"READ_ONLY", "ABORT_SERVER",
-                                       "OFFLINE_MODE", (char *)0};
+                                       "OFFLINE_MODE", (char *)nullptr};
   TYPELIB exit_state_actions_typelib_t = {3, "exit_state_actions_typelib_t",
-                                          exit_state_actions, NULL};
+                                          exit_state_actions, nullptr};
   ulong exit_state_action_var;
 
   uint autorejoin_tries_var;
@@ -263,6 +271,16 @@ struct plugin_options_variables {
   int flow_control_release_percent_var;
 
   ulonglong clone_threshold_var;
+
+  char *advertise_recovery_endpoints_var;
+
+  const char *tls_source_values[3] = {"MYSQL_MAIN", "MYSQL_ADMIN",
+                                      (char *)nullptr};
+  TYPELIB tls_source_values_typelib_t = {2, "tls_source_typelib_t",
+                                         tls_source_values, nullptr};
+  ulong tls_source_var;
+
+  char *view_change_uuid_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

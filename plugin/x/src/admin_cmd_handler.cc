@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,21 +30,24 @@
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
-#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/admin_cmd_index.h"
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/helper/sql_commands.h"
 #include "plugin/x/src/helper/string_case.h"
+#include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/notice_configuration.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/mysql_function_names.h"
+#include "plugin/x/src/ngs/client_list.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
+#include "plugin/x/src/ngs/protocol/column_info_builder.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "plugin/x/src/xpl_server.h"
 
 namespace xpl {
 
@@ -222,19 +225,17 @@ ngs::Error_code Admin_command_handler::list_clients(Command_arguments *args) {
 
   std::vector<Client_data_> clients;
   {
-    Server::Server_ptr server(Server::get_instance());
-    if (server) {
-      MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-      std::vector<std::shared_ptr<iface::Client>> client_list;
+    auto &server = m_session->client().server();
 
-      (*server)->server().get_client_list().get_all_clients(client_list);
+    MUTEX_LOCK(lock, server.get_client_exit_mutex());
+    std::vector<std::shared_ptr<xpl::iface::Client>> client_list;
 
-      clients.reserve(client_list.size());
+    server.get_client_list().get_all_clients(&client_list);
 
-      for (const auto &c : client_list)
-        get_client_data(&clients, *m_session, m_session->data_context(),
-                        c.get());
-    }
+    clients.reserve(client_list.size());
+
+    for (const auto &c : client_list)
+      get_client_data(&clients, *m_session, m_session->data_context(), c.get());
   }
 
   auto &proto = m_session->proto();
@@ -291,10 +292,9 @@ ngs::Error_code Admin_command_handler::kill_client(Command_arguments *args) {
       args->uint_arg({"id"}, &cid, Argument_appearance::k_obligatory).end();
   if (error) return error;
 
-  {
-    auto server(Server::get_instance());
-    if (server) error = (*server)->kill_client(cid, *m_session);
-  }
+  auto &server = m_session->client().server();
+  error = server.kill_client(cid, m_session);
+
   if (error) return error;
 
   m_session->proto().send_exec_ok();
@@ -311,7 +311,8 @@ ngs::Error_code Admin_command_handler::kill_client(Command_arguments *args) {
  *                     if not exists
  *   - validation: object, optional - validation schema options
  *     - schema: object|string, optional - json validation document
- *     - level: string - level of validation {"STRICT"|"OFF"}
+ *     - level: string, optional - level of validation {"STRICT"|"OFF"};
+ *       default "STRICT"
  */
 ngs::Error_code Admin_command_handler::create_collection(
     Command_arguments *args) {
@@ -379,16 +380,16 @@ ngs::Error_code Admin_command_handler::drop_collection_index(
 
 namespace {
 
-static const char *const fixed_notice_names[] = {
-    "account_expired", "generated_insert_id", "rows_affected",
-    "produced_message"};
-static const char *const *fixed_notice_names_end =
-    &fixed_notice_names[0] +
-    sizeof(fixed_notice_names) / sizeof(fixed_notice_names[0]);
+static const std::array<const char *const, 4> k_fixed_notice_names = {
+    "account_expired",
+    "generated_insert_id",
+    "rows_affected",
+    "produced_message",
+};
 
 inline bool is_fixed_notice_name(const std::string &notice) {
-  return std::find(fixed_notice_names, fixed_notice_names_end, notice) !=
-         fixed_notice_names_end;
+  return std::find(k_fixed_notice_names.begin(), k_fixed_notice_names.end(),
+                   notice) != k_fixed_notice_names.end();
 }
 
 inline void add_notice_row(iface::Protocol_encoder *proto,
@@ -510,7 +511,7 @@ ngs::Error_code Admin_command_handler::list_notices(Command_arguments *args) {
                    notice_config.is_notice_enabled(notice_type) ? 1 : 0);
   }
 
-  for (const auto notice : fixed_notice_names) {
+  for (const auto notice : k_fixed_notice_names) {
     add_notice_row(&proto, notice, 1);
   }
 
@@ -644,7 +645,7 @@ ngs::Error_code Admin_command_handler::modify_collection_options(
  * Required arguments:
  * - name: string - name of collection
  * - schema: string - name of collection's schema
- * - options: object - collection options to fetch
+ * - options: string, list - collection options to fetch
  */
 ngs::Error_code Admin_command_handler::get_collection_options(
     Command_arguments *args) {

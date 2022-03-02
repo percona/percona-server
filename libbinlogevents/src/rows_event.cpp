@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,13 +58,13 @@ Table_map_event::Table_map_event(const char *buf,
   READER_TRY_CALL(forward, TM_MAPID_OFFSET);
   if (fde->post_header_len[TABLE_MAP_EVENT - 1] == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 4);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 4);
   } else {
     BAPI_ASSERT(fde->post_header_len[TABLE_MAP_EVENT - 1] ==
                 TABLE_MAP_HEADER_LEN);
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 6);
   }
-  READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
+  READER_TRY_SET(m_flags, read<uint16_t>);
 
   /* Read the variable part of the event */
 
@@ -301,6 +301,24 @@ static void parse_pk_with_prefix(
   }
 }
 
+/**
+   Parses column visibility attribute.
+
+   @param[out] vec        Stores the column visibility extracted from the field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
+ */
+static void parse_column_visibility(std::vector<bool> *vec,
+                                    Event_reader &reader_obj,
+                                    unsigned int length) {
+  for (unsigned int i = 0; i < length; i++) {
+    char field = reader_obj.read<unsigned char>();
+    if (reader_obj.has_error()) return;
+    for (unsigned char c = 0x80; c != 0; c >>= 1) vec->push_back(field & c);
+  }
+}
+
 Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
     unsigned char *optional_metadata, unsigned int optional_metadata_len) {
   char *field = reinterpret_cast<char *>(optional_metadata);
@@ -353,6 +371,9 @@ Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
       case ENUM_AND_SET_COLUMN_CHARSET:
         parse_column_charset(m_enum_and_set_column_charset, reader_obj, len);
         break;
+      case COLUMN_VISIBILITY:
+        parse_column_visibility(&m_column_visibility, reader_obj, len);
+        break;
       default:
         BAPI_ASSERT(0);
     }
@@ -379,18 +400,18 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
 
   if (post_header_len == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 4);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 4);
   } else {
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 6);
   }
-  READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
+  READER_TRY_SET(m_flags, read<uint16_t>);
 
   if (post_header_len == ROWS_HEADER_LEN_V2) {
     /*
       Have variable length header, check length,
       which includes length bytes
     */
-    READER_TRY_SET(var_header_len, read_and_letoh<uint16_t>);
+    READER_TRY_SET(var_header_len, read<uint16_t>);
     var_header_len -= 2;
 
     /* Iterate over var-len header, extracting 'chunks' */
@@ -462,7 +483,7 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   BAPI_VOID_RETURN;
 }
 
-Rows_event::~Rows_event() {}
+Rows_event::~Rows_event() = default;
 
 bool Rows_event::Extra_row_info::compare_extra_row_info(
     const unsigned char *ndb_info_arg, int part_id_arg,

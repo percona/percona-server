@@ -1,21 +1,41 @@
+/* Copyright (c) 2018, 2021 Percona LLC and/or its affiliates. All rights
+   reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
+#include <curl/curl.h>
+#include <my_rnd.h>
 #include <memory>
-#include "my_config.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin_keyring.h"
 #include "plugin/keyring/common/keyring.h"
 #include "sql/sql_class.h"
+#include "sql/sys_vars_shared.h"
+#include "vault_curl.h"
 #include "vault_io.h"
 #include "vault_keys_container.h"
-#include "vault_parser.h"
+#include "vault_parser_composer.h"
 
 using keyring::IVault_curl;
-using keyring::IVault_parser;
+using keyring::IVault_parser_composer;
 using keyring::Keys_iterator;
 using keyring::Logger;
 using keyring::Vault_curl;
 using keyring::Vault_io;
 using keyring::Vault_keys_container;
-using keyring::Vault_parser;
+using keyring::Vault_parser_composer;
 
 mysql_rwlock_t LOCK_keyring;
 
@@ -25,14 +45,14 @@ static bool reset_curl() noexcept {
 }
 
 static void handle_std_bad_alloc_exception(const std::string &message_prefix) {
-  DBUG_ASSERT(0);
+  assert(0);
   const std::string error_message =
       message_prefix + " due to memory allocation failure";
   if (logger != nullptr) logger->log(MY_ERROR_LEVEL, error_message.c_str());
 }
 
 static void handle_unknown_exception(const std::string &message_prefix) {
-  DBUG_ASSERT(0);
+  assert(0);
   const std::string error_message = message_prefix +
                                     " due to internal "
                                     "exception inside the keyring_vault plugin";
@@ -62,9 +82,10 @@ int check_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
       logger->log(MY_ERROR_LEVEL, "Cannot set keyring_vault_config_file");
       return 1;
     }
-    std::unique_ptr<IVault_curl> vault_curl(
-        new Vault_curl(logger.get(), keyring_vault_timeout));
-    std::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
+    std::unique_ptr<IVault_parser_composer> vault_parser(
+        new Vault_parser_composer(logger.get()));
+    std::unique_ptr<IVault_curl> vault_curl(new Vault_curl(
+        logger.get(), vault_parser.get(), keyring_vault_timeout));
     IKeyring_io *keyring_io(
         new Vault_io(logger.get(), vault_curl.get(), vault_parser.get()));
     vault_curl.release();
@@ -94,7 +115,7 @@ static MYSQL_SYSVAR_STR(
 static void update_keyring_vault_timeout(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                          SYS_VAR *var MY_ATTRIBUTE((unused)),
                                          void *ptr, const void *val) noexcept {
-  DBUG_ASSERT(dynamic_cast<Vault_keys_container *>(keys.get()) != nullptr);
+  assert(dynamic_cast<Vault_keys_container *>(keys.get()) != nullptr);
   *reinterpret_cast<uint *>(ptr) = *reinterpret_cast<const uint *>(val);
   dynamic_cast<Vault_keys_container *>(keys.get())
       ->set_curl_timeout(*static_cast<const uint *>(val));
@@ -132,9 +153,10 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 
     logger.reset(new Logger());
     keys.reset(new Vault_keys_container(logger.get()));
-    std::unique_ptr<IVault_curl> vault_curl(
-        new Vault_curl(logger.get(), keyring_vault_timeout));
-    std::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
+    std::unique_ptr<IVault_parser_composer> vault_parser(
+        new Vault_parser_composer(logger.get()));
+    std::unique_ptr<IVault_curl> vault_curl(new Vault_curl(
+        logger.get(), vault_parser.get(), keyring_vault_timeout));
     IKeyring_io *keyring_io =
         new Vault_io(logger.get(), vault_curl.get(), vault_parser.get());
     vault_curl.release();
@@ -173,7 +195,7 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 int keyring_vault_deinit(void *arg MY_ATTRIBUTE((unused))) noexcept {
   keys.reset();
   logger.reset();
-  keyring_file_data.reset();
+  delete_keyring_file_data();
   mysql_rwlock_destroy(&LOCK_keyring);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,22 @@ ENDFUNCTION()
 
 
 IF(WIN32)
+  IF(NOT WIN32_CLANG AND NOT EXISTS "${CMAKE_LINKER}")
+    MESSAGE(WARNING "CMAKE_LINKER not found:\n ${CMAKE_LINKER}")
+    MESSAGE(WARNING "It seems you have upgraded Visual Studio")
+    MESSAGE(WARNING "You should do a clean build")
+    MESSAGE(WARNING
+      "\n or remove these files:"
+      "\n CMakeFiles/${CMAKE_VERSION}/CMakeCCompiler.cmake"
+      "\n CMakeFiles/${CMAKE_VERSION}/CMakeCXXCompiler.cmake"
+      "\n and re-run cmake"
+      "\n"
+      )
+    UNSET(DUMPBIN_EXECUTABLE)
+    UNSET(DUMPBIN_EXECUTABLE CACHE)
+    UNSET(CMAKE_LINKER)
+    UNSET(CMAKE_LINKER CACHE)
+  ENDIF()
   GET_FILENAME_COMPONENT(CMAKE_LINKER_PATH "${CMAKE_LINKER}" DIRECTORY)
   FIND_PROGRAM(DUMPBIN_EXECUTABLE dumpbin PATHS "${CMAKE_LINKER_PATH}")
 
@@ -57,7 +73,7 @@ IF(WIN32)
       STRING(REPLACE "\n" ";" DUMPBIN_OUTPUT_LIST "${DUMPBIN_OUTPUT}")
       SET(DEPENDENCIES)
       FOREACH(LINE ${DUMPBIN_OUTPUT_LIST})
-        STRING(REGEX MATCH "^[\r\n\t ]*([A-Za-z0-9_]*\.dll)" XXX ${LINE})
+        STRING(REGEX MATCH "^[\r\n\t ]*([A-Za-z0-9_]*\.dll)" UNUSED ${LINE})
         IF(CMAKE_MATCH_1)
           LIST(APPEND DEPENDENCIES ${CMAKE_MATCH_1})
         ENDIF()
@@ -66,3 +82,89 @@ IF(WIN32)
     ENDIF()
   ENDFUNCTION()
 ENDIF()
+
+IF(LINUX)
+  FUNCTION(FIND_OBJECT_DEPENDENCIES FILE_NAME RETURN_VALUE)
+    SET(${RETURN_VALUE} PARENT_SCOPE)
+    EXECUTE_PROCESS(COMMAND
+      objdump -p "${FILE_NAME}"
+      OUTPUT_VARIABLE OBJDUMP_OUTPUT
+      RESULT_VARIABLE OBJDUMP_RESULT
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    STRING(REPLACE "\n" ";" OBJDUMP_OUTPUT_LIST "${OBJDUMP_OUTPUT}")
+    SET(DEPENDENCIES)
+    FOREACH(LINE ${OBJDUMP_OUTPUT_LIST})
+      STRING(REGEX MATCH
+        "^[ ]+NEEDED[ ]+([-_A-Za-z0-9\\.]+)" UNUSED ${LINE})
+      IF(CMAKE_MATCH_1)
+        LIST(APPEND DEPENDENCIES ${CMAKE_MATCH_1})
+      ENDIF()
+    ENDFOREACH()
+    SET(${RETURN_VALUE} ${DEPENDENCIES} PARENT_SCOPE)
+  ENDFUNCTION()
+
+  FUNCTION(FIND_SONAME FILE_NAME RETURN_VALUE)
+    SET(${RETURN_VALUE} PARENT_SCOPE)
+    EXECUTE_PROCESS(COMMAND
+      objdump -p "${FILE_NAME}"
+      OUTPUT_VARIABLE OBJDUMP_OUTPUT
+      RESULT_VARIABLE OBJDUMP_RESULT
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    STRING(REPLACE "\n" ";" OBJDUMP_OUTPUT_LIST "${OBJDUMP_OUTPUT}")
+    FOREACH(LINE ${OBJDUMP_OUTPUT_LIST})
+      STRING(REGEX MATCH
+        "^[ ]+SONAME[ ]+([-_A-Za-z0-9\\.]+)" UNUSED ${LINE})
+      IF(CMAKE_MATCH_1)
+        SET(${RETURN_VALUE} ${CMAKE_MATCH_1} PARENT_SCOPE)
+      ENDIF()
+    ENDFOREACH()
+  ENDFUNCTION()
+
+  FUNCTION(VERIFY_CUSTOM_LIBRARY_DEPENDENCIES)
+    FOREACH(lib ${KNOWN_CUSTOM_LIBRARIES})
+      FOREACH(lib_needs ${NEEDED_${lib}})
+        GET_FILENAME_COMPONENT(library_name_we "${lib_needs}" NAME_WE)
+        SET(SONAME ${SONAME_${library_name_we}})
+        IF(SONAME)
+          MESSAGE(STATUS
+            "${lib} needs ${lib_needs} from ${library_name_we}")
+          IF(NOT "${lib_needs}" STREQUAL "${SONAME}")
+            MESSAGE(WARNING "${library_name_we} provides ${SONAME}")
+          ENDIF()
+        ENDIF()
+      ENDFOREACH()
+    ENDFOREACH()
+  ENDFUNCTION()
+
+ENDIF()
+
+
+# Adds a convenience target TARGET_NAME to show soname and dependent libs
+# (and misc other info depending on platform) for FILE_NAME.
+FUNCTION(ADD_OBJDUMP_TARGET TARGET_NAME FILE_NAME)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    ""
+    ""
+    "DEPENDENCIES"
+    ${ARGN}
+    )
+
+  IF(WIN32)
+    SET(OBJDUMP_COMMAND "${DUMPBIN_EXECUTABLE}" /dependents /headers /exports)
+  ELSEIF(APPLE)
+    SET(OBJDUMP_COMMAND otool -L)
+  ELSEIF(SOLARIS)
+    SET(OBJDUMP_COMMAND elfdump -d)
+  ELSE()
+    SET(OBJDUMP_COMMAND objdump -p)
+  ENDIF()
+
+  ADD_CUSTOM_TARGET(${TARGET_NAME} COMMAND ${OBJDUMP_COMMAND} "${FILE_NAME}")
+
+  IF(ARG_DEPENDENCIES)
+    ADD_DEPENDENCIES(${TARGET_NAME} ${ARG_DEPENDENCIES})
+  ENDIF()
+
+ENDFUNCTION()

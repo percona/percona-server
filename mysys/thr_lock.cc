@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,8 +121,8 @@ enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 LIST *thr_lock_thread_list; /* List of threads in use */
 ulong max_write_lock_count = ~(ulong)0L;
 
-static void (*before_lock_wait)(void) = 0;
-static void (*after_lock_wait)(void) = 0;
+static void (*before_lock_wait)(void) = nullptr;
+static void (*after_lock_wait)(void) = nullptr;
 
 void thr_set_lock_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void)) {
@@ -207,7 +207,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
       for (data = lock->read.data; data; data = data->next) {
         if ((int)data->type == (int)TL_READ_NO_INSERT) count++;
         /* Protect against infinite loop. */
-        DBUG_ASSERT(count <= lock->read_no_write_count);
+        assert(count <= lock->read_no_write_count);
       }
       if (count != lock->read_no_write_count) {
         found_errors++;
@@ -337,9 +337,9 @@ void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id,
 void thr_lock_data_init(THR_LOCK *lock, THR_LOCK_DATA *data, void *param) {
   data->lock = lock;
   data->type = TL_UNLOCK;
-  data->owner = 0; /* no owner yet */
+  data->owner = nullptr; /* no owner yet */
   data->status_param = param;
-  data->cond = 0;
+  data->cond = nullptr;
 }
 
 static inline bool has_old_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner) {
@@ -395,7 +395,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
   /* Set up control struct to allow others to abort locks */
   data->cond = owner->suspend;
 
-  enter_cond_hook(NULL, data->cond, &data->lock->mutex,
+  enter_cond_hook(nullptr, data->cond, &data->lock->mutex,
                   &stage_waiting_for_table_level_lock, &old_stage, __func__,
                   __FILE__, __LINE__);
 
@@ -410,7 +410,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
     and once after the thread has exited the wait loop.
    */
   bool use_wait_callbacks;
-  if ((!is_killed_hook(NULL) || in_wait_list) && before_lock_wait) {
+  if ((!is_killed_hook(nullptr) || in_wait_list) && before_lock_wait) {
     use_wait_callbacks = true;
     (*before_lock_wait)();
   } else {
@@ -418,7 +418,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
   }
 
   set_timespec(&wait_timeout, lock_wait_timeout);
-  while (!is_killed_hook(NULL) || in_wait_list) {
+  while (!is_killed_hook(nullptr) || in_wait_list) {
     int rc =
         mysql_cond_timedwait(data->cond, &data->lock->mutex, &wait_timeout);
     /*
@@ -431,7 +431,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
       Order of checks below is important to not report about timeout
       if the predicate is true.
     */
-    if (data->cond == 0) {
+    if (data->cond == nullptr) {
       DBUG_PRINT("thr_lock", ("lock granted/aborted"));
       break;
     }
@@ -472,7 +472,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
   }
   mysql_mutex_unlock(&data->lock->mutex);
 
-  exit_cond_hook(NULL, &old_stage, __func__, __FILE__, __LINE__);
+  exit_cond_hook(nullptr, &old_stage, __func__, __FILE__, __LINE__);
 
   return result;
 }
@@ -486,8 +486,8 @@ enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_TRACE;
 
-  data->next = 0;
-  data->cond = 0; /* safety */
+  data->next = nullptr;
+  data->cond = nullptr; /* safety */
   data->type = lock_type;
   data->owner = owner; /* Must be reset ! */
 
@@ -620,10 +620,10 @@ enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
         tries to update t1, is an example of statement which requests two
         different types of write lock on the same table).
       */
-      DBUG_ASSERT(!has_old_lock(lock->write.data, data->owner) ||
-                  ((lock_type <= lock->write.data->type ||
-                    (lock_type == TL_WRITE &&
-                     lock->write.data->type == TL_WRITE_LOW_PRIORITY))));
+      assert(!has_old_lock(lock->write.data, data->owner) ||
+             ((lock_type <= lock->write.data->type ||
+               (lock_type == TL_WRITE &&
+                lock->write.data->type == TL_WRITE_LOW_PRIORITY))));
 
       if ((lock_type == TL_WRITE_ALLOW_WRITE && !lock->write_wait.data &&
            lock->write.data->type == TL_WRITE_ALLOW_WRITE) ||
@@ -724,10 +724,10 @@ static inline void free_all_read_locks(THR_LOCK *lock,
     DBUG_PRINT("lock",
                ("giving read lock to thread: 0x%x", data->owner->thread_id));
     /* purecov: end */
-    data->cond = 0; /* Mark thread free */
+    data->cond = nullptr; /* Mark thread free */
     mysql_cond_signal(cond);
   } while ((data = data->next));
-  *lock->read_wait.last = 0;
+  *lock->read_wait.last = nullptr;
   if (!lock->read_wait.data) lock->write_lock_count = 0;
   check_locks(lock, "after giving read locks", 0);
 }
@@ -803,7 +803,7 @@ static void wake_up_waiters(THR_LOCK *lock) {
             lock->write_wait.last = data->prev;
           (*lock->write.last) = data; /* Put in execute list */
           data->prev = lock->write.last;
-          data->next = 0;
+          data->next = nullptr;
           lock->write.last = &data->next;
           if (data->type == TL_WRITE_CONCURRENT_INSERT &&
               (*lock->check_status)(data->status_param))
@@ -814,7 +814,7 @@ static void wake_up_waiters(THR_LOCK *lock) {
           /* purecov: end */
           {
             mysql_cond_t *cond = data->cond;
-            data->cond = 0;          /* Mark thread free */
+            data->cond = nullptr;    /* Mark thread free */
             mysql_cond_signal(cond); /* Start waiting thread */
           }
           if (data->type != TL_WRITE_ALLOW_WRITE || !lock->write_wait.data ||
@@ -855,8 +855,8 @@ static void wake_up_waiters(THR_LOCK *lock) {
         (*lock->write.last) = data; /* Put in execute list */
         data->prev = lock->write.last;
         lock->write.last = &data->next;
-        data->next = 0;          /* Only one write lock */
-        data->cond = 0;          /* Mark thread free */
+        data->next = nullptr;    /* Only one write lock */
+        data->cond = nullptr;    /* Mark thread free */
         mysql_cond_signal(cond); /* Start waiting thread */
       } while (lock_type == TL_WRITE_ALLOW_WRITE &&
                (data = lock->write_wait.data) &&
@@ -1002,8 +1002,11 @@ void thr_multi_unlock(THR_LOCK_DATA **data, uint count) {
     if ((*pos)->type != TL_UNLOCK)
       thr_unlock(*pos);
     else {
-      DBUG_PRINT("lock", ("Free lock: data: %p  thread: 0x%x  lock: %p", *pos,
-                          (*pos)->owner->thread_id, (*pos)->lock));
+      DBUG_PRINT("lock", ("Free lock: data: %p  lock: %p", *pos, (*pos)->lock));
+      if ((*pos)->owner) {
+        DBUG_PRINT("lock",
+                   ("Free lock: thread: 0x%x", (*pos)->owner->thread_id));
+      }
     }
   }
 }
@@ -1026,7 +1029,7 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id) {
       data->type = TL_UNLOCK; /* Mark killed */
       /* It's safe to signal the cond first: we're still holding the mutex. */
       mysql_cond_signal(data->cond);
-      data->cond = 0; /* Removed from list */
+      data->cond = nullptr; /* Removed from list */
 
       if (((*data->prev) = data->next))
         data->next->prev = data->prev;
@@ -1040,7 +1043,7 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id) {
       DBUG_PRINT("info", ("Aborting write-wait lock"));
       data->type = TL_UNLOCK;
       mysql_cond_signal(data->cond);
-      data->cond = 0;
+      data->cond = nullptr;
 
       if (((*data->prev) = data->next))
         data->next->prev = data->prev;
@@ -1194,7 +1197,7 @@ static void *test_thread(void *arg) {
   THR_LOCK_INFO lock_info;
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
   my_thread_id id;
-  mysql_cond_t COND_thr_lock;
+  mysql_cond_t COND_thr_lock{};
 
   id = param + 1; /* Main thread uses value 0. */
   mysql_cond_init(0, &COND_thr_lock);
@@ -1204,8 +1207,8 @@ static void *test_thread(void *arg) {
 
   thr_lock_info_init(&lock_info, id, &COND_thr_lock);
   for (i = 0; i < lock_counts[param]; i++) {
-    thr_lock_data_init(locks + tests[param][i].lock_nr, data + i, NULL);
-    data[i].m_psi = NULL;
+    thr_lock_data_init(locks + tests[param][i].lock_nr, data + i, nullptr);
+    data[i].m_psi = nullptr;
   }
   for (j = 1; j < 10; j++) /* try locking 10 times */
   {
@@ -1239,7 +1242,7 @@ static void *test_thread(void *arg) {
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_cond_destroy(&COND_thr_lock);
   free((uchar *)arg);
-  return 0;
+  return nullptr;
 }
 
 int main(int argc, char **argv) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cstdint>
 
-#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xmessages.h"
+#include "plugin/x/src/ngs/protocol/column_info_builder.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 namespace xpl {
@@ -78,7 +78,7 @@ using Resultset_types = ::testing::Types<
     Resultset_pair_type<Mysqlx::Resultset::FetchSuspended,
                         Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED>>;
 
-TYPED_TEST_CASE(Message_builder_encode_resultset, Resultset_types);
+TYPED_TEST_SUITE(Message_builder_encode_resultset, Resultset_types);
 
 TYPED_TEST(Message_builder_encode_resultset, encode_resultset) {
   this->m_encoder.template empty_xmessage<TypeParam::message_id>();
@@ -134,7 +134,7 @@ TEST_F(Message_builder, encode_compact_metadata) {
   std::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
       message_with_header_from_buffer<Mysqlx::Resultset::ColumnMetaData>(data));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_collation());
   ASSERT_EQ(COLLATION, msg->collation());
@@ -189,7 +189,7 @@ TEST_F(Message_builder, encode_full_metadata) {
   std::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
       message_with_header_from_buffer<Mysqlx::Resultset::ColumnMetaData>(data));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_collation());
   ASSERT_EQ(COLLATION, msg->collation());
@@ -251,7 +251,7 @@ TEST_F(Message_builder, encode_notice_frame) {
       message_with_header_from_buffer<Mysqlx::Notice::Frame>(
           get_data_from_buffer()));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_type());
   ASSERT_EQ(TYPE, msg->type());
@@ -270,7 +270,7 @@ TEST_F(Message_builder, encode_notice_rows_affected) {
       message_with_header_from_buffer<Mysqlx::Notice::Frame>(
           get_data_from_buffer()));
 
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
 
   ASSERT_TRUE(msg->has_type());
   ASSERT_EQ(3, msg->type()); /*Mysqlx::Notice::SessionStateChanged*/

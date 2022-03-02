@@ -2,6 +2,7 @@
 --source suite/information_schema/include/roles_schema.inc
 
 --let $TEST_TABLE=ROLE_COLUMN_GRANTS
+--let $ORDER_BY=ORDER BY GRANTEE, TABLE_NAME, COLUMN_NAME, PRIVILEGE_TYPE
 
 --echo # USER WITH ROLES.
 
@@ -70,7 +71,10 @@ SET DEFAULT ROLE NONE TO lead_user1;
 --echo #          project_lead-----------/
 --echo #
 connection default;
-GRANT project_lead to updater;
+# GRANT project_lead to updater;
+INSERT INTO mysql.role_edges (FROM_USER,FROM_HOST,TO_USER,TO_HOST)
+  VALUES('project_lead','%','updater','%');
+FLUSH PRIVILEGES;
 
 --let USER_NAME=project_lead_user
 --let ROLE_LIST=hr_access

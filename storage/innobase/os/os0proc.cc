@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,7 +65,7 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large(). */
-ulint os_total_large_mem_allocated = 0;
+std::atomic<ulint> os_total_large_mem_allocated{0};
 
 /** Whether to use large pages in the buffer pool */
 bool os_use_large_pages;
@@ -117,14 +117,14 @@ void *os_mem_alloc_large(ulint *n, bool populate) {
   if (shmid < 0) {
     ib::warn(ER_IB_MSG_852)
         << "Failed to allocate " << size << " bytes. errno " << errno;
-    ptr = NULL;
+    ptr = nullptr;
   } else {
-    ptr = shmat(shmid, NULL, 0);
+    ptr = shmat(shmid, nullptr, 0);
     if (ptr == (void *)-1) {
       ib::warn(ER_IB_MSG_853) << "Failed to attach shared memory segment,"
                                  " errno "
                               << errno;
-      ptr = NULL;
+      ptr = nullptr;
     }
 
     /* Remove the shared memory segment so that it will be
@@ -135,7 +135,7 @@ void *os_mem_alloc_large(ulint *n, bool populate) {
 
   if (ptr) {
     *n = size;
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_add(size);
 
     UNIV_MEM_ALLOC(ptr, size);
     return (ptr);
@@ -162,7 +162,7 @@ skip:
                                " Windows error "
                             << GetLastError();
   } else {
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_add(size);
     UNIV_MEM_ALLOC(ptr, size);
   }
 #else
@@ -171,7 +171,7 @@ skip:
   ut_ad(ut_is_2pow(size));
   size = *n = ut_2pow_round(*n + (size - 1), size);
   ptr =
-      mmap(NULL, size, PROT_READ | PROT_WRITE,
+      mmap(nullptr, size, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | OS_MAP_ANON | (populate ? OS_MAP_POPULATE : 0), -1, 0);
   if (UNIV_UNLIKELY(ptr == (void *)-1)) {
     ib::error(ER_IB_MSG_856) << "mmap(" << size
@@ -180,7 +180,7 @@ skip:
                              << errno;
     return nullptr;
   } else {
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_add(size);
     UNIV_MEM_ALLOC(ptr, size);
   }
 #endif
@@ -213,7 +213,7 @@ void os_mem_free_large(void *ptr, ulint size) {
 
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
   if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_sub(size);
     UNIV_MEM_FREE(ptr, size);
     return;
   }
@@ -225,7 +225,7 @@ void os_mem_free_large(void *ptr, ulint size) {
     ib::error(ER_IB_MSG_857) << "VirtualFree(" << ptr << ", " << size
                              << ") failed; Windows error " << GetLastError();
   } else {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_sub(size);
     UNIV_MEM_FREE(ptr, size);
   }
 #elif !defined OS_MAP_ANON
@@ -241,7 +241,7 @@ void os_mem_free_large(void *ptr, ulint size) {
                                 " errno "
                              << errno;
   } else {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_sub(size);
     UNIV_MEM_FREE(ptr, size);
   }
 #endif

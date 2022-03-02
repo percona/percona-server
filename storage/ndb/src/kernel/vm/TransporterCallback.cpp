@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <ndb_global.h>
 
+#include <cstring>
 #include <TransporterRegistry.hpp>
 #include <FastScheduler.hpp>
 #include <Emulator.hpp>
@@ -41,6 +42,19 @@
 #include <NdbOut.hpp>
 #include "TransporterCallbackKernel.hpp"
 #include <DebuggerNames.hpp>
+#include <trpman.hpp>
+
+#include <EventLogger.hpp>
+
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_MULTI_TRP 1
+#endif
+
+#ifdef DEBUG_MULTI_TRP
+#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MULTI_TRP(arglist) do { } while (0)
+#endif
 
 #define JAM_FILE_ID 226
 
@@ -95,14 +109,14 @@ class TransporterCallbackKernelNonMT :
   public TransporterSendBufferHandle,
   public TransporterReceiveHandleKernel
 {
-  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
 
 public:
   TransporterCallbackKernelNonMT()
   : m_send_buffers(NULL), m_page_freelist(NULL), m_send_buffer_memory(NULL)
   {}
 
-  ~TransporterCallbackKernelNonMT();
+  ~TransporterCallbackKernelNonMT() override;
 
   /**
    * Allocate send buffer.
@@ -112,29 +126,33 @@ public:
    * The second is the config parameter ExtraSendBufferMemory
    */
   void allocate_send_buffers(Uint64 total_send_buffer,
-                             Uint64 extra_send_buffer);
+                             Uint64 extra_send_buffer) override;
 
   /**
    * Implements TransporterCallback interface:
    */
-  void enable_send_buffer(NodeId node);
-  void disable_send_buffer(NodeId node);
+  void enable_send_buffer(NodeId, TrpId) override;
+  void disable_send_buffer(NodeId, TrpId) override;
 
-  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
-  Uint32 bytes_sent(NodeId node, Uint32 bytes);
+  Uint32 get_bytes_to_send_iovec(NodeId node_id,
+                                 TrpId trp_id,
+                                 struct iovec *dst,
+                                 Uint32 max) override;
+  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) override;
 
   /**
    * These are the TransporterSendBufferHandle methods used by the
    * single-threaded ndbd.
    */
-  Uint32 *getWritePtr(NodeId node,
+  Uint32 *getWritePtr(NodeId,
+                      TrpId,
                       Uint32 lenBytes,
                       Uint32 prio,
                       Uint32 max_use,
-                      SendStatus *error);
-  Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
-  void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  bool forceSend(NodeId node);
+                      SendStatus *error) override;
+  Uint32 updateWritePtr(NodeId, TrpId, Uint32 lenBytes, Uint32 prio) override;
+  void getSendBufferLevel(NodeId node, SB_LevelType &level) override;
+  bool forceSend(NodeId, TrpId) override;
 
 private:
   /* Send buffer pages. */
@@ -170,7 +188,7 @@ private:
 
   SendBufferPage *alloc_page();
   void release_page(SendBufferPage *page);
-  void discard_send_buffer(NodeId node);
+  void discard_send_buffer(TrpId trp_id);
 
   /* Send buffers. */
   SendBuffer *m_send_buffers;
@@ -232,6 +250,7 @@ void mt_set_section_chunk_size(){}
 bool
 TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
                                                Uint8 prio,
+                                               TransporterError &error_code,
                                                Uint32 * const theData,
                                                LinearSectionPtr ptr[3])
 {
@@ -246,16 +265,16 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   // if this node is not MT LQH then instance bits are stripped at execute
 
 #ifdef TRACE_DISTRIBUTED
-  ndbout_c("recv: %s(%d) from (%s, %d)",
-	   getSignalName(header->theVerId_signalNumber), 
-	   header->theVerId_signalNumber,
-	   getBlockName(refToBlock(header->theSendersBlockRef)),
-	   refToNode(header->theSendersBlockRef));
+  g_eventLogger->info("recv: %s(%d) from (%s, %d)",
+                      getSignalName(header->theVerId_signalNumber),
+                      header->theVerId_signalNumber,
+                      getBlockName(refToBlock(header->theSendersBlockRef)),
+                      refToNode(header->theSendersBlockRef));
 #endif
 
   bool ok = true;
   Ptr<SectionSegment> secPtr[3];
-  bzero(secPtr, sizeof(secPtr));
+  std::memset(secPtr, 0, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
 #ifdef NDB_DEBUG_RES_OWNERSHIP
@@ -305,6 +324,104 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
     secPtrI[1] = secPtr[1].i;
     secPtrI[2] = secPtr[2].i;
 
+#ifdef NDBD_MULTITHREADED
+    const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
+    if (receiverBlock == V_QUERY)
+    {
+      /**
+       * Signal was sent from remote DBTC or DBSPJ containing a
+       * LQHKEYREQ or SCAN_FRAGREQ signal. These signals can be
+       * executed by any LDM or Query thread as long as they are
+       * COMMITTED READs.
+       *
+       * As reported in the paper "OLTP on Hardware Islands" in VLDB 2012
+       * one can achieve much higher throughput with execution using
+       * fine-grained shared nothing. This means here that the traditional
+       * approach of executing COMMITTED READs in the LDM owning the data is the
+       * preferred approach. What we have done to improve that here is that we
+       * have introduced a query thread. In 2020 most CPU architectures
+       * use 2 hyperthreads per CPU core. This means that we can have an LDM
+       * thread and a query thread share the same CPU core. In this manner we
+       * achieve the optimal performance for perfectly partitioned workloads.
+       *
+       * However not all workloads are perfectly partitionable. So e.g. in
+       * TPC-H there is a higher cost for complex queries to execute when
+       * all tables are fully partitioned. Many analytical schemas contain
+       * one or more data tables that contain massive amounts of data.
+       * These tablese often benefit from being fully partitioned. However
+       * smaller dimension tables often benefit from a smaller amount of
+       * partitioning.
+       *
+       * As noted in the paper above one wants to execute within a hardware
+       * island, so at least we don't want to allow the query to use a
+       * different CPU socket compared to where the owning LDM thread resides.
+       * This would significantly increase contention around the fragment
+       * lock as well as significantly increasing data movement between various
+       * CPU caches in the server.
+       *
+       * In addition if we allow the round robin to use too many CPUs we can
+       * easily create bursts of accesses to a fragment that makes too many
+       * LDM and query threads become stalled. To avoid this we set a constant
+       * limit to the round robin size. We want this size to be as big as
+       * possible to achieve best scalability for dimension tables, but at the
+       * same time we want to avoid using so many threads that we can easily
+       * become stalled.
+       *
+       * The outcome of this discussion is that we will define a number of
+       * Round Robin groups. Thus the LDM and query threads are placed into
+       * individual round robin groups.
+       *
+       * One more problem we can have is data skew. For the tables that are
+       * not fully partitioned this is solved by using the above approach
+       * to use round robin.
+       *
+       * V_QUERY is a virtual block that doesn't actually exist. They are
+       * discovered by the deliver signal module here.
+       *
+       * The responsibility to translate it is handled by the
+       * TRPMAN block instance for this receive thread.
+       * This instance receives a signal from the THRMAN instance
+       * of the rep thread with a weight that each instance should
+       * take in executing those signals. These weights are used to
+       * create a round robin array of references that is used to
+       * map these signals onto LDM threads and query threads.
+       *
+       * These weights are used both to create round robin schemas
+       * for the round robin groups as well as for the smaller group
+       * only containing one LDM thread with its companion query threads
+       * (normally only 1 query thread per LDM threads). We could foresee
+       * in the future with CPUs that employ 4 processors per CPU core that
+       * we could have more than query thread per LDM thread.
+       *
+       * TC threads has a similar array used for local LQHKEYREQ
+       * and SCAN_FRAGREQ signals. The THRMAN instance of the rep
+       * thread distributes the same weight to all receive threads
+       * and all TC threads. There is a weight for each LDM thread
+       * and query thread. The weights can be between 0 and 16
+       * where 0 means no signals will be sent to the instance and
+       * 16 means the thread will take much responsibility in
+       * handling the query load.
+       *
+       * This ensures that the LDM thread can be protected to handle
+       * the responsibility of locking queries, write queries and
+       * queries involving disk data. Thus when an LDM thread becomes
+       * overloaded we can offload query handling to other LDM threads
+       * and to query threads.
+       */
+      require(prio == JBB);
+      const Uint32 instance_no =
+        blockToInstance(header->theReceiversBlockNumber);
+      Uint32 ref = ((Trpman*)m_trpman)->distribute_signal(header, instance_no);
+      if (likely(ref != 0))
+      {
+        header->theReceiversBlockNumber = refToBlock(ref);
+        sendlocal(m_thr_no, header, theData, secPtrI);
+        return false;
+      }
+      error_code = TE_INVALID_SIGNAL;
+      return true;
+    }
+#endif
 #ifndef NDBD_MULTITHREADED
     globalScheduler.execute(header, prio, theData, secPtrI);  
 #else
@@ -367,7 +484,8 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
                                             const char *info)
 {
 #ifdef DEBUG_TRANSPORTER
-  ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "");
+  g_eventLogger->info("reportError (%d, 0x%x) %s", nodeId, errorCode,
+                      info ? info : "");
 #endif
 
   DBUG_ENTER("reportError");
@@ -410,7 +528,7 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
   }
   
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 
   if(errorCode & TE_DO_DISCONNECT)
@@ -453,7 +571,7 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
                                               Uint64 bytes)
 {
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
@@ -579,14 +697,16 @@ TransporterCallbackKernelNonMT::release_page(SendBufferPage *page)
 
 Uint32
 TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(NodeId node,
+                                                        TrpId trp_id,
                                                         struct iovec *dst,
                                                         Uint32 max)
 {
-  SendBuffer *b = m_send_buffers + node;
+  (void)node;
+  SendBuffer *b = m_send_buffers + trp_id;
 
   if (unlikely(!b->m_enabled))
   {
-    discard_send_buffer(node);
+    discard_send_buffer(trp_id);
     return 0;
   }
   if (unlikely(max == 0))
@@ -607,9 +727,12 @@ TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(NodeId node,
 }
 
 Uint32
-TransporterCallbackKernelNonMT::bytes_sent(NodeId node, Uint32 bytes)
+TransporterCallbackKernelNonMT::bytes_sent(NodeId nodeId,
+                                           TrpId trp_id,
+                                           Uint32 bytes)
 {
-  SendBuffer *b = m_send_buffers + node;
+  (void)nodeId;
+  SendBuffer *b = m_send_buffers + trp_id;
   Uint32 used_bytes = b->m_used_bytes;
 
   if (bytes == 0)
@@ -644,26 +767,29 @@ TransporterCallbackKernelNonMT::bytes_sent(NodeId node, Uint32 bytes)
 }
 
 void
-TransporterCallbackKernelNonMT::enable_send_buffer(NodeId node)
+TransporterCallbackKernelNonMT::enable_send_buffer(NodeId nodeId, TrpId trp_id)
 {
-  SendBuffer *b = m_send_buffers + node;
+  (void)nodeId;
+  SendBuffer *b = m_send_buffers + trp_id;
   assert(b->m_enabled == false);
   assert(b->m_first_page == NULL);  //Disabled buffer is empty
   b->m_enabled = true;
 }
 
 void
-TransporterCallbackKernelNonMT::disable_send_buffer(NodeId node)
+TransporterCallbackKernelNonMT::disable_send_buffer(NodeId nodeId,
+                                                    TrpId trp_id)
 {
-  SendBuffer *b = m_send_buffers + node;
+  (void)nodeId;
+  SendBuffer *b = m_send_buffers + trp_id;
   b->m_enabled = false;
-  discard_send_buffer(node);
+  discard_send_buffer(trp_id);
 }
 
 void
-TransporterCallbackKernelNonMT::discard_send_buffer(NodeId node)
+TransporterCallbackKernelNonMT::discard_send_buffer(TrpId trp_id)
 {
-  SendBuffer *b = m_send_buffers + node;
+  SendBuffer *b = m_send_buffers + trp_id;
   SendBufferPage *page = b->m_first_page;
   while (page != NULL)
   {
@@ -681,17 +807,20 @@ TransporterCallbackKernelNonMT::discard_send_buffer(NodeId node)
  * single-threaded ndbd.
  */
 Uint32 *
-TransporterCallbackKernelNonMT::getWritePtr(NodeId node,
+TransporterCallbackKernelNonMT::getWritePtr(NodeId nodeId,
+                                            TrpId trp_id,
                                             Uint32 lenBytes,
                                             Uint32 prio,
                                             Uint32 max_use,
-                                            SendStatus* error)
+                                            SendStatus *error)
 {
-  SendBuffer *b = m_send_buffers + node;
+  (void)nodeId;
+  SendBuffer *b = m_send_buffers + trp_id;
 
   /* First check if we have room in already allocated page. */
   SendBufferPage *page = b->m_last_page;
-  if (page != NULL && page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
+  if (page != NULL &&
+      page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
   {
     return (Uint32 *)(page->m_data + page->m_start + page->m_bytes);
   }
@@ -734,9 +863,13 @@ TransporterCallbackKernelNonMT::getWritePtr(NodeId node,
 }
 
 Uint32
-TransporterCallbackKernelNonMT::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
+TransporterCallbackKernelNonMT::updateWritePtr(NodeId nodeId,
+                                               TrpId trp_id,
+                                               Uint32 lenBytes,
+                                               Uint32 prio)
 {
-  SendBuffer *b = m_send_buffers + node;
+  (void)nodeId;
+  SendBuffer *b = m_send_buffers + trp_id;
   SendBufferPage *page = b->m_last_page;
   assert(page != NULL);
   assert(page->m_bytes + lenBytes <= page->max_data_bytes());
@@ -750,9 +883,16 @@ TransporterCallbackKernelNonMT::updateWritePtr(NodeId node, Uint32 lenBytes, Uin
  * values will always be consistent.
  */
 void
-TransporterCallbackKernelNonMT::getSendBufferLevel(NodeId node, SB_LevelType &level)
+TransporterCallbackKernelNonMT::getSendBufferLevel(NodeId nodeId,
+                                                   SB_LevelType &level)
 {
-  SendBuffer *b = m_send_buffers + node;
+  TrpId trp_ids;
+  Uint32 num_ids;
+  globalTransporterRegistry.get_trps_for_node(nodeId,
+                                              &trp_ids,
+                                              num_ids,
+                                              1);
+  SendBuffer *b = m_send_buffers + trp_ids;
   calculate_send_buffer_level(b->m_used_bytes,
                               m_tot_send_buffer_memory,
                               m_tot_used_buffer_memory,
@@ -762,9 +902,10 @@ TransporterCallbackKernelNonMT::getSendBufferLevel(NodeId node, SB_LevelType &le
 }
 
 bool
-TransporterCallbackKernelNonMT::forceSend(NodeId node)
+TransporterCallbackKernelNonMT::forceSend(NodeId nodeId, TrpId trp_id)
 {
-  return globalTransporterRegistry.performSend(node);
+  (void)nodeId;
+  return globalTransporterRegistry.performSend(trp_id);
 }
 
 #endif //'not NDBD_MULTITHREADED'
@@ -778,7 +919,7 @@ TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
 {
 
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
@@ -807,7 +948,7 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
 {
 
   SignalT<1> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;
@@ -844,7 +985,7 @@ TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   DBUG_ENTER("reportDisconnect");
 
   SignalT<DisconnectRep::SignalLength> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;
@@ -914,13 +1055,17 @@ TransporterReceiveHandleKernel::checkJobBuffer()
 
 #ifdef NDBD_MULTITHREADED
 void
-TransporterReceiveHandleKernel::assign_nodes(NodeId *recv_thread_idx_array)
+TransporterReceiveHandleKernel::assign_trps(Uint32 *recv_thread_idx_array)
 {
   m_transporters.clear(); /* Clear all first */
-  for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
+  for (Uint32 trp_id = 1; trp_id < MAX_NTRANSPORTERS; trp_id++)
   {
-    if (recv_thread_idx_array[nodeId] == m_receiver_thread_idx)
-      m_transporters.set(nodeId); /* Belongs to our receive thread */
+    if (recv_thread_idx_array[trp_id] == m_receiver_thread_idx)
+    {
+      DEB_MULTI_TRP(("trp_id %u assigned to recv thread %u",
+                     trp_id, m_receiver_thread_idx));
+      m_transporters.set(trp_id); /* Belongs to our receive thread */
+    }
   }
   return;
 }

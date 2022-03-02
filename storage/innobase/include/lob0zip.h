@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,7 +35,7 @@ class zInserter : private BaseInserter {
  public:
   /** Constructor.
   @param[in]	ctx	blob operation context. */
-  zInserter(InsertContext *ctx) : BaseInserter(ctx), m_heap(NULL) {}
+  zInserter(InsertContext *ctx) : BaseInserter(ctx), m_heap(nullptr) {}
 
   /** Destructor. */
   ~zInserter();
@@ -191,7 +191,7 @@ class zInserter : private BaseInserter {
 };
 
 inline zInserter::~zInserter() {
-  if (m_heap != NULL) {
+  if (m_heap != nullptr) {
     mem_heap_free(m_heap);
   }
 }

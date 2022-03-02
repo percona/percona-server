@@ -4,7 +4,7 @@
  Slow Query Log
 ================
 
-This feature adds microsecond time resolution and additional statistics to the slow query log output. It lets you enable or disable the slow query log at runtime, adds logging for the slave SQL thread, and adds fine-grained control over what and how much to log into the slow query log.
+This feature adds microsecond time resolution and additional statistics to the slow query log output. It lets you enable or disable the slow query log at runtime, adds logging for the replica SQL thread, and adds fine-grained control over what and how much to log into the slow query log.
 
 You can use *Percona-Toolkit*'s `pt-query-digest <http://www.percona.com/doc/percona-toolkit/2.1/pt-query-digest.html>`_ tool to aggregate similar queries together and report on those that consume the most execution time.
 
@@ -182,7 +182,7 @@ Specifies how much information to include in your slow log. The value is a comma
     Equivalent to enabling just ``microtime``.
 
   * ``standard``:
-    Equivalent to enabling ``microtime,innodb``.
+    Equivalent to enabling ``microtime,query_plan``.
 
   * ``full``:
     Equivalent to all other values OR'ed together without the ``profiling`` and ``profiling_use_getrusage`` options.
@@ -298,7 +298,7 @@ Any other number      KILLED_NO_VALUE (Catches all other cases)
 .. seealso::
 
    |MySQL| Documentation: |MySQL| Server Error Codes
-      https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html
+      https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
 
 Connection and Schema Identifier
 --------------------------------
@@ -396,4 +396,4 @@ Related Reading
 
   * `log_slow_filter Usage <http://www.mysqlperformanceblog.com/2008/09/22/finding-what-created_tmp_disk_tables-with-log_slow_filter/>`_
 
-  * `Blueprint in Launchpad <https://blueprints.launchpad.net/percona-server/+spec/microseconds-in-query-log>`_
+  * `Added microseconds to the slow query log event time <https://jira.percona.com/browse/PS-1136>`_

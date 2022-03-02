@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ typedef std::map<std::string, unsigned long> Db_access_map;
 typedef std::map<std::string, Grant_table_aggregate> Table_access_map_storage;
 class Table_access_map {
  public:
-  Table_access_map() : m_thd(0) {}
+  Table_access_map() : m_thd(nullptr) {}
 
   typedef Table_access_map_storage::iterator iterator;
   typedef Table_access_map_storage::value_type value_type;
@@ -196,19 +196,18 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const char *routine_name, bool is_proc, ulong rights,
                           bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-void grant_tables_setup_for_open(
-    TABLE_LIST *tables, thr_lock_type lock_type = TL_WRITE,
-    enum_mdl_type mdl_type = MDL_SHARED_NO_READ_WRITE);
+void acl_tables_setup_for_read(TABLE_LIST *tables);
 
 void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
-                            std::set<LEX_USER *> *extra_users = NULL,
-                            Rewrite_params *rewrite_params = NULL,
+                            std::set<LEX_USER *> *extra_users = nullptr,
+                            Rewrite_params *rewrite_params = nullptr,
                             bool extra_error = false,
                             bool log_to_binlog = true);
 void acl_notify_htons(THD *thd, enum_sql_command operation,
                       const List<LEX_USER> *users,
+                      std::set<LEX_USER *> *rewrite_users = nullptr,
                       const List<LEX_CSTRING> *dynamic_privs = nullptr);
 
 /* sql_authorization */
@@ -332,4 +331,10 @@ bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
 */
 bool check_system_user_privilege(THD *thd, List<LEX_USER> list);
 
+bool read_user_application_user_metadata_from_table(LEX_CSTRING user,
+                                                    LEX_CSTRING host,
+                                                    String *metadata_str,
+                                                    TABLE *table,
+                                                    bool mode_no_backslash);
+bool is_expected_or_transient_error(THD *thd);
 #endif /* AUTH_INTERNAL_INCLUDED */

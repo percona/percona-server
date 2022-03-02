@@ -7,9 +7,9 @@
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
 call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("InnoDB: Resizing redo log from");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
@@ -43,7 +43,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
---let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
+--let $restart_parameters = restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -108,7 +108,7 @@ UNINSTALL PLUGIN keyring_file;
 
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4,tde_db.t5,tde_db.t6;
 DROP DATABASE tde_db;
---let $restart_parameters= restart:
+--let $restart_parameters = restart:
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
 

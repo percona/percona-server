@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,13 @@
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
+
+typedef enum st_state_transfer_status {
+  STATE_TRANSFER_OK,            // OK
+  STATE_TRANSFER_STOP,          // Fail to stop replica threads
+  STATE_TRANSFER_PURGE,         // Fail to purge replica threads
+  STATE_TRANSFER_NO_CONNECTION  // No connection to donor
+} State_transfer_status;
 
 class Recovery_state_transfer {
  public:
@@ -99,15 +106,15 @@ class Recovery_state_transfer {
                                 bool ssl_verify_server_cert, char *tls_version,
                                 char *tls_ciphersuites) {
     recovery_use_ssl = use_ssl;
-    if (ssl_ca != NULL) set_recovery_ssl_ca(ssl_ca);
-    if (ssl_capath != NULL) set_recovery_ssl_capath(ssl_capath);
-    if (ssl_cert != NULL) set_recovery_ssl_cert(ssl_cert);
-    if (ssl_cipher != NULL) set_recovery_ssl_cipher(ssl_cipher);
-    if (ssl_key != NULL) set_recovery_ssl_key(ssl_key);
-    if (ssl_crl != NULL) set_recovery_ssl_crl(ssl_crl);
-    if (ssl_crlpath != NULL) set_recovery_ssl_crl(ssl_crlpath);
+    if (ssl_ca != nullptr) set_recovery_ssl_ca(ssl_ca);
+    if (ssl_capath != nullptr) set_recovery_ssl_capath(ssl_capath);
+    if (ssl_cert != nullptr) set_recovery_ssl_cert(ssl_cert);
+    if (ssl_cipher != nullptr) set_recovery_ssl_cipher(ssl_cipher);
+    if (ssl_key != nullptr) set_recovery_ssl_key(ssl_key);
+    if (ssl_crl != nullptr) set_recovery_ssl_crl(ssl_crl);
+    if (ssl_crlpath != nullptr) set_recovery_ssl_crl(ssl_crlpath);
     recovery_ssl_verify_server_cert = ssl_verify_server_cert;
-    if (tls_version != NULL) set_recovery_tls_version(tls_version);
+    if (tls_version != nullptr) set_recovery_tls_version(tls_version);
     set_recovery_tls_ciphersuites(tls_ciphersuites);
   }
 
@@ -200,7 +207,7 @@ class Recovery_state_transfer {
 
   /** Set a public key file*/
   void set_recovery_public_key_path(const char *public_key_path) {
-    if (public_key_path != NULL) {
+    if (public_key_path != nullptr) {
       memcpy(recovery_public_key_path, public_key_path,
              strlen(public_key_path) + 1);
     }
@@ -286,7 +293,8 @@ class Recovery_state_transfer {
       @retval 0      OK
       @retval !=0    Recovery state transfer failed
    */
-  int state_transfer(Plugin_stage_monitor_handler &stage_handler);
+  State_transfer_status state_transfer(
+      Plugin_stage_monitor_handler &stage_handler);
 
  private:
   /**
@@ -319,18 +327,20 @@ class Recovery_state_transfer {
     Initializes the structures for the donor connection threads.
     Recovery channel is always purged.
 
+    @param hostname hostname of current selected donor
+    @param port port of current selected donor
+
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int initialize_donor_connection();
+  int initialize_donor_connection(std::string hostname, uint port);
 
   /**
     Initializes the connection parameters for the donor connection.
 
-    @return
-      @retval false Everything OK
-      @retval true  In case of the selected donor is not available
+    @retval false Everything OK
+    @retval true  In case of the selected donor is not available
   */
   bool initialize_connection_parameters();
 
@@ -349,10 +359,11 @@ class Recovery_state_transfer {
     @param purge_logs  purge recovery logs
 
     @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
+      @retval STATE_TRANSFER_OK      OK
+      @retval !=STATE_TRANSFER_OK    Error
   */
-  int terminate_recovery_slave_threads(bool purge_logs = true);
+  State_transfer_status terminate_recovery_slave_threads(
+      bool purge_logs = true);
 
   /**
     Purges relay logs and the master info object

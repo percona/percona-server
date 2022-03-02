@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,9 @@
 
 #include "storage/ndb/plugin/ha_ndbinfo.h"
 
+#include <algorithm>  // std::min(),std::max()
+#include <vector>
+
 #include <mysql/plugin.h>
 
 #include "my_compiler.h"
@@ -34,6 +37,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/table.h"
+#include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
 #include "storage/ndb/plugin/ndb_dummy_ts.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
@@ -74,7 +78,8 @@ static MYSQL_THDVAR_BOOL(show_hidden, /* name */
 static char *opt_ndbinfo_dbname = const_cast<char *>("ndbinfo");
 static MYSQL_SYSVAR_STR(database,           /* name */
                         opt_ndbinfo_dbname, /* var */
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOCMDOPT,
                         "Name of the database used by ndbinfo",
                         NULL, /* check func. */
                         NULL, /* update func. */
@@ -84,8 +89,9 @@ static MYSQL_SYSVAR_STR(database,           /* name */
 static char *opt_ndbinfo_table_prefix = const_cast<char *>("ndb$");
 static MYSQL_SYSVAR_STR(table_prefix,             /* name */
                         opt_ndbinfo_table_prefix, /* var */
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                        "Prefix to use for all virtual tables loaded from NDB",
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOCMDOPT,
+                        "Prefix used for all virtual tables loaded from NDB",
                         NULL, /* check func. */
                         NULL, /* update func. */
                         NULL  /* default */
@@ -157,15 +163,22 @@ static handler *create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 struct ha_ndbinfo_impl {
   const NdbInfo::Table *m_table;
   NdbInfoScanOperation *m_scan_op;
-  Vector<const NdbInfoRecAttr *> m_columns;
+  std::vector<const NdbInfoRecAttr *> m_columns;
   bool m_first_use;
 
-  // Indicates if table has been opened in offline mode
-  // can only be reset by closing the table
-  bool m_offline;
+  enum struct Table_Status {
+    CLOSED,
+    OFFLINE_NDBINFO_OFFLINE,  // Table offline as ndbinfo is offline
+    OFFLINE_DISCONNECTED,     // Table offline as cluster is disconnected
+    OFFLINE_UPGRADING,        // Table offline due to an ongoing upgrade
+    OPEN                      // Table is online and accessible
+  } m_status;
 
   ha_ndbinfo_impl()
-      : m_table(NULL), m_scan_op(NULL), m_first_use(true), m_offline(false) {}
+      : m_table(nullptr),
+        m_scan_op(nullptr),
+        m_first_use(true),
+        m_status(Table_Status::CLOSED) {}
 };
 
 ha_ndbinfo::ha_ndbinfo(handlerton *hton, TABLE_SHARE *table_arg)
@@ -277,7 +290,7 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
   BaseString msg;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
-  DBUG_ASSERT(format != NULL);
+  assert(format != NULL);
 
   va_list args;
   char explanation[128];
@@ -301,16 +314,27 @@ int ha_ndbinfo::create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) {
   return 0;
 }
 
-bool ha_ndbinfo::is_open(void) const { return m_impl.m_table != NULL; }
+bool ha_ndbinfo::is_open() const {
+  return m_impl.m_status == ha_ndbinfo_impl::Table_Status::OPEN;
+}
 
-bool ha_ndbinfo::is_offline(void) const { return m_impl.m_offline; }
+bool ha_ndbinfo::is_closed() const {
+  return m_impl.m_status == ha_ndbinfo_impl::Table_Status::CLOSED;
+}
+
+bool ha_ndbinfo::is_offline() const {
+  return m_impl.m_status ==
+             ha_ndbinfo_impl::Table_Status::OFFLINE_NDBINFO_OFFLINE ||
+         m_impl.m_status ==
+             ha_ndbinfo_impl::Table_Status::OFFLINE_DISCONNECTED ||
+         m_impl.m_status == ha_ndbinfo_impl::Table_Status::OFFLINE_UPGRADING;
+}
 
 int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
 
   assert(is_closed());
-  assert(!is_offline());  // Closed table can not be offline
 
   if (mode == O_RDWR) {
     if (table->db_stat & HA_TRY_READ_ONLY) {
@@ -318,19 +342,36 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       return EROFS;  // Read only fs
     }
     // Find any commands that does not allow open readonly
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
     // Mark table as being offline and allow it to be opened
-    m_impl.m_offline = true;
+    m_impl.m_status = ha_ndbinfo_impl::Table_Status::OFFLINE_NDBINFO_OFFLINE;
     return 0;
   }
 
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err) {
     assert(m_impl.m_table == 0);
-    if (err == NdbInfo::ERR_NoSuchTable) return HA_ERR_NO_SUCH_TABLE;
+    if (err == NdbInfo::ERR_NoSuchTable) {
+      if (g_ndb_cluster_connection->get_min_db_version() < NDB_VERSION_D) {
+        // The table does not exist but there is a data node from a lower
+        // version connected to this Server. This is in the middle of an upgrade
+        // and the possibility is that the data node does not have this ndbinfo
+        // table definition yet. So we open this table in an offline mode so as
+        // to allow the upgrade to continue further. The table will be reopened
+        // properly after the upgrade completes.
+        m_impl.m_status = ha_ndbinfo_impl::Table_Status::OFFLINE_UPGRADING;
+        return 0;
+      }
+      return HA_ERR_NO_SUCH_TABLE;
+    }
+    if (err == NdbInfo::ERR_ClusterFailure) {
+      /* Not currently connected to cluster, but open in offline mode */
+      m_impl.m_status = ha_ndbinfo_impl::Table_Status::OFFLINE_DISCONNECTED;
+      return 0;
+    }
     return err2mysql(err);
   }
 
@@ -345,7 +386,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     const Field *field = table->field[i];
 
     // Check if field is NULLable
-    if (const_cast<Field *>(field)->real_maybe_null() == false) {
+    if (const_cast<Field *>(field)->is_nullable() == false) {
       // Only NULLable fields supported
       warn_incompatible(ndb_tab, true, "column '%s' is NOT NULL",
                         field->field_name);
@@ -393,6 +434,9 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     ref_length += table->field[i]->pack_length();
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
+  // Mark table as opened
+  m_impl.m_status = ha_ndbinfo_impl::Table_Status::OPEN;
+
   return 0;
 }
 
@@ -405,6 +449,7 @@ int ha_ndbinfo::close(void) {
   if (m_impl.m_table) {
     g_ndbinfo->closeTable(m_impl.m_table);
     m_impl.m_table = NULL;
+    m_impl.m_status = ha_ndbinfo_impl::Table_Status::CLOSED;
   }
   return 0;
 }
@@ -413,16 +458,38 @@ int ha_ndbinfo::rnd_init(bool scan) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("scan: %d", scan));
 
-  if (is_offline()) {
-    push_warning(current_thd, Sql_condition::SL_NOTE, 1,
-                 "'NDBINFO' has been started in offline mode "
-                 "since the 'NDBCLUSTER' engine is disabled "
-                 "or @@global.ndbinfo_offline is turned on "
-                 "- no rows can be returned");
-    return 0;
+  if (!is_open()) {
+    switch (m_impl.m_status) {
+      case ha_ndbinfo_impl::Table_Status::OFFLINE_NDBINFO_OFFLINE: {
+        push_warning(current_thd, Sql_condition::SL_NOTE, 1,
+                     "'NDBINFO' has been started in offline mode "
+                     "since the 'NDBCLUSTER' engine is disabled "
+                     "or @@global.ndbinfo_offline is turned on "
+                     "- no rows can be returned");
+        return 0;
+      }
+      case ha_ndbinfo_impl::Table_Status::OFFLINE_DISCONNECTED:
+        return HA_ERR_NO_CONNECTION;
+      case ha_ndbinfo_impl::Table_Status::OFFLINE_UPGRADING: {
+        // Upgrade in progress.
+        push_warning(current_thd, Sql_condition::SL_NOTE, 1,
+                     "This table is not available as the data nodes are not "
+                     "upgraded yet - no rows can be returned");
+        // Close the table in MySQL Server's table definition cache to force
+        // reload it the next time.
+        const std::string db_name(table_share->db.str, table_share->db.length);
+        const std::string table_name(table_share->table_name.str,
+                                     table_share->table_name.length);
+        ndb_tdc_close_cached_table(current_thd, db_name.c_str(),
+                                   table_name.c_str());
+        return 0;
+      }
+      default:
+        // Should not happen
+        assert(false);
+        return 0;
+    }
   }
-
-  assert(is_open());
 
   if (m_impl.m_scan_op) {
     /*
@@ -608,20 +675,21 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map =
               dbug_tmp_use_all_columns(table, table->write_set);
-          (void)vfield->store(record->c_str(),
-                              MIN(record->length(), field->field_length) - 1,
-                              field->charset());
+          (void)vfield->store(
+              record->c_str(),
+              std::min(record->length(), field->field_length) - 1,
+              field->charset());
           dbug_tmp_restore_column_map(table->write_set, old_map);
           break;
         }
 
         case (MYSQL_TYPE_LONG): {
-          memcpy(field->ptr, record->ptr(), sizeof(Uint32));
+          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint32));
           break;
         }
 
         case (MYSQL_TYPE_LONGLONG): {
-          memcpy(field->ptr, record->ptr(), sizeof(Uint64));
+          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint64));
           break;
         }
 
@@ -663,7 +731,7 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
     return 0;
   }
 
-  DBUG_ASSERT(db);
+  assert(db);
   if (strcmp(db, opt_ndbinfo_dbname)) return 0;  // Only hide files in "our" db
 
   /* Hide all files that start with "our" prefix */
@@ -679,6 +747,14 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
   return 0;
 }
 
+extern bool ndbinfo_define_dd_tables(List<const Plugin_table> *);
+
+static bool ndbinfo_dict_init(dict_init_mode_t, uint,
+                              List<const Plugin_table> *table_list,
+                              List<const Plugin_tablespace> *) {
+  return ndbinfo_define_dd_tables(table_list);
+}
+
 static int ndbinfo_init(void *plugin) {
   DBUG_TRACE;
 
@@ -686,6 +762,7 @@ static int ndbinfo_init(void *plugin) {
   hton->create = create_handler;
   hton->flags = HTON_TEMPORARY_NOT_SUPPORTED | HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
+  hton->dict_init = ndbinfo_dict_init;
 
   {
     // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
@@ -757,7 +834,7 @@ struct st_mysql_plugin ndbinfo_plugin = {
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &ndbinfo_storage_engine,
     "ndbinfo",
-    "Sun Microsystems Inc.",
+    PLUGIN_AUTHOR_ORACLE,
     "MySQL Cluster system information storage engine",
     PLUGIN_LICENSE_GPL,
     ndbinfo_init,             /* plugin init */
@@ -768,5 +845,3 @@ struct st_mysql_plugin ndbinfo_plugin = {
     ndbinfo_system_variables, /* system variables */
     NULL,                     /* config options */
     0};
-
-template class Vector<const NdbInfoRecAttr *>;

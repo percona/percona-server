@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
@@ -59,7 +60,7 @@ Plugin_gcs_events_handler::Plugin_gcs_events_handler(
       new std::set<Group_member_info *, Group_member_info_pointer_comparator>();
   this->joiner_compatibility_status = new st_compatibility_types(INCOMPATIBLE);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   set_number_of_members_on_view_changed_to_10 = false;
   DBUG_EXECUTE_IF(
       "group_replication_set_number_of_members_on_view_changed_to_10",
@@ -79,7 +80,7 @@ void Plugin_gcs_events_handler::on_message_received(
           message.get_message_data().get_payload());
 
   const std::string message_origin = message.get_origin().get_member_id();
-  Plugin_gcs_message *processed_message = NULL;
+  Plugin_gcs_message *processed_message = nullptr;
 
   switch (message_type) {
     case Plugin_gcs_message::CT_TRANSACTION_MESSAGE:
@@ -182,13 +183,14 @@ void Plugin_gcs_events_handler::handle_transactional_message(
           ->increment_transactions_delivered_during_recovery();
     }
 
-    const unsigned char *payload_data = NULL;
+    const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(
         message.get_message_data().get_payload(), &payload_data, &payload_size);
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size),
-                                 GROUP_REPLICATION_CONSISTENCY_EVENTUAL, NULL);
+                                 GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+                                 nullptr);
   } else {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DISCARDED);
@@ -208,7 +210,7 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
           ->increment_transactions_delivered_during_recovery();
     }
 
-    const unsigned char *payload_data = NULL;
+    const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(
         message.get_message_data().get_payload(), &payload_data, &payload_size);
@@ -234,7 +236,7 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
 
 void Plugin_gcs_events_handler::handle_transaction_prepared_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER);
     return;
@@ -255,7 +257,7 @@ void Plugin_gcs_events_handler::handle_transaction_prepared_message(
 
 void Plugin_gcs_events_handler::handle_sync_before_execution_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER);
     return;
@@ -275,7 +277,7 @@ void Plugin_gcs_events_handler::handle_sync_before_execution_message(
 
 void Plugin_gcs_events_handler::handle_certifier_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return;                                           /* purecov: inspected */
@@ -284,7 +286,7 @@ void Plugin_gcs_events_handler::handle_certifier_message(
   Certifier_interface *certifier =
       this->applier_module->get_certification_handler()->get_certifier();
 
-  const unsigned char *payload_data = NULL;
+  const unsigned char *payload_data = nullptr;
   size_t payload_size = 0;
   Plugin_gcs_message::get_first_payload_item_raw_data(
       message.get_message_data().get_payload(), &payload_data, &payload_size);
@@ -316,7 +318,7 @@ void Plugin_gcs_events_handler::handle_recovery_message(
       return;                           /* purecov: inspected */
     }
 
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_ONLINE);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_ONLINE);
 
     /*
      The member is declared as online upon receiving this message
@@ -343,8 +345,8 @@ void Plugin_gcs_events_handler::handle_recovery_message(
   } else {
     Group_member_info *member_info =
         group_member_mgr->get_group_member_info(member_uuid);
-    if (member_info != NULL) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEM_ONLINE,
+    if (member_info != nullptr) {
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEM_ONLINE,
                    member_info->get_hostname().c_str(),
                    member_info->get_port());
       delete member_info;
@@ -383,7 +385,7 @@ void Plugin_gcs_events_handler::handle_recovery_message(
 
 void Plugin_gcs_events_handler::handle_stats_message(
     const Gcs_message &message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return;                                           /* purecov: inspected */
@@ -397,7 +399,7 @@ void Plugin_gcs_events_handler::handle_stats_message(
 
 void Plugin_gcs_events_handler::handle_single_primary_message(
     Plugin_gcs_message *processed_message) const {
-  if (this->applier_module == NULL) {
+  if (this->applier_module == nullptr) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return;                                           /* purecov: inspected */
@@ -424,7 +426,7 @@ void Plugin_gcs_events_handler::handle_single_primary_message(
 
 void Plugin_gcs_events_handler::handle_group_action_message(
     const Gcs_message &message) const {
-  if (group_action_coordinator == NULL) {
+  if (group_action_coordinator == nullptr) {
     LogPluginErr(
         ERROR_LEVEL,
         ER_GRP_RPL_MISSING_GRP_RPL_ACTION_COORDINATOR); /* purecov: inspected */
@@ -462,7 +464,7 @@ void Plugin_gcs_events_handler::on_suspicions(
   if (members.empty() && unreachable.empty())  // nothing to do
     return;                                    /* purecov: inspected */
 
-  DBUG_ASSERT(members.size() >= unreachable.size());
+  assert(members.size() >= unreachable.size());
 
   std::vector<Gcs_member_identifier> tmp_unreachable(unreachable);
   std::vector<Gcs_member_identifier>::const_iterator mit;
@@ -474,8 +476,8 @@ void Plugin_gcs_events_handler::on_suspicions(
       Group_member_info *member_info =
           group_member_mgr->get_group_member_info_by_member_id(member);
 
-      if (member_info == NULL)  // Trying to update a non-existing member
-        continue;               /* purecov: inspected */
+      if (member_info == nullptr)  // Trying to update a non-existing member
+        continue;                  /* purecov: inspected */
 
       uit = std::find(tmp_unreachable.begin(), tmp_unreachable.end(), member);
       if (uit != tmp_unreachable.end()) {
@@ -485,7 +487,7 @@ void Plugin_gcs_events_handler::on_suspicions(
                        member_info->get_port());
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
-          member_info->set_unreachable();
+          group_member_mgr->set_member_unreachable(member_info->get_uuid());
         }
         // remove to not check again against this one
         tmp_unreachable.erase(uit);
@@ -497,10 +499,12 @@ void Plugin_gcs_events_handler::on_suspicions(
           /* purecov: begin inspected */
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
-          member_info->set_reachable();
+          group_member_mgr->set_member_reachable(member_info->get_uuid());
           /* purecov: end */
         }
       }
+
+      delete member_info;
     }
   }
 
@@ -546,7 +550,7 @@ void Plugin_gcs_events_handler::log_members_leaving_message(
                members_leaving.c_str());
 
   if (!primary_member_host.empty())
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_PRIMARY_MEMBER_LEFT_GRP,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_PRIMARY_MEMBER_LEFT_GRP,
                  primary_member_host.c_str());
 }
 
@@ -575,7 +579,7 @@ void Plugin_gcs_events_handler::get_hosts_from_view(
         group_member_mgr->get_group_member_info_by_member_id((*all_members_it));
     all_members_it++;
 
-    if (member_info == NULL) continue;
+    if (member_info == nullptr) continue;
 
     hosts_string << member_info->get_hostname() << ":"
                  << member_info->get_port();
@@ -594,6 +598,8 @@ void Plugin_gcs_events_handler::get_hosts_from_view(
     if (all_members_it != members.end()) {
       hosts_string << ", ";
     }
+
+    delete member_info;
   }
   all_hosts.assign(hosts_string.str());
   primary_host.assign(primary_string.str());
@@ -616,7 +622,7 @@ void Plugin_gcs_events_handler::on_view_changed(
   std::string suggested_primary("");
   // Was member expelled from the group due to network failures?
   if (this->was_member_expelled_from_group(new_view)) {
-    DBUG_ASSERT(is_leaving);
+    assert(is_leaving);
     group_events_observation_manager->after_view_change(
         new_view.get_joined_members(), new_view.get_leaving_members(),
         new_view.get_members(), is_leaving, &skip_election, &election_mode,
@@ -709,19 +715,13 @@ void Plugin_gcs_events_handler::on_view_changed(
   }
 
   if (!is_leaving) {
-    std::string view_id_representation = "";
-    Gcs_view *view = gcs_module->get_current_view();
-    if (view != NULL) {
-      view_id_representation = view->get_view_id().get_representation();
-      delete view;
-    }
     disable_read_mode_for_compatible_members();
     LogPluginErr(
-        INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
+        SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
         group_member_mgr->get_string_current_view_active_hosts().c_str(),
-        view_id_representation.c_str());
+        new_view.get_view_id().get_representation().c_str());
   } else {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
   }
 
 end:
@@ -824,7 +824,20 @@ int Plugin_gcs_events_handler::update_group_info_manager(
   temporary_states->clear();
 
 err:
-  DBUG_ASSERT(temporary_states->size() == 0);
+  if (error) {
+    // Clean up temporary states.
+    std::set<Group_member_info *,
+             Group_member_info_pointer_comparator>::iterator
+        temporary_states_it;
+    for (temporary_states_it = temporary_states->begin();
+         temporary_states_it != temporary_states->end();
+         temporary_states_it++) {
+      delete (*temporary_states_it);
+    }
+    temporary_states->clear();
+  }
+
+  assert(temporary_states->size() == 0);
   return error;
 }
 
@@ -931,7 +944,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       recovery_strategy = remote_clone_handler->check_clone_preconditions();
 
     if (Remote_clone_handler::DO_CLONE == recovery_strategy) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
                    "Cloning from a remote group donor.");
       /*
        Launch the clone process. It will configure SSL options and the list
@@ -952,7 +965,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     }
 
     if (Remote_clone_handler::DO_RECOVERY == recovery_strategy) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
                    "Incremental recovery from a group donor");
       /*
        Launch the recovery thread so we can receive missing data and the
@@ -1097,7 +1110,9 @@ bool Plugin_gcs_events_handler::is_member_on_vector(
 
 int Plugin_gcs_events_handler::process_local_exchanged_data(
     const Exchanged_data &exchanged_data, bool is_joining) const {
+  int error = 0;
   uint local_uuid_found = 0;
+  std::vector<std::string> exchanged_members_actions_serialized_configuration;
 
   /*
   For now, we are only carrying Group Member Info on Exchangeable data
@@ -1113,14 +1128,15 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
     const uchar *data = exchanged_data_it->second->get_payload();
     size_t length = exchanged_data_it->second->get_payload_length();
     Gcs_member_identifier *member_id = exchanged_data_it->first;
-    if (data == NULL) {
+    if (data == nullptr) {
       /* purecov: begin inspected */
       Group_member_info *member_info =
           group_member_mgr->get_group_member_info_by_member_id(*member_id);
-      if (member_info != NULL) {
+      if (member_info != nullptr) {
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM,
                      member_info->get_hostname().c_str(),
                      member_info->get_port());
+        delete member_info;
       }
       continue;
       /* purecov: end */
@@ -1172,9 +1188,51 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
 
       return 1;
     }
+
+    /*
+      Group wide configuration.
+    */
+    if (is_joining && local_member_info->in_primary_mode()) {
+      const unsigned char *member_actions_serialized_configuration = nullptr;
+      size_t member_actions_serialized_configuration_length = 0;
+      Group_member_info_manager_message message;
+      bool error_get_member_actions =
+          message.get_member_actions_serialized_configuration(
+              data, length, &member_actions_serialized_configuration,
+              &member_actions_serialized_configuration_length);
+
+      /*
+        Members from versions lower than 8.0.25 do not support member
+        actions, as such exchanged data will not contain configuration
+        from them.
+      */
+      if (!error_get_member_actions) {
+        exchanged_members_actions_serialized_configuration.push_back(
+            std::string(pointer_cast<const char *>(
+                            member_actions_serialized_configuration),
+                        member_actions_serialized_configuration_length));
+      }
+    }
   }
 
-  return 0;
+  if (is_joining && local_member_info->in_primary_mode()) {
+    /*
+      A member that bootstraps a group is joining the group, thence it
+      does not add its configuration to the state exchange. In this
+      case there is nothing to do, the member configuration will be
+      preserved.
+      When the number of members is higher than one, then the existent
+      members will add their configuration on the state exchange.
+    */
+    if (exchanged_data.size() > 1) {
+      my_thread_init();
+      error = member_actions_handler->replace_all_actions(
+          exchanged_members_actions_serialized_configuration);
+      my_thread_end();
+    }
+  }
+
+  return error;
 }
 
 Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
@@ -1247,6 +1305,53 @@ sending:
   Group_member_info_manager_message *group_info_message =
       new Group_member_info_manager_message(local_member_copy);
   group_info_message->encode(&data);
+
+  /*
+    Group wide configuration.
+
+    All members except the joining ones, need to send its local
+    configuration.
+  */
+  bool joining = (!plugin_is_group_replication_running() ||
+                  autorejoin_module->is_autorejoin_ongoing());
+
+#if !defined(NDEBUG)
+  /*
+    Simulate a member version lower than 8.0.25 which does not support
+    member actions, thence does not include its configuration on the
+    exchangeable data.
+  */
+  if (!joining && local_member_info->in_primary_mode()) {
+    my_thread_init();
+    DBUG_EXECUTE_IF(
+        "group_replication_skip_add_member_actions_to_exchangeable_data",
+        joining = true;);
+    my_thread_end();
+  }
+#endif
+
+  if (!joining && local_member_info->in_primary_mode()) {
+    std::string member_actions_serialized_configuration;
+
+    my_thread_init();
+    bool error_reading_member_actions = member_actions_handler->get_all_actions(
+        member_actions_serialized_configuration);
+    my_thread_end();
+
+    if (error_reading_member_actions) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_ACTION_GET_EXCHANGEABLE_DATA);
+    }
+
+    /*
+      Even if there was a error reading the member actions, we send
+      a empty serialized configuration to allow the joining member
+      to distinguish between a invalid configuration and lower version
+      members that do not have configuration.
+    */
+    group_info_message->add_member_actions_serialized_configuration(
+        &data, member_actions_serialized_configuration);
+  }
+
   delete group_info_message;
 
   Gcs_message_data *msg_data = new Gcs_message_data(0, data.size());
@@ -1266,7 +1371,7 @@ void Plugin_gcs_events_handler::update_member_status(
     Group_member_info *member_info =
         group_member_mgr->get_group_member_info_by_member_id(member);
 
-    if (member_info == NULL) {
+    if (member_info == nullptr) {
       // Trying to update a non-existing member
       continue;
     }
@@ -1287,6 +1392,8 @@ void Plugin_gcs_events_handler::update_member_status(
       group_member_mgr->update_member_status(member_info->get_uuid(), status,
                                              m_notification_ctx);
     }
+
+    delete member_info;
   }
 }
 
@@ -1304,7 +1411,7 @@ int Plugin_gcs_events_handler::check_group_compatibility(
 /*
   Check if group size did reach the maximum number of members.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (set_number_of_members_on_view_changed_to_10) number_of_members = 10;
 #endif
   if (number_of_members > 9) {
@@ -1439,10 +1546,10 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
 int Plugin_gcs_events_handler::compare_member_transaction_sets() const {
   int result = 0;
 
-  Sid_map local_sid_map(NULL);
-  Sid_map group_sid_map(NULL);
-  Gtid_set local_member_set(&local_sid_map, NULL);
-  Gtid_set group_set(&group_sid_map, NULL);
+  Sid_map local_sid_map(nullptr);
+  Sid_map group_sid_map(nullptr);
+  Gtid_set local_member_set(&local_sid_map, nullptr);
+  Gtid_set group_set(&group_sid_map, nullptr);
 
   std::vector<Group_member_info *> *all_members =
       group_member_mgr->get_all_members();
@@ -1603,6 +1710,15 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
                    (*all_members_it)->get_default_table_encryption());
       goto cleaning;
     }
+
+    if (local_member_info->get_view_change_uuid() !=
+        (*all_members_it)->get_view_change_uuid()) {
+      result = 1;
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_DIFF_FROM_GRP,
+                   local_member_info->get_view_change_uuid().c_str(),
+                   (*all_members_it)->get_view_change_uuid().c_str());
+      goto cleaning;
+    }
   }
 
 cleaning:
@@ -1665,11 +1781,8 @@ void Plugin_gcs_events_handler::disable_read_mode_for_compatible_members(
             local_member_info->get_member_version(), lowest_version);
     /* Some lower version left the group, now this member is new lowest
      * version. */
-    if ((!local_member_info->in_primary_mode() &&
-         *joiner_compatibility_status == COMPATIBLE) ||
-        (local_member_info->in_primary_mode() &&
-         local_member_info->get_role() ==
-             Group_member_info::MEMBER_ROLE_PRIMARY)) {
+    if (!local_member_info->in_primary_mode() &&
+        *joiner_compatibility_status == COMPATIBLE) {
       if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED);

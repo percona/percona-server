@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -147,6 +147,9 @@ constexpr const unsigned int WEEK_MONDAY_FIRST = 1;
 constexpr const unsigned int WEEK_YEAR = 2;
 constexpr const unsigned int WEEK_FIRST_WEEKDAY = 4;
 
+/** Daynumber from year 0 to 9999-12-31 */
+constexpr const int64_t MAX_DAY_NUMBER = 3652424;
+
 /**
   Structure to return status from
     str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
@@ -182,12 +185,12 @@ unsigned int year_2000_handling(unsigned int year);
 bool time_zone_displacement_to_seconds(const char *str, size_t length,
                                        int *result);
 
-void get_date_from_daynr(long daynr, unsigned int *year, unsigned int *month,
+void get_date_from_daynr(int64_t daynr, unsigned int *year, unsigned int *month,
                          unsigned int *day);
 int calc_weekday(long daynr, bool sunday_first_day_of_week);
 bool valid_period(long long int period);
-unsigned long int convert_period_to_month(unsigned long int period);
-unsigned long int convert_month_to_period(unsigned long int month);
+uint64_t convert_period_to_month(uint64_t period);
+uint64_t convert_month_to_period(uint64_t month);
 
 /**
   Check for valid times only if the range of time_t is greater than

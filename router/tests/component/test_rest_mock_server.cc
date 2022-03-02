@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,16 +31,17 @@
 #endif
 
 #include <rapidjson/document.h>
+
 #include "dim.h"
 #include "gmock/gmock.h"
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql_session.h"
+#include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "tcp_port_pool.h"
-
-#include "mysqlrouter/rest_client.h"
 
 Path g_origin_path;
 
@@ -56,10 +57,7 @@ using JsonDocument =
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-class RestMockServerTest : public RouterComponentTest {
- protected:
-  TcpPortPool port_pool_;
-};
+class RestMockServerTest : public RouterComponentTest {};
 
 /**
  * base class.
@@ -127,8 +125,7 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(HttpMethod::Get, http_uri);
@@ -136,14 +133,11 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 200u);
   EXPECT_THAT(req.get_input_headers().get("Content-Type"),
@@ -214,8 +208,7 @@ TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(
@@ -225,14 +218,11 @@ TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -246,8 +236,7 @@ TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
 
     SCOPED_TRACE("// connecting via mysql protocol");
     ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
-                                   "password", "", ""))
-        << server_mock_.get_full_output();
+                                   "password", "", ""));
   }
 
   // this test is very vague on how to write a stable test:
@@ -318,8 +307,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_no_json) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(HttpMethod::Put, http_uri);
@@ -327,14 +315,11 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_no_json) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg() << std::endl;
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 415u);
 
@@ -358,8 +343,7 @@ TEST_F(RestMockServerRestServerMockTest, put_root_fails) {
 
   SCOPED_TRACE("// wait for REST endpoint");
   ASSERT_TRUE(
-      wait_for_rest_endpoint_ready(kMockServerGlobalsRestUri, http_port_))
-      << server_mock_.get_full_output();
+      wait_for_rest_endpoint_ready(kMockServerGlobalsRestUri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(HttpMethod::Put, "/", "{}");
@@ -367,14 +351,11 @@ TEST_F(RestMockServerRestServerMockTest, put_root_fails) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 404u);
 
@@ -406,9 +387,8 @@ TEST_P(RestMockServerRequirePTest, require) {
   mysqlrouter::MySQLSession client;
 
   SCOPED_TRACE("// connecting via mysql protocol");
-  ASSERT_NO_THROW(
-      client.connect("127.0.0.1", server_port_, "username", "password", "", ""))
-      << server_mock_.get_full_output();
+  ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
+                                 "password", "", ""));
 
   EXPECT_NO_THROW({
     std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> result{
@@ -419,7 +399,7 @@ TEST_P(RestMockServerRequirePTest, require) {
   });
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     js_require_paths, RestMockServerRequirePTest,
     ::testing::Values(std::make_tuple("direct", "direct"),
                       std::make_tuple("dir-with-indexjs", "dir-with-index.js"),
@@ -447,9 +427,8 @@ TEST_F(RestMockServerRequireTest, no_reload) {
   // mysql query
   mysqlrouter::MySQLSession client;
 
-  ASSERT_NO_THROW(
-      client.connect("127.0.0.1", server_port_, "username", "password", "", ""))
-      << server_mock_.get_full_output();
+  ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
+                                 "password", "", ""));
 
   SCOPED_TRACE("// via first module");
   EXPECT_NO_THROW({
@@ -520,8 +499,7 @@ TEST_P(RestMockServerMethodsTest, methods_avail) {
   const std::string uri = std::get<1>(GetParam());
 
   SCOPED_TRACE("// wait for REST endpoint: " + uri);
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(std::get<0>(GetParam()), uri);
@@ -529,19 +507,16 @@ TEST_P(RestMockServerMethodsTest, methods_avail) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(std::get<2>(GetParam()), req.get_response_code());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     api__v1__mock_server__globals, RestMockServerMethodsTest,
     ::testing::Values(
         std::make_tuple(HttpMethod::Get, kMockServerGlobalsRestUri,
@@ -559,7 +534,7 @@ INSTANTIATE_TEST_CASE_P(
         std::make_tuple(HttpMethod::Head, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed)));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     api__v1__mock_server__connections, RestMockServerMethodsTest,
     ::testing::Values(
         std::make_tuple(HttpMethod::Get, kMockServerConnectionsRestUri,
@@ -575,7 +550,11 @@ INSTANTIATE_TEST_CASE_P(
         std::make_tuple(HttpMethod::Connect, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerConnectionsRestUri,
-                        HttpStatusCode::MethodNotAllowed)));
+                        HttpStatusCode::MethodNotAllowed)),
+    [](const auto &info) {
+      return http_method_to_string(std::get<0>(info.param)) + "_" +
+             std::to_string(std::get<2>(info.param));
+    });
 
 /**
  * test storing globals in mock_server via REST bridge.
@@ -593,8 +572,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_ok) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.request_sync(HttpMethod::Put, http_uri, "{}");
@@ -602,14 +580,11 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_ok) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -640,8 +615,7 @@ TEST_P(RestMockServerRequestTest, request) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// make a http connections");
   auto req =
@@ -651,14 +625,11 @@ TEST_P(RestMockServerRequestTest, request) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), std::get<3>(GetParam()));
 
@@ -671,15 +642,11 @@ TEST_P(RestMockServerRequestTest, request) {
     SCOPED_TRACE("// checking GET response");
     ASSERT_TRUE(get_req) << "HTTP Request to " << http_hostname << ":"
                          << std::to_string(http_port_)
-                         << " failed (early): " << get_req.error_msg()
-                         << std::endl
-                         << server_mock_.get_full_output() << std::endl;
+                         << " failed (early): " << get_req.error_msg();
 
     ASSERT_GT(get_req.get_response_code(), 0u)
         << "HTTP Request to " << http_hostname << ":"
-        << std::to_string(http_port_) << " failed: " << get_req.error_msg()
-        << std::endl
-        << server_mock_.get_full_output() << std::endl;
+        << std::to_string(http_port_) << " failed: " << get_req.error_msg();
 
     EXPECT_EQ(get_req.get_response_code(), 200u);
     EXPECT_THAT(get_req.get_input_headers().get("Content-Type"),
@@ -703,7 +670,7 @@ TEST_P(RestMockServerRequestTest, request) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     api__v1__mock_server__globals, RestMockServerRequestTest,
     ::testing::Values(
         // parse error
@@ -745,8 +712,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   auto put_req = rest_client.request_sync(HttpMethod::Put, http_uri,
                                           "{\"key\": [ [1, 2, 3 ] ]}");
@@ -754,15 +720,11 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
   SCOPED_TRACE("// checking PUT response");
   ASSERT_TRUE(put_req) << "HTTP Request to " << http_hostname << ":"
                        << std::to_string(http_port_)
-                       << " failed (early): " << put_req.error_msg()
-                       << std::endl
-                       << server_mock_.get_full_output() << std::endl;
+                       << " failed (early): " << put_req.error_msg();
 
   ASSERT_GT(put_req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << put_req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << put_req.error_msg();
 
   EXPECT_EQ(put_req.get_response_code(), 204u);
 
@@ -775,15 +737,11 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
   SCOPED_TRACE("// checking GET response");
   ASSERT_TRUE(get_req) << "HTTP Request to " << http_hostname << ":"
                        << std::to_string(http_port_)
-                       << " failed (early): " << get_req.error_msg()
-                       << std::endl
-                       << server_mock_.get_full_output() << std::endl;
+                       << " failed (early): " << get_req.error_msg();
 
   ASSERT_GT(get_req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << get_req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << get_req.error_msg();
 
   EXPECT_EQ(get_req.get_response_code(), 200u);
   EXPECT_THAT(get_req.get_input_headers().get("Content-Type"),
@@ -826,16 +784,14 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   // mysql query
   mysqlrouter::MySQLSession client;
 
   SCOPED_TRACE("// connecting via mysql protocol");
-  ASSERT_NO_THROW(
-      client.connect("127.0.0.1", server_port_, "username", "password", "", ""))
-      << server_mock_.get_full_output();
+  ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
+                                 "password", "", ""));
 
   SCOPED_TRACE("// check connection works");
   std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> result{
@@ -850,14 +806,11 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 200u);
 
@@ -865,9 +818,7 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// check connection is killed");
-  EXPECT_THROW_LIKE(client.query_one("select @@port"),
-                    mysqlrouter::MySQLSession::Error,
-                    "Lost connection to MySQL server during query");
+  wait_connection_dropped(client);
 }
 
 TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {
@@ -884,8 +835,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// set username/password");
   auto req = rest_client.request_sync(HttpMethod::Put, http_uri,
@@ -896,14 +846,11 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -915,8 +862,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {
 
   SCOPED_TRACE("// connecting via mysql protocol");
   ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, mysql_username,
-                                 mysql_password, "", ""))
-      << server_mock_.get_full_output();
+                                 mysql_password, "", ""));
 }
 
 TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user) {
@@ -932,8 +878,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// set username/password");
   auto req = rest_client.request_sync(
@@ -942,14 +887,11 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -961,8 +903,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user) {
 
   SCOPED_TRACE("// connecting via mysql protocol");
   ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, mysql_username,
-                                 mysql_password, "", ""))
-      << server_mock_.get_full_output();
+                                 mysql_password, "", ""));
 }
 
 TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_password) {
@@ -979,8 +920,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_password) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// set username/password");
   auto req = rest_client.request_sync(HttpMethod::Put, http_uri,
@@ -991,14 +931,11 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_password) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -1010,8 +947,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_password) {
   // wrong password should fail
   ASSERT_THROW(client.connect("127.0.0.1", server_port_, mysql_username,
                               mysql_password, "", ""),
-               std::runtime_error)
-      << server_mock_.get_full_output();
+               std::runtime_error);
 }
 
 /**
@@ -1036,8 +972,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_empty_password) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// set username/password");
   auto req = rest_client.request_sync(HttpMethod::Put, http_uri,
@@ -1048,14 +983,11 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_empty_password) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -1070,8 +1002,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_empty_password) {
   // wrong password should fail
   ASSERT_THROW(client.connect("127.0.0.1", server_port_, mysql_username,
                               mysql_password, "", ""),
-               std::runtime_error)
-      << server_mock_.get_full_output();
+               std::runtime_error);
 }
 
 /**
@@ -1094,8 +1025,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_username) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
-      << server_mock_.get_full_output();
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_));
 
   SCOPED_TRACE("// set username/password");
   auto req = rest_client.request_sync(HttpMethod::Put, http_uri,
@@ -1106,14 +1036,11 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_username) {
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
                    << std::to_string(http_port_)
-                   << " failed (early): " << req.error_msg() << std::endl
-                   << server_mock_.get_full_output() << std::endl;
+                   << " failed (early): " << req.error_msg();
 
   ASSERT_GT(req.get_response_code(), 0u)
       << "HTTP Request to " << http_hostname << ":"
-      << std::to_string(http_port_) << " failed: " << req.error_msg()
-      << std::endl
-      << server_mock_.get_full_output() << std::endl;
+      << std::to_string(http_port_) << " failed: " << req.error_msg();
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
@@ -1128,8 +1055,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_username) {
   // wrong password should fail
   ASSERT_THROW(client.connect("127.0.0.1", server_port_, mysql_username,
                               mysql_password, "", ""),
-               std::runtime_error)
-      << server_mock_.get_full_output();
+               std::runtime_error);
 }
 
 /**
@@ -1146,9 +1072,8 @@ TEST_F(RestMockServerRestServerMockTest, select_port) {
   mysqlrouter::MySQLSession client;
 
   SCOPED_TRACE("// connecting via mysql protocol");
-  ASSERT_NO_THROW(
-      client.connect("127.0.0.1", server_port_, "username", "password", "", ""))
-      << server_mock_.get_full_output();
+  ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
+                                 "password", "", ""));
 
   EXPECT_NO_THROW({
     std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> result{
@@ -1197,7 +1122,7 @@ TEST_P(RestMockServerConnectThrowsTest, js_test_stmts_is_string) {
       mysqlrouter::MySQLSession::Error, std::get<1>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ScriptsFails, RestMockServerConnectThrowsTest,
     ::testing::Values(
         std::make_tuple("js_test_parse_error.js",
@@ -1250,7 +1175,7 @@ TEST_P(RestMockServerScriptsThrowsTest, scripts_throws) {
                     mysqlrouter::MySQLSession::Error, std::get<1>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ScriptsFails, RestMockServerScriptsThrowsTest,
     ::testing::Values(
         std::make_tuple("js_test_stmts_result_has_negative_int.js",
@@ -1261,8 +1186,7 @@ INSTANTIATE_TEST_CASE_P(
         std::make_tuple("js_test_stmts_result_has_repeat.js",
                         "repeat is not supported"),  // WL11861 TS-1_5
         std::make_tuple("js_test_stmts_is_empty.js",
-                        "executing statement failed: Unsupported command in "
-                        "handle_statement()")),
+                        "Unknown statement. (end of stmts)")),
     [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
            &info) -> std::string {
       return sanitize_param_name(std::get<0>(info.param));
@@ -1298,7 +1222,7 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
   ASSERT_NO_THROW(client.execute("select @@port"));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ScriptsWork, RestMockServerScriptsWorkTest,
     ::testing::Values("simple-client.js", "js_test_handshake_is_empty.js",
                       "js_test_handshake_greeting_is_empty.js",

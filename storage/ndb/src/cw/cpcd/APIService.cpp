@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +171,7 @@ void CPCDAPISession::runSession() {
     }
   }
   ndb_socket_close(m_socket);
+  ndb_socket_invalidate(&m_socket);
 }
 
 void CPCDAPISession::stopSession() {
@@ -399,7 +400,6 @@ void CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
 
   m_output->println("show version");
 
-  m_output->println("compile time: %s %s", __DATE__, __TIME__);
   m_output->println("supported protocol: %u", CPCD::CPC_PROTOCOL_VERSION);
   m_output->println("effective protocol: %u", m_protocol_version);
   m_output->println("%s", "");

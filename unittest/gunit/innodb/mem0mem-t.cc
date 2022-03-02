@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -73,7 +70,7 @@ TEST_F(mem0mem, memheapistop) {
   /* Allocate another chunk and check that our string is not at the
   top anymore. */
   dummy = mem_heap_alloc(heap, 32);
-  ut_a(dummy != NULL);
+  ut_a(dummy != nullptr);
   EXPECT_FALSE(mem_heap_is_top(heap, str_in_heap, str_len + 1));
 
   /* Cause the heap to allocate a second block and retest. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,12 +111,12 @@ int mi_close_share(MI_INFO *info, bool *closed_share) {
   if (info->open_list.data) mysql_mutex_unlock(&THR_LOCK_myisam);
   if (info->ftparser_param) {
     my_free(info->ftparser_param);
-    info->ftparser_param = 0;
+    info->ftparser_param = nullptr;
   }
   if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
     error = my_errno();
 
-  myisam_log_command(MI_LOG_CLOSE, info, NULL, 0, error);
+  myisam_log_command(MI_LOG_CLOSE, info, nullptr, 0, error);
   my_free(info);
 
   if (error) {

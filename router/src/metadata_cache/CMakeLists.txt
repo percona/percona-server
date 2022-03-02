@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ SET(include_dirs
   src/
 )
 
-INCLUDE_DIRECTORIES(SYSTEM ${PROTOBUF_INCLUDE_DIR}
+INCLUDE_DIRECTORIES(SYSTEM
   ${MYSQLX_GENERATE_DIR}
   ${CMAKE_SOURCE_DIR}/plugin/x/client
 )
@@ -67,7 +67,7 @@ IF(WIN32)
     COMPONENT Router)
 ENDIF()
 
-IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
+IF(WITH_UNIT_TESTS)
   ADD_LIBRARY(metadata_cache_static STATIC ${METADATA_CACHE_SOURCES})
   TARGET_LINK_LIBRARIES(metadata_cache_static
     router_lib

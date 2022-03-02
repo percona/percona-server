@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ static bool safe_hash_init(SAFE_HASH *hash, uchar *default_value) {
   DBUG_TRACE;
   mysql_rwlock_init(key_SAFE_HASH_lock, &hash->lock);
   hash->default_value = default_value;
-  hash->root = 0;
+  hash->root = nullptr;
   return false;
 }
 
@@ -123,7 +123,7 @@ static void safe_hash_free(SAFE_HASH *hash) {
   if (hash->default_value) {
     hash->hash.clear();
     mysql_rwlock_destroy(&hash->lock);
-    hash->default_value = 0;
+    hash->default_value = nullptr;
   }
 }
 

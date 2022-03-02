@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ class Gis_read_stream {
                   int size)
       : m_cur(buffer),
         m_limit(buffer + size),
-        m_err_msg(NULL),
+        m_err_msg(nullptr),
         m_charset(charset),
         m_thd(thd) {}
   Gis_read_stream() : m_cur(NullS), m_limit(NullS), m_err_msg(NullS) {}

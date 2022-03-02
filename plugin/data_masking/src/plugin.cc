@@ -15,9 +15,16 @@
 
 #include "plugin/data_masking/include/plugin.h"
 #include "plugin/data_masking/include/udf/udf_registration.h"
+#include "plugin/data_masking/include/udf/udf_utils.h"
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
 
 static int data_masking_plugin_init(void *p) {
   DBUG_ENTER("data_masking_plugin_init");
+
+  reg_srv = mysql_plugin_registry_acquire();
+
+  if (mysql::plugins::Charset_service::init(reg_srv)) return 1;
 
   sql_print_information(
       "DataMasking Plugin: Initializing data masking dictionary memory "
@@ -49,6 +56,11 @@ static int data_masking_plugin_deinit(void *p) {
 
   unregister_udfs();
 
+  mysql::plugins::Charset_service::deinit(reg_srv);
+
+  if (reg_srv != nullptr) {
+    mysql_plugin_registry_release(reg_srv);
+  }
   DBUG_RETURN(0);
 }
 

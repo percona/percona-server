@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
       (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
   size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
   if (args->arg_count > 0) {
-    const char *return_message = NULL;
+    const char *return_message = nullptr;
     bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
     if (invalid_uuid) {
@@ -145,7 +145,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
     std::string uuid =
         (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
-    const char *return_message = NULL;
+    const char *return_message = nullptr;
     bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
     if (invalid_uuid) {
@@ -211,7 +211,7 @@ static char *group_replication_switch_to_single_primary_mode(
       (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
   size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
   if (args->arg_count > 0) {
-    const char *return_message = NULL;
+    const char *return_message = nullptr;
     bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
     if (invalid_uuid) {
@@ -260,7 +260,7 @@ static bool group_replication_switch_to_single_primary_mode_init(
     const char act[] =
         "now signal signal.group_replication_resume_udf "
         "wait_for signal.group_replication_resume_udf_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   if (args->arg_count > 1 ||
@@ -306,7 +306,7 @@ static bool group_replication_switch_to_single_primary_mode_init(
         (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
     size_t ulength = args->lengths[0];
     if (args->arg_count > 0) {
-      const char *return_message = NULL;
+      const char *return_message = nullptr;
       bool invalid_uuid =
           validate_uuid_parameter(uuid, ulength, &return_message);
 

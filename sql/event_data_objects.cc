@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_time.h"
 #include "mysqld.h"
@@ -118,23 +118,23 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
                                         Stored_program_creation_ctx **ctx);
 
  public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
+  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override {
     return new (mem_root)
         Event_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
   }
 
  protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *) const {
+  Object_creation_ctx *create_backup_ctx(THD *) const override {
     /*
       We can avoid usual backup/restore employed in stored programs since we
       know that this is a top level statement and the worker thread is
       allocated exclusively to execute this event.
     */
 
-    return NULL;
+    return nullptr;
   }
 
-  virtual void delete_backup_ctx() { destroy(this); }
+  void delete_backup_ctx() override { destroy(this); }
 
  private:
   Event_creation_ctx(const CHARSET_INFO *client_cs,
@@ -195,9 +195,9 @@ bool Event_queue_element_for_exec::init(LEX_CSTRING db, LEX_CSTRING n) {
   return false;
 }
 
-void Event_queue_element_for_exec::claim_memory_ownership() {
-  my_claim(dbname.str);
-  my_claim(name.str);
+void Event_queue_element_for_exec::claim_memory_ownership(bool claim) {
+  my_claim(dbname.str, claim);
+  my_claim(name.str, claim);
 }
 
 /*
@@ -265,7 +265,7 @@ Event_queue_element::Event_queue_element()
   SYNOPSIS
     Event_queue_element::Event_queue_element()
 */
-Event_queue_element::~Event_queue_element() {}
+Event_queue_element::~Event_queue_element() = default;
 
 /*
   Constructor
@@ -286,7 +286,7 @@ Event_timed::Event_timed() : m_created(0), m_modified(0), m_sql_mode(0) {
     Event_timed::~Event_timed()
 */
 
-Event_timed::~Event_timed() {}
+Event_timed::~Event_timed() = default;
 
 /*
   Constructor
@@ -333,7 +333,7 @@ bool Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
 
   m_definition = make_lex_string(&mem_root, event_obj.definition());
 
-  if (m_time_zone == NULL) return true;
+  if (m_time_zone == nullptr) return true;
 
   Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx);
   if (m_creation_ctx == nullptr) return true;
@@ -363,7 +363,7 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone = my_tz_find(thd, &str);
 
-  if (m_time_zone == NULL) return true;
+  if (m_time_zone == nullptr) return true;
 
   m_starts_null = event_obj.is_starts_null();
   if (!m_starts_null) m_starts = event_obj.starts();
@@ -381,8 +381,7 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
     If neither STARTS and ENDS is set, then both fields are empty.
     Hence, if execute_at is empty there is an error.
   */
-  DBUG_ASSERT(
-      !(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
+  assert(!(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
 
   if (!m_expression && !m_execute_at_null)
     m_execute_at = event_obj.execute_at();
@@ -461,15 +460,14 @@ static my_time_t add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
   @param    i_type        type of interval to add (SECOND, MINUTE, HOUR, WEEK
   ...)
 
-  @retval returns 0 on success, 1 on error.
+  @retval 0 on success
+  @retval 1 on error.
 
   @note
-
-  NOTES
-    1) If the interval is conversible to SECOND, like MINUTE, HOUR, DAY, WEEK.
+    1. If the interval is conversible to SECOND, like MINUTE, HOUR, DAY, WEEK.
        Then we use TIMEDIFF()'s implementation as underlying and number of
        seconds as resolution for computation.
-    2) In all other cases - MONTH, QUARTER, YEAR we use MONTH as resolution
+    2. In all other cases - MONTH, QUARTER, YEAR we use MONTH as resolution
        and PERIOD_DIFF()'s implementation
 */
 
@@ -479,7 +477,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("start: %lu  now: %lu", (long)start, (long)time_now));
 
-  DBUG_ASSERT(start <= time_now);
+  assert(start <= time_now);
 
   longlong months = 0, seconds = 0;
 
@@ -525,7 +523,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
       return true;
       break;
     case INTERVAL_LAST:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   DBUG_PRINT("info",
              ("seconds: %ld  months: %ld", (long)seconds, (long)months));
@@ -566,7 +564,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
         then next_time was set, but perhaps to the value that is less
         then time_now.  See below for elaboration.
       */
-      DBUG_ASSERT(negative || next_time > 0);
+      assert(negative || next_time > 0);
 
       /*
         If local_now < local_start, i.e. STARTS time is in the future
@@ -655,7 +653,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     }
   }
 
-  DBUG_ASSERT(time_now < next_time);
+  assert(time_now < next_time);
 
   *next = next_time;
 
@@ -1009,8 +1007,8 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 
 bool Event_job_data::execute(THD *thd, bool drop) {
   String sp_sql;
-  Security_context event_sctx, *save_sctx = NULL;
-  List<Item> empty_item_list;
+  Security_context event_sctx, *save_sctx = nullptr;
+  mem_root_deque<Item *> empty_item_list(thd->mem_root);
   bool ret = true;
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
@@ -1055,7 +1053,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   */
   if (save_sctx) set_system_user_flag(thd);
 
-  if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, false,
+  if (check_access(thd, EVENT_ACL, m_schema_name.str, nullptr, nullptr, false,
                    false)) {
     /*
       This aspect of behavior is defined in the worklog,
@@ -1088,8 +1086,8 @@ bool Event_job_data::execute(THD *thd, bool drop) {
 
     if (parser_state.init(thd, thd->query().str, thd->query().length)) goto end;
 
-    thd->m_digest = NULL;
-    thd->m_statement_psi = NULL;
+    thd->m_digest = nullptr;
+    thd->m_statement_psi = nullptr;
     if (parse_sql(thd, &parser_state, m_creation_ctx)) {
       LogErr(ERROR_LEVEL, ER_EVENT_ERROR_DURING_COMPILATION,
              thd->is_fatal_error() ? "fatal " : "", m_schema_name.str,
@@ -1105,7 +1103,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   {
     sp_head *sphead = thd->lex->sphead;
 
-    DBUG_ASSERT(sphead);
+    assert(sphead);
 
     if (thd->enable_slow_log) sphead->m_flags |= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags |= sp_head::LOG_GENERAL_LOG;
@@ -1184,7 +1182,7 @@ end:
     set_system_user_flag(thd);
   }
 
-  thd->lex->unit->cleanup(thd, true);
+  thd->lex->cleanup(thd, true);
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */
@@ -1204,7 +1202,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql, LEX_CSTRING schema_name,
                               LEX_CSTRING event_name) {
   LEX_STRING buffer;
   const uint STATIC_SQL_LENGTH = 14;
-  int ret = 0;
+  bool ret = false;
 
   DBUG_TRACE;
 

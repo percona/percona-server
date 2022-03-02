@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -326,6 +326,26 @@ class XSession {
      */
     Compression_max_combine_messages,
 
+    /** The server can compress messages at a given level.
+
+      Default: -2^63 (default level depend on compression algorithm
+                      and the server configuration)
+      Option type: INTEGER
+     */
+    Compression_level_server,
+    /** The client can compress messages at a given level.
+
+      Default: -2^63 (default level depend on compression algorithm;
+                      deflate_stream:3, lz4_frame:2, zstd_stream:3)
+      Option type: INTEGER
+     */
+    Compression_level_client,
+    /** The client can read responses while pipelining multiple requests.
+
+      Default: 64k
+      Option type: INTEGER
+     */
+    Buffer_recevie_size
   };
 
  public:

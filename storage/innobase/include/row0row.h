@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,23 +46,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
  a clustered index record.
  @return offset of DATA_TRX_ID */
-UNIV_INLINE
-ulint row_get_trx_id_offset(
+static inline ulint row_get_trx_id_offset(
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: record offsets */
     MY_ATTRIBUTE((warn_unused_result));
 /** Reads the trx id field from a clustered index record.
  @return value of the field */
-UNIV_INLINE
-trx_id_t row_get_rec_trx_id(
+static inline trx_id_t row_get_rec_trx_id(
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
     MY_ATTRIBUTE((warn_unused_result));
 /** Reads the roll pointer field from a clustered index record.
  @return value of the field */
-UNIV_INLINE
-roll_ptr_t row_get_rec_roll_ptr(
+static inline roll_ptr_t row_get_rec_roll_ptr(
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
@@ -96,8 +93,7 @@ dtuple_t *row_build_index_entry_low(
  @return index entry which should be inserted or purged, or NULL if the
  externally stored columns in the clustered index record are
  unavailable and ext != NULL */
-UNIV_INLINE
-dtuple_t *row_build_index_entry(
+static inline dtuple_t *row_build_index_entry(
     const dtuple_t *row,       /*!< in: row which should be
                                inserted or purged */
     const row_ext_t *ext,      /*!< in: externally stored column
@@ -188,8 +184,6 @@ dtuple_t *row_rec_to_index_entry_low(
     const rec_t *rec,          /*!< in: record in the index */
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
-    ulint *n_ext,              /*!< out: number of externally
-                               stored columns */
     mem_heap_t *heap)          /*!< in: memory heap from which
                                the memory needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));
@@ -200,8 +194,6 @@ dtuple_t *row_rec_to_index_entry(
     const rec_t *rec,          /*!< in: record in the index */
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in/out: rec_get_offsets(rec) */
-    ulint *n_ext,              /*!< out: number of externally
-                               stored columns */
     mem_heap_t *heap)          /*!< in: memory heap from which
                                the memory needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));
@@ -224,23 +216,19 @@ dtuple_t *row_build_row_ref(
     mem_heap_t *heap)          /*!< in: memory heap from which the memory
                                needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Builds from a secondary index record a row reference with which we can
- search the clustered index record. */
-void row_build_row_ref_in_tuple(
-    dtuple_t *ref,             /*!< in/out: row reference built;
-                               see the NOTE below! */
-    const rec_t *rec,          /*!< in: record in the index;
-                               NOTE: the data fields in ref
-                               will point directly into this
-                               record, therefore, the buffer
-                               page of this record must be at
-                               least s-latched and the latch
-                               held as long as the row
-                               reference is used! */
-    const dict_index_t *index, /*!< in: secondary index */
-    ulint *offsets,            /*!< in: rec_get_offsets(rec, index)
-                               or NULL */
-    trx_t *trx);               /*!< in: transaction or NULL */
+search the clustered index record.
+@param[in,out] ref Row reference built; see the note below!
+@param[in,out] rec Record in the index; note: the data fields in ref will point
+directly into this record, therefore, the buffer page of this record must be at
+least s-latched and the latch held as long as the row reference is used!
+@param[in] index Secondary index
+@param[in] offsets Rec_get_offsets(rec, index) or null
+@param[in] trx Transaction or null */
+void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
+                                const dict_index_t *index, ulint *offsets,
+                                trx_t *trx);
 
 /** Builds from a secondary index record a row reference with which we can
 search the clustered index record.
@@ -250,9 +238,9 @@ search the clustered index record.
 @param[in]	rec	record in the index; must be preserved while ref is
                         used, as we do not copy field values to heap
 @param[in]	offsets	array returned by rec_get_offsets() */
-UNIV_INLINE
-void row_build_row_ref_fast(dtuple_t *ref, const ulint *map, const rec_t *rec,
-                            const ulint *offsets);
+static inline void row_build_row_ref_fast(dtuple_t *ref, const ulint *map,
+                                          const rec_t *rec,
+                                          const ulint *offsets);
 
 /** Searches the clustered index record for a row, if we have the row
  reference.
@@ -362,7 +350,7 @@ class Multi_value_entry_builder {
         m_mv_data(nullptr),
         m_mv_field_no(0) {}
 
-  virtual ~Multi_value_entry_builder() {}
+  virtual ~Multi_value_entry_builder() = default;
 
   /** Get the first index entry. If the multi-value field on the index
   is null, then it's the entry including the null field, otherwise,
@@ -399,7 +387,8 @@ class Multi_value_entry_builder {
       return (nullptr);
     }
 
-    dfield_set_data(field, m_mv_data->datap[m_pos], m_mv_data->data_len[m_pos]);
+    const auto len = m_mv_data->data_len[m_pos];
+    dfield_set_data(field, m_mv_data->datap[m_pos], len);
 
     ++m_pos;
     return (m_entry);
@@ -503,10 +492,10 @@ class Multi_value_entry_builder_normal : public Multi_value_entry_builder {
   /** Find the multi-value field from the passed in entry or row.
   m_mv_field_no should be set once the multi-value field found.
   @return the multi-value field pointer, or nullptr if not found */
-  dfield_t *find_multi_value_field();
+  dfield_t *find_multi_value_field() override;
 
   /** Prepare the entry when the entry is not passed in */
-  virtual void prepare_entry_if_necessary() {
+  void prepare_entry_if_necessary() override {
     if (m_check) {
       m_entry = row_build_index_entry(m_row, m_ext, m_index, m_heap);
     } else {
@@ -520,7 +509,7 @@ class Multi_value_entry_builder_normal : public Multi_value_entry_builder {
   /** Skip the not selected values and stop m_pos at the next selected one
   @return the next valid value position, or size of m_mv_data to indicate
   there is no more valid value */
-  uint32_t skip() {
+  uint32_t skip() override {
     ut_ad(m_selected);
 
     if (m_mv_data->bitset == nullptr) {
@@ -563,7 +552,7 @@ class Multi_value_entry_builder_insert : public Multi_value_entry_builder {
   /** Find the multi-value field from the passed entry in or row.
   m_mv_field_no should be set once the multi-value field found.
   @return the multi-value field pointer, or nullptr if not found */
-  dfield_t *find_multi_value_field() {
+  dfield_t *find_multi_value_field() override {
     uint16_t i = 0;
     dfield_t *field = nullptr;
 

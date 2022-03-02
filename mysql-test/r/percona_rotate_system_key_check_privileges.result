@@ -1,4 +1,10 @@
 CREATE USER 'regular_user'@'localhost' IDENTIFIED BY 'pass';
-SELECT rotate_system_key("percona_binlog");
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
+# Grant ENCRYPTION_KEY_ADMIN privilege to regular_user. This should be enough to
+# be able to rotate system key.
+GRANT ENCRYPTION_KEY_ADMIN ON *.* TO regular_user@localhost;
+CREATE TABLE t1 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0;
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+DROP TABLE t1;
 DROP USER regular_user@localhost;

@@ -4,10 +4,10 @@ SELECT @@global.innodb_redo_log_encrypt ;
 OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
 Warnings:
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = 1;
 Warnings:
-Warning	7014	InnoDB: Undo log can't be encrypted if the keyring plugin is not loaded.
+Warning	7014	InnoDB: Undo log can't be encrypted if the keyring is not loaded.
 UNINSTALL PLUGIN keyring_file;
 ERROR 42000: PLUGIN keyring_file does not exist
 CREATE TABLE tne_1(c1 INT, c2 varchar(2000)) ENGINE = InnoDB;
@@ -19,7 +19,7 @@ c1	LEFT(c2,10)
 100	cccccccccc
 DROP TABLE tne_1;
 # Stop the MTR default DB server
-Pattern "Redo log cannot be encrypted if the keyring plugin is not loaded." found
+Pattern "Redo log cannot be encrypted if the keyring is not loaded." found
 # create bootstrap file
 # Prepare new datadir
 # Run the bootstrap command with keyring

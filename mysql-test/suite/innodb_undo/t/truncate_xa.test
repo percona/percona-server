@@ -2,9 +2,6 @@
 --echo # Truncate explicitly created UNDO logs before and after recovery.
 --echo #
 
-# This test uses debug settings like innodb_purge_stop_now.
---source include/have_debug.inc
-
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
 

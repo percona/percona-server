@@ -1,0 +1,68 @@
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE DATABASE db_1;
+SHOW CREATE DATABASE db_1;
+Database	Create Database
+db_1	CREATE DATABASE `db_1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+USE db_1;
+CREATE TABLE t1 (a varchar(255));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [Make sure ENCRYPTION is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES]
+include/assert.inc [Make sure MIN_KEY_VERSION is set to 1 in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+CREATE DATABASE db_2 DEFAULT ENCRYPTION='Y';
+ERROR HY000: Database default encryption cannot be set to Y (Master Key encryption) while default_table_encryption is set to ONLINE_TO_KEYRING. It does not make sense to create new Master Key encrypted tables if the intention is to re-encrypt them to KEYRING encryption.
+CREATE DATABASE db_2 DEFAULT ENCRYPTION='N';
+ERROR HY000: Database default encryption cannot be set to N (explicitly request for tables in database to be unencrypted) while default_table_encryption is set to ONLINE_TO_KEYRING. If you want to exclude table from being encrypted by encryption threads you can still do it while creating table. For that you need to explicitly specify ENCRYPTION='N' while creating a table.
+USE test;
+ALTER DATABASE db_1 DEFAULT ENCRYPTION='Y';
+ERROR HY000: Database default encryption cannot be set to Y (Master Key encryption) while default_table_encryption is set to ONLINE_TO_KEYRING. It does not make sense to create new Master Key encrypted tables if the intention is to re-encrypt them to KEYRING encryption.
+CREATE DATABASE db_1 DEFAULT ENCRYPTION='N';
+ERROR HY000: Database default encryption cannot be set to N (explicitly request for tables in database to be unencrypted) while default_table_encryption is set to ONLINE_TO_KEYRING. If you want to exclude table from being encrypted by encryption threads you can still do it while creating table. For that you need to explicitly specify ENCRYPTION='N' while creating a table.
+USE db_1;
+SET SESSION default_table_encryption=ON;
+CREATE DATABASE db_2;
+SHOW CREATE DATABASE db_2;
+Database	Create Database
+db_2	CREATE DATABASE `db_2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='Y' */
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+USE db_2;
+CREATE TABLE t1 (a varchar(255));
+ERROR HY000: InnoDB: ENCRYPTED='Y' not supported for table because online encryption to KEYRING is turned ON.
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE t1 (a varchar(255));
+CREATE DATABASE db_3 DEFAULT ENCRYPTION='N';
+USE db_3;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE TABLE t1 (a varchar(255));
+CREATE TABLE t2 (a varchar(255)) ENCRYPTION='N';
+include/assert.inc [Make sure ENCRYPTION is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_3/t1]
+include/assert.inc [Make sure MIN_KEY_VERSION is set to 1 in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION for db_3/t1]
+include/assert.inc [Make sure ENCRYPTION is set to N in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_3/t2]
+include/assert.inc [Make sure EXCLUDED is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION for db_3/t2]
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE t3 (a varchar(255));
+# Make sure db_3/t3 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION as it was never encrypted nor
+# excluded from encryption threads.
+include/assert.inc [Make sure db_3/t3 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE DATABASE db_4 DEFAULT ENCRYPTION='Y';
+USE db_4;
+CREATE TABLE t1 (a varchar(255));
+# Make sure db_4/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION as it is
+# MK encrypted.
+include/assert.inc [Make sure db_4/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+CREATE DATABASE db_5 DEFAULT ENCRYPTION='N';
+USE db_5;
+CREATE TABLE t1 (a varchar(255));
+# Make sure db_5/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION as it is
+# MK encrypted.
+include/assert.inc [Make sure db_5/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+SET GLOBAL default_table_encryption=OFF;
+DROP DATABASE db_1;
+DROP DATABASE db_2;
+DROP DATABASE db_3;
+DROP DATABASE db_4;
+DROP DATABASE db_5;

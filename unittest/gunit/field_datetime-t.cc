@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 
 #include "sql/field.h"
@@ -37,8 +34,8 @@ using my_testing::Server_initializer;
 
 class FieldDatetimeTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -57,8 +54,8 @@ class Mock_field_datetime : public Field_datetime {
                        "field_name")               // field_name_arg
   {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 };
 
 class Mock_field_datetimef : public Field_datetimef {
@@ -71,8 +68,8 @@ class Mock_field_datetimef : public Field_datetimef {
                         "field_name",               // field_name_arg
                         scale) {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 };
 
 TEST_F(FieldDatetimeTest, StoreLegalStringValues) {

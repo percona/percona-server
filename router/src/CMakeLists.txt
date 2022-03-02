@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,15 @@
 
 ADD_SUBDIRECTORY(harness)
 ADD_SUBDIRECTORY(http)
+ADD_SUBDIRECTORY(io)
 ADD_SUBDIRECTORY(json_schema_embedder)
 ADD_SUBDIRECTORY(keepalive)
 ADD_SUBDIRECTORY(metadata_cache)
 ADD_SUBDIRECTORY(mock_server)
 ADD_SUBDIRECTORY(mysql_protocol)
+ADD_SUBDIRECTORY(openssl)
 ADD_SUBDIRECTORY(plugin_info)
+ADD_SUBDIRECTORY(protobuf)
 ADD_SUBDIRECTORY(rest_api)
 ADD_SUBDIRECTORY(rest_metadata_cache)
 ADD_SUBDIRECTORY(rest_router)

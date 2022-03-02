@@ -6,13 +6,13 @@ Encrypting a Schema or a General Tablespace
 
 |Percona Server| uses the same encryption architecture as |MySQL|, a two-tier
 system consisting of a master key and tablespace keys. The master key can be
-changed, or rotated in the keyring, as needed. Each of the tablespace keys, when
-decrypted, remain the same.
+changed, or rotated in the keyring, as needed. Each tablespace key, when
+decrypted, remains the same.
 
 The feature requires the keyring plugin.
 
 Setting the Default for Schemas and General Tablespace Encryption
-=======================================================================
+==================================================================
 
 The tables in a general tablespace are either all encrypted or all unencrypted.
 A tablespace cannot contain a mixture of encrypted tables and unencrypted
@@ -41,12 +41,12 @@ variable is implemented in |Percona Server| version 8.0.16-7.
 You can set the :variable:`default_table_encryption` variable in an individual
 connection.
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
     mysql> SET default_table_encryption=ON;
 
 System Variable
----------------------
+----------------
 
 .. variable:: default_table_encryption
 
@@ -63,55 +63,25 @@ and general tablespaces and is not applied to the MySQL system tablespace.
 
 The variable has the following possible values:
 
-.. rubric:: ON
+.. tabularcolumns:: |p{5cm}|p{11cm}|
 
-New tables are encrypted. To create unencrypted tables add ``ENCRYPTION="N"`` to
-the ``CREATE TABLE`` or ``ALTER TABLE`` statement.
+.. list-table::
+   :header-rows: 1
 
-.. rubric:: OFF
-
-By default, new tables are unencrypted. To create encrypted tables add
-``ENCRYPTION="Y"`` to the ``CREATE TABLE`` or ``ALTER TABLE`` statement. 
-
-.. rubric:: FORCE
-
-New tables are created with the Master key. Using the `ENCRYPTION=NO` to `CREATE
-TABLE` or `ALTER TABLE` generates an error and the table is not created or
-altered.
-
-To encrypt an unencrypted table with an `ALTER TABLE` statement the
-`ENCRYPTION=YES` must be explicitly used.
-
-.. rubric:: KEYRING_ON
-
-:Availablilty: This value is **Experimental** quality.
-        
-New tables are created with the keyring as the default encryption. You may
-specify a numeric key identifier and use a specific `percona-innodb-` key from
-the keyring instead of the default key:
-
-    .. code-block:: MySQL
-
-         mysql> CREATE TABLE ... ENCRYPTION=`KEYRING` ENCRYPTION_KEY=ID=NEW_ID
-
-`NEW_ID` is an unsigned 32-bit integer that refers to the numerical part of the
-`percona-innodb-` key. When you assign a numerical identifier in the
-`ENCRYPTION_KEY_ID` clause, the server uses the latest version of the
-corresponding key. For example, `ENCRYPTION_KEY_ID=2` refers to the latest
-version of the `percona_innodb-2` key from the keyring.
-
-.. rubric:: FORCE_KEYRING
-
-:Availablilty: This value is **Experimental** quality.
-
-New tables are created encrypted and the keyring encryption is enforced.
-
-.. rubric:: ONLINE_TO_KEYRING
-
-:Availablilty: This value is **Experimental** quality.
-
-It is only possible to apply the keyring encryption when creating or altering
-tables.
+   * - Value 
+     - Description
+   * - ON
+     - New tables are encrypted. Add ``ENCRYPTION="N"`` to the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create unencrypted tables.
+   * - OFF
+     - By default, new tables are unencrypted. Add ``ENCRYPTION="Y"`` to the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create encrypted tables. 
+   * - ONLINE_TO_KEYRING
+     - :Availability: This value is **Experimental** quality.
+       
+       Converts a tablespace encrypted by a Master Key to use Advanced Encryption Key Rotation. You can only apply the keyring encryption when creating tables or altering tables.
+   * - ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+     - :Availability: This value is **Experimental** quality
+       
+       Converts a tablespace encrypted by Advanced Encryption Key Rotation to unencrypted.
 
 .. note::
 
@@ -147,7 +117,7 @@ Setting Tablespace `ENCRYPTION` without the Default Setting
 If you do not set the default encryption setting, you can create general
 tablespaces with the ``ENCRYPTION`` setting.
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
     mysql> CREATE TABLESPACE tablespace_name ENCRYPTION='Y';
 
@@ -168,7 +138,7 @@ accept the ``ENCRYPTION='Y/N'`` option.
 In an encrypted general tablespace, an attempt to create an unencrypted table
 generates the following error:
 
-.. code-block:: MySQL
+.. code-block:: mysql
 
     mysql> CREATE TABLE t3 (a INT, b TEXT) TABLESPACE foo ENCRYPTION='N';
     ERROR 1478 (HY0000): InnoDB: Tablespace 'foo' can contain only ENCRYPTED tables.
@@ -182,7 +152,7 @@ same structure in another tablespace and run ``INSERT INTO SELECT`` from each of
 the source tables into the destination tables.
 
 Exporting an Encrypted General Tablespace
-------------------------------------------------------------------
+--------------------------------------------
 
 You can only export encrypted file-per-table tablespaces
 

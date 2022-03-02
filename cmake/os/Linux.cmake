@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@ INCLUDE(CheckCSourceRuns)
 SET(LINUX 1)
 SET(TARGET_OS_LINUX 1)
 
-IF(EXISTS "/etc/SuSE-release")
-  SET(LINUX_SUSE 1)
-ENDIF()
+# OS display name (version_compile_os etc).
+# Used by the test suite to ignore bugs on some platforms.
+SET(SYSTEM_TYPE "Linux")
 
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
@@ -43,22 +43,22 @@ IF(EXISTS "/etc/fedora-release")
       FEDORA_RELEASE MATCHES "28")
     SET(LINUX_FEDORA_28 1)
   ENDIF()
+  IF(FEDORA_RELEASE MATCHES "Fedora" AND
+      FEDORA_RELEASE MATCHES "34")
+    SET(LINUX_FEDORA_34 1)
+  ENDIF()
 ENDIF()
 
-IF(EXISTS "/etc/os-release")
-  FILE(READ "/etc/os-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
-      MY_OS_RELEASE MATCHES "16.04")
-    SET(LINUX_UBUNTU_16_04 1)
-  ENDIF()
-  IF(MY_OS_RELEASE MATCHES "Debian")
-    IF(MY_OS_RELEASE MATCHES "jessie")
-      SET(LINUX_DEBIAN_8 1)
-    ENDIF()
-    IF(MY_OS_RELEASE MATCHES "stretch")
-      SET(LINUX_DEBIAN_9 1)
-    ENDIF()
-  ENDIF()
+# Use dpkg-buildflags --get CPPFLAGS | CFLAGS | CXXFLAGS | LDFLAGS
+# to get flags for this platform.
+IF(LINUX_DEBIAN OR LINUX_UBUNTU)
+  SET(LINUX_DEB_PLATFORM 1)
+ENDIF()
+
+# Use CMAKE_C_FLAGS | CMAKE_CXX_FLAGS = rpm --eval %optflags
+# to get flags for this platform.
+IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
+  SET(LINUX_RPM_PLATFORM 1)
 ENDIF()
 
 # We require at least GCC 5.3 or Clang 3.4.
@@ -106,6 +106,7 @@ IF(NOT WITH_ASAN AND
    NOT WITH_TSAN AND
    NOT WITH_UBSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
+  SET(LINK_FLAG_Z_DEFS "-z,defs")
 ENDIF()
 
 # Linux specific HUGETLB /large page support

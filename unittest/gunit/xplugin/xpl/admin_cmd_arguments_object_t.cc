@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -621,8 +621,8 @@ Param_docpath_arg docpath_arg_param[] = {
     {ER_X_SUCCESS, "$.`a\\`"},
 };
 
-INSTANTIATE_TEST_CASE_P(docpath_arg, Admin_command_arguments_docpath_test,
-                        testing::ValuesIn(docpath_arg_param));
+INSTANTIATE_TEST_SUITE_P(docpath_arg, Admin_command_arguments_docpath_test,
+                         testing::ValuesIn(docpath_arg_param));
 
 #define INVALID_VALUE_ERROR(arg_name)      \
   ngs::Error_code(ER_X_CMD_ARGUMENT_VALUE, \
@@ -1061,7 +1061,6 @@ TEST_F(Admin_command_arguments_object_test, object_arg_all_of) {
   ASSERT_TRUE(value3.fld(0).has_value());
   ASSERT_TRUE(value3.fld(0).value().has_scalar());
   ASSERT_EQ(44, value3.fld(0).value().scalar().v_signed_int());
-
 }
 
 TEST_F(Admin_command_arguments_object_test, object_arg_one_of) {
@@ -1145,7 +1144,6 @@ TEST_F(Admin_command_arguments_object_test, object_arg_optional_one_of) {
   ASSERT_TRUE(value2.fld(0).has_value());
   ASSERT_TRUE(value2.fld(0).value().has_scalar());
   ASSERT_EQ(43, value2.fld(0).value().scalar().v_signed_int());
-
 }
 
 }  // namespace test

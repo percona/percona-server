@@ -1,0 +1,332 @@
+# Test Parallel double write buffer encryption
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+
+--remove_file $MYSQLD_DATADIR/#ib_16384_0.dblwr
+--remove_file $MYSQLD_DATADIR/#ib_16384_1.dblwr
+
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1(a TEXT) ENCRYPTION='KEYRING';
+CREATE TABLE t2(a TEXT) ENCRYPTION='KEYRING';
+CREATE TABLE t3(a TEXT) ENCRYPTION='KEYRING';
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_TO_KEYRING;
+CREATE TABLE t4(a TEXT);
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=ON;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t1 is');
+
+INSERT INTO t2 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t2 is');
+
+INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t3 is');
+
+INSERT INTO t4 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t4 is');
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--source include/kill_mysqld.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t1
+--let SEARCH_FILE=$MYSQLD_DATADIR/#ib_16384_*
+--let ABORT_ON=NOT_FOUND
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t2
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t3
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t4
+--source include/search_pattern_in_file.inc
+
+--source include/start_mysqld.inc
+
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1(a TEXT) ENCRYPTION='KEYRING';
+CREATE TABLE t2(a TEXT) ENCRYPTION='KEYRING';
+CREATE TABLE t3(a TEXT) ENCRYPTION='KEYRING';
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_TO_KEYRING;
+CREATE TABLE t4(a TEXT);
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;
+
+SET GLOBAL innodb_parallel_dblwr_encrypt=ON;
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=ON;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t1 is');
+
+INSERT INTO t2 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t2 is');
+
+INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t3 is');
+
+INSERT INTO t4 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t4 is');
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--source include/kill_mysqld.inc
+--let $restart_parameters = "restart: --debug=d,force_dblwr_decryption"
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should NOT be found
+--let SEARCH_PATTERN=first occurrence in t1
+--let SEARCH_FILE=$MYSQLD_DATADIR/#ib_16384_*
+--let ABORT_ON=FOUND
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should NOT be found
+--let SEARCH_PATTERN=first occurrence in t2
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should NOT be found
+--let SEARCH_PATTERN=first occurrence in t3
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should NOT be found
+--let SEARCH_PATTERN=first occurrence in t4
+--source include/search_pattern_in_file.inc
+
+--source include/start_mysqld.inc
+
+DROP TABLE t1, t2, t3, t4;
+
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # First encrypt all the spaces, apart from temporary tablespace.
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;
+
+CREATE TABLE t1(a TEXT) ENCRYPTION='Y';
+CREATE TABLE t2(a TEXT);
+CREATE TABLE t3(a TEXT) ENCRYPTION='N';
+
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_parallel_dblwr_encrypt=OFF;
+SET GLOBAL innodb_checkpoint_disabled=ON;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t1 is');
+
+INSERT INTO t2 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t2 is');
+
+INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence in t3 is');
+
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+# - 2 we do not encrypt t3 and temporary tablespace
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--source include/kill_mysqld.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t1
+--let SEARCH_FILE=$MYSQLD_DATADIR/#ib_16384_*
+--let ABORT_ON=NOT_FOUND
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t2
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are not encrypted, so the pattern should be found
+--let SEARCH_PATTERN=first occurrence in t3
+--source include/search_pattern_in_file.inc
+
+--source include/start_mysqld.inc
+
+DROP TABLE t1,t2,t3;
+
+CREATE TABLE t1(a TEXT) ENCRYPTION='Y';
+CREATE TABLE t2(a TEXT);
+CREATE TABLE t3(a TEXT) ENCRYPTION='N';
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+# - 2 we do not encrypt t3 and temporary tablespace
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;
+
+--echo # From now on t1 and t2 should be encrypted
+--echo # t3 should remain unencrypted.
+
+SET GLOBAL innodb_parallel_dblwr_encrypt=ON;
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=ON;
+
+INSERT INTO t1 (a) VALUES ('Abracadabra in t1 should be encrypted in dblwr buffer');
+INSERT INTO t2 (a) VALUES ('Abracadabra in t2 should be encrypted in dblwr buffer');
+INSERT INTO t3 (a) VALUES ('Abracadabra in t3 should NOT be encrypted in dblwr buffer');
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--source include/kill_mysqld.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should be not found
+--let SEARCH_PATTERN=in t1 should be encrypted
+--let SEARCH_FILE=$MYSQLD_DATADIR/#ib_16384_*
+--let ABORT_ON=FOUND
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should be not found
+--let SEARCH_PATTERN=in t2 should be encrypted
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, but t3 is not encrypted, so the pattern should be found
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_PATTERN=in t3 should NOT be encrypted
+--source include/search_pattern_in_file.inc
+
+--source include/start_mysqld.inc
+
+DROP TABLE t1,t2,t3;
+
+CREATE TABLE t1(a TEXT) ENCRYPTION='Y';
+CREATE TABLE t2(a TEXT);
+CREATE TABLE t3(a TEXT) ENCRYPTION='N';
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+# - 2 we do not encrypt t3 and temporary tablespace
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;
+
+--echo # From now on t1 and t2 should be encrypted
+--echo # t3 should remain unencrypted.
+
+SET GLOBAL innodb_parallel_dblwr_encrypt=ON;
+SET GLOBAL innodb_buf_flush_list_now=ON;
+SET GLOBAL innodb_checkpoint_disabled=ON;
+
+INSERT INTO t1 (a) VALUES ('Abracadabra in t1 should be encrypted in dblwr buffer');
+INSERT INTO t2 (a) VALUES ('Abracadabra in t2 should be encrypted in dblwr buffer');
+INSERT INTO t3 (a) VALUES ('Abracadabra in t3 should NOT be encrypted in dblwr buffer');
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--source include/kill_mysqld.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should be not found
+--let SEARCH_PATTERN=in t1 should be encrypted
+--let SEARCH_FILE=$MYSQLD_DATADIR/#ib_16384_*
+--let ABORT_ON=FOUND
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, so the pattern should be not found
+--let SEARCH_PATTERN=in t2 should be encrypted
+--source include/search_pattern_in_file.inc
+
+--echo # Writes to Parallel dblwr are encrypted, but t3 is not encrypted, so the pattern should be found
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_PATTERN=in t3 should NOT be encrypted
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters = "restart: --debug=d,force_dblwr_decryption"
+--source include/start_mysqld.inc
+
+# t1 is now encrypted, insert more data into it, as we will abort decryption
+# after decrypting first 100 pages in t1
+delimiter //;
+create procedure innodb_insert_proc (repeat_count int)
+begin
+  declare current_num int;
+  set current_num = 0;
+  while current_num < repeat_count do
+    insert into t1 values (repeat('foobar',42));
+    set current_num = current_num + 1;
+  end while;
+end//
+delimiter ;//
+commit;
+
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+
+SET GLOBAL innodb_parallel_dblwr_encrypt=ON;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # We want only first 100(x=100 by default) pages to be rotated
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+
+--let $wait_timeout= 600
+# All tables should get decryted. Apart from t1, which will have only 100 pages decrypted, and thus have MAX_KEY_VERSION still
+# equal to 1
+--let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MAX_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Table t1 should have max_key_version = 1 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
+--echo # have been decrypted.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT name = 'test/t1' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MAX_KEY_VERSION = 1 AND ROTATING_OR_FLUSHING = 1
+--source include/wait_condition.inc
+
+--let $restart_parameters = "restart: --debug=d,force_dblwr_decryption"
+--source include/restart_mysqld.inc
+
+DROP TABLE t1,t2,t3;
+
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # Decrypt all the remaining tables
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION=1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL DEFAULT_TABLE_ENCRYPTION=OFF;

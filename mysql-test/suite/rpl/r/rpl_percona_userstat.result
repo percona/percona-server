@@ -7,10 +7,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Bug 995624 RBR events are not reflected in userstat's
 # Rows_updated
 #
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 CHANGE REPLICATION FILTER
 REPLICATE_DO_TABLE= (test.t1, test.t2);
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 SET @slave_userstat_saved= @@global.userstat;
 SET GLOBAL userstat=ON;
 include/assert.inc [Rows updated on slave should be equal to 0]

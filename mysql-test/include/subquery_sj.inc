@@ -21,11 +21,18 @@ create table t3 (a int not null, b int, primary key (a));
 insert into t1 values (1,10), (2,20), (3,30),  (4,40);
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+ANALYZE TABLE t1, t2, t3;
+--sorted_result
 select * from t2 where t2.a in (select a from t1);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select a from t1);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 drop table t1, t2, t3;
 create table t1 (a int, b int, index a (a,b));
@@ -40,15 +47,26 @@ select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
 
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+ANALYZE TABLE t0, t1, t2, t3;
+--sorted_result
 select * from t2 where t2.a in (select a from t1);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select a from t1);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 insert into t1 values (3,31);
+ANALYZE TABLE t1;
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
+--replace_column 11 #
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 drop table t0, t1, t2, t3;
 
@@ -98,13 +116,13 @@ explain select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t1
 
 --echo subqueries within outer joins go into ON expr.
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join (t2 a, t2 b) on ( a.a= t1.a and b.a in (select pk from t10));
 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --echo t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10));
 
@@ -138,6 +156,7 @@ execute s1;
 
 # Try I2O orders
 insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
+ANALYZE TABLE t1;
 explain select * from t1 where a in (select pk from t10 where pk<3);
 
 drop table t0, t1, t2;
@@ -173,6 +192,7 @@ while ($i)
          eval PREPARE stmt FROM "$query";
          --sorted_result
          EXECUTE stmt;
+	 --echo
          --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
@@ -195,6 +215,7 @@ while ($i)
          eval PREPARE stmt FROM "$query";
          --sorted_result
          EXECUTE stmt;
+	 --echo
          --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
@@ -382,6 +403,7 @@ create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08
 create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
 
 update t22 set c = '2005-12-08 15:58:27' where a = 255;
+ANALYZE TABLE t1, t11, t12, t21, t22;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 explain format=json select * from t1 where a in (select a from t11);
@@ -412,6 +434,7 @@ insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 as select * from t0;
 insert into t1 select a+10 from t0;
 insert into t0 values(2);
+ANALYZE TABLE t0, t1;
 explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
 
@@ -435,7 +458,7 @@ insert into t1 select * from t1 where kp1 < 20;
 
 create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
-
+ANALYZE TABLE t0, t1, t3;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 --sorted_result
 select * from t3 where a in (select kp1 from t1 where kp1<20);
@@ -446,12 +469,13 @@ select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
-
+ANALYZE TABLE t4;
 explain select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
 # In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
 # how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 --sorted_result
@@ -476,12 +500,14 @@ set @@max_heap_table_size= 16384;
 --echo # that these situations occurred with max_heap_table_size=16384
 --echo # and optimizer_join_cache_level equals 1 and 0, respectively.
 --echo # Finally execute a test that does not overflow the heap table.
+ANALYZE TABLE t0, t1;
 explain
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_disk_tables';
 
 set @@max_heap_table_size= @save_max_heap_table_size;
@@ -489,6 +515,7 @@ set session internal_tmp_mem_storage_engine=default;
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_disk_tables';
 
 drop table t0, t1;
@@ -502,6 +529,7 @@ create table t2(a int);
 insert into t2 values (1),(2);
 create table t3 ( a int , filler char(100), key(a)); 
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
+analyze table t0, t2, t3;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10); 
 --sorted_result
 select * from t3 where a in (select a from t2); 
@@ -518,6 +546,7 @@ insert into t2 values (1),(2);
 create table t3 (a char(10));
 insert into t3 select * from t1;
 insert into t3 values (1),(2);
+ANALYZE TABLE t1, t2, t3;
 explain select * from t2 where a in (select a from t1);
 explain select * from t2 where a in (select a from t2);
 explain select * from t2 where a in (select a from t3);
@@ -536,6 +565,7 @@ insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;
 create table t3 (a int, b int, filler char(100), key(a)) charset utf8mb4;
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
+ANALYZE TABLE t1, t2, t3;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 --replace_regex /"rows_produced_per_join": 792/"rows_produced_per_join": 793/
 explain format=json select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
@@ -631,6 +661,7 @@ create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
 create table t1 as select * from t0;
 insert into t1 select * from t0;
+ANALYZE TABLE t0, t1;
 explain select * from t0 where a in (select a from t1);
 select * from t0 where a in (select a from t1);
 drop table t0, t1;
@@ -639,6 +670,7 @@ create table t0(a date);
 insert into t0 values ('2008-01-01'),('2008-02-02');
 create table t1 as select * from t0;
 insert into t1 select * from t0;
+ANALYZE TABLE t0, t1;
 explain select * from t0 where a in (select a from t1);
 select * from t0 where a in (select a from t1);
 drop table t0, t1;
@@ -679,7 +711,7 @@ insert into t1 values (18, 'duplicate ok', 'duplicate ok');
 
 insert into t2 values (3, 'duplicate ok', 'duplicate ok');
 insert into t2 values (19, 'duplicate ok', 'duplicate ok');
-
+ANALYZE TABLE t0, t1, t2;
 explain select 
  a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
@@ -699,7 +731,7 @@ from t2 ot where a in (select a from t1 it);
 # Now let the buffer overfill:
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
-
+ANALYZE TABLE t1;
 explain select 
  a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
@@ -727,8 +759,9 @@ create table t3 (a int, b int, key(a));
 insert into t1 select a,a from t0;
 insert into t2 select a,a from t0;
 insert into t3 select a,a from t0;
-
+ANALYZE TABLE t1, t2, t3;
 --echo t2 and t3 must be use 'ref', not 'ALL':
+--replace_column 10 #
 explain select * 
 from t0 where a in
   (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
@@ -886,7 +919,7 @@ insert into t3_512 values
  (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_512 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
+ANALYZE TABLE t1_512, t2_512, t3_512;
 # single value transformer
 explain select left(a1,7), left(a2,7)
 from t1_512
@@ -921,6 +954,7 @@ explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -931,6 +965,7 @@ explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -968,7 +1003,7 @@ insert into t3_513 values
  (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_513 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
+ANALYZE TABLE t1_513, t2_513, t3_513;
 # single value transformer
 explain select left(a1,7), left(a2,7)
 from t1_513
@@ -1003,6 +1038,7 @@ explain select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
@@ -1040,7 +1076,7 @@ insert into t3_1024 values
  (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_1024 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
+ANALYZE TABLE t1_1024, t2_1024, t3_1024;
 # single value transformer
 explain select left(a1,7), left(a2,7)
 from t1_1024
@@ -1075,6 +1111,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -1085,6 +1122,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -1122,7 +1160,7 @@ insert into t3_1025 values
  (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_1025 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
+ANALYZE TABLE t1_1025, t2_1025, t3_1025;
 # single value transformer
 explain select left(a1,7), left(a2,7)
 from t1_1025
@@ -1157,6 +1195,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -1167,6 +1206,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -1190,7 +1230,7 @@ INSERT INTO ot3 VALUES(0),(3),(6);
 INSERT INTO it1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
 INSERT INTO it2 VALUES(0),(2),(4),(6);
 INSERT INTO it3 VALUES(0),(3),(6);
-
+ANALYZE TABLE ot1, ot2, ot3, it1, it2, it3;
 --echo # Test cases, Subquery Pattern 1
 
 --echo # Example SQ1.1:
@@ -1412,6 +1452,7 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
 # In subquery_sj_{all,firstmatch}_*, demonstrates how partially overlapping
 # outer joins and first matches are rejected by the join optimizer and cannot
 # exist (DBUG_ASSERTs in FindSubstructure verify it).
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
          LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
@@ -1601,7 +1642,7 @@ CREATE TABLE v (
   a INTEGER DEFAULT NULL
 ) ENGINE=InnoDB;
 INSERT INTO v VALUES (1),(1);
-
+ANALYZE TABLE t, t2, t4, v;
 let $query=
 SELECT *
 FROM t AS t1
@@ -1677,9 +1718,9 @@ CREATE TABLE t1 (
   KEY time_key (time_key),
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
-) ENGINE=MyISaM;
+) ENGINE=INNODB;
 
-INSERT INTO t1 VALUES 
+INSERT IGNORE INTO t1 VALUES 
 (1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
 (2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
 (3,0, '00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
@@ -1756,7 +1797,7 @@ INSERT INTO t2 VALUES
 CREATE TABLE t3 (
   varchar_key varchar(1) DEFAULT NULL,
   KEY varchar_key (varchar_key)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=INNODB DEFAULT CHARSET=latin1;
 INSERT INTO t3 VALUES
   (NULL),('c'),('d'),('e'),('f'),('h'),('j'),('k'),('k'),('m'),('m'),('m'),
   ('n'),('o'),('r'),('t'),('t'),('u'),('w'),('y');
@@ -1787,7 +1828,7 @@ CREATE TABLE t0 (
 
 INSERT INTO t0 
 VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
-
+ANALYZE TABLE t0;
 EXPLAIN SELECT vkey FROM t0 WHERE pk IN
   (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 
@@ -1902,7 +1943,7 @@ WHERE (int_key, int_nokey)
 --echo # Bug#45933 "Crash in optimize_semijoin_nests on JOIN in subquery 
 --echo # + AND in outer query".
 --echo #
-INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
+INSERT IGNORE INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
                       (11,7,0,'0000-00-00','0000-00-00 00:00:00','s'), 
 		      (12,4,0,'2003-07-14','2006-09-14 04:01:02','y'), 
 		      (13,0,4,'2002-07-25','0000-00-00 00:00:00','c'), 
@@ -1952,7 +1993,7 @@ INSERT IGNORE INTO t1 VALUES
 (19,0,'2008-12-17 20:15:40','q'),(20,9,'0000-00-00 00:00:00','u');
 
 CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES 
+INSERT IGNORE INTO t2 VALUES 
 (10,0,'2006-07-07 07:26:28','q'),(11,5,'2002-09-23 00:00:00','m'),
 (12,7,'0000-00-00 00:00:00','j'),(13,1,'2006-06-07 00:00:00','z'),
 (14,8,'2000-09-16 12:15:34','a'),(15,2,'2007-08-05 15:47:52',''),
@@ -1967,11 +2008,14 @@ INSERT INTO t2 VALUES
 CREATE TABLE t3 LIKE t1;
 INSERT INTO t3 VALUES
 (10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
- 
+
+# Hypergraph optimizer has different warnings. 
+--disable_warnings
 SELECT DISTINCT datetime_key FROM t1
 WHERE (int_nokey, pk)  
   IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
   AND pk = 9;
+--enable_warnings 
 
 DROP TABLE t1, t2, t3;
 
@@ -2031,7 +2075,7 @@ CREATE TABLE t2 (
   KEY varchar_key (varchar_key,int_key)
 ) charset utf8mb4;
 INSERT INTO t2 VALUES (123,NULL,NULL);
-
+ANALYZE TABLE t0, t1, t2;
 --sorted_result
 SELECT int_key  
 FROM t0  
@@ -2231,6 +2275,7 @@ WHERE t1field IN (SELECT * FROM v2);
 
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -2244,6 +2289,9 @@ WHERE t1field IN (SELECT * FROM v2)
 ";
 
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1, t2, t3;
@@ -2262,7 +2310,7 @@ CREATE TABLE it2(val VARCHAR(10)) charset utf8mb4;
 INSERT INTO ot  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
 INSERT INTO it1 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
 INSERT INTO it2 VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
-
+ANALYZE TABLE ot, it1, it2;
 EXPLAIN
 SELECT *
 FROM ot
@@ -2321,7 +2369,7 @@ CREATE TABLE it2 (
   KEY int_key (int_key),
   KEY datetime_key (datetime_key)
 );
-INSERT INTO it2 VALUES
+INSERT IGNORE INTO it2 VALUES
   (5,'2002-04-10 14:25:30'), (0,'0000-00-00 00:00:00'),
   (0,'2006-09-14 04:01:02'), (4,'0000-00-00 00:00:00'),
   (8,'0000-00-00 00:00:00'), (5,'0000-00-00 00:00:00'),
@@ -2347,6 +2395,7 @@ CREATE TABLE it1 (
 );
 INSERT INTO it1 VALUES
   (9,5), (0,4);
+ANALYZE TABLE ot1, it1, it2;
 --sorted_result
 SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
@@ -2410,6 +2459,7 @@ WHERE t1field IN (SELECT v1field FROM v1);
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP PROCEDURE p1;
@@ -2519,7 +2569,7 @@ create table t3 (
 );
 
 insert into t3 values (1,1, 'foo'), (2,2,'bar');
-
+ANALYZE TABLE t1, t2, t3;
 --echo The following must be converted to a semi-join:
 explain SELECT a.idIndividual FROM t1 a
 WHERE a.idIndividual IN 
@@ -2550,6 +2600,7 @@ insert into t2 values (10,null,'0');
 insert into t1 values (10,3,'0');
 insert into t1 values (10,5,'0');
 insert into t1 values (10,10,'0');
+ANALYZE TABLE t1, t2;
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N') as 'test' from t1;
 SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N' group by one,two) as 'test' from t1;
@@ -2583,6 +2634,7 @@ INSERT INTO t1 VALUES ('a', 'aaa');
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 CREATE INDEX I1 ON t1 (a);
 CREATE INDEX I2 ON t1 (b);
+ANALYZE TABLE t1;
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 
@@ -2590,6 +2642,7 @@ CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10)) charset utf8mb4;
 INSERT INTO t2 SELECT * FROM t1;
 CREATE INDEX I1 ON t2 (a);
 CREATE INDEX I2 ON t2 (b);
+ANALYZE TABLE t2;
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 EXPLAIN
@@ -2725,6 +2778,9 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2751,6 +2807,9 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2776,6 +2835,9 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2920,7 +2982,7 @@ insert into t3 values (1,3), (1,3);
 
 create table t4 (uid int);
 insert into t4 values (3);
-
+ANALYZE TABLE t1, t2, t3, t4;
 explain select t2.uid from t2, t1 
   where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
         and t2.uid=t1.fid;
@@ -2958,7 +3020,7 @@ DROP TABLE t1, t2;
 # Bug #44303 Assertion failures in Field_new_decimal::store_decimal
 #            when executing materialized InsideOut semijoin
 # 
-CREATE TABLE t1 (f1 INT, f2 DECIMAL(5,3)) ENGINE=MyISAM;
+CREATE TABLE t1 (f1 INT, f2 DECIMAL(5,3)) ENGINE=INNODB;
 INSERT INTO t1 (f1, f2) VALUES (1, 1.789);
 INSERT INTO t1 (f1, f2) VALUES (13, 1.454);
 INSERT INTO t1 (f1, f2) VALUES (10, 1.668);
@@ -3062,7 +3124,10 @@ SELECT Name FROM t2
         t2.Code IN (SELECT Country FROM t3 
                            WHERE Language='English' AND Percentage > 10 AND
                                  t2.Population > 100000);
+ANALYZE TABLE t1, t2, t3;
+--replace_column 11 10
 --eval EXPLAIN $query
+--replace_regex /"filtered": "50.00"/"filtered": "10.00"/ /"read_cost": "0.12"/"read_cost": "0.13"/
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1,t2,t3;
@@ -3308,7 +3373,7 @@ insert into t1 (Code, Name, Continent) values
 ('BLR','Belarus','Europe');
 update t2 set population=6000000 where Name in ('Wien', 'Vancouver', 'Praha');
 --enable_query_log
-
+ANALYZE TABLE t1, t2;
 --echo This must not use LooseScan:
 EXPLAIN SELECT Name FROM t1 
   WHERE t1.Code IN (
@@ -3332,7 +3397,7 @@ insert into t1 select a,a from t0;
 
 create table t2 (a int, b int, primary key(a));
 insert into t2 select * from t1;
-
+ANALYZE TABLE t0, t1, t2;
 # Table t2 should be pulled out because t2.a=t0.a equality
 --echo Table t2, unlike table t1, should be displayed as pulled out
 explain select * from t0
@@ -3698,7 +3763,7 @@ CREATE TABLE t1 (i INTEGER);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE TABLE t2 (i INTEGER, j INTEGER, KEY k(i, j));
 INSERT INTO t2 VALUES (1, 0), (1, 1), (2, 0), (2, 1);
-
+ANALYZE TABLE t1, t2;
 EXPLAIN
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
@@ -3731,7 +3796,7 @@ create table t4 (uid int primary key, name varchar(128), index(name));
 insert into t4 values 
   (1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
   (6, "F"), (7, "G"), (8, "H"), (9, "I");
-
+ANALYZE TABLE t1, t2, t3, t4;
 explain select name from t2, t1 
   where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
         and t2.uid=t1.fid;
@@ -3776,7 +3841,7 @@ CREATE TABLE t3 (
 ) charset utf8mb4;
 
 INSERT INTO t3 VALUES('nicke', 'imp');
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT t1.partner_id
 FROM t1
@@ -3812,6 +3877,7 @@ WHERE t1.id IN (
     )
   )';
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 PREPARE stmt FROM
@@ -3826,6 +3892,7 @@ WHERE t1.id IN (
     )
   )';
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1,t2,t3;
@@ -3872,6 +3939,7 @@ WHERE country_id IN (SELECT vf_country_id FROM v1);
 --echo
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -3888,7 +3956,7 @@ create table t3 (a int);
 insert into t1 values(1),(1);
 insert into t2 values(1),(1),(1),(1);
 insert into t3 values(2),(2);
-
+ANALYZE TABLE t1, t2, t3;
 let $query=select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
 eval explain $query;
 eval $query;
@@ -3904,7 +3972,7 @@ CREATE TABLE t3 (a INT);
 INSERT INTO t1 VALUES(1),(1);
 INSERT INTO t2 VALUES(1),(1);
 INSERT INTO t3 VALUES(2),(2);
-
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT * FROM t1
 WHERE t1.a IN (SELECT t2.a
@@ -3984,7 +4052,7 @@ INSERT INTO t2 VALUES
  (11,'m','m'), (12,'j','j'), (13,'z','z'), (14,'a','a'), (15,'',''),
  (16,'e','e'), (17,'t','t'), (19,'b','b'), (20,'w','w'), (21,'m','m'),
  (23,'',''), (24,'w','w'), (26,'e','e'), (27,'e','e'), (28,'p','p');
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT varchar_nokey
 FROM t1
@@ -4008,11 +4076,12 @@ CREATE TABLE t2(i INT);
 INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 CREATE TABLE t3(i INT);
 INSERT INTO t3 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i
                                 FROM t2 JOIN t3
                                 WHERE t2.i + t3.i = 5);
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -4032,7 +4101,7 @@ CREATE TABLE it3(a INTEGER);
 INSERT INTO it3 VALUES(7), (1), (0), (5), (1), (4);
 CREATE TABLE ot4(a INTEGER);
 INSERT INTO ot4 VALUES(1), (3), (5), (7), (9), (7), (3), (1);
-
+ANALYZE TABLE ot1, it2, it3, ot4;
 let $query=
 SELECT * FROM ot1,ot4
 WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
@@ -4059,7 +4128,7 @@ INSERT INTO ot1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
 INSERT INTO ot2 VALUES(0),(2),(4),(6);
 INSERT INTO ot3 VALUES(0),(3),(6);
 INSERT INTO it1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
-
+ANALYZE TABLE ot1, ot2, ot3, it1;
 let $query=
 SELECT *
 FROM   ot1
@@ -4085,12 +4154,12 @@ DROP TABLE ot1, ot2, ot3, it1;
 --echo # Bug#11766739: Crash in tmp_table_param::init() with semijoin=on
 --echo #
 
-CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
-CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t1 (f1 INTEGER) ENGINE=INNODB;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1,1), (2,1);
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
@@ -4182,7 +4251,7 @@ INSERT INTO t1 VALUES (1);
 
 CREATE TABLE t2 (i1 int, i2 int) ENGINE=memory;
 INSERT INTO t2 VALUES (1, 2),(7, 3);
-
+ANALYZE TABLE t1, t2;
 SELECT GRANDPARENT1.i1
 FROM t2 AS GRANDPARENT1 
 WHERE GRANDPARENT1.i2
@@ -4240,7 +4309,7 @@ WHERE col_varchar_10_latin1_key IN (
            ON alias2.col_varchar_10_latin1_key
          ON alias1.col_varchar_1024_utf8_key
     WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
-
+ANALYZE TABLE t1, t2, t3;
 eval EXPLAIN $query;
 eval $query;
 
@@ -4367,7 +4436,7 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES
 ('b');
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT grandparent1.col_varchar_nokey
 FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
@@ -4378,7 +4447,7 @@ WHERE (grandparent1.col_varchar_key) IN
        (SELECT child1.col_varchar_nokey AS c1
         FROM t1 AS child1 LEFT JOIN t2 AS child2
                 ON (child1.col_varchar_key > child2.col_varchar_nokey)));
-
+--replace_column 9 #
 eval EXPLAIN $query;
 --sorted_result
 eval $query;
@@ -4584,7 +4653,7 @@ CREATE TABLE it (
   pk int NOT NULL,
   col_varchar VARCHAR(10) DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO it VALUES (1, 'g');
 
@@ -4761,7 +4830,7 @@ CREATE TABLE t4
 SELECT t2.col_int_nokey, t2.col_varchar_key
 FROM t1 JOIN t2 ON t2.col_varchar_key = t1.col_varchar_key
 WHERE t2.col_int_key = 1;
-
+ANALYZE TABLE t1, t2, t4;
 let $query=
 SELECT *
 FROM t4
@@ -4772,6 +4841,7 @@ WHERE (col_int_nokey, col_varchar_key) IN
 );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t4;
@@ -4856,7 +4926,7 @@ INSERT INTO it1 VALUES(1), (3), (5), (7);
 CREATE TABLE it2(a INTEGER);
 
 INSERT INTO it2 VALUES(1), (3), (5), (7), (9);
-
+ANALYZE TABLE ot1, ot2, it1, it2;
 let $query=
 SELECT ot1.a, ot2.a
 FROM ot1, ot2
@@ -4881,7 +4951,7 @@ CREATE TABLE t1 (
   col_int_key INT NOT NULL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES
 (1,4,0),
@@ -4902,7 +4972,7 @@ CREATE TABLE t2 (
   col_int_key int NOT NULL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES
 (10,8,7);
@@ -4934,7 +5004,7 @@ WHERE g1 NOT IN
         )
       AND grandparent1.col_int_key <> 3
 );
-
+ANALYZE TABLE t1, t2, t3;
 eval explain $query;
 eval explain format=json $query;
 eval $query;
@@ -4969,7 +5039,7 @@ CREATE TABLE t3 LIKE t1;
 INSERT INTO t3 VALUES
  (1,'o'),
  (4,'f');
-
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT alias1.col_varchar_nokey
 FROM t1 AS alias1
@@ -4997,7 +5067,7 @@ CREATE TABLE t1 (
   col_int_key int NOT NULL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key)
-) ENGINE=MyIsam;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES
  (10,1,7), (13,7,3), (18,0,1), (23,8,1);
@@ -5007,7 +5077,7 @@ CREATE TABLE t2 (
   col_int_key int NOT NULL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key)
-) ENGINE=MyIsam;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES (1,7);
 
@@ -5023,7 +5093,7 @@ WHERE t1a.col_int_key IN (
     FROM t1
   )
 );
-
+ANALYZE TABLE t1, t2;
 eval EXPLAIN $query;
 --sorted_result
 eval $query;
@@ -5059,7 +5129,7 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES
  ('c'), (NULL), ('x'), ('q');
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT *
 FROM t2 AS ot
@@ -5069,8 +5139,9 @@ WHERE (a, a) IN
     WHERE it.a = 'x' OR it.c > it.d
    )
 ;
-
+ANALYZE TABLE t1, t2;
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -5109,7 +5180,7 @@ CREATE TABLE t3 (
 );
 
 INSERT INTO t3 VALUES (7);
-
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT grandparent1.col_varchar_nokey
 FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
@@ -5122,7 +5193,7 @@ WHERE grandparent1.col_varchar_key IN (
              ON child1.pk < child2.col_int_nokey
         )
     );
-
+ANALYZE TABLE t1, t2, t3;
 eval explain $query;
 --sorted_result
 eval $query;
@@ -5147,7 +5218,7 @@ INSERT INTO t1 VALUES (4,'v','v');
 INSERT INTO t1 VALUES (62,'v','v');
 INSERT INTO t1 VALUES (7,'c','c');
 INSERT INTO t1 VALUES (1,NULL,NULL);
-
+ANALYZE TABLE t1;
 let $query=
 SELECT
   alias1.col_varchar_nokey AS a1_nokey,
@@ -5275,8 +5346,8 @@ ORDER BY col_varchar_nokey;
 eval explain $query;
 eval $query;
 
-ALTER TABLE t1 ENGINE=MyISAM;
-ALTER TABLE t2 ENGINE=MyISAM;
+ALTER TABLE t1 ENGINE=INNODB;
+ALTER TABLE t2 ENGINE=INNODB;
 
 eval explain $query;
 eval $query;
@@ -5319,6 +5390,7 @@ CREATE TABLE t3 (
 ) charset utf8mb4;
 
 INSERT INTO t3 VALUES ('k','k');
+ANALYZE TABLE t1, t2, t3;
 
 let $query=SELECT gp1.id
 FROM t1 AS gp1 JOIN t3 AS gp2
@@ -5332,7 +5404,7 @@ WHERE (gp1.col_varchar_nokey, gp1.col_varchar_nokey)
                 FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
          )
 ;
-
+ANALYZE TABLE t1, t2, t3;
 eval EXPLAIN $query;
 eval $query;
 
@@ -5349,7 +5421,7 @@ CREATE TABLE t1 (
   vc_nokey varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY vc_key (vc_key, int_key)
-) charset utf8mb4 ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=INNODB;
 
 INSERT INTO t1 VALUES
  (8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
@@ -5363,7 +5435,7 @@ CREATE TABLE t2 (
   vc_key varchar(1) DEFAULT NULL,
   KEY int_key (int_key),
   KEY vc_key (vc_key, int_key)
-) charset utf8mb4 ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=INNODB;
 
 INSERT INTO t2 VALUES (8,'g');
 
@@ -5378,7 +5450,7 @@ WHERE (vc_nokey, vc_key ) IN
     FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
    )
  );
-
+ANALYZE TABLE t1, t2;
 eval explain $query;
 eval $query;
 
@@ -5547,7 +5619,7 @@ HAVING (1, 2) IN (
   FROM t1 as t1_inner JOIN t2
     ON t2.col_varchar_key = t1_inner.col_varchar_key
 );
-
+ANALYZE TABLE t1, t2;
 --source include/turn_off_only_full_group_by.inc
 
 --eval explain $query
@@ -5624,7 +5696,7 @@ DROP TABLE t1, t2, t3;
 
 CREATE TABLE t1(pk INTEGER);
 INSERT INTO t1 VALUES(1), (2);
-
+ANALYZE TABLE t1;
 let $query=
 SELECT *
 FROM t1 AS ot1 LEFT JOIN t1 AS ot2
@@ -5670,6 +5742,7 @@ FROM t2 AS alias1
 ';
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DEALLOCATE prepare stmt;
@@ -5776,7 +5849,7 @@ DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
   col_datetime_key DATETIME DEFAULT NULL,
   KEY col_datetime_key (col_datetime_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES
  ('2001-04-18 00:00:00'), ('2008-12-18 19:39:55'),
@@ -5792,7 +5865,7 @@ CREATE TABLE t2 (
   KEY col_time_key (col_time_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key(col_varchar_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES ('1900-01-01',NULL,'2001-11-04 19:07:55','x','x');
 
@@ -5843,7 +5916,7 @@ INSERT INTO t2 VALUES (2,150,62,'v','v');
 INSERT INTO t2 VALUES (5,5,0,'x','x');
 INSERT INTO t2 VALUES (6,3,7,'i','i');
 INSERT INTO t2 VALUES (7,1,7,'e','e');
-
+ANALYZE TABLE t1, t2;
 CREATE VIEW view_c AS SELECT * FROM t2;
 
 let $query=
@@ -5930,13 +6003,14 @@ let $query=
     WHERE sq2_alias1.pk > alias2.pk
   )
 ;
-
+ANALYZE TABLE t1;
 eval PREPARE prep_stmt_20421 FROM '$query';
 EXECUTE prep_stmt_20421;
 EXECUTE prep_stmt_20421;
 eval EXPLAIN $query;
 
 ALTER TABLE t1 DROP INDEX col_varchar_key;
+ANALYZE TABLE t1;
 # Assertion join->best_read < double(1.79769313486231570815e+308L)
 eval PREPARE prep_stmt_20421 FROM '$query';
 EXECUTE prep_stmt_20421;
@@ -5972,7 +6046,7 @@ CREATE TABLE t3 (
   PRIMARY KEY (pk)
 );
 INSERT INTO t3 VALUES (1, 6, 5, 'r');
-
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT outer_t1.pk, outer_t2.pk
 FROM t3 AS outer_t1
@@ -6026,6 +6100,7 @@ WHERE EXISTS
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6066,7 +6141,7 @@ INSERT INTO t3 VALUES
  (19,9,'w'), (20,2,'m'), (21,4,'q'), (22,0,NULL),
  (23,4,'d'), (24,8,'g'), (25,NULL,'x'), (26,NULL,'f'),
  (27,0,'p'), (28,NULL,'j'), (29,8,'c');
-
+ANALYZE TABLE t1, t2, t3;
 CREATE VIEW view_inline_0 AS
 SELECT t1.*
 FROM t1 INNER JOIN t3
@@ -6332,8 +6407,9 @@ let $query=
 SELECT t2.vc, t2.ik AS t2_ik, t1.ik AS t1_ik
 FROM t2 LEFT JOIN t1 ON t2.vc=t1.vc
 WHERE t2.vc IN (SELECT vc FROM t2 AS t3);
-
+ANALYZE TABLE t1, t2;
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6365,7 +6441,10 @@ FROM t1 AS alias1
 eval explain $query;
 
 eval PREPARE stmt FROM "$query";
+--sorted_result
 EXECUTE stmt;
+--echo
+--sorted_result
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6398,7 +6477,7 @@ INSERT INTO t2 VALUES
 
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT *
 FROM (SELECT * FROM t2) AS derived1
@@ -6436,7 +6515,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES
  (4,0), (6,8), (3,1), (5,8), (3,9), (246,24), (2,6), (9,1), (3,6), (8,2),
  (1,4), (8,8), (8,4), (5,4), (7,7), (5,4), (1,1), (6,9), (2,4), (9,8);
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT grandparent1.*
 FROM t1 AS grandparent1
@@ -6462,7 +6541,7 @@ CREATE TABLE t1 (
   KEY col_int_key (col_int_key),  
   KEY col_datetime_key (col_datetime_key),  
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) charset utf8mb4 engine=MyISAM;
+) charset utf8mb4 engine=INNODB;
  
 INSERT INTO t1 VALUES
  (10,7,'2004-06-06 04:22:12','v','v'), (11,0,'2005-11-13 01:12:31','s','s'),
@@ -6486,7 +6565,7 @@ CREATE TABLE t2 (
   KEY col_int_key (col_int_key),
   KEY col_datetime_key (col_datetime_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-) charset utf8mb4 engine=MyISAM;
+) charset utf8mb4 engine=INNODB;
  
 INSERT INTO t2 VALUES
  (1,0,'2002-02-13 17:30:06','j','j'), (2,8,'2008-09-27 00:34:58','v','v'),
@@ -6499,7 +6578,8 @@ INSERT INTO t2 VALUES
  (15,7,'2008-07-02 00:00:00','g','g'), (16,4,'1900-01-01 00:00:00','p','p'),
  (17,1,'2002-12-08 11:34:58','q','q'), (18,9,'1900-01-01 00:00:00','w','w'),
  (19,4,'1900-01-01 00:00:00','d','d'), (20,8,'2002-08-25 20:35:06','e','e');
- 
+
+--sorted_result
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
      RIGHT JOIN t2 AS alias2
@@ -6514,7 +6594,7 @@ WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
  
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t2 DISABLE KEYS;
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
@@ -6527,8 +6607,9 @@ WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
        (SELECT sq2_alias2.col_varchar_key, sq2_alias1.col_varchar_nokey
         FROM t1 AS sq2_alias1, t1 AS sq2_alias2
         WHERE sq2_alias2.col_int_key < 2);
-
+--replace_regex /"eval_cost": "0.13"/"eval_cost": "0.12"/
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6987,6 +7068,7 @@ eval explain $query;
 # In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), shows a case
 # where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
 # have a table that is both firstmatch (semijoin) _and_ outer join.
+--skip_if_hypergraph  # Depends on query plan.
 eval explain format=tree $query;
 
 eval $query;
@@ -7018,13 +7100,13 @@ INSERT INTO t1 VALUES
 CREATE TABLE tv
 SELECT var_255_utf8 AS field1
 FROM t1;
-
+ANALYZE TABLE t1, tv;
 let query=
 SELECT * FROM tv
 WHERE field1 IN (
   SELECT tv1.var_255_utf8
   FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
-
+--replace_column 10 6
 eval EXPLAIN $query;
 eval $query;
 
@@ -7090,10 +7172,12 @@ AND t2.uid=t1.fid;
 
 FLUSH STATUS;
 
+--sorted_result
 SELECT name FROM t2, t1
 WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
 AND t2.uid=t1.fid;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%handler_read%';
 
 DROP TABLE t1,t2,t3,t4;
@@ -7110,12 +7194,12 @@ pk INTEGER,
 col_varchar varchar(1),
 col_int INTEGER,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 CREATE TABLE t2 (
 col_int INTEGER,
 col_varchar varchar(1)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES (7,'x');
 INSERT INTO t2 VALUES (4,'z');
@@ -7248,6 +7332,8 @@ INSERT INTO t1 VALUES ('08:35:24', 'X'), ('14:51:13', 'S'), ('11:22:33', 'Q');
 CREATE TABLE t2 ( pk INTEGER );
 INSERT INTO t2 VALUES (1), (2);
 ANALYZE TABLE t1, t2;
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
+--sorted_result
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 DROP TABLE t1, t2;

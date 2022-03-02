@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ void Password_option::password_callback(char *argument) {
     argument = const_cast<char *>("");
   }
 
-  if (argument != NULL) {
+  if (argument != nullptr) {
     /*
      Destroy argument value, this modifies part of argv passed to main
      routine. This makes command line on linux changed, so no user can see
@@ -66,7 +66,7 @@ void Password_option::password_callback(char *argument) {
      */
     if (*argument) argument[1] = 0;
   } else {
-    char *password = ::get_tty_password(NULL);
+    char *password = ::get_tty_password(nullptr);
     *this->m_destination_value = Nullable<string>(password);
     my_free(password);
   }

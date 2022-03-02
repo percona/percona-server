@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <functional>
@@ -29,7 +28,6 @@
 #include <random>
 #include <sstream>
 #include <vector>
-#include "my_config.h"
 
 #include "priority_queue.h"
 
@@ -79,7 +77,7 @@ struct handle_less {
 // dummy stream that "eats" all input
 struct null_stream : public std::ostream {
   // Visual Studio needs a default constructor.
-  null_stream() : std::ostream(NULL) {}
+  null_stream() : std::ostream(nullptr) {}
 };
 
 template <typename T>
@@ -531,7 +529,7 @@ inline void test_heap_of_handles(RandomAccessIterator first,
 
 class PriorityQueueTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     int xkeys[10] = {10, 4, 7, 8, 21, -5, 6, 10, 7, 9};
     memcpy(keys, xkeys, sizeof(xkeys));
     pq = Priority_queue<int>(xkeys, xkeys + 10);
@@ -852,4 +850,24 @@ TEST_F(PriorityQueueTest, RandomIntegerGenerator) {
   test_min_k_elements(many_keys.begin(), many_keys.end(), 20);
 }
 
+/**
+  Bug#30301356 - SOME EVENTS ARE DELAYED AFTER DROPPING EVENT
+
+  Test that ensures heap property is not violated if we remove an
+  element from an interior node. In the below test, we remove the
+  element 90 at index 6 in the array. After 90 is removed, the
+  parent node's of the deleted node violates the heap property.
+  In order to restore the heap property, we need to move up the
+  heap until we reach a node which satisfies the heap property or
+  the root. Without the fix, we adjust the heap downwards.
+*/
+
+TEST_F(PriorityQueueTest, TestElementRemove) {
+  Priority_queue<int, std::vector<int>, My_greater> pq;
+
+  int keys[11] = {60, 65, 84, 75, 80, 85, 90, 95, 100, 105, 82};
+  pq = Priority_queue<int, std::vector<int>, My_greater>(keys, keys + 11);
+  pq.remove(6);
+  EXPECT_TRUE(pq.is_valid());
+}
 }  // namespace priority_queue_unittest

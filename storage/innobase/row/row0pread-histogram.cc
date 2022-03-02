@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,80 +37,81 @@ Created 2019-04-20 by Darshan M N */
 std::uniform_real_distribution<double> Histogram_sampler::m_distribution(0,
                                                                          100);
 
-bool Histogram_sampler::m_sampling_done{false};
-
 Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
                                      double sampling_percentage,
                                      enum_sampling_method sampling_method)
-    : m_parallel_reader(Parallel_reader::available_threads(max_threads), false),
+    : m_parallel_reader(max_threads, max_threads, false),
       m_random_generator(sampling_seed),
       m_sampling_method(sampling_method),
       m_sampling_percentage(sampling_percentage),
       m_sampling_seed(sampling_seed) {
   ut_ad(max_threads == 1);
 
-  m_blob_heaps.resize(max_threads);
-
-  for (auto &blob_heap : m_blob_heaps) {
-    /* Keep the size small because it's currently not used. */
-    blob_heap = mem_heap_create(UNIV_PAGE_SIZE / 64);
-  }
-
-  m_start_buffer_event = os_event_create("Histogram sampler buffering start");
-  m_end_buffer_event = os_event_create("Histogram sampler buffering end");
+  m_start_buffer_event = os_event_create();
+  m_end_buffer_event = os_event_create();
 
   os_event_reset(m_start_buffer_event);
   os_event_reset(m_end_buffer_event);
 
   m_n_sampled = 0;
 
-  m_parallel_reader.set_finish_callback([&](size_t thread_id) {
-    DBUG_PRINT("histogram_sampler_buffering_print", ("-> Buffering complete."));
+  m_parallel_reader.set_start_callback(
+      [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
+        return start_callback(reader_thread_ctx);
+      });
 
-    DBUG_LOG("histogram_sampler_buffering_print",
-             "Total number of rows sampled : "
-                 << m_n_sampled.load(std::memory_order_relaxed));
-
-    /* No more rows to buffer. So the next time we're asked to buffer set the
-    error status signalling the end of buffering. */
-
-    Histogram_sampler::m_sampling_done = true;
-
-    if (m_err != DB_SUCCESS) {
-      signal_end_of_buffering();
-
-      return (m_err);
-    }
-
-    wait_for_start_of_buffering();
-
-    auto err = m_parallel_reader.get_error_state();
-
-    if (err == DB_SUCCESS) {
-      m_err = DB_END_OF_INDEX;
-    } else {
-      m_err = err;
-    }
-
-    signal_end_of_buffering();
-
-    return (DB_SUCCESS);
-  });
+  m_parallel_reader.set_finish_callback(
+      [&](Parallel_reader::Thread_ctx *reader_thread_ctx) {
+        return finish_callback(reader_thread_ctx);
+      });
 }
 
 Histogram_sampler::~Histogram_sampler() {
-  /** Check if sampling is complete or we need to abort sampling. */
-  if (!Histogram_sampler::m_sampling_done) {
-    buffer_end();
-  }
-
-  for (auto &blob_heap : m_blob_heaps) {
-    mem_heap_free(blob_heap);
-  }
+  buffer_end();
 
   os_event_destroy(m_start_buffer_event);
   os_event_destroy(m_end_buffer_event);
-  Histogram_sampler::m_sampling_done = false;
+}
+
+dberr_t Histogram_sampler::start_callback(
+    Parallel_reader::Thread_ctx *reader_thread_ctx) {
+  /** There are data members in row_prebuilt_t that cannot be accessed in
+  multi-threaded mode e.g., blob_heap.
+
+  row_prebuilt_t is designed for single threaded access and to share
+  it among threads is not recommended unless "you know what you are doing".
+  This is very fragile code as it stands.
+
+  To solve the blob heap issue in prebuilt we request parallel reader thread to
+  use blob heap per thread and we pass this blob heap to the InnoDB to MySQL
+  row format conversion function. */
+  reader_thread_ctx->create_blob_heap();
+
+  return DB_SUCCESS;
+}
+
+dberr_t Histogram_sampler::finish_callback(
+    Parallel_reader::Thread_ctx *reader_thread_ctx) {
+  DBUG_PRINT("histogram_sampler_buffering_print", ("-> Buffering complete."));
+
+  DBUG_LOG("histogram_sampler_buffering_print",
+           "Total number of rows sampled : "
+               << m_n_sampled.load(std::memory_order_relaxed));
+
+  if (is_error_set()) {
+    signal_end_of_buffering();
+    return (m_err);
+  }
+
+  wait_for_start_of_buffering();
+
+  auto err = m_parallel_reader.get_error_state();
+
+  set_error_state(err == DB_SUCCESS ? DB_END_OF_INDEX : err);
+
+  signal_end_of_buffering();
+
+  return (DB_SUCCESS);
 }
 
 bool Histogram_sampler::init(trx_t *trx, dict_index_t *index,
@@ -196,7 +197,6 @@ bool Histogram_sampler::skip() {
 dberr_t Histogram_sampler::buffer_next() {
   /* Return if the tree is empty. */
   if (m_parallel_reader.is_tree_empty()) {
-    Histogram_sampler::m_sampling_done = true;
     return (DB_END_OF_INDEX);
   }
 
@@ -204,7 +204,7 @@ dberr_t Histogram_sampler::buffer_next() {
 
   wait_for_end_of_buffering();
 
-  if (m_err != DB_SUCCESS) {
+  if (is_error_set()) {
     /* End of records to be buffered. */
     m_parallel_reader.join();
   }
@@ -213,36 +213,36 @@ dberr_t Histogram_sampler::buffer_next() {
 }
 
 void Histogram_sampler::buffer_end() {
-  m_err = DB_END_SAMPLE_READ;
+  set_error_state(DB_END_SAMPLE_READ);
 
   signal_start_of_buffering();
 
-  wait_for_end_of_buffering();
-
-  /* Wait for the parallel reader to clean up its threads. */
   m_parallel_reader.join();
 
   return;
 }
 
-dberr_t Histogram_sampler::run() { return (m_parallel_reader.run()); }
+dberr_t Histogram_sampler::run() { return m_parallel_reader.run(); }
 
-dberr_t Histogram_sampler::sample_rec(ulint thread_id, const rec_t *rec,
-                                      ulint *offsets, const dict_index_t *index,
+dberr_t Histogram_sampler::sample_rec(const Parallel_reader::Ctx *reader_ctx,
+                                      const rec_t *rec, ulint *offsets,
+                                      const dict_index_t *index,
                                       row_prebuilt_t *prebuilt) {
   dberr_t err{DB_SUCCESS};
+
+  auto reader_thread_ctx = reader_ctx->thread_ctx();
 
   wait_for_start_of_buffering();
 
   /* Return as the sampler has been requested to end sampling. */
   if (m_err == DB_END_SAMPLE_READ) {
     signal_end_of_buffering();
-    return (DB_END_SAMPLE_READ);
+    return (m_err);
   }
 
-  if (row_sel_store_mysql_rec(m_buf, prebuilt, rec, nullptr, true, index,
+  if (row_sel_store_mysql_rec(m_buf, prebuilt, rec, nullptr, true, index, index,
                               offsets, false, nullptr,
-                              m_blob_heaps[thread_id])) {
+                              reader_thread_ctx->m_blob_heap)) {
     m_n_sampled.fetch_add(1, std::memory_order_relaxed);
   } else {
     err = DB_ERROR;
@@ -256,12 +256,11 @@ dberr_t Histogram_sampler::sample_rec(ulint thread_id, const rec_t *rec,
   return (err);
 }
 
-dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
-                                                row_prebuilt_t *prebuilt) {
-  DBUG_EXECUTE_IF("parallel_reader_histogram_induce_error", m_err = DB_ERROR;
+dberr_t Histogram_sampler::process_non_leaf_rec(
+    const Parallel_reader::Ctx *ctx_const, row_prebuilt_t *prebuilt) {
+  DBUG_EXECUTE_IF("parallel_reader_histogram_induce_error",
+                  set_error_state(DB_ERROR);
                   return DB_ERROR;);
-
-  ut_ad(!page_is_leaf(ctx->m_block->frame));
 
   if (skip()) {
     srv_stats.n_sampled_pages_skipped.inc();
@@ -269,6 +268,11 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
     DBUG_PRINT("histogram_sampler_buffering_print", ("Skipping block."));
     return (DB_SUCCESS);
   }
+
+  Parallel_reader::Ctx *ctx = const_cast<Parallel_reader::Ctx *>(ctx_const);
+  const dict_index_t *index = ctx->index();
+
+  ut_ad(!page_is_leaf(ctx->m_block->frame));
 
   /* Get the child page pointed to by the record. */
 
@@ -278,10 +282,9 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
   mtr.start();
   mtr.set_log_mode(MTR_LOG_NO_REDO);
 
-  const dict_index_t *index = ctx->index();
-
-  buf_block_t *leaf_block = btr_node_ptr_get_child(
-      ctx->m_rec, const_cast<dict_index_t *>(index), ctx->m_offsets, &mtr);
+  buf_block_t *leaf_block =
+      btr_node_ptr_get_child(ctx->m_rec, const_cast<dict_index_t *>(index),
+                             ctx->m_offsets, &mtr, RW_S_LATCH);
 
   ut_ad(page_is_leaf(leaf_block->frame));
 
@@ -291,33 +294,39 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
   page_cur_set_before_first(leaf_block, &cur);
   page_cur_move_to_next(&cur);
 
-  ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets = offsets_;
-  rec_offs_init(offsets_);
-
-  mem_heap_t *heap{};
+  auto heap = mem_heap_create(srv_page_size / 4);
+  dberr_t err{DB_SUCCESS};
 
   for (;;) {
     if (page_cur_is_after_last(&cur)) {
       break;
     }
 
-    offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED, &heap);
+    ulint offsets_[REC_OFFS_NORMAL_SIZE];
+    ulint *offsets = offsets_;
+    rec_offs_init(offsets_);
 
-    m_err = sample_rec(ctx->m_thread_id, cur.rec, offsets, index, prebuilt);
+    const rec_t *rec = page_cur_get_rec(&cur);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    if (m_err != DB_SUCCESS) {
-      break;
+    if (ctx->is_rec_visible(rec, offsets, heap, &mtr)) {
+      err = sample_rec(ctx, rec, offsets, index, prebuilt);
+
+      if (err != DB_SUCCESS) {
+        set_error_state(err);
+      }
+
+      if (is_error_set()) {
+        break;
+      }
     }
 
     page_cur_move_to_next(&cur);
-
-    if (heap != nullptr) {
-      mem_heap_free(heap);
-    }
   }
 
   mtr.commit();
+
+  mem_heap_free(heap);
 
   return (m_err);
 }
@@ -330,6 +339,5 @@ dberr_t Histogram_sampler::process_leaf_rec(const Parallel_reader::Ctx *ctx,
     srv_stats.n_sampled_pages_read.inc();
   }
 
-  return (sample_rec(ctx->m_thread_id, ctx->m_rec, ctx->m_offsets, ctx->index(),
-                     prebuilt));
+  return sample_rec(ctx, ctx->m_rec, ctx->m_offsets, ctx->index(), prebuilt);
 }

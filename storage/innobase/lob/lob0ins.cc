@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,7 +51,7 @@ buf_block_t *BaseInserter::alloc_blob_page() {
                                 alloc_mtr, 1)) {
     alloc_mtr->commit();
     m_err = DB_OUT_OF_FILE_SPACE;
-    return (NULL);
+    return (nullptr);
   }
 
   m_cur_blob_block = btr_page_alloc(m_ctx->index(), hint_page_no, FSP_NO_DIR, 0,

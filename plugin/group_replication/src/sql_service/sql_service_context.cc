@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ ulong Sql_service_context::get_client_capabilities() {
 
 int Sql_service_context::get_null() {
   DBUG_TRACE;
-  if (resultset) resultset->new_field(NULL);
+  if (resultset) resultset->new_field(nullptr);
   return 0;
 }
 

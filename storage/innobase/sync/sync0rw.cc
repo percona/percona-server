@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -106,31 +106,30 @@ sx-lock holder.
 
 The other members of the lock obey the following rules to remain consistent:
 
-recursive:	This and the writer_thread field together control the
-                behaviour of recursive x-locking or sx-locking.
-                lock->recursive must be FALSE in following states:
-                        1) The writer_thread contains garbage i.e.: the
-                        lock has just been initialized.
-                        2) The lock is not x-held and there is no
-                        x-waiter waiting on WAIT_EX event.
-                        3) The lock is x-held or there is an x-waiter
-                        waiting on WAIT_EX event but the 'pass' value
-                        is non-zero.
-                lock->recursive is TRUE iff:
-                        1) The lock is x-held or there is an x-waiter
-                        waiting on WAIT_EX event and the 'pass' value
-                        is zero.
-                This flag must be set after the writer_thread field
-                has been updated with a memory ordering barrier.
-                It is unset before the lock_word has been incremented.
-writer_thread:	Is used only in recursive x-locking. Can only be safely
-                read iff lock->recursive flag is TRUE.
-                This field is uninitialized at lock creation time and
-                is updated atomically when x-lock is acquired or when
-                move_ownership is called. A thread is only allowed to
-                set the value of this field to it's thread_id i.e.: a
-                thread cannot set writer_thread to some other thread's
-                id.
+recursive:	This flag is true iff the lock->writer_thread is allowed to take
+                the x or sx lock recursively.
+
+                In particular you should follow these rules:
+                - make sure to change recursive to `false` before
+                  releasing the lock
+                - make sure to change recursive to `false` (but do not reset the
+                  `writer_thread` as it will remove debug info) before passing
+                  the lock to other thread
+                - make sure to put your thread's native handle before setting
+                  recursive to `true`
+                - make sure that when you want to read both `recursive` and
+                  `writer_thread` you do this in this precise order
+writer_thread:	Is used only in recursive x-locking.
+                This field is initialized to an impossible thread native handle
+                value at lock creation time and is updated atomically when sx or
+                x-lock is being acquired or when move_ownership is called.
+                A thread is only allowed to set the value of this field to its
+                thread_id i.e.: a thread cannot set writer_thread to some other
+                thread's id.
+                The only reasonable way (except reporting in debug info) to use
+                this field is to compare it to own thread's native handle
+                AFTER checking that lock->recursive flag is set, to see if we
+                are the current writer.
 waiters:	May be set to 1 anytime, but to avoid unnecessary wake-up
                 signals, it should only be set to 1 when there are threads
                 waiting on event. Must be 1 when a writer starts waiting to
@@ -167,10 +166,8 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
                    Verify lock_word == 0 (waiting thread holds x_lock)
 */
 
-rw_lock_stats_t rw_lock_stats;
-
-/* The global list of rw-locks */
-rw_lock_list_t rw_lock_list;
+/** The global list of rw-locks */
+rw_lock_list_t rw_lock_list{};
 ib_mutex_t rw_lock_list_mutex;
 
 #ifdef UNIV_DEBUG
@@ -202,41 +199,28 @@ void rw_lock_create_func(
     const char *cfile_name,  /*!< in: file name where created */
     ulint cline)             /*!< in: file line where created */
 {
-#if defined(UNIV_DEBUG)
 #if !defined(UNIV_PFS_RWLOCK)
   /* It should have been created in pfs_rw_lock_create_func() */
   new (lock) rw_lock_t();
-#endif /* UNIV_DEBUG */
-  ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
-#endif /* UNIV_DEBUG */
+#endif /* !UNIV_PFS_RWLOCK */
+  ut_ad(lock->magic_n == rw_lock_t::MAGIC_N);
 
   /* If this is the very first time a synchronization object is
   created, then the following call initializes the sync system. */
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-  mutex_create(LATCH_ID_RW_LOCK_MUTEX, rw_lock_get_mutex(lock));
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
 #ifdef UNIV_DEBUG
   UT_NOT_USED(cmutex_name);
 #endif
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
   lock->lock_word = X_LOCK_DECR;
-  lock->waiters = 0;
+  lock->waiters = false;
 
-  /* We set this value to signify that lock->writer_thread
-  contains garbage at initialization and cannot be used for
-  recursive x-locking. */
-  lock->recursive = FALSE;
+  lock->recursive.store(false, std::memory_order_relaxed);
   lock->sx_recursive = 0;
-  /* Silence Valgrind when UNIV_DEBUG_VALGRIND is not enabled. */
-  memset((void *)&lock->writer_thread, 0, sizeof lock->writer_thread);
-  UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
+  lock->writer_thread = std::thread::id{};
 
 #ifdef UNIV_DEBUG
   lock->m_rw_lock = true;
-
-  UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
   lock->m_id = sync_latch_get_id(sync_latch_get_name(level));
   ut_a(lock->m_id != LATCH_ID_NONE);
@@ -248,24 +232,24 @@ void rw_lock_create_func(
 
   /* This should hold in practice. If it doesn't then we need to
   split the source file anyway. Or create the locks on lines
-  less than 8192. cline is unsigned:13. */
-  ut_ad(cline <= 8192);
-  lock->cline = (unsigned int)cline;
+  less than 65536. cline is uint16_t. */
+  ut_ad(cline <= std::numeric_limits<decltype(lock->cline)>::max());
+  lock->cline = cline;
 
   lock->count_os_wait = 0;
   lock->last_s_file_name = "not yet reserved";
   lock->last_x_file_name = "not yet reserved";
   lock->last_s_line = 0;
   lock->last_x_line = 0;
-  lock->event = os_event_create(0);
-  lock->wait_ex_event = os_event_create(0);
+  lock->event = os_event_create();
+  lock->wait_ex_event = os_event_create();
 
-  lock->is_block_lock = 0;
+  lock->is_block_lock = false;
 
   mutex_enter(&rw_lock_list_mutex);
 
-  ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == NULL ||
-        UT_LIST_GET_FIRST(rw_lock_list)->magic_n == RW_LOCK_MAGIC_N);
+  ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == nullptr ||
+        UT_LIST_GET_FIRST(rw_lock_list)->magic_n == rw_lock_t::MAGIC_N);
 
   UT_LIST_ADD_FIRST(rw_lock_list, lock);
 
@@ -283,10 +267,6 @@ void rw_lock_free_func(rw_lock_t *lock) /*!< in/out: rw-lock */
 
   mutex_enter(&rw_lock_list_mutex);
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-  mutex_free(rw_lock_get_mutex(lock));
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-
   os_event_destroy(lock->event);
 
   os_event_destroy(lock->wait_ex_event);
@@ -296,7 +276,7 @@ void rw_lock_free_func(rw_lock_t *lock) /*!< in/out: rw-lock */
   mutex_exit(&rw_lock_list_mutex);
 
   /* We did an in-place new in rw_lock_create_func() */
-  ut_d(lock->~rw_lock_t());
+  lock->~rw_lock_t();
 }
 
 /** Lock an rw-lock in shared mode for the current thread. If the rw-lock is
@@ -312,14 +292,12 @@ void rw_lock_s_lock_spin(
 {
   ulint i = 0; /* spin round count */
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
 
   /* We reuse the thread id to index into the counter, cache
   it here for efficiency. */
 
   ut_ad(rw_lock_validate(lock));
-  rw_lock_stats.rw_s_spin_wait_count.inc();
 
 lock_loop:
 
@@ -334,19 +312,14 @@ lock_loop:
   }
 
   if (i >= srv_n_spin_wait_rounds) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
-
-  ++spin_count;
 
   /* We try once again to obtain the lock */
   if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
     return; /* Success */
   } else {
@@ -370,11 +343,7 @@ lock_loop:
 
       if (count_os_wait > 0) {
         lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-
-        rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
       }
-
-      rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
       return; /* Success */
     }
@@ -413,8 +382,7 @@ void rw_lock_x_lock_move_ownership(
 
 /** Function for the next writer to call. Waits for readers to exit.
  The caller must have already decremented lock_word by X_LOCK_DECR. */
-UNIV_INLINE
-void rw_lock_x_lock_wait_func(
+static inline void rw_lock_x_lock_wait_func(
     rw_lock_t *lock, /*!< in: pointer to rw-lock */
 #ifdef UNIV_DEBUG
     ulint pass, /*!< in: pass value; != 0, if the lock will
@@ -425,7 +393,6 @@ void rw_lock_x_lock_wait_func(
     ulint line)            /*!< in: line where requested */
 {
   ulint i = 0;
-  ulint n_spins = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
 
@@ -444,8 +411,6 @@ void rw_lock_x_lock_wait_func(
     }
 
     /* If there is still a reader, then go to sleep.*/
-    ++n_spins;
-
     sync_cell_t *cell;
 
     sync_arr = sync_array_get_and_reserve_cell(lock, RW_LOCK_X_WAIT, file_name,
@@ -475,11 +440,8 @@ void rw_lock_x_lock_wait_func(
     }
   }
 
-  rw_lock_stats.rw_x_spin_round_count.add(n_spins);
-
   if (count_os_wait > 0) {
     lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-    rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
   }
 }
 
@@ -492,8 +454,7 @@ void rw_lock_x_lock_wait_func(
 
 /** Low-level function for acquiring an exclusive lock.
  @return false if did not succeed, true if success. */
-UNIV_INLINE
-ibool rw_lock_x_lock_low(
+static inline bool rw_lock_x_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -501,11 +462,11 @@ ibool rw_lock_x_lock_low(
     ulint line)            /*!< in: line where requested */
 {
   if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, X_LOCK_HALF_DECR)) {
-    /* lock->recursive also tells us if the writer_thread
-    field is stale or active. As we are going to write
-    our own thread id in that field it must be that the
-    current writer_thread value is not active. */
-    ut_a(!lock->recursive);
+    /* lock->recursive == true implies that the lock->writer_thread is the
+    current writer. As we are going to write our own thread id in that field it
+    must be the case that the current writer_thread value is not the current
+    writer anymore, thus recursive flag must be false.  */
+    ut_a(!lock->recursive.load(std::memory_order_relaxed));
 
     /* Decrement occurred: we are writer or next-writer. */
     rw_lock_set_writer_id_and_recursion_flag(lock, !pass);
@@ -513,61 +474,52 @@ ibool rw_lock_x_lock_low(
     rw_lock_x_lock_wait(lock, pass, 0, file_name, line);
 
   } else {
-    os_thread_id_t thread_id = os_thread_get_curr_id();
-
-    bool locked = false;
-
-    if (!pass) {
-      bool recursive = lock->recursive;
-      os_rmb;
-      os_thread_id_t writer_thread = lock->writer_thread;
-
+    if (!pass && lock->recursive.load(std::memory_order_acquire) &&
+        lock->writer_thread.load(std::memory_order_relaxed) ==
+            std::this_thread::get_id()) {
       /* Decrement failed: An X or SX lock is held by either
       this thread or another. Try to relock. */
-      if (recursive && os_thread_eq(writer_thread, thread_id)) {
-        /* Other s-locks can be allowed. If it is request x
-        recursively while holding sx lock, this x lock should
-        be along with the latching-order. */
+      /* Other s-locks can be allowed. If it is request x
+      recursively while holding sx lock, this x lock should
+      be along with the latching-order. */
 
-        /* The existing X or SX lock is from this thread */
-        if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, 0)) {
-          /* There is at least one SX-lock from this
-          thread, but no X-lock. */
+      /* The existing X or SX lock is from this thread */
+      if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, 0)) {
+        /* There is at least one SX-lock from this
+        thread, but no X-lock. */
 
-          /* Wait for any the other S-locks to be
-          released. */
-          rw_lock_x_lock_wait(lock, pass, -X_LOCK_HALF_DECR, file_name, line);
+        /* Wait for any the other S-locks to be
+        released. */
+        rw_lock_x_lock_wait(lock, pass, -X_LOCK_HALF_DECR, file_name, line);
 
+      } else {
+        /* At least one X lock by this thread already
+        exists. Add another. */
+        if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+          lock->lock_word -= X_LOCK_DECR;
         } else {
-          /* At least one X lock by this thread already
-          exists. Add another. */
-          if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
-            lock->lock_word -= X_LOCK_DECR;
-          } else {
-            ut_ad(lock->lock_word <= -X_LOCK_DECR);
-            --lock->lock_word;
-          }
+          ut_ad(lock->lock_word <= -X_LOCK_DECR);
+          --lock->lock_word;
         }
-        locked = true;
       }
-    }
-    if (!locked) {
+    } else {
       /* Another thread locked before us */
-      return (FALSE);
+      return false;
     }
   }
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_X, file_name, line));
 
   lock->last_x_file_name = file_name;
-  lock->last_x_line = (unsigned int)line;
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
+  lock->last_x_line = line;
 
-  return (TRUE);
+  return true;
 }
 
 /** Low-level function for acquiring an sx lock.
  @return false if did not succeed, true if success. */
-ibool rw_lock_sx_lock_low(
+bool rw_lock_sx_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -575,11 +527,11 @@ ibool rw_lock_sx_lock_low(
     ulint line)            /*!< in: line where requested */
 {
   if (rw_lock_lock_word_decr(lock, X_LOCK_HALF_DECR, X_LOCK_HALF_DECR)) {
-    /* lock->recursive also tells us if the writer_thread
-    field is stale or active. As we are going to write
-    our own thread id in that field it must be that the
-    current writer_thread value is not active. */
-    ut_a(!lock->recursive);
+    /* lock->recursive == true implies that the lock->writer_thread is the
+    current writer. As we are going to write our own thread id in that field it
+    must be the case that the current writer_thread value is not the current
+    writer anymore, thus recursive flag must be false.  */
+    ut_a(!lock->recursive.load(std::memory_order_relaxed));
 
     /* Decrement occurred: we are the SX lock owner. */
     rw_lock_set_writer_id_and_recursion_flag(lock, !pass);
@@ -587,60 +539,52 @@ ibool rw_lock_sx_lock_low(
     lock->sx_recursive = 1;
 
   } else {
-    os_thread_id_t thread_id = os_thread_get_curr_id();
+    /* Decrement failed: It already has an X or SX lock by this
+    thread or another thread. If it is this thread, relock,
+    else fail. */
+    if (!pass && lock->recursive.load(std::memory_order_acquire) &&
+        lock->writer_thread.load(std::memory_order_relaxed) ==
+            std::this_thread::get_id()) {
+      /* This thread owns an X or SX lock */
+      if (lock->sx_recursive++ == 0) {
+        /* This thread is making first SX-lock request
+        and it must be holding at least one X-lock here
+        because:
 
-    bool locked = false;
+        * There can't be a WAIT_EX thread because we are
+          the thread which has it's thread_id written in
+          the writer_thread field and we are not waiting.
 
-    if (!pass) {
-      bool recursive = lock->recursive;
-      os_rmb;
-      os_thread_id_t writer_thread = lock->writer_thread;
+        * Any other X-lock thread cannot exist because
+          it must update recursive flag only after
+          updating the thread_id. Had there been
+          a concurrent X-locking thread which succeeded
+          in decrementing the lock_word it must have
+          written it's thread_id before setting the
+          recursive flag. As we cleared the if()
+          condition above therefore we must be the only
+          thread working on this lock and it is safe to
+          read and write to the lock_word. */
 
-      /* Decrement failed: It already has an X or SX lock by this
-      thread or another thread. If it is this thread, relock,
-      else fail. */
-      if (recursive && os_thread_eq(writer_thread, thread_id)) {
-        /* This thread owns an X or SX lock */
-        if (lock->sx_recursive++ == 0) {
-          /* This thread is making first SX-lock request
-          and it must be holding at least one X-lock here
-          because:
-
-          * There can't be a WAIT_EX thread because we are
-            the thread which has it's thread_id written in
-            the writer_thread field and we are not waiting.
-
-          * Any other X-lock thread cannot exist because
-            it must update recursive flag only after
-            updating the thread_id. Had there been
-            a concurrent X-locking thread which succeeded
-            in decrementing the lock_word it must have
-            written it's thread_id before setting the
-            recursive flag. As we cleared the if()
-            condition above therefore we must be the only
-            thread working on this lock and it is safe to
-            read and write to the lock_word. */
-
-          ut_ad((lock->lock_word == 0) ||
-                ((lock->lock_word <= -X_LOCK_DECR) &&
-                 (lock->lock_word > -(X_LOCK_DECR + X_LOCK_HALF_DECR))));
-          lock->lock_word -= X_LOCK_HALF_DECR;
-        }
-        locked = true;
+        ut_ad((lock->lock_word == 0) ||
+              ((lock->lock_word <= -X_LOCK_DECR) &&
+               (lock->lock_word > -(X_LOCK_DECR + X_LOCK_HALF_DECR))));
+        lock->lock_word -= X_LOCK_HALF_DECR;
       }
-    }
-    if (!locked) {
+    } else {
       /* Another thread locked before us */
-      return (FALSE);
+      return false;
     }
   }
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_SX, file_name, line));
 
   lock->last_x_file_name = file_name;
-  lock->last_x_line = (unsigned int)line;
 
-  return (TRUE);
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
+  lock->last_x_line = line;
+
+  return true;
 }
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
@@ -660,7 +604,6 @@ void rw_lock_x_lock_func(
 {
   ulint i = 0;
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
   bool spinning = false;
 
@@ -672,10 +615,7 @@ lock_loop:
   if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
     /* Locking succeeded */
     return;
@@ -683,7 +623,6 @@ lock_loop:
   } else {
     if (!spinning) {
       spinning = true;
-      rw_lock_stats.rw_x_spin_wait_count.inc();
     }
 
     /* Spin waiting for the lock_word to become free */
@@ -696,10 +635,8 @@ lock_loop:
       i++;
     }
 
-    spin_count += i;
-
     if (i >= srv_n_spin_wait_rounds) {
-      os_thread_yield();
+      std::this_thread::yield();
 
     } else {
       goto lock_loop;
@@ -720,10 +657,7 @@ lock_loop:
 
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
     /* Locking succeeded */
     return;
@@ -756,7 +690,6 @@ void rw_lock_sx_lock_func(
 {
   ulint i = 0;
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
   ulint spin_wait_count = 0;
 
@@ -768,11 +701,7 @@ lock_loop:
   if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
-    rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
     /* Locking succeeded */
     return;
@@ -790,10 +719,8 @@ lock_loop:
       i++;
     }
 
-    spin_count += i;
-
     if (i >= srv_n_spin_wait_rounds) {
-      os_thread_yield();
+      std::this_thread::yield();
 
     } else {
       goto lock_loop;
@@ -814,11 +741,7 @@ lock_loop:
 
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
-    rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
     /* Locking succeeded */
     return;
@@ -840,16 +763,12 @@ lock_loop:
  @return true */
 bool rw_lock_validate(const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  ulint waiters;
-  lint lock_word;
+  int32_t lock_word;
 
   ut_ad(lock);
-
-  waiters = rw_lock_get_waiters(lock);
   lock_word = lock->lock_word;
 
-  ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
-  ut_ad(waiters == 0 || waiters == 1);
+  ut_ad(lock->magic_n == rw_lock_t::MAGIC_N);
   ut_ad(lock_word > -(2 * X_LOCK_DECR));
   ut_ad(lock_word <= X_LOCK_DECR);
 
@@ -887,7 +806,7 @@ void rw_lock_add_debug_info(
     const char *file_name, /*!< in: file where requested */
     ulint line)            /*!< in: line where requested */
 {
-  ut_ad(file_name != NULL);
+  ut_ad(file_name != nullptr);
 
   rw_lock_debug_t *info = rw_lock_debug_create();
 
@@ -897,7 +816,7 @@ void rw_lock_add_debug_info(
   info->line = line;
   info->lock_type = lock_type;
   info->file_name = file_name;
-  info->thread_id = os_thread_get_curr_id();
+  info->thread_id = std::this_thread::get_id();
 
   UT_LIST_ADD_FIRST(lock->debug_list, info);
 
@@ -924,8 +843,6 @@ void rw_lock_remove_debug_info(rw_lock_t *lock, /*!< in: rw-lock */
                                ulint pass,      /*!< in: pass value */
                                ulint lock_type) /*!< in: lock type */
 {
-  rw_lock_debug_t *info;
-
   ut_ad(lock);
 
   if (pass == 0 && lock_type != RW_LOCK_X_WAIT) {
@@ -934,10 +851,9 @@ void rw_lock_remove_debug_info(rw_lock_t *lock, /*!< in: rw-lock */
 
   rw_lock_debug_mutex_enter();
 
-  for (info = UT_LIST_GET_FIRST(lock->debug_list); info != 0;
-       info = UT_LIST_GET_NEXT(list, info)) {
+  for (auto info : lock->debug_list) {
     if (pass == info->pass &&
-        (pass != 0 || os_thread_eq(info->thread_id, os_thread_get_curr_id())) &&
+        (pass != 0 || info->thread_id == std::this_thread::get_id()) &&
         info->lock_type == lock_type) {
       /* Found! */
       UT_LIST_REMOVE(lock->debug_list, info);
@@ -954,50 +870,40 @@ void rw_lock_remove_debug_info(rw_lock_t *lock, /*!< in: rw-lock */
   ut_error;
 }
 
-/** Checks if the thread has locked the rw-lock in the specified mode, with
- the pass value == 0.
- @return true if locked */
-ibool rw_lock_own(rw_lock_t *lock, /*!< in: rw-lock */
-                  ulint lock_type) /*!< in: lock type: RW_LOCK_S,
-                                   RW_LOCK_X */
-{
+bool rw_lock_own(const rw_lock_t *lock, ulint lock_type) {
   ut_ad(lock);
   ut_ad(rw_lock_validate(lock));
 
   rw_lock_debug_mutex_enter();
 
-  for (const rw_lock_debug_t *info = UT_LIST_GET_FIRST(lock->debug_list);
-       info != NULL; info = UT_LIST_GET_NEXT(list, info)) {
-    if (os_thread_eq(info->thread_id, os_thread_get_curr_id()) &&
-        info->pass == 0 && info->lock_type == lock_type) {
+  for (const rw_lock_debug_t *info : lock->debug_list) {
+    if (info->thread_id == std::this_thread::get_id() && info->pass == 0 &&
+        info->lock_type == lock_type) {
       rw_lock_debug_mutex_exit();
       /* Found! */
 
-      return (TRUE);
+      return true;
     }
   }
   rw_lock_debug_mutex_exit();
 
-  return (FALSE);
+  return false;
 }
 
 /** For collecting the debug information for a thread's rw-lock */
-typedef std::vector<rw_lock_debug_t *> Infos;
+typedef std::vector<const rw_lock_debug_t *> Infos;
 
 /** Get the thread debug info
 @param[in]	infos		The rw-lock mode owned by the threads
 @param[in]	lock		rw-lock to check
 @return the thread debug info or NULL if not found */
 static void rw_lock_get_debug_info(const rw_lock_t *lock, Infos *infos) {
-  rw_lock_debug_t *info = NULL;
-
   ut_ad(rw_lock_validate(lock));
 
   rw_lock_debug_mutex_enter();
 
-  for (info = UT_LIST_GET_FIRST(lock->debug_list); info != NULL;
-       info = UT_LIST_GET_NEXT(list, info)) {
-    if (os_thread_eq(info->thread_id, os_thread_get_curr_id())) {
+  for (auto info : lock->debug_list) {
+    if (info->thread_id == std::this_thread::get_id()) {
       infos->push_back(info);
     }
   }
@@ -1016,12 +922,8 @@ bool rw_lock_own_flagged(const rw_lock_t *lock, rw_lock_flags_t flags) {
 
   rw_lock_get_debug_info(lock, &infos);
 
-  Infos::const_iterator end = infos.end();
-
-  for (Infos::const_iterator it = infos.begin(); it != end; ++it) {
-    const rw_lock_debug_t *info = *it;
-
-    ut_ad(os_thread_eq(info->thread_id, os_thread_get_curr_id()));
+  for (const rw_lock_debug_t *info : infos) {
+    ut_ad(info->thread_id == std::this_thread::get_id());
 
     if (info->pass != 0) {
       continue;
@@ -1066,13 +968,8 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
       "-------------\n",
       file);
 
-  for (const rw_lock_t *lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
-       lock = UT_LIST_GET_NEXT(list, lock)) {
+  for (const rw_lock_t *lock : rw_lock_list) {
     count++;
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-    mutex_enter(&lock->mutex);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
     if (lock->lock_word != X_LOCK_DECR) {
       fprintf(file, "RW-LOCK: %p ", (void *)lock);
@@ -1083,35 +980,28 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
         putc('\n', file);
       }
 
-      rw_lock_debug_t *info;
-
       rw_lock_debug_mutex_enter();
 
-      for (info = UT_LIST_GET_FIRST(lock->debug_list); info != NULL;
-           info = UT_LIST_GET_NEXT(list, info)) {
+      for (auto info : lock->debug_list) {
         rw_lock_debug_print(file, info);
       }
 
       rw_lock_debug_mutex_exit();
     }
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-    mutex_exit(&lock->mutex);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
   }
 
   fprintf(file, "Total number of rw-locks " ULINTPF "\n", count);
   mutex_exit(&rw_lock_list_mutex);
 }
 
-/** Prints info of a debug struct. */
-void rw_lock_debug_print(FILE *f,                     /*!< in: output stream */
-                         const rw_lock_debug_t *info) /*!< in: debug struct */
-{
+/** Prints info of a debug struct.
+@param[in] f Output stream
+@param[in] info Debug struct */
+void rw_lock_debug_print(FILE *f, const rw_lock_debug_t *info) {
   ulint rwt = info->lock_type;
 
-  fprintf(f, "Locked: thread " UINT64PF " file %s line " ULINTPF "  ",
-          (uint64_t)(info->thread_id), sync_basename(info->file_name),
+  fprintf(f, "Locked: thread %s file %s line " ULINTPF "  ",
+          to_string(info->thread_id).c_str(), sync_basename(info->file_name),
           info->line);
 
   switch (rwt) {
@@ -1150,14 +1040,11 @@ std::string rw_lock_t::locked_from() const {
   rw_lock_get_debug_info(this, &infos);
 
   ulint i = 0;
-  Infos::const_iterator end = infos.end();
 
-  for (Infos::const_iterator it = infos.begin(); it != end; ++it, ++i) {
-    const rw_lock_debug_t *info = *it;
+  for (const rw_lock_debug_t *info : infos) {
+    ut_ad(info->thread_id == std::this_thread::get_id());
 
-    ut_ad(os_thread_eq(info->thread_id, os_thread_get_curr_id()));
-
-    if (i > 0) {
+    if (i++ > 0) {
       msg << ", ";
     }
 
@@ -1173,8 +1060,8 @@ std::string rw_lock_t::to_string() const {
   std::ostringstream msg;
 
   msg << "RW-LATCH: "
-      << "thread id " << os_thread_get_curr_id() << " addr: " << this
-      << " Locked from: " << locked_from().c_str();
+      << "thread id " << ::to_string(std::this_thread::get_id())
+      << " addr: " << this << " Locked from: " << locked_from().c_str();
 
   return (msg.str());
 }

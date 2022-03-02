@@ -1,3 +1,52 @@
+SET GLOBAL innodb_file_per_table = ON;
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+SET GLOBAL innodb_encryption_threads = 10;
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+10
+SET GLOBAL innodb_encryption_threads = 1000;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_threads value: '1000'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+255
+SET GLOBAL innodb_encryption_threads = -1000;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_threads value: '-1000'
 SELECT @@global.innodb_encryption_threads;
 @@global.innodb_encryption_threads
 0
+SET GLOBAL innodb_encryption_threads = 10.5;
+ERROR 42000: Incorrect argument type to variable 'innodb_encryption_threads'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+0
+SET GLOBAL innodb_encryption_threads = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_encryption_threads'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+0
+SET GLOBAL innodb_encryption_threads = 'a';
+ERROR 42000: Incorrect argument type to variable 'innodb_encryption_threads'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+0
+SET GLOBAL innodb_encryption_threads = "abc";
+ERROR 42000: Incorrect argument type to variable 'innodb_encryption_threads'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+0
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+SET GLOBAL innodb_encryption_threads = 10;
+SET GLOBAL innodb_encryption_threads = 1000;
+ERROR 42000: Variable 'innodb_encryption_threads' can't be set to the value of '1000'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+10
+SET GLOBAL innodb_encryption_threads = -1000;
+ERROR 42000: Variable 'innodb_encryption_threads' can't be set to the value of '-1000'
+SELECT @@global.innodb_encryption_threads;
+@@global.innodb_encryption_threads
+10
+SET GLOBAL innodb_encryption_threads = 0;
+UNINSTALL PLUGIN keyring_file;

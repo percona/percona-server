@@ -1188,6 +1188,7 @@ select cast(a as DECIMAL(3,2))
   UNION select 12.1234
  ) t;
 
+--skip_if_hypergraph  # Different warnings.
 select cast(a as DECIMAL(3,2)), count(*)
  from (select 11.1233 as a
   UNION select 11.1234
@@ -1222,6 +1223,7 @@ SELECT CAST(1 AS decimal(65,31));
 
 CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+--sorted_result
 SELECT a+CAST(1 AS decimal(65,30)) AS aa, SUM(b) FROM t1 GROUP BY aa;
 --error ER_TOO_BIG_SCALE
 SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
@@ -1236,6 +1238,7 @@ CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
 
 SET @a= CAST(1 AS decimal);
+--skip_if_hypergraph  # Undefined results.
 SELECT 1 FROM t1 GROUP BY @b := @a, @b;
 
 DROP TABLE t1;
@@ -1840,7 +1843,7 @@ SELECT CAST(0.996 AS DECIMAL(14,3)) *
 --echo # Bug#25685958 ASSERTION FAILED:
 --echo #              RETVAL == 0 IN ITEM_SUM_HYBRID::VAL_DECIMAL()
 --echo #
-do 1 div nullif(min(from_days(1)),_utf8'1');
+do 1 div nullif(min(from_days(1)),_utf8mb4'2000-01-01');
 
 --echo #
 --echo # Bug#26497007 ASSERTION(0) IN DIV_BY_POW10 WITH LARGE NUMBER

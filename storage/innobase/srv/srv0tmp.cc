@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -87,7 +87,8 @@ Tablespace::~Tablespace() {
                                           &file_pre_exists);
 
   if (file_pre_exists && !success) {
-    ib::error() << "Failed to delete file " << path();
+    ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
+        << "Failed to delete file " << path();
     os_file_get_last_error(true);
     ut_ad(0);
   }
@@ -125,7 +126,6 @@ dberr_t Tablespace::create() {
   if (!ret) {
     return (DB_ERROR);
   }
-  buf_LRU_flush_or_remove_pages(m_space_id, BUF_REMOVE_FLUSH_WRITE, NULL);
   return (DB_SUCCESS);
 }
 
@@ -140,27 +140,28 @@ bool Tablespace::close() const {
 
 bool Tablespace::truncate() {
   if (!m_inited) {
-    return (false);
+    return false;
   }
 
   acquire();
 
-  bool success = fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE);
-  if (!success) {
+  if (!fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE)) {
     release();
-    return (success);
+    return false;
   }
 
   decrypt();
 
   mtr_t mtr;
+
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
   fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
   mtr_commit(&mtr);
 
   release();
-  return (true);
+
+  return true;
 }
 
 bool Tablespace::encrypt() {
@@ -178,8 +179,8 @@ void Tablespace::decrypt() {
   if (!is_encrypted()) {
     return;
   }
-  byte encryption_info[ENCRYPTION_INFO_SIZE];
-  memset(encryption_info, 0, ENCRYPTION_INFO_SIZE);
+  byte encryption_info[Encryption::INFO_SIZE];
+  memset(encryption_info, 0, Encryption::INFO_SIZE);
 
   fil_space_t *space = fil_space_get(m_space_id);
 
@@ -273,7 +274,8 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
       /* Failure to expand the pool means that there is no disk space
       available to create .IBT files */
       release();
-      ib::error() << "Unable to expand the temporary tablespace pool";
+      ib::error(ER_IB_UNABLE_TO_EXPAND_TEMPORARY_TABLESPACE_POOL)
+          << "Unable to expand the temporary tablespace pool";
       return (nullptr);
     }
   }
@@ -372,7 +374,8 @@ void Tablespace_pool::delete_old_pool(bool create_new_db) {
     return;
   }
 
-  ib::info() << "Scanning temp tablespace dir:'" << temp_tbsp_dir << "'";
+  ib::info(ER_IB_MSG_SCANNING_TEMP_TABLESPACE_DIR)
+      << "Scanning temp tablespace dir:'" << temp_tbsp_dir << "'";
 
   os_file_type_t type;
   bool exists = false;
@@ -416,7 +419,8 @@ static dberr_t create_temp_dir() {
     temp_tbsp_dir.append(DIR_NAME);
     bool ret = os_file_create_directory(temp_tbsp_dir.c_str(), false);
     if (!ret) {
-      ib::error() << "Cannot create directory: " << temp_tbsp_dir.c_str();
+      ib::error(ER_IB_TMP_TABLESPACE_CANNOT_CREATE_DIRECTORY)
+          << "Cannot create directory: " << temp_tbsp_dir.c_str();
       return (DB_CANNOT_OPEN_FILE);
     }
     temp_tbsp_dir += OS_PATH_SEPARATOR;

@@ -30,6 +30,8 @@ The following global status variables are available:
      - Numeric
    * - :variable:`rocksdb_rows_read`
      - Numeric
+   * - :variable:`rocksdb_rows_unfiltered_no_snapshot`
+     - Numeric
    * - :variable:`rocksdb_rows_updated`
      - Numeric
    * - :variable:`rocksdb_rows_expired`
@@ -51,6 +53,8 @@ The following global status variables are available:
    * - :variable:`rocksdb_queries_range`
      - Numeric
    * - :variable:`rocksdb_covered_secondary_key_lookups`
+     - Numeric
+   * - :variable:`rocksdb_additional_compactions_trigger`
      - Numeric
    * - :variable:`rocksdb_block_cache_add`
      - Numeric
@@ -247,6 +251,10 @@ This variable shows the number of rows that were inserted into MyRocks tables.
 
 This variable shows the number of rows that were read from MyRocks tables.
 
+.. variable:: rocksdb_rows_unfiltered_no_snapshot
+
+This variable shows how many reads need TTL and have no snapshot timestamp.
+
 .. variable:: rocksdb_rows_updated
 
 This variable shows the number of rows that were updated in MyRocks tables.
@@ -297,6 +305,12 @@ This variable shows the number of lookups via secondary index that were able to
 return all fields requested directly from the secondary index when the
 secondary index contained a field that is only a prefix of the
 ``varchar`` column.
+
+.. variable:: rocksdb_additional_compactions_trigger
+
+This variable shows the number of triggered additional compactions.
+MyRocks triggers an additional compaction if (number of deletions / number of entries) > (rocksdb_compaction_sequential_deletes / rocksdb_compaction_sequential_deletes_window)
+in the SST file.
 
 .. variable:: rocksdb_block_cache_add
 

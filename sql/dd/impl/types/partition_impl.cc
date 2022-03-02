@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/partition_impl.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <set>
 #include <sstream>
@@ -33,7 +34,7 @@
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
@@ -76,8 +77,8 @@ Partition_impl::Partition_impl()
       m_se_private_id(INVALID_OBJECT_ID),
       m_options(default_valid_option_keys),
       m_se_private_data(),
-      m_table(NULL),
-      m_parent(NULL),
+      m_table(nullptr),
+      m_parent(nullptr),
       m_values(),
       m_indexes(),
       m_subpartitions(),
@@ -90,7 +91,7 @@ Partition_impl::Partition_impl(Table_impl *table)
       m_options(default_valid_option_keys),
       m_se_private_data(),
       m_table(table),
-      m_parent(NULL),
+      m_parent(nullptr),
       m_values(),
       m_indexes(),
       m_subpartitions(),
@@ -114,7 +115,7 @@ Partition_impl::Partition_impl(Table_impl *table, Partition_impl *parent)
   m_table->add_leaf_partition(this);
 }
 
-Partition_impl::~Partition_impl() {}
+Partition_impl::~Partition_impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -252,9 +253,9 @@ bool Partition_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(
-    Table_partitions::FIELD_TABLESPACE_ID == 11,
-    "Table_partitions definition has changed. Review (de)ser memfuns!");
+static_assert(Table_partitions::NUMBER_OF_FIELDS == 12,
+              "Table_partitions definition has changed, check if serialize() "
+              "and deserialize() need to be updated!");
 void Partition_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);
@@ -372,7 +373,7 @@ Partition_index *Partition_impl::add_index(Index *idx) {
 
 Partition *Partition_impl::add_subpartition() {
   /// Support just one level of sub partitions.
-  DBUG_ASSERT(!parent());
+  assert(!parent());
 
   Partition_impl *p =
       new (std::nothrow) Partition_impl(&this->table_impl(), this);
@@ -396,7 +397,7 @@ Partition_impl::Partition_impl(const Partition_impl &src, Table_impl *parent)
       m_se_private_data(src.m_se_private_data),
       m_table(parent),
       m_parent(src.parent() ? parent->get_partition(src.parent()->name())
-                            : NULL),
+                            : nullptr),
       m_values(),
       m_indexes(),
       m_subpartitions(),

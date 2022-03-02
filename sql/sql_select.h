@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,17 @@
   @file sql/sql_select.h
 */
 
-#include <limits.h>
-#include <stddef.h>
+#include <assert.h>
 #include <sys/types.h>
 
+#include <climits>
+
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
+#include "sql/field.h"         // Copy_field
 #include "sql/item_cmpfunc.h"  // Item_cond_and
 #include "sql/opt_costmodel.h"
 #include "sql/sql_bitmap.h"
@@ -43,14 +45,13 @@
 #include "sql/sql_const.h"
 #include "sql/sql_opt_exec_shared.h"  // join_type
 
-class Field;
 class Item;
 class Item_func;
 class JOIN_TAB;
 class KEY;
 class QEP_TAB;
 class Query_result;
-class SELECT_LEX;
+class Query_block;
 class Select_lex_visitor;
 class SJ_TMP_TABLE;
 class Temp_table_param;
@@ -81,8 +82,9 @@ class Sql_cmd_select : public Sql_cmd_dml {
   const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 
  protected:
+  bool may_use_cursor() const override { return true; }
   bool precheck(THD *thd) override;
-
+  bool check_privileges(THD *thd) override;
   bool prepare_inner(THD *thd) override;
 };
 
@@ -169,8 +171,8 @@ class Key_use {
  public:
   // We need the default constructor for unit testing.
   Key_use()
-      : table_ref(NULL),
-        val(NULL),
+      : table_ref(nullptr),
+        val(nullptr),
         used_tables(0),
         key(0),
         keypart(0),
@@ -178,7 +180,7 @@ class Key_use {
         keypart_map(0),
         ref_table_rows(0),
         null_rejecting(false),
-        cond_guard(NULL),
+        cond_guard(nullptr),
         sj_pred_no(UINT_MAX),
         bound_keyparts(0),
         fanout(0.0),
@@ -204,7 +206,6 @@ class Key_use {
         read_cost(0.0) {}
 
   TABLE_LIST *table_ref;  ///< table owning the index
-
   /**
     Value used for lookup into @c key. It may be an Item_field, a
     constant or any other expression. If @c val contains a field from
@@ -212,11 +213,14 @@ class Key_use {
     the field(s) in @c val should be before @c table in the join plan.
   */
   Item *val;
-
   /**
     All tables used in @c val, that is all tables that provide bindings
     for the expression @c val. These tables must be in the plan before
     executing the equi-join described by a Key_use.
+    For all expressions except for the MATCH function, this is the same
+    as val->used_tables().
+    For the MATCH function, val is the actual MATCH function, and used_tables
+    is the set of tables used in the AGAINST argument.
   */
   table_map used_tables;
   uint key;                  ///< number of index
@@ -226,7 +230,7 @@ class Key_use {
   ha_rows ref_table_rows;    ///< Estimate of how many rows for a key value
   /**
     If true, the comparison this value was created from will not be
-    satisfied if val has NULL 'value'.
+    satisfied if val has NULL 'value' (unless KEY_OPTIMIZE_REF_OR_NULL is set).
     Not used if the index is fulltext (such index cannot be used for
     equalities).
   */
@@ -564,6 +568,17 @@ struct POSITION {
     }
     prefix_rowcount *= filter_effect;
   }
+
+  void set_suffix_lateral_deps(table_map deps) { m_suffix_lateral_deps = deps; }
+
+  table_map get_suffix_lateral_deps() const { return m_suffix_lateral_deps; }
+
+ private:
+  /**
+     The lateral dependendencies of 'table' and all subsequent JOIN_TABs
+     in the join plan.
+   */
+  table_map m_suffix_lateral_deps;
 };
 
 /**
@@ -622,7 +637,7 @@ class JOIN_TAB : public QEP_shared_owner {
     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
       Thus, the pointee is the same as TABLE_LIST::m_join_cond (changing one
       changes the other; thus, optimizations made on the second are reflected
-      in SELECT_LEX::print_table_array() which uses the first one).
+      in Query_block::print_table_array() which uses the first one).
   */
   Item **m_join_cond_ref;
 
@@ -730,10 +745,10 @@ class JOIN_TAB : public QEP_shared_owner {
 
 inline JOIN_TAB::JOIN_TAB()
     : QEP_shared_owner(),
-      table_ref(NULL),
-      m_keyuse(NULL),
-      m_join_cond_ref(NULL),
-      cond_equal(NULL),
+      table_ref(nullptr),
+      m_keyuse(nullptr),
+      m_join_cond_ref(nullptr),
+      cond_equal(nullptr),
       worst_seeks(0.0),
       const_keys(),
       checked_keys(),
@@ -747,19 +762,19 @@ inline JOIN_TAB::JOIN_TAB()
       used_fieldlength(0),
       use_quick(QS_NONE),
       m_use_join_cache(0),
-      emb_sj_nest(NULL),
+      emb_sj_nest(nullptr),
       embedding_map(0),
       join_cache_flags(0),
       reversed_access(false) {}
 
 /* Extern functions in sql_select.cc */
-void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
-                       List<Item> &fields, bool reset_with_sum_func,
-                       bool save_sum_fields);
+void count_field_types(const Query_block *query_block, Temp_table_param *param,
+                       const mem_root_deque<Item *> &fields,
+                       bool reset_with_sum_func, bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
-bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
+bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order);
 
 enum aggregate_evaluated {
   AGGR_COMPLETE,  // All aggregates were evaluated
@@ -768,15 +783,22 @@ enum aggregate_evaluated {
   AGGR_EMPTY      // Source tables empty, aggregates are NULL or 0 (for COUNT)
 };
 
-bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
-                               List<Item> &all_fields, Item *conds,
-                               aggregate_evaluated *decision);
+bool optimize_aggregated_query(THD *thd, Query_block *select,
+                               const mem_root_deque<Item *> &all_fields,
+                               Item *conds, aggregate_evaluated *decision);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
 
 /// The name of store_key instances that represent constant items.
-constexpr const char *STORE_KEY_CONST_NAME = "const";
+extern const char *STORE_KEY_CONST_NAME;
+
+/// Check privileges for all columns referenced from join expression
+bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables);
+
+/// Check privileges for all columns referenced from an expression list
+bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
+                               ulong privileges);
 
 /** class to copying an field/item to a key struct */
 
@@ -802,6 +824,24 @@ class store_key {
   virtual enum store_key_result copy_inner() = 0;
 };
 
+class store_key_field final : public store_key {
+  Copy_field m_copy_field;
+  const char *m_field_name;
+
+ public:
+  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                  uchar *null_ptr_arg, uint length, Field *from_field,
+                  const char *name_arg);
+
+  const char *name() const override { return m_field_name; }
+
+  // Change the source field to be another field. Used only by
+  // CreateBKAIterator, when rewriting multi-equalities used in ref access.
+  void replace_from_field(Field *from_field);
+
+ protected:
+  enum store_key_result copy_inner() override;
+};
 class store_key_item : public store_key {
  protected:
   Item *item;
@@ -837,24 +877,20 @@ class store_key_hash_item final : public store_key_item {
 };
 
 bool error_if_full_join(JOIN *join);
-bool handle_query(THD *thd, LEX *lex, Query_result *result,
-                  ulonglong added_options, ulonglong removed_options);
 
 // Statement timeout function(s)
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+void free_underlaid_joins(THD *thd, Query_block *select);
 
-void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
-                            uint *p_used_fieldlength, uint *p_used_blobs,
-                            bool *p_used_null_fields,
-                            bool *p_used_uneven_bit_fields);
+void calc_used_field_length(TABLE *table, bool needs_rowid,
+                            uint *p_used_fieldlength);
 
 ORDER *simple_remove_const(ORDER *order, Item *where);
-bool const_expression_in_where(Item *cond, Item *comp_item,
-                               const Field *comp_field = nullptr,
-                               Item **const_item = nullptr);
+bool check_field_is_const(Item *cond, const Item *order_item,
+                          const Field *order_field = nullptr,
+                          Item **const_item = nullptr);
 bool test_if_subpart(ORDER *a, ORDER *b);
 void calc_group_buffer(JOIN *join, ORDER *group);
 bool make_join_readinfo(JOIN *join, uint no_jbuf_after);
@@ -879,13 +915,13 @@ bool and_conditions(Item **e1, Item *e2);
   @return the new AND item
 */
 static inline Item *and_items(Item *cond, Item *item) {
-  DBUG_ASSERT(item != NULL);
+  assert(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
 /// A variant of the above, guaranteed to return Item_bool_func.
 static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item) {
-  DBUG_ASSERT(item != NULL);
+  assert(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
@@ -901,8 +937,8 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                               TABLE *table, Key_map usable_keys, int key,
                               ha_rows select_limit, int *new_key,
                               int *new_key_direction, ha_rows *new_select_limit,
-                              uint *new_used_key_parts = NULL,
-                              uint *saved_best_key_parts = NULL);
+                              uint *new_used_key_parts = nullptr,
+                              uint *saved_best_key_parts = nullptr);
 /**
   Calculate properties of ref key: key length, number of used key parts,
   dependency map, possibility of null.
@@ -925,6 +961,25 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
                               table_map *dep_map, bool *maybe_null);
 
 /**
+  Initialize the given TABLE_REF; setting basic fields and allocating memory
+  for arrays. Call init_ref_part() for each keypart (index field) that is to
+  take part in the ref lookup.
+ */
+bool init_ref(THD *thd, unsigned keyparts, unsigned length, unsigned keyno,
+              TABLE_REF *ref);
+
+/**
+  Initialize a given keypart in the table ref. In particular, sets up the
+  right function pointer to copy the value from “val” into the ref at
+  execution time (or copies the value right now, if it is constant).
+ */
+bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
+                   bool null_rejecting, table_map const_tables,
+                   table_map used_tables, bool nullable,
+                   const KEY_PART_INFO *key_part_info, uchar *key_buff,
+                   TABLE_REF *ref);
+
+/**
   Set up the support structures (NULL bits, row offsets, etc.) for a semijoin
   duplicate weedout table. The object is allocated on the given THD's MEM_ROOT.
 
@@ -937,5 +992,73 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
                                   SJ_TMP_TABLE_TAB *first_tab,
                                   SJ_TMP_TABLE_TAB *last_tab);
+
+/**
+  Returns key flags depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return key flags.
+ */
+uint actual_key_flags(const KEY *key_info);
+
+/**
+  Check if equality can be used to remove sub-clause of GROUP BY/ORDER BY
+
+  @param func   comparison operator (= or <=>)
+  @param v      variable comparison operand (validated to be equal to
+                                             ordering expression)
+  @param c      other comparison operand (likely to be a constant)
+
+  @returns whether equality determines uniqueness
+
+    Checks if an equality predicate can be used to remove a GROUP BY/ORDER BY
+    sub-clause when it is known to be true for exactly one distinct value
+    (e.g. "expr" == "const").
+    Arguments must be of the same type because e.g. "string_field" = "int_const"
+     may match more than one distinct value from the column.
+ */
+bool equality_determines_uniqueness(const Item_func_comparison *func,
+                                    const Item *v, const Item *c);
+
+/**
+  Check whether equality between two items is exact, ie., there are no implicit
+  casts involved. This is especially important for GROUP BY/ORDER BY, as it
+  means they can be treated interchangeably. The primary difference between this
+  and equality_determines_uniqueness() is that item2 does not need to be
+  a constant (which makes it stricter in other aspects).
+ */
+bool equality_has_no_implicit_casts(const Item_func_comparison *func,
+                                    const Item *item1, const Item *item2);
+
+/**
+  Validates a query that uses the secondary engine
+
+  No validations are done if query has not been prepared against the secondary
+  engine.
+
+  @param lex Parse tree descriptor.
+
+  @return True if error, false otherwise.
+*/
+bool validate_use_secondary_engine(const LEX *lex);
+
+/**
+  Perform query optimizations that are specific to a secondary storage
+  engine.
+
+  @param thd      the current session
+  @return true on error, false on success
+*/
+bool optimize_secondary_engine(THD *thd);
+
+/**
+  Calculates the cost of executing a statement, including all its
+  subqueries and stores it in thd->m_current_query_cost.
+
+  @param lex the statement
+*/
+void accumulate_statement_cost(const LEX *lex);
 
 #endif /* SQL_SELECT_INCLUDED */

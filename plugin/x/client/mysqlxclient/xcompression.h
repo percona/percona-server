@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,18 @@
 #ifndef PLUGIN_X_CLIENT_MYSQLXCLIENT_XCOMPRESSION_H_
 #define PLUGIN_X_CLIENT_MYSQLXCLIENT_XCOMPRESSION_H_
 
+#include "my_compiler.h"
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
+// to be used by clients of class 'type2'
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include <google/protobuf/io/coded_stream.h>
+MY_COMPILER_DIAGNOSTIC_POP()
 #include <memory>
 #include <set>
+
+#include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
+#include "plugin/x/protocol/stream/compression/decompression_algorithm_interface.h"
 
 namespace xcl {
 
@@ -76,6 +85,17 @@ class XCompression {
   virtual bool reinitialize(const Compression_algorithm algorithm) = 0;
 
   /**
+    Reinitialize 'uplink' and 'downlink' compression context using set
+    algorithm and compression level.
+
+    Some compression algorithm may be only set before session or capability
+    setup, in that case setting such algorithm may fail. Also some algorithms
+    set once may be not changeable.
+  */
+  virtual bool reinitialize(const Compression_algorithm algorithm,
+                            const int32_t level) = 0;
+
+  /**
     Downlink compression stream
 
     This method returns a stream that can be used with compression done
@@ -92,6 +112,24 @@ class XCompression {
     layers without possibility for user interaction.
   */
   virtual Output_stream_ptr uplink(Output_stream *data_stream) = 0;
+
+  /**
+    Uplink compression algorithm
+
+    This method returns an algorithm that can be used with compression done
+    on X message level.
+  */
+  virtual protocol::Compression_algorithm_interface *compression_algorithm()
+      const = 0;
+
+  /**
+    Downlink compression algorithm
+
+    This method returns an algorithm that can be used with decompression done
+    on X message level.
+  */
+  virtual protocol::Decompression_algorithm_interface *decompression_algorithm()
+      const = 0;
 };
 
 }  // namespace xcl

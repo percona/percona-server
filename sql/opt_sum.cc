@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
         Open interval is not used if the search key involves the last keypart,
         and it would not work.
       */
-      DBUG_ASSERT(prefix_len < ref->key_length);
+      assert(prefix_len < ref->key_length);
       error = table->file->ha_index_read_map(
           table->record[0], ref->key_buff,
           make_prev_keypart_map(ref->key_parts), HA_READ_AFTER_KEY);
@@ -175,8 +175,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
          Check if case 1 from above holds. If it does, we should read
          the skipped tuple.
       */
-      if (item_field->field->real_maybe_null() &&
-          ref->key_buff[prefix_len] == 1 &&
+      if (item_field->field->is_nullable() && ref->key_buff[prefix_len] == 1 &&
           /*
             Last keypart (i.e. the argument to MIN) is set to NULL by
             find_key_for_maxmin only if all other keyparts are bound
@@ -186,7 +185,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
           */
           (error == HA_ERR_KEY_NOT_FOUND ||
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len))) {
-        DBUG_ASSERT(item_field->field->real_maybe_null());
+        assert(item_field->field->is_nullable());
         error = table->file->ha_index_read_map(
             table->record[0], ref->key_buff,
             make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
@@ -224,7 +223,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 
   @param[in]  thd               thread handler
   @param[in]  select            query block
-  @param[in]  all_fields        All fields to be returned
+  @param[in]  fields            All fields to be returned
   @param[in]  conds             WHERE clause
   @param[out] decision          outcome for successful execution
                = AGGR_REGULAR   regular execution required
@@ -272,9 +271,9 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
     will be candidates for delayed execution.
 */
 
-bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
-                               List<Item> &all_fields, Item *conds,
-                               aggregate_evaluated *decision) {
+bool optimize_aggregated_query(THD *thd, Query_block *select,
+                               const mem_root_deque<Item *> &fields,
+                               Item *conds, aggregate_evaluated *decision) {
   DBUG_TRACE;
 
   // True means at least one aggregate must be calculated by regular execution
@@ -313,6 +312,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
     something nondeterministic, we cannot mark the set function as constant:
    */
   if (where_tables & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) return false;
+
+  if (!select->sj_nests.empty())
+    // Cannot optimize when there is a semijoin or antijoin
+    return false;
 
   /*
     Analyze outer join dependencies, and, if possible, compute the number
@@ -373,11 +376,9 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
     COUNT(), MIN() and MAX() with constants (if possible).
   */
 
-  List_iterator_fast<Item> it(all_fields);
-  Item *item;
-  while ((item = it++)) {
+  for (Item *item : fields) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) {
-      if (item->used_tables() & OUTER_REF_TABLE_BIT) {
+      if (item->is_outer_reference()) {
         aggr_impossible = true;
         continue;
       }
@@ -392,11 +393,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
           /*
             If the expr in COUNT(expr) can never be null we can change this
             to the number of rows in the tables if this number is exact and
-            there are no outer joins nor semi-joins.
+            there are no outer joins.
           */
-          if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
-              !inner_tables && !select->has_sj_nests && !select->has_aj_nests &&
-              tables_filled) {
+          if (conds == nullptr && !item_count->get_arg(0)->is_nullable() &&
+              !inner_tables && tables_filled) {
             if (delay_ha_records_to_exec_phase) {
               aggr_delayed = true;
             } else {
@@ -425,12 +425,12 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                   the optimization phase by init_fts_funcs(), but search will
                   still only be done once.
           */
-          else if (tables->next_leaf == NULL &&  // 1
+          else if (tables->next_leaf == nullptr &&  // 1
                    (func_type == Item_func::FT_FUNC ||
                     func_type == Item_func::MATCH_FUNC) &&  // 2
                    (tables->table->file->ha_table_flags() &
-                    HA_CAN_FULLTEXT_EXT) &&              // 3
-                   !item_count->get_arg(0)->maybe_null)  // 4
+                    HA_CAN_FULLTEXT_EXT) &&                 // 3
+                   !item_count->get_arg(0)->is_nullable())  // 4
           {
             Item_func_match *fts_item =
                 func_type == Item_func::FT_FUNC
@@ -438,8 +438,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                     : down_cast<Item_func_match *>(
                           down_cast<Item_func_match_predicate *>(conds)
                               ->arguments()[0]);
-            fts_item->get_master()->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR,
-                                              false);
+            fts_item->get_master()->set_hints(nullptr, FT_NO_RANKING,
+                                              HA_POS_ERROR, false);
             if (fts_item->init_search(thd)) break;
             row_count = fts_item->get_count();
             have_exact_count = true;
@@ -469,19 +469,18 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
 
             ref.key_buff = key_buff;
             Item_field *item_field = down_cast<Item_field *>(expr);
-            TABLE *table = item_field->field->table;
+            TABLE_LIST *tr = item_field->table_ref;
+            TABLE *table = tr->table;
 
             /*
               We must not have accessed this table instance yet, because
               it must be private to this query block, as we already ensured
               that OUTER_REF_TABLE_BIT is not set.
+              Or: if this field references an outer table in the form of an
+              in-memory table with one row, it will have been read and closed
+              again. In such a case, the OUTER_REF_TABLE_BIT is no longer set.
             */
-            DBUG_ASSERT(!table->file->inited);
-            /*
-              Because the table handle has not been opened yet, we cannot have
-              determined yet if the table contains 1 record.
-             */
-            DBUG_ASSERT(!table->const_table);
+            assert(!table->file->inited);
 
             /*
               Look for a partial key that can be used for optimization.
@@ -491,7 +490,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               Type of range for the key part for this field will be
               returned in range_fl.
             */
-            if ((inner_tables & item_field->table_ref->map()) ||
+            if ((inner_tables & tr->map()) ||
                 !find_key_for_maxmin(is_max, &ref, item_field, conds, &range_fl,
                                      &prefix_len)) {
               aggr_impossible = true;
@@ -510,13 +509,13 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               We may not need all columns of read_set, neither all columns of
               the index.
             */
-            DBUG_ASSERT(table->read_set == &table->def_read_set);
-            DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
+            assert(table->read_set == &table->def_read_set);
+            assert(bitmap_is_clear_all(&table->tmp_set));
             table->read_set = &table->tmp_set;
             table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
                                                        ref.key_parts);
             // The aggregated column may or not be included in ref.key_parts.
-            bitmap_set_bit(table->read_set, item_field->field->field_index);
+            bitmap_set_bit(table->read_set, item_field->field->field_index());
             error = is_max ? get_index_max_value(table, &ref, range_fl)
                            : get_index_min_value(table, &ref, item_field,
                                                  range_fl, prefix_len);
@@ -547,8 +546,9 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               table->file->print_error(error, MYF(0));
               return true;
             }
-            removed_tables |= item_field->table_ref->map();
-          } else if (!expr->const_item() || conds || !have_exact_count) {
+            removed_tables |= tr->map();
+          } else if (!expr->const_for_execution() || conds != nullptr ||
+                     !have_exact_count) {
             /*
               We get here if the aggregate function is not based on a field.
               Example: "SELECT MAX(1) FROM table ..."
@@ -616,17 +616,13 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
 
   @param func_item        Predicate item
   @param[out] args        Here we store the field followed by constants
-  @param[out] inv_order   Is set to 1 if the predicate is of the form
+  @param[out] inv_order   Is set to true if the predicate is of the form
                           'const op field'
 
-  @retval
-    0        func_item is a simple predicate: a field is compared with
-    constants
-  @retval
-    1        Otherwise
+  @returns true if function is a simple predicate, false otherwise.
 */
 
-bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
+bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
   Item *item;
   *inv_order = false;
   switch (func_item->argument_count()) {
@@ -652,9 +648,9 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
       if (item->type() == Item::FIELD_ITEM) {
         args[0] = item;
         item = func_item->arguments()[1];
-        if (!item->const_item()) return false;
+        if (!item->const_for_execution()) return false;
         args[1] = item;
-      } else if (item->const_item()) {
+      } else if (item->const_for_execution()) {
         args[1] = item;
         item = func_item->arguments()[1];
         if (item->type() != Item::FIELD_ITEM) return false;
@@ -666,15 +662,13 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
     case 3:
       /* field BETWEEN const AND const */
       item = func_item->arguments()[0];
-      if (item->type() == Item::FIELD_ITEM) {
-        args[0] = item;
-        for (int i = 1; i <= 2; i++) {
-          item = func_item->arguments()[i];
-          if (!item->const_item()) return false;
-          args[i] = item;
-        }
-      } else
-        return false;
+      if (item->type() != Item::FIELD_ITEM) return false;
+      args[0] = item;
+      for (int i = 1; i <= 2; i++) {
+        item = func_item->arguments()[i];
+        if (!item->const_for_execution()) return false;
+        args[i] = item;
+      }
   }
   return true;
 }
@@ -806,7 +800,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   bool inv;
 
   /* Test if this is a comparison of a field and constant */
-  if (!simple_pred((Item_func *)cond, args, &inv)) return false;
+  if (!is_simple_predicate(down_cast<Item_func *>(cond), args, &inv))
+    return false;
 
   if (!is_null_safe_eq && !is_null &&
       (args[1]->is_null() || (between && args[2]->is_null())))
@@ -870,7 +865,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
         If we have a non-nullable index, we cannot use it,
         since set_null will be ignored, and we will compare uninitialized data.
       */
-      if (!part->field->real_maybe_null()) return false;
+      if (!part->field->is_nullable()) return false;
       part->field->set_null();
       *key_ptr = (uchar)1;
     } else {
@@ -944,11 +939,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     which must be reset after index is used!
     (This can only happen when function returns 1)
 
-  @retval
-    0   Index can not be used to optimize MIN(field)/MAX(field)
-  @retval
-    1   Can use key to optimize MIN()/MAX().
-    In this case ref, range_fl and prefix_len are updated
+  @returns true if index can be used to optimize MIN()/MAX(), false otherwise.
+           If true, ref, range_fl and prefix_len are updated
 */
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
@@ -956,7 +948,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 uint *range_fl, uint *prefix_len) {
   Field *const field = item_field->field;
 
-  if (!(field->flags & PART_KEY_FLAG)) return false;  // Not key field
+  if (!field->is_flag_set(PART_KEY_FLAG)) return false;  // Not key field
 
   DBUG_TRACE;
 
@@ -985,7 +977,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 
       /* Check whether the index component is partial */
       Field *part_field = table->field[part->fieldnr - 1];
-      if ((part_field->flags & BLOB_FLAG) ||
+      if (part_field->is_flag_set(BLOB_FLAG) ||
           part->length < part_field->key_length())
         break;
 
@@ -1018,7 +1010,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             ref->key_buff[ref->key_length] = 1;
             ref->key_length += part->store_length;
             ref->key_parts++;
-            DBUG_ASSERT(ref->key_parts == jdx + 1);
+            assert(ref->key_parts == jdx + 1);
             *range_fl &= ~NO_MIN_RANGE;
             *range_fl |= NEAR_MIN;  // Open interval
           }
@@ -1038,17 +1030,15 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 /**
   Check whether found key is in range specified by conditions.
 
-  @param[in] max_fl         0 for MIN(field) / 1 for MAX(field)
+  @param[in] max_fl         false for MIN(field) / true for MAX(field)
   @param[in] ref            Reference to the key value and info
   @param[in] item_field     Item representing field used in MIN/MAX expression
-  @param[in] cond           WHERE condition
+  @param[in] cond           Condition to check
+                            nullptr means that all keys are within the range.
   @param[in] range_fl       Says whether there is a condition to to be checked
   @param[in] prefix_len     Length of the constant part of the key
 
-  @retval
-    false    ok
-  @retval
-    true     WHERE was not true for the found row
+  @returns true if the condition is not true for the found row, false otherwise.
 */
 
 static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
@@ -1056,7 +1046,7 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
   if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
                       prefix_len))
     return true;
-  if (!cond || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
+  if (cond == nullptr || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
     return false;
   return maxmin_in_range(max_fl, item_field, cond);
 }
@@ -1064,20 +1054,17 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
 /**
   Check whether {MAX|MIN}(field) is in range specified by conditions.
 
-  @param[in] max_fl          0 for MIN(field) / 1 for MAX(field)
-  @param[in] item_field      Item representing field used in MIN/MAX expression
-  @param[in] cond            WHERE condition
+  @param[in] max_fl      false for MIN(field) / true for MAX(field)
+  @param[in] item_field  Item representing field used in MIN/MAX expression
+  @param[in] cond        Condition to check
 
-  @retval
-    false    ok
-  @retval
-    true     WHERE was not true for the found row
+  @returns true if condition is not true for the found row, otherwise false.
 */
 
 static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
   /* If AND/OR condition */
   if (cond->type() == Item::COND_ITEM) {
-    List_iterator_fast<Item> li(*((Item_cond *)cond)->argument_list());
+    List_iterator_fast<Item> li(*down_cast<Item_cond *>(cond)->argument_list());
     Item *item;
     while ((item = li++)) {
       if (maxmin_in_range(max_fl, item_field, item)) return true;
@@ -1085,20 +1072,21 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     return false;
   }
 
-  if (cond->used_tables() != item_field->table_ref->map()) return false;
+  // Check that condition actually references the specific table
+  if ((cond->used_tables() & item_field->table_ref->map()) == 0) return false;
   bool less_fl = false;
-  switch (((Item_func *)cond)->functype()) {
+  switch (down_cast<Item_func *>(cond)->functype()) {
     case Item_func::BETWEEN:
-      return cond->val_int() == 0;  // Return 1 if WHERE is false
+      return cond->val_int() == 0;
     case Item_func::LT_FUNC:
     case Item_func::LE_FUNC:
       less_fl = true;
       // Fall through
     case Item_func::GT_FUNC:
     case Item_func::GE_FUNC: {
-      Item *item = ((Item_func *)cond)->arguments()[1];
+      Item *item = down_cast<Item_func *>(cond)->arguments()[1];
       /* In case of 'const op item' we have to swap the operator */
-      if (!item->const_item()) less_fl = !less_fl;
+      if (!item->const_for_execution()) less_fl = !less_fl;
       /*
         We only have to check the expression if we are using an expression like
         SELECT MAX(b) FROM t1 WHERE a=const AND b>const
@@ -1106,7 +1094,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
         SELECT MAX(b) FROM t1 WHERE a=const AND b<const
       */
       if (max_fl != less_fl)
-        return cond->val_int() == 0;  // Return 1 if WHERE is false
+        return cond->val_int() == 0;  // Return true if condition is false
       return false;
     }
     case Item_func::EQ_FUNC:
@@ -1114,8 +1102,8 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     case Item_func::MULT_EQUAL_FUNC:
     case Item_func::ISNULL_FUNC:
       break;
-    default:               // Keep compiler happy
-      DBUG_ASSERT(false);  // Impossible
+    default:          // Keep compiler happy
+      assert(false);  // Impossible
       break;
   }
   return false;

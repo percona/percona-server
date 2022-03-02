@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,6 @@
   @file include/sha2.h
 */
 
-#if defined(HAVE_OPENSSL)
-
 #include <openssl/evp.h>
 #include <stddef.h>
 
@@ -44,5 +42,4 @@ GEN_OPENSSL_EVP_SHA2_BRIDGE(256)
 GEN_OPENSSL_EVP_SHA2_BRIDGE(224)
 #undef GEN_OPENSSL_EVP_SHA2_BRIDGE
 
-#endif /* HAVE_OPENSSL */
 #endif /* included_sha2_h */

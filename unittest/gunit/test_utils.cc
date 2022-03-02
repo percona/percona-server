@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "unittest/gunit/test_utils.h"
 
+#include <assert.h>
 #include <gtest/gtest.h>
 #include <atomic>
 #include <new>
@@ -31,7 +32,7 @@
 #include "gtest/gtest-message.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"  // DBUG_ASSERT
+// assert
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
@@ -57,8 +58,10 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"
+#include "sql/sql_plugin.h"
 #include "sql/xa.h"
 #include "unicode/uclean.h"
+#include "unittest/gunit/fake_table.h"
 
 namespace my_testing {
 
@@ -83,9 +86,11 @@ void setup_server_for_unit_tests() {
                   const_cast<char *>("--explicit_defaults_for_timestamp"),
                   const_cast<char *>("--datadir=" DATA_DIR),
                   const_cast<char *>("--lc-messages-dir=" ERRMSG_DIR),
-                  0};
+                  nullptr};
   set_remaining_args(6, argv);
   system_charset_info = &my_charset_utf8_general_ci;
+
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   sys_var_init();
   init_common_variables();
   test_flags |= TEST_SIGINT;
@@ -142,11 +147,15 @@ void Server_initializer::SetUp() {
   m_thd->thread_stack = (char *)&stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
+  Fake_TABLE::reset_highest_table_id();
 }
 
 void Server_initializer::TearDown() {
-  m_thd->cleanup_after_query();
-  delete m_thd;
+  if (m_thd != nullptr) {
+    m_thd->cleanup_after_query();
+    delete m_thd;
+    m_thd = nullptr;
+  }
 }
 
 Mock_error_handler::Mock_error_handler(THD *thd, uint expected_error)
@@ -176,7 +185,7 @@ bool Mock_error_handler::handle_condition(THD *, uint sql_errno, const char *,
 
 void DD_initializer::SetUp() {
   /*
-    With WL#6599, SELECT_LEX::add_table_to_list() will invoke
+    With WL#6599, Query_block::add_table_to_list() will invoke
     dd::Dictionary::is_system_view_name() method. E.g., the unit
     test InsertDelayed would invoke above API. This requires us
     to have a instance of dictionary_impl. We do not really need
@@ -184,11 +193,11 @@ void DD_initializer::SetUp() {
     be future test cases that need the same.
   */
   dd::Dictionary_impl::s_instance = new (std::nothrow) dd::Dictionary_impl();
-  DBUG_ASSERT(dd::Dictionary_impl::s_instance != nullptr);
+  assert(dd::Dictionary_impl::s_instance != nullptr);
 }
 
 void DD_initializer::TearDown() {
-  DBUG_ASSERT(dd::Dictionary_impl::s_instance != nullptr);
+  assert(dd::Dictionary_impl::s_instance != nullptr);
   delete dd::Dictionary_impl::s_instance;
 }
 

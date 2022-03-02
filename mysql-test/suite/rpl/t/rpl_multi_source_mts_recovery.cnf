@@ -3,4 +3,5 @@
 [mysqld.1]
 
 [mysqld.2]
+slave-parallel-type=LOGICAL_CLOCK
 

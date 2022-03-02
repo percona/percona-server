@@ -1,0 +1,289 @@
+call mtr.add_suppression("Attempting backtrace");
+# setup for 1st scenario:
+# 100 pages encrypted by version 1 of key 1, rest of pages unencrypted.
+# Restart server with keyring with key 0 and version 1 of key 1
+# We will encrypted all tablespaces with key 0, apart from t1, which
+# is going to be encrypted with key 1 (partially).
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --early-plugin-load=keyring_file=KEYRING_PLUGIN --default-table-encryption=OFF
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+create procedure innodb_insert_proc (repeat_count int)
+begin
+declare current_num int;
+set current_num = 0;
+while current_num < repeat_count do
+insert into t1 values (current_num,repeat('foobar',42));
+set current_num = current_num + 1;
+end while;
+end//
+commit;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+include/assert.inc [Make sure encryption is disabled]
+include/assert.inc [Make sure t1 is unencrypted]
+# We want only first 100 pages to be encrypted by version of 1 key 1
+# (that's the default value for rotate_only_first_x_page_from_t1).
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+# Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+# Table t1 should have min_key_version = 0 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
+# have been rotatted.
+# Disable rotation threads
+SET GLOBAL innodb_encryption_threads = 0;
+# Disable rotation of only first 100 pages
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+# Make sure that t1 still contains foobar - as it is only encrypted in half
+# t1 is partially encrypted with ver1 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+missing_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# t1 is partially encrypted with ver1 of key 1, now switch to keyring without
+# version 1 of key 1 - it should not be possible to open t1
+missing_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_missing_v1_v2 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# t1 is partially encrypted with version 1 of key 1, now switch to keyring
+# with corrupted version 1 of key 1 - it should not be possible to open t1
+corrupted_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# setup for 2nd scenario:
+# 20 pages encrypted by version 2 of key 1, 80 pages encrytped by version 1 of key 1,
+# rest of the pages unencrypted.
+# Restart the server that have both version 1 and version 2 of key 1. Next, rotate
+# first 20 pages to version 2 of key 1. After this, t1 should have 20 pages encrypted
+# with ver2 of key1, 80 pages encrypted with ver1 of key1 and the rest of the pages unencrypted
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2
+SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_rotate_key_age=1;
+SET GLOBAL innodb_encryption_threads=4;
+# Table t1 should have ROTATIONG_OR_FLUSHING set to 1 <= this means that only 20 pages
+# have been rotatted.
+SET GLOBAL debug="-d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+# table t1 has some pages encrypted with version 2 of key 1. Switch to keyring without version 2 of key 1 -
+# it should not be possible to open t1
+missing_ver_2_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 1 of key 1 in t1, now switch to keyring without
+# version 1 of key 1 - it should not be possible to open t1
+missing_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_missing_v1_v2 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# t1 is encrypted by key 1. It should not be possible to open t1 if this key is missing.
+missing_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 1 of key 1, now switch to keyring with version 1 of key 1 corrupted -
+# it should not be possible to open t1
+corrupted_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 2 of key 1, now switch to keyring with version 2 of key 1 corrupted -
+# it should not be possible to open t1
+corrupted_ver_2_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_v2_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# setup for 3rd scenario:
+# 100 pages encrypted by version 2 of key 1, rest of the pages encrypted by version 1
+# of key 1.
+# Restart server without key 1 and drop t1. Although, key 1 is not available, it should still be possible
+# to drop t1. Log errors to MYSQLD_LOG as we do not expect warnings in the default server log file.
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=MYSQLTEST_VARDIR/log/server.log
+DROP TABLE t1;
+# Now we will re-create t1 and encrypt it with version 1 of key 1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+# Now we will re-encrypt first 100 pages of t1 with ver2 of key 1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_rotate_key_age=1;
+SET GLOBAL innodb_encryption_threads=4;
+# Table t1 should ROTATIONG_OR_FLUSHING set to 1 <= this means that only 20 pages
+# have been rotatted.
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+# some pages are encrypted with version 2 of key 1, now switch to keyring without version 2 of key 1 -
+# it should not be possible to open t1
+missing_ver_2_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 1 of key 1, now switch to keyring without version 1 of key 1 -
+# it should not be possible to open t1
+missing_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_missing_v1_v2 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# pages are encrypted with key 1. It should not be possible to open t1 when key 1 is missing.
+missing_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# pages are encrypted with version 1 and version 2 of key 1. It should not be possible to open
+# t1, when version 1 of key 1 is corrupted.
+corrupted_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# pages are encrypted with version 1 and version 2 of key 1. It should not be possible to open
+# t1, when version 2 of key 1 is corrupted.
+corrupted_ver_2_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_v2_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# setup for 4th scenario:
+# 100 pages decrypted, rest of the pages encrypted by version 1 of key 1.
+# First drop and re-create t1 (encrypt by key 1, version 1)
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=MYSQLTEST_VARDIR/log/server.log
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+# Now decrypt first 100 pages of t1
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+# Table t1 should have ROTATIONG_OR_FLUSHING set to 1 and max_key_version set to 1<= this means that only 100 pages
+# have been rotatted.
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=OFF;
+# Disable rotation threads
+# Disable rotation of only first 100 pages
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+# Some pages are encrypted with version 1 of key 1 in t1. Now switch to keyring with corrupted
+# version 1 of key 1
+corrupted_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# t1 is encrypted with version 1 and version 2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+missing_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# setup for 4th scenario:
+# 20 pages decrypted, 80 pages encrypted by version 2 of key 1, rest of the pages
+# encrypted by version 1 of key 1.
+# First re-create t1, encrypted with key_id = 1, version 1
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=MYSQLTEST_VARDIR/log/server.log
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID=1;
+set autocommit=0;
+call innodb_insert_proc(30000);
+commit;
+set autocommit=1;
+# Next, encrypt 100 pages with version 2
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2 --log-error=MYSQLTEST_VARDIR/log/server.log
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+# Table t1 should have min_key_version = 1, max_key_version = 2 assigned and ROTATIONG_OR_FLUSHING=1 <= this
+# means that only 100 pages have been rotatted.
+# Now, we will decrypt first 20 pages
+SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_20,rotate_only_first_x_pages_from_t1";
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads = 4;
+# Table t1 should have min_key_version = 1 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 20 pages
+# have been rotatted.
+SET GLOBAL innodb_encryption_threads = 0;
+# some pages are encrypted with version 2 of key 1, now switch to keyring with version 2 of key 1 corrupted -
+# it should not be possible to open t1
+corrupted_ver_2_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_v2_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 1 of key 1. Now switch to keyring with corrupted
+# version 1 of key 1
+corrupted_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_v1_corrupted --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 1 of key 1. Now switch to keyring without version 1 of key 1 -
+# it should not be possible to open t1
+missing_ver_1_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_missing_v1_v2 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# some pages are encrypted with version 2 of key 1. Now switch to keyring without version 2 of key 1 -
+# it should not be possible to open t1
+missing_ver_2_of_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# t1 is encrypted by version 1 and version 2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+missing_key_1
+# t1 is encrypted with ver1 and ver2 of key 1, now switch to keyring without key 1 -
+# it should not be possible to open t1
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0 --log-error=MYSQLTEST_VARDIR/log/server.log
+SELECT COUNT(*) from t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# Restart and decrypt all tables
+# restart:--default-table-encryption=OFF --innodb-encryption-threads=0 --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring-file-data=MYSQLTEST_VARDIR/std_data/validation_keyrings/keyring_key_0_key_1_ver_1_ver2
+DROP TABLE t1;
+DROP PROCEDURE innodb_insert_proc;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

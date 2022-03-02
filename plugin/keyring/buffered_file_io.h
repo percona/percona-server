@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Buffered_file_io : public IKeyring_io {
 
   // ================= IKeyring_io implementation ================= //
 
-  bool init(std::string *keyring_filename) override;
+  bool init(const std::string *keyring_filename) override;
   bool flush_to_backup(ISerialized_object *serialized_object) override;
   bool flush_to_storage(ISerialized_object *serialized_object) override;
   ISerializer *get_serializer() override;

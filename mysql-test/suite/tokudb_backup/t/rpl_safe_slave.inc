@@ -9,7 +9,7 @@ CREATE TEMPORARY TABLE t1 (a INT);
 --connection slave_2
 SET SESSION debug="+d,debug_sync_abort_on_timeout";
 
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 SET DEBUG_SYNC= 'tokudb_backup_wait_for_safe_slave_entered SIGNAL sse WAIT_FOR sse_continue';
 SET DEBUG_SYNC= 'tokudb_backup_wait_for_temp_tables_loop_begin SIGNAL ttlb WAIT_FOR ttlb_continue';
@@ -32,16 +32,16 @@ SET SESSION debug="+d,debug_sync_abort_on_timeout";
 
 --echo ### Wait for safe slave function to start
 SET DEBUG_SYNC = "now WAIT_FOR sse";
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 --echo ### Wait for safe slave loop start
 SET DEBUG_SYNC = "now SIGNAL sse_continue WAIT_FOR ttlb";
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 --echo ### Wait for safe thread loop point just after slave sql thread start 1
 SET DEBUG_SYNC = "now SIGNAL ttlb_continue WAIT_FOR ttlss";
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 --echo ### Wait for safe thread loop end
 SET DEBUG_SYNC = "now SIGNAL ttlss_continue WAIT_FOR ttle";
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 --echo ### Wait for safe thread loop point just after slave sql thread start 2
 SET DEBUG_SYNC = "now SIGNAL ttle_continue WAIT_FOR ttlss";
@@ -54,7 +54,7 @@ DROP TABLE t1;
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 
 --echo ### Continue backup
 --disable_warnings

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,9 @@
 
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 
+#include <assert.h>
 #include "m_string.h"  // STRING_WITH_LEN
-#include "my_dbug.h"
+
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_func.h"
@@ -73,10 +74,8 @@ bool Select_lex_builder::add_to_select_item_list(Item *expr) {
 
 // Add item representing star in "SELECT '*' ...".
 bool Select_lex_builder::add_star_select_item() {
-  const LEX_CSTRING star = {STRING_WITH_LEN("*")};
-
-  PTI_simple_ident_ident *ident_star =
-      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, star);
+  Item_asterisk *ident_star =
+      new (m_thd->mem_root) Item_asterisk(*m_pos, nullptr, nullptr);
   if (ident_star == nullptr) return true;
 
   return add_to_select_item_list(ident_star);
@@ -118,7 +117,9 @@ bool Select_lex_builder::add_select_expr(Item *select_list_item,
 
 /**
   Add item representing a FROM clause table as,
-  "SELECT ... FROM <schema_name>.<table_name> ...".
+  @code
+  SELECT ... FROM <schema_name>.<table_name> ...
+  @endcode
 */
 bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
                                        const LEX_CSTRING &table_name) {
@@ -157,7 +158,9 @@ bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
 
 /**
   Add item representing a FROM clause table as,
-  "SELECT ... FROM <sub query or derived table> ...".
+  @code
+  SELECT ... FROM <sub query or derived table> ...
+  @endcode
  */
 bool Select_lex_builder::add_from_item(PT_derived_table *dt) {
   if (m_table_reference_list.push_back(dt)) return true;
@@ -187,8 +190,8 @@ Item *Select_lex_builder::prepare_like_item(const LEX_CSTRING &field_name,
   if (wild_string == nullptr) return nullptr;
 
   /* ... field_name LIKE <value> ... */
-  Item_func_like *func_like = new (m_thd->mem_root)
-      Item_func_like(*m_pos, ident_field, wild_string, nullptr);
+  Item_func_like *func_like =
+      new (m_thd->mem_root) Item_func_like(*m_pos, ident_field, wild_string);
 
   return func_like;
 }
@@ -224,7 +227,7 @@ Item *Select_lex_builder::prepare_equal_item(const LEX_CSTRING &field_name,
 
 // Add a WHERE clause condition to Select_lex_builder.
 bool Select_lex_builder::add_condition(Item *a) {
-  DBUG_ASSERT(a != nullptr);
+  assert(a != nullptr);
 
   /* ... WHERE cond ... */
   if (m_where_clause == nullptr) {
@@ -291,10 +294,10 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
 }
 
 /**
-  Prepare a SELECT_LEX using all the information information
+  Prepare a Query_block using all the information information
   added to this Select_lex_builder.
 */
-SELECT_LEX *Select_lex_builder::prepare_select_lex() {
+Query_block *Select_lex_builder::prepare_query_block() {
   PT_query_specification *query_specification =
       new (m_thd->mem_root) PT_query_specification(
           options, m_select_item_list, m_table_reference_list, m_where_clause);
@@ -311,15 +314,15 @@ SELECT_LEX *Select_lex_builder::prepare_select_lex() {
   if (query_expression == nullptr) return nullptr;
 
   LEX *lex = m_thd->lex;
-  SELECT_LEX *current_select = lex->current_select();
+  Query_block *current_query_block = lex->current_query_block();
 
   lex->sql_command = SQLCOM_SELECT;
-  Parse_context pc(m_thd, current_select);
+  Parse_context pc(m_thd, current_query_block);
   if (m_thd->is_error()) return nullptr;
 
   if (query_expression->contextualize(&pc)) return nullptr;
 
-  return current_select;
+  return current_query_block;
 }
 
 }  // namespace info_schema

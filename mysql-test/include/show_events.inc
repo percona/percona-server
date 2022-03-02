@@ -58,7 +58,7 @@ if (!$_binlog_start)
   # position.  The first event(Description Event) is always ignored. For
   # description event's length might be changed because of adding new events,
   # 'SHOW BINLOG EVENTS LIMIT 1' is used to get the right value.
-  --let $_binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+  --let $_binlog_start= query_get_value($statement LIMIT 1 $_se_for_channel, End_log_pos, 1)
 }
 
 --let $statement= $statement FROM $_binlog_start
@@ -115,6 +115,18 @@ let $script=
   s{DOLLARmysqltest_vardir}{MYSQLTEST_VARDIR}g;
 ||
 --let $pre_script= my DOLLARmysqltest_vardir = DOLLARENV{'MYSQLTEST_VARDIR'};
+
+if (!$keep_transaction_payload_events)
+{
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:Transaction_payload)\t});
+}
+if ($keep_transaction_payload_events)
+{
+  let $pre_script= $pre_script
+    my DOLLARdec_size_regex = '(decompressed_size=[0-9]+ bytes)';
+  ||
+  --let $script= $script s{DOLLARdec_size_regex}{decompressed_size=## bytes};
+}
 
 if (!$keep_view_change_events)
 {

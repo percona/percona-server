@@ -11,5 +11,5 @@ SET GLOBAL innodb_encryption_threads=4;
 # restart:--innodb-read-only=0 --default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-threads=4
 # All done
 # Decrypt all tables
-SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

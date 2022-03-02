@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,4 +120,5 @@
 #define CFG_TUP_RESERVED_SCAN_RECORDS (PRIVATE_BASE + 94)
 #define CFG_TUX_RESERVED_SCAN_RECORDS (PRIVATE_BASE + 95)
 #define CFG_LDM_BATCH_SIZE        (PRIVATE_BASE + 96)
+
 #endif

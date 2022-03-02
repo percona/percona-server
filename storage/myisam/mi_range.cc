@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -91,7 +91,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
       }
       key_buff = info->lastkey + info->s->base.max_key_length;
       start_key_len = _mi_pack_key(info, inx, key_buff, min_key->key,
-                                   min_key->keypart_map, (HA_KEYSEG **)0);
+                                   min_key->keypart_map, (HA_KEYSEG **)nullptr);
       res = rtree_estimate(info, inx, key_buff, start_key_len,
                            myisam_read_vec[min_key->flag]);
       res = res ? res : 1; /* Don't return 0 */
@@ -132,7 +132,7 @@ static ha_rows _mi_record_pos(MI_INFO *info, const uchar *key,
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("search_flag: %d", search_flag));
-  DBUG_ASSERT(keypart_map);
+  assert(keypart_map);
 
   key_buff = info->lastkey + info->s->base.max_key_length;
   key_len = _mi_pack_key(info, inx, key_buff, key, keypart_map, nullptr);

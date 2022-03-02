@@ -19,6 +19,8 @@
 
 #include <cstdint>
 
+#include "my_inttypes.h"
+
 using EncryptionKeyId = uint32_t;
 
 static constexpr uint ENCRYPTION_KEY_VERSION_INVALID = (~(uint)0);

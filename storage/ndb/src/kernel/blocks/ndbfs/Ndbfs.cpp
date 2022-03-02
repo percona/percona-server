@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,10 @@
 #include "PosixAsyncFile.hpp"
 #endif
 
+#include "../dblqh/Dblqh.hpp"
+#include "../lgman.hpp"
+#include "../tsman.hpp"
+
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
@@ -54,7 +58,6 @@
 
 #define JAM_FILE_ID 393
 
-extern EventLogger * g_eventLogger;
 /**
  * NDBFS has two types of async IO file threads : Bound and non-bound.
  * These threads are kept in two distinct idle pools.
@@ -576,6 +579,20 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     handle.getSection(ptr, FsOpenReq::FILENAME);
   }
   file->theFileName.set(this, userRef, fsOpenReq->fileNumber, false, ptr);
+  if (handle.m_cnt > FsOpenReq::PASSWORD)
+  {
+    jam();
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, FsOpenReq::PASSWORD);
+    ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(file->m_password));
+    copy((Uint32*)&file->m_password, ptr);
+    ndbrequire(4 + file->m_password.password_length <= ptr.sz * sizeof(Uint32));
+    file->m_password.encryption_password[file->m_password.password_length] = 0;
+  }
+  else
+  {
+    file->m_password.password_length = 0;
+  }
   releaseSections(handle);
   
   if (fsOpenReq->fileFlags & FsOpenReq::OM_INIT)
@@ -615,6 +632,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       fsRef->userPointer  = userPointer;
       fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrOutOfMemory);
       fsRef->osErrorCode  = ~0; // Indicate local error
+ndbabort();
       sendSignal(userRef, GSN_FSOPENREF, signal, 3, JBB);
       return;
     }
@@ -629,8 +647,8 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   }
   
   if (getenv("NDB_TRACE_OPEN"))
-    ndbout_c("open(%s) bound: %u", file->theFileName.c_str(), bound);
-  
+    g_eventLogger->info("open(%s) bound: %u", file->theFileName.c_str(), bound);
+
   Request* request = theRequestPool->get();
   request->action = Request::open;
   request->error = 0;
@@ -729,7 +747,7 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
   }
 
   if (getenv("NDB_TRACE_OPEN"))
-    ndbout_c("close(%s)", openFile->theFileName.c_str());
+    g_eventLogger->info("close(%s)", openFile->theFileName.c_str());
 
   Request *request = theRequestPool->get();
   if( fsCloseReq->getRemoveFileFlag(fsCloseReq->fileFlag) == true ) {
@@ -751,7 +769,7 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
 void 
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
-  Uint32 theData[25 + 2 * NDB_FS_RW_PAGES];
+  Uint32 theData[25 + 1 + NDB_FS_RW_PAGES];
   memcpy(theData, signal->theData, 4 * signal->getLength());
   SectionHandle handle(this, signal);
   if (handle.m_cnt > 0)
@@ -863,7 +881,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       // List of memory pages followed by one file page
     case FsReadWriteReq::fsFormatListOfMemPages: { 
       
-      tPageOffset = fsRWReq->data.listOfMemPages.varIndex[fsRWReq->numberOfPages];
+      tPageOffset = fsRWReq->data.listOfMemPages.fileOffset;
       tPageOffset *= tPageSize;
       
       for (unsigned int i = 0; i < fsRWReq->numberOfPages; i++) {
@@ -875,6 +893,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 	  errorCode = FsRef::fsErrInvalidParameters;
 	  goto error;
 	}//if
+        // NDB_FS_RW_PAGES overkill, at most 15 ! Or more via execute direct?
 	request->par.readWrite.pages[i].buf = &tWA[varIndex * tClusterSize];
 	request->par.readWrite.pages[i].size = tPageSize;
 	request->par.readWrite.pages[i].offset = (off_t)
@@ -882,12 +901,19 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       }//for
       request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
       break;
-      // make it a writev or readv
     }//case
 
     case FsReadWriteReq::fsFormatMemAddress:
     {
       jam();
+      ndbassert(fsRWReq->numberOfPages == 1);
+      if (fsRWReq->numberOfPages != 1)
+      {
+        jam();
+        errorCode = FsRef::fsErrInvalidParameters;
+        goto error;
+      }
+
       const Uint32 memoryOffset = fsRWReq->data.memoryAddress.memoryOffset;
       const Uint32 fileOffset = fsRWReq->data.memoryAddress.fileOffset;
       const Uint32 sz = fsRWReq->data.memoryAddress.size;
@@ -895,7 +921,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       request->par.readWrite.pages[0].buf = &tWA[memoryOffset];
       request->par.readWrite.pages[0].size = sz;
       request->par.readWrite.pages[0].offset = (off_t)(fileOffset);
-      request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
+      request->par.readWrite.numberOfPages = 1;
       break;
     }
     default: {
@@ -908,7 +934,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   else if (format == FsReadWriteReq::fsFormatGlobalPage)
   {
     Ptr<GlobalPage> ptr;
-    m_global_page_pool.getPtr(ptr, fsRWReq->data.pageData[0]);
+    m_global_page_pool.getPtr(ptr, fsRWReq->data.globalPage.pageNumber);
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;
@@ -918,7 +944,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   {
     ndbrequire(format == FsReadWriteReq::fsFormatSharedPage);
     Ptr<GlobalPage> ptr;
-    m_shared_page_pool.getPtr(ptr, fsRWReq->data.pageData[0]);
+    m_shared_page_pool.getPtr(ptr, fsRWReq->data.sharedPage.pageNumber);
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;
@@ -1237,13 +1263,13 @@ Ndbfs::createAsyncFile()
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s",
+      ndbout_c("%2d (%p): %s",
                i,
-               (long) file,
+               file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
-    ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
-              m_maxFiles, theFiles.size());
+    g_eventLogger->info("m_maxFiles: %u, theFiles.size() = %u", m_maxFiles,
+                        theFiles.size());
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile: creating more than MaxNoOfOpenFiles");
   }
 
@@ -1285,7 +1311,7 @@ Ndbfs::createIoThread(bool bound)
   if (thr)
   {
 #ifdef VM_TRACE
-    ndbout_c("NDBFS: Created new file thread %d", theThreads.size());
+    g_eventLogger->info("NDBFS: Created new file thread %d", theThreads.size());
 #endif
 
     struct NdbThread* thrptr = thr->doStart();
@@ -1379,6 +1405,7 @@ Ndbfs::report(Request * request, Signal* signal)
       jam();
       // Put the file back in idle files list
       pushIdleFile(request->file);
+//ndbabort();
       sendSignal(ref, GSN_FSOPENREF, signal, FsRef::SignalLength, JBB);
       break;
     }
@@ -1397,16 +1424,15 @@ Ndbfs::report(Request * request, Signal* signal)
       break;
     }
     case Request:: writeSync:
-    case Request:: writevSync:
     case Request:: write:
-    case Request:: writev: {
+    {
       jam();
       sendSignal(ref, GSN_FSWRITEREF, signal, FsRef::SignalLength, JBB);
       break;
     }
     case Request:: read: 
     case Request:: readPartial:
-    case Request:: readv: {
+    {
       jam();
       sendSignal(ref, GSN_FSREADREF, signal, FsRef::SignalLength, JBB);
       break;
@@ -1473,7 +1499,7 @@ Ndbfs::report(Request * request, Signal* signal)
 	m_maxOpenedFiles = theOpenFiles.size();
 
       fsConf->filePointer = request->theFilePointer;
-      fsConf->fileInfo = request->m_fileinfo;
+      fsConf->fileInfo = 0;
       fsConf->file_size_hi = request->m_file_size_hi;
       fsConf->file_size_lo = request->m_file_size_lo;
       sendSignal(ref, GSN_FSOPENCONF, signal, 5, JBA);
@@ -1490,15 +1516,14 @@ Ndbfs::report(Request * request, Signal* signal)
       break;
     }
     case Request:: writeSync:
-    case Request:: writevSync:
     case Request:: write:
-    case Request:: writev: {
+    {
       jam();
       sendSignal(ref, GSN_FSWRITECONF, signal, 1, JBA);
       break;
     }
     case Request:: read:
-    case Request:: readv: {
+    {
       jam();
       sendSignal(ref, GSN_FSREADCONF, signal, 1, JBA);
       break;
@@ -1598,11 +1623,16 @@ Uint32 Ndbfs::translateErrno(int aErrno)
       //none valid parameters
     case ERROR_INVALID_HANDLE:
     case ERROR_INVALID_DRIVE:
+    case ERROR_INVALID_DATA:
     case ERROR_INVALID_ACCESS:
     case ERROR_HANDLE_EOF:
     case ERROR_BUFFER_OVERFLOW:
 
       return FsRef::fsErrInvalidParameters;
+
+    case ERROR_FILE_EXISTS:
+      return FsRef::fsErrFileExists;
+
       //environment error
     case ERROR_CRC:
     case ERROR_ARENA_TRASHED:
@@ -1621,6 +1651,8 @@ Uint32 Ndbfs::translateErrno(int aErrno)
       return FsRef::fsErrNoMoreResources;
       //no file
     case ERROR_FILE_NOT_FOUND:
+    case ERROR_INVALID_NAME:
+    case ERROR_PATH_NOT_FOUND:
       return FsRef::fsErrFileDoesNotExist;
 
     case ERR_ReadUnderflow:
@@ -1663,9 +1695,11 @@ Uint32 Ndbfs::translateErrno(int aErrno)
     case EFAULT:
     case EISDIR:
     case ENOTDIR:
-    case EEXIST:
     case ETXTBSY:
       return FsRef::fsErrInvalidParameters;
+      // file exists
+    case EEXIST:
+      return FsRef::fsErrFileExists;
       //environment error
     case ELOOP:
 #ifdef ENOLINK
@@ -1784,10 +1818,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theOpenFiles.size(); i++){
       AsyncFile* file = theOpenFiles.getFile(i);
-      infoEvent("%2d (0x%lx): %s thr: %lx", i,
-                (long)file,
+      infoEvent("%2d (%p): %s thr: %p", i,
+                file,
                 file->theFileName.c_str(),
-                (long)file->getThread());
+                file->getThread());
     }
     return;
   }
@@ -1796,7 +1830,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
+      infoEvent("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
     return;
   }
@@ -1806,7 +1840,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 
     for (unsigned i = 0; i < theIdleFiles.size(); i++){
       AsyncFile* file = theIdleFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
+      infoEvent("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
 
     return;
@@ -1852,7 +1886,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     Uint32 file= signal->theData[1];
     AsyncFile* openFile = theOpenFiles.find(file);
     ndbrequire(openFile != 0);
-    ndbout_c("File: %s %p", openFile->theFileName.c_str(), openFile);
+    g_eventLogger->info("File: %s %p", openFile->theFileName.c_str(), openFile);
     Request* curr = openFile->m_current_request;
     Request* last = openFile->m_last_request;
     if(curr)
@@ -1866,7 +1900,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     ndbout << "All files: " << endl;
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
+      ndbout_c("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
 #endif
   }
@@ -1878,10 +1912,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       AsyncFile* file = theFiles[i];
       if (file == 0)
         continue;
-      ndbout_c("%u : %s %s fileInfo=%08x", i,
-               file->theFileName.c_str() ? file->theFileName.c_str() : "",
-               file->isOpen() ? "OPEN" : "CLOSED",
-               file->get_fileinfo());
+      g_eventLogger->info(
+          "%u : %s %s", i,
+          file->theFileName.c_str() ? file->theFileName.c_str() : "",
+          file->isOpen() ? "OPEN" : "CLOSED");
     }
   }
 }//Ndbfs::execDUMP_STATE_ORD()
@@ -1896,6 +1930,31 @@ Ndbfs::get_filename(Uint32 fd) const
   return "";
 }
 
+void Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
+{
+  Uint32 block = refToMain(ref);
+  Uint32 instance = refToInstance(ref);
+
+  SimulatedBlock* main_block = globalData.getBlock(block);
+  ndbrequire(main_block != nullptr);
+  ndbrequire(instance < NDBMT_MAX_BLOCK_INSTANCES);
+  SimulatedBlock* rec_block = main_block->getInstance(instance);
+  ndbrequire(rec_block != nullptr);
+  switch (block)
+  {
+  case DBLQH:
+    static_cast<Dblqh*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  case TSMAN:
+    static_cast<Tsman*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  case LGMAN:
+    static_cast<Lgman*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  default:
+    ndbabort();
+  }
+}
 
 BLOCK_FUNCTIONS(Ndbfs)
 

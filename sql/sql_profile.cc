@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 
 #include "my_config.h"
 
+#include <dlfcn.h>
 #include <string.h>
 #include <algorithm>
 
@@ -86,7 +87,7 @@ int fill_query_profile_statistics_info(
                         ? "SHOW PROFILE"
                         : "INFORMATION_SCHEMA.PROFILING";
 
-  DBUG_ASSERT(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
+  assert(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
 
   push_deprecated_warn(thd, old, "Performance Schema");
   return (thd->profiling->fill_statistics_info(thd, tables));
@@ -120,7 +121,7 @@ ST_FIELD_INFO query_profile_statistics_info[] = {
     {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, "Source_function", 0},
     {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, "Source_file", 0},
     {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, "Source_line", 0},
-    {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL, 0}};
+    {nullptr, 0, MYSQL_TYPE_STRING, 0, true, nullptr, 0}};
 
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {
   uint profile_options = thd->lex->profile_options;
@@ -146,10 +147,10 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {
   };
 
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context = &thd->lex->select_lex->context;
+  Name_resolution_context *context = &thd->lex->query_block->context;
   int i;
 
-  for (i = 0; schema_table->fields_info[i].field_name != NULL; i++) {
+  for (i = 0; schema_table->fields_info[i].field_name != nullptr; i++) {
     if (!fields_include_condition_truth_values[i]) continue;
 
     field_info = &schema_table->fields_info[i];
@@ -161,6 +162,105 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {
     }
   }
   return 0;
+}
+
+typedef int (*je_mallctl_func)(const char *name, void *oldp, size_t *oldlenp,
+                               void *newp, size_t newlen);
+
+bool opt_jemalloc_profiling_enabled = false;
+bool opt_jemalloc_detected = false;
+static je_mallctl_func mallctl_p = nullptr;
+static bool jemalloc_initialized = false;
+static unsigned jemalloc_profile_counter = 0;
+
+/**
+  Wrapper over jemalloc mallctl
+
+  @param  name      The period-separated name argument specifies a location in a
+  tree-structured namespace
+  @param  oldp      To read a value, pass a pointer via oldp to adequate space
+  to contain the value, and a pointer to its length via oldlenp; otherwise pass
+  nullptr and nullptr.
+  @param  oldlenp
+  @param  newp      To write a value, pass a pointer to the value via newp, and
+  its length via newlen; otherwise pass nullptr and 0.
+  @param  newlen
+
+  @return Result of mallctl, mallctl returns 0 on success, or 1 if mallctl is
+  not available.
+*/
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+                     size_t newlen) {
+  if (!jemalloc_initialized) {
+    mallctl_p = (je_mallctl_func)dlsym(RTLD_DEFAULT, "mallctl");
+    jemalloc_initialized = true;
+  }
+
+  if (!mallctl_p) return 1;
+
+  return mallctl_p(name, oldp, oldlenp, newp, newlen);
+}
+
+/**
+  Dumps a memory profile to a temporary file.
+
+  It writes to /tmp/jeprof_mysqld.<PID>.<COUNTER>.<DATE> or
+  to a file determined by `prof_prefix` if `prof_prefix`
+  is different from default.
+
+  @return 0 on success.
+*/
+int jemalloc_profiling_dump() {
+  char *pfn;
+  size_t sz = sizeof(pfn);
+  int n = jemalloc_mallctl("opt.prof_prefix", &pfn, &sz, nullptr, 0);
+
+  /* Only write to custom file if user doesn't overwrite prof_prefix in
+   * MALLOC_CONF */
+  if (n || !strcmp(pfn, "jeprof")) {
+    char buff[64];
+    size_t buff_size = sizeof(buff);
+    int i = snprintf(buff, buff_size, "/tmp/jeprof_mysqld.%u.%u.", getpid(),
+                     jemalloc_profile_counter++);
+    if (i < 0 || static_cast<size_t>(i) >= buff_size) return 1;
+
+    time_t t = time(nullptr);
+    struct tm ltm;
+    localtime_r(&t, &ltm);
+    strftime(buff + i, buff_size - i, "%y%m%d%H%M%S", &ltm);
+
+    pfn = buff;
+    return jemalloc_mallctl("prof.dump", nullptr, 0, &pfn, sz);
+  }
+
+  return jemalloc_mallctl("prof.dump", nullptr, nullptr, nullptr, 0);
+}
+
+/**
+  Detected means Jemalloc loaded and profiling initialized using prof:true in
+  MALLOC_CONF environment variable.
+
+  @return true on Jemalloc with profiling detected.
+*/
+bool jemalloc_detected() {
+  char active;
+  size_t sz = sizeof(active);
+  int n = jemalloc_mallctl("opt.prof", &active, &sz, nullptr, 0);
+  return !n && active;
+}
+
+/**
+  Actually enable or disable profiling during runtime, for existing and
+  newly created threads.
+
+  @return 0 on success.
+*/
+int jemalloc_profiling_enable(bool enable) {
+  int n = jemalloc_mallctl("prof.active", nullptr, nullptr, &enable,
+                           sizeof(enable));
+  n |= jemalloc_mallctl("prof.thread_active_init", nullptr, nullptr, &enable,
+                        sizeof(enable));
+  return n;
 }
 
 #if defined(ENABLED_PROFILING)
@@ -190,7 +290,7 @@ PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg,
                                    const char *status_arg)
     : profile(profile_arg) {
   collect();
-  set_label(status_arg, NULL, NULL, 0);
+  set_label(status_arg, nullptr, nullptr, 0);
 }
 
 PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg,
@@ -204,7 +304,7 @@ PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg,
 
 PROF_MEASUREMENT::~PROF_MEASUREMENT() {
   my_free(allocated_status_memory);
-  status = function = file = NULL;
+  status = function = file = nullptr;
 }
 
 void PROF_MEASUREMENT::set_label(const char *status_arg,
@@ -217,36 +317,36 @@ void PROF_MEASUREMENT::set_label(const char *status_arg,
     Compute all the space we'll need to allocate one block for everything
     we'll need, instead of N mallocs.
   */
-  sizes[0] = (status_arg == NULL) ? 0 : strlen(status_arg) + 1;
-  sizes[1] = (function_arg == NULL) ? 0 : strlen(function_arg) + 1;
-  sizes[2] = (file_arg == NULL) ? 0 : strlen(file_arg) + 1;
+  sizes[0] = (status_arg == nullptr) ? 0 : strlen(status_arg) + 1;
+  sizes[1] = (function_arg == nullptr) ? 0 : strlen(function_arg) + 1;
+  sizes[2] = (file_arg == nullptr) ? 0 : strlen(file_arg) + 1;
 
   allocated_status_memory = (char *)my_malloc(
       key_memory_PROFILE, sizes[0] + sizes[1] + sizes[2], MYF(0));
-  DBUG_ASSERT(allocated_status_memory != NULL);
+  assert(allocated_status_memory != nullptr);
 
   cursor = allocated_status_memory;
 
-  if (status_arg != NULL) {
+  if (status_arg != nullptr) {
     strcpy(cursor, status_arg);
     status = cursor;
     cursor += sizes[0];
   } else
-    status = NULL;
+    status = nullptr;
 
-  if (function_arg != NULL) {
+  if (function_arg != nullptr) {
     strcpy(cursor, function_arg);
     function = cursor;
     cursor += sizes[1];
   } else
-    function = NULL;
+    function = nullptr;
 
-  if (file_arg != NULL) {
+  if (file_arg != nullptr) {
     strcpy(cursor, file_arg);
     file = cursor;
     cursor += sizes[2];
   } else
-    file = NULL;
+    file = nullptr;
 
   line = line_arg;
 }
@@ -315,8 +415,8 @@ void QUERY_PROFILE::set_query_source(const char *query_source_arg,
   /* Truncate to avoid DoS attacks. */
   size_t length = min(MAX_QUERY_LENGTH, query_length_arg);
 
-  DBUG_ASSERT(m_query_source.str == NULL); /* we don't leak memory */
-  if (query_source_arg != NULL) {
+  assert(m_query_source.str == nullptr); /* we don't leak memory */
+  if (query_source_arg != nullptr) {
     m_query_source.str =
         my_strndup(key_memory_PROFILE, query_source_arg, length, MYF(0));
     m_query_source.length = length;
@@ -328,9 +428,9 @@ void QUERY_PROFILE::new_status(const char *status_arg, const char *function_arg,
   PROF_MEASUREMENT *prof;
   DBUG_TRACE;
 
-  DBUG_ASSERT(status_arg != NULL);
+  assert(status_arg != nullptr);
 
-  if ((function_arg != NULL) && (file_arg != NULL))
+  if ((function_arg != nullptr) && (file_arg != nullptr))
     prof = new PROF_MEASUREMENT(this, status_arg, function_arg,
                                 base_name(file_arg), line_arg);
   else
@@ -344,12 +444,13 @@ void QUERY_PROFILE::new_status(const char *status_arg, const char *function_arg,
   while (entries.elements > MAX_QUERY_HISTORY) delete entries.pop();
 }
 
-PROFILING::PROFILING() : profile_id_counter(1), current(NULL), last(NULL) {}
+PROFILING::PROFILING()
+    : profile_id_counter(1), current(nullptr), last(nullptr) {}
 
 PROFILING::~PROFILING() {
   while (!history.is_empty()) delete history.pop();
 
-  if (current != NULL) delete current;
+  if (current != nullptr) delete current;
 }
 
 /**
@@ -365,10 +466,10 @@ void PROFILING::status_change(const char *status_arg, const char *function_arg,
                               const char *file_arg, unsigned int line_arg) {
   DBUG_TRACE;
 
-  if (status_arg == NULL) /* We don't know how to handle that */
+  if (status_arg == nullptr) /* We don't know how to handle that */
     return;
 
-  if (current == NULL) /* This profile was already discarded. */
+  if (current == nullptr) /* This profile was already discarded. */
     return;
 
   if (unlikely(enabled))
@@ -385,7 +486,7 @@ void PROFILING::start_new_query(const char *initial_state) {
   DBUG_TRACE;
 
   /* This should never happen unless the server is radically altered. */
-  if (unlikely(current != NULL)) {
+  if (unlikely(current != nullptr)) {
     DBUG_PRINT("warning", ("profiling code was asked to start a new query "
                            "before the old query was finished.  This is "
                            "probably a bug."));
@@ -398,7 +499,7 @@ void PROFILING::start_new_query(const char *initial_state) {
 
   if (!enabled) return;
 
-  DBUG_ASSERT(current == NULL);
+  assert(current == nullptr);
   current = new QUERY_PROFILE(this, initial_state);
 }
 
@@ -410,7 +511,7 @@ void PROFILING::discard_current_query() {
   DBUG_TRACE;
 
   delete current;
-  current = NULL;
+  current = nullptr;
 }
 
 /**
@@ -420,24 +521,24 @@ void PROFILING::discard_current_query() {
 */
 void PROFILING::finish_current_query() {
   DBUG_TRACE;
-  if (current != NULL) {
+  if (current != nullptr) {
     /* The last fence-post, so we can support the span before this. */
-    status_change("ending", NULL, NULL, 0);
+    status_change("ending", nullptr, nullptr, 0);
 
     if ((enabled) && /* ON at start? */
         (((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
          ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_PROFILING)) !=
           0)) && /* and ON at end? */
-        (current->m_query_source.str != NULL) &&
+        (current->m_query_source.str != nullptr) &&
         (!current->entries.is_empty())) {
       current->profiling_query_id = next_profile_id(); /* assign an id */
 
       history.push_back(current);
       last = current; /* never contains something that is not in the history. */
-      current = NULL;
+      current = nullptr;
     } else {
       delete current;
-      current = NULL;
+      current = nullptr;
     }
   }
 
@@ -449,26 +550,26 @@ void PROFILING::finish_current_query() {
 bool PROFILING::show_profiles() {
   DBUG_TRACE;
   QUERY_PROFILE *prof;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(current_thd->mem_root);
 
   field_list.push_back(new Item_return_int("Query_ID", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Duration", TIME_FLOAT_DIGITS - 1,
                                            MYSQL_TYPE_DOUBLE));
   field_list.push_back(new Item_empty_string("Query", 40));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
-  SELECT_LEX *sel = thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit = thd->lex->unit;
+  Query_block *sel = thd->lex->query_block;
+  Query_expression *unit = thd->lex->unit;
   ha_rows idx = 0;
   Protocol *protocol = thd->get_protocol();
 
   unit->set_limit(thd, sel);
 
   void *iterator;
-  for (iterator = history.new_iterator(); iterator != NULL;
+  for (iterator = history.new_iterator(); iterator != nullptr;
        iterator = history.iterator_next(iterator)) {
     prof = history.iterator_value(iterator);
 
@@ -481,7 +582,7 @@ bool PROFILING::show_profiles() {
     protocol->store((uint32)(prof->profiling_query_id));
     protocol->store_double(query_time_usecs / (1000.0 * 1000),
                            TIME_FLOAT_DIGITS - 1, 0);
-    if (prof->m_query_source.str != NULL)
+    if (prof->m_query_source.str != nullptr)
       protocol->store_string(prof->m_query_source.str,
                              prof->m_query_source.length, system_charset_info);
     else
@@ -505,7 +606,7 @@ void PROFILING::set_query_source(const char *query_source_arg,
 
   if (!enabled) return;
 
-  if (current != NULL)
+  if (current != nullptr)
     current->set_query_source(query_source_arg, query_length_arg);
   else
     DBUG_PRINT("info", ("no current profile to send query source to"));
@@ -526,8 +627,8 @@ static void my_b_print_status(IO_CACHE *log_file, const char *status,
                               const PROF_MEASUREMENT &start,
                               const PROF_MEASUREMENT &stop) noexcept {
   DBUG_ENTER("my_b_print_status");
-  DBUG_ASSERT(log_file != nullptr);
-  DBUG_ASSERT(status != nullptr);
+  assert(log_file != nullptr);
+  assert(status != nullptr);
   char query_time_buff[22 + 7];
   const char *tmp;
 
@@ -631,7 +732,7 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
   QUERY_PROFILE *query;
   /* Go through each query in this thread's stored history... */
   void *history_iterator;
-  for (history_iterator = history.new_iterator(); history_iterator != NULL;
+  for (history_iterator = history.new_iterator(); history_iterator != nullptr;
        history_iterator = history.iterator_next(history_iterator)) {
     query = history.iterator_value(history_iterator);
 
@@ -643,16 +744,17 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
     ulong seq;
 
     void *entry_iterator;
-    PROF_MEASUREMENT *entry, *previous = NULL;
+    PROF_MEASUREMENT *entry, *previous = nullptr;
     /* ...and for each query, go through all its state-change steps. */
-    for (entry_iterator = query->entries.new_iterator(); entry_iterator != NULL;
+    for (entry_iterator = query->entries.new_iterator();
+         entry_iterator != nullptr;
          entry_iterator = query->entries.iterator_next(entry_iterator),
         previous = entry, row_number++) {
       entry = query->entries.iterator_value(entry_iterator);
       seq = entry->m_seq;
 
       /* Skip the first.  We count spans of fence, not fence-posts. */
-      if (previous == NULL) continue;
+      if (previous == nullptr) continue;
 
       if (thd_arg->lex->sql_command == SQLCOM_SHOW_PROFILE) {
         /*
@@ -804,7 +906,7 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
 #endif
 
       /* Emit the location that started this step, not that ended it. */
-      if ((previous->function != NULL) && (previous->file != NULL)) {
+      if ((previous->function != nullptr) && (previous->file != nullptr)) {
         table->field[15]->store(previous->function, strlen(previous->function),
                                 system_charset_info);
         table->field[15]->set_notnull();
@@ -827,7 +929,7 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
 void PROFILING::cleanup() {
   while (!history.is_empty()) delete history.pop();
   delete current;
-  current = NULL;
+  current = nullptr;
 }
 
 #endif /* ENABLED_PROFILING */

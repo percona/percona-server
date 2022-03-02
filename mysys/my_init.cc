@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
@@ -59,7 +60,6 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_memory.h"
@@ -144,9 +144,10 @@ bool my_init() {
   my_umask_dir = 0750; /* Default umask for new directories */
 
   /* Default creation of new files */
-  if ((str = getenv("UMASK")) != 0) my_umask = (int)(atoi_octal(str) | 0600);
+  if ((str = getenv("UMASK")) != nullptr)
+    my_umask = (int)(atoi_octal(str) | 0600);
   /* Default creation of new dir's */
-  if ((str = getenv("UMASK_DIR")) != 0)
+  if ((str = getenv("UMASK_DIR")) != nullptr)
     my_umask_dir = (int)(atoi_octal(str) | 0700);
 
   instrumented_stdin.m_file = stdin;
@@ -158,7 +159,7 @@ bool my_init() {
   if (my_thread_init()) return true;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
-  if ((home_dir = getenv("HOME")) != 0)
+  if ((home_dir = getenv("HOME")) != nullptr)
     home_dir = intern_filename(home_dir_buff, home_dir);
 
   {
@@ -260,14 +261,14 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
   Invalid parameter handler we will use instead of the one "baked"
   into the CRT for Visual Studio.
-  The DBUG_ASSERT will catch things typically *not* caught by sanitizers,
+  The assert will catch things typically *not* caught by sanitizers,
   e.g. iterator out-of-range, but pointing to valid memory.
 */
 
 void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
                           const wchar_t *file, unsigned int line,
                           uintptr_t pReserved) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   fprintf(stderr,
           "my_parameter_handler errno %d "
           "expression: %ws  function: %ws  file: %ws, line: %d\n",
@@ -277,7 +278,7 @@ void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
   //   DBUG_EXECUTE_IF("ib_export_io_write_failure_1", close(fileno(file)););
   // So ignore EBADF
   if (errno != EBADF) {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 #endif
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,18 +60,15 @@ dict_hdr_t *dict_hdr_get(mtr_t *mtr) /*!< in: mtr */
   return (header);
 }
 
-/** Returns a new table, index, or space id. */
-void dict_hdr_get_new_id(table_id_t *table_id,      /*!< out: table id
-                                                    (not assigned if NULL) */
-                         space_index_t *index_id,   /*!< out: index id
-                                                    (not assigned if NULL) */
-                         space_id_t *space_id,      /*!< out: space id
-                                                    (not assigned if NULL) */
-                         const dict_table_t *table, /*!< in: table */
-                         bool disable_redo)         /*!< in: if true and table
-                                                    object is NULL
-                                                    then disable-redo */
-{
+/** Returns a new table, index, or space id.
+@param[out] table_id Table id (not assigned if null)
+@param[out] index_id Index id (not assigned if null)
+@param[out] space_id Space id (not assigned if null)
+@param[in] table Table
+@param[in] disable_redo If true and table object is null then disable-redo */
+void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
+                         space_id_t *space_id, const dict_table_t *table,
+                         bool disable_redo) {
   dict_hdr_t *dict_hdr;
   ib_id_t id;
   mtr_t mtr;
@@ -154,7 +151,7 @@ void dict_hdr_flush_row_id(void) {
   row_id_t id;
   mtr_t mtr;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   id = dict_sys->row_id;
 
@@ -266,27 +263,28 @@ dberr_t dict_boot(void) {
     table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0, 0, 0);
 
     dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0,
-                           MAX_FULL_NAME_LEN);
-    dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
+                           MAX_FULL_NAME_LEN, true);
+    dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8, true);
     /* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
-    dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
+    dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4, true);
     /* The low order bit of TYPE is always set to 1.  If ROW_FORMAT
     is not REDUNDANT or COMPACT, this field matches table->flags. */
-    dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
+    dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0, true);
     /* MIX_LEN may contain additional table flags when
     ROW_FORMAT!=REDUNDANT.  Currently, these flags include
     DICT_TF2_TEMPORARY. */
-    dict_mem_table_add_col(table, heap, "MIX_LEN", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "CLUSTER_NAME", DATA_BINARY, 0, 0);
-    dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
+    dict_mem_table_add_col(table, heap, "MIX_LEN", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "CLUSTER_NAME", DATA_BINARY, 0, 0,
+                           true);
+    dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4, true);
 
     table->id = DICT_TABLES_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_tables = table;
     mem_heap_empty(heap);
 
@@ -318,20 +316,20 @@ dberr_t dict_boot(void) {
     /*-------------------------*/
     table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0, 0, 0, 0);
 
-    dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
-    dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
-    dict_mem_table_add_col(table, heap, "MTYPE", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "PRTYPE", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "LEN", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "PREC", DATA_INT, 0, 4);
+    dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8, true);
+    dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0, true);
+    dict_mem_table_add_col(table, heap, "MTYPE", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "PRTYPE", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "LEN", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "PREC", DATA_INT, 0, 4, true);
 
     table->id = DICT_COLUMNS_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_columns = table;
     mem_heap_empty(heap);
 
@@ -352,21 +350,22 @@ dberr_t dict_boot(void) {
     table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE,
                                   DICT_NUM_COLS__SYS_INDEXES, 0, 0, 0, 0);
 
-    dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
-    dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
-    dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
-    dict_mem_table_add_col(table, heap, "N_FIELDS", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "MERGE_THRESHOLD", DATA_INT, 0, 4);
+    dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8, true);
+    dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8, true);
+    dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0, true);
+    dict_mem_table_add_col(table, heap, "N_FIELDS", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "MERGE_THRESHOLD", DATA_INT, 0, 4,
+                           true);
 
     table->id = DICT_INDEXES_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_indexes = table;
     mem_heap_empty(heap);
 
@@ -386,16 +385,16 @@ dberr_t dict_boot(void) {
     /*-------------------------*/
     table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0, 0, 0);
 
-    dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 8);
-    dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
-    dict_mem_table_add_col(table, heap, "COL_NAME", DATA_BINARY, 0, 0);
+    dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 8, true);
+    dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4, true);
+    dict_mem_table_add_col(table, heap, "COL_NAME", DATA_BINARY, 0, 0, true);
 
     table->id = DICT_FIELDS_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_fields = table;
     mem_heap_free(heap);
 
@@ -412,12 +411,12 @@ dberr_t dict_boot(void) {
         mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS, MLOG_4BYTES, &mtr), FALSE);
     ut_a(err == DB_SUCCESS);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_load_sys_table(dict_sys->sys_tables);
     dict_load_sys_table(dict_sys->sys_columns);
     dict_load_sys_table(dict_sys->sys_indexes);
     dict_load_sys_table(dict_sys->sys_fields);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   mtr_commit(&mtr);

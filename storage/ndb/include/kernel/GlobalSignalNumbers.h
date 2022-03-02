@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 832;
+const GlobalSignalNumber MAX_GSN = 849;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -977,7 +977,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_BOUND_INFO		710
 
 #define GSN_ACC_LOCKREQ			711
-#define GSN_READ_PSEUDO_REQ             712
+// #define GSN_READ_PSEUDO_REQ             712 /* Not a signal since 8.0.24 */
 
 /**
  * Filegroup 
@@ -1191,4 +1191,26 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SYNC_THREAD_VIA_REQ         831
 #define GSN_SYNC_THREAD_VIA_CONF        832
 
+#define GSN_SET_UP_MULTI_TRP_REQ        833
+#define GSN_SET_UP_MULTI_TRP_CONF       834
+
+#define GSN_GET_NUM_MULTI_TRP_REQ       835
+#define GSN_GET_NUM_MULTI_TRP_CONF      836
+#define GSN_GET_NUM_MULTI_TRP_REF       837
+
+#define GSN_FREEZE_THREAD_REQ           838
+#define GSN_FREEZE_THREAD_CONF          839
+#define GSN_FREEZE_ACTION_REQ           840
+#define GSN_FREEZE_ACTION_CONF          841
+
+#define GSN_ACTIVATE_TRP_REQ            842
+#define GSN_ACTIVATE_TRP_CONF           843
+
+#define GSN_SWITCH_MULTI_TRP_REQ        844
+#define GSN_SWITCH_MULTI_TRP_CONF       845
+#define GSN_SWITCH_MULTI_TRP_REF        846
+
+#define GSN_MEASURE_WAKEUP_TIME_ORD     847
+#define GSN_UPD_QUERY_DIST_ORD          848
+#define GSN_UPD_THR_LOAD_ORD            849
 #endif

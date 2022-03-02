@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 void Dbdih::initData() 
 {
+  m_set_up_multi_trp_in_node_restart = false;
   cpageFileSize = ZPAGEREC;
 
   // Records with constant sizes
@@ -50,8 +51,13 @@ void Dbdih::initData()
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
 
   Uint32 i;
-  for(i = 0; i<MAX_NDB_NODES; i++){
+  for(i = 0; i<MAX_NDB_NODES; i++)
+  {
     new (&nodeRecord[i]) NodeRecord();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = i;
+    ptrAss(nodePtr, nodeRecord);
+    initNodeRecord(nodePtr);
   }
   Uint32 max_takeover_threads = MAX(MAX_NDB_NODES,
                                     ZMAX_TAKE_OVER_THREADS);
@@ -81,7 +87,7 @@ void Dbdih::initData()
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
-  c_set_initial_start_flag = FALSE;
+  c_set_initial_start_flag = false;
   c_sr_wait_to = false;
   c_2pass_inr = false;
   c_handled_master_take_over_copy_gci = 0;
@@ -94,6 +100,8 @@ void Dbdih::initData()
   }
   m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
   m_master_lcp_req_lcp_already_completed = false;
+  
+  c_shutdownReqNodes.clear();
 }//Dbdih::initData()
 
 void Dbdih::initRecords()
@@ -154,7 +162,7 @@ Dbdih::Dbdih(Block_context& ctx):
   c_mainTakeOverPtr.p = 0;
   c_activeThreadTakeOverPtr.i = RNIL;
   c_activeThreadTakeOverPtr.p = 0;
-  m_max_node_id = Uint32(~0);
+  m_max_node_id = 0;
 
   /* Node Recovery Status Module signals */
   addRecSignal(GSN_ALLOC_NODEID_REP, &Dbdih::execALLOC_NODEID_REP);
@@ -349,10 +357,10 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
                &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
-
-
   addRecSignal(GSN_DIH_GET_TABINFO_REQ,
                &Dbdih::execDIH_GET_TABINFO_REQ);
+  addRecSignal(GSN_SET_UP_MULTI_TRP_CONF,
+               &Dbdih::execSET_UP_MULTI_TRP_CONF);
 #if 0
   addRecSignal(GSN_DIH_GET_TABINFO_REF,
                &Dbdih::execDIH_GET_TABINFO_REF);
@@ -372,13 +380,13 @@ Dbdih::Dbdih(Block_context& ctx):
   memset(c_next_replica_node, 0, sizeof(c_next_replica_node));
   c_fragments_per_node_ = 0;
   memset(c_node_groups, 0, sizeof(c_node_groups));
-  if (globalData.ndbMtTcThreads == 0)
+  if (globalData.ndbMtTcWorkers == 0)
   {
     c_diverify_queue_cnt = 1;
   }
   else
   {
-    c_diverify_queue_cnt = globalData.ndbMtTcThreads;
+    c_diverify_queue_cnt = globalData.ndbMtTcWorkers;
   }
 }//Dbdih::Dbdih()
 

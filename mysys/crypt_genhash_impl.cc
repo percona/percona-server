@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,6 @@
 
 #include <sys/types.h>
 
-#ifdef HAVE_OPENSSL
-
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -68,7 +66,7 @@ static void DIGESTCreate(DIGEST_CTX **ctx) {
 }
 
 static void DIGESTInit(DIGEST_CTX *ctx) {
-  EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+  EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
 }
 
 static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {
@@ -76,13 +74,13 @@ static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {
 }
 
 static void DIGESTFinal(void *txt, DIGEST_CTX *ctx) {
-  EVP_DigestFinal_ex(ctx, (unsigned char *)txt, NULL);
+  EVP_DigestFinal_ex(ctx, (unsigned char *)txt, nullptr);
 }
 
 static void DIGESTDestroy(DIGEST_CTX **ctx) {
   if (ctx != nullptr) {
     EVP_MD_CTX_destroy(*ctx);
-    *ctx = NULL;
+    *ctx = nullptr;
   }
 }
 
@@ -153,9 +151,9 @@ static uint getrounds(const char *s) {
   char *e;
   long val;
 
-  if (s == NULL) return (0);
+  if (s == nullptr) return (0);
 
-  if ((r = strstr(s, ROUNDS)) == NULL) {
+  if ((r = strstr(s, ROUNDS)) == nullptr) {
     return (0);
   }
 
@@ -283,7 +281,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
     rounds = MAX(ROUNDS_MIN, MIN(srounds, ROUNDS_MAX));
     custom_rounds = true;
     p = strchr(salt, '$');
-    if (p != NULL) salt = p + 1;
+    if (p != nullptr) salt = p + 1;
   }
 
   salt_len = MIN(strcspn(salt, "$"), CRYPT_SALT_LENGTH);
@@ -420,7 +418,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
 }
 
 /**
-  Generate a random string using ASCII characters but avoid seperator character.
+  Generate a random string using ASCII characters but avoid separator character.
   Stdlib rand and srand are used to produce pseudo random numbers between
   with about 7 bit worth of entropty between 1-127.
 */
@@ -444,5 +442,3 @@ void xor_string(char *to, int to_len, char *pattern, int pattern_len) {
     ++loop;
   }
 }
-
-#endif  // HAVE_OPENSSL

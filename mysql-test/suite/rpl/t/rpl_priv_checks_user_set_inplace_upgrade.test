@@ -39,7 +39,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 
 --echo #
 --echo # TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER configured
@@ -94,7 +94,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE --upgrade=FORCE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_start_server.inc
 --source include/start_slave.inc
 
@@ -114,7 +114,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 
 # 8) Change `PRIVILEGE_CHECKS_USER` and check the table is consistent.
 --source include/stop_slave.inc
---eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL
 --source include/start_slave.inc
 
 --let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Privilege_checks_username is NULL AND Privilege_checks_hostname is NULL`
@@ -125,4 +125,9 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 # Clean up
 --source include/rpl_connection_master.inc
 DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--connection slave
+SET GLOBAL relay_log_info_repository="FILE";
+--source include/start_slave.inc
 --source include/rpl_end.inc

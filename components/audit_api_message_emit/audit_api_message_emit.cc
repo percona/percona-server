@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   will receive this event.
 */
 
+#include <assert.h>
 #include <ctype.h>
-#include <my_dbug.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
@@ -41,7 +41,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/service_plugin_registry.h>
 #include <mysql_com.h>
-#include "template_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <map>
 #include <memory>
 #include <string>
+#include "my_compiler.h"
 #include "template_utils.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
@@ -68,7 +68,7 @@ class IError_handler {
   /**
     Virtual destructor.
   */
-  virtual ~IError_handler() {}
+  virtual ~IError_handler() = default;
   /**
     Error reporting method.
 
@@ -191,13 +191,13 @@ char *collation_name = const_cast<char *>(collation);
   @param [in, out]  args      UDF arguments structure
   @param [out]      handler   Error handler
 
-  @return
-    @retval false Set the charset of all arguments successully
-    @retval true  Otherwise
+  @retval false Set the charset of all arguments successully
+  @retval true  Otherwise
 */
 static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
   for (size_t index = 0; index < args->arg_count; ++index) {
-    if (mysql_service_mysql_udf_metadata->argument_set(
+    if (args->arg_type[index] == STRING_RESULT &&
+        mysql_service_mysql_udf_metadata->argument_set(
             args, "collation", index, pointer_cast<void *>(collation_name))) {
       handler.error("Could not set the %s collation of argument '%d'.",
                     collation_name, index);
@@ -213,9 +213,8 @@ static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
   @param [in, out]  initid    A pointer to the UDF_INIT structure
   @param [out]      handler   Error handler that keeps the error message
 
-  @return
-    @retval false Charset info of return value set successfully.
-    @retval true  Otherwise
+  @retval false Charset info of return value set successfully.
+  @retval true  Otherwise
 */
 bool set_return_value_charset_info(UDF_INIT *initid, IError_handler &handler) {
   if (mysql_service_mysql_udf_metadata->result_set(
@@ -240,7 +239,6 @@ bool set_return_value_charset_info(UDF_INIT *initid, IError_handler &handler) {
                           set to false, if the provided argument count is
                           greater, this does not return error.
 
-  @return
   @retval -1  None of the argument definition was matched.
   @retval >=0 n-th argument definition was matched.
 */
@@ -254,7 +252,7 @@ static int arg_check(IError_handler &handler, unsigned int arg_count,
   bool res[2];
   bool result = false;
 
-  DBUG_ASSERT(array_elements(res) >= arg_def_size);
+  assert(array_elements(res) >= arg_def_size);
 
   /*
     Check, whether provided argument count matches expected argument count.
@@ -328,7 +326,6 @@ static int arg_check(IError_handler &handler, unsigned int arg_count,
   @param handler Error handler used for error handling.
   @param args    UDF_ARGS structure.
 
-  @return
   @retval false Succeeded. Arguments are ok.
   @retval true  Failed. Error is reported via specified handler.
 */
@@ -400,7 +397,7 @@ class String_error_handler : public IError_handler {
 
     @param message Message to be copied.
   */
-  virtual void error(const char *message, ...)
+  void error(const char *message, ...) override
       MY_ATTRIBUTE((format(printf, 2, 3))) {
     va_list va;
     va_start(va, message);
@@ -574,7 +571,7 @@ static bool emit_init(UDF_INIT *initd, UDF_ARGS *args, char *message) {
 static mysql_service_status_t init() {
   return mysql_service_udf_registration->udf_register(
       "audit_api_message_emit_udf", STRING_RESULT, (Udf_func_any)emit,
-      (Udf_func_init)emit_init, NULL);
+      (Udf_func_init)emit_init, nullptr);
 }
 
 /**

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,30 @@
 #   or
 #     - cmake -DWITH_ICU=</path/to/custom/icu>
 #
-# The default value for WITH_ICU is "bundled"
-# set in cmake/build_configurations/feature_set.cmake
+# The default value for WITH_ICU is "bundled".
 
 # To do: The default should probably be different depending on platform. On
 # Windows, it should likely be wherever NuGet puts the libraries.
+
+# The ICU library was introduced to MySQL sources with:
+# WL#8987 Add the ICU library to handle RLIKE/REGEXP.
+# in a series of patches, the first one titled
+# WL#8987: ICU 59.1 source added almost without altering.
+# The lowest checked version is 55 on Ubuntu 16.
+SET(MIN_ICU_VERSION_REQUIRED "55")
+
+MACRO(FIND_ICU_VERSION)
+  # Extract the version number. Major version information looks like:
+  #   #define U_ICU_VERSION_MAJOR_NUM nn
+  FILE(STRINGS "${ICU_COMMON_DIR}/unicode/uvernum.h"
+    ICU_MAJOR_VERSION_INFO
+    REGEX "^#[ ]*define[\t ]+U_ICU_VERSION_MAJOR_NUM[\t ]+[0-9]+$"
+    )
+  STRING(REGEX REPLACE
+    "^.*U_ICU_VERSION_MAJOR_NUM[\t ]+([0-9]+)$" "\\1"
+    ICU_MAJOR_VERSION ${ICU_MAJOR_VERSION_INFO}
+    )
+ENDMACRO()
 
 #
 # install_root is either 'system' or is assumed to be a path.
@@ -109,21 +128,12 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
 
 ENDMACRO()
 
-IF(NOT WITH_ICU)
-  SET(WITH_ICU bundled CACHE STRING
-    "By default use bundled icu library")
-ENDIF()
-
 MACRO (MYSQL_CHECK_ICU)
-  ADD_DEFINITIONS(
-    -DUNISTR_FROM_STRING_EXPLICIT=explicit
-    -DUNISTR_FROM_CHAR_EXPLICIT=explicit
 
-    # This will not work with a 'system' build. The shared libraries are
-    # compiled with renaming turned on.
-    #
-    #    -DU_DISABLE_RENAMING
-  )
+  IF(NOT WITH_ICU)
+    SET(WITH_ICU bundled CACHE STRING
+      "By default use bundled icu library")
+  ENDIF()
 
   FILE(TO_CMAKE_PATH "${WITH_ICU}" WITH_ICU)
 
@@ -137,16 +147,12 @@ MACRO (MYSQL_CHECK_ICU)
     MESSAGE(FATAL_ERROR "WITH_ICU must be 'bundled', 'system' or a path")
   ENDIF()
 
-  # Extract the version number. Major version information looks like:
-  #   #define U_ICU_VERSION_MAJOR_NUM nn
-  FILE(STRINGS "${ICU_COMMON_DIR}/unicode/uvernum.h"
-    ICU_MAJOR_VERSION_INFO
-    REGEX "^#[ ]*define[\t ]+U_ICU_VERSION_MAJOR_NUM[\t ]+[0-9]+$"
-  )
-  STRING(REGEX REPLACE
-    "^.*U_ICU_VERSION_MAJOR_NUM[\t ]+([0-9]+)$" "\\1"
-    ICU_MAJOR_VERSION ${ICU_MAJOR_VERSION_INFO}
-  )
+  FIND_ICU_VERSION()
+  IF(ICU_MAJOR_VERSION VERSION_LESS MIN_ICU_VERSION_REQUIRED)
+    MESSAGE(FATAL_ERROR
+      "ICU version must be at least ${MIN_ICU_VERSION_REQUIRED}, "
+      "found ${ICU_MAJOR_VERSION}.\nPlease use -DWITH_ICU=bundled")
+  ENDIF()
 
   MESSAGE(STATUS "ICU_MAJOR_VERSION = ${ICU_MAJOR_VERSION}")
   MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")

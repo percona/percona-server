@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
 # now prefer to link the check executable to the libraries listed in the
 # ``CMAKE_REQUIRED_LIBRARIES`` variable.
 IF(POLICY CMP0075)
-  CMAKE_POLICY(SET CMP0075 OLD)
+  CMAKE_POLICY(SET CMP0075 NEW)
 ENDIF()
 
 IF(SOLARIS)
@@ -64,10 +64,15 @@ IF(SOLARIS)
 
   # Sun Studio 12.6 creates a bogus code when -x02 is used
   # that crashes whenever std::condition_variable::wait_for() is used
-  IF(SOLARIS_INTEL)
+  IF(SOLARIS_INTEL AND MY_COMPILER_IS_SUNPRO)
     STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
+  ENDIF()
+
+  # MD5_Init() and others are deprecated.
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    ADD_COMPILE_OPTIONS("-Wno-deprecated-declarations")
   ENDIF()
 ENDIF()
 
@@ -137,6 +142,6 @@ ADD_SUBDIRECTORY(src)
 # Enable testing
 
 
-IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
+IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(tests)
 ENDIF()

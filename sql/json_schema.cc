@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
+#include <assert.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/memorystream.h>
@@ -34,7 +35,7 @@
 #include <utility>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -61,7 +62,7 @@ static bool parse_json_schema(const char *json_schema_str,
                               size_t json_schema_length,
                               const char *function_name,
                               rapidjson::Document *schema_document) {
-  DBUG_ASSERT(schema_document != nullptr);
+  assert(schema_document != nullptr);
 
   // Check if the JSON schema is valid. Invalid JSON would be caught by
   // rapidjson::Document::Parse, but it will not catch documents that are too
@@ -79,7 +80,7 @@ static bool parse_json_schema(const char *json_schema_str,
           .HasParseError()) {
     // The document should already be valid, since is_valid_json_syntax
     // succeeded.
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
@@ -110,7 +111,8 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
 
 Json_schema_validator::Json_schema_validator(
     const rapidjson::Document &schema_document)
-    : m_cached_schema(schema_document, &m_remote_document_provider) {}
+    : m_cached_schema(schema_document, /*uri=*/nullptr, /*uriLength=*/0,
+                      &m_remote_document_provider) {}
 
 unique_ptr_destroy_only<const Json_schema_validator>
 create_json_schema_validator(MEM_ROOT *mem_root, const char *json_schema_str,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/components/services/my_io_bits.h>     /* sockaddr_storage */
 #include <mysql/components/services/my_thread_bits.h> /* my_thread_handle */
 
@@ -88,6 +89,7 @@ struct PSI_thread_info_v1 {
     The flags of the thread to register.
     @sa PSI_FLAG_SINGLETON
     @sa PSI_FLAG_USER
+    @sa PSI_FLAG_THREAD_SYSTEM
   */
   unsigned int m_flags;
   /** Volatility index. */
@@ -220,10 +222,29 @@ typedef void (*set_thread_command_v1_t)(int command);
 typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
 
 /**
-  Assign a start time to the instrumented thread.
+  Assign a start time in seconds to the instrumented thread.
   @param start_time the thread start time
 */
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+
+/**
+  Assign a start time in micro seconds to the instrumented thread.
+  @param start_time_usec the thread start time in micro seconds
+*/
+typedef void (*set_thread_start_time_usec_v4_t)(
+    unsigned long long start_time_usec);
+
+/**
+  Assign a sent rows count to the instrumented thread.
+  @param rows_sent the thread sent rows count
+*/
+typedef void (*set_thread_rows_sent_v4_t)(unsigned long long rows_sent);
+
+/**
+  Assign an examined rows count to the instrumented thread.
+  @param rows_examined the thread examined rows count
+*/
+typedef void (*set_thread_rows_examined_v4_t)(unsigned long long rows_examined);
 
 /**
   Assign a state to the instrumented thread.
@@ -275,6 +296,15 @@ typedef int (*set_thread_resource_group_by_id_v1_t)(
   @param thread the thread instrumentation
 */
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
+
+/**
+  Assign the remote (peer) port to the instrumented thread.
+
+  @param thread    pointer to the thread instrumentation
+  @param port      the remote port
+*/
+typedef void (*set_thread_peer_port_v4_t)(PSI_thread *thread,
+                                          unsigned int port);
 
 /** Aggregate the thread status variables. */
 typedef void (*aggregate_thread_status_v2_t)(struct PSI_thread *thread);

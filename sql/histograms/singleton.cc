@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,8 @@ Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other)
   for (const auto &bucket : other.m_buckets) {
     char *string_data = bucket.first.dup(mem_root);
     if (string_data == nullptr) {
-      DBUG_ASSERT(false); /* purecov: deadcode */
-      return;             // OOM
+      assert(false); /* purecov: deadcode */
+      return;        // OOM
     }
 
     String string_dup(string_data, bucket.first.length(),
@@ -120,8 +120,8 @@ bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
   double cumulative_frequency = 0.0;
 
   /*
-    Since we are using a std::map with Memroot_allocator, we are forced to wrap
-    the following section in a try-catch. The Memroot_allocator will throw an
+    Since we are using a std::map with Mem_root_allocator, we are forced to wrap
+    the following section in a try-catch. The Mem_root_allocator will throw an
     exception of class std::bad_alloc when it runs out of memory.
   */
   try {
@@ -234,7 +234,7 @@ bool Singleton<MYSQL_TIME>::add_value_json_bucket(const MYSQL_TIME &value,
       break;
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
       /* purecov: end */
   }

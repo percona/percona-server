@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,12 +48,11 @@ os_file_create_simple() which opens or creates a file.
 @param[in]	src_line	line where the func invoked
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-UNIV_INLINE
-pfs_os_file_t pfs_os_file_create_simple_func(
+static inline pfs_os_file_t pfs_os_file_create_simple_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
     bool read_only, bool *success, const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
 
   /* register a file open or creation depending on "create_mode" */
@@ -64,10 +63,11 @@ pfs_os_file_t pfs_os_file_create_simple_func(
 
   file.m_file = os_file_create_simple_func(name, create_mode, access_type,
                                            read_only, success);
-  file.m_psi = NULL;
+  file.m_psi = nullptr;
 
   /* Regsiter psi value for the file */
-  register_pfs_file_open_end(locker, file, (*success == TRUE ? success : 0));
+  register_pfs_file_open_end(locker, file,
+                             (*success == TRUE ? success : nullptr));
 
   return (file);
 }
@@ -90,12 +90,11 @@ monitor file creation/open.
 @param[in]	src_line	line where the func invoked
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-UNIV_INLINE
-pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
+static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
     bool read_only, bool *success, const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
 
   /* register a file open or creation depending on "create_mode" */
@@ -107,8 +106,9 @@ pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
   file = os_file_create_simple_no_error_handling_func(
       name, create_mode, access_type, read_only, success);
 
-  file.m_psi = NULL;
-  register_pfs_file_open_end(locker, file, (*success == TRUE ? success : 0));
+  file.m_psi = nullptr;
+  register_pfs_file_open_end(locker, file,
+                             (*success == TRUE ? success : nullptr));
 
   return (file);
 }
@@ -134,13 +134,12 @@ Add instrumentation to monitor file creation/open.
 @param[in]	src_line	line where the func invoked
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-UNIV_INLINE
-pfs_os_file_t pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
-                                      ulint create_mode, ulint purpose,
-                                      ulint type, bool read_only, bool *success,
-                                      const char *src_file, uint src_line) {
+static inline pfs_os_file_t pfs_os_file_create_func(
+    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint purpose,
+    ulint type, bool read_only, bool *success, const char *src_file,
+    uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
 
   /* register a file open or creation depending on "create_mode" */
@@ -152,8 +151,9 @@ pfs_os_file_t pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
   file =
       os_file_create_func(name, create_mode, purpose, type, read_only, success);
 
-  file.m_psi = NULL;
-  register_pfs_file_open_end(locker, file, (*success == TRUE ? success : 0));
+  file.m_psi = nullptr;
+  register_pfs_file_open_end(locker, file,
+                             (*success == TRUE ? success : nullptr));
 
   return (file);
 }
@@ -165,11 +165,10 @@ A performance schema instrumented wrapper function for os_file_close().
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_close_func(pfs_os_file_t file, const char *src_file,
-                            uint src_line) {
+static inline bool pfs_os_file_close_func(pfs_os_file_t file,
+                                          const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   /* register the file close */
   register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CLOSE, src_file,
@@ -232,14 +231,13 @@ an asynchronous i/o operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
-UNIV_INLINE
-dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
+static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                         pfs_os_file_t file, void *buf, os_offset_t offset,
                         ulint n, bool read_only, fil_node_t *m1, void *m2,
                         space_id_t space_id, trx_t *trx, bool should_buffer,
                         const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
@@ -270,12 +268,11 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-UNIV_INLINE
-dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+static inline dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
                               os_offset_t offset, ulint n, trx_t *trx,
                               const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
@@ -304,13 +301,12 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_line	line where the func invoked
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
-UNIV_INLINE
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
+static inline dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
                                          void *buf, ulint n,
                                          const char *src_file, uint src_line,
                                          bool exit_on_err) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
@@ -336,10 +332,9 @@ at current file offset.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if successful */
-UNIV_INLINE
-dberr_t pfs_os_file_copy_func(pfs_os_file_t src, os_offset_t src_offset,
-                              pfs_os_file_t dest, os_offset_t dest_offset,
-                              uint size, const char *src_file, uint src_line) {
+static inline dberr_t pfs_os_file_copy_func(
+    pfs_os_file_t src, os_offset_t src_offset, pfs_os_file_t dest,
+    os_offset_t dest_offset, uint size, const char *src_file, uint src_line) {
   dberr_t result;
 
   PSI_file_locker_state state_read;
@@ -378,15 +373,12 @@ read operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-UNIV_INLINE
-dberr_t pfs_os_file_read_no_error_handling_func(IORequest &type,
-                                                const char *file_name,
-                                                pfs_os_file_t file, void *buf,
-                                                os_offset_t offset, ulint n,
-                                                ulint *o, const char *src_file,
-                                                uint src_line) {
+static inline dberr_t pfs_os_file_read_no_error_handling_func(
+    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+    os_offset_t offset, ulint n, ulint *o, const char *src_file,
+    uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ, src_file,
                              src_line);
@@ -415,23 +407,22 @@ synchronous  read operation.
 @param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
 
-UNIV_INLINE
-dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
+static inline dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
     IORequest &type, const char *file_name, int file, void *buf,
     os_offset_t offset, ulint n, ulint *o, const char *src_file,
     ulint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, file,
                                                             PSI_FILE_READ);
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
   }
   dberr_t result = os_file_read_no_error_handling_func(
       type, file_name, OS_FILE_FROM_FD(file), buf, offset, n, o);
 
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(end_file_wait)(locker, n);
   }
 
@@ -452,13 +443,11 @@ os_file_write() which requests a synchronous write operation.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
-UNIV_INLINE
-dberr_t pfs_os_file_write_func(IORequest &type, const char *name,
-                               pfs_os_file_t file, const void *buf,
-                               os_offset_t offset, ulint n,
-                               const char *src_file, uint src_line) {
+static inline dberr_t pfs_os_file_write_func(
+    IORequest &type, const char *name, pfs_os_file_t file, const void *buf,
+    os_offset_t offset, ulint n, const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_WRITE, src_file,
                              src_line);
@@ -486,23 +475,21 @@ os_file_write() which requests a synchronous write operation.
 @param[in]      src_file        file name where func invoked
 @param[in]      src_line        line where the func invoked
 @return DB_SUCCESS if request was successful */
-UNIV_INLINE
-dberr_t pfs_os_file_write_int_fd_func(IORequest &type, const char *name,
-                                      int file, const void *buf,
-                                      os_offset_t offset, ulint n,
-                                      const char *src_file, ulint src_line) {
+static inline dberr_t pfs_os_file_write_int_fd_func(
+    IORequest &type, const char *name, int file, const void *buf,
+    os_offset_t offset, ulint n, const char *src_file, ulint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, file,
                                                             PSI_FILE_WRITE);
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(start_file_wait)(locker, n, __FILE__, __LINE__);
   }
   dberr_t result =
       os_file_write_func(type, name, OS_FILE_FROM_FD(file), buf, offset, n);
 
-  if (locker != NULL) {
+  if (locker != nullptr) {
     PSI_FILE_CALL(end_file_wait)(locker, n);
   }
 
@@ -519,11 +506,10 @@ Flushes the write buffers of a given file to the disk.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_flush_func(pfs_os_file_t file, const char *src_file,
-                            uint src_line) {
+static inline bool pfs_os_file_flush_func(pfs_os_file_t file,
+                                          const char *src_file, uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_SYNC, src_file,
                              src_line);
@@ -545,14 +531,14 @@ os_file_rename()
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_rename_func(mysql_pfs_key_t key, const char *oldpath,
-                             const char *newpath, const char *src_file,
-                             uint src_line)
+static inline bool pfs_os_file_rename_func(mysql_pfs_key_t key,
+                                           const char *oldpath,
+                                           const char *newpath,
+                                           const char *src_file, uint src_line)
 
 {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, oldpath,
                                  newpath, src_file, src_line);
@@ -573,11 +559,12 @@ os_file_delete()
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_delete_func(mysql_pfs_key_t key, const char *name,
-                             const char *src_file, uint src_line) {
+static inline bool pfs_os_file_delete_func(mysql_pfs_key_t key,
+                                           const char *name,
+                                           const char *src_file,
+                                           uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_close_begin(&state, locker, key, PSI_FILE_DELETE, name,
                                 src_file, src_line);
@@ -600,12 +587,13 @@ os_file_delete_if_exists()
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key, const char *name,
-                                       bool *exist, const char *src_file,
-                                       uint src_line) {
+static inline bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key,
+                                                     const char *name,
+                                                     bool *exist,
+                                                     const char *src_file,
+                                                     uint src_line) {
   PSI_file_locker_state state;
-  struct PSI_file_locker *locker = NULL;
+  struct PSI_file_locker *locker = nullptr;
 
   register_pfs_file_close_begin(&state, locker, key, PSI_FILE_DELETE, name,
                                 src_file, src_line);
@@ -625,9 +613,8 @@ Truncates a file at the specified position.
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
 @return true if success */
-UNIV_INLINE
-bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, ib_uint64_t new_len,
-                                 const char *src_file, ulint src_line) {
+static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, ib_uint64_t new_len,
+                                               const char *src_file, ulint src_line) {
   struct PSI_file_locker *locker = NULL;
   PSI_file_locker_state state;
 
@@ -647,12 +634,8 @@ bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, ib_uint64_t new_len,
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	name		"open" or "create"; used in the diagnostic
 message
-@param[in]	failure_warning	if true (the default), the failure to disable
-caching is diagnosed at warning severity, and at note severity otherwise
 @return true if operation is success and false */
-UNIV_INLINE
-bool os_file_set_nocache(pfs_os_file_t file, const char *file_name,
-                         const char *operation_name, bool failure_warning) {
-  return os_file_set_nocache(file.m_file, file_name, operation_name,
-                             failure_warning);
+static inline bool os_file_set_nocache(pfs_os_file_t file, const char *file_name,
+                                       const char *operation_name) {
+  return os_file_set_nocache(file.m_file, file_name, operation_name);
 }

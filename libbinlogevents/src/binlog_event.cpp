@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     res = !(computed == incoming);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (binary_log_debug::debug_checksum_test) return true;
 #endif
   return res;
@@ -211,24 +211,24 @@ Log_event_header::Log_event_header(Event_reader &reader)
     @endverbatim
    */
   BAPI_ASSERT(reader.position() == 0);
-  when.tv_sec = reader.read_and_letoh<uint32_t>();
+  when.tv_sec = reader.read<uint32_t>();
   when.tv_usec = 0;
 
   BAPI_ASSERT(reader.position() == EVENT_TYPE_OFFSET);
   type_code = static_cast<Log_event_type>(reader.read<unsigned char>());
 
   BAPI_ASSERT(reader.position() == SERVER_ID_OFFSET);
-  unmasked_server_id = reader.read_and_letoh<uint32_t>();
+  unmasked_server_id = reader.read<uint32_t>();
 
   BAPI_ASSERT(reader.position() == EVENT_LEN_OFFSET);
-  data_written = reader.read_and_letoh<uint64_t>(4);
+  data_written = reader.read<uint64_t>(4);
   reader.set_length(data_written);
 
   BAPI_ASSERT(reader.position() == LOG_POS_OFFSET);
-  log_pos = reader.read_and_letoh<uint64_t>(4);
+  log_pos = reader.read<uint64_t>(4);
 
   BAPI_ASSERT(reader.position() == FLAGS_OFFSET);
-  flags = reader.read_and_letoh<uint16_t>();
+  flags = reader.read<uint16_t>();
 
   set_is_valid(!reader.has_error() &&
                (type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F));
@@ -251,7 +251,7 @@ Binary_log_event::Binary_log_event(const char **buf,
 /*
   The destructor is pure virtual to prevent instantiation of the class.
 */
-Binary_log_event::~Binary_log_event() {}
+Binary_log_event::~Binary_log_event() = default;
 
 /**
   This event type should never occur. It is never written to a binary log.
@@ -277,7 +277,7 @@ void Binary_log_event::print_long_info(std::ostream &) {}
   Please note this is different from the print_event_info methods
   used by mysqlbinlog.cc.
 
-  @param std output stream to which the event data is appended.
+  @param info std output stream to which the event data is appended.
 */
 void Stop_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;

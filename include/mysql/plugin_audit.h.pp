@@ -125,8 +125,7 @@ enum mysql_trx_stat_type {
   MYSQL_TRX_STAT_ACCESS_PAGE_ID
 };
 void thd_report_innodb_stat(void * thd, unsigned long long trx_id,
-                            enum mysql_trx_stat_type type,
-                            unsigned long long value);
+                            enum mysql_trx_stat_type type, uint64_t value);
 unsigned long thd_log_slow_verbosity(const void * thd);
 int thd_opt_slow_log();
 int thd_is_background_thread(const void * thd);
@@ -147,6 +146,16 @@ int thd_command(const void * thd);
 long long thd_start_time(const void * thd);
 void thd_kill(unsigned long id);
 int thd_get_ft_query_extra_word_chars(void);
+typedef bool (*ssl_reload_callback_t)(void *);
+bool register_ssl_reload_callback(ssl_reload_callback_t);
+bool deregister_ssl_reload_callback(ssl_reload_callback_t);
+#include <mysql/components/services/bits/plugin_audit_connection_types.h>
+typedef enum {
+  MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
+  MYSQL_AUDIT_CONNECTION_DISCONNECT = 1 << 1,
+  MYSQL_AUDIT_CONNECTION_CHANGE_USER = 1 << 2,
+  MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE = 1 << 3
+} mysql_event_connection_subclass_t;
 #include "my_command.h"
 enum enum_server_command {
   COM_SLEEP,
@@ -416,12 +425,6 @@ struct mysql_event_general {
   MYSQL_LEX_CSTRING general_external_user;
   MYSQL_LEX_CSTRING general_ip;
 };
-typedef enum {
-  MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
-  MYSQL_AUDIT_CONNECTION_DISCONNECT = 1 << 1,
-  MYSQL_AUDIT_CONNECTION_CHANGE_USER = 1 << 2,
-  MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE = 1 << 3
-} mysql_event_connection_subclass_t;
 struct mysql_event_connection {
   mysql_event_connection_subclass_t event_subclass;
   int status;

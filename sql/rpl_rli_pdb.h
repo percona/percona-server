@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,17 +37,17 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/log_event.h"     // Format_description_log_event
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica.h"      // MTS_WORKER_UNDEF
 #include "sql/rpl_rli.h"          // Relay_log_info
-#include "sql/rpl_slave.h"        // MTS_WORKER_UNDEF
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
 
@@ -55,7 +55,7 @@ class Rpl_info_handler;
 class Slave_worker;
 struct TABLE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern ulong w_rr;
 #endif
 /**
@@ -107,7 +107,7 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 #define SLAVE_INIT_DBS_IN_GROUP 4  // initial allocation for CGEP dynarray
 
 struct Slave_job_group {
-  Slave_job_group() {}
+  Slave_job_group() = default;
 
   /*
     We need a custom copy constructor and assign operator because std::atomic<T>
@@ -130,7 +130,7 @@ struct Slave_job_group {
         done(other.done.load()),
         shifted(other.shifted),
         ts(other.ts),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         notified(other.notified),
 #endif
         last_committed(other.last_committed),
@@ -155,7 +155,7 @@ struct Slave_job_group {
     done.store(other.done.load());
     shifted = other.shifted;
     ts = other.ts;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified = other.notified;
 #endif
     last_committed = other.last_committed;
@@ -196,7 +196,7 @@ struct Slave_job_group {
   std::atomic<int32> done;  // Flag raised by W,  read and reset by Coordinator
   ulong shifted;            // shift the last CP bitmap at receiving a new CP
   time_t ts;  // Group's timestampt to update Seconds_behind_master
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool notified{false};  // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
@@ -246,7 +246,7 @@ struct Slave_job_group {
     checkpoint_seqno = (uint)-1;
     done = 0;
     ts = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified = false;
 #endif
     last_committed = SEQ_UNINIT;
@@ -283,7 +283,7 @@ class circular_buffer_queue {
     m_Q.resize(size);
   }
   circular_buffer_queue() : m_Q(PSI_INSTRUMENT_ME), inited_queue(false) {}
-  ~circular_buffer_queue() {}
+  ~circular_buffer_queue() = default;
 
   /**
      Content of the being dequeued item is copied to the arg-pointer
@@ -360,7 +360,7 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool count_done(Relay_log_info *rli);
 #endif
 
@@ -373,7 +373,7 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
      in the circular buffer dyn-array
   */
   Slave_job_group *get_job_group(ulong ind) {
-    DBUG_ASSERT(ind < size);
+    assert(ind < size);
     return &m_Q[ind];
   }
 
@@ -419,7 +419,7 @@ template <typename Element_type>
 ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   ulong ret;
   if (avail == size) {
-    DBUG_ASSERT(avail == m_Q.size());
+    assert(avail == m_Q.size());
     return (ulong)-1;
   }
 
@@ -437,10 +437,9 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   // post-boundary cond
   if (avail == entry) avail = size;
 
-  DBUG_ASSERT(avail == entry || len == (avail >= entry)
-                  ? (avail - entry)
-                  : (size + avail - entry));
-  DBUG_ASSERT(avail != entry);
+  assert(avail == entry || len == (avail >= entry) ? (avail - entry)
+                                                   : (size + avail - entry));
+  assert(avail != entry);
 
   return ret;
 }
@@ -457,7 +456,7 @@ template <typename Element_type>
 ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
   ulong ret;
   if (entry == size) {
-    DBUG_ASSERT(len == 0);
+    assert(len == 0);
     return (ulong)-1;
   }
 
@@ -472,10 +471,9 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
   // post boundary cond
   if (avail == entry) entry = size;
 
-  DBUG_ASSERT(
-      entry == size ||
-      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
+  assert(entry == size ||
+         (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  assert(avail != entry);
 
   return ret;
 }
@@ -483,7 +481,7 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
 template <typename Element_type>
 ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
   if (entry == size) {
-    DBUG_ASSERT(len == 0);
+    assert(len == 0);
     return (ulong)-1;
   }
 
@@ -494,10 +492,9 @@ ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
   // post boundary cond
   if (avail == entry) entry = size;
 
-  DBUG_ASSERT(
-      entry == size ||
-      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
+  assert(entry == size ||
+         (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  assert(avail != entry);
 
   return avail;
 }
@@ -528,7 +525,7 @@ class Slave_worker : public Relay_log_info {
 #endif
                uint param_id, const char *param_channel);
 
-  virtual ~Slave_worker();
+  ~Slave_worker() override;
 
   Slave_jobs_queue jobs;    // assignment queue containing events to execute
   mysql_mutex_t jobs_lock;  // mutex for the jobs queue
@@ -538,7 +535,7 @@ class Slave_worker : public Relay_log_info {
   Prealloced_array<db_worker_hash_entry *, SLAVE_INIT_DBS_IN_GROUP>
       curr_group_exec_parts;  // Current Group Executed Partitions
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool curr_group_seen_sequence_number;  // is set to true about starts_group()
 #endif
   ulong id;  // numberic identifier of the Worker
@@ -658,8 +655,8 @@ class Slave_worker : public Relay_log_info {
     The method is a wrapper to provide uniform interface with STS and is
     to be called from Relay_log_info and Slave_worker pre_commit() methods.
   */
-  bool commit_positions() {
-    DBUG_ASSERT(current_event);
+  bool commit_positions() override {
+    assert(current_event);
 
     return commit_positions(
         current_event, c_rli->gaq->get_job_group(current_event->mts_group_idx),
@@ -668,7 +665,7 @@ class Slave_worker : public Relay_log_info {
   /**
     See the comments for STS version of this method.
   */
-  void post_commit(bool on_rollback) {
+  void post_commit(bool on_rollback) override {
     if (on_rollback) {
       if (is_transactional())
         rollback_positions(
@@ -711,7 +708,7 @@ class Slave_worker : public Relay_log_info {
 
     @return 1 if an error was encountered, 0 otherwise.
   */
-  int set_rli_description_event(Format_description_log_event *fdle) {
+  int set_rli_description_event(Format_description_log_event *fdle) override {
     DBUG_TRACE;
 
     if (fdle) {
@@ -801,12 +798,11 @@ class Slave_worker : public Relay_log_info {
                                      get_master_server_version());
     }
     if (rli_description_event) {
-      DBUG_ASSERT(rli_description_event->atomic_usage_counter > 0);
+      assert(rli_description_event->atomic_usage_counter > 0);
 
       if (--rli_description_event->atomic_usage_counter == 0) {
         /* The being deleted by Worker FD can't be the latest one */
-        DBUG_ASSERT(rli_description_event !=
-                    c_rli->get_rli_description_event());
+        assert(rli_description_event != c_rli->get_rli_description_event());
 
         delete rli_description_event;
       }
@@ -824,12 +820,23 @@ class Slave_worker : public Relay_log_info {
   int slave_worker_exec_event(Log_event *ev);
 
   /**
+    Make the necessary changes to both the `Slave_worker` and current
+    `Log_event` objects, before retrying to apply the transaction.
+
+    Since the event is going to be re-read from the relay-log file, there
+    may be actions needed to be taken to reset the state both of `this`
+    instance, as well as of the current `Log_event` being processed.
+
+    @param event The `Log_event` object currently being processed.
+   */
+  void prepare_for_retry(Log_event &event);
+
+  /**
     Checks if the transaction can be retried, and if not, reports an error.
 
     @param[in] thd          The THD object of current thread.
 
-    @return
-      @retval returns std::tuple<bool, bool, uint> where each element has
+    @returns std::tuple<bool, bool, uint> where each element has
               following meaning:
 
               first element of tuple is function return value and determines:
@@ -870,20 +877,20 @@ class Slave_worker : public Relay_log_info {
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
   /**
     Get coordinator's RLI. Especially used get the rli from
     a slave thread, like this: thd->rli_slave->get_c_rli();
     thd could be a SQL thread or a worker thread.
   */
-  virtual Relay_log_info *get_c_rli() { return c_rli; }
+  Relay_log_info *get_c_rli() override { return c_rli; }
 
   /**
      return an extension "for channel channel_name"
      for error messages per channel
   */
-  const char *get_for_channel_str(bool upper_case = false) const;
+  const char *get_for_channel_str(bool upper_case = false) const override;
 
   longlong sequence_number() {
     Slave_job_group *ptr_g = c_rli->gaq->get_job_group(gaq_index);
@@ -891,14 +898,14 @@ class Slave_worker : public Relay_log_info {
   }
 
   /**
-     Return true if slave-preserve-commit-order is enabled and an
+     Return true if replica-preserve-commit-order is enabled and an
      earlier transaction is waiting for a row-level lock held by this
      transaction.
   */
   bool found_commit_order_deadlock();
 
   /**
-     Called when slave-preserve-commit-order is enabled, by the worker
+     Called when replica-preserve-commit-order is enabled, by the worker
      processing an earlier transaction that waits on a row-level lock
      held by this worker's transaction.
   */
@@ -920,8 +927,8 @@ class Slave_worker : public Relay_log_info {
   static void operator delete(void *ptr);
 
  protected:
-  virtual void do_report(loglevel level, int err_code, const char *msg,
-                         va_list v_args) const
+  void do_report(loglevel level, int err_code, const char *msg,
+                 va_list v_args) const override
       MY_ATTRIBUTE((format(printf, 4, 0)));
 
  private:
@@ -929,8 +936,8 @@ class Slave_worker : public Relay_log_info {
   ulonglong
       master_log_pos;  // event's cached log_pos for possibile error report
   void end_info();
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
   std::atomic<bool> m_commit_order_deadlock;
 
   Slave_worker &operator=(const Slave_worker &info);

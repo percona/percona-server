@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
@@ -125,7 +126,7 @@ struct THREAD_STATS {
 struct USER_STATS {
   // Account name the user is mapped to when this is a user from mapped_user.
   // Otherwise, the same value as user.
-  char priv_user[MY_MAX(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
+  char priv_user[std::max(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
   uint total_connections{1};
   uint total_ssl_connections;
   uint concurrent_connections{0};

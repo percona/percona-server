@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
 CALL mtr.add_suppression("Failed to open log");
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 include/start_slave.inc
 [connection master]
 #
@@ -39,8 +39,10 @@ FLUSH BINARY LOGS;
 #
 [connection slave]
 include/stop_slave.inc
-SET GLOBAL debug= 'd,request_master_log_pos_3';
+SET GLOBAL debug= 'd,request_source_log_pos_3';
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
 include/wait_for_slave_io_error.inc [errno=13114]
 SET GLOBAL debug= '$slave_debug';
@@ -70,5 +72,7 @@ DROP TABLE t1;
 [connection slave]
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 include/rpl_end.inc

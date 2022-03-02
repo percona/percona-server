@@ -1,28 +1,48 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *************************************************************************/
 
 #include "backup_page_tracker.h"
-#include "backup_comp_constants.h"
+
+#include <algorithm>
 #if defined _MSC_VER
 #include <direct.h>
 #endif
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <algorithm>
-#include "m_string.h"
-#include "my_io.h"
+
+#include "backup_comp_constants.h"
 #include "mysql/plugin.h"
 #include "mysqld_error.h"
 
 // defined in mysqlbackup component definition
 extern char *mysqlbackup_backup_id;
 
-// page track system variables
-uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
-static std::string changed_pages_file;
+// Page track system variables
 bool Backup_page_tracker::m_receive_changed_page_data = false;
+char *Backup_page_tracker::m_changed_pages_file = nullptr;
+uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
 std::list<udf_data_t *> Backup_page_tracker::m_udf_list;
 
 bool Backup_page_tracker::backup_id_update() {
@@ -30,15 +50,25 @@ bool Backup_page_tracker::backup_id_update() {
   if (Backup_page_tracker::m_receive_changed_page_data)
     Backup_page_tracker::m_receive_changed_page_data = false;
 
-  // delete the existing page tracker file
-  remove(changed_pages_file.c_str());
+  // Delete the existing page tracker file
+  if (m_changed_pages_file != nullptr) {
+    remove(m_changed_pages_file);
+    free(m_changed_pages_file);
+    m_changed_pages_file = nullptr;
+  }
+
   return true;
+}
+
+void Backup_page_tracker::deinit() {
+  if (m_changed_pages_file != nullptr) {
+    free(m_changed_pages_file);
+    m_changed_pages_file = nullptr;
+  }
 }
 
 /**
    Make a list of the UDFs exposed by mysqlbackup page_tracking.
-
-   @return None
 */
 void Backup_page_tracker::initialize_udf_list() {
   m_udf_list.push_back(new udf_data_t(
@@ -75,48 +105,38 @@ void Backup_page_tracker::initialize_udf_list() {
    @retval non-zero failure
 */
 mysql_service_status_t Backup_page_tracker::register_udfs() {
+  if (!m_udf_list.empty()) {
+    std::string msg{"UDF list for mysqlbackup_component is not empty."};
+    LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+    return (1);
+  }
+
+  // Initialize the UDF list
   initialize_udf_list();
-  std::list<udf_data_t *> success_list;
+
   for (auto udf : m_udf_list) {
+    if (udf->m_is_registered) {
+      std::string msg{udf->m_name + " is already registered."};
+      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+      // un-register the already registered UDFs
+      unregister_udfs();
+      return (1);
+    }
+
     if (mysql_service_udf_registration->udf_register(
             udf->m_name.c_str(), udf->m_return_type, udf->m_function,
             udf->m_init_function, udf->m_deinit_function)) {
-      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG,
-             std::string(udf->m_name + " registration failed.").c_str());
-      // un-register already successful UDFs
-      unregister_udfs(success_list);
+      std::string msg{udf->m_name + " register failed."};
+      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+      // un-register the already registered UDFs
+      unregister_udfs();
       return (1);
     }
-    // add the udf into success list
-    success_list.push_back(udf);
-  }
-  return (0);
-}
 
-/**
-   Un-Register a given list of UDFs
-
-   @return Status of UDF un-registration
-   @retval 0 success
-   @retval non-zero failure
-*/
-mysql_service_status_t Backup_page_tracker::unregister_udfs(
-    std::list<udf_data_t *> list) {
-  int was_present;
-  std::list<udf_data_t *> fail_list;
-
-  for (auto udf : list) {
-    if (mysql_service_udf_registration->udf_unregister(udf->m_name.c_str(),
-                                                       &was_present) ||
-        !was_present) {
-      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG,
-             std::string(udf->m_name + " un-register failed").c_str());
-      fail_list.push_back(udf);
-    }
-    delete (udf);
+    // UDF is registered successfully
+    udf->m_is_registered = true;
   }
 
-  if (!fail_list.empty()) return (1);
   return (0);
 }
 
@@ -128,7 +148,33 @@ mysql_service_status_t Backup_page_tracker::unregister_udfs(
    @retval non-zero failure
 */
 mysql_service_status_t Backup_page_tracker::unregister_udfs() {
-  return (unregister_udfs(m_udf_list));
+  mysql_service_status_t fail_status{0};
+
+  for (auto udf : m_udf_list) {
+    int was_present;
+    if (mysql_service_udf_registration->udf_unregister(udf->m_name.c_str(),
+                                                       &was_present) &&
+        was_present) {
+      if (udf->m_is_registered) {
+        std::string msg{udf->m_name + " unregister failed."};
+        LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+        fail_status = 1;
+      }
+    } else {
+      // UDF is un-registered successfully
+      udf->m_is_registered = false;
+    }
+  }
+
+  if (fail_status == 0) {
+    // UDFs are un-registered successfully, clear the UDF list.
+    while (!m_udf_list.empty()) {
+      delete (m_udf_list.back());
+      m_udf_list.pop_back();
+    }
+  }
+
+  return fail_status;
 }
 
 /**
@@ -145,8 +191,6 @@ bool Backup_page_tracker::set_page_tracking_init(UDF_INIT *, UDF_ARGS *,
 
 /**
    Callback method for initialization of UDF "mysqlbackup_page_track_set".
-
-   @return None
 */
 void Backup_page_tracker::set_page_tracking_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -200,8 +244,6 @@ bool Backup_page_tracker::page_track_get_start_lsn_init(UDF_INIT *, UDF_ARGS *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_start_lsn"
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_start_lsn_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -246,8 +288,6 @@ bool Backup_page_tracker::page_track_get_changed_page_count_init(UDF_INIT *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_page_count".
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_changed_page_count_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -299,12 +339,11 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_pages".
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_changed_pages_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {
   free(m_changed_pages_buf);
+  m_changed_pages_buf = nullptr;
 }
 
 /**
@@ -330,6 +369,7 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (!mysqlbackup_backup_id) {
     return (-1);
   }
+
   // Not expecting anything other than digits in the backupid.
   // Make sure no elements of a relative path are there if the
   // above rule is relaxed
@@ -345,7 +385,8 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (var_len == 0) return 2;
 
   std::string changed_pages_file_dir =
-      mysqlbackup_backupdir + Backup_comp_constants::backup_scratch_dir;
+      mysqlbackup_backupdir +
+      std::string(Backup_comp_constants::backup_scratch_dir);
 
 #if defined _MSC_VER
   _mkdir(changed_pages_file_dir.c_str());
@@ -355,10 +396,14 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   }
 #endif
 
-  changed_pages_file = changed_pages_file_dir + FN_LIBCHAR + backupid +
-                       Backup_comp_constants::change_file_extension;
-  // if file already exists return error
-  FILE *fd = fopen(changed_pages_file.c_str(), "r");
+  free(m_changed_pages_file);
+  m_changed_pages_file =
+      strdup((changed_pages_file_dir + FN_LIBCHAR + backupid +
+              Backup_comp_constants::change_file_extension)
+                 .c_str());
+
+  // If file already exists return error
+  FILE *fd = fopen(m_changed_pages_file, "r");
   if (fd) {
     fclose(fd);
     return (-1);
@@ -395,8 +440,8 @@ int page_track_callback(MYSQL_THD opaque_thd MY_ATTRIBUTE((unused)),
                         const uchar *buffer,
                         size_t buffer_length MY_ATTRIBUTE((unused)),
                         int page_count, void *context MY_ATTRIBUTE((unused))) {
-  // append to the disk file in binary mode
-  FILE *fd = fopen(changed_pages_file.c_str(), "ab");
+  // Append to the disk file in binary mode
+  FILE *fd = fopen(Backup_page_tracker::m_changed_pages_file, "ab");
   if (!fd) {
     LogEvent()
         .type(LOG_TYPE_ERROR)

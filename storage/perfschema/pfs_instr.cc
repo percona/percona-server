@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,12 @@
 
 #include "storage/perfschema/pfs_instr.h"
 
+#include <assert.h>
 #include <string.h>
 #include <atomic>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "sql/mysqld.h"  // get_thd_status_var
@@ -89,10 +90,10 @@ ulong events_transactions_history_per_thread = 0;
   @sa file_handle_max
   @sa file_handle_lost
 */
-PFS_file **file_handle_array = NULL;
+PFS_file **file_handle_array = nullptr;
 
-PFS_stage_stat *global_instr_class_stages_array = NULL;
-PFS_statement_stat *global_instr_class_statements_array = NULL;
+PFS_stage_stat *global_instr_class_stages_array = nullptr;
+PFS_statement_stat *global_instr_class_statements_array = nullptr;
 PFS_histogram global_statements_histogram;
 std::atomic<PFS_memory_shared_stat *> global_instr_class_memory_array{nullptr};
 
@@ -112,7 +113,7 @@ int init_instruments(const PFS_global_param *param) {
   uint index;
 
   /* Make sure init_event_name_sizing is called */
-  DBUG_ASSERT(wait_class_max != 0);
+  assert(wait_class_max != 0);
 
   file_handle_max = param->m_file_handle_sizing;
   file_handle_full = false;
@@ -136,7 +137,7 @@ int init_instruments(const PFS_global_param *param) {
   session_connect_attrs_size_per_thread = param->m_session_connect_attrs_sizing;
   session_connect_attrs_lost = 0;
 
-  file_handle_array = NULL;
+  file_handle_array = nullptr;
 
   thread_internal_id_counter.m_u64.store(0);
 
@@ -160,7 +161,7 @@ int init_instruments(const PFS_global_param *param) {
     file_handle_array =
         PFS_MALLOC_ARRAY(&builtin_memory_file_handle, file_handle_max,
                          sizeof(PFS_file *), PFS_file *, MYF(MY_ZEROFILL));
-    if (unlikely(file_handle_array == NULL)) {
+    if (unlikely(file_handle_array == nullptr)) {
       return 1;
     }
   }
@@ -185,7 +186,7 @@ int init_instruments(const PFS_global_param *param) {
     global_instr_class_stages_array = PFS_MALLOC_ARRAY(
         &builtin_memory_global_stages, stage_class_max, sizeof(PFS_stage_stat),
         PFS_stage_stat, MYF(MY_ZEROFILL));
-    if (unlikely(global_instr_class_stages_array == NULL)) {
+    if (unlikely(global_instr_class_stages_array == nullptr)) {
       return 1;
     }
 
@@ -198,7 +199,7 @@ int init_instruments(const PFS_global_param *param) {
     global_instr_class_statements_array = PFS_MALLOC_ARRAY(
         &builtin_memory_global_statements, statement_class_max,
         sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
-    if (unlikely(global_instr_class_statements_array == NULL)) {
+    if (unlikely(global_instr_class_statements_array == nullptr)) {
       return 1;
     }
 
@@ -233,7 +234,7 @@ void cleanup_instruments(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_file_handle, file_handle_max,
                  sizeof(PFS_file *), file_handle_array);
-  file_handle_array = NULL;
+  file_handle_array = nullptr;
   file_handle_max = 0;
 
   global_table_container.cleanup();
@@ -243,12 +244,12 @@ void cleanup_instruments(void) {
 
   PFS_FREE_ARRAY(&builtin_memory_global_stages, stage_class_max,
                  sizeof(PFS_stage_stat), global_instr_class_stages_array);
-  global_instr_class_stages_array = NULL;
+  global_instr_class_stages_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_global_statements, statement_class_max,
                  sizeof(PFS_statement_stat),
                  global_instr_class_statements_array);
-  global_instr_class_statements_array = NULL;
+  global_instr_class_statements_array = nullptr;
 
   PFS_FREE_ARRAY(&builtin_memory_global_memory, memory_class_max,
                  sizeof(PFS_memory_shared_stat),
@@ -262,9 +263,9 @@ static const uchar *filename_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_file *file;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_file *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != nullptr);
   file = *typed_entry;
-  DBUG_ASSERT(file != NULL);
+  assert(file != nullptr);
   *length = file->m_filename_length;
   result = file->m_filename;
   return reinterpret_cast<const uchar *>(result);
@@ -314,14 +315,16 @@ PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity) {
   }
 
   pfs = global_mutex_container.allocate(&dirty_state, partition);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_identity = identity;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
     pfs->m_mutex_stat.reset();
-    pfs->m_owner = NULL;
+    pfs->m_owner = nullptr;
+#ifdef LATER_WL2333
     pfs->m_last_locked = 0;
+#endif /* LATER_WL2333 */
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton()) {
       klass->m_singleton = pfs;
@@ -336,13 +339,13 @@ PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity) {
   @param pfs                          the mutex to destroy
 */
 void destroy_mutex(PFS_mutex *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   PFS_mutex_class *klass = pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
   klass->m_mutex_stat.aggregate(&pfs->m_mutex_stat);
   pfs->m_mutex_stat.reset();
   if (klass->is_singleton()) {
-    klass->m_singleton = NULL;
+    klass->m_singleton = nullptr;
   }
 
   global_mutex_container.deallocate(pfs);
@@ -359,16 +362,18 @@ PFS_rwlock *create_rwlock(PFS_rwlock_class *klass, const void *identity) {
   pfs_dirty_state dirty_state;
 
   pfs = global_rwlock_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_identity = identity;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
     pfs->m_rwlock_stat.reset();
-    pfs->m_writer = NULL;
+    pfs->m_writer = nullptr;
     pfs->m_readers = 0;
+#ifdef LATER_WL2333
     pfs->m_last_written = 0;
     pfs->m_last_read = 0;
+#endif /* LATER_WL2333 */
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     if (klass->is_singleton()) {
       klass->m_singleton = pfs;
@@ -383,13 +388,13 @@ PFS_rwlock *create_rwlock(PFS_rwlock_class *klass, const void *identity) {
   @param pfs                          the rwlock to destroy
 */
 void destroy_rwlock(PFS_rwlock *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   PFS_rwlock_class *klass = pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
   klass->m_rwlock_stat.aggregate(&pfs->m_rwlock_stat);
   pfs->m_rwlock_stat.reset();
   if (klass->is_singleton()) {
-    klass->m_singleton = NULL;
+    klass->m_singleton = nullptr;
   }
 
   global_rwlock_container.deallocate(pfs);
@@ -406,7 +411,7 @@ PFS_cond *create_cond(PFS_cond_class *klass, const void *identity) {
   pfs_dirty_state dirty_state;
 
   pfs = global_cond_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_identity = identity;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
@@ -426,13 +431,13 @@ PFS_cond *create_cond(PFS_cond_class *klass, const void *identity) {
   @param pfs                          the condition to destroy
 */
 void destroy_cond(PFS_cond *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   PFS_cond_class *klass = pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
   klass->m_cond_stat.aggregate(&pfs->m_cond_stat);
   pfs->m_cond_stat.reset();
   if (klass->is_singleton()) {
-    klass->m_singleton = NULL;
+    klass->m_singleton = nullptr;
   }
 
   global_cond_container.deallocate(pfs);
@@ -444,7 +449,7 @@ void PFS_thread::reset_session_connect_attrs() {
   m_session_connect_attrs_length = 0;
   m_session_connect_attrs_cs_number = 0;
 
-  if ((m_session_connect_attrs != NULL) &&
+  if ((m_session_connect_attrs != nullptr) &&
       (session_connect_attrs_size_per_thread > 0)) {
     /* Do not keep user data */
     memset(m_session_connect_attrs, 0, session_connect_attrs_size_per_thread);
@@ -482,32 +487,62 @@ void PFS_thread::rebase_memory_stats() {
   }
 }
 
-void PFS_thread::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
-                                         uint index) {
-  if (m_account != NULL) {
-    m_account->carry_memory_stat_delta(delta, index);
+void PFS_thread::carry_memory_stat_alloc_delta(
+    PFS_memory_stat_alloc_delta *delta, uint index) {
+  if (m_account != nullptr) {
+    m_account->carry_memory_stat_alloc_delta(delta, index);
     return;
   }
 
-  if (m_user != NULL) {
-    m_user->carry_memory_stat_delta(delta, index);
+  if (m_user != nullptr) {
+    m_user->carry_memory_stat_alloc_delta(delta, index);
     /* do not return, need to process m_host below */
   }
 
-  if (m_host != NULL) {
-    m_host->carry_memory_stat_delta(delta, index);
+  if (m_host != nullptr) {
+    m_host->carry_memory_stat_alloc_delta(delta, index);
     return;
   }
 
-  carry_global_memory_stat_delta(delta, index);
+  carry_global_memory_stat_alloc_delta(delta, index);
 }
 
-void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index) {
+void PFS_thread::carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                              uint index) {
+  if (m_account != nullptr) {
+    m_account->carry_memory_stat_free_delta(delta, index);
+    return;
+  }
+
+  if (m_user != nullptr) {
+    m_user->carry_memory_stat_free_delta(delta, index);
+    /* do not return, need to process m_host below */
+  }
+
+  if (m_host != nullptr) {
+    m_host->carry_memory_stat_free_delta(delta, index);
+    return;
+  }
+
+  carry_global_memory_stat_free_delta(delta, index);
+}
+
+void carry_global_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                          uint index) {
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_alloc_delta delta_buffer;
 
   stat = &global_instr_class_memory_array[index];
-  (void)stat->apply_delta(delta, &delta_buffer);
+  (void)stat->apply_alloc_delta(delta, &delta_buffer);
+}
+
+void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                         uint index) {
+  PFS_memory_shared_stat *stat;
+  PFS_memory_stat_free_delta delta_buffer;
+
+  stat = &global_instr_class_memory_array[index];
+  (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
 /**
@@ -526,7 +561,7 @@ PFS_thread *create_thread(PFS_thread_class *klass,
   pfs_dirty_state dirty_state;
 
   pfs = global_thread_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_thread_internal_id = thread_internal_id_counter.m_u64++;
     pfs->m_parent_thread_internal_id = 0;
     pfs->m_processlist_id = static_cast<ulong>(processlist_id);
@@ -552,34 +587,40 @@ PFS_thread *create_thread(PFS_thread_class *klass,
     pfs->reset_stats();
     pfs->reset_session_connect_attrs();
 
-    pfs->m_filename_hash_pins = NULL;
-    pfs->m_table_share_hash_pins = NULL;
-    pfs->m_setup_actor_hash_pins = NULL;
-    pfs->m_setup_object_hash_pins = NULL;
-    pfs->m_user_hash_pins = NULL;
-    pfs->m_account_hash_pins = NULL;
-    pfs->m_host_hash_pins = NULL;
-    pfs->m_digest_hash_pins = NULL;
-    pfs->m_program_hash_pins = NULL;
+    pfs->m_filename_hash_pins = nullptr;
+    pfs->m_table_share_hash_pins = nullptr;
+    pfs->m_setup_actor_hash_pins = nullptr;
+    pfs->m_setup_object_hash_pins = nullptr;
+    pfs->m_user_hash_pins = nullptr;
+    pfs->m_account_hash_pins = nullptr;
+    pfs->m_host_hash_pins = nullptr;
+    pfs->m_digest_hash_pins = nullptr;
+    pfs->m_program_hash_pins = nullptr;
 
     pfs->m_username_length = 0;
     pfs->m_hostname_length = 0;
     pfs->m_dbname_length = 0;
     pfs->m_groupname_length = 0;
-    pfs->m_user_data = NULL;
+    pfs->m_user_data = nullptr;
     pfs->m_command = 0;
     pfs->m_start_time = 0;
     pfs->m_stage = 0;
-    pfs->m_stage_progress = NULL;
+    pfs->m_stage_progress = nullptr;
     pfs->m_processlist_info[0] = '\0';
     pfs->m_processlist_info_length = 0;
     pfs->m_connection_type = NO_VIO_TYPE;
+    pfs->m_start_time_usec = 0;
+    pfs->m_rows_sent = 0;
+    pfs->m_rows_examined = 0;
 
-    pfs->m_thd = NULL;
-    pfs->m_host = NULL;
-    pfs->m_user = NULL;
-    pfs->m_account = NULL;
+    pfs->m_thd = nullptr;
+    pfs->m_host = nullptr;
+    pfs->m_user = nullptr;
+    pfs->m_account = nullptr;
     set_thread_account(pfs);
+
+    pfs->m_peer_port = 0;
+    pfs->m_sock_addr_len = 0;
 
     /*
       For child waits, by default,
@@ -598,7 +639,7 @@ PFS_thread *create_thread(PFS_thread_class *klass,
     child_stage->m_nesting_event_id = 0;
 
     /* No current stage. */
-    child_stage->m_class = NULL;
+    child_stage->m_class = nullptr;
 
     pfs->m_events_statements_count = 0;
     pfs->m_transaction_current.m_event_id = 0;
@@ -615,21 +656,21 @@ PFS_thread *create_thread(PFS_thread_class *klass,
   @return pfs pointer if found, else NULL
 */
 PFS_thread *find_thread_by_internal_id(ulonglong thread_id) {
-  PFS_thread *pfs = NULL;
+  PFS_thread *pfs = nullptr;
   uint index = 0;
 
   PFS_thread_iterator it = global_thread_container.iterate(index);
 
   do {
     pfs = it.scan_next(&index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (pfs->m_thread_internal_id == thread_id) {
         return pfs;
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -638,24 +679,24 @@ PFS_thread *find_thread_by_internal_id(ulonglong thread_id) {
   @return pfs pointer if found, else NULL
 */
 PFS_thread *find_thread_by_processlist_id(ulonglong processlist_id) {
-  PFS_thread *pfs = NULL;
+  PFS_thread *pfs = nullptr;
   uint index = 0;
 
   /* Valid processlist ID is > 0 (see Global_THD_manager) */
-  if (processlist_id == 0) return NULL;
+  if (processlist_id == 0) return nullptr;
 
   PFS_thread_iterator it = global_thread_container.iterate(index);
 
   do {
     pfs = it.scan_next(&index);
-    if (pfs != NULL) {
+    if (pfs != nullptr) {
       if (pfs->m_processlist_id == processlist_id) {
         return pfs;
       }
     }
-  } while (pfs != NULL);
+  } while (pfs != nullptr);
 
-  return NULL;
+  return nullptr;
 }
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe) {
@@ -700,58 +741,60 @@ PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe) {
   @param pfs                          the thread to destroy
 */
 void destroy_thread(PFS_thread *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   pfs->reset_session_connect_attrs();
-  if (pfs->m_account != NULL) {
+  pfs->m_thd = nullptr;
+
+  if (pfs->m_account != nullptr) {
     pfs->m_account->release();
-    pfs->m_account = NULL;
-    DBUG_ASSERT(pfs->m_user == NULL);
-    DBUG_ASSERT(pfs->m_host == NULL);
+    pfs->m_account = nullptr;
+    assert(pfs->m_user == nullptr);
+    assert(pfs->m_host == nullptr);
   } else {
-    if (pfs->m_user != NULL) {
+    if (pfs->m_user != nullptr) {
       pfs->m_user->release();
-      pfs->m_user = NULL;
+      pfs->m_user = nullptr;
     }
-    if (pfs->m_host != NULL) {
+    if (pfs->m_host != nullptr) {
       pfs->m_host->release();
-      pfs->m_host = NULL;
+      pfs->m_host = nullptr;
     }
   }
   if (pfs->m_filename_hash_pins) {
     lf_hash_put_pins(pfs->m_filename_hash_pins);
-    pfs->m_filename_hash_pins = NULL;
+    pfs->m_filename_hash_pins = nullptr;
   }
   if (pfs->m_table_share_hash_pins) {
     lf_hash_put_pins(pfs->m_table_share_hash_pins);
-    pfs->m_table_share_hash_pins = NULL;
+    pfs->m_table_share_hash_pins = nullptr;
   }
   if (pfs->m_setup_actor_hash_pins) {
     lf_hash_put_pins(pfs->m_setup_actor_hash_pins);
-    pfs->m_setup_actor_hash_pins = NULL;
+    pfs->m_setup_actor_hash_pins = nullptr;
   }
   if (pfs->m_setup_object_hash_pins) {
     lf_hash_put_pins(pfs->m_setup_object_hash_pins);
-    pfs->m_setup_object_hash_pins = NULL;
+    pfs->m_setup_object_hash_pins = nullptr;
   }
   if (pfs->m_user_hash_pins) {
     lf_hash_put_pins(pfs->m_user_hash_pins);
-    pfs->m_user_hash_pins = NULL;
+    pfs->m_user_hash_pins = nullptr;
   }
   if (pfs->m_account_hash_pins) {
     lf_hash_put_pins(pfs->m_account_hash_pins);
-    pfs->m_account_hash_pins = NULL;
+    pfs->m_account_hash_pins = nullptr;
   }
   if (pfs->m_host_hash_pins) {
     lf_hash_put_pins(pfs->m_host_hash_pins);
-    pfs->m_host_hash_pins = NULL;
+    pfs->m_host_hash_pins = nullptr;
   }
   if (pfs->m_digest_hash_pins) {
     lf_hash_put_pins(pfs->m_digest_hash_pins);
-    pfs->m_digest_hash_pins = NULL;
+    pfs->m_digest_hash_pins = nullptr;
   }
   if (pfs->m_program_hash_pins) {
     lf_hash_put_pins(pfs->m_program_hash_pins);
-    pfs->m_program_hash_pins = NULL;
+    pfs->m_program_hash_pins = nullptr;
   }
   global_thread_container.deallocate(pfs);
 }
@@ -762,9 +805,9 @@ void destroy_thread(PFS_thread *pfs) {
   @returns The LF_HASH pins for the thread.
 */
 static LF_PINS *get_filename_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_filename_hash_pins == NULL)) {
+  if (unlikely(thread->m_filename_hash_pins == nullptr)) {
     if (!filename_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_filename_hash_pins = lf_hash_get_pins(&filename_hash);
   }
@@ -784,9 +827,9 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
   char safe_buffer[FN_REFLEN];
   const char *safe_filename;
 
-  DBUG_ASSERT(filename != NULL);
-  DBUG_ASSERT(buffer != NULL);
-  DBUG_ASSERT(buffer_len >= FN_REFLEN);
+  assert(filename != NULL);
+  assert(buffer != NULL);
+  assert(buffer_len >= FN_REFLEN);
 
   if (name_len >= FN_REFLEN) {
     /*
@@ -827,7 +870,7 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
     Also note that, when creating files, this name resolution
     works properly for files that do not exist (yet) on the file system.
   */
-  char dirbuffer[FN_REFLEN];
+  char dirbuffer[FN_REFLEN + 1];
   size_t dirlen = dirname_length(safe_filename);
 
   if (dirlen == 0) {
@@ -842,10 +885,10 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
   /* Resolve the absolute directory path. */
   if (my_realpath(buffer, dirbuffer, MYF(0)) != 0) {
     buffer[0] = '\0';
-    return NULL;
+    return nullptr;
   }
 
-  /* Append the unresolved file name to the resolved path */
+  /* Append the unresolved filename to the resolved path */
   char *ptr = buffer + strlen(buffer);
   char *buf_end = &buffer[buffer_len - 1];
   if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) {
@@ -867,11 +910,11 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
   @param filename                     the file name
   @param len                          the length in bytes of filename
   @param create                       create a file instance if none found
-  @return a file instance, or NULL
+  @return a file instance, or nullptr
 */
 PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                               const char *filename, uint len, bool create) {
-  DBUG_ASSERT(klass != NULL || !create);
+  assert(klass != nullptr || !create);
 
   PFS_file *pfs;
   char buffer[FN_REFLEN];
@@ -880,16 +923,16 @@ PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 
   normalized_filename =
       normalize_filename(filename, len, buffer, (uint)sizeof(buffer));
-  if (normalized_filename == NULL) {
+  if (normalized_filename == nullptr) {
     global_file_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
   normalized_length = (uint)strlen(normalized_filename);
 
   LF_PINS *pins = get_filename_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_file_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
   PFS_file **entry;
@@ -912,11 +955,11 @@ search:
 
   if (!create) {
     /* No lost counter, just looking for the file existence. */
-    return NULL;
+    return nullptr;
   }
 
   pfs = global_file_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
@@ -945,17 +988,17 @@ search:
       if (++retry_count > retry_max) {
         /* Avoid infinite loops */
         global_file_container.m_lost++;
-        return NULL;
+        return nullptr;
       }
       goto search;
     }
 
     /* OOM in lf_hash_insert */
     global_file_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -963,11 +1006,11 @@ search:
   then delete the filename from the filename hash.
   @param thread                       the executing instrumented thread
   @param old_name                     the file to be renamed, null-terminated
-  @return a file instance or NULL
+  @return a file instance or nullptr
 */
 PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
-  DBUG_ASSERT(thread != NULL);
-  DBUG_ASSERT(old_name != NULL);
+  assert(thread != nullptr);
+  assert(old_name != nullptr);
 
   uint old_length = (uint)strlen(old_name);
   char buffer[FN_REFLEN];
@@ -976,23 +1019,23 @@ PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
 
   normalized_filename =
       normalize_filename(old_name, old_length, buffer, (uint)sizeof(buffer));
-  if (normalized_filename == NULL) {
+  if (normalized_filename == nullptr) {
     global_file_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
   normalized_length = (uint)strlen(normalized_filename);
 
   LF_PINS *pins = get_filename_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_file_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
   /* Find the file instrumentation by name. */
   PFS_file **entry = reinterpret_cast<PFS_file **>(lf_hash_search(
       &filename_hash, pins, normalized_filename, normalized_length));
 
-  PFS_file *pfs = NULL;
+  PFS_file *pfs = nullptr;
   if (entry && (entry != MY_LF_ERRPTR)) {
     /*
       Delete the old filename from the hash to avoid a race on the filename.
@@ -1018,9 +1061,9 @@ PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
 */
 int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
                     int rename_result) {
-  DBUG_ASSERT(thread != NULL);
-  DBUG_ASSERT(pfs != NULL);
-  DBUG_ASSERT(new_name != NULL);
+  assert(thread != nullptr);
+  assert(pfs != nullptr);
+  assert(new_name != nullptr);
 
   uint new_length = (uint)strlen(new_name);
   const char *filename;
@@ -1044,7 +1087,7 @@ int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
 
   normalized_filename =
       normalize_filename(filename, name_length, buffer, (uint)sizeof(buffer));
-  if (normalized_filename == NULL) {
+  if (normalized_filename == nullptr) {
     global_file_container.m_lost++;
     return 1;
   }
@@ -1060,7 +1103,7 @@ int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
 
   LF_PINS *pins = get_filename_hash_pins(thread);
 
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_file_container.m_lost++;
     return 1;
   }
@@ -1083,7 +1126,7 @@ int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
   @param klass                        the file class
   @param filename                     the file name
   @param len                          the length in bytes of filename
-  @return a file instance, or NULL
+  @return a file instance, or nullptr
 */
 PFS_file *find_file(PFS_thread *thread, PFS_file_class *klass,
                     const char *filename, uint len) {
@@ -1095,7 +1138,7 @@ PFS_file *find_file(PFS_thread *thread, PFS_file_class *klass,
   @param pfs                          the file to release
 */
 void release_file(PFS_file *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   pfs->m_file_stat.m_open_count--;
 }
 
@@ -1105,10 +1148,10 @@ void release_file(PFS_file *pfs) {
   @param pfs                          the file instrumentation
 */
 void delete_file_name(PFS_thread *thread, PFS_file *pfs) {
-  if (thread == NULL || pfs == NULL) return;
+  if (thread == nullptr || pfs == nullptr) return;
 
   LF_PINS *pins = get_filename_hash_pins(thread);
-  DBUG_ASSERT(pins != NULL);
+  assert(pins != nullptr);
 
   lf_hash_delete(&filename_hash, pins, pfs->m_filename, pfs->m_filename_length);
 }
@@ -1120,8 +1163,8 @@ void delete_file_name(PFS_thread *thread, PFS_file *pfs) {
   @param delete_name                  if true, delete the filename from the hash
 */
 void destroy_file(PFS_thread *thread, PFS_file *pfs, bool delete_name) {
-  DBUG_ASSERT(thread != NULL);
-  DBUG_ASSERT(pfs != NULL);
+  assert(thread != nullptr);
+  assert(pfs != nullptr);
   PFS_file_class *klass = pfs->m_class;
 
   /* Aggregate to FILE_SUMMARY_BY_EVENT_NAME */
@@ -1129,7 +1172,7 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs, bool delete_name) {
   pfs->m_file_stat.reset();
 
   if (klass->is_singleton()) {
-    klass->m_singleton = NULL;
+    klass->m_singleton = nullptr;
   }
 
   if (delete_name) {
@@ -1152,7 +1195,7 @@ PFS_table *create_table(PFS_table_share *share, PFS_thread *opening_thread,
   pfs_dirty_state dirty_state;
 
   pfs = global_table_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_identity = identity;
     pfs->m_share = share;
     pfs->m_io_enabled = share->m_enabled && flag_global_instrumentation &&
@@ -1181,9 +1224,9 @@ void PFS_table::sanitized_aggregate(void) {
     and not own the table handle.
   */
   PFS_table_share *safe_share = sanitize_table_share(m_share);
-  if (safe_share != NULL) {
+  if (safe_share != nullptr) {
     if (m_has_io_stats) {
-      safe_aggregate_io(NULL, &m_table_stat, safe_share);
+      safe_aggregate_io(nullptr, &m_table_stat, safe_share);
       m_has_io_stats = false;
     }
     if (m_has_lock_stats) {
@@ -1195,15 +1238,15 @@ void PFS_table::sanitized_aggregate(void) {
 
 void PFS_table::sanitized_aggregate_io(void) {
   PFS_table_share *safe_share = sanitize_table_share(m_share);
-  if (safe_share != NULL && m_has_io_stats) {
-    safe_aggregate_io(NULL, &m_table_stat, safe_share);
+  if (safe_share != nullptr && m_has_io_stats) {
+    safe_aggregate_io(nullptr, &m_table_stat, safe_share);
     m_has_io_stats = false;
   }
 }
 
 void PFS_table::sanitized_aggregate_lock(void) {
   PFS_table_share *safe_share = sanitize_table_share(m_share);
-  if (safe_share != NULL && m_has_lock_stats) {
+  if (safe_share != nullptr && m_has_lock_stats) {
     safe_aggregate_lock(&m_table_stat, safe_share);
     m_has_lock_stats = false;
   }
@@ -1212,8 +1255,8 @@ void PFS_table::sanitized_aggregate_lock(void) {
 void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
                                   PFS_table_stat *table_stat,
                                   PFS_table_share *table_share) {
-  DBUG_ASSERT(table_stat != NULL);
-  DBUG_ASSERT(table_share != NULL);
+  assert(table_stat != nullptr);
+  assert(table_share != nullptr);
 
   uint key_count = sanitize_index_count(table_share->m_key_count);
 
@@ -1221,13 +1264,13 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
   PFS_table_io_stat *from_stat;
   uint index;
 
-  DBUG_ASSERT(key_count <= MAX_INDEXES);
+  assert(key_count <= MAX_INDEXES);
 
   /* Aggregate stats for each index, if any */
   for (index = 0; index < key_count; index++) {
     from_stat = &table_stat->m_index_stat[index];
     if (from_stat->m_has_data) {
-      if (optional_server_share != NULL) {
+      if (optional_server_share != nullptr) {
         /*
           An instrumented thread is closing a table,
           and capable of providing index names when
@@ -1245,7 +1288,7 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
         */
         to_stat = table_share->find_index_stat(index);
       }
-      if (to_stat != NULL) {
+      if (to_stat != nullptr) {
         /* Aggregate to TABLE_IO_SUMMARY */
         to_stat->m_stat.aggregate(from_stat);
       }
@@ -1255,8 +1298,8 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
   /* Aggregate stats for the table */
   from_stat = &table_stat->m_index_stat[MAX_INDEXES];
   if (from_stat->m_has_data) {
-    to_stat = table_share->find_or_create_index_stat(NULL, MAX_INDEXES);
-    if (to_stat != NULL) {
+    to_stat = table_share->find_or_create_index_stat(nullptr, MAX_INDEXES);
+    if (to_stat != nullptr) {
       /* Aggregate to TABLE_IO_SUMMARY */
       to_stat->m_stat.aggregate(from_stat);
     }
@@ -1267,15 +1310,15 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
 
 void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
                                     PFS_table_share *table_share) {
-  DBUG_ASSERT(table_stat != NULL);
-  DBUG_ASSERT(table_share != NULL);
+  assert(table_stat != nullptr);
+  assert(table_share != nullptr);
 
   PFS_table_lock_stat *from_stat = &table_stat->m_lock_stat;
 
   PFS_table_share_lock *to_stat;
 
   to_stat = table_share->find_or_create_lock_stat();
-  if (to_stat != NULL) {
+  if (to_stat != nullptr) {
     /* Aggregate to TABLE_LOCK_SUMMARY */
     to_stat->m_stat.aggregate(from_stat);
   }
@@ -1288,7 +1331,7 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
   @param pfs                          the table to destroy
 */
 void destroy_table(PFS_table *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   pfs->m_share->dec_refcount();
   global_table_container.deallocate(pfs);
 }
@@ -1309,7 +1352,7 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
   uint fd_used = 0;
   uint addr_len_used = addr_len;
 
-  if (fd != NULL) {
+  if (fd != nullptr) {
     fd_used = *fd;
   }
 
@@ -1319,7 +1362,7 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
 
   pfs = global_socket_container.allocate(&dirty_state);
 
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_fd = fd_used;
     /* There is no socket object, so we use the instrumentation. */
     pfs->m_identity = pfs;
@@ -1328,10 +1371,10 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
     pfs->m_timed = klass->m_timed;
     pfs->m_idle = false;
     pfs->m_socket_stat.reset();
-    pfs->m_thread_owner = NULL;
+    pfs->m_thread_owner = nullptr;
 
     pfs->m_addr_len = addr_len_used;
-    if ((addr != NULL) && (addr_len_used > 0)) {
+    if ((addr != nullptr) && (addr_len_used > 0)) {
       pfs->m_addr_len = addr_len_used;
       memcpy(&pfs->m_sock_addr, addr, addr_len_used);
     } else {
@@ -1353,19 +1396,19 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
   @param pfs                          the socket to destroy
 */
 void destroy_socket(PFS_socket *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   PFS_socket_class *klass = pfs->m_class;
 
   /* Aggregate to SOCKET_SUMMARY_BY_EVENT_NAME */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 
   if (klass->is_singleton()) {
-    klass->m_singleton = NULL;
+    klass->m_singleton = nullptr;
   }
 
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
   PFS_thread *thread = pfs->m_thread_owner;
-  if (thread != NULL) {
+  if (thread != nullptr) {
     /* Combine stats for all operations */
     PFS_single_stat stat;
     pfs->m_socket_stat.m_io_stat.sum_waits(&stat);
@@ -1379,7 +1422,7 @@ void destroy_socket(PFS_socket *pfs) {
   }
 
   pfs->m_socket_stat.reset();
-  pfs->m_thread_owner = NULL;
+  pfs->m_thread_owner = nullptr;
   pfs->m_fd = 0;
   pfs->m_addr_len = 0;
 
@@ -1395,7 +1438,7 @@ PFS_metadata_lock *create_metadata_lock(void *identity, const MDL_key *mdl_key,
   pfs_dirty_state dirty_state;
 
   pfs = global_mdl_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     pfs->m_identity = identity;
     pfs->m_enabled =
         global_metadata_class.m_enabled && flag_global_instrumentation;
@@ -1415,7 +1458,7 @@ PFS_metadata_lock *create_metadata_lock(void *identity, const MDL_key *mdl_key,
 }
 
 void destroy_metadata_lock(PFS_metadata_lock *pfs) {
-  DBUG_ASSERT(pfs != NULL);
+  assert(pfs != nullptr);
   global_mdl_container.deallocate(pfs);
 }
 
@@ -1604,8 +1647,8 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
 
 void aggregate_all_transactions(PFS_transaction_stat *from_array,
                                 PFS_transaction_stat *to_array) {
-  DBUG_ASSERT(from_array != NULL);
-  DBUG_ASSERT(to_array != NULL);
+  assert(from_array != nullptr);
+  assert(to_array != nullptr);
 
   if (from_array->count() > 0) {
     to_array->aggregate(from_array);
@@ -1616,9 +1659,9 @@ void aggregate_all_transactions(PFS_transaction_stat *from_array,
 void aggregate_all_transactions(PFS_transaction_stat *from_array,
                                 PFS_transaction_stat *to_array_1,
                                 PFS_transaction_stat *to_array_2) {
-  DBUG_ASSERT(from_array != NULL);
-  DBUG_ASSERT(to_array_1 != NULL);
-  DBUG_ASSERT(to_array_2 != NULL);
+  assert(from_array != nullptr);
+  assert(to_array_1 != nullptr);
+  assert(to_array_2 != nullptr);
 
   if (from_array->count() > 0) {
     to_array_1->aggregate(from_array);
@@ -1629,8 +1672,8 @@ void aggregate_all_transactions(PFS_transaction_stat *from_array,
 
 void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array) {
-  DBUG_ASSERT(from_array != NULL);
-  DBUG_ASSERT(to_array != NULL);
+  assert(from_array != nullptr);
+  assert(to_array != nullptr);
 
   if (from_array->count() > 0) {
     to_array->aggregate(from_array);
@@ -1641,14 +1684,40 @@ void aggregate_all_errors(PFS_error_stat *from_array,
 void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array_1,
                           PFS_error_stat *to_array_2) {
-  DBUG_ASSERT(from_array != NULL);
-  DBUG_ASSERT(to_array_1 != NULL);
-  DBUG_ASSERT(to_array_2 != NULL);
+  assert(from_array != nullptr);
+  assert(to_array_1 != nullptr);
+  assert(to_array_2 != nullptr);
 
   if (from_array->count() > 0) {
     to_array_1->aggregate(from_array);
     to_array_2->aggregate(from_array);
     from_array->reset();
+  }
+}
+
+void aggregate_all_memory_with_reassign(bool alive,
+                                        PFS_memory_safe_stat *from_array,
+                                        PFS_memory_shared_stat *to_array,
+                                        PFS_memory_shared_stat *global_array) {
+  PFS_memory_safe_stat *from;
+  PFS_memory_safe_stat *from_last;
+  PFS_memory_shared_stat *to;
+
+  from = from_array;
+  from_last = from_array + memory_class_max;
+  to = to_array;
+
+  if (alive) {
+    for (; from < from_last; from++, to++) {
+      memory_partial_aggregate(from, to);
+    }
+  } else {
+    PFS_memory_shared_stat *global;
+    global = global_array;
+    for (; from < from_last; from++, to++, global++) {
+      memory_full_aggregate_with_reassign(from, to, global);
+      from->reset();
+    }
   }
 }
 
@@ -1696,9 +1765,11 @@ void aggregate_all_memory(bool alive, PFS_memory_shared_stat *from_array,
   }
 }
 
-void aggregate_all_memory(bool alive, PFS_memory_safe_stat *from_array,
-                          PFS_memory_shared_stat *to_array_1,
-                          PFS_memory_shared_stat *to_array_2) {
+void aggregate_all_memory_with_reassign(bool alive,
+                                        PFS_memory_safe_stat *from_array,
+                                        PFS_memory_shared_stat *to_array_1,
+                                        PFS_memory_shared_stat *to_array_2,
+                                        PFS_memory_shared_stat *global_array) {
   PFS_memory_safe_stat *from;
   PFS_memory_safe_stat *from_last;
   PFS_memory_shared_stat *to_1;
@@ -1714,8 +1785,10 @@ void aggregate_all_memory(bool alive, PFS_memory_safe_stat *from_array,
       memory_partial_aggregate(from, to_1, to_2);
     }
   } else {
-    for (; from < from_last; from++, to_1++, to_2++) {
-      memory_full_aggregate(from, to_1, to_2);
+    PFS_memory_shared_stat *global;
+    global = global_array;
+    for (; from < from_last; from++, to_1++, to_2++, global++) {
+      memory_full_aggregate_with_reassign(from, to_1, to_2, global);
       from->reset();
     }
   }
@@ -1751,7 +1824,7 @@ void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
   THD *thd = thread->m_thd;
   bool aggregated = false;
 
-  if (thd == NULL) {
+  if (thd == nullptr) {
     return;
   }
 
@@ -1762,16 +1835,16 @@ void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     safe_account->aggregate_status_stats(status_var);
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     safe_user->aggregate_status_stats(status_var);
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     safe_host->aggregate_status_stats(status_var);
   }
 
@@ -1780,15 +1853,15 @@ void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
 
 static void aggregate_thread_stats(PFS_thread *, PFS_account *safe_account,
                                    PFS_user *safe_user, PFS_host *safe_host) {
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     safe_account->m_disconnected_count++;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     safe_user->m_disconnected_count++;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     safe_host->m_disconnected_count++;
   }
 
@@ -1828,11 +1901,11 @@ void aggregate_thread(PFS_thread *thread, PFS_account *safe_account,
 
 void aggregate_thread_waits(PFS_thread *thread, PFS_account *safe_account,
                             PFS_user *safe_user, PFS_host *safe_host) {
-  if (thread->read_instr_class_waits_stats() == NULL) {
+  if (thread->read_instr_class_waits_stats() == nullptr) {
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
@@ -1843,7 +1916,7 @@ void aggregate_thread_waits(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if ((safe_user != NULL) && (safe_host != NULL)) {
+  if ((safe_user != nullptr) && (safe_host != nullptr)) {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1856,7 +1929,7 @@ void aggregate_thread_waits(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME, directly.
@@ -1866,7 +1939,7 @@ void aggregate_thread_waits(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     /*
       Aggregate EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
@@ -1882,11 +1955,11 @@ void aggregate_thread_waits(PFS_thread *thread, PFS_account *safe_account,
 
 void aggregate_thread_stages(PFS_thread *thread, PFS_account *safe_account,
                              PFS_user *safe_user, PFS_host *safe_host) {
-  if (thread->read_instr_class_stages_stats() == NULL) {
+  if (thread->read_instr_class_stages_stats() == nullptr) {
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
@@ -1897,7 +1970,7 @@ void aggregate_thread_stages(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if ((safe_user != NULL) && (safe_host != NULL)) {
+  if ((safe_user != nullptr) && (safe_host != nullptr)) {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1910,7 +1983,7 @@ void aggregate_thread_stages(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1923,7 +1996,7 @@ void aggregate_thread_stages(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     /*
       Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
@@ -1943,11 +2016,11 @@ void aggregate_thread_stages(PFS_thread *thread, PFS_account *safe_account,
 
 void aggregate_thread_statements(PFS_thread *thread, PFS_account *safe_account,
                                  PFS_user *safe_user, PFS_host *safe_host) {
-  if (thread->read_instr_class_statements_stats() == NULL) {
+  if (thread->read_instr_class_statements_stats() == nullptr) {
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
@@ -1959,7 +2032,7 @@ void aggregate_thread_statements(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if ((safe_user != NULL) && (safe_host != NULL)) {
+  if ((safe_user != nullptr) && (safe_host != nullptr)) {
     /*
       Aggregate EVENTS_STATEMENT_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STATEMENT_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1972,7 +2045,7 @@ void aggregate_thread_statements(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -1985,7 +2058,7 @@ void aggregate_thread_statements(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     /*
       Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
@@ -2006,11 +2079,11 @@ void aggregate_thread_statements(PFS_thread *thread, PFS_account *safe_account,
 void aggregate_thread_transactions(PFS_thread *thread,
                                    PFS_account *safe_account,
                                    PFS_user *safe_user, PFS_host *safe_host) {
-  if (thread->read_instr_class_transactions_stats() == NULL) {
+  if (thread->read_instr_class_transactions_stats() == nullptr) {
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     /*
       Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
@@ -2022,7 +2095,7 @@ void aggregate_thread_transactions(PFS_thread *thread,
     return;
   }
 
-  if ((safe_user != NULL) && (safe_host != NULL)) {
+  if ((safe_user != nullptr) && (safe_host != nullptr)) {
     /*
       Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -2036,7 +2109,7 @@ void aggregate_thread_transactions(PFS_thread *thread,
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     /*
       Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
@@ -2050,7 +2123,7 @@ void aggregate_thread_transactions(PFS_thread *thread,
     return;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     /*
       Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
@@ -2071,11 +2144,11 @@ void aggregate_thread_transactions(PFS_thread *thread,
 
 void aggregate_thread_errors(PFS_thread *thread, PFS_account *safe_account,
                              PFS_user *safe_user, PFS_host *safe_host) {
-  if (thread->read_instr_class_errors_stats() == NULL) {
+  if (thread->read_instr_class_errors_stats() == nullptr) {
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     /*
       Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
       to EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR.
@@ -2086,7 +2159,7 @@ void aggregate_thread_errors(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if ((safe_user != NULL) && (safe_host != NULL)) {
+  if ((safe_user != nullptr) && (safe_host != nullptr)) {
     /*
       Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR to:
       -  EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
@@ -2099,7 +2172,7 @@ void aggregate_thread_errors(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     /*
       Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR to:
       -  EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR
@@ -2112,7 +2185,7 @@ void aggregate_thread_errors(PFS_thread *thread, PFS_account *safe_account,
     return;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     /*
       Aggregate EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR
       to EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR, directly.
@@ -2132,54 +2205,61 @@ void aggregate_thread_errors(PFS_thread *thread, PFS_account *safe_account,
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
                              PFS_account *safe_account, PFS_user *safe_user,
                              PFS_host *safe_host) {
-  if (thread->read_instr_class_memory_stats() == NULL) {
+  if (thread->read_instr_class_memory_stats() == nullptr) {
     return;
   }
 
-  if (likely(safe_account != NULL)) {
+  if (likely(safe_account != nullptr)) {
     /*
       Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
     */
-    aggregate_all_memory(alive, thread->write_instr_class_memory_stats(),
-                         safe_account->write_instr_class_memory_stats());
+    aggregate_all_memory_with_reassign(
+        alive, thread->write_instr_class_memory_stats(),
+        safe_account->write_instr_class_memory_stats(),
+        global_instr_class_memory_array);
 
     return;
   }
 
-  if ((safe_user != NULL) && (safe_host != NULL)) {
+  if ((safe_user != nullptr) && (safe_host != nullptr)) {
     /*
       Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
       -  MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME
       in parallel.
     */
-    aggregate_all_memory(alive, thread->write_instr_class_memory_stats(),
-                         safe_user->write_instr_class_memory_stats(),
-                         safe_host->write_instr_class_memory_stats());
+    aggregate_all_memory_with_reassign(
+        alive, thread->write_instr_class_memory_stats(),
+        safe_user->write_instr_class_memory_stats(),
+        safe_host->write_instr_class_memory_stats(),
+        global_instr_class_memory_array);
     return;
   }
 
-  if (safe_user != NULL) {
+  if (safe_user != nullptr) {
     /*
       Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
       -  MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME
       -  MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME
       in parallel.
     */
-    aggregate_all_memory(alive, thread->write_instr_class_memory_stats(),
-                         safe_user->write_instr_class_memory_stats(),
-                         global_instr_class_memory_array);
+    aggregate_all_memory_with_reassign(
+        alive, thread->write_instr_class_memory_stats(),
+        safe_user->write_instr_class_memory_stats(),
+        global_instr_class_memory_array, global_instr_class_memory_array);
     return;
   }
 
-  if (safe_host != NULL) {
+  if (safe_host != nullptr) {
     /*
       Aggregate MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME
       to MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
     */
-    aggregate_all_memory(alive, thread->write_instr_class_memory_stats(),
-                         safe_host->write_instr_class_memory_stats());
+    aggregate_all_memory_with_reassign(
+        alive, thread->write_instr_class_memory_stats(),
+        safe_host->write_instr_class_memory_stats(),
+        global_instr_class_memory_array);
     return;
   }
 
@@ -2192,43 +2272,43 @@ void aggregate_thread_memory(bool alive, PFS_thread *thread,
 }
 
 void clear_thread_account(PFS_thread *thread) {
-  if (thread->m_account != NULL) {
+  if (thread->m_account != nullptr) {
     thread->m_account->release();
-    thread->m_account = NULL;
+    thread->m_account = nullptr;
   }
 
-  if (thread->m_user != NULL) {
+  if (thread->m_user != nullptr) {
     thread->m_user->release();
-    thread->m_user = NULL;
+    thread->m_user = nullptr;
   }
 
-  if (thread->m_host != NULL) {
+  if (thread->m_host != nullptr) {
     thread->m_host->release();
-    thread->m_host = NULL;
+    thread->m_host = nullptr;
   }
 }
 
 void set_thread_account(PFS_thread *thread) {
-  DBUG_ASSERT(thread->m_account == NULL);
-  DBUG_ASSERT(thread->m_user == NULL);
-  DBUG_ASSERT(thread->m_host == NULL);
+  assert(thread->m_account == nullptr);
+  assert(thread->m_user == nullptr);
+  assert(thread->m_host == nullptr);
 
   thread->m_account = find_or_create_account(
       thread, thread->m_username, thread->m_username_length, thread->m_hostname,
       thread->m_hostname_length);
 
-  if ((thread->m_account == NULL) && (thread->m_username_length > 0))
+  if ((thread->m_account == nullptr) && (thread->m_username_length > 0))
     thread->m_user = find_or_create_user(thread, thread->m_username,
                                          thread->m_username_length);
 
-  if ((thread->m_account == NULL) && (thread->m_hostname_length > 0))
+  if ((thread->m_account == nullptr) && (thread->m_hostname_length > 0))
     thread->m_host = find_or_create_host(thread, thread->m_hostname,
                                          thread->m_hostname_length);
 }
 
 static void fct_update_mutex_derived_flags(PFS_mutex *pfs) {
   PFS_mutex_class *klass = sanitize_mutex_class(pfs->m_class);
-  if (likely(klass != NULL)) {
+  if (likely(klass != nullptr)) {
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
   } else {
@@ -2243,7 +2323,7 @@ void update_mutex_derived_flags() {
 
 static void fct_update_rwlock_derived_flags(PFS_rwlock *pfs) {
   PFS_rwlock_class *klass = sanitize_rwlock_class(pfs->m_class);
-  if (likely(klass != NULL)) {
+  if (likely(klass != nullptr)) {
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
   } else {
@@ -2258,7 +2338,7 @@ void update_rwlock_derived_flags() {
 
 static void fct_update_cond_derived_flags(PFS_cond *pfs) {
   PFS_cond_class *klass = sanitize_cond_class(pfs->m_class);
-  if (likely(klass != NULL)) {
+  if (likely(klass != nullptr)) {
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
   } else {
@@ -2273,7 +2353,7 @@ void update_cond_derived_flags() {
 
 static void fct_update_file_derived_flags(PFS_file *pfs) {
   PFS_file_class *klass = sanitize_file_class(pfs->m_class);
-  if (likely(klass != NULL)) {
+  if (likely(klass != nullptr)) {
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
   } else {
@@ -2288,7 +2368,7 @@ void update_file_derived_flags() {
 
 static void fct_update_table_derived_flags(PFS_table *pfs) {
   PFS_table_share *share = sanitize_table_share(pfs->m_share);
-  if (likely(share != NULL)) {
+  if (likely(share != nullptr)) {
     pfs->m_io_enabled = share->m_enabled && flag_global_instrumentation &&
                         global_table_io_class.m_enabled;
     pfs->m_io_timed = share->m_timed && global_table_io_class.m_timed;
@@ -2309,7 +2389,7 @@ void update_table_derived_flags() {
 
 static void fct_update_socket_derived_flags(PFS_socket *pfs) {
   PFS_socket_class *klass = sanitize_socket_class(pfs->m_class);
-  if (likely(klass != NULL)) {
+  if (likely(klass != nullptr)) {
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
   } else {

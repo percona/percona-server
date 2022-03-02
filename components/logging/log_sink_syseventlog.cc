@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ static SYSLOG_FACILITY syslog_facility[] = {
     {LOG_AUTHPRIV, "authpriv"},
 #endif
 
-    {-1, NULL}};
+    {-1, nullptr}};
 
 // variable names
 #define OPT_FAC "facility"
@@ -188,10 +188,10 @@ static int log_syslog_close() {
   if (log_syslog_enabled) {
     log_syslog_enabled = false;
     log_se->close();
-    return 1;
+    return 0;
   }
 
-  return 0;
+  return 1; /* purecov: inspected */
 }
 
 /**
@@ -365,7 +365,7 @@ static int var_update_fac(char *fac) {
     make facility
   */
 
-  DBUG_ASSERT(fac != nullptr);
+  assert(fac != nullptr);
 
   log_syslog_find_facility(fac, &rsf);
 
@@ -429,7 +429,7 @@ static int sysvar_check_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   if (proposed_value == nullptr) return true;
 
-  DBUG_ASSERT(proposed_value[value_len] == '\0');
+  assert(proposed_value[value_len] == '\0');
 
   if (var_check_tag(proposed_value) != 0)  // no complaints?
     return true;
@@ -477,7 +477,7 @@ static int sysvar_install_tag(void) {
 
   values_tag.def_val = const_cast<char *>("");
 
-  DBUG_ASSERT(buffer_tag == nullptr);
+  assert(buffer_tag == nullptr);
 
   if (mysql_service_component_sys_variable_register->register_variable(
           MY_NAME, OPT_TAG, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
@@ -561,7 +561,7 @@ static int sysvar_check_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   if (proposed_value == nullptr) return true;
 
-  DBUG_ASSERT(proposed_value[value_len] == '\0');
+  assert(proposed_value[value_len] == '\0');
 
   if (var_check_fac(proposed_value) != 0)  // if value is invalid, bail
     return true;
@@ -725,13 +725,10 @@ done:
   label will be ignored (one will be generated from priority by the syslogger).
   If the message is not \0 terminated, it will be terminated.
 
-  @param           instance             instance's state
-  @param           ll                   the log line to write
-
-  @retval          >=0                  number of accepted fields, if any
-  @retval          -1                   log was not open
-  @retval          -2                   could not sanitize log message
-  @retval          -3                   failure not otherwise specified
+  @returns       >=0                  number of accepted fields, if any
+  @returns	 LOG_SERVICE_NOT_AVAILABLE     log was not open
+  @returns 	 LOG_SERVICE_INVALID_ARGUMENT  could not sanitize log message
+  @returns 	 LOG_SERVICE_MISC_ERROR        failure not otherwise specified
 */
 DEFINE_METHOD(int, log_service_imp::run,
               (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
@@ -744,9 +741,10 @@ DEFINE_METHOD(int, log_service_imp::run,
   log_item_iter *it;
   log_item *li;
 
-  if (!log_syslog_enabled) return -1;
+  if (!log_syslog_enabled) return LOG_SERVICE_NOT_AVAILABLE;
 
-  if ((it = log_bi->line_item_iter_acquire(ll)) == nullptr) return -3;
+  if ((it = log_bi->line_item_iter_acquire(ll)) == nullptr)
+    return LOG_SERVICE_MISC_ERROR; /* purecov: inspected */
 
   li = log_bi->line_item_iter_first(it);
 
@@ -759,8 +757,8 @@ DEFINE_METHOD(int, log_service_imp::run,
       level = static_cast<enum loglevel>(li->data.data_integer);
     else if (item_type == LOG_ITEM_LOG_MESSAGE) {
       if (log_bi->sanitize(li) < 0) {
-        log_bi->line_item_iter_release(it);
-        return -2;
+        log_bi->line_item_iter_release(it);  /* purecov: inspected */
+        return LOG_SERVICE_INVALID_ARGUMENT; /* purecov: inspected */
       }
 
       msg = li->data.data_string.str;
@@ -778,6 +776,22 @@ DEFINE_METHOD(int, log_service_imp::run,
   if ((out_types & (LOG_ITEM_LOG_PRIO | LOG_ITEM_LOG_MESSAGE)) ==
       (LOG_ITEM_LOG_PRIO | LOG_ITEM_LOG_MESSAGE)) {
     log_se->write(level, msg);
+
+    // Return the message for performance_schema if requested.
+    log_item *output_buffer = log_bi->line_get_output_buffer(ll);
+    size_t msg_len = strlen(msg);
+
+    if (output_buffer != nullptr) {
+      if (msg_len < output_buffer->data.data_buffer.length)
+        output_buffer->data.data_buffer.length = msg_len;
+      else  // truncate message to buffer-size (and leave space for '\0')
+        msg_len = output_buffer->data.data_buffer.length - 1;
+
+      memcpy((char *)output_buffer->data.data_buffer.str, msg, msg_len);
+      output_buffer->data.data_buffer.str[msg_len] = '\0';
+
+      output_buffer->type = LOG_ITEM_RET_BUFFER;
+    }
   }
 
   log_bi->line_item_iter_release(it);
@@ -882,70 +896,55 @@ fail:
 }
 
 /* flush logs */
-DEFINE_METHOD(int, log_service_imp::flush,
+DEFINE_METHOD(log_service_error, log_service_imp::flush,
               (void **instance MY_ATTRIBUTE((unused)))) {
-  if (inited) log_service_exit();
-  return log_service_init();
+  if (!inited || !log_syslog_enabled) return LOG_SERVICE_NOT_AVAILABLE;
+
+  log_syslog_reopen();
+
+  return log_syslog_enabled ? LOG_SERVICE_SUCCESS : LOG_SERVICE_NOT_AVAILABLE;
 }
 
 /**
   Open a new instance.
 
-  @param   ll        optional arguments
-  @param   instance  If state is needed, the service may allocate and
-                     initialize it and return a pointer to it here.
-                     (This of course is particularly pertinent to
-                     components that may be opened multiple times,
-                     such as the JSON log writer.)
-                     This state is for use of the log-service component
-                     in question only and can take any layout suitable
-                     to that component's need. The state is opaque to
-                     the server/logging framework. It must be released
-                     on close.
-
-  @retval  <0        a new instance could not be created
-  @retval  =0        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  otherwise                  a new instance could not be created
 */
-DEFINE_METHOD(int, log_service_imp::open,
+DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
-  if (instance == nullptr) return -1;
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
   Close and release an instance. Flushes any buffers.
 
-  @param   instance  State-pointer that was returned on open.
-                     If memory was allocated for this state,
-                     it should be released, and the pointer
-                     set to nullptr.
-
-  @retval  <0        an error occurred
-  @retval  =0        success
+  @returns  LOG_SERVICE_SUCCESS
 */
-DEFINE_METHOD(int, log_service_imp::close,
+DEFINE_METHOD(log_service_error, log_service_imp::close,
               (void **instance MY_ATTRIBUTE((unused)))) {
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
   Get characteristics of a log-service.
 
-  @retval  <0        an error occurred
-  @retval  >=0       characteristics (a set of log_service_chistics flags)
+  @returns  <0        an error occurred
+  @returns  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
-  return LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON;
+  return LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON | LOG_SERVICE_PFS_SUPPORT;
 }
 
 /* implementing a service: log_service */
 BEGIN_SERVICE_IMPLEMENTATION(log_sink_syseventlog, log_service)
 log_service_imp::run, log_service_imp::flush, log_service_imp::open,
-    log_service_imp::close,
-    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
+    log_service_imp::close, log_service_imp::characteristics, nullptr,
+    nullptr END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_service service, for now */
 BEGIN_COMPONENT_PROVIDES(log_sink_syseventlog)
@@ -964,7 +963,7 @@ REQUIRES_SERVICE(component_sys_variable_register),
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_sink_syseventlog)
-METADATA("mysql.author", "T.A. Nuernberg, Oracle Corporation"),
+METADATA("mysql.author", "Oracle Corporation"),
     METADATA("mysql.license", "GPL"), METADATA("log_service_type", "sink"),
     END_COMPONENT_METADATA();
 

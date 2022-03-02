@@ -15,7 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
+/* RocksDB header files */
 #include "rocksdb/listener.h"
+
+/* MyRocks header files */
+#include "./rdb_global.h"
 
 namespace myrocks {
 
@@ -28,6 +32,9 @@ class Rdb_event_listener : public rocksdb::EventListener {
 
   explicit Rdb_event_listener(Rdb_ddl_manager *const ddl_manager)
       : m_ddl_manager(ddl_manager) {}
+
+  void OnCompactionBegin(rocksdb::DB *db,
+                         const rocksdb::CompactionJobInfo &ci) override;
 
   void OnCompactionCompleted(rocksdb::DB *db,
                              const rocksdb::CompactionJobInfo &ci) override;

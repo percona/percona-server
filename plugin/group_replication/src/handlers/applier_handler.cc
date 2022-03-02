@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin.h"
 
-Applier_handler::Applier_handler() {}
+Applier_handler::Applier_handler() = default;
 
 int Applier_handler::initialize() {
   DBUG_TRACE;
@@ -60,9 +60,17 @@ int Applier_handler::initialize_repositories(bool reset_logs,
   channel_interface.set_stop_wait_timeout(plugin_shutdown_timeout);
 
   error = channel_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, false, GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
-      0, true, NULL, false, NULL, 0, NULL, NULL);
+      /*host*/ const_cast<char *>("<NULL>"), /*port*/ 0, /*user*/ nullptr,
+      /*pass*/ nullptr, /*use_ssl*/ false, /*ssl_ca*/ nullptr,
+      /*ssl_capath*/ nullptr, /*ssl_cert*/ nullptr, /*ssl_cipher*/ nullptr,
+      /*ssl_key*/ nullptr, /*ssl_crl*/ nullptr, /*ssl_crlpath*/ nullptr,
+      /*ssl_verify*/ false,
+      /*priority*/ GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
+      /*retry_count*/ 0,
+      /*preserve_logs*/ true, /*public_key_path*/ nullptr,
+      /*get_public_key*/ false, /*compression_alg*/ nullptr,
+      /*compression_level*/ 0, /*tls_version*/ nullptr, /*tls_cipher*/ nullptr,
+      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
 
   if (error) {
     LogPluginErr(ERROR_LEVEL,
@@ -75,7 +83,7 @@ int Applier_handler::initialize_repositories(bool reset_logs,
 int Applier_handler::start_applier_thread() {
   DBUG_TRACE;
 
-  int error = channel_interface.start_threads(false, true, NULL, false);
+  int error = channel_interface.start_threads(false, true, nullptr, false);
   if (error) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_START_ERROR);
   }
@@ -102,10 +110,10 @@ int Applier_handler::handle_event(Pipeline_event *event, Continuation *cont) {
   DBUG_TRACE;
   int error = 0;
 
-  Data_packet *p = NULL;
+  Data_packet *p = nullptr;
   error = event->get_Packet(&p);
   DBUG_EXECUTE_IF("applier_handler_force_error_on_pipeline", error = 1;);
-  if (error || (p == NULL)) {
+  if (error || (p == nullptr)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_DATA_FAILED);
     error = 1;
     goto end;

@@ -1,0 +1,7 @@
+--echo #
+--echo # Bug#30311271 RAND() < RAND() RESULTS IN IMPOSSIBLE WHERE
+--echo #
+--echo # See that the optimizer does not consider two instances of RAND() as
+--echo # equal.
+--replace_result 0.00..0.00 0.00
+EXPLAIN FORMAT=tree SELECT 1 WHERE RAND() < RAND();

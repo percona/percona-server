@@ -26,7 +26,7 @@ Created 04/01/2015 Jan Lindström
 /*******************************************************************//**
 Find out whether the page is page encrypted
 @return	true if page is page encrypted, false if not */
-UNIV_INLINE
+static inline
 bool
 fil_page_is_encrypted(
 /*==================*/
@@ -38,7 +38,7 @@ fil_page_is_encrypted(
 /*******************************************************************//**
 Get current encryption mode from crypt_data.
 @return string representation */
-UNIV_INLINE
+static inline
 const char *
 fil_crypt_get_mode(
 /*===============*/
@@ -60,7 +60,7 @@ fil_crypt_get_mode(
 /*******************************************************************//**
 Get current encryption type from crypt_data.
 @return string representation */
-UNIV_INLINE
+static inline
 const char *
 fil_crypt_get_type(
 	const fil_space_crypt_t* crypt_data)

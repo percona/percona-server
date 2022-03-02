@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ double myfunc_double(UDF_INIT *, UDF_ARGS *args, unsigned char *is_null,
   unsigned i, j;
 
   for (i = 0; i < args->arg_count; i++) {
-    if (args->args[i] == NULL) continue;
+    if (args->args[i] == nullptr) continue;
     val += args->lengths[i];
     for (j = args->lengths[i]; j-- > 0;) v += args->args[i][j];
   }
@@ -92,7 +92,7 @@ static mysql_service_status_t init() {
   bool ret_double = false;
   ret_double = mysql_service_udf_registration->udf_register(
       "myfunc_double", REAL_RESULT, (Udf_func_any)myfunc_double,
-      myfunc_double_init, NULL);
+      myfunc_double_init, nullptr);
   return ret_double;
 }
 

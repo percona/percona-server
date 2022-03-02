@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,11 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -51,6 +51,7 @@
 #include "sql/log.h"
 #include "sql/mysqld.h"  // server_uuid
 #include "sql/psi_memory_key.h"
+#include "sql/raii/sentry.h"  // raii::Sentry<T>
 #include "sql/replication.h"  // Trans_param
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"     // Master_info
@@ -73,6 +74,9 @@ Server_state_delegate *server_state_delegate;
 Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 
+bool opt_replication_optimize_for_static_plugin_config{false};
+std::atomic<bool> opt_replication_sender_observe_commit_only{false};
+
 Observer_info::Observer_info(void *ob, st_plugin_int *p)
     : observer(ob), plugin_int(p) {
   plugin = plugin_int_to_ref(plugin_int);
@@ -84,6 +88,10 @@ Delegate::Delegate(
 #endif
 ) {
   inited = false;
+  m_configured_lock_type.store(opt_replication_optimize_for_static_plugin_config
+                                   ? DELEGATE_SPIN_LOCK
+                                   : DELEGATE_OS_LOCK);
+  m_acquired_locks.store(0);
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (mysql_rwlock_init(key, &lock)) return;
 #else
@@ -91,6 +99,191 @@ Delegate::Delegate(
 #endif
   init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
   inited = true;
+}
+
+Delegate::~Delegate() {
+  inited = false;
+  mysql_rwlock_destroy(&lock);
+  free_root(&memroot, MYF(0));
+}
+
+int Delegate::add_observer(void *observer, st_plugin_int *plugin) {
+  int ret = false;
+  if (!inited) return true;
+  write_lock();
+  Observer_info_iterator iter(observer_info_list);
+  Observer_info *info = iter++;
+  while (info && info->observer != observer) info = iter++;
+  if (!info) {
+    info = new Observer_info(observer, plugin);
+    if (!info || observer_info_list.push_back(info, &memroot))
+      ret = true;
+    else if (this->use_spin_lock_type())
+      acquire_plugin_ref_count(info);
+  } else
+    ret = true;
+  unlock();
+  return ret;
+}
+
+int Delegate::remove_observer(void *observer) {
+  int ret = false;
+  if (!inited) return true;
+  write_lock();
+  Observer_info_iterator iter(observer_info_list);
+  Observer_info *info = iter++;
+  while (info && info->observer != observer) info = iter++;
+  if (info) {
+    iter.remove();
+    delete info;
+  } else
+    ret = true;
+  unlock();
+  return ret;
+}
+
+Delegate::Observer_info_iterator Delegate::observer_info_iter() {
+  return Observer_info_iterator(observer_info_list);
+}
+
+bool Delegate::is_empty() {
+  DBUG_PRINT("debug", ("is_empty: %d", observer_info_list.is_empty()));
+  return observer_info_list.is_empty();
+}
+
+int Delegate::read_lock() {
+  if (!inited) return true;
+  this->lock_it(DELEGATE_LOCK_MODE_SHARED);
+  return 0;
+}
+
+int Delegate::write_lock() {
+  if (!inited) return true;
+  this->lock_it(DELEGATE_LOCK_MODE_EXCLUSIVE);
+  return 0;
+}
+
+int Delegate::unlock() {
+  if (!inited) return true;
+
+  int result = 0;
+
+  if (m_acquired_locks.load() > 0) {
+    m_acquired_locks -= DELEGATE_SPIN_LOCK;
+    if (m_spin_lock.is_exclusive_acquisition())
+      m_spin_lock.release_exclusive();
+    else {
+      assert(m_spin_lock.is_shared_acquisition());
+      m_spin_lock.release_shared();
+    }
+  } else {
+    assert(m_acquired_locks.load() < 0);
+    m_acquired_locks -= DELEGATE_OS_LOCK;
+    result = mysql_rwlock_unlock(&lock);
+  }
+
+  return result;
+}
+
+bool Delegate::is_inited() { return inited; }
+
+void Delegate::update_lock_type() {
+  if (!inited) return;
+
+  int opt_value = opt_replication_optimize_for_static_plugin_config
+                      ? DELEGATE_SPIN_LOCK
+                      : DELEGATE_OS_LOCK;
+  m_configured_lock_type.store(opt_value);
+}
+
+void Delegate::update_plugin_ref_count() {
+  if (!inited) return;
+
+  int opt_value = opt_replication_optimize_for_static_plugin_config
+                      ? DELEGATE_SPIN_LOCK
+                      : DELEGATE_OS_LOCK;
+  int intern_value = m_configured_lock_type.load();
+
+  if (intern_value == DELEGATE_SPIN_LOCK && opt_value == DELEGATE_OS_LOCK) {
+    for (auto ref : m_acquired_references) {
+      for (size_t count = ref.second; count != 0; --count)
+        plugin_unlock(NULL, ref.first);
+    }
+    m_acquired_references.clear();
+  } else if (intern_value == DELEGATE_OS_LOCK &&
+             opt_value == DELEGATE_SPIN_LOCK) {
+    Observer_info_iterator iter = observer_info_iter();
+    for (Observer_info *info = iter++; info; info = iter++) {
+      acquire_plugin_ref_count(info);
+    }
+  }
+}
+
+bool Delegate::use_rw_lock_type() {
+  return m_acquired_locks.load() < 0 ||  // If there are acquisitions using
+                                         // the read-write lock
+         (m_configured_lock_type.load() ==
+              DELEGATE_OS_LOCK &&  // or the lock type has been set to use the
+                                   // read-write lock
+          m_acquired_locks.load() == 0);  // and there are no outstanding
+                                          // acquisitions using shared
+                                          // spin-lock, use the read-write
+                                          // lock
+}
+
+bool Delegate::use_spin_lock_type() {
+  return m_acquired_locks.load() > 0 ||  // If there are acquisitions using
+                                         // the shared spin-lock
+         (m_configured_lock_type.load() ==
+              DELEGATE_SPIN_LOCK &&  // or the lock type has been set to use the
+                                     // shared spin-lock
+          m_acquired_locks.load() == 0);  // and there are no outstanding
+                                          // acquisitions using read-write
+                                          // lock, use the shared
+                                          // sping-lock
+}
+
+void Delegate::acquire_plugin_ref_count(Observer_info *info) {
+  plugin_ref internal_ref = plugin_lock(NULL, &info->plugin);
+  ++(m_acquired_references[internal_ref]);
+}
+
+void Delegate::lock_it(enum_delegate_lock_mode mode) {
+  do {
+    if (this->use_spin_lock_type()) {
+      if (mode == DELEGATE_LOCK_MODE_SHARED)
+        m_spin_lock.acquire_shared();
+      else
+        m_spin_lock.acquire_exclusive();
+
+      if (m_configured_lock_type.load() !=
+          DELEGATE_SPIN_LOCK) {  // Lock type changed in the meanwhile, lets
+                                 // revert the acquisition and try again
+        if (mode == DELEGATE_LOCK_MODE_SHARED)
+          m_spin_lock.release_shared();
+        else
+          m_spin_lock.release_exclusive();
+      } else {
+        m_acquired_locks += DELEGATE_SPIN_LOCK;
+        break;
+      }
+    }
+    if (this->use_rw_lock_type()) {
+      if (mode == DELEGATE_LOCK_MODE_SHARED)
+        mysql_rwlock_rdlock(&lock);
+      else
+        mysql_rwlock_wrlock(&lock);
+
+      if (m_configured_lock_type.load() !=
+          DELEGATE_OS_LOCK)  // Lock type changed in the meanwhile, lets revert
+                             // the acquisition and try again
+        mysql_rwlock_unlock(&lock);
+      else {
+        m_acquired_locks += DELEGATE_OS_LOCK;
+        break;
+      }
+    }
+  } while (true);
 }
 
 /*
@@ -197,6 +390,15 @@ int delegates_init() {
   return 0;
 }
 
+void delegates_shutdown() {
+  if (opt_replication_optimize_for_static_plugin_config) {
+    opt_replication_optimize_for_static_plugin_config = false;
+    delegates_acquire_locks();
+    delegates_update_lock_type();
+    delegates_release_locks();
+  }
+}
+
 void delegates_destroy() {
   if (transaction_delegate) transaction_delegate->~Trans_delegate();
   if (binlog_storage_delegate)
@@ -206,6 +408,43 @@ void delegates_destroy() {
     binlog_transmit_delegate->~Binlog_transmit_delegate();
   if (binlog_relay_io_delegate)
     binlog_relay_io_delegate->~Binlog_relay_IO_delegate();
+}
+
+static void delegates_update_plugin_ref_count() {
+  if (transaction_delegate) transaction_delegate->update_plugin_ref_count();
+  if (binlog_storage_delegate)
+    binlog_storage_delegate->update_plugin_ref_count();
+  if (server_state_delegate) server_state_delegate->update_plugin_ref_count();
+  if (binlog_transmit_delegate)
+    binlog_transmit_delegate->update_plugin_ref_count();
+  if (binlog_relay_io_delegate)
+    binlog_relay_io_delegate->update_plugin_ref_count();
+}
+
+void delegates_acquire_locks() {
+  if (transaction_delegate) transaction_delegate->write_lock();
+  if (binlog_storage_delegate) binlog_storage_delegate->write_lock();
+  if (server_state_delegate) server_state_delegate->write_lock();
+  if (binlog_transmit_delegate) binlog_transmit_delegate->write_lock();
+  if (binlog_relay_io_delegate) binlog_relay_io_delegate->write_lock();
+}
+
+void delegates_release_locks() {
+  if (transaction_delegate) transaction_delegate->unlock();
+  if (binlog_storage_delegate) binlog_storage_delegate->unlock();
+  if (server_state_delegate) server_state_delegate->unlock();
+  if (binlog_transmit_delegate) binlog_transmit_delegate->unlock();
+  if (binlog_relay_io_delegate) binlog_relay_io_delegate->unlock();
+}
+
+void delegates_update_lock_type() {
+  delegates_update_plugin_ref_count();
+
+  if (transaction_delegate) transaction_delegate->update_lock_type();
+  if (binlog_storage_delegate) binlog_storage_delegate->update_lock_type();
+  if (server_state_delegate) server_state_delegate->update_lock_type();
+  if (binlog_transmit_delegate) binlog_transmit_delegate->update_lock_type();
+  if (binlog_relay_io_delegate) binlog_relay_io_delegate->update_lock_type();
 }
 
 /*
@@ -221,14 +460,19 @@ void delegates_destroy() {
   read_lock();                                                         \
   Observer_info_iterator iter = observer_info_iter();                  \
   Observer_info *info = iter++;                                        \
+  bool replication_optimize_for_static_plugin_config =                 \
+      this->use_spin_lock_type();                                      \
   for (; info; info = iter++) {                                        \
-    plugin_ref plugin = my_plugin_lock(0, &info->plugin);              \
+    plugin_ref plugin = (replication_optimize_for_static_plugin_config \
+                             ? info->plugin                            \
+                             : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
       /* plugin is not intialized or deleted, this is not an error */  \
       r = 0;                                                           \
       break;                                                           \
     }                                                                  \
-    plugins.push_back(plugin);                                         \
+    if (!replication_optimize_for_static_plugin_config)                \
+      plugins.push_back(plugin);                                       \
     if (((Observer *)info->observer)->f &&                             \
         ((Observer *)info->observer)->f args) {                        \
       r = 1;                                                           \
@@ -258,15 +502,20 @@ void delegates_destroy() {
   Observer_info_iterator iter = observer_info_iter();                  \
   Observer_info *info = iter++;                                        \
                                                                        \
+  bool replication_optimize_for_static_plugin_config =                 \
+      this->use_spin_lock_type();                                      \
   int error_out = 0;                                                   \
   for (; info; info = iter++) {                                        \
-    plugin_ref plugin = my_plugin_lock(0, &info->plugin);              \
+    plugin_ref plugin = (replication_optimize_for_static_plugin_config \
+                             ? info->plugin                            \
+                             : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
       /* plugin is not intialized or deleted, this is not an error */  \
       r = 0;                                                           \
       break;                                                           \
     }                                                                  \
-    plugins.push_back(plugin);                                         \
+    if (!replication_optimize_for_static_plugin_config)                \
+      plugins.push_back(plugin);                                       \
                                                                        \
     bool hook_error = false;                                           \
     hook_error = ((Observer *)info->observer)->f(args, error_out);     \
@@ -324,6 +573,9 @@ int Trans_delegate::before_commit(THD *thd, bool all,
       thd->variables.group_replication_consistency;
   param.original_server_version = &(thd->variables.original_server_version);
   param.immediate_server_version = &(thd->variables.immediate_server_version);
+  param.is_create_table_as_query_block =
+      (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+       !thd->lex->query_block->field_list_is_empty());
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -382,7 +634,7 @@ void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
   // Gather table information
   std::vector<Trans_table_info> table_info_holder;
   for (; open_tables != nullptr; open_tables = open_tables->next) {
-    Trans_table_info table_info = {0, 0, 0, false};
+    Trans_table_info table_info = {nullptr, 0, 0, false};
 
     if (open_tables->no_replicate) {
       continue;
@@ -704,7 +956,7 @@ int Binlog_storage_delegate::after_sync(THD *thd, const char *log_file,
   Binlog_storage_param param;
   param.server_id = thd->server_id;
 
-  DBUG_ASSERT(log_pos != 0);
+  assert(log_pos != 0);
   int ret = 0;
   FOREACH_OBSERVER(ret, after_sync, (&param, log_file, log_pos));
 
@@ -740,12 +992,12 @@ int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags) {
 
 int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
                                              String *packet) {
-/* NOTE2ME: Maximum extra header size for each observer, I hope 32
-   bytes should be enough for each Observer to reserve their extra
-   header. If later found this is not enough, we can increase this
-   /HEZX
-*/
-#define RESERVE_HEADER_SIZE 32
+  /*
+    NOTE2ME: Maximum extra header size for each observer, I hope 32
+    bytes should be enough for each Observer to reserve their
+    extra header. If later found this is not enough, we can increase this /HEZX
+   */
+  constexpr int RESERVE_HEADER_SIZE = 32;
   unsigned char header[RESERVE_HEADER_SIZE];
   ulong hlen;
   Binlog_transmit_param param;
@@ -758,21 +1010,29 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
   read_lock();
   Observer_info_iterator iter = observer_info_iter();
   Observer_info *info = iter++;
+  bool replication_optimize_for_static_plugin_config =
+      this->use_spin_lock_type();
   for (; info; info = iter++) {
-    plugin_ref plugin = my_plugin_lock(thd, &info->plugin);
+    plugin_ref plugin = (replication_optimize_for_static_plugin_config
+                             ? info->plugin
+                             : my_plugin_lock(thd, &info->plugin));
     if (!plugin) {
       ret = 1;
       break;
     }
     hlen = 0;
-    if (((Observer *)info->observer)->reserve_header &&
-        ((Observer *)info->observer)
-            ->reserve_header(&param, header, RESERVE_HEADER_SIZE, &hlen)) {
-      ret = 1;
-      plugin_unlock(thd, plugin);
-      break;
-    }
-    plugin_unlock(thd, plugin);
+    {  // `unlock_guard` scope
+      raii::Sentry<> unlock_guard{[&]() -> void {
+        if (!replication_optimize_for_static_plugin_config)
+          plugin_unlock(thd, plugin);
+      }};
+      if (((Observer *)info->observer)->reserve_header &&
+          ((Observer *)info->observer)
+              ->reserve_header(&param, header, RESERVE_HEADER_SIZE, &hlen)) {
+        ret = 1;
+        break;
+      }
+    }  // `unlock_guard` scope
     if (hlen == 0) continue;
     if (hlen > RESERVE_HEADER_SIZE || packet->append((char *)header, hlen)) {
       ret = 1;
@@ -1037,7 +1297,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
                   (sql_command != SQLCOM_BINLOG_BASE64_EVENT)) ||
                  (sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
   bool is_set = (sql_command == SQLCOM_SET_OPTION);
-  bool is_select = (sql_command == SQLCOM_SELECT);
+  bool is_query_block = (sql_command == SQLCOM_SELECT);
   bool is_do = (sql_command == SQLCOM_DO);
   bool is_empty = (sql_command == SQLCOM_EMPTY_QUERY);
   bool is_use = (sql_command == SQLCOM_CHANGE_DB);
@@ -1052,15 +1312,13 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     return 0;
   }
 
-  if (is_select) {
+  if (is_query_block) {
     bool is_udf = false;
 
     // if select is an udf function
-    SELECT_LEX *select_lex_elem = lex->unit->first_select();
-    while (select_lex_elem != nullptr) {
-      Item *item;
-      List_iterator_fast<Item> it(select_lex_elem->fields_list);
-      while ((item = it++)) {
+    Query_block *query_block_elem = lex->unit->first_query_block();
+    while (query_block_elem != nullptr) {
+      for (Item *item : query_block_elem->visible_fields()) {
         if (item->type() == Item::FUNC_ITEM) {
           Item_func *func_item = down_cast<Item_func *>(item);
           Item_func::Functype functype = func_item->functype();
@@ -1068,15 +1326,15 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
             is_udf = true;
         }
       }
-      select_lex_elem = select_lex_elem->next_select();
+      query_block_elem = query_block_elem->next_query_block();
     }
 
-    if (!is_udf && all_tables == 0x00) {
+    if (!is_udf && all_tables == nullptr) {
       // SELECT that don't use tables and isn't a UDF
       hold_command = false;
     }
 
-    if (hold_command && all_tables != 0x00) {
+    if (hold_command && all_tables != nullptr) {
       // SELECT that use tables
       bool is_perf_schema_table = false;
       bool is_process_list = false;
@@ -1085,7 +1343,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
 
       for (TABLE_LIST *table = all_tables; table && !stop_db_check;
            table = table->next_global) {
-        DBUG_ASSERT(table->db && table->table_name);
+        assert(table->db && table->table_name);
 
         if (is_perfschema_db(table->db, table->db_length))
           is_perf_schema_table = true;
@@ -1111,8 +1369,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   }
 
   if (hold_command) {
-    DBUG_EXECUTE_IF("launch_hook_trans_begin_assert_if_hold",
-                    { DBUG_ASSERT(0); };);
+    DBUG_EXECUTE_IF("launch_hook_trans_begin_assert_if_hold", { assert(0); };);
 
     PSI_stage_info old_stage;
     thd->enter_stage(&stage_hook_begin_trans, &old_stage, __func__, __FILE__,

@@ -511,3 +511,7 @@ DROP DATABASE test1;
 
 --replace_regex /[0-9]+/STARTVAL/
 eval set global log_error_verbosity= $saved_log_error_verbosity;
+
+# Restore default values
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -207,6 +207,10 @@ std::error_code RestMetadataClient::wait_for_cache_changed(
     std::chrono::milliseconds timeout, MetadataStatus &status) {
   MetadataStatus before;
 
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
   auto end_tp = std::chrono::steady_clock::now() + timeout;
 
   std::error_code ec = wait_until_cache_fetched(
@@ -231,6 +235,10 @@ std::error_code RestMetadataClient::wait_for_cache_changed(
 std::error_code RestMetadataClient::wait_for_cache_updated(
     std::chrono::milliseconds timeout, MetadataStatus &status) {
   MetadataStatus before;
+
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
 
   auto end_tp = std::chrono::steady_clock::now() + timeout;
 

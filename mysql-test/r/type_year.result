@@ -32,7 +32,7 @@ create table t1 (y year);
 insert into t1 values (now());
 select if(y = now(), 1, 0) from t1;
 if(y = now(), 1, 0)
-1
+0
 drop table t1;
 create table t1(a year);
 insert ignore into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
@@ -80,12 +80,12 @@ SELECT * FROM t4 a, t4 b WHERE a.yyyy < b.yyyy;
 yyyy	c4	yyyy	c4
 1970	1970	1999	1999
 1970	1970	2000	2000
-1999	1999	2000	2000
 1970	1970	2001	2001
-1999	1999	2001	2001
-2000	2000	2001	2001
 1970	1970	2069	2069
+1999	1999	2000	2000
+1999	1999	2001	2001
 1999	1999	2069	2069
+2000	2000	2001	2001
 2000	2000	2069	2069
 2001	2001	2069	2069
 # Comparison with constants:
@@ -379,4 +379,63 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` year DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Bug#31994744: Year should not be part of property functions
+#               is_numeric_type() and is_integer_type()
+CREATE TABLE t1
+(y YEAR,
+d DATE,
+i INTEGER,
+v VARCHAR(10));
+INSERT INTO t1 VALUES(1901, DATE'1901-01-01', 1, 'one');
+SELECT LEAST(d, y) FROM t1;
+LEAST(d, y)
+1901
+Warnings:
+Warning	1292	Incorrect date value: '1901' for column 'd' at row 1
+SELECT LEAST(y, d) FROM t1;
+LEAST(y, d)
+1901
+SELECT LEAST(i, y, v) FROM t1;
+LEAST(i, y, v)
+1
+DROP TABLE t1;
+CREATE TABLE t1
+(pk INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+year_field YEAR
+);
+INSERT INTO t1 VALUES(NULL, 1901), (NULL, 1902), (NULL, 1903), (NULL, 1904);
+SELECT pk FROM t1 WHERE year_field IN (1901, 1903);
+pk
+1
+3
+SELECT pk FROM t1 WHERE year_field IN ('1901', '1903');
+pk
+1
+3
+SELECT pk FROM t1 WHERE year_field IN (1901, '1903');
+pk
+1
+3
+DROP TABLE t1;
+# Bug#32395335: Assertion `!is_temporal()' failed|sql/item.cc
+CREATE TABLE t1 (
+d DATE DEFAULT NULL,
+y1 YEAR DEFAULT NULL,
+y2 YEAR DEFAULT NULL,
+dbl DOUBLE DEFAULT NULL
+);
+INSERT INTO t1 VALUES('1978-07-14',1957,2085,87315.633);
+SELECT TIMESTAMPDIFF(QUARTER, LEAST(y1, y2), dbl)
+FROM t1;
+TIMESTAMPDIFF(QUARTER, LEAST(y1, y2), dbl)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1957'
+SELECT HOUR(GREATEST(y1, y2))
+FROM t1;
+HOUR(GREATEST(y1, y2))
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '2085'
 DROP TABLE t1;

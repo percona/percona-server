@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, Percona and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,8 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -54,7 +56,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
   my_off_t offset;
   uchar *in_buff_pos;
   DBUG_TRACE;
-  DBUG_ASSERT(info->m_encryptor == nullptr && info->m_decryptor == nullptr);
+  assert(info->m_encryptor == nullptr && info->m_decryptor == nullptr);
 
   if (pos < info->pos_in_file) {
     read_length = length;
@@ -71,7 +73,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       (offset = (my_off_t)(pos - info->pos_in_file)) <
           (my_off_t)(info->read_end - info->request_pos)) {
     in_buff_pos = info->request_pos + (uint)offset;
-    in_buff_length = MY_MIN(length, (size_t)(info->read_end - in_buff_pos));
+    in_buff_length = std::min<size_t>(length, (info->read_end - in_buff_pos));
     memcpy(buff, info->request_pos + (uint)offset, (size_t)in_buff_length);
     if (!(length -= in_buff_length)) return 0;
     pos += in_buff_length;

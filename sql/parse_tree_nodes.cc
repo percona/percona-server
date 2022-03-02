@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,24 @@
 
 #include "sql/parse_tree_nodes.h"
 
-#include <string.h>
 #include <algorithm>
-#include <initializer_list>
+#include <cstring>
 #include <limits>
 #include <utility>
+#include <vector>
 
 #include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "scope_guard.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/create_field.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type::BASE_TABLE
 #include "sql/dd/types/column.h"
@@ -57,6 +60,7 @@
 #include "sql/parse_tree_column_attrs.h"  // PT_field_def_base
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
+#include "sql/parse_tree_window.h"      // PT_window
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
@@ -77,14 +81,19 @@
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
 #include "sql/sql_parse.h"
 #include "sql/sql_select.h"  // Sql_cmd_select...
-#include "sql/sql_show.h"
-#include "sql/sql_update.h"  // Sql_cmd_update...
+#include "sql/sql_show.h"    // Sql_cmd_show...
+#include "sql/sql_show_processlist.h"
+#include "sql/sql_show_status.h"  // build_show_session_status, ...
+#include "sql/sql_update.h"       // Sql_cmd_update...
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
+#include "sql/window.h"  // Window
 #include "sql_string.h"
 #include "template_utils.h"
+
+extern bool pfs_processlist_enabled;
 
 namespace {
 
@@ -92,6 +101,15 @@ template <typename Context, typename Node>
 bool contextualize_safe(Context *pc, Node node) {
   if (node == nullptr) return false;
   return node->contextualize(pc);
+}
+
+template <typename Context>
+bool contextualize_safe(Context *pc, mem_root_deque<Item *> *list) {
+  if (list == nullptr) return false;
+  for (Item *&item : *list) {
+    if (item->itemize(pc, &item)) return true;
+  }
+  return false;
 }
 
 /**
@@ -115,7 +133,7 @@ bool itemize_safe(Parse_context *pc, Item **item) {
 }  // namespace
 
 Table_ddl_parse_context::Table_ddl_parse_context(THD *thd_arg,
-                                                 SELECT_LEX *select_arg,
+                                                 Query_block *select_arg,
                                                  Alter_info *alter_info)
     : Parse_context(thd_arg, select_arg),
       create_info(thd_arg->lex->create_info),
@@ -125,6 +143,38 @@ Table_ddl_parse_context::Table_ddl_parse_context(THD *thd_arg,
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join *cj) {
   cj->add_rhs(this);
   return cj;
+}
+
+bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
+  if (tr1 != nullptr) return false;  // already done
+
+  bool was_right = m_type & JTT_RIGHT;
+  if (was_right)  // rewrite to LEFT
+  {
+    m_type =
+        static_cast<PT_joined_table_type>((m_type & ~JTT_RIGHT) | JTT_LEFT);
+    std::swap(tab1_node, tab2_node);
+  }
+
+  if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc)) return true;
+
+  tr1 = tab1_node->value;
+  tr2 = tab2_node->value;
+
+  if (tr1 == nullptr || tr2 == nullptr) {
+    error(pc, join_pos);
+    return true;
+  }
+
+  if (m_type & JTT_LEFT) {
+    tr2->outer_join = true;
+    if (was_right) {
+      tr2->join_order_swapped = true;
+      tr2->query_block->set_right_joins();
+    }
+  }
+
+  return false;
 }
 
 bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
@@ -139,7 +189,7 @@ bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
   set_var_collation_client *var;
   var = new (thd->mem_root) set_var_collation_client(
       flags, cs2, thd->variables.collation_database, cs2);
-  if (var == NULL) return true;
+  if (var == nullptr) return true;
   lex->var_list.push_back(var);
   return false;
 }
@@ -188,7 +238,7 @@ bool PT_set_names::contextualize(Parse_context *pc) {
   }
   set_var_collation_client *var;
   var = new (thd->mem_root) set_var_collation_client(flags, cs3, cs3, cs3);
-  if (var == NULL) return true;
+  if (var == nullptr) return true;
   lex->var_list.push_back(var);
   return false;
 }
@@ -196,11 +246,11 @@ bool PT_set_names::contextualize(Parse_context *pc) {
 bool PT_group::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  SELECT_LEX *select = pc->select;
+  Query_block *select = pc->select;
   select->parsing_place = CTX_GROUP_BY;
 
   if (group_list->contextualize(pc)) return true;
-  DBUG_ASSERT(select == pc->select);
+  assert(select == pc->select);
 
   select->group_list = group_list->value;
 
@@ -209,7 +259,7 @@ bool PT_group::contextualize(Parse_context *pc) {
   for (; group; group = group->next) group->direction = ORDER_NOT_RELEVANT;
 
   // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(select->parsing_place == CTX_GROUP_BY);
+  assert(select->parsing_place == CTX_GROUP_BY);
   select->parsing_place = CTX_NONE;
 
   switch (olap) {
@@ -224,7 +274,7 @@ bool PT_group::contextualize(Parse_context *pc) {
       select->olap = ROLLUP_TYPE;
       break;
     default:
-      DBUG_ASSERT(!"unexpected OLAP type!");
+      assert(!"unexpected OLAP type!");
   }
   return false;
 }
@@ -247,7 +297,7 @@ bool PT_order::contextualize(Parse_context *pc) {
 }
 
 bool PT_order_expr::contextualize(Parse_context *pc) {
-  return super::contextualize(pc) || item_ptr->itemize(pc, &item_ptr);
+  return super::contextualize(pc) || item_initial->itemize(pc, &item_initial);
 }
 
 bool PT_internal_variable_name_1d::contextualize(Parse_context *pc) {
@@ -258,7 +308,7 @@ bool PT_internal_variable_name_1d::contextualize(Parse_context *pc) {
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
   sp_variable *spv;
 
-  value.var = NULL;
+  value.var = nullptr;
   value.base_name = ident;
 
   /* Best effort lookup for system variable. */
@@ -352,15 +402,15 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
 
-  if (opt_expr != NULL && opt_expr->itemize(pc, &opt_expr)) return true;
+  if (opt_expr != nullptr && opt_expr->itemize(pc, &opt_expr)) return true;
 
-  const char *expr_start_ptr = NULL;
+  const char *expr_start_ptr = nullptr;
 
   if (sp) expr_start_ptr = expr_pos.raw.start;
 
   if (name->value.var == trg_new_row_fake_var) {
-    DBUG_ASSERT(sp);
-    DBUG_ASSERT(expr_start_ptr);
+    assert(sp);
+    assert(expr_start_ptr);
 
     /* We are parsing trigger and this is a trigger NEW-field. */
 
@@ -386,8 +436,8 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
     if (set_system_variable(thd, &name->value, lex->option_type, opt_expr))
       return true;
   } else {
-    DBUG_ASSERT(sp);
-    DBUG_ASSERT(expr_start_ptr);
+    assert(sp);
+    assert(expr_start_ptr);
 
     /* We're parsing SP and this is an SP-variable. */
 
@@ -448,13 +498,13 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   */
   if (!user->user.str) {
     LEX_CSTRING sctx_priv_user = thd->security_context()->priv_user();
-    DBUG_ASSERT(sctx_priv_user.str);
+    assert(sctx_priv_user.str);
     user->user.str = sctx_priv_user.str;
     user->user.length = sctx_priv_user.length;
   }
   if (!user->host.str) {
     LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
-    DBUG_ASSERT(sctx_priv_host.str);
+    assert(sctx_priv_host.str);
     user->host.str = sctx_priv_host.str;
     user->host.length = sctx_priv_host.length;
   }
@@ -468,7 +518,7 @@ bool PT_option_value_no_option_type_password_for::contextualize(
       user, const_cast<char *>(password), const_cast<char *>(current_password),
       retain_current_password, random_password_generator);
 
-  if (var == NULL || lex->var_list.push_back(var)) {
+  if (var == nullptr || lex->var_list.push_back(var)) {
     return true;  // Out of memory
   }
   lex->sql_command = SQLCOM_SET_PASSWORD;
@@ -494,7 +544,7 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
 
   LEX_CSTRING sctx_user = thd->security_context()->user();
   LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
-  DBUG_ASSERT(sctx_priv_host.str);
+  assert(sctx_priv_host.str);
 
   LEX_USER *user = LEX_USER::alloc(thd, (LEX_STRING *)&sctx_user,
                                    (LEX_STRING *)&sctx_priv_host);
@@ -506,7 +556,7 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
       user, const_cast<char *>(password), const_cast<char *>(current_password),
       retain_current_password, random_password_generator);
 
-  if (var == NULL || lex->var_list.push_back(var)) {
+  if (var == nullptr || lex->var_list.push_back(var)) {
     return true;  // Out of Memory
   }
   lex->sql_command = SQLCOM_SET_PASSWORD;
@@ -537,7 +587,7 @@ bool PT_select_sp_var::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   sp = lex->sphead;
 #endif
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
@@ -554,14 +604,17 @@ bool PT_select_sp_var::contextualize(Parse_context *pc) {
 }
 
 Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
-  Parse_context pc(thd, thd->lex->current_select());
+  Parse_context pc(thd, thd->lex->current_query_block());
 
   thd->lex->sql_command = m_sql_command;
 
   if (m_qe->contextualize(&pc)) {
     return nullptr;
   }
-  if (m_into != nullptr && m_qe->has_into_clause()) {
+
+  const bool has_into_clause_inside_query_block = thd->lex->result != nullptr;
+
+  if (has_into_clause_inside_query_block && m_into != nullptr) {
     my_error(ER_MULTIPLE_INTO_CLAUSES, MYF(0));
     return nullptr;
   }
@@ -569,10 +622,24 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
     return nullptr;
   }
 
+  if (m_into != nullptr && m_has_trailing_locking_clauses) {
+    // Example: ... INTO ... FOR UPDATE;
+    push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
+  } else if (has_into_clause_inside_query_block && thd->lex->unit->is_union()) {
+    // Example: ... UNION ... INTO ...;
+    if (!m_qe->has_trailing_into_clause()) {
+      // Example: ... UNION SELECT * INTO OUTFILE 'foo' FROM ...;
+      push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
+    } else if (m_has_trailing_locking_clauses) {
+      // Example: ... UNION SELECT ... FROM ... INTO OUTFILE 'foo' FOR UPDATE;
+      push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
+    }
+  }
+
   if (thd->lex->sql_command == SQLCOM_SELECT)
     return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
   else  // (thd->lex->sql_command == SQLCOM_DO)
-    return new (thd->mem_root) Sql_cmd_do(NULL);
+    return new (thd->mem_root) Sql_cmd_do(nullptr);
 }
 
 /*
@@ -593,7 +660,7 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
 
 static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
                                             TABLE_LIST *tables) {
-  TABLE_LIST *match = NULL;
+  TABLE_LIST *match = nullptr;
   DBUG_TRACE;
 
   for (TABLE_LIST *elem = tables; elem; elem = elem->next_local) {
@@ -615,7 +682,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
 
     if (match) {
       my_error(ER_NONUNIQ_TABLE, MYF(0), elem->alias);
-      return NULL;
+      return nullptr;
     }
 
     match = elem;
@@ -655,7 +722,7 @@ static bool multi_delete_link_tables(Parse_context *pc,
     walk->updating = target_tbl->updating;
     walk->set_lock(target_tbl->lock_descriptor());
     /* We can assume that tables to be deleted from are locked for write. */
-    DBUG_ASSERT(walk->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
+    assert(walk->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE);
     walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_descriptor().type));
     target_tbl->correspondent_table = walk;  // Remember corresponding table
   }
@@ -672,36 +739,36 @@ bool PT_delete::add_table(Parse_context *pc, Table_ident *table) {
   const enum_mdl_type mdl_type = (opt_delete_options & DELETE_LOW_PRIORITY)
                                      ? MDL_SHARED_WRITE_LOW_PRIO
                                      : MDL_SHARED_WRITE;
-  return !pc->select->add_table_to_list(pc->thd, table, opt_table_alias,
-                                        table_opts, lock_type, mdl_type, NULL,
-                                        opt_use_partition);
+  return !pc->select->add_table_to_list(
+      pc->thd, table, opt_table_alias, table_opts, lock_type, mdl_type, nullptr,
+      opt_use_partition, nullptr, pc);
 }
 
 Sql_cmd *PT_delete::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   Parse_context pc(thd, select);
 
-  DBUG_ASSERT(lex->select_lex == select);
+  assert(lex->query_block == select);
   lex->sql_command = is_multitable() ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
   lex->set_ignore(opt_delete_options & DELETE_IGNORE);
   select->init_order();
   if (opt_delete_options & DELETE_QUICK) select->add_base_options(OPTION_QUICK);
 
   if (contextualize_safe(&pc, m_with_clause))
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   if (is_multitable()) {
     for (Table_ident **i = table_list.begin(); i != table_list.end(); ++i) {
-      if (add_table(&pc, *i)) return NULL;
+      if (add_table(&pc, *i)) return nullptr;
     }
   } else if (add_table(&pc, table_ident))
-    return NULL;
+    return nullptr;
 
   if (is_multitable()) {
     select->table_list.save_and_clear(&delete_tables);
-    lex->query_tables = NULL;
+    lex->query_tables = nullptr;
     lex->query_tables_last = &lex->query_tables;
   } else {
     select->top_join_list.push_back(select->get_table_list());
@@ -711,41 +778,40 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
   yyps->m_mdl_type = MDL_SHARED_READ;
 
   if (is_multitable()) {
-    if (contextualize_array(&pc, &join_table_list)) return NULL;
+    if (contextualize_array(&pc, &join_table_list)) return nullptr;
     pc.select->context.table_list =
         pc.select->context.first_name_resolution_table =
             pc.select->table_list.first;
   }
 
-  if (opt_where_clause != NULL &&
+  if (opt_where_clause != nullptr &&
       opt_where_clause->itemize(&pc, &opt_where_clause))
-    return NULL;
+    return nullptr;
   select->set_where_cond(opt_where_clause);
 
-  if (opt_order_clause != NULL && opt_order_clause->contextualize(&pc))
-    return NULL;
+  if (opt_order_clause != nullptr && opt_order_clause->contextualize(&pc))
+    return nullptr;
 
-  DBUG_ASSERT(select->select_limit == NULL);
-  if (opt_delete_limit_clause != NULL) {
+  assert(select->select_limit == nullptr);
+  if (opt_delete_limit_clause != nullptr) {
     if (opt_delete_limit_clause->itemize(&pc, &opt_delete_limit_clause))
-      return NULL;
+      return nullptr;
     select->select_limit = opt_delete_limit_clause;
     if (select->select_limit->fixed && select->select_limit->val_int() != 0)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    select->explicit_limit = true;
   }
 
   if (is_multitable() && multi_delete_link_tables(&pc, &delete_tables))
-    return NULL;
+    return nullptr;
 
-  if (opt_hints != NULL && opt_hints->contextualize(&pc)) return NULL;
+  if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
 
   return new (thd->mem_root) Sql_cmd_delete(is_multitable(), &delete_tables);
 }
 
 Sql_cmd *PT_update::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   Parse_context pc(thd, select);
 
@@ -754,18 +820,18 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   lex->set_ignore(opt_ignore);
 
   if (contextualize_safe(&pc, m_with_clause))
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
-  if (contextualize_array(&pc, &join_table_list)) return NULL;
+  if (contextualize_array(&pc, &join_table_list)) return nullptr;
   select->parsing_place = CTX_UPDATE_VALUE;
 
   if (column_list->contextualize(&pc) || value_list->contextualize(&pc)) {
-    return NULL;
+    return nullptr;
   }
-  select->item_list = column_list->value;
+  select->fields = column_list->value;
 
   // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
+  assert(select->parsing_place == CTX_UPDATE_VALUE);
   select->parsing_place = CTX_NONE;
   const bool is_multitable = select->table_list.elements > 1;
   lex->sql_command = is_multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
@@ -773,42 +839,36 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   /*
     In case of multi-update setting write lock for all tables may
     be too pessimistic. We will decrease lock level if possible in
-    mysql_multi_update().
+    Sql_cmd_update::prepare_inner().
   */
   select->set_lock_for_tables(opt_low_priority);
 
-  if (opt_where_clause != NULL &&
+  if (opt_where_clause != nullptr &&
       opt_where_clause->itemize(&pc, &opt_where_clause)) {
-    return NULL;
+    return nullptr;
   }
   select->set_where_cond(opt_where_clause);
 
-  if (opt_order_clause != NULL && opt_order_clause->contextualize(&pc))
-    return NULL;
+  if (opt_order_clause != nullptr && opt_order_clause->contextualize(&pc))
+    return nullptr;
 
-  DBUG_ASSERT(select->select_limit == NULL);
-  if (opt_limit_clause != NULL) {
-    if (opt_limit_clause->itemize(&pc, &opt_limit_clause)) return NULL;
+  assert(select->select_limit == nullptr);
+  if (opt_limit_clause != nullptr) {
+    if (opt_limit_clause->itemize(&pc, &opt_limit_clause)) return nullptr;
     select->select_limit = opt_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    select->explicit_limit = true;
   }
 
-  if (opt_hints != NULL && opt_hints->contextualize(&pc)) return NULL;
+  if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
 
   return new (thd->mem_root) Sql_cmd_update(is_multitable, &value_list->value);
 }
 
 bool PT_insert_values_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  List_iterator<List_item> it1(many_values);
-  List<Item> *item_list;
-  while ((item_list = it1++)) {
-    List_iterator<Item> it2(*item_list);
-    Item *item;
-    while ((item = it2++)) {
-      if (item->itemize(pc, &item)) return true;
-      it2.replace(item);
+  for (List_item *item_list : many_values) {
+    for (auto it = item_list->begin(); it != item_list->end(); ++it) {
+      if ((*it)->itemize(pc, &*it)) return true;
     }
   }
 
@@ -818,7 +878,7 @@ bool PT_insert_values_list::contextualize(Parse_context *pc) {
 Sql_cmd *PT_insert::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
 
-  Parse_context pc(thd, lex->current_select());
+  Parse_context pc(thd, lex->current_query_block());
 
   // Currently there are two syntaxes (old and new, respectively) for INSERT
   // .. VALUES statements:
@@ -840,35 +900,37 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
   // Note that this removes the constness of both row_value_list and
   // insert_query_expression, which should both be restored when deprecating
   // VALUES as mentioned above.
-  if (has_select() && insert_query_expression->is_table_value_constructor()) {
+  if (has_query_block() &&
+      insert_query_expression->is_table_value_constructor()) {
     row_value_list = insert_query_expression->get_row_value_list();
-    DBUG_ASSERT(row_value_list != nullptr);
+    assert(row_value_list != nullptr);
 
     insert_query_expression = nullptr;
   }
 
   if (is_replace) {
-    lex->sql_command = has_select() ? SQLCOM_REPLACE_SELECT : SQLCOM_REPLACE;
+    lex->sql_command =
+        has_query_block() ? SQLCOM_REPLACE_SELECT : SQLCOM_REPLACE;
     lex->duplicates = DUP_REPLACE;
   } else {
-    lex->sql_command = has_select() ? SQLCOM_INSERT_SELECT : SQLCOM_INSERT;
+    lex->sql_command = has_query_block() ? SQLCOM_INSERT_SELECT : SQLCOM_INSERT;
     lex->duplicates = DUP_ERROR;
     lex->set_ignore(ignore);
   }
 
   Yacc_state *yyps = &pc.thd->m_parser_state->m_yacc;
-  if (!pc.select->add_table_to_list(thd, table_ident, NULL, TL_OPTION_UPDATING,
-                                    yyps->m_lock_type, yyps->m_mdl_type, NULL,
-                                    opt_use_partition)) {
-    return NULL;
+  if (!pc.select->add_table_to_list(
+          thd, table_ident, nullptr, TL_OPTION_UPDATING, yyps->m_lock_type,
+          yyps->m_mdl_type, nullptr, opt_use_partition)) {
+    return nullptr;
   }
   pc.select->set_lock_for_tables(lock_option);
 
-  DBUG_ASSERT(lex->current_select() == lex->select_lex);
+  assert(lex->current_query_block() == lex->query_block);
 
-  if (column_list->contextualize(&pc)) return NULL;
+  if (column_list->contextualize(&pc)) return nullptr;
 
-  if (has_select()) {
+  if (has_query_block()) {
     /*
       In INSERT/REPLACE INTO t ... SELECT the table_list initially contains
       here a table entry for the destination table `t'.
@@ -877,32 +939,32 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       table_list finally.
 
       @todo: Don't save the INSERT/REPLACE destination table in
-             SELECT_LEX::table_list and remove this backup & restore.
+             Query_block::table_list and remove this backup & restore.
 
       The following work only with the local list, the global list
       is created correctly in this case
     */
     SQL_I_List<TABLE_LIST> save_list;
-    SELECT_LEX *const save_select = pc.select;
-    save_select->table_list.save_and_clear(&save_list);
+    Query_block *const save_query_block = pc.select;
+    save_query_block->table_list.save_and_clear(&save_list);
 
-    if (insert_query_expression->contextualize(&pc)) return NULL;
+    if (insert_query_expression->contextualize(&pc)) return nullptr;
 
     /*
       The following work only with the local list, the global list
       is created correctly in this case
     */
-    save_select->table_list.push_front(&save_list);
+    save_query_block->table_list.push_front(&save_list);
 
     lex->bulk_insert_row_cnt = 0;
   } else {
     pc.select->parsing_place = CTX_INSERT_VALUES;
-    if (row_value_list->contextualize(&pc)) return NULL;
+    if (row_value_list->contextualize(&pc)) return nullptr;
     // Ensure we're resetting parsing context of the right select
-    DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_VALUES);
+    assert(pc.select->parsing_place == CTX_INSERT_VALUES);
     pc.select->parsing_place = CTX_NONE;
 
-    lex->bulk_insert_row_cnt = row_value_list->get_many_values().elements;
+    lex->bulk_insert_row_cnt = row_value_list->get_many_values().size();
   }
 
   // Create a derived table to use as a table reference to the VALUES rows,
@@ -916,8 +978,8 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       return nullptr;
     }
 
-    Table_ident *ti =
-        new (pc.thd->mem_root) Table_ident(lex->select_lex->master_unit());
+    Table_ident *ti = new (pc.thd->mem_root)
+        Table_ident(lex->query_block->master_query_expression());
     if (ti == nullptr) return nullptr;
 
     values_table = pc.select->add_table_to_list(
@@ -925,14 +987,14 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
     if (values_table == nullptr) return nullptr;
   }
 
-  if (opt_on_duplicate_column_list != NULL) {
-    DBUG_ASSERT(!is_replace);
-    DBUG_ASSERT(opt_on_duplicate_value_list != NULL &&
-                opt_on_duplicate_value_list->elements() ==
-                    opt_on_duplicate_column_list->elements());
+  if (opt_on_duplicate_column_list != nullptr) {
+    assert(!is_replace);
+    assert(opt_on_duplicate_value_list != nullptr &&
+           opt_on_duplicate_value_list->elements() ==
+               opt_on_duplicate_column_list->elements());
 
     lex->duplicates = DUP_UPDATE;
-    TABLE_LIST *first_table = lex->select_lex->table_list.first;
+    TABLE_LIST *first_table = lex->query_block->table_list.first;
     /* Fix lock for ON DUPLICATE KEY UPDATE */
     if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
       first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
@@ -941,33 +1003,33 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
 
     if (opt_on_duplicate_column_list->contextualize(&pc) ||
         opt_on_duplicate_value_list->contextualize(&pc))
-      return NULL;
+      return nullptr;
 
     // Ensure we're resetting parsing context of the right select
-    DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_UPDATE);
+    assert(pc.select->parsing_place == CTX_INSERT_UPDATE);
     pc.select->parsing_place = CTX_NONE;
   }
 
-  if (opt_hints != NULL && opt_hints->contextualize(&pc)) return NULL;
+  if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
 
   Sql_cmd_insert_base *sql_cmd;
-  if (has_select())
+  if (has_query_block())
     sql_cmd =
         new (thd->mem_root) Sql_cmd_insert_select(is_replace, lex->duplicates);
   else
     sql_cmd =
         new (thd->mem_root) Sql_cmd_insert_values(is_replace, lex->duplicates);
-  if (sql_cmd == NULL) return NULL;
+  if (sql_cmd == nullptr) return nullptr;
 
-  if (!has_select()) {
+  if (!has_query_block()) {
     sql_cmd->insert_many_values = row_value_list->get_many_values();
     sql_cmd->values_table = values_table;
     sql_cmd->values_column_list = opt_values_column_list;
   }
 
   sql_cmd->insert_field_list = column_list->value;
-  if (opt_on_duplicate_column_list != NULL) {
-    DBUG_ASSERT(!is_replace);
+  if (opt_on_duplicate_column_list != nullptr) {
+    assert(!is_replace);
     sql_cmd->update_field_list = opt_on_duplicate_column_list->value;
     sql_cmd->update_value_list = opt_on_duplicate_value_list->value;
   }
@@ -978,19 +1040,19 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
 Sql_cmd *PT_call::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
 
-  Parse_context pc(thd, lex->current_select());
+  Parse_context pc(thd, lex->current_query_block());
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-  if (opt_expr_list != NULL && opt_expr_list->contextualize(&pc))
-    return NULL; /* purecov: inspected */
+  if (opt_expr_list != nullptr && opt_expr_list->contextualize(&pc))
+    return nullptr; /* purecov: inspected */
 
   lex->sql_command = SQLCOM_CALL;
 
   sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::PROCEDURE, proc_name);
 
-  List<Item> *proc_args = NULL;
-  if (opt_expr_list != NULL) proc_args = &opt_expr_list->value;
+  mem_root_deque<Item *> *proc_args = nullptr;
+  if (opt_expr_list != nullptr) proc_args = &opt_expr_list->value;
 
   return new (thd->mem_root) Sql_cmd_call(proc_name, proc_args);
 }
@@ -1010,7 +1072,7 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   if (item_list->contextualize(pc)) return true;
 
   // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+  assert(pc->select->parsing_place == CTX_SELECT_LIST);
   pc->select->parsing_place = CTX_NONE;
 
   if (contextualize_safe(pc, opt_into1)) return true;
@@ -1052,16 +1114,7 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   if (contextualize_safe(pc, opt_window_clause)) return true;
   pc->select->parsing_place = CTX_NONE;
 
-  if (opt_hints != NULL) {
-    if (pc->thd->lex->sql_command ==
-        SQLCOM_CREATE_VIEW) {  // Currently this also affects ALTER VIEW.
-      push_warning_printf(
-          pc->thd, Sql_condition::SL_WARNING, ER_WARN_UNSUPPORTED_HINT,
-          ER_THD(pc->thd, ER_WARN_UNSUPPORTED_HINT), "CREATE or ALTER VIEW");
-    } else if (opt_hints->contextualize(pc))
-      return true;
-  }
-  return false;
+  return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
 }
 
 bool PT_table_value_constructor::contextualize(Parse_context *pc) {
@@ -1071,9 +1124,9 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
   pc->select->row_value_list = &row_value_list->get_many_values();
 
   // Some queries, such as CREATE TABLE with SELECT, require item_list to
-  // contain items to call SELECT_LEX::prepare.
-  for (Item &item : *pc->select->row_value_list->head()) {
-    pc->select->item_list.push_back(&item);
+  // contain items to call Query_block::prepare.
+  for (Item *item : *pc->select->row_value_list->front()) {
+    pc->select->fields.push_back(item);
   }
 
   return false;
@@ -1091,13 +1144,13 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
     if (contextualize_safe(pc, m_order, m_limit)) return true;
   } else {
     auto lex = pc->thd->lex;
-    DBUG_ASSERT(lex->sql_command != SQLCOM_ALTER_TABLE);
-    auto unit = pc->select->master_unit();
-    if (unit->fake_select_lex == nullptr) {
-      if (unit->add_fake_select_lex(lex->thd)) {
+    auto unit = pc->select->master_query_expression();
+    if (unit->fake_query_block == nullptr) {
+      if (unit->add_fake_query_block(lex->thd)) {
         return true;  // OOM
       }
-    } else if (unit->fake_select_lex->has_explicit_limit_or_order()) {
+    } else if (unit->fake_query_block->has_limit() ||
+               unit->fake_query_block->is_ordered()) {
       /*
         Make sure that we don't silently overwrite intermediate ORDER BY
         and/or LIMIT clauses, but reject unsupported levels of nesting
@@ -1108,7 +1161,7 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
           (SELECT ... ORDER BY ... LIMIT) ORDER BY ... LIMIT ...
 
         where the second pair of ORDER BY and LIMIT goes to "global parameters"
-        A.K.A. fake_select_lex. I.e. this syntax works like a degenerate case
+        A.K.A. fake_query_block. I.e. this syntax works like a degenerate case
         of unions: a union of one query block with no trailing clauses.
 
         Such an implementation is unable to process more than one external
@@ -1119,25 +1172,25 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
             ORDER BY ... LIMIT ...)
           ORDER BY ... LIMIT ...
 
-        TODO: Don't use fake_select_lex code (that is designed for unions)
+        TODO: Don't use fake_query_block code (that is designed for unions)
               for parenthesized query blocks. Reimplement this syntax with
               e.g. equivalent derived tables to support any level of nesting.
       */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "parenthesized query block with more than one external level "
-               "of ORDER/LIMIT operations");
+               "parenthesized query expression with more than one external "
+               "level of ORDER/LIMIT operations");
       return true;
     }
 
-    auto orig_select_lex = pc->select;
-    pc->select = unit->fake_select_lex;
+    auto orig_query_block = pc->select;
+    pc->select = unit->fake_query_block;
     lex->push_context(&pc->select->context);
-    DBUG_ASSERT(pc->select->parsing_place == CTX_NONE);
+    assert(pc->select->parsing_place == CTX_NONE);
 
     bool res = contextualize_safe(pc, m_order, m_limit);
 
     lex->pop_context();
-    pc->select = orig_select_lex;
+    pc->select = orig_query_block;
 
     if (res) return true;
   }
@@ -1159,11 +1212,12 @@ bool PT_table_factor_function::contextualize(Parse_context *pc) {
 
   auto root_el = new (pc->mem_root) Json_table_column(m_path, nested_columns);
   auto *root_list = new (pc->mem_root) List<Json_table_column>;
-  if (root_el == NULL || root_list == NULL || root_list->push_front(root_el))
+  if (root_el == nullptr || root_list == nullptr ||
+      root_list->push_front(root_el))
     return true;  // OOM
 
   auto jtf = new (pc->mem_root)
-      Table_function_json(pc->thd, m_table_alias.str, m_expr, root_list);
+      Table_function_json(m_table_alias.str, m_expr, root_list);
   if (jtf == nullptr) return true;  // OOM
 
   LEX_CSTRING alias;
@@ -1176,7 +1230,7 @@ bool PT_table_factor_function::contextualize(Parse_context *pc) {
 
   value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias.str, 0,
                                         TL_READ, MDL_SHARED_READ);
-  if (value == NULL || pc->select->add_joined_table(value)) return true;
+  if (value == nullptr || pc->select->add_joined_table(value)) return true;
 
   return false;
 }
@@ -1185,7 +1239,7 @@ bool PT_table_sequence_function::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
   auto stf = new (pc->mem_root)
-      Table_function_sequence(pc->thd, m_table_alias.str, m_expr);
+      Table_function_sequence(m_table_alias.str, m_expr);
   if (stf == nullptr) return true;  // OOM
 
   LEX_CSTRING alias;
@@ -1215,14 +1269,14 @@ PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
 }
 
 bool PT_derived_table::contextualize(Parse_context *pc) {
-  SELECT_LEX *outer_select = pc->select;
+  Query_block *outer_query_block = pc->select;
 
-  outer_select->parsing_place = CTX_DERIVED;
-  DBUG_ASSERT(outer_select->linkage != GLOBAL_OPTIONS_TYPE);
+  outer_query_block->parsing_place = CTX_DERIVED;
+  assert(outer_query_block->linkage != GLOBAL_OPTIONS_TYPE);
 
   /*
     Determine the first outer context to try for the derived table:
-    - if lateral: context of query which owns the FROM i.e. outer_select
+    - if lateral: context of query which owns the FROM i.e. outer_query_block
     - if not lateral: context of query outer to query which owns the FROM.
     This is just a preliminary decision. Name resolution
     {Item_field,Item_ref}::fix_fields() may use or ignore this outer context
@@ -1230,30 +1284,32 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
   */
   if (!m_lateral)
     pc->thd->lex->push_context(
-        outer_select->master_unit()->outer_select()
-            ? &outer_select->master_unit()->outer_select()->context
+        outer_query_block->master_query_expression()->outer_query_block()
+            ? &outer_query_block->master_query_expression()
+                   ->outer_query_block()
+                   ->context
             : nullptr);
 
   if (m_subquery->contextualize(pc)) return true;
 
   if (!m_lateral) pc->thd->lex->pop_context();
 
-  outer_select->parsing_place = CTX_NONE;
+  outer_query_block->parsing_place = CTX_NONE;
 
-  DBUG_ASSERT(pc->select->next_select() == NULL);
+  assert(pc->select->next_query_block() == nullptr);
 
-  SELECT_LEX_UNIT *unit = pc->select->first_inner_unit();
-  pc->select = outer_select;
+  Query_expression *unit = pc->select->first_inner_query_expression();
+  pc->select = outer_query_block;
   Table_ident *ti = new (pc->thd->mem_root) Table_ident(unit);
-  if (ti == NULL) return true;
+  if (ti == nullptr) return true;
 
   value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias, 0, TL_READ,
                                         MDL_SHARED_READ);
-  if (value == NULL) return true;
+  if (value == nullptr) return true;
   if (column_names.size()) value->set_derived_column_names(&column_names);
   if (m_lateral) {
     // Mark the unit as LATERAL, by turning on one bit in the map:
-    value->derived_unit()->m_lateral_deps = OUTER_REF_TABLE_BIT;
+    value->derived_query_expression()->m_lateral_deps = OUTER_REF_TABLE_BIT;
   }
   if (pc->select->add_joined_table(value)) return true;
 
@@ -1263,13 +1319,13 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
 bool PT_table_factor_joined_table::contextualize(Parse_context *pc) {
   if (Parse_tree_node::contextualize(pc)) return true;
 
-  SELECT_LEX *outer_select = pc->select;
-  if (outer_select->init_nested_join(pc->thd)) return true;
+  Query_block *outer_query_block = pc->select;
+  if (outer_query_block->init_nested_join(pc->thd)) return true;
 
   if (m_joined_table->contextualize(pc)) return true;
   value = m_joined_table->value;
 
-  if (outer_select->end_nested_join() == nullptr) return true;
+  if (outer_query_block->end_nested_join() == nullptr) return true;
 
   return false;
 }
@@ -1281,7 +1337,7 @@ bool PT_union::contextualize(Parse_context *pc) {
 
   pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct);
 
-  if (pc->select == NULL || m_rhs->contextualize(pc)) return true;
+  if (pc->select == nullptr || m_rhs->contextualize(pc)) return true;
 
   if (m_rhs->is_union()) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -1299,7 +1355,7 @@ static bool setup_index(keytype key_type, const LEX_STRING name,
                         Index_options options, Table_ddl_parse_context *pc) {
   *pc->key_create_info = default_key_create_info;
 
-  if (type != NULL && type->contextualize(pc)) return true;
+  if (type != nullptr && type->contextualize(pc)) return true;
 
   if (contextualize_nodes(options, pc)) return true;
 
@@ -1337,28 +1393,28 @@ static bool setup_index(keytype key_type, const LEX_STRING name,
   Key_spec *key =
       new (pc->mem_root) Key_spec(pc->mem_root, key_type, to_lex_cstring(name),
                                   pc->key_create_info, false, true, cols);
-  if (key == NULL || pc->alter_info->key_list.push_back(key)) return true;
+  if (key == nullptr || pc->alter_info->key_list.push_back(key)) return true;
 
   return false;
 }
 
 Sql_cmd *PT_create_index_stmt::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
-  SELECT_LEX *select_lex = lex->current_select();
+  Query_block *query_block = lex->current_query_block();
 
   thd->lex->sql_command = SQLCOM_CREATE_INDEX;
 
-  if (select_lex->add_table_to_list(thd, m_table_ident, NULL,
-                                    TL_OPTION_UPDATING, TL_READ_NO_INSERT,
-                                    MDL_SHARED_UPGRADABLE) == NULL)
-    return NULL;
+  if (query_block->add_table_to_list(thd, m_table_ident, nullptr,
+                                     TL_OPTION_UPDATING, TL_READ_NO_INSERT,
+                                     MDL_SHARED_UPGRADABLE) == nullptr)
+    return nullptr;
 
-  Table_ddl_parse_context pc(thd, select_lex, &m_alter_info);
+  Table_ddl_parse_context pc(thd, query_block, &m_alter_info);
 
   m_alter_info.flags = Alter_info::ALTER_ADD_INDEX;
 
   if (setup_index(m_keytype, m_name, m_type, m_columns, m_options, &pc))
-    return NULL;
+    return nullptr;
 
   m_alter_info.requested_algorithm = m_algo;
   m_alter_info.requested_lock = m_lock;
@@ -1416,7 +1472,7 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
     if (pc->alter_info->new_db_name.str) {
       db = orig_db = pc->alter_info->new_db_name;
     } else {
-      TABLE_LIST *child_table = lex->select_lex->get_table_list();
+      TABLE_LIST *child_table = lex->query_block->get_table_list();
       db = orig_db = LEX_CSTRING{child_table->db, child_table->db_length};
     }
   }
@@ -1481,7 +1537,7 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
       pc->mem_root, to_lex_cstring(m_constraint_name), cols, db, orig_db,
       table_name, m_referenced_table->table, m_ref_list, m_fk_delete_opt,
       m_fk_update_opt, m_fk_match_option);
-  if (foreign_key == NULL || pc->alter_info->key_list.push_back(foreign_key))
+  if (foreign_key == nullptr || pc->alter_info->key_list.push_back(foreign_key))
     return true;
   /* Only used for ALTER TABLE. Ignored otherwise. */
   pc->alter_info->flags |= Alter_info::ADD_FOREIGN_KEY;
@@ -1489,7 +1545,7 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
   Key_spec *key =
       new (pc->mem_root) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, key_name,
                                   &default_key_create_info, true, true, cols);
-  if (key == NULL || pc->alter_info->key_list.push_back(key)) return true;
+  if (key == nullptr || pc->alter_info->key_list.push_back(key)) return true;
 
   return false;
 }
@@ -1517,7 +1573,7 @@ PT_common_table_expr::PT_common_table_expr(
       m_column_names(*column_names),
       m_postparse(mem_root) {
   if (lower_case_table_names && m_name.length) {
-    // Lowercase name, as in SELECT_LEX::add_table_to_list()
+    // Lowercase name, as in Query_block::add_table_to_list()
     m_name.length = my_casedn_str(files_charset_info, m_name.str);
   }
   m_postparse.name = m_name;
@@ -1526,7 +1582,7 @@ PT_common_table_expr::PT_common_table_expr(
 bool PT_with_clause::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true; /* purecov: inspected */
   // WITH complements a query expression (a unit).
-  pc->select->master_unit()->m_with_clause = this;
+  pc->select->master_query_expression()->m_with_clause = this;
   return false;
 }
 
@@ -1568,7 +1624,7 @@ void PT_common_table_expr::print(const THD *thd, String *str,
     So, we rather locate one resolved query expression for this CTE; for
     it to be intact this query expression must be non-merged. And we print
     it.
-    If query expression has been merged everywhere, its SELECT_LEX_UNIT is
+    If query expression has been merged everywhere, its Query_expression is
     gone and printing this CTE can be skipped. Note that when we print the
     view's body to the data dictionary, no merging is done.
   */
@@ -1578,7 +1634,7 @@ void PT_common_table_expr::print(const THD *thd, String *str,
         // If 2+ references exist, show the one which is shown in EXPLAIN
         tl->query_block_id_for_explain() == tl->query_block_id()) {
       str->append('(');
-      tl->derived_unit()->print(thd, str, query_type);
+      tl->derived_query_expression()->print(thd, str, query_type);
       str->append(')');
       found = true;
       break;
@@ -1620,7 +1676,7 @@ bool PT_create_stats_auto_recalc_option::contextualize(
       pc->create_info->stats_auto_recalc = HA_STATS_AUTO_RECALC_DEFAULT;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
   pc->create_info->used_fields |= HA_CREATE_USED_STATS_AUTO_RECALC;
   return false;
@@ -1643,7 +1699,7 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
 
   TABLE_LIST **exclude_merge_engine_tables = lex->query_tables_last;
   SQL_I_List<TABLE_LIST> save_list;
-  lex->select_lex->table_list.save_and_clear(&save_list);
+  lex->query_block->table_list.save_and_clear(&save_list);
   if (pc->select->add_tables(thd, tables, TL_OPTION_UPDATING, yyps->m_lock_type,
                              yyps->m_mdl_type))
     return true;
@@ -1651,15 +1707,14 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
     Move the union list to the merge_list and exclude its tables
     from the global list.
   */
-  pc->create_info->merge_list = lex->select_lex->table_list;
-  lex->select_lex->table_list = save_list;
+  pc->create_info->merge_list = lex->query_block->table_list;
+  lex->query_block->table_list = save_list;
   /*
     When excluding union list from the global list we assume that
     elements of the former immediately follow elements which represent
     table being created/altered and parent tables.
   */
-  DBUG_ASSERT(*exclude_merge_engine_tables ==
-              pc->create_info->merge_list.first);
+  assert(*exclude_merge_engine_tables == pc->create_info->merge_list.first);
   *exclude_merge_engine_tables = nullptr;
   lex->query_tables_last = exclude_merge_engine_tables;
 
@@ -1669,7 +1724,7 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
 
 bool set_default_charset(HA_CREATE_INFO *create_info,
                          const CHARSET_INFO *value) {
-  DBUG_ASSERT(value != nullptr);
+  assert(value != nullptr);
 
   if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
       create_info->default_table_charset &&
@@ -1692,10 +1747,9 @@ bool PT_create_table_default_charset::contextualize(
 
 bool set_default_collation(HA_CREATE_INFO *create_info,
                            const CHARSET_INFO *collation) {
-  DBUG_ASSERT(collation != nullptr);
-  DBUG_ASSERT(
-      (create_info->default_table_charset == nullptr) ==
-      ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) == 0));
+  assert(collation != nullptr);
+  assert((create_info->default_table_charset == nullptr) ==
+         ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) == 0));
 
   if (merge_charset_and_collation(create_info->default_table_charset, collation,
                                   &create_info->default_table_charset)) {
@@ -1749,20 +1803,34 @@ bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
 }
 
 bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
+  // Since Alter_info objects are allocated on a mem_root and never
+  // destroyed we (move)-assign an empty vector to cf_appliers to
+  // ensure any dynamic memory is released. This must be done whenever
+  // leaving this scope since appliers may be added in
+  // field_def->contextualize(pc).
+  auto clr_appliers = create_scope_guard([&]() {
+    pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
+  });
+
   if (super::contextualize(pc) || field_def->contextualize(pc) ||
       contextualize_safe(pc, opt_column_constraint))
     return true;
 
   pc->alter_info->flags |= field_def->alter_info_flags;
+  dd::Column::enum_hidden_type field_hidden_type =
+      (field_def->type_flags & FIELD_IS_INVISIBLE)
+          ? dd::Column::enum_hidden_type::HT_HIDDEN_USER
+          : dd::Column::enum_hidden_type::HT_VISIBLE;
+
   return pc->alter_info->add_field(
       pc->thd, &field_ident, field_def->type, field_def->length, field_def->dec,
       field_def->type_flags, field_def->default_value,
-      field_def->on_update_value, &field_def->comment, NULL,
+      field_def->on_update_value, &field_def->comment, nullptr,
       field_def->interval_list, field_def->charset,
       field_def->has_explicit_collation, field_def->uint_geom_type,
       &field_def->m_zip_dict, field_def->gcol_info, field_def->default_val_info,
       opt_place, field_def->m_srid, field_def->check_const_spec_list,
-      dd::Column::enum_hidden_type::HT_VISIBLE);
+      field_hidden_type);
 }
 
 Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
@@ -1770,13 +1838,13 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
 
   lex->sql_command = SQLCOM_CREATE_TABLE;
 
-  Parse_context pc(thd, lex->current_select());
+  Parse_context pc(thd, lex->current_query_block());
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
   TABLE_LIST *table = pc.select->add_table_to_list(
-      thd, table_name, NULL, TL_OPTION_UPDATING, TL_WRITE, MDL_SHARED);
-  if (table == NULL) return NULL;
+      thd, table_name, nullptr, TL_OPTION_UPDATING, TL_WRITE, MDL_SHARED);
+  if (table == nullptr) return nullptr;
 
   table->open_strategy = TABLE_LIST::OPEN_FOR_CREATE;
 
@@ -1788,37 +1856,37 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   if (only_if_not_exists)
     pc2.create_info->options |= HA_LEX_CREATE_IF_NOT_EXISTS;
 
-  pc2.create_info->default_table_charset = NULL;
+  pc2.create_info->default_table_charset = nullptr;
 
-  lex->name.str = 0;
+  lex->name.str = nullptr;
   lex->name.length = 0;
 
   TABLE_LIST *qe_tables = nullptr;
 
-  if (opt_like_clause != NULL) {
+  if (opt_like_clause != nullptr) {
     pc2.create_info->options |= HA_LEX_CREATE_TABLE_LIKE;
     TABLE_LIST **like_clause_table = &lex->query_tables->next_global;
     TABLE_LIST *src_table = pc.select->add_table_to_list(
-        thd, opt_like_clause, NULL, 0, TL_READ, MDL_SHARED_READ);
-    if (!src_table) return NULL;
+        thd, opt_like_clause, nullptr, 0, TL_READ, MDL_SHARED_READ);
+    if (!src_table) return nullptr;
     /* CREATE TABLE ... LIKE is not allowed for views. */
     src_table->required_type = dd::enum_table_type::BASE_TABLE;
     qe_tables = *like_clause_table;
   } else {
     if (opt_table_element_list) {
       for (auto element : *opt_table_element_list) {
-        if (element->contextualize(&pc2)) return NULL;
+        if (element->contextualize(&pc2)) return nullptr;
       }
     }
 
     if (opt_create_table_options) {
       for (auto option : *opt_create_table_options)
-        if (option->contextualize(&pc2)) return NULL;
+        if (option->contextualize(&pc2)) return nullptr;
     }
 
     if (opt_partitioning) {
       TABLE_LIST **exclude_part_tables = lex->query_tables_last;
-      if (opt_partitioning->contextualize(&pc)) return NULL;
+      if (opt_partitioning->contextualize(&pc)) return nullptr;
       /*
         Remove all tables used in PARTITION clause from the global table
         list. Partitioning with subqueries is not allowed anyway.
@@ -1851,27 +1919,27 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
         table_list finally.
 
         @todo: Don't save the CREATE destination table in
-               SELECT_LEX::table_list and remove this backup & restore.
+               Query_block::table_list and remove this backup & restore.
 
         The following work only with the local list, the global list
         is created correctly in this case
       */
       SQL_I_List<TABLE_LIST> save_list;
-      SELECT_LEX *const save_select = pc.select;
-      save_select->table_list.save_and_clear(&save_list);
+      Query_block *const save_query_block = pc.select;
+      save_query_block->table_list.save_and_clear(&save_list);
 
-      if (opt_query_expression->contextualize(&pc)) return NULL;
+      if (opt_query_expression->contextualize(&pc)) return nullptr;
 
       /*
         The following work only with the local list, the global list
         is created correctly in this case
       */
-      save_select->table_list.push_front(&save_list);
+      save_query_block->table_list.push_front(&save_list);
       qe_tables = *query_expression_tables;
     }
   }
 
-  lex->set_current_select(pc.select);
+  lex->set_current_query_block(pc.select);
   if ((pc2.create_info->used_fields & HA_CREATE_USED_ENGINE) &&
       !pc2.create_info->db_type) {
     pc2.create_info->db_type =
@@ -1891,15 +1959,15 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
 }
 
 bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc) {
-  DBUG_ASSERT(!m_tables.empty());
+  assert(!m_tables.empty());
   for (Table_ident *table_ident : m_tables) {
-    SELECT_LEX *select = pc->select;
+    Query_block *select = pc->select;
 
     TABLE_LIST *table_list = select->find_table_by_name(table_ident);
 
     THD *thd = pc->thd;
 
-    if (table_list == NULL)
+    if (table_list == nullptr)
       return raise_error(thd, table_ident, ER_UNRESOLVED_TABLE_LOCK);
 
     if (table_list->lock_descriptor().type != TL_READ_DEFAULT)
@@ -1911,58 +1979,68 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc) {
   return false;
 }
 
-Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd) {
+bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
   LEX *const lex = thd->lex;
-  Parse_context pc(thd, lex->current_select());
+  Parse_context pc(thd, lex->current_query_block());
+
+  lex->sql_command = m_sql_command;
 
   // Create empty query block and add user specfied table.
   TABLE_LIST **query_tables_last = lex->query_tables_last;
-  SELECT_LEX *schema_select_lex = lex->new_empty_query_block();
-  if (schema_select_lex == nullptr) return NULL;
-  TABLE_LIST *tbl = schema_select_lex->add_table_to_list(
-      thd, m_table_ident, 0, 0, TL_READ, MDL_SHARED_READ);
-  if (tbl == nullptr) return NULL;
+  Query_block *schema_query_block = lex->new_empty_query_block();
+  if (schema_query_block == nullptr) return true;
+  TABLE_LIST *tbl = schema_query_block->add_table_to_list(
+      thd, m_table_ident, nullptr, 0, TL_READ, MDL_SHARED_READ);
+  if (tbl == nullptr) return true;
   lex->query_tables_last = query_tables_last;
 
-  if (m_wild.str && lex->set_wild(m_wild)) return NULL;  // OOM
+  if (m_wild.str && lex->set_wild(m_wild)) return true;  // OOM
 
-  // If its a temporary table then use schema_table implementation.
-  if (find_temporary_table(thd, tbl) != nullptr) {
-    SELECT_LEX *select_lex = lex->current_select();
+  TABLE *show_table = find_temporary_table(thd, tbl);
+  *temporary = show_table != nullptr;
 
-    if (m_where_condition != nullptr) {
-      m_where_condition->itemize(&pc, &m_where_condition);
-      select_lex->set_where_cond(m_where_condition);
+  // If its a temporary table then use schema_table implementation,
+  // otherwise read I_S system view:
+  if (*temporary) {
+    Query_block *query_block = lex->current_query_block();
+
+    if (m_where != nullptr) {
+      if (m_where->itemize(&pc, &m_where)) return true;
+      query_block->set_where_cond(m_where);
     }
 
-    enum enum_schema_tables schema_table =
-        (m_type == SHOW_FIELDS) ? SCH_TMP_TABLE_COLUMNS : SCH_TMP_TABLE_KEYS;
-    if (make_schema_select(thd, select_lex, schema_table)) return NULL;
+    enum enum_schema_tables schema_table = m_sql_command == SQLCOM_SHOW_FIELDS
+                                               ? SCH_TMP_TABLE_COLUMNS
+                                               : SCH_TMP_TABLE_KEYS;
+    if (make_schema_query_block(thd, query_block, schema_table)) return true;
 
-    TABLE_LIST *table_list = select_lex->table_list.first;
-    table_list->schema_select_lex = schema_select_lex;
+    TABLE_LIST *table_list = query_block->table_list.first;
+    table_list->schema_query_block = schema_query_block;
     table_list->schema_table_reformed = true;
-  } else  // Use implementation of I_S as system views.
-  {
-    SELECT_LEX *sel = nullptr;
-    switch (m_type) {
-      case SHOW_FIELDS:
+  } else {
+    Query_block *sel = nullptr;
+    switch (m_sql_command) {
+      case SQLCOM_SHOW_FIELDS:
         sel = dd::info_schema::build_show_columns_query(
-            m_pos, thd, m_table_ident, lex->wild, m_where_condition);
+            m_pos, thd, m_table_ident, lex->wild, m_where);
         break;
-      case SHOW_KEYS:
+      case SQLCOM_SHOW_KEYS:
         sel = dd::info_schema::build_show_keys_query(m_pos, thd, m_table_ident,
-                                                     m_where_condition);
+                                                     m_where);
+        break;
+      default:
+        assert(false);
+        sel = nullptr;
         break;
     }
 
-    if (sel == nullptr) return NULL;
+    if (sel == nullptr) return true;
 
     TABLE_LIST *table_list = sel->table_list.first;
-    table_list->schema_select_lex = schema_select_lex;
+    table_list->schema_query_block = schema_query_block;
   }
 
-  return &m_sql_cmd;
+  return false;
 }
 
 static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
@@ -1982,46 +2060,567 @@ static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
       thd->lex->verbose = true;
       thd->lex->m_extended_show = true;
       break;
-    default:
-      DBUG_ASSERT(false);
   }
 }
 
-PT_show_fields::PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                               Table_ident *table_ident, Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
-                              where_condition),
-      m_show_cmd_type(show_cmd_type) {}
+Sql_cmd *PT_show_binlog_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->mi.log_file_name = m_opt_log_file_name.str;
+
+  Parse_context pc(thd, thd->lex->current_query_block());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_binlogs::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_charsets::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_character_set_query(m_pos, thd, lex->wild,
+                                                      m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_collations::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_collation_query(m_pos, thd, lex->wild,
+                                                  m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_count_base::make_cmd_generic(
+    THD *thd, LEX_CSTRING diagnostic_variable_name) {
+  LEX *const lex = thd->lex;
+  lex->sql_command = SQLCOM_SELECT;
+
+  // SHOW COUNT(*) { ERRORS | WARNINGS } doesn't clear them.
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, lex->current_query_block());
+  Item *var = get_system_var(
+      &pc, OPT_SESSION,
+      to_lex_string(diagnostic_variable_name),  // TODO: use LEX_CSTRING
+      {}, false);
+  if (var == nullptr) {
+    assert(false);
+    return nullptr;  // should never happen
+  }
+
+  constexpr const char session_prefix[] = "@@session.";
+  assert(diagnostic_variable_name.length <= MAX_SYS_VAR_LENGTH);
+  char buff[sizeof(session_prefix) + MAX_SYS_VAR_LENGTH + 1];
+  /*
+    We set the name of Item to @@session.var_name because that then is used
+    as the column name in the output.
+  */
+  char *end =
+      strxmov(buff, session_prefix, diagnostic_variable_name.str, nullptr);
+  var->item_name.copy(buff, end - buff);
+
+  add_item_to_list(thd, var);
+
+  return new (thd->mem_root) Sql_cmd_select(nullptr);
+}
+
+Sql_cmd *PT_show_create_database::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
+  lex->create_info->options = m_if_not_exists ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+  lex->name = m_name;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_event::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_function::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_procedure::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_table::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
+  lex->create_info->storage_media = HA_SM_DEFAULT;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_view::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_trigger::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_user::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->grant_user = m_user;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_databases::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_databases_query(m_pos, thd, lex->wild,
+                                                  m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_client_stats::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_CLIENT_STATS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_index_stats::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_INDEX_STATS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_table_stats::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_TABLE_STATS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_thread_stats::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_THREAD_STATS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_user_stats::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_USER_STATS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_logs::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_mutex::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engines::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_ENGINES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_errors::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  // SHOW ERRORS will not clear diagnostics
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, thd->lex->current_query_block());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
 
 Sql_cmd *PT_show_fields::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
-  lex->select_lex->db = nullptr;
+  assert(lex->query_block->db == nullptr);
 
   setup_lex_show_cmd_type(thd, m_show_cmd_type);
-  lex->current_select()->parsing_place = CTX_SELECT_LIST;
-  lex->sql_command = SQLCOM_SHOW_FIELDS;
-  Sql_cmd *ret = super::make_cmd(thd);
-  if (ret == nullptr) return nullptr;
+  lex->current_query_block()->parsing_place = CTX_SELECT_LIST;
+  if (make_table_base_cmd(thd, &m_sql_cmd.m_temporary)) return nullptr;
   // WL#6599 opt_describe_column is handled during prepare stage in
   // prepare_schema_dd_view instead of execution stage
-  lex->current_select()->parsing_place = CTX_NONE;
+  lex->current_query_block()->parsing_place = CTX_NONE;
 
-  return ret;
+  return &m_sql_cmd;
 }
-
-PT_show_keys::PT_show_keys(const POS &pos, bool extended_show,
-                           Table_ident *table, Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition),
-      m_extended_show(extended_show) {}
 
 Sql_cmd *PT_show_keys::make_cmd(THD *thd) {
   thd->lex->m_extended_show = m_extended_show;
-  return super::make_cmd(thd);
+
+  if (make_table_base_cmd(thd, &m_sql_cmd.m_temporary)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  lex->query_block->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_events_query(m_pos, thd, lex->wild,
+                                               m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_master_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_open_tables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  Parse_context pc(thd, lex->query_block);
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+  if (m_where != nullptr) {
+    if (m_where->itemize(&pc, &m_where)) return nullptr;
+    lex->query_block->set_where_cond(m_where);
+  }
+  lex->query_block->db = m_opt_db;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_OPEN_TABLES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_plugins::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_PLUGINS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_privileges::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_processlist::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  m_sql_cmd.set_use_pfs(pfs_processlist_enabled);
+  if (pfs_processlist_enabled) {
+    if (build_processlist_query(m_pos, thd, m_sql_cmd.verbose()))
+      return nullptr;
+  }
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_routine_code::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_profile::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->profile_options = m_opt_profile_options;
+  lex->show_profile_query_id = m_opt_query_id;
+
+  Parse_context pc(thd, thd->lex->current_query_block());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  if (prepare_schema_table(thd, lex, 0, SCH_PROFILES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_profiles::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_relaylog_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->mi.log_file_name = m_opt_log_file_name.str;
+  if (lex->set_channel_name(m_opt_channel_name)) return nullptr;  // OOM
+
+  Parse_context pc(thd, thd->lex->current_query_block());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_replicas::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_replica_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (lex->set_channel_name(m_opt_channel_name)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (m_var_type == OPT_SESSION) {
+    if (build_show_session_status(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  } else if (m_var_type == OPT_GLOBAL) {
+    if (build_show_global_status(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  }
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status_func::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_procedures_query(m_pos, thd, lex->wild,
+                                                   m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status_proc::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_procedures_query(m_pos, thd, lex->wild,
+                                                   m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_table_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->query_block->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_tables_query(m_pos, thd, lex->wild, m_where,
+                                               true) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  setup_lex_show_cmd_type(thd, m_show_cmd_type);
+
+  lex->query_block->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_tables_query(m_pos, thd, lex->wild, m_where,
+                                               false) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_triggers::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  lex->verbose = m_full;
+  lex->query_block->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_triggers_query(m_pos, thd, lex->wild,
+                                                 m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_variables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (m_var_type == OPT_SESSION) {
+    if (build_show_session_variables(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  } else if (m_var_type == OPT_GLOBAL) {
+    if (build_show_global_variables(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  }
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_warnings::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  // SHOW WARNINGS will not clear diagnostics
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, thd->lex->current_query_block());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
 }
 
 bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
+  // Since Alter_info objects are allocated on a mem_root and never
+  // destroyed we (move)-assign an empty vector to cf_appliers to
+  // ensure any dynamic memory is released. This must be done whenever
+  // leaving this scope since appliers may be added in
+  // m_field_def->contextualize(pc).
+  auto clr_appliers = create_scope_guard([&]() {
+    pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
+  });
+
   if (super::contextualize(pc) || m_field_def->contextualize(pc)) return true;
   pc->alter_info->flags |= m_field_def->alter_info_flags;
+  dd::Column::enum_hidden_type field_hidden_type =
+      (m_field_def->type_flags & FIELD_IS_INVISIBLE)
+          ? dd::Column::enum_hidden_type::HT_HIDDEN_USER
+          : dd::Column::enum_hidden_type::HT_VISIBLE;
+
   return pc->alter_info->add_field(
       pc->thd, &m_new_name, m_field_def->type, m_field_def->length,
       m_field_def->dec, m_field_def->type_flags, m_field_def->default_value,
@@ -2030,7 +2629,7 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
       &m_field_def->m_zip_dict, m_field_def->gcol_info,
       m_field_def->default_val_info, m_opt_place, m_field_def->m_srid, nullptr,
-      dd::Column::enum_hidden_type::HT_VISIBLE);
+      field_hidden_type);
 }
 
 bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
@@ -2112,7 +2711,7 @@ bool PT_alter_table_reorganize_partition_into::contextualize(
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
 
-  DBUG_ASSERT(pc->alter_info->partition_names.is_empty());
+  assert(pc->alter_info->partition_names.is_empty());
   pc->alter_info->partition_names = m_partition_names;
 
   Partition_parse_context ppc(pc->thd, &m_partition_info,
@@ -2135,7 +2734,7 @@ bool PT_alter_table_exchange_partition::contextualize(
   String *s = new (pc->mem_root) String(
       m_partition_name.str, m_partition_name.length, system_charset_info);
   if (s == nullptr || pc->alter_info->partition_names.push_back(s) ||
-      !pc->select->add_table_to_list(pc->thd, m_table_name, NULL,
+      !pc->select->add_table_to_list(pc->thd, m_table_name, nullptr,
                                      TL_OPTION_UPDATING, TL_READ_NO_INSERT,
                                      MDL_SHARED_NO_WRITE)) {
     return true;
@@ -2162,18 +2761,18 @@ static bool init_alter_table_stmt(Table_ddl_parse_context *pc,
                                   Alter_info::enum_alter_table_lock lock,
                                   Alter_info::enum_with_validation validation) {
   LEX *lex = pc->thd->lex;
-  if (!lex->select_lex->add_table_to_list(pc->thd, table_name, NULL,
-                                          TL_OPTION_UPDATING, TL_READ_NO_INSERT,
-                                          MDL_SHARED_UPGRADABLE))
+  if (!lex->query_block->add_table_to_list(
+          pc->thd, table_name, nullptr, TL_OPTION_UPDATING, TL_READ_NO_INSERT,
+          MDL_SHARED_UPGRADABLE))
     return true;
-  lex->select_lex->init_order();
-  pc->create_info->db_type = 0;
-  pc->create_info->default_table_charset = NULL;
+  lex->query_block->init_order();
+  pc->create_info->db_type = nullptr;
+  pc->create_info->default_table_charset = nullptr;
   pc->create_info->row_type = ROW_TYPE_NOT_USED;
 
   pc->alter_info->new_db_name =
-      LEX_CSTRING{lex->select_lex->table_list.first->db,
-                  lex->select_lex->table_list.first->db_length};
+      LEX_CSTRING{lex->query_block->table_list.first->db,
+                  lex->query_block->table_list.first->db_length};
   lex->no_write_to_binlog = false;
   pc->create_info->storage_media = HA_SM_DEFAULT;
 
@@ -2187,12 +2786,13 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_ALTER_TABLE;
 
   thd->lex->create_info = &m_create_info;
-  Table_ddl_parse_context pc(thd, thd->lex->current_select(), &m_alter_info);
+  Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
+                             &m_alter_info);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation))
-    return NULL;
+    return nullptr;
 
   if (m_opt_actions) {
     /*
@@ -2210,7 +2810,7 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
         });
 
     for (auto *action : *m_opt_actions)
-      if (action->contextualize(&pc)) return NULL;
+      if (action->contextualize(&pc)) return nullptr;
   }
 
   if ((pc.create_info->used_fields & HA_CREATE_USED_ENGINE) &&
@@ -2227,13 +2827,14 @@ Sql_cmd *PT_alter_table_standalone_stmt::make_cmd(THD *thd) {
 
   thd->lex->create_info = &m_create_info;
 
-  Table_ddl_parse_context pc(thd, thd->lex->current_select(), &m_alter_info);
+  Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
+                             &m_alter_info);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation) ||
       m_action->contextualize(&pc))
-    return NULL;
+    return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return m_action->make_cmd(&pc);
@@ -2244,15 +2845,14 @@ Sql_cmd *PT_repair_table_stmt::make_cmd(THD *thd) {
 
   lex->sql_command = SQLCOM_REPAIR;
 
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
-    return NULL;
+    return nullptr;
 
   lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_repair_table(&m_alter_info);
@@ -2262,23 +2862,22 @@ Sql_cmd *PT_analyze_table_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_ANALYZE;
 
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   Parse_context pc(thd, select);
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  lex->check_opt.init();
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
-    return NULL;
+    return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   auto cmd = new (thd->mem_root)
       Sql_cmd_analyze_table(thd, &m_alter_info, m_command, m_num_buckets);
-  if (cmd == NULL) return NULL;
+  if (cmd == nullptr) return nullptr;
   if (m_command != Sql_cmd_analyze_table::Histogram_command::NONE) {
-    if (cmd->set_histogram_fields(m_columns)) return NULL;
+    if (cmd->set_histogram_fields(m_columns)) return nullptr;
   }
   return cmd;
 }
@@ -2287,23 +2886,22 @@ Sql_cmd *PT_check_table_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_CHECK;
 
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   if (lex->sphead) {
     my_error(ER_SP_BADSTATEMENT, MYF(0), "CHECK");
-    return NULL;
+    return nullptr;
   }
 
   Parse_context pc(thd, select);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
-    return NULL;
+    return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_check_table(&m_alter_info);
@@ -2313,10 +2911,9 @@ Sql_cmd *PT_optimize_table_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_OPTIMIZE;
 
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  lex->check_opt.init();
 
   Parse_context pc(thd, select);
 
@@ -2324,7 +2921,7 @@ Sql_cmd *PT_optimize_table_stmt::make_cmd(THD *thd) {
 
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
-    return NULL;
+    return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_optimize_table(&m_alter_info);
@@ -2334,13 +2931,13 @@ Sql_cmd *PT_drop_index_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_DROP_INDEX;
 
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   m_alter_info.flags = Alter_info::ALTER_DROP_INDEX;
   m_alter_info.drop_list.push_back(&m_alter_drop);
-  if (!select->add_table_to_list(thd, m_table, NULL, TL_OPTION_UPDATING,
+  if (!select->add_table_to_list(thd, m_table, nullptr, TL_OPTION_UPDATING,
                                  TL_READ_NO_INSERT, MDL_SHARED_UPGRADABLE))
-    return NULL;
+    return nullptr;
 
   m_alter_info.requested_algorithm = m_algo;
   m_alter_info.requested_lock = m_lock;
@@ -2353,18 +2950,18 @@ Sql_cmd *PT_truncate_table_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_TRUNCATE;
 
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
-  if (!select->add_table_to_list(thd, m_table, NULL, TL_OPTION_UPDATING,
+  if (!select->add_table_to_list(thd, m_table, nullptr, TL_OPTION_UPDATING,
                                  TL_WRITE, MDL_EXCLUSIVE))
-    return NULL;
+    return nullptr;
   return &m_cmd_truncate_table;
 }
 
 bool PT_assign_to_keycache::contextualize(Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  if (!pc->select->add_table_to_list(pc->thd, m_table, NULL, 0, TL_READ,
+  if (!pc->select->add_table_to_list(pc->thd, m_table, nullptr, 0, TL_READ,
                                      MDL_SHARED_READ, m_index_hints))
     return true;
   return false;
@@ -2373,8 +2970,8 @@ bool PT_assign_to_keycache::contextualize(Table_ddl_parse_context *pc) {
 bool PT_adm_partition::contextualize(Table_ddl_parse_context *pc) {
   pc->alter_info->flags |= Alter_info::ALTER_ADMIN_PARTITION;
 
-  DBUG_ASSERT(pc->alter_info->partition_names.is_empty());
-  if (m_opt_partitions == NULL)
+  assert(pc->alter_info->partition_names.is_empty());
+  if (m_opt_partitions == nullptr)
     pc->alter_info->flags |= Alter_info::ALTER_ALL_PARTITION;
   else
     pc->alter_info->partition_names = *m_opt_partitions;
@@ -2384,10 +2981,11 @@ bool PT_adm_partition::contextualize(Table_ddl_parse_context *pc) {
 Sql_cmd *PT_cache_index_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_ASSIGN_TO_KEYCACHE;
 
-  Table_ddl_parse_context pc(thd, thd->lex->current_select(), &m_alter_info);
+  Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
+                             &m_alter_info);
 
   for (auto *tbl_index_list : *m_tbl_index_lists)
-    if (tbl_index_list->contextualize(&pc)) return NULL;
+    if (tbl_index_list->contextualize(&pc)) return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root)
@@ -2397,15 +2995,15 @@ Sql_cmd *PT_cache_index_stmt::make_cmd(THD *thd) {
 Sql_cmd *PT_cache_index_partitions_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_ASSIGN_TO_KEYCACHE;
 
-  SELECT_LEX *const select = thd->lex->current_select();
+  Query_block *const select = thd->lex->current_query_block();
 
   Table_ddl_parse_context pc(thd, select, &m_alter_info);
 
-  if (m_partitions->contextualize(&pc)) return NULL;
+  if (m_partitions->contextualize(&pc)) return nullptr;
 
-  if (!select->add_table_to_list(thd, m_table, NULL, 0, TL_READ,
+  if (!select->add_table_to_list(thd, m_table, nullptr, 0, TL_READ,
                                  MDL_SHARED_READ, m_opt_key_usage_list))
-    return NULL;
+    return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root)
@@ -2415,16 +3013,16 @@ Sql_cmd *PT_cache_index_partitions_stmt::make_cmd(THD *thd) {
 Sql_cmd *PT_load_index_partitions_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_PRELOAD_KEYS;
 
-  SELECT_LEX *const select = thd->lex->current_select();
+  Query_block *const select = thd->lex->current_query_block();
 
   Table_ddl_parse_context pc(thd, select, &m_alter_info);
 
-  if (m_partitions->contextualize(&pc)) return NULL;
+  if (m_partitions->contextualize(&pc)) return nullptr;
 
   if (!select->add_table_to_list(
-          thd, m_table, NULL, m_ignore_leaves ? TL_OPTION_IGNORE_LEAVES : 0,
+          thd, m_table, nullptr, m_ignore_leaves ? TL_OPTION_IGNORE_LEAVES : 0,
           TL_READ, MDL_SHARED_READ, m_opt_cache_key_list))
-    return NULL;
+    return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_load_index(&m_alter_info);
@@ -2433,12 +3031,13 @@ Sql_cmd *PT_load_index_partitions_stmt::make_cmd(THD *thd) {
 Sql_cmd *PT_load_index_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_PRELOAD_KEYS;
 
-  Table_ddl_parse_context pc(thd, thd->lex->current_select(), &m_alter_info);
+  Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
+                             &m_alter_info);
 
   if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
   for (auto *preload_keys : *m_preload_list)
-    if (preload_keys->contextualize(&pc)) return NULL;
+    if (preload_keys->contextualize(&pc)) return nullptr;
 
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_load_index(&m_alter_info);
@@ -2480,63 +3079,6 @@ Item *PT_border::build_addop(Item_cache *order_expr, bool prec, bool asc,
   return addop;
 }
 
-bool PT_window::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  if (m_partition_by != NULL) {
-    if (m_partition_by->contextualize(pc)) return true;
-  }
-
-  if (m_order_by != NULL) {
-    if (m_order_by->contextualize(pc)) return true;
-  }
-
-  if (m_frame != NULL) {
-    for (auto bound : {m_frame->m_from, m_frame->m_to}) {
-      if (bound->m_border_type == WBT_VALUE_PRECEDING ||
-          bound->m_border_type == WBT_VALUE_FOLLOWING) {
-        auto **bound_i_ptr = bound->border_ptr();
-        if ((*bound_i_ptr)->itemize(pc, bound_i_ptr)) return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-bool PT_window_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  uint count = pc->select->m_windows.elements;
-  List_iterator<Window> wi(m_windows);
-  Window *w;
-  while ((w = wi++)) {
-    static_cast<PT_window *>(w)->contextualize(pc);
-    w->set_def_pos(++count);
-  }
-
-  SELECT_LEX *select = pc->select;
-  select->m_windows.prepend(&m_windows);
-
-  return false;
-}
-
-Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
-  LEX *lex = thd->lex;
-  lex->sql_command = SQLCOM_SHOW_TABLES;
-
-  lex->select_lex->db = m_opt_db;
-  setup_lex_show_cmd_type(thd, m_show_cmd_type);
-
-  if (m_wild.str && lex->set_wild(m_wild)) return NULL;  // OOM
-
-  SELECT_LEX *sel = dd::info_schema::build_show_tables_query(
-      m_pos, thd, lex->wild, m_where_condition, false);
-  if (sel == nullptr) return NULL;
-
-  return &m_sql_cmd;
-}
-
 PT_json_table_column_for_ordinality::PT_json_table_column_for_ordinality(
     LEX_STRING name)
     : m_name(name.str) {}
@@ -2545,7 +3087,7 @@ PT_json_table_column_for_ordinality::~PT_json_table_column_for_ordinality() =
     default;
 
 bool PT_json_table_column_for_ordinality::contextualize(Parse_context *pc) {
-  DBUG_ASSERT(m_column == nullptr);
+  assert(m_column == nullptr);
   m_column = make_unique_destroy_only<Json_table_column>(
       pc->mem_root, enum_jt_column::JTC_ORDINALITY);
   if (m_column == nullptr) return true;
@@ -2564,11 +3106,33 @@ PT_json_table_column_with_path::PT_json_table_column_with_path(
 
 PT_json_table_column_with_path::~PT_json_table_column_with_path() = default;
 
+static bool check_unsupported_json_table_default(const Item *item) {
+  if (item == nullptr) return false;
+
+  // JSON_TABLE currently only supports string literals on JSON format in
+  // DEFAULT clauses. Other literals used to be rejected by the grammar, but the
+  // grammar was extended for JSON_VALUE and now accepts all types of literals.
+  // Until JSON_TABLE gets support for non-string defaults, reject them here.
+  if (item->data_type() != MYSQL_TYPE_VARCHAR) {
+    my_error(
+        ER_NOT_SUPPORTED_YET, MYF(0),
+        "non-string DEFAULT value for a column in a JSON_TABLE expression");
+    return true;
+  }
+
+  return false;
+}
+
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
   if (m_column->m_path_string->itemize(pc, &m_column->m_path_string))
     return true;
+
+  if (check_unsupported_json_table_default(m_column->m_default_empty_string) ||
+      check_unsupported_json_table_default(m_column->m_default_error_string))
+    return true;
+
   if (itemize_safe(pc, &m_column->m_default_empty_string)) return true;
   if (itemize_safe(pc, &m_column->m_default_error_string)) return true;
 
@@ -2651,6 +3215,9 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
       lex->is_explain_analyze = true;
       break;
+    default:
+      assert(false);
+      lex->explain_format = new (thd->mem_root) Explain_format_traditional;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM
 
@@ -2659,7 +3226,7 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
 
   auto code = ret->sql_command_code();
   if (!is_explainable_query(code) && code != SQLCOM_EXPLAIN_OTHER) {
-    DBUG_ASSERT(!"Should not happen!");
+    assert(!"Should not happen!");
     my_error(ER_WRONG_USAGE, MYF(0), "EXPLAIN", "non-explainable query");
     return nullptr;
   }
@@ -2669,7 +3236,7 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
 
 Sql_cmd *PT_load_table::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
-  SELECT_LEX *const select = lex->current_select();
+  Query_block *const select = lex->current_query_block();
 
   if (lex->sphead) {
     my_error(
@@ -2709,20 +3276,17 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
     lex->set_ignore(true);
 
   Parse_context pc(thd, select);
-  if (contextualize_safe(&pc, m_opt_fields_or_vars)) return nullptr;
-
-  if (m_opt_set_fields != nullptr) {
-    if (m_opt_set_fields->contextualize(&pc) ||
-        m_opt_set_exprs->contextualize(&pc))
-      return nullptr;
-  }
+  if (contextualize_safe(&pc, &m_cmd.m_opt_fields_or_vars) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_fields) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_exprs))
+    return nullptr;
 
   return &m_cmd;
 }
 
 bool PT_select_item_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->select->item_list = value;
+  pc->select->fields = value;
   return false;
 }
 
@@ -2741,7 +3305,6 @@ bool PT_limit_clause::contextualize(Parse_context *pc) {
 
   pc->select->select_limit = limit_options.limit;
   pc->select->offset_limit = limit_options.opt_offset;
-  pc->select->explicit_limit = true;
 
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
   return false;
@@ -2765,26 +3328,13 @@ bool PT_table_reference_list_parens::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || contextualize_array(pc, &table_list))
     return true;
 
-  DBUG_ASSERT(table_list.size() >= 2);
+  assert(table_list.size() >= 2);
   value = pc->select->nest_last_join(pc->thd, table_list.size());
   return value == nullptr;
 }
 
 bool PT_joined_table::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || contextualize_tabs(pc)) return true;
-
-  if (m_type & (JTT_LEFT | JTT_RIGHT)) {
-    if (m_type & JTT_LEFT)
-      tr2->outer_join |= JOIN_TYPE_LEFT;
-    else {
-      TABLE_LIST *inner_table = pc->select->convert_right_join();
-      if (inner_table == nullptr) return true;
-      /* swap tr1 and tr2 */
-      DBUG_ASSERT(inner_table == tr1);
-      tr1 = tr2;
-      tr2 = inner_table;
-    }
-  }
 
   if (m_type & JTT_NATURAL) tr1->add_join_natural(tr2);
 
@@ -2807,7 +3357,7 @@ bool PT_joined_table_on::contextualize(Parse_context *pc) {
     return true;
   }
 
-  SELECT_LEX *sel = pc->select;
+  Query_block *sel = pc->select;
   sel->parsing_place = CTX_ON;
 
   if (super::contextualize(pc) || on->itemize(pc, &on)) return true;
@@ -2815,11 +3365,11 @@ bool PT_joined_table_on::contextualize(Parse_context *pc) {
     on = make_condition(pc, on);
     if (on == nullptr) return true;
   }
-  DBUG_ASSERT(sel == pc->select);
+  assert(sel == pc->select);
 
   add_join_on(this->tr2, on);
   pc->thd->lex->pop_context();
-  DBUG_ASSERT(sel->parsing_place == CTX_ON);
+  assert(sel->parsing_place == CTX_ON);
   sel->parsing_place = CTX_NONE;
   value = pc->select->nest_last_join(pc->thd);
   return value == nullptr;
@@ -2899,8 +3449,8 @@ bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || expr->itemize(pc, &expr)) return true;
 
   THD *thd = pc->thd;
-  Item_func_set_user_var *item;
-  item = new (pc->mem_root) Item_func_set_user_var(name, expr, false);
+  Item_func_set_user_var *item =
+      new (pc->mem_root) Item_func_set_user_var(name, expr);
   if (item == nullptr) return true;
   set_var_user *var = new (thd->mem_root) set_var_user(item);
   if (var == nullptr) return true;
@@ -2935,18 +3485,18 @@ bool PT_option_value_list_head::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   THD *thd = pc->thd;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   LEX *old_lex = thd->lex;
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   sp_create_assignment_lex(thd, delimiter_pos.raw.end);
-  DBUG_ASSERT(thd->lex->select_lex == thd->lex->current_select());
-  Parse_context inner_pc(pc->thd, thd->lex->select_lex);
+  assert(thd->lex->query_block == thd->lex->current_query_block());
+  Parse_context inner_pc(pc->thd, thd->lex->query_block);
 
   if (value->contextualize(&inner_pc)) return true;
 
   if (sp_create_assignment_instr(pc->thd, value_pos.raw.end)) return true;
-  DBUG_ASSERT(thd->lex == old_lex && thd->lex->current_select() == pc->select);
+  assert(thd->lex == old_lex && thd->lex->current_query_block() == pc->select);
 
   return false;
 }
@@ -2955,8 +3505,8 @@ bool PT_start_option_value_list_no_type::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || head->contextualize(pc)) return true;
 
   if (sp_create_assignment_instr(pc->thd, head_pos.raw.end)) return true;
-  DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-  pc->select = pc->thd->lex->select_lex;
+  assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
+  pc->select = pc->thd->lex->query_block;
 
   if (tail != nullptr && tail->contextualize(pc)) return true;
 
@@ -2984,8 +3534,8 @@ bool PT_start_option_value_list_transaction::contextualize(Parse_context *pc) {
   if (characteristics->contextualize(pc)) return true;
 
   if (sp_create_assignment_instr(thd, end_pos.raw.end)) return true;
-  DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-  pc->select = pc->thd->lex->select_lex;
+  assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
+  pc->select = pc->thd->lex->query_block;
 
   return false;
 }
@@ -2995,8 +3545,8 @@ bool PT_start_option_value_list_following_option_type_eq::contextualize(
   if (super::contextualize(pc) || head->contextualize(pc)) return true;
 
   if (sp_create_assignment_instr(pc->thd, head_pos.raw.end)) return true;
-  DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-  pc->select = pc->thd->lex->select_lex;
+  assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
+  pc->select = pc->thd->lex->query_block;
 
   if (opt_tail != nullptr && opt_tail->contextualize(pc)) return true;
 
@@ -3010,8 +3560,8 @@ bool PT_start_option_value_list_following_option_type_transaction::
 
   if (sp_create_assignment_instr(pc->thd, characteristics_pos.raw.end))
     return true;
-  DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-  pc->select = pc->thd->lex->select_lex;
+  assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
+  pc->select = pc->thd->lex->query_block;
 
   return false;
 }
@@ -3028,12 +3578,12 @@ bool PT_set::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   lex->sql_command = SQLCOM_SET_OPTION;
   lex->option_type = OPT_SESSION;
-  lex->var_list.empty();
+  lex->var_list.clear();
   lex->autocommit = false;
 
   sp_create_assignment_lex(thd, set_pos.raw.end);
-  DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
-  pc->select = pc->thd->lex->select_lex;
+  assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
+  pc->select = pc->thd->lex->query_block;
 
   return list->contextualize(pc);
 }
@@ -3117,9 +3667,9 @@ bool PT_subquery::contextualize(Parse_context *pc) {
     return true;
   }
 
-  // Create a SELECT_LEX_UNIT and SELECT_LEX for the subquery's query
+  // Create a Query_expression and Query_block for the subquery's query
   // expression.
-  SELECT_LEX *child = lex->new_query(pc->select);
+  Query_block *child = lex->new_query(pc->select);
   if (child == nullptr) return true;
 
   Parse_context inner_pc(pc->thd, child);
@@ -3133,7 +3683,7 @@ bool PT_subquery::contextualize(Parse_context *pc) {
     return true;
   }
 
-  select_lex = inner_pc.select->master_unit()->first_select();
+  query_block = inner_pc.select->master_query_expression()->first_query_block();
 
   lex->pop_context();
   pc->select->n_child_sum_items += child->n_sum_items;
@@ -3142,7 +3692,8 @@ bool PT_subquery::contextualize(Parse_context *pc) {
     A subquery (and all the subsequent query blocks in a UNION) can add
     columns to an outer query block. Reserve space for them.
   */
-  for (SELECT_LEX *temp = child; temp != nullptr; temp = temp->next_select()) {
+  for (Query_block *temp = child; temp != nullptr;
+       temp = temp->next_query_block()) {
     pc->select->select_n_where_fields += temp->select_n_where_fields;
     pc->select->select_n_having_items += temp->select_n_having_items;
   }
@@ -3410,7 +3961,22 @@ bool PT_alter_table_set_default::contextualize(Table_ddl_parse_context *pc) {
   if (super::contextualize(pc) || itemize_safe(pc, &m_expr)) return true;
   Alter_column *alter_column;
   if (m_expr == nullptr || m_expr->basic_const_item()) {
-    alter_column = new (pc->mem_root) Alter_column(m_name, m_expr);
+    Item *actual_expr = m_expr;
+    if (m_expr && m_expr->type() == Item::FUNC_ITEM) {
+      /*
+        Default value should be literal => basic constants =>
+        no need fix_fields()
+       */
+      Item_func *func = down_cast<Item_func *>(m_expr);
+      if (func->result_type() != INT_RESULT) {
+        my_error(ER_INVALID_DEFAULT, MYF(0), m_name);
+        return true;
+      }
+      assert(dynamic_cast<Item_func_true *>(func) ||
+             dynamic_cast<Item_func_false *>(func));
+      actual_expr = new Item_int(func->val_int());
+    }
+    alter_column = new (pc->mem_root) Alter_column(m_name, actual_expr);
   } else {
     auto vg = new (pc->mem_root) Value_generator;
     if (vg == nullptr) return true;  // OOM
@@ -3442,7 +4008,7 @@ bool PT_alter_table_add_partition::contextualize(Table_ddl_parse_context *pc) {
 
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  DBUG_ASSERT(lex->part_info == nullptr);
+  assert(lex->part_info == nullptr);
   lex->part_info = &m_part_info;
   return false;
 }
@@ -3450,7 +4016,7 @@ bool PT_alter_table_add_partition::contextualize(Table_ddl_parse_context *pc) {
 bool PT_alter_table_drop_partition::contextualize(Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  DBUG_ASSERT(pc->alter_info->partition_names.is_empty());
+  assert(pc->alter_info->partition_names.is_empty());
   pc->alter_info->partition_names = m_partitions;
   return false;
 }
@@ -3466,7 +4032,6 @@ bool PT_alter_table_optimize_partition::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
-  pc->thd->lex->check_opt.init();
   return false;
 }
 
@@ -3474,7 +4039,6 @@ bool PT_alter_table_analyze_partition::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
-  pc->thd->lex->check_opt.init();
   return false;
 }
 
@@ -3483,7 +4047,6 @@ bool PT_alter_table_check_partition::contextualize(
   if (super::contextualize(pc)) return true;
 
   LEX *const lex = pc->thd->lex;
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   return false;
@@ -3496,7 +4059,6 @@ bool PT_alter_table_repair_partition::contextualize(
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
 
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
 
@@ -3515,7 +4077,6 @@ bool PT_alter_table_coalesce_partition::contextualize(
 bool PT_alter_table_truncate_partition::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->thd->lex->check_opt.init();
   return false;
 }
 
@@ -3608,4 +4169,188 @@ Sql_cmd *PT_set_resource_group::make_cmd(THD *thd) {
 Sql_cmd *PT_restart_server::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_RESTART_SERVER;
   return &sql_cmd;
+}
+
+/**
+   Generic attribute node that can be used with different base types
+   and corrsponding parse contexts. CFP (Contextualizer Function
+   Pointer) argument implements a suitable contextualize action in the
+   given context. Value is typically a decayed captureless lambda.
+ */
+template <class ATTRIBUTE, class BASE>
+class PT_attribute : public BASE {
+  ATTRIBUTE m_attr;
+  using CFP = bool (*)(ATTRIBUTE, typename BASE::context_t *);
+  CFP m_cfp;
+
+ public:
+  PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
+  bool contextualize(typename BASE::context_t *pc) override {
+    return BASE::contextualize(pc) || m_cfp(m_attr, pc);
+  }
+};
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_alter_tablespace_option_base* to PT_attribute object.
+ */
+PT_alter_tablespace_option_base *make_tablespace_engine_attribute(
+    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+  return new (mem_root)
+      PT_attribute<LEX_CSTRING, PT_alter_tablespace_option_base>(
+          attr, +[](LEX_CSTRING a, Alter_tablespace_parse_context *pc) {
+            pc->engine_attribute = a;
+            return false;
+          });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_alter_tablespace_option_base* to PT_attribute object.
+
+ */
+PT_create_table_option *make_table_engine_attribute(MEM_ROOT *mem_root,
+                                                    LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->create_info->engine_attribute = a;
+        pc->create_info->used_fields |= HA_CREATE_USED_ENGINE_ATTRIBUTE;
+        pc->alter_info->flags |=
+            (Alter_info::ALTER_OPTIONS | Alter_info::ANY_ENGINE_ATTRIBUTE);
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_create_table_option *make_table_secondary_engine_attribute(
+    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->create_info->secondary_engine_attribute = a;
+        pc->create_info->used_fields |=
+            HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE;
+        pc->alter_info->flags |= Alter_info::ALTER_OPTIONS;
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *mem_root,
+                                                  LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        // Note that a std::function is created from the lambda and constructed
+        // directly in the vector.
+        // This means it is necessary to ensure that the elements of the vector
+        // are destroyed. This will not happen automatically when the vector is
+        // moved to the Alter_info struct which is allocated on the mem_root
+        // and not destroyed.
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *ai) {
+          cf->m_engine_attribute = a;
+          ai->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_column_attr_base* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
+                                                            LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        // Note that a std::function is created from the lambda and constructed
+        // directly in the vector.
+        // This means it is necessary to ensure that the elements of the vector
+        // are destroyed. This will not happen automatically when the vector is
+        // moved to the Alter_info struct which is allocated on the mem_root
+        // and not destroyed.
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *) {
+          cf->m_secondary_engine_attribute = a;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_base_index_option* to PT_attribute object.
+
+ */
+PT_base_index_option *make_index_engine_attribute(MEM_ROOT *mem_root,
+                                                  LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->key_create_info->m_engine_attribute = a;
+        pc->alter_info->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_base_index_option* to PT_attribute object.
+ */
+PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
+                                                            LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->key_create_info->m_secondary_engine_attribute = a;
+        return false;
+      });
 }

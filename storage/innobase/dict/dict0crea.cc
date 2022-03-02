@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,12 +62,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "sql/sql_zip_dict.h"
 
-/** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table	dict table object
-@param[in,out]	trx	transaction instance
-@return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   std::string db_name;
   std::string tbl_name;
@@ -98,13 +95,13 @@ dberr_t dict_build_table_def(
     dict_table_assign_new_id(table, trx);
   }
 
-  dberr_t err = dict_build_tablespace_for_table(table, trx, mode,
+  dberr_t err = dict_build_tablespace_for_table(table, create_info, trx, mode,
                                                 keyring_encryption_key_id);
 
   return (err);
 }
 
-/** Build a tablespace to store various objects.
+/** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @param[in]      keyring_encryption_key_id info on keyring encryption key
@@ -117,12 +114,12 @@ dberr_t dict_build_tablespace(
   space_id_t space = 0;
   ut_d(static uint32_t crash_injection_after_create_counter = 1;);
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   ut_ad(tablespace);
 
   DBUG_EXECUTE_IF("out_of_tablespace_disk", return (DB_OUT_OF_FILE_SPACE););
   /* Get a new space id. */
-  dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
+  dict_hdr_get_new_id(nullptr, nullptr, &space, nullptr, false);
   if (space == SPACE_UNKNOWN) {
     return (DB_ERROR);
   }
@@ -141,8 +138,8 @@ dberr_t dict_build_tablespace(
     return DB_IO_ERROR;
   }
 
-  err = log_ddl->write_delete_space_log(trx, NULL, space, datafile->filepath(),
-                                        false, true);
+  err = log_ddl->write_delete_space_log(trx, nullptr, space,
+                                        datafile->filepath(), false, true);
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -155,8 +152,15 @@ dberr_t dict_build_tablespace(
   - page 3 will contain the root of the clustered index of the
   first table we create here. */
 
+  /* Set the initial size of the file being created. */
+  page_no_t size{};
+
+  size = tablespace->get_autoextend_size() > 0
+             ? (tablespace->get_autoextend_size() / srv_page_size)
+             : FIL_IBD_FILE_INITIAL_SIZE;
+
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
-                       tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE, mode,
+                       tablespace->flags(), size, mode,
                        keyring_encryption_key_id);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
@@ -175,7 +179,7 @@ dberr_t dict_build_tablespace(
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
   ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-  bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
+  bool ret = fsp_header_init(space, size, &mtr, false);
   mtr_commit(&mtr);
 
   DBUG_EXECUTE_IF("fil_ibd_create_log",
@@ -235,13 +239,9 @@ static ibt::Tablespace *determine_session_temp_tblsp(
   return (tblsp);
 }
 
-/** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
-@param[in]      keyring_encryption_key_id info on keyring encryption key
-@return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
-    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
@@ -250,7 +250,7 @@ dberr_t dict_build_tablespace_for_table(
   char *filepath;
   ut_d(static uint32_t crash_injection_after_create_counter = 1;);
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   needs_file_per_table =
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
@@ -271,7 +271,7 @@ dberr_t dict_build_tablespace_for_table(
           dict_table_has_atomic_blobs(table));
 
     /* Get a new tablespace ID */
-    dict_hdr_get_new_id(NULL, NULL, &space, table, false);
+    dict_hdr_get_new_id(nullptr, nullptr, &space, table, false);
 
     DBUG_EXECUTE_IF("ib_create_table_fail_out_of_space_ids",
                     space = SPACE_UNKNOWN;);
@@ -330,9 +330,13 @@ dberr_t dict_build_tablespace_for_table(
     std::string tablespace_name(table->name.m_name);
     dict_name::convert_to_space(tablespace_name);
 
+    page_no_t size{};
+    size = create_info && create_info->m_implicit_tablespace_autoextend_size > 0
+               ? (create_info->m_implicit_tablespace_autoextend_size /
+                  srv_page_size)
+               : FIL_IBD_FILE_INITIAL_SIZE;
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
-                         FIL_IBD_FILE_INITIAL_SIZE, mode,
-                         keyring_encryption_key_id);
+                         size, mode, keyring_encryption_key_id);
 
     ut_free(filepath);
 
@@ -345,8 +349,15 @@ dberr_t dict_build_tablespace_for_table(
 
     mtr_start(&mtr);
 
-    bool ret =
-        fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
+    bool ret = fsp_header_init(table->space, size, &mtr, false);
+
+    if (ret) {
+      fil_set_autoextend_size(
+          table->space,
+          (create_info ? create_info->m_implicit_tablespace_autoextend_size
+                       : 0));
+    }
+
     mtr_commit(&mtr);
 
     DBUG_EXECUTE_IF("fil_ibd_create_log",
@@ -365,7 +376,7 @@ dberr_t dict_build_tablespace_for_table(
     is already built.  Just find the correct tablespace ID. */
 
     if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-      ut_ad(table->tablespace != NULL);
+      ut_ad(table->tablespace != nullptr);
 
       ut_ad(table->space == fil_space_get_id_by_name(table->tablespace()));
     } else if (table->is_temporary()) {
@@ -401,13 +412,12 @@ dberr_t dict_build_tablespace_for_table(
   return (DB_SUCCESS);
 }
 
-/** Builds an index definition
- @return DB_SUCCESS or error code */
+/** Builds an index definition */
 void dict_build_index_def(const dict_table_t *table, /*!< in: table */
                           dict_index_t *index,       /*!< in/out: index */
                           trx_t *trx) /*!< in/out: InnoDB transaction handle */
 {
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
   ut_ad((UT_LIST_GET_LEN(table->indexes) > 0) || index->is_clustered());
 
   if (!table->is_intrinsic()) {
@@ -417,7 +427,7 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
             dd_get_total_indexes_num() +
                 4 /* total indexes from compression dictionary tables */);
     } else {
-      dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+      dict_hdr_get_new_id(nullptr, &index->id, nullptr, table, false);
     }
 
   } else {
@@ -448,7 +458,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
   mtr_t mtr;
   ulint page_no = FIL_NULL;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail", return (DB_OUT_OF_MEMORY););
 
@@ -457,10 +467,10 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
     return (DB_SUCCESS);
   }
 
-  const bool unreadable =
-      !index->table->is_readable() || dict_table_is_discarded(index->table);
+  const bool missing =
+      index->table->ibd_file_missing || dict_table_is_discarded(index->table);
 
-  if (unreadable) {
+  if (missing) {
     index->page = FIL_NULL;
     index->trx_id = trx->id;
 
@@ -511,7 +521,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 @param[in]	root_page_no	index root page number */
 void dict_drop_temporary_table_index(const dict_index_t *index,
                                      page_no_t root_page_no) {
-  ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
+  ut_ad(dict_sys_mutex_own() || index->table->is_intrinsic());
   ut_ad(index->table->is_temporary());
   ut_ad(index->page == FIL_NULL);
 
@@ -607,7 +617,7 @@ static bool dict_foreign_base_for_stored(const char *col_name,
       /** If the stored column can refer to virtual column
       or stored column then it can points to NULL. */
 
-      if (s_col.base_col[j] == NULL) {
+      if (s_col.base_col[j] == nullptr) {
         continue;
       }
 
@@ -632,7 +642,7 @@ bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
                                   const dict_table_t *table) {
   dict_foreign_t *foreign;
 
-  if (table->s_cols == NULL) {
+  if (table->s_cols == nullptr) {
     return (false);
   }
 
@@ -673,7 +683,7 @@ bool dict_foreigns_has_this_col(const dict_table_t *table,
   for (dict_foreign_set::const_iterator it = local_fk_set->begin();
        it != local_fk_set->end(); ++it) {
     foreign = *it;
-    ut_ad(foreign->id != NULL);
+    ut_ad(foreign->id != nullptr);
     ulint type = foreign->type;
 
     type &=
@@ -702,7 +712,7 @@ void dict_table_assign_new_id(dict_table_t *table, trx_t *trx) {
     to avoid confusion.*/
     table->id = ULINT_UNDEFINED;
   } else {
-    dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
+    dict_hdr_get_new_id(&table->id, nullptr, nullptr, table, false);
   }
 }
 
@@ -718,16 +728,16 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   /* This means the tablespace is evicted from cache */
   if (flags == UINT32_UNDEFINED) {
-    return (NULL);
+    return (nullptr);
   }
 
   ut_ad(fsp_flags_is_valid(flags));
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   rec_format_t rec_format;
 
-  ulint zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+  uint32_t zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
   bool has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
   bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
@@ -753,14 +763,15 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
       dict_mem_table_create(table_name, space, 5, 0, 0, table_flags, 0);
 
   dict_mem_table_add_col(table, heap, "type", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 4);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
   dict_mem_table_add_col(table, heap, "id", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 8);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 8, true);
   dict_mem_table_add_col(table, heap, "compressed_len", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 4);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
   dict_mem_table_add_col(table, heap, "uncompressed_len", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 4);
-  dict_mem_table_add_col(table, heap, "data", DATA_BLOB, DATA_NOT_NULL, 0);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
+  dict_mem_table_add_col(table, heap, "data", DATA_BLOB, DATA_NOT_NULL, 0,
+                         true);
 
   table->id = dict_sdi_get_table_id(space);
 
@@ -808,7 +819,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
       dict_index_add_to_cache(table, temp_index, index_root_page_num, false);
   ut_a(error == DB_SUCCESS);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* After re-acquiring dict_sys mutex, check if there is already
   a table created by other threads. Just keep one copy in memory */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,9 +74,13 @@ public:
     BackupMinWriteSpeed64 = 100004,
     BackupMaxWriteSpeed64 = 100005,
     BackupMaxWriteSpeedOtherNodeRestart64 = 100006,
+    BackupEncryptionRequired = 100007,
     _BackupMax   = 100999,
 
     _TCMin       = 101000,
+    TCSetSchedNumLqhKeyReqCount = 101000,
+    TCSetSchedNumScanFragReqCount = 101001,
+    TCSetLoadRefreshCount = 101002,
     _TCMax       = 101999,
 
     _LQHMin = 102000,
@@ -92,6 +96,13 @@ public:
     CmvmiSendDummySignal = 103005,
     _CMVMIMax = 103099,
 
+    _THRMANMin = 104000,
+    SetSchedulerSpinTimerAll = 104000,
+    SetSchedulerSpinTimerThread = 104001,
+    SetAllowedSpinOverhead = 104002,
+    SetSpintimePerCall = 104003,
+    EnableAdaptiveSpinning = 104004,
+    _THRMANMax = 104999,
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information

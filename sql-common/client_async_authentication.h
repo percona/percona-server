@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <openssl/ossl_typ.h>
 #include "mysql/plugin_auth_common.h"
 #include "mysql_async.h"
-
-#ifdef HAVE_OPENSSL
-#include <openssl/ossl_typ.h>
-#endif
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
 struct MCPVIO_EXT {
@@ -93,6 +90,7 @@ struct mysql_async_auth {
 
   char *data;
   uint data_len;
+  /** set to mysql_async_connect::scramble_plugin */
   const char *data_plugin;
   const char *db;
 
@@ -105,6 +103,7 @@ struct mysql_async_auth {
   char *change_user_buff;
   int change_user_buff_len;
 
+  /** Used by caching_sha256_password plugin */
   int client_auth_plugin_state;
   authsm_function state_function;
 };
@@ -152,6 +151,7 @@ struct mysql_async_connect {
   char buff[NAME_LEN + USERNAME_LENGTH + 100];
   int scramble_data_len;
   char *scramble_data;
+  /** The server sends the default plugin name in Protocol::HandshakeV10 */
   const char *scramble_plugin;
   char *scramble_buffer;
   bool scramble_buffer_allocated;
@@ -163,9 +163,7 @@ struct mysql_async_connect {
   char **current_init_command;
 
   ssl_exchange_state ssl_state;
-#if defined(HAVE_OPENSSL)
   SSL *ssl;
-#endif
   /* state function that will be called next */
   csm_function state_function;
 };

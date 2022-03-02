@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,7 +189,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
     do {
       memcpy(&recpos, key + (*keydef->get_key_length)(keydef, key),
              sizeof(uchar *));
-      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, 0, true);
+      key_length = hp_rb_make_key(keydef, info->recbuf, recpos, nullptr, true);
       if (ha_key_cmp(keydef->seg, (uchar *)info->recbuf, (uchar *)key,
                      key_length, SEARCH_FIND | SEARCH_SAME, not_used)) {
         error = 1;

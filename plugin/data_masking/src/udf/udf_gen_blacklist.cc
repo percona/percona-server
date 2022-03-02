@@ -39,6 +39,13 @@ static bool gen_blacklist_init(UDF_INIT *initid, UDF_ARGS *args,
     DBUG_RETURN(true);
   }
 
+  if (mysql::plugins::Charset_service::set_return_value_charset(initid) ||
+      mysql::plugins::Charset_service::set_args_charset(args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for UDF");
+    DBUG_RETURN(true);
+  }
+
   initid->maybe_null = 1;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
@@ -50,7 +57,7 @@ static bool gen_blacklist_init(UDF_INIT *initid, UDF_ARGS *args,
 static void gen_blacklist_deinit(UDF_INIT *initid) {
   DBUG_ENTER("gen_blacklist_deinit");
 
-  if (initid->ptr) free(initid->ptr);
+  if (initid->ptr) delete[](initid->ptr);
 
   DBUG_VOID_RETURN;
 }
@@ -98,17 +105,18 @@ static std::string _gen_blacklist(const char *str, const char *dictionary_name,
   return res;
 }
 
-static char *gen_blacklist(UDF_INIT *, UDF_ARGS *args, char *result,
+static char *gen_blacklist(UDF_INIT *initid, UDF_ARGS *args, char *,
                            unsigned long *length, char *is_null, char *) {
   DBUG_ENTER("gen_blacklist");
 
   std::string res = _gen_blacklist(args->args[0], args->args[1], args->args[2]);
   *length = res.size();
   if (!(*is_null = (*length == 0))) {
-    strcpy(result, res.c_str());
+    initid->ptr = new char[*length + 1];
+    strcpy(initid->ptr, res.c_str());
   }
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(initid->ptr);
 }
 
 udf_descriptor udf_gen_blacklist() {

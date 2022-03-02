@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ int heap_rprev(HP_INFO *info, uchar *record) {
       else
         pos = hp_search(info, share->keydef + info->lastinx, info->lastkey, 2);
     } else {
-      pos = 0; /* Read next after last */
+      pos = nullptr; /* Read next after last */
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
     }
   }

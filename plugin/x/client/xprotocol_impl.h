@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define PLUGIN_X_CLIENT_XPROTOCOL_IMPL_H_
 
 #include <sys/types.h>
+#include <zlib.h>
+
 #include <functional>
 #include <list>
 #include <map>
@@ -33,8 +35,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <zlib.h>
 
 #include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xargument.h"
@@ -243,6 +243,10 @@ class Protocol_impl : public XProtocol,
                               const std::string &method = "") override;
 
   void use_compression(const Compression_algorithm algo) override;
+  void use_compression(const Compression_algorithm algo,
+                       const int32_t level) override;
+
+  void reset_buffering() override;
 
  private:
   using CodedInputStream = google::protobuf::io::CodedInputStream;
@@ -309,8 +313,6 @@ class Protocol_impl : public XProtocol,
   XError authenticate_sha256_memory(const std::string &user,
                                     const std::string &pass,
                                     const std::string &db);
-
-  XError perform_close();
 
   /**
     Dispatch notice to each registered handler. If the handler processed the

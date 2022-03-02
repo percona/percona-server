@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 */
 
 #include "mysqlrouter/utils.h"
-#include "router_test_helpers.h"
 
 #include <cstring>
 #include <sstream>
@@ -35,7 +34,7 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -44,6 +43,7 @@
 #include "cluster_metadata.h"
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/mysql_session.h"
+#include "router_test_helpers.h"
 
 using ::testing::Return;
 using namespace testing;
@@ -79,16 +79,16 @@ static MySQLSessionReplayer &q_cluster_type(MySQLSessionReplayer &m) {
 static MySQLSessionReplayer &q_metadata_has_one_cluster(
     MySQLSessionReplayer &m) {
   m.expect_query_one(
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters");
   return m;
 }
 
 static MySQLSessionReplayer &q_metadata_has_one_cluster(
     MySQLSessionReplayer &m, const char *single_cluster) {
   m.expect_query_one(
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters");
   m.then_return(1, {{m.string_or_null(single_cluster)}});
   return m;
 }
@@ -96,7 +96,8 @@ static MySQLSessionReplayer &q_metadata_has_one_cluster(
 static MySQLSessionReplayer &q_member_state(MySQLSessionReplayer &m) {
   m.expect_query_one(
       "SELECT member_state FROM performance_schema.replication_group_members "
-      "WHERE member_id = @@server_uuid");
+      "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)");
   return m;
 }
 
@@ -104,7 +105,8 @@ static MySQLSessionReplayer &q_member_state(MySQLSessionReplayer &m,
                                             const char *state) {
   m.expect_query_one(
       "SELECT member_state FROM performance_schema.replication_group_members "
-      "WHERE member_id = @@server_uuid");
+      "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)");
   m.then_return(1, {{m.string_or_null(state)}});
   return m;
 }
@@ -141,8 +143,8 @@ TEST_P(MetadataSchemaError, query_fails) {
                     "to contain the metadata of MySQL InnoDB Cluster");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataSchemaError,
-                        ::testing::Values(1049, 1146));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataSchemaError,
+                         ::testing::Values(1049, 1146));
 
 class MetadataSchemaVersionError
     : public ::testing::Test,
@@ -165,13 +167,13 @@ TEST_P(MetadataSchemaVersionError, version) {
       "provided MySQL InnoDB cluster metadata");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataSchemaVersionError,
-                        ::testing::Values(
-                            // too old
-                            std::make_tuple("0", "0", "1"),
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataSchemaVersionError,
+                         ::testing::Values(
+                             // too old
+                             std::make_tuple("0", "0", "1"),
 
-                            // too new
-                            std::make_tuple("3", "0", "0")));
+                             // too new
+                             std::make_tuple("3", "0", "0")));
 
 class MetadataGroupMembers_2_0_Throws
     : public ::testing::Test,
@@ -186,9 +188,9 @@ TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_1_0) {
       mysqlrouter::create_metadata(kNewSchemaVersion, &m));
 
   q_metadata_has_one_cluster(m, std::get<0>(GetParam()));
-  ASSERT_THROW_LIKE(
-      metadata->require_metadata_is_ok(), std::runtime_error,
-      "The provided server contains an unsupported cluster metadata.");
+  ASSERT_THROW_LIKE(metadata->require_metadata_is_ok(), std::runtime_error,
+                    "Expected the metadata server to contain configuration for "
+                    "one cluster, found none.");
 }
 
 TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_2_0_3) {
@@ -199,14 +201,14 @@ TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_2_0_3) {
   const auto version = mysqlrouter::get_metadata_schema_version(&m);
   std::unique_ptr<mysqlrouter::ClusterMetadata> metadata(
       mysqlrouter::create_metadata(version, &m));
-  ASSERT_THROW_LIKE(
-      metadata->require_metadata_is_ok(), std::runtime_error,
-      "The provided server contains an unsupported cluster metadata.");
+  ASSERT_THROW_LIKE(metadata->require_metadata_is_ok(), std::runtime_error,
+                    "Expected the metadata server to contain configuration for "
+                    "one cluster, found none.");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataGroupMembers_2_0_Throws,
-                        ::testing::Values(std::make_tuple("2"),
-                                          std::make_tuple("0")));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataGroupMembers_2_0_Throws,
+                         ::testing::Values(std::make_tuple("2"),
+                                           std::make_tuple("0")));
 
 class MetadataGroupMembers_2_0_3_Throws
     : public ::testing::Test,
@@ -238,8 +240,8 @@ TEST_P(MetadataMemberStateThrows, quorum_but_bad_memberstate) {
                     "a InnoDB cluster.");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataMemberStateThrows,
-                        ::testing::Values("OFFLINE", "RECOVERING"));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataMemberStateThrows,
+                         ::testing::Values("OFFLINE", "RECOVERING"));
 
 class MetadataAccessDeniedTest
     : public ::testing::Test,
@@ -318,8 +320,8 @@ TEST_P(MetadataAccessDeniedTest, missing_permissions_throws) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(Failure, MetadataAccessDeniedTest,
-                        ::testing::Values(0, 1, 2, 3, 4));
+INSTANTIATE_TEST_SUITE_P(Failure, MetadataAccessDeniedTest,
+                         ::testing::Values(0, 1, 2, 3, 4));
 
 class MetadataQuorumThrowsTest : public ::testing::Test,
                                  public ::testing::WithParamInterface<
@@ -347,11 +349,11 @@ TEST_P(MetadataQuorumThrowsTest, metadata_no_quorum_throws) {
       "quorum and thus may contain inaccurate or outdated data.");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataQuorumThrowsTest,
-                        ::testing::Values(std::make_tuple("1", "3"),
-                                          std::make_tuple("0", "1"),
-                                          std::make_tuple("1", "2"),
-                                          std::make_tuple("2", "5")));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataQuorumThrowsTest,
+                         ::testing::Values(std::make_tuple("1", "3"),
+                                           std::make_tuple("0", "1"),
+                                           std::make_tuple("1", "2"),
+                                           std::make_tuple("2", "5")));
 
 class MetadataQuorumOkTest : public ::testing::Test,
                              public ::testing::WithParamInterface<
@@ -376,9 +378,14 @@ TEST_P(MetadataQuorumOkTest, metadata_has_quorum_ok) {
   ASSERT_NO_THROW(metadata->require_cluster_is_ok());
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataQuorumOkTest,
-                        ::testing::Values(std::make_tuple("1", "1"),
-                                          std::make_tuple("2", "3"),
-                                          std::make_tuple("3", "3"),
-                                          std::make_tuple("3", "5"),
-                                          std::make_tuple("2", "2")));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataQuorumOkTest,
+                         ::testing::Values(std::make_tuple("1", "1"),
+                                           std::make_tuple("2", "3"),
+                                           std::make_tuple("3", "3"),
+                                           std::make_tuple("3", "5"),
+                                           std::make_tuple("2", "2")));
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

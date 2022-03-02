@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,14 +26,6 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
 add_test_file(test_time.cc
   MODULE http
   LIB_DEPENDS http_client
-  )
-
-add_test_file(test_posix_re.cc
-  MODULE http
-  )
-TARGET_INCLUDE_DIRECTORIES(routertest_http_posix_re
-  PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src/
   )
 
 add_test_file(test_http_uri.cc
@@ -65,18 +57,34 @@ add_test_file(test_passwd.cc
 
 add_test_file(test_auth.cc
   MODULE http
-  LIB_DEPENDS http_server
+  EXTRA_SOURCES
+  ../src/http_auth.cc
+  ../src/http_auth_method_basic.cc
+  LIB_DEPENDS http_auth_realm_lib
   )
+## http_auth.cc and friends are from the http_server plugin and their symbols are marked a "dllimport"
+## by default. As we use them directly, mark them as "static" instead.
+SET_TARGET_PROPERTIES(routertest_http_auth PROPERTIES
+  COMPILE_DEFINITIONS "http_server_DEFINE_STATIC")
 
 add_test_file(test_auth_method.cc
   MODULE http
-  LIB_DEPENDS http_server
+  EXTRA_SOURCES ../src/http_auth_method_basic.cc
   )
+## http_auth_method_basic.cc is from the http_server plugin and its symbols are marked a "dllimport"
+## by default. As we use them directly, mark them as "static" instead.
+SET_TARGET_PROPERTIES(routertest_http_auth_method PROPERTIES
+  COMPILE_DEFINITIONS "http_server_DEFINE_STATIC")
+
 
 add_test_file(test_content_type.cc
   MODULE http
-  LIB_DEPENDS http_server
+  EXTRA_SOURCES ../src/content_type.cc
   )
+## content_type.cc is from the http_server plugin and its symbols are marked a "dllimport"
+## by default. As we use them directly, mark them as "static" instead.
+SET_TARGET_PROPERTIES(routertest_http_content_type PROPERTIES
+  COMPILE_DEFINITIONS "http_server_DEFINE_STATIC")
 
 
 add_test_file(test_matcher.cc
@@ -93,12 +101,13 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   MYSQL_ADD_EXECUTABLE(routerfuzz_auth_backend
     fuzz_auth_backend.cc
     ../src/http_auth_backend.cc
+    ../src/http_auth_error.cc
     ../src/kdf_sha_crypt.cc
     ../src/kdf_pbkdf2.cc
     ../src/mcf_error.cc
     ../src/base64.cc
     COMPONENT Router
-    LINK_LIBRARIES ${SSL_LIBRARIES}
+    LINK_LIBRARIES ${SSL_LIBRARIES} metadata_cache
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )

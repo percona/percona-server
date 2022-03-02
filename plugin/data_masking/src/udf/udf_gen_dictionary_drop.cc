@@ -42,6 +42,13 @@ static bool gen_dictionary_drop_init(UDF_INIT *initid, UDF_ARGS *args,
     DBUG_RETURN(true);
   }
 
+  if (mysql::plugins::Charset_service::set_return_value_charset(initid) ||
+      mysql::plugins::Charset_service::set_args_charset(args)) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE,
+                  "Unable to set character set service for UDF");
+    DBUG_RETURN(true);
+  }
+
   initid->maybe_null = 0;
   initid->const_item =
       0;  // Non-Deterministic: same arguments will produce different values
@@ -94,8 +101,11 @@ static char *gen_dictionary_drop(UDF_INIT *, UDF_ARGS *args, char *result,
   DBUG_ENTER("gen_dictionary_drop");
 
   std::string res = _gen_dictionary_drop(args->args[0]);
-  *length = res.size();
-  strcpy(result, res.c_str());
+  assert(res.size() < *length);
+
+  *length = std::min<unsigned long>(res.size(), *length - 1);
+  strncpy(result, res.c_str(), *length);
+  result[*length] = '\0';
 
   DBUG_RETURN(result);
 }

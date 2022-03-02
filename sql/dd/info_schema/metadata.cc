@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // dd::get_sql_type_by_field_info
+#include "sql/dd/dd_utility.h"               // check_if_server_ddse_readonly
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_boot...
 #include "sql/dd/impl/bootstrap/bootstrapper.h"   // dd::Column
 #include "sql/dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
@@ -65,7 +66,6 @@
 #include "sql/dd/types/system_view_definition.h"  // dd::System_view_definition
 #include "sql/dd/types/view.h"
 #include "sql/dd_sql_view.h"  // update_referencing_views_metadata
-#include "sql/handler.h"
 #include "sql/item_create.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"     // opt_readonly
@@ -89,33 +89,6 @@ const dd::String_type PLUGIN_VERSION_STRING("plugin_version");
 const dd::String_type SERVER_I_S_TABLE_STRING("server_i_s_table");
 
 }  // namespace
-
-/**
-  Check if DDSE (Data Dictionary Storage Engine) is in
-  readonly mode.
-
-  @param thd                 Thread
-  @param schema_name_abbrev  Abbreviation of schema (I_S or P_S) for use
-                             in warning message output
-
-  @returns false on success, otherwise true.
-*/
-bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev) {
-  /*
-    We must check if the DDSE is started in a way that makes the DD
-    read only. For now, we only support InnoDB as SE for the DD. The call
-    to retrieve the handlerton for the DDSE should be replaced by a more
-    generic mechanism.
-  */
-  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
-    LogErr(WARNING_LEVEL, ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE,
-           schema_name_abbrev);
-    return true;
-  }
-
-  return false;
-}
 
 namespace {
 
@@ -142,7 +115,7 @@ class Update_context {
         m_thd->dd_client()->acquire(INFORMATION_SCHEMA_NAME.str, &m_schema_obj))
       m_schema_obj = nullptr;
 
-    DBUG_ASSERT(m_schema_obj);
+    assert(m_schema_obj);
   }
 
   ~Update_context() {
@@ -292,7 +265,7 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
   // Store the metadata into DD
   if (thd->dd_client()->store(view_obj.get())) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return (true);
   }
 
@@ -306,18 +279,15 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
   @param      thd            Thread ID
   @param      plugin         Reference to a plugin.
-  @param      arg            Pointer to Context for I_S update.
-  @param[out] plugin_exists  Flag is set if plugin metadata already exists in
-                             data-dictionary.
+  @param      ctx            Pointer to Context for I_S update.
 
-  @return
-    false on success
-    true when fails to store the metadata.
+  @retval false on success
+  @retval true when fails to store the metadata.
 */
 
 static bool store_plugin_metadata(THD *thd, plugin_ref plugin,
                                   Update_context *ctx) {
-  DBUG_ASSERT(plugin && ctx);
+  assert(plugin && ctx);
 
   // Store in DD tables.
   st_plugin_int *pi = plugin_ref_to_int(plugin);
@@ -380,7 +350,7 @@ bool store_plugin_and_referencing_views_metadata(THD *thd, plugin_ref plugin,
 */
 bool update_plugins_I_S_metadata(THD *thd) {
   //  Warn if we have DDSE in read only mode and continue server startup.
-  if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
+  if (dd::check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return false;
 
   /*
@@ -489,7 +459,7 @@ bool update_server_I_S_metadata(THD *thd) {
     Stop server restart if I_S version is changed and the server is
     started with DDSE in read-only mode.
   */
-  if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
+  if (dd::check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return true;
 
   Update_context ctx(thd, true);
@@ -552,7 +522,7 @@ bool initialize(THD *thd, bool non_dd_based_system_view) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
 
   if (!non_dd_based_system_view) {
     if (dd::info_schema::create_system_views(thd) ||
@@ -616,7 +586,7 @@ bool update_I_S_metadata(THD *thd) {
 bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int) {
   plugin_ref plugin = plugin_int_to_ref(plugin_int);
   Update_context ctx(thd, false);
-  DBUG_ASSERT(plugin_int->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN);
+  assert(plugin_int->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN);
 
   return store_plugin_metadata(thd, plugin, &ctx);
 }
@@ -643,12 +613,12 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name) {
                                 &at))
     return (true);
 
-  DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW);
+  assert(at->type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Remove view from DD tables.
   Implicit_substatement_state_guard substatement_guard(thd);
   if (thd->dd_client()->drop(at)) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return (true);
   }
 
@@ -715,7 +685,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
 
     // Build the CREATE VIEW DDL statement and execute it.
     if (view_def == nullptr) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (is_comp_dict && compression_dict::skip_bootstrap) {
         continue;
       }
@@ -740,7 +710,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based, bool only_comp_dict) {
     thd->update_charset();
 
     if (dd::execute_query(thd, view_def->build_ddl_create_view())) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (is_comp_dict && compression_dict::skip_bootstrap) {
         continue;
       }

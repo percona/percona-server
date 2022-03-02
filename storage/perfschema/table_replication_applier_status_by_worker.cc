@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,18 +29,19 @@
 
 #include "storage/perfschema/table_replication_applier_status_by_worker.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /*Multi source replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
 #include "sql/rpl_rli_pdb.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -97,8 +98,8 @@ Plugin_table table_replication_applier_status_by_worker::m_table_def(
 PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_status_by_worker::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_applier_status_by_worker::get_row_count, /*records*/
     sizeof(pos_t),                                             /* ref length */
     &m_table_lock,
@@ -226,7 +227,7 @@ table_replication_applier_status_by_worker::
     : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
 table_replication_applier_status_by_worker::
-    ~table_replication_applier_status_by_worker() {}
+    ~table_replication_applier_status_by_worker() = default;
 
 void table_replication_applier_status_by_worker::reset_position(void) {
   m_pos.reset();
@@ -316,7 +317,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos) {
     /* Multi Thread Slave */
     if (m_pos.m_index_2 < wc) {
       worker = mi->rli->get_worker(m_pos.m_index_2);
-      if (worker != NULL) {
+      if (worker != nullptr) {
         make_row(worker);
         res = 0;
       }
@@ -330,7 +331,7 @@ end:
 }
 
 int table_replication_applier_status_by_worker::index_init(uint idx, bool) {
-  PFS_index_rpl_applier_status_by_worker *result = NULL;
+  PFS_index_rpl_applier_status_by_worker *result = nullptr;
 
   switch (idx) {
     case 0:
@@ -340,7 +341,7 @@ int table_replication_applier_status_by_worker::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_rpl_applier_status_by_worker_by_thread);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   m_opened_index = result;
@@ -424,8 +425,8 @@ int table_replication_applier_status_by_worker::make_row(Master_info *mi) {
   m_row.thread_id = 0;
   m_row.thread_id_is_null = true;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  assert(mi != nullptr);
+  assert(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -565,12 +566,12 @@ int table_replication_applier_status_by_worker::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /** channel_name */
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;
@@ -655,7 +656,7 @@ int table_replication_applier_status_by_worker::read_row_values(
           set_field_timestamp(f, m_row.applying_trx_last_retry_timestamp);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

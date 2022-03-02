@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,6 @@
 */
 
 #include <stdio.h>
-#include <atomic>
 
 #include "my_config.h"
 #include "my_inttypes.h"
@@ -85,19 +84,18 @@
 #include <mach/mach_time.h>
 #endif
 
-#if defined(__SUNPRO_CC) && defined(__sparcv9) && defined(_LP64) && \
-    !defined(__SunOS_5_7)
+#if (defined(__SUNPRO_CC) || defined(__clang__)) && defined(__sparcv9) && \
+    defined(_LP64)
 extern "C" ulonglong my_timer_cycles_il_sparc64();
-#elif defined(__SUNPRO_CC) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_CC) && defined(_ILP32)
 extern "C" ulonglong my_timer_cycles_il_sparc32();
 #elif defined(__SUNPRO_CC) && defined(__i386) && defined(_ILP32)
 extern "C" ulonglong my_timer_cycles_il_i386();
 #elif defined(__SUNPRO_CC) && defined(__x86_64) && defined(_LP64)
 extern "C" ulonglong my_timer_cycles_il_x86_64();
-#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64) && \
-    !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64)
 ulonglong my_timer_cycles_il_sparc64();
-#elif defined(__SUNPRO_C) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_C) && defined(_ILP32)
 ulonglong my_timer_cycles_il_sparc32();
 #elif defined(__SUNPRO_C) && defined(__i386) && defined(_ILP32)
 ulonglong my_timer_cycles_il_i386();
@@ -165,10 +163,9 @@ ulonglong my_timer_cycles(void) {
     return (result << 32) | x2;
   }
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
-    defined(_LP64) && !defined(__SunOS_5_7)
+    defined(_LP64)
   return (my_timer_cycles_il_sparc64());
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
-    !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32)
   return (my_timer_cycles_il_sparc32());
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
     defined(_ILP32)
@@ -178,7 +175,7 @@ ulonglong my_timer_cycles(void) {
     defined(_LP64)
   return (my_timer_cycles_il_x86_64());
 #elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && \
-    defined(_LP64)
+    defined(_LP64) && !defined(__clang__)
   {
     ulonglong result;
     __asm __volatile__("rd %%tick,%0" : "=r"(result));
@@ -253,21 +250,22 @@ ulonglong my_timer_nanoseconds(void) {
 ulonglong my_timer_microseconds(void) {
 #if defined(HAVE_GETTIMEOFDAY)
   {
-    static std::atomic<ulonglong> atomic_last_value{0};
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 0)
-      atomic_last_value =
-          (ulonglong)tv.tv_sec * 1000000 + (ulonglong)tv.tv_usec;
-    else {
+    ulonglong result;
+    if (gettimeofday(&tv, nullptr) == 0) {
+      result = (ulonglong)tv.tv_sec * 1000000 + (ulonglong)tv.tv_usec;
+    } else {
       /*
         There are reports that gettimeofday(2) can have intermittent failures
         on some platform, see for example Bug#36819.
         We are not trying again or looping, just returning the best value
         possible under the circumstances ...
+        Do not attempt to maintain a replacement counter using a global,
+        it creates even more issues with contention, just return 0.
       */
-      atomic_last_value++;
+      result = 0;
     }
-    return atomic_last_value;
+    return result;
   }
 #elif defined(_WIN32)
   {
@@ -291,21 +289,22 @@ ulonglong my_timer_microseconds(void) {
 ulonglong my_timer_milliseconds(void) {
 #if defined(HAVE_GETTIMEOFDAY)
   {
-    static ulonglong last_ms_value = 0;
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 0)
-      last_ms_value =
-          (ulonglong)tv.tv_sec * 1000 + (ulonglong)tv.tv_usec / 1000;
-    else {
+    ulonglong result;
+    if (gettimeofday(&tv, nullptr) == 0) {
+      result = (ulonglong)tv.tv_sec * 1000 + (ulonglong)tv.tv_usec / 1000;
+    } else {
       /*
         There are reports that gettimeofday(2) can have intermittent failures
         on some platform, see for example Bug#36819.
         We are not trying again or looping, just returning the best value
         possible under the circumstances ...
+        Do not attempt to maintain a replacement counter using a global,
+        it creates even more issues with contention, just return 0.
       */
-      last_ms_value++;
+      result = 0;
     }
-    return last_ms_value;
+    return result;
   }
 #elif defined(_WIN32)
   FILETIME ft;
@@ -485,10 +484,9 @@ void my_timer_init(MY_TIMER_INFO *mti) {
     (!defined(__64BIT__) && !defined(_ARCH_PPC64))
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_PPC;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
-    defined(_LP64) && !defined(__SunOS_5_7)
+    defined(_LP64)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
-    !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
     defined(_ILP32)

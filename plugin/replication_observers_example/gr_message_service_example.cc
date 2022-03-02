@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,7 @@ bool GR_message_service_send_example::register_example() {
       error = udf_register->udf_register(
           send_udf_name.c_str(), Item_result::STRING_RESULT,
           reinterpret_cast<Udf_func_any>(GR_message_service_send_example::udf),
-          GR_message_service_send_example::udf_init, NULL);
+          GR_message_service_send_example::udf_init, nullptr);
       if (error) {
         /* purecov: begin inspected */
         LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,

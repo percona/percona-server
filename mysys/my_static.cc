@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,9 @@
 
 #include "my_compiler.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysys/mysys_priv.h"  // IWYU pragma: keep
@@ -79,8 +79,8 @@ PSI_memory_key key_memory_win_handle_info;
 #endif /* _WIN32 */
 
 /* from my_init */
-char *home_dir = 0;
-const char *my_progname = 0;
+char *home_dir = nullptr;
+const char *my_progname = nullptr;
 char curr_dir[FN_REFLEN] = {0}, home_dir_buff[FN_REFLEN] = {0};
 
 ulong my_tmp_file_created = 0;
@@ -100,11 +100,11 @@ namespace file_info {
  */
 void CountFileOpen(OpenType pt, OpenType ct) {
   mysql_mutex_assert_owner(&THR_LOCK_open);
-  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
-  DBUG_ASSERT(pt == OpenType::UNOPEN || ct == OpenType::STREAM_BY_FDOPEN);
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
+  assert(pt == OpenType::UNOPEN || ct == OpenType::STREAM_BY_FDOPEN);
   switch (ct) {
     case OpenType::UNOPEN:
-      DBUG_ASSERT(false);
+      assert(false);
       return;
 
     case OpenType::STREAM_BY_FDOPEN:
@@ -113,11 +113,11 @@ void CountFileOpen(OpenType pt, OpenType ct) {
         // it in my_file_opened_. Since we will now increment
         // my_file_stream_opened_ for it, we decrement my_file_opened_
         // so that it is not counted twice.
-        DBUG_ASSERT(pt != OpenType::STREAM_BY_FOPEN &&
-                    pt != OpenType::STREAM_BY_FDOPEN);
+        assert(pt != OpenType::STREAM_BY_FOPEN &&
+               pt != OpenType::STREAM_BY_FDOPEN);
         --my_file_opened;
         ++my_stream_opened;
-        DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+        assert(my_file_opened + my_stream_opened == my_file_total_opened);
         return;
       }
       // Fallthrough
@@ -129,7 +129,7 @@ void CountFileOpen(OpenType pt, OpenType ct) {
       ++my_file_opened;
   }
   ++my_file_total_opened;
-  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
 }
 
 /**
@@ -140,7 +140,7 @@ void CountFileOpen(OpenType pt, OpenType ct) {
  */
 void CountFileClose(OpenType ft) {
   mysql_mutex_assert_owner(&THR_LOCK_open);
-  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
   switch (ft) {
     case OpenType::UNOPEN:
       return;
@@ -152,7 +152,7 @@ void CountFileClose(OpenType ft) {
       --my_file_opened;
   };
   --my_file_total_opened;
-  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+  assert(my_file_opened + my_stream_opened == my_file_total_opened);
 }
 }  // namespace file_info
 
@@ -162,14 +162,11 @@ int my_umask = 0664, my_umask_dir = 0777;
 ulong my_default_record_cache_size = RECORD_CACHE_SIZE;
 
 /* from my_malloc */
-USED_MEM *my_once_root_block = 0;     /* pointer to first block */
-uint my_once_extra = ONCE_ALLOC_INIT; /* Memory to alloc / block */
+USED_MEM *my_once_root_block = nullptr; /* pointer to first block */
+uint my_once_extra = ONCE_ALLOC_INIT;   /* Memory to alloc / block */
 
-/* from errors.c */
-void (*error_handler_hook)(uint error, const char *str,
-                           myf MyFlags) = my_message_stderr;
-void (*fatal_error_handler_hook)(uint error, const char *str,
-                                 myf MyFlags) = my_message_stderr;
+std::atomic<ErrorHandlerFunctionPointer> error_handler_hook{my_message_stderr};
+
 void (*local_message_hook)(enum loglevel ll, uint ecode,
                            va_list args) = my_message_local_stderr;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,6 @@
 */
 #define QUOTE_ARG(x) #x               /* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x) /* Quote argument, after cpp */
-
-#define MY_MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MY_MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define test_all_bits(a, b) (((a) & (b)) == (b))
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,10 +48,12 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2017 (aka 15.8) which has version nr 1910.
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1915)
+# We require at least Visual Studio 2019 Update 4 (aka 16.4),
+# which has version nr 1924.
+MESSAGE(STATUS "MSVC_VERSION is ${MSVC_VERSION}")
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1924)
   MESSAGE(FATAL_ERROR
-    "Visual Studio 2017 update 15.8 or newer is required!")
+    "Visual Studio 2019 Update 4 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -91,11 +93,18 @@ IF(WIN32_CLANG)
 ENDIF()
   
 OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
+OPTION(WIN_DEBUG_RTC "Enable RTC checks for debug builds on Windows" OFF)
 
 IF(MSVC)
   OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
   IF(WITH_ASAN AND WIN32_CLANG)
     SET(LINK_STATIC_RUNTIME_LIBRARIES ON)
+  ENDIF()
+
+  # Remove the /RTC1 debug compiler option that cmake includes by default for MSVC
+  # as its presence significantly slows MTR testing and rarely detects bugs.
+  IF (NOT WIN_DEBUG_RTC)
+    STRING(REPLACE "/RTC1"  "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
   ENDIF()
 
   # Enable debug info also in Release build,
@@ -153,11 +162,19 @@ IF(MSVC)
   ENDFOREACH()
 
   # Turn on c++14 mode explicitly so that using c++17 features is disabled.
+  # For clang 10 we must use C++17. See:
+  # https://developercommunity.visualstudio.com/content/problem/665343/
+  # vs2019-stl-with-clang-cl-and-stdc14-generates-dupl.html
   FOREACH(flag
-          CMAKE_CXX_FLAGS_MINSIZEREL
-          CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-          CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-    SET("${flag}" "${${flag}} /std:c++14")
+      CMAKE_CXX_FLAGS_MINSIZEREL
+      CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT
+      )
+    IF(WIN32_CLANG)
+      SET("${flag}" "${${flag}} /std:c++17")
+    ELSE()
+      SET("${flag}" "${${flag}} /std:c++14")
+    ENDIF()
   ENDFOREACH()
 
   FOREACH(type EXE SHARED MODULE)
@@ -188,9 +205,7 @@ IF(MSVC)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
 
   # Enable stricter standards conformance when using Visual Studio
-  IF(NOT WIN32_CLANG)
-    STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
-  ENDIF()
+  STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
 ENDIF()
 
 # Always link with socket library

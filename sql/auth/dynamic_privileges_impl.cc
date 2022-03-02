@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "m_string.h"
 #include "mysql/components/service.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/registry.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -49,14 +49,14 @@ class THD;
 */
 class Thd_creator {
  public:
-  Thd_creator(THD *thd) : m_thd(thd), m_tmp_thd(0) {}
+  Thd_creator(THD *thd) : m_thd(thd), m_tmp_thd(nullptr) {}
 
   /**
     Returns a THD handle either by creating a new one or by returning a
     previously created THD.
   */
   THD *operator()() {
-    if (m_thd == 0 && m_tmp_thd == 0) {
+    if (m_thd == nullptr && m_tmp_thd == nullptr) {
       /*
         Initiate a THD without plugins,
         without attaching to the Global_THD_manager, and without setting
@@ -64,7 +64,7 @@ class Thd_creator {
       */
       m_tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       return m_tmp_thd;
-    } else if (m_thd == 0) {
+    } else if (m_thd == nullptr) {
       return m_tmp_thd;
     }
     return m_thd;
@@ -74,7 +74,7 @@ class Thd_creator {
     Automatically frees any THD handle created by this class.
   */
   ~Thd_creator() {
-    if (m_thd == 0 && m_tmp_thd != 0) {
+    if (m_thd == nullptr && m_tmp_thd != nullptr) {
       destroy_thd(m_tmp_thd);
     }
   }
@@ -174,48 +174,57 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
 bool dynamic_privilege_init(void) {
   // Set up default dynamic privileges
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
-  bool ret = false;
+  int ret = false;
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
         "dynamic_privilege_register.mysql_server", r);
     if (service.is_valid()) {
-      ret |= service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
-      ret |=
+      ret +=
           service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
-      ret |= service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
+      ret += service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+      ret += service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("CLONE_ADMIN"));
-      ret |=
+      ret += service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
+      ret += service->register_privilege(STRING_WITH_LEN("CLONE_ADMIN"));
+      ret +=
           service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
-      ret |=
+      ret +=
           service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
-      ret |=
+      ret += service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
+      ret +=
           service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
+      ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
+      ret += service->register_privilege(
+          STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"));
+      ret +=
+          service->register_privilege(STRING_WITH_LEN("FLUSH_OPTIMIZER_COSTS"));
+      ret += service->register_privilege(STRING_WITH_LEN("FLUSH_STATUS"));
+      ret +=
+          service->register_privilege(STRING_WITH_LEN("FLUSH_USER_RESOURCES"));
+      ret += service->register_privilege(STRING_WITH_LEN("FLUSH_TABLES"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);
-  return ret;
+  return ret != 0;
 }

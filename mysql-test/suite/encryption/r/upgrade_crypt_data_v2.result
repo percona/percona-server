@@ -1,0 +1,46 @@
+# Stop DB server which was created by MTR default
+# Scenario 1st - system table half encrypted by encryption threads. Upgrade failure.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Scenario 2nd - Table encrypted with keyring encryption (ENCRYPTION='KEYRING'). Upgrade failure.
+# Table created with: CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION='KEYRING';
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Scenario 3rd - Table half encrypted by encryption threads. Upgrade failure.
+# Table created with: CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Scenario 4th - System tablespace fully encrypted by encryption threads. Upgrade failure.
+# Table created with: CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) in system tablespace;
+# Inserted 30000 rows with word foobar.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Positive scenario. The datadir was created in 8.0.19 with:
+# CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
+# CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION_KEY_ID = 4;
+# CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION='N';
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Start the 8.0.20 server on 8.0.19 datadir
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/data_8019_crypt_v2_decrypted/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+# tables_count - 2 tables should get encrypted, because temporary tablespace and t3 are not encrypted
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+1
+include/assert.inc [Table t1 should get encrypted]
+include/assert.inc [Table t2 should get encrypted]
+include/assert.inc [Table t3 should remain unencrypted]
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/data_8019_crypt_v2_decrypted/mysecret_keyring KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
+# Remove copied files
+# Restart the server with default options.
+# restart
+# Restart the server with default options.
+# restart

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,8 @@ void hp_clear_keys(HP_SHARE *info) {
     } else {
       HP_BLOCK *block = &keyinfo->block;
       if (block->levels)
-        (void)hp_free_level(block, block->levels, block->root, (uchar *)0);
+        (void)hp_free_level(block, block->levels, block->root,
+                            (uchar *)nullptr);
       block->levels = 0;
       block->last_allocated = 0;
       keyinfo->hash_buckets = 0;

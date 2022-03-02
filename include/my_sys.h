@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, Percona and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,20 +52,25 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <atomic>  // error_handler_hook
+
 #include "m_string.h" /* IWYU pragma: keep */
 #include "my_compiler.h"
 #include "my_compress.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h" /* IWYU pragma: keep */
+
 #include "my_sharedlib.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/my_io_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/stream_cipher.h"
 
 struct CHARSET_INFO;
@@ -87,6 +92,7 @@ struct PSI_system_bootstrap;
 struct PSI_table_bootstrap;
 struct PSI_thread_bootstrap;
 struct PSI_transaction_bootstrap;
+struct PSI_tls_channel_bootstrap;
 struct MEM_ROOT;
 
 #define MY_INIT(name)   \
@@ -218,9 +224,9 @@ extern uint my_get_large_page_size(void);
 
 extern char *home_dir;          /* Home directory for user */
 extern const char *my_progname; /* program-name (printed in errors) */
-extern void (*error_handler_hook)(uint my_err, const char *str, myf MyFlags);
-extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
-                                        myf MyFlags);
+
+using ErrorHandlerFunctionPointer = void (*)(uint, const char *, myf);
+extern std::atomic<ErrorHandlerFunctionPointer> error_handler_hook;
 extern void (*local_message_hook)(enum loglevel ll, uint ecode, va_list args);
 
 extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;
@@ -314,7 +320,7 @@ struct MY_TMPDIR {
 
 struct DYNAMIC_STRING {
   char *str;
-  size_t length, max_length, alloc_increment;
+  size_t length, max_length;
 };
 
 struct IO_CACHE;
@@ -456,6 +462,11 @@ struct IO_CACHE /* Used when cacheing files */
   Stream_cipher *m_encryptor = nullptr;
   // This is a decryptor for decrypting the temporary file of the IO cache.
   Stream_cipher *m_decryptor = nullptr;
+  // Synchronize flushed buffer with disk.
+  bool disk_sync{false};
+  // Delay in milliseconds after disk synchronization of the flushed buffer.
+  // Requires disk_sync = true.
+  uint disk_sync_delay{0};
 };
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -540,8 +551,6 @@ MY_NODISCARD
 inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
   return *info->current_end - *info->current_pos;
 }
-
-typedef uint32 ha_checksum;
 
 /*
   How much overhead does malloc have. The code often allocates
@@ -787,6 +796,11 @@ extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 
 enum UnlinkOrKeepFile { UNLINK_FILE, KEEP_FILE };
+#ifdef WIN32
+// Maximum temporary filename length is 3 chars for prefix + 16 chars for base
+// 32 encoded UUID (excluding MAC address)
+const size_t MY_MAX_TEMP_FILENAME_LEN = 19;
+#endif
 File create_temp_file(char *to, const char *dir, const char *pfx, int mode,
                       UnlinkOrKeepFile unlink_or_keep, myf MyFlags);
 
@@ -805,11 +819,13 @@ extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
 
 extern bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
-                                size_t init_alloc, size_t alloc_increment);
+                                size_t init_alloc);
 extern bool dynstr_append(DYNAMIC_STRING *str, const char *append);
 bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append, size_t length);
 extern bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append,
                                     ...);
+extern bool dynstr_append_quoted(DYNAMIC_STRING *str, const char *quote_str,
+                                 const uint quote_len, const char *append, ...);
 extern bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
@@ -825,7 +841,6 @@ extern bool my_uncompress(mysql_compress_context *, uchar *, size_t, size_t *);
 extern uchar *my_compress_alloc(mysql_compress_context *comp_ctx,
                                 const uchar *packet, size_t *len,
                                 size_t *complen);
-extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
 extern uint my_set_max_open_files(uint files);
 
@@ -977,6 +992,8 @@ extern MYSQL_PLUGIN_IMPORT PSI_thread_bootstrap *psi_thread_hook;
 extern void set_psi_thread_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_transaction_bootstrap *psi_transaction_hook;
 extern void set_psi_transaction_service(void *psi);
+extern MYSQL_PLUGIN_IMPORT PSI_tls_channel_bootstrap *psi_tls_channel_hook;
+extern void set_psi_tls_channel_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -984,7 +1001,7 @@ extern void set_psi_transaction_service(void *psi);
 */
 
 // True if the temporary file of binlog cache is encrypted.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern bool binlog_cache_temporary_file_is_encrypted;
 #endif
 
@@ -1034,17 +1051,7 @@ size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
                 MY_WME | MY_FAE | MY_NABP | MY_FNABP |
                 MY_DONT_CHECK_FILESIZE and so on
 
-   if (flags & (MY_NABP | MY_FNABP)) {
-     @retval 0 if count == 0
-     @retval 0 success
-     @retval MY_FILE_ERROR error
-   } else {
-     @retval 0 if count == 0
-     @retval The number of bytes written on success.
-     @retval MY_FILE_ERROR error
-     @retval The actual number of bytes written on partial success (if
-             less than count bytes were written).
-   }
+   @return The number of bytes written
 */
 size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
                                    size_t count, myf flags);

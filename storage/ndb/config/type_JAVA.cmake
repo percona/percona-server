@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(libutils)
-INCLUDE(cmake_parse_arguments)
 
-SET(JAVAC_TARGET "1.7")
+SET(JAVAC_TARGET "1.8")
 
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
@@ -52,17 +51,19 @@ Bundle-Name: ${NAME}
 Bundle-Description: ClusterJ")
 ENDMACRO(CREATE_MANIFEST)
 
-MACRO(CREATE_JAR)
+# CREATE_JAR(TARGET sources... options/keywords...)
 
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "CLASSPATH;MERGE_JARS;DEPENDENCIES;MANIFEST;ENHANCE;EXTRA_FILES;BROKEN_JAVAC"
+MACRO(CREATE_JAR TARGET_ARG)
+
+  CMAKE_PARSE_ARGUMENTS(ARG
     ""
+    "MANIFEST"
+    "BROKEN_JAVAC;CLASSPATH;MERGE_JARS;DEPENDENCIES;EXTRA_FILES"
     ${ARGN}
-  )
+    )
 
-  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
-  SET(JAVA_FILES ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT JAVA_FILES 0)
+  SET(TARGET ${TARGET_ARG})
+  SET(JAVA_FILES ${ARG_UNPARSED_ARGUMENTS})
 
   SET (BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/target")
   SET (CLASS_DIR "${BUILD_DIR}/classes")
@@ -103,6 +104,9 @@ MACRO(CREATE_JAR)
   ELSE()
     SET(JAVA_ARGS "-J-Xmx1G")
   ENDIF()
+
+  # Treat all deprecation warnings as errors
+  SET(JAVA_ARGS ${JAVA_ARGS} -Xlint:deprecation -Xlint:-options -Werror)
 
   # Compile
   IF (JAVA_FILES)

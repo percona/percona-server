@@ -2,7 +2,8 @@
 # on restart keyring is not available. Since the keyring is not available the redo log for writing
 # keyring encryption info to page 0 will report an error.
 
-# Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# Keys in validation_keyrings/std_data/keys2 and validation_keyrings/std_data/keys3 belong to the
+# server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
 # to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
 --let $uuid_file= auto.cnf
 --let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -79,14 +80,14 @@ let $cleanup= drop table t1,t2,t3,t4;
 --let SEARCH_FILE=$error_log
 --let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ###############
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=Key cannot be read for space id = 4
+--let SEARCH_PATTERN=Key cannot be read for space id = 6
 --source include/search_pattern_in_file.inc
 
 # In above server does start but InnoDB refuses to start
 # thus we need to restart server with correct keyring file
 
 --echo # Restart mysqld
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
 --source include/start_mysqld.inc
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,14 @@ IF(UNIX)
   SET(SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc"
     CACHE PATH "config directory (for my.cnf)")
   MARK_AS_ADVANCED(SYSCONFDIR)
+ENDIF()
+
+IF(LINUX AND INSTALL_LAYOUT MATCHES "STANDALONE")
+  SET(LINUX_STANDALONE 1)
+ENDIF()
+
+IF(LINUX AND INSTALL_LAYOUT MATCHES "RPM")
+  SET(LINUX_RPM 1)
 ENDIF()
 
 IF(WIN32)
@@ -346,40 +354,6 @@ ENDIF()
 
 # Install layout for router, follows the same pattern as above.
 #
-# Supported layouts here are STANDALONE, RPM, DEB, SVR4, TARGZ
-
-# Variables ROUTER_INSTALL_${X}DIR, where
-#  X = BIN, LIB and DOC is using
-# inheritance from correspondig server variable.
-# While, when
-#  X = CONFIG, DATA, LOG and RUNTIME
-# default value is set by install layouts below.
-# finally, when
-#  X = plugin
-# ROUTER_INSTALL_LIBDIR/mysqlrouter is used by default.
-
-# Relative to CMAKE_INSTALL_PREFIX or absolute
-IF("${ROUTER_INSTALL_BINDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_BINDIR "${INSTALL_BINDIR}")
-ENDIF()
-
-# If router libdir not set, use MySQL libdir (for libharness and libmysqlrouter)
-IF("${ROUTER_INSTALL_LIBDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_LIBDIR "${INSTALL_LIBDIR}")
-ENDIF()
-
-# If router plugindir not set, use $router_install_libdir[/mysqlrouter]
-IF("${ROUTER_INSTALL_PLUGINDIR}" STREQUAL "")
-  IF(WIN32)
-    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}")
-  ELSE()
-    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
-  ENDIF()
-ENDIF()
-
-IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_DOCDIR "${INSTALL_DOCDIR}")
-ENDIF()
 
 IF(NOT ROUTER_INSTALL_LAYOUT)
   SET(DEFAULT_ROUTER_INSTALL_LAYOUT "${INSTALL_LAYOUT}")
@@ -390,8 +364,7 @@ SET(ROUTER_INSTALL_LAYOUT "${DEFAULT_ROUTER_INSTALL_LAYOUT}"
   STRING
   "Installation directory layout. Options are: STANDALONE RPM DEB SVR4 TARGZ")
 
-# If are _pure_ STANDALONE we can write into data/ as it is all ours
-# if we are shared STANDALONE with the the server, we shouldn't write
+# If we are shared STANDALONE with the the server, we shouldn't write
 # into the server's data/ as that would create a "schemadir" in
 # mysql-servers sense
 #
@@ -401,6 +374,45 @@ SET(ROUTER_INSTALL_CONFIGDIR_STANDALONE  ".")
 SET(ROUTER_INSTALL_DATADIR_STANDALONE    "var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_STANDALONE     ".")
 SET(ROUTER_INSTALL_RUNTIMEDIR_STANDALONE "run")
+
+SET(ROUTER_INSTALL_BINDIR_STANDALONE      "bin")
+IF(LINUX)
+  SET(ROUTER_INSTALL_LIBDIR_STANDALONE    "lib/mysqlrouter/private")
+ELSE()
+  SET(ROUTER_INSTALL_LIBDIR_STANDALONE    "lib")
+ENDIF()
+IF(WIN32)
+  SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib")
+ELSE()
+  SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib/mysqlrouter")
+ENDIF()
+SET(ROUTER_INSTALL_LOGROTATEDIR_STANDALONE  ".")
+SET(ROUTER_INSTALL_LOGROTATEFILE_STANDALONE "mysqlrouter-log-rotate")
+SET(ROUTER_INSTALL_DOCDIR_STANDALONE "docs")
+
+#
+# TARGZ layout
+#
+FOREACH(var
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    LOGROTATE
+    DOC
+    )
+  SET(ROUTER_INSTALL_${var}DIR_TARGZ ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
+
+FOREACH(var
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${var}FILE_TARGZ ${ROUTER_INSTALL_${var}FILE_STANDALONE})
+ENDFOREACH()
+
 #
 # RPM layout
 #
@@ -412,16 +424,59 @@ IF (LINUX_FEDORA)
 ELSE()
   SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/var/run/mysqlrouter")
 ENDIF()
+
+SET(ROUTER_INSTALL_BINDIR_RPM     "bin")
+IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
+  SET(ROUTER_INSTALL_LIBDIR_RPM     "lib64/mysqlrouter/private")
+  SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib64/mysqlrouter")
+ELSE()
+  SET(ROUTER_INSTALL_LIBDIR_RPM     "lib/mysqlrouter/private")
+  SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib/mysqlrouter")
+ENDIF()
+SET(ROUTER_INSTALL_LOGROTATEDIR_RPM  "/etc/logrotate.d")
+SET(ROUTER_INSTALL_LOGROTATEFILE_RPM "mysqlrouter")
+#SET(ROUTER_INSTALL_DOCDIR_RPM       unset - installed directly by RPM)
+
 #
 # DEB layout
 #
 SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
-SET(ROUTER_INSTALL_DATADIR_DEB    "/var/run/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_DEB    "/var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
-SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/run/mysqlrouter")
 
-# Set ROUTER_INSTALL_FOODIR variables for chosen layout for example,
-# ROUTER_INSTALL_CONFIGDIR will be defined as
+SET(ROUTER_INSTALL_BINDIR_DEB     "bin")
+SET(ROUTER_INSTALL_LIBDIR_DEB     "lib/mysqlrouter/private")
+SET(ROUTER_INSTALL_PLUGINDIR_DEB  "lib/mysqlrouter/plugin")
+SET(ROUTER_INSTALL_LOGROTATEDIR_DEB  "/etc/logrotate.d")
+SET(ROUTER_INSTALL_LOGROTATEFILE_DEB "mysqlrouter")
+SET(ROUTER_INSTALL_DOCDIR_DEB "share/mysqlrouter/docs")
+
+#
+# SVR4 layout
+#
+FOREACH(var
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    LOGROTATE
+    DOC
+    )
+  SET(ROUTER_INSTALL_${var}DIR_SVR4 ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
+
+FOREACH(var
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${var}FILE_SVR4 ${ROUTER_INSTALL_${var}FILE_STANDALONE})
+ENDFOREACH()
+
+# Set ROUTER_INSTALL_FOODIR and ROUTER_INSTALL_FOOFILE variables for chosen layout
+# for example, ROUTER_INSTALL_CONFIGDIR will be defined as
 # ${ROUTER_INSTALL_CONFIGDIR_STANDALONE} by default if STANDALONE
 # layout is chosen.
 FOREACH(directory
@@ -429,9 +484,23 @@ FOREACH(directory
     DATA
     LOG
     RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    LOGROTATE
+    DOC
     )
   SET(ROUTER_INSTALL_${directory}DIR
     ${ROUTER_INSTALL_${directory}DIR_${ROUTER_INSTALL_LAYOUT}}
     CACHE STRING "Router ${directory} installation directory")
   MARK_AS_ADVANCED(ROUTER_INSTALL_${directory}DIR)
+ENDFOREACH()
+
+FOREACH(file
+    LOGROTATE
+    )
+  SET(ROUTER_INSTALL_${file}FILE
+    ${ROUTER_INSTALL_${file}FILE_${ROUTER_INSTALL_LAYOUT}}
+    CACHE STRING "Router ${file} installation filename")
+  MARK_AS_ADVANCED(ROUTER_INSTALL_${file}FILE)
 ENDFOREACH()

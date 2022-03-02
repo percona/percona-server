@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,34 +47,40 @@ typedef byte dict_hdr_t;
 /** Gets a pointer to the dictionary header and x-latches its page.
  @return pointer to the dictionary header, page x-latched */
 dict_hdr_t *dict_hdr_get(mtr_t *mtr); /*!< in: mtr */
-/** Returns a new table, index, or space id. */
-void dict_hdr_get_new_id(table_id_t *table_id,      /*!< out: table id
-                                                    (not assigned if NULL) */
-                         space_index_t *index_id,   /*!< out: index id
-                                                    (not assigned if NULL) */
-                         space_id_t *space_id,      /*!< out: space id
-                                                    (not assigned if NULL) */
-                         const dict_table_t *table, /*!< in: table */
-                         bool disable_redo);        /*!< in: if true and table
-                                                    object is NULL
-                                                    then disable-redo */
+
+/** Returns a new table, index, or space id.
+@param[out] table_id Table id (not assigned if null)
+@param[out] index_id Index id (not assigned if null)
+@param[out] space_id Space id (not assigned if null)
+@param[in] table Table
+@param[in] disable_redo If true and table object is null then disable-redo */
+void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
+                         space_id_t *space_id, const dict_table_t *table,
+                         bool disable_redo);
+
 /** Writes the current value of the row id counter to the dictionary header file
  page. */
 void dict_hdr_flush_row_id(void);
+#ifndef UNIV_HOTBACKUP
 /** Returns a new row id.
  @return the new id */
-UNIV_INLINE
-row_id_t dict_sys_get_new_row_id(void);
+static inline row_id_t dict_sys_get_new_row_id(void);
 /** Reads a row id from a record or other 6-byte stored form.
  @return row id */
-UNIV_INLINE
-row_id_t dict_sys_read_row_id(const byte *field); /*!< in: record field */
+static inline row_id_t dict_sys_read_row_id(
+    const byte *field); /*!< in: record field */
 
 /** Writes a row id to a record or other 6-byte stored form.
 @param[in]	field	record field
 @param[in]	row_id	row id */
-UNIV_INLINE
-void dict_sys_write_row_id(byte *field, row_id_t row_id);
+static inline void dict_sys_write_row_id(byte *field, row_id_t row_id);
+
+/** Check if a table id belongs to old innodb internal system table.
+@param[in]	id		table id
+@return true if the table id belongs to a system table. */
+static inline bool dict_is_old_sys_table(table_id_t id)
+    MY_ATTRIBUTE((warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 
 /** Initializes the data dictionary memory structures when the database is
  started. This function is also called when the data dictionary is created.
@@ -84,12 +90,6 @@ dberr_t dict_boot(void) MY_ATTRIBUTE((warn_unused_result));
 /** Creates and initializes the data dictionary at the server bootstrap.
  @return DB_SUCCESS or error code. */
 dberr_t dict_create(void) MY_ATTRIBUTE((warn_unused_result));
-
-/** Check if a table id belongs to old innodb internal system table.
-@param[in]	id		table id
-@return true if the table id belongs to a system table. */
-UNIV_INLINE
-bool dict_is_old_sys_table(table_id_t id) MY_ATTRIBUTE((warn_unused_result));
 
 /* Space id and page no where the dictionary header resides */
 #define DICT_HDR_SPACE 0 /* the SYSTEM tablespace */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@
 #include <atomic>
 #include <utility>
 
+#include <mysql/components/minimal_chassis.h>
+#include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
@@ -69,6 +71,7 @@
 #include "sql_connect.h"
 
 class Rpl_global_filter;
+class Source_IO_monitor;
 class THD;
 class Time_zone;
 struct MEM_ROOT;
@@ -111,6 +114,8 @@ typedef Bitmap<((MAX_INDEXES + 7) / 8 * 8)> Key_map; /* Used for finding keys */
 #define SPECIAL_NO_HOST_CACHE 512 /* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
+extern bool dynamic_plugins_are_initialized;
+
 /* Function prototypes */
 
 /**
@@ -150,7 +155,7 @@ enum_server_operational_state get_server_state();
 
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
-extern bool opt_log_slave_updates;
+extern bool opt_log_replica_updates;
 extern bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern ulonglong slow_query_log_always_write_time;
@@ -170,9 +175,10 @@ extern long opt_upgrade_mode;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
-extern bool opt_slave_compressed_protocol;
-extern ulong slave_exec_mode_options;
+extern bool opt_replica_compressed_protocol;
+extern ulong replica_exec_mode_options;
 extern Rpl_global_filter rpl_global_filter;
+extern Source_IO_monitor *rpl_source_io_monitor;
 extern int32_t opt_regexp_time_limit;
 extern int32_t opt_regexp_stack_limit;
 #ifdef _WIN32
@@ -181,13 +187,13 @@ extern bool opt_no_monitor;
 extern bool opt_debugging;
 extern bool opt_validate_config;
 
-enum enum_slave_type_conversions {
-  SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-  SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
-  SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
-  SLAVE_TYPE_CONVERSIONS_ALL_SIGNED
+enum enum_replica_type_conversions {
+  REPLICA_TYPE_CONVERSIONS_ALL_LOSSY,
+  REPLICA_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+  REPLICA_TYPE_CONVERSIONS_ALL_UNSIGNED,
+  REPLICA_TYPE_CONVERSIONS_ALL_SIGNED
 };
-extern ulonglong slave_type_conversions_options;
+extern ulonglong replica_type_conversions_options;
 
 extern bool read_only, opt_readonly;
 extern bool super_read_only, opt_super_readonly;
@@ -201,10 +207,10 @@ enum enum_slave_rows_search_algorithms {
 extern ulonglong slave_rows_search_algorithms_options;
 extern bool opt_require_secure_transport;
 
-extern bool opt_slave_preserve_commit_order;
+extern bool opt_replica_preserve_commit_order;
 
-#ifndef DBUG_OFF
-extern uint slave_rows_last_search_algorithm_used;
+#ifndef NDEBUG
+extern uint replica_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
 #ifdef _WIN32
@@ -215,13 +221,12 @@ extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
-extern bool opt_log_slow_slave_statements;
+extern bool opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
     sha256_password_proxy_users;
 extern bool opt_userstat, opt_thread_statistics;
-extern bool opt_log_slow_slave_statements;
 extern ulonglong opt_slow_query_log_use_global_control;
 extern ulong opt_slow_query_log_rate_type;
 #ifdef _WIN32
@@ -233,16 +238,19 @@ extern Time_zone *default_tz;
 extern const char *default_storage_engine;
 extern const char *default_tmp_storage_engine;
 extern ulonglong temptable_max_ram;
+extern ulonglong temptable_max_mmap;
 extern bool temptable_use_mmap;
 extern bool using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
 extern ulong expire_logs_days;
+extern ulong max_slowlog_size;
+extern ulong max_slowlog_files;
 extern ulong binlog_expire_logs_seconds;
 extern ulonglong binlog_space_limit;
 extern uint sync_binlog_period, sync_relaylog_period, sync_relayloginfo_period,
-    sync_masterinfo_period, opt_mts_checkpoint_period, opt_mts_checkpoint_group;
+    sync_masterinfo_period, opt_mta_checkpoint_period, opt_mta_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern bool relay_log_purge;
@@ -284,7 +292,8 @@ extern char *my_admin_bind_addr_str;
 extern uint mysqld_admin_port;
 extern bool listen_admin_interface_in_separate_thread;
 extern char glob_hostname[HOSTNAME_LENGTH + 1];
-extern char system_time_zone[30], *opt_init_file;
+extern char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
+extern char *opt_init_file;
 extern char *my_proxy_protocol_networks;
 extern const char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH + 1];
@@ -295,7 +304,7 @@ extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
-extern std::atomic<int32> atomic_slave_open_temp_tables;
+extern std::atomic<int32> atomic_replica_open_temp_tables;
 extern ulong slow_launch_time;
 extern ulong table_cache_size;
 extern ulong schema_def_size;
@@ -305,12 +314,12 @@ extern ulong tablespace_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
-extern bool opt_slave_allow_batching;
+extern bool opt_replica_allow_batching;
 extern ulong slave_trans_retries;
-extern uint slave_net_timeout;
-extern ulong opt_mts_slave_parallel_workers;
+extern uint replica_net_timeout;
+extern ulong opt_mts_replica_parallel_workers;
 extern ulonglong opt_mts_pending_jobs_size_max;
-extern ulong rpl_stop_slave_timeout;
+extern ulong rpl_stop_replica_timeout;
 extern bool log_bin_use_v1_row_events;
 extern ulong what_to_log, flush_time;
 extern ulonglong denied_connections;
@@ -324,13 +333,14 @@ extern int32 opt_binlog_max_flush_queue_time;
 extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
-extern ulong slave_max_allowed_packet;
+extern ulong replica_max_allowed_packet;
 extern ulong binlog_row_event_max_size;
+extern ulong net_buffer_shrink_interval;
 extern ulong binlog_checksum_options;
 extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
-extern bool opt_master_verify_checksum;
-extern bool opt_slave_sql_verify_checksum;
+extern bool opt_source_verify_checksum;
+extern bool opt_replica_sql_verify_checksum;
 extern uint32 gtid_executed_compression_period;
 extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
@@ -384,7 +394,7 @@ extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
 extern bool old_mode;
 extern bool avoid_temporal_upgrade;
-extern LEX_STRING opt_init_connect, opt_init_slave;
+extern LEX_STRING opt_init_connect, opt_init_replica;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_suppression_list;
@@ -400,6 +410,7 @@ extern char *utility_user;
 extern char *utility_user_password;
 extern char *utility_user_schema_access;
 extern ulonglong utility_user_privileges;
+extern char *utility_user_dynamic_privileges;
 
 extern bool persisted_globals_load;
 extern bool opt_keyring_operations;
@@ -435,12 +446,12 @@ extern PSI_mutex_key key_LOCK_thd_data;
 extern PSI_mutex_key key_LOCK_thd_sysvar;
 extern PSI_mutex_key key_LOCK_thd_protocol;
 extern PSI_mutex_key key_LOG_LOCK_log;
-extern PSI_mutex_key key_master_info_data_lock;
-extern PSI_mutex_key key_master_info_run_lock;
-extern PSI_mutex_key key_master_info_sleep_lock;
-extern PSI_mutex_key key_master_info_thd_lock;
-extern PSI_mutex_key key_master_info_rotate_lock;
-extern PSI_mutex_key key_mutex_slave_reporting_capability_err_lock;
+extern PSI_mutex_key key_source_info_data_lock;
+extern PSI_mutex_key key_source_info_run_lock;
+extern PSI_mutex_key key_source_info_sleep_lock;
+extern PSI_mutex_key key_source_info_thd_lock;
+extern PSI_mutex_key key_source_info_rotate_lock;
+extern PSI_mutex_key key_mutex_replica_reporting_capability_err_lock;
 extern PSI_mutex_key key_relay_log_info_data_lock;
 extern PSI_mutex_key key_relay_log_info_sleep_lock;
 extern PSI_mutex_key key_relay_log_info_thd_lock;
@@ -460,26 +471,24 @@ extern PSI_mutex_key key_LOCK_global_user_client_stats;
 extern PSI_mutex_key key_LOCK_global_table_stats;
 extern PSI_mutex_key key_LOCK_global_index_stats;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
-extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
-extern PSI_mutex_key key_RELAYLOG_LOCK_done;
-extern PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
-extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
-extern PSI_mutex_key key_mts_temp_table_LOCK;
-extern PSI_mutex_key key_mts_gaq_LOCK;
+extern PSI_mutex_key key_mta_temp_table_LOCK;
+extern PSI_mutex_key key_mta_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
+extern PSI_mutex_key key_monitor_info_run_lock;
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
-extern PSI_mutex_key key_mutex_slave_worker_hash;
+extern PSI_mutex_key key_mutex_replica_worker_hash;
 
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
 extern PSI_rwlock_key key_rwlock_channel_lock;
+extern PSI_rwlock_key key_rwlock_gtid_mode_lock;
 extern PSI_rwlock_key key_rwlock_receiver_sid_lock;
 extern PSI_rwlock_key key_rwlock_rpl_filter_lock;
 extern PSI_rwlock_key key_rwlock_channel_to_filter_lock;
@@ -491,11 +500,11 @@ extern PSI_cond_key key_COND_active;
 extern PSI_cond_key key_COND_pool;
 extern PSI_cond_key key_COND_cache_status_changed;
 extern PSI_cond_key key_item_func_sleep_cond;
-extern PSI_cond_key key_master_info_data_cond;
-extern PSI_cond_key key_master_info_start_cond;
-extern PSI_cond_key key_master_info_stop_cond;
-extern PSI_cond_key key_master_info_sleep_cond;
-extern PSI_cond_key key_master_info_rotate_cond;
+extern PSI_cond_key key_source_info_data_cond;
+extern PSI_cond_key key_source_info_start_cond;
+extern PSI_cond_key key_source_info_stop_cond;
+extern PSI_cond_key key_source_info_sleep_cond;
+extern PSI_cond_key key_source_info_rotate_cond;
 extern PSI_cond_key key_relay_log_info_data_cond;
 extern PSI_cond_key key_relay_log_info_log_space_cond;
 extern PSI_cond_key key_relay_log_info_start_cond;
@@ -503,10 +512,8 @@ extern PSI_cond_key key_relay_log_info_stop_cond;
 extern PSI_cond_key key_relay_log_info_sleep_cond;
 extern PSI_cond_key key_cond_slave_parallel_pend_jobs;
 extern PSI_cond_key key_cond_slave_parallel_worker;
-extern PSI_cond_key key_cond_mts_gaq;
-extern PSI_cond_key key_RELAYLOG_COND_done;
+extern PSI_cond_key key_cond_mta_gaq;
 extern PSI_cond_key key_RELAYLOG_update_cond;
-extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
 extern PSI_cond_key key_cond_slave_worker_hash;
@@ -517,6 +524,7 @@ extern PSI_thread_key key_thread_one_connection;
 extern PSI_thread_key key_thread_compress_gtid_table;
 extern PSI_thread_key key_thread_parser_service;
 extern PSI_thread_key key_thread_handle_con_admin_sockets;
+extern PSI_cond_key key_monitor_info_run_cond;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
@@ -557,13 +565,13 @@ extern PSI_stage_info stage_after_create;
 extern PSI_stage_info stage_alter_inplace_prepare;
 extern PSI_stage_info stage_alter_inplace;
 extern PSI_stage_info stage_alter_inplace_commit;
-extern PSI_stage_info stage_changing_master;
-extern PSI_stage_info stage_checking_master_version;
+extern PSI_stage_info stage_changing_source;
+extern PSI_stage_info stage_checking_source_version;
 extern PSI_stage_info stage_checking_permissions;
 extern PSI_stage_info stage_cleaning_up;
 extern PSI_stage_info stage_closing_tables;
 extern PSI_stage_info stage_compressing_gtid_table;
-extern PSI_stage_info stage_connecting_to_master;
+extern PSI_stage_info stage_connecting_to_source;
 extern PSI_stage_info stage_converting_heap_to_ondisk;
 extern PSI_stage_info stage_copy_to_tmp_table;
 extern PSI_stage_info stage_creating_table;
@@ -577,38 +585,49 @@ extern PSI_stage_info stage_execution_of_init_command;
 extern PSI_stage_info stage_explaining;
 extern PSI_stage_info
     stage_finished_reading_one_binlog_switching_to_next_binlog;
-extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
+extern PSI_stage_info stage_flushing_relay_log_and_source_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
 extern PSI_stage_info stage_freeing_items;
 extern PSI_stage_info stage_fulltext_initialization;
 extern PSI_stage_info stage_init;
-extern PSI_stage_info stage_killing_slave;
+extern PSI_stage_info stage_killing_replica;
 extern PSI_stage_info stage_logging_slow_query;
 extern PSI_stage_info stage_making_temp_file_append_before_load_data;
 extern PSI_stage_info stage_manage_keys;
-extern PSI_stage_info stage_master_has_sent_all_binlog_to_slave;
+extern PSI_stage_info stage_source_has_sent_all_binlog_to_replica;
 extern PSI_stage_info stage_opening_tables;
 extern PSI_stage_info stage_optimizing;
 extern PSI_stage_info stage_preparing;
 extern PSI_stage_info stage_purging_old_relay_logs;
 extern PSI_stage_info stage_query_end;
-extern PSI_stage_info stage_queueing_master_event_to_the_relay_log;
+extern PSI_stage_info stage_queueing_source_event_to_the_relay_log;
 extern PSI_stage_info stage_reading_event_from_the_relay_log;
-extern PSI_stage_info stage_registering_slave_on_master;
+extern PSI_stage_info stage_registering_replica_on_source;
 extern PSI_stage_info stage_removing_tmp_table;
 extern PSI_stage_info stage_rename;
 extern PSI_stage_info stage_rename_result_table;
 extern PSI_stage_info stage_requesting_binlog_dump;
 extern PSI_stage_info stage_searching_rows_for_update;
-extern PSI_stage_info stage_sending_binlog_event_to_slave;
+extern PSI_stage_info stage_sending_binlog_event_to_replica;
 extern PSI_stage_info stage_setup;
-extern PSI_stage_info stage_slave_has_read_all_relay_log;
-extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
-extern PSI_stage_info stage_slave_waiting_for_workers_to_process_queue;
-extern PSI_stage_info stage_slave_waiting_worker_queue;
-extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
-extern PSI_stage_info stage_slave_waiting_worker_to_release_partition;
-extern PSI_stage_info stage_slave_waiting_workers_to_exit;
+extern PSI_stage_info stage_replica_has_read_all_relay_log;
+extern PSI_stage_info
+    stage_replica_reconnecting_after_failed_binlog_dump_request;
+extern PSI_stage_info stage_replica_reconnecting_after_failed_event_read;
+extern PSI_stage_info
+    stage_replica_reconnecting_after_failed_registration_on_source;
+extern PSI_stage_info stage_replica_waiting_event_from_coordinator;
+extern PSI_stage_info stage_replica_waiting_for_workers_to_process_queue;
+extern PSI_stage_info
+    stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request;
+extern PSI_stage_info
+    stage_replica_waiting_to_reconnect_after_failed_event_read;
+extern PSI_stage_info
+    stage_replica_waiting_to_reconnect_after_failed_registration_on_source;
+extern PSI_stage_info stage_replica_waiting_worker_queue;
+extern PSI_stage_info stage_replica_waiting_worker_to_free_events;
+extern PSI_stage_info stage_replica_waiting_worker_to_release_partition;
+extern PSI_stage_info stage_replica_waiting_workers_to_exit;
 extern PSI_stage_info stage_rpl_apply_row_evt_write;
 extern PSI_stage_info stage_rpl_apply_row_evt_update;
 extern PSI_stage_info stage_rpl_apply_row_evt_delete;
@@ -623,14 +642,14 @@ extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_gtid_to_be_committed;
 extern PSI_stage_info stage_waiting_for_handler_commit;
-extern PSI_stage_info stage_waiting_for_master_to_send_event;
-extern PSI_stage_info stage_waiting_for_master_update;
+extern PSI_stage_info stage_waiting_for_source_to_send_event;
+extern PSI_stage_info stage_waiting_for_source_update;
 extern PSI_stage_info stage_waiting_for_relay_log_space;
-extern PSI_stage_info stage_waiting_for_slave_mutex_on_exit;
-extern PSI_stage_info stage_waiting_for_slave_thread_to_start;
+extern PSI_stage_info stage_waiting_for_replica_mutex_on_exit;
+extern PSI_stage_info stage_waiting_for_replica_thread_to_start;
 extern PSI_stage_info stage_waiting_for_table_flush;
 extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
-extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
+extern PSI_stage_info stage_waiting_for_the_replica_thread_to_advance_position;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
 extern PSI_stage_info stage_worker_waiting_for_commit_parent;
@@ -638,6 +657,11 @@ extern PSI_stage_info stage_suspending;
 extern PSI_stage_info stage_starting;
 extern PSI_stage_info stage_waiting_for_no_channel_reference;
 extern PSI_stage_info stage_hook_begin_trans;
+extern PSI_stage_info stage_binlog_transaction_compress;
+extern PSI_stage_info stage_binlog_transaction_decompress;
+extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
+extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
+extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
 extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
@@ -658,9 +682,7 @@ extern PSI_statement_info com_statement_info[(uint)COM_END + 1];
 extern PSI_statement_info stmt_info_rpl;
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
-#ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd *ssl_acceptor_fd;
-#endif /* HAVE_OPENSSL */
 
 extern bool opt_large_pages;
 extern uint opt_large_page_size;
@@ -701,10 +723,11 @@ extern mysql_mutex_t LOCK_global_system_variables;
 extern mysql_mutex_t LOCK_user_conn;
 extern mysql_mutex_t LOCK_log_throttle_qni;
 extern mysql_mutex_t LOCK_prepared_stmt_count;
+extern mysql_mutex_t LOCK_replica_list;
 extern mysql_mutex_t LOCK_error_messages;
-extern mysql_mutex_t LOCK_sql_slave_skip_counter;
-extern mysql_mutex_t LOCK_slave_net_timeout;
-extern mysql_mutex_t LOCK_slave_trans_dep_tracker;
+extern mysql_mutex_t LOCK_sql_replica_skip_counter;
+extern mysql_mutex_t LOCK_replica_net_timeout;
+extern mysql_mutex_t LOCK_replica_trans_dep_tracker;
 extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_password_history;
 extern mysql_mutex_t LOCK_password_reuse_interval;
@@ -718,14 +741,16 @@ extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_mutex_t LOCK_keyring_operations;
 extern mysql_mutex_t LOCK_collect_instance_log;
 extern mysql_mutex_t LOCK_tls_ctx_options;
+extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
+extern mysql_mutex_t LOCK_partial_revokes;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
 extern mysql_cond_t COND_manager;
 
 extern mysql_rwlock_t LOCK_sys_init_connect;
-extern mysql_rwlock_t LOCK_sys_init_slave;
+extern mysql_rwlock_t LOCK_sys_init_replica;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_rwlock_t LOCK_consistent_snapshot;
 
@@ -815,6 +840,8 @@ bool mysqld_partial_revokes();
 */
 void set_mysqld_partial_revokes(bool value);
 
+bool check_and_update_partial_revokes_sysvar(THD *thd);
+
 #ifdef _WIN32
 
 bool is_windows_service();
@@ -826,4 +853,22 @@ bool update_named_pipe_full_access_group(const char *new_group_name);
 extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;
 extern bool opt_always_activate_granted_roles;
+
+/* coredumper */
+extern bool opt_libcoredumper;
+extern char *opt_libcoredumper_path;
+bool validate_libcoredumper_path(char *opt_libcoredumper_path);
+
+extern mysql_component_t mysql_component_mysql_server;
+extern mysql_component_t mysql_component_performance_schema;
+/* This variable is a registry handler, defined in mysql_server component and
+   used as a output parameter for minimal chassis. */
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+/* These global variables which are defined and used in
+   mysql_server component */
+extern SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
+extern SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
+
+class Deployed_components;
+extern Deployed_components *g_deployed_components;
 #endif /* MYSQLD_INCLUDED */

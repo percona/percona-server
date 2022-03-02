@@ -1,3 +1,144 @@
 SELECT @@global.innodb_default_encryption_key_id;
 @@global.innodb_default_encryption_key_id
 0
+# restart:--early-plugin-load=keyring_file=keyring_file.so --keyring_file_data=MYSQL_TMP_DIR/keyring/keyring --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=4294967295 --log-error=MYSQL_TMP_DIR/my_restart.err
+# restart:--early-plugin-load=keyring_file=keyring_file.so --keyring_file_data=MYSQL_TMP_DIR/keyring/keyring --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=-1 --log-error=MYSQL_TMP_DIR/my_restart.err
+SET innodb_default_encryption_key_id=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_key_id value: '4294967295'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+4294967294
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET global innodb_default_encryption_key_id=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_key_id value: '4294967295'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+4294967294
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+4294967294
+SET persist innodb_default_encryption_key_id=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_key_id value: '4294967295'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+4294967294
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+4294967294
+SET persist_only innodb_default_encryption_key_id=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_default_encryption_key_id value: '4294967295'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+4294967294
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+4294967294
+SET innodb_default_encryption_key_id=-1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_key_id value: '-1'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+0
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+4294967294
+SET global innodb_default_encryption_key_id=-1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_key_id value: '-1'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+0
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET persist innodb_default_encryption_key_id=-1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_encryption_key_id value: '-1'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+0
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET persist_only innodb_default_encryption_key_id=-1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_default_encryption_key_id value: '-1'
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+0
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+0
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET global innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+0
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET innodb_default_encryption_key_id=1;
+SET global innodb_default_encryption_key_id=1;
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+1
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+1
+SET persist innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+1
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+0
+SET innodb_default_encryption_key_id=1;
+SET global innodb_default_encryption_key_id=1;
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+1
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+1
+SET persist_only innodb_default_encryption_key_id=0;
+SELECT @@session.innodb_default_encryption_key_id;
+@@session.innodb_default_encryption_key_id
+1
+SELECT @@global.innodb_default_encryption_key_id;
+@@global.innodb_default_encryption_key_id
+1
+CREATE TABLE t_exceeded_id (a varchar(255)) ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: The requested value 4294967295 for the encryption_key_id exceeds the maximum allowed 4294967294
+CREATE TABLE t_below_0 (a varchar(255)) ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLE t_MAX (a varchar(255)) ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLE t_MIN (a varchar(255)) ENCRYPTION_KEY_ID=0;
+ALTER TABLE t_MAX ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: The requested value 4294967295 for the encryption_key_id exceeds the maximum allowed 4294967294
+ALTER TABLE t_MIN ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLESPACE ts_exceeded_id ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: The requested value 4294967295 for the encryption_key_id exceeds the maximum allowed 4294967294
+CREATE TABLESPACE ts_below_0 ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+CREATE TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967294;
+CREATE TABLESPACE ts_MIN ENCRYPTION_KEY_ID=0;
+ALTER TABLESPACE ts_MAX ENCRYPTION_KEY_ID=4294967295;
+ERROR HY000: The requested value 4294967295 for the encryption_key_id exceeds the maximum allowed 4294967294
+ALTER TABLESPACE ts_MIN ENCRYPTION_KEY_ID=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+DROP TABLE t_MAX,t_MIN;
+DROP TABLESPACE ts_MAX;
+DROP TABLESPACE ts_MIN;

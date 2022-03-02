@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,31 +22,58 @@
 
 #include "sql/hash_join_chunk.h"
 
-#include <cstring>
+#include <stddef.h>
+#include <new>
+#include <utility>
 
-#include "my_base.h"
-#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
-#include "scope_guard.h"
+#include "mysqld_error.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/mysqld.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
+#include "sql_string.h"
+#include "template_utils.h"
+
+using pack_rows::TableCollection;
 
 HashJoinChunk::HashJoinChunk(HashJoinChunk &&other)
     : m_tables(std::move(other.m_tables)),
       m_num_rows(other.m_num_rows),
-      m_file(other.m_file) {
+      m_file(other.m_file),
+      m_uses_match_flags(other.m_uses_match_flags) {
+  setup_io_cache(&m_file);
   // Reset the IO_CACHE structure so that the destructor doesn't close/clear the
   // file contents and it's buffers.
   new (&other.m_file) IO_CACHE();
 }
 
+HashJoinChunk &HashJoinChunk::operator=(HashJoinChunk &&other) {
+  m_tables = std::move(other.m_tables);
+  m_num_rows = other.m_num_rows;
+  m_uses_match_flags = other.m_uses_match_flags;
+
+  // Since the file we are replacing will become unreachable, free all resources
+  // used by it.
+  close_cached_file(&m_file);
+  m_file = other.m_file;
+  setup_io_cache(&m_file);
+
+  // Reset the IO_CACHE structure so that the destructor doesn't close/clear the
+  // file contents and it's buffers.
+  new (&other.m_file) IO_CACHE();
+  return *this;
+}
+
 HashJoinChunk::~HashJoinChunk() { close_cached_file(&m_file); }
 
-bool HashJoinChunk::Init(const hash_join_buffer::TableCollection &tables) {
+bool HashJoinChunk::Init(const TableCollection &tables, bool uses_match_flags) {
   m_tables = tables;
   m_file.file_key = key_file_hash_join;
+  m_num_rows = 0;
+  m_uses_match_flags = uses_match_flags;
+  close_cached_file(&m_file);
   return open_cached_file(&m_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                           MYF(MY_WME));
 }
@@ -61,11 +88,19 @@ bool HashJoinChunk::Rewind() {
   return false;
 }
 
-bool HashJoinChunk::WriteRowToChunk(String *buffer) {
-  if (hash_join_buffer::StoreFromTableBuffers(m_tables, buffer)) {
+bool HashJoinChunk::WriteRowToChunk(String *buffer, bool matched) {
+  if (StoreFromTableBuffers(m_tables, buffer)) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              ComputeRowSizeUpperBound(m_tables));
     return true;
+  }
+
+  if (m_uses_match_flags) {
+    if (my_b_write(&m_file, pointer_cast<const uchar *>(&matched),
+                   sizeof(matched)) != 0) {
+      my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+      return true;
+    }
   }
 
   // Write out the length of the data.
@@ -86,7 +121,15 @@ bool HashJoinChunk::WriteRowToChunk(String *buffer) {
   return false;
 }
 
-bool HashJoinChunk::LoadRowFromChunk(String *buffer) {
+bool HashJoinChunk::LoadRowFromChunk(String *buffer, bool *matched) {
+  if (m_uses_match_flags) {
+    if (my_b_read(&m_file, pointer_cast<uchar *>(matched), sizeof(*matched)) !=
+        0) {
+      my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+      return true;
+    }
+  }
+
   // Read the length of the row.
   size_t row_length;
   if (my_b_read(&m_file, pointer_cast<uchar *>(&row_length),
@@ -108,7 +151,7 @@ bool HashJoinChunk::LoadRowFromChunk(String *buffer) {
     return true;
   }
 
-  hash_join_buffer::LoadIntoTableBuffers(
+  hash_join_buffer::LoadBufferRowIntoTableBuffers(
       m_tables, {pointer_cast<const uchar *>(buffer->ptr()), buffer->length()});
 
   return false;

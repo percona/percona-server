@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -916,6 +916,11 @@ class XProtocol {
                                       const std::string &method = "") = 0;
 
   virtual void use_compression(const Compression_algorithm algo) = 0;
+
+  virtual void use_compression(const Compression_algorithm algo,
+                               const int32_t level) = 0;
+
+  virtual void reset_buffering() = 0;
 };
 
 }  // namespace xcl

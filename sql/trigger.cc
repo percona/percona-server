@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,14 @@
 
 #include "sql/trigger.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <atomic>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
@@ -71,11 +72,11 @@ class Deprecated_trigger_syntax_handler : public Internal_error_handler {
   LEX_STRING *m_trigger_name;
 
  public:
-  Deprecated_trigger_syntax_handler() : m_trigger_name(NULL) {}
+  Deprecated_trigger_syntax_handler() : m_trigger_name(nullptr) {}
 
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *message) {
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *message) override {
     if (sql_errno != EE_OUTOFMEMORY && sql_errno != ER_OUT_OF_RESOURCES) {
       if (thd->lex->spname) m_trigger_name = &thd->lex->spname->m_name;
       if (m_trigger_name)
@@ -227,10 +228,10 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
   LEX_CSTRING client_cs_name;
   LEX_CSTRING connection_cl_name;
   LEX_CSTRING db_cl_name;
-  const CHARSET_INFO *default_db_cl = NULL;
+  const CHARSET_INFO *default_db_cl = nullptr;
 
   if (get_default_db_collation(thd, subject_table->s->db.str, &default_db_cl)) {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    assert(thd->is_error() || thd->killed);
     return nullptr;
   }
 
@@ -261,7 +262,7 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
   LEX_CSTRING definer_user, definer_host;
 
   /* SUID trigger is only supported (DEFINER is specified by the user). */
-  DBUG_ASSERT(lex->definer != nullptr);
+  assert(lex->definer != nullptr);
   definer_user = lex->definer->user;
   definer_host = lex->definer->host;
 
@@ -407,20 +408,20 @@ bool Trigger::execute(THD *thd) {
 
   bool err_status;
   Sub_statement_state statement_state;
-  SELECT_LEX *save_current_select;
+  Query_block *save_current_query_block;
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
   /*
-    Reset current_select before call execute_trigger() and
+    Reset current_query_block before call execute_trigger() and
     restore it after return from one. This way error is set
     in case of failure during trigger execution.
   */
-  save_current_select = thd->lex->current_select();
-  thd->lex->set_current_select(NULL);
+  save_current_query_block = thd->lex->current_query_block();
+  thd->lex->set_current_query_block(nullptr);
   err_status = m_sp->execute_trigger(thd, m_db_name, m_subject_table_name,
                                      &m_subject_table_grant);
-  thd->lex->set_current_select(save_current_select);
+  thd->lex->set_current_query_block(save_current_query_block);
 
   thd->restore_sub_statement_state(&statement_state);
 
@@ -509,18 +510,18 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
   thd->push_internal_handler(&error_handler);
 
   sp_rcontext *sp_runtime_ctx_saved = thd->sp_runtime_ctx;
-  thd->sp_runtime_ctx = NULL;
+  thd->sp_runtime_ctx = nullptr;
 
   sql_digest_state *digest_saved = thd->m_digest;
   PSI_statement_locker *statement_locker_saved = thd->m_statement_psi;
-  thd->m_digest = NULL;
-  thd->m_statement_psi = NULL;
+  thd->m_digest = nullptr;
+  thd->m_statement_psi = nullptr;
 
   Trigger_creation_ctx *creation_ctx = Trigger_creation_ctx::create(
       thd, m_db_name, m_subject_table_name, m_client_cs_name,
       m_connection_cl_name, m_db_cl_name);
   bool parse_error = false;
-  if (creation_ctx != NULL)
+  if (creation_ctx != nullptr)
     parse_error = parse_sql(thd, &parser_state, creation_ctx);
 
   thd->m_digest = digest_saved;
@@ -531,7 +532,7 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
   thd->pop_internal_handler();
 
   bool fatal_error = false;
-  if (creation_ctx == NULL) {
+  if (creation_ctx == nullptr) {
     fatal_error = true;
     goto cleanup;
   }
@@ -547,7 +548,7 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
 
   // Ensure that lex.sp_head is NULL in case of parse errors.
 
-  DBUG_ASSERT(!parse_error || (parse_error && lex.sphead == NULL));
+  assert(!parse_error || (parse_error && lex.sphead == nullptr));
 
   // That's it in case of parse error.
 
@@ -591,22 +592,22 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
     set_trigger_def_utf8(trigger_def_utf8);
 
     // Set correct m_event and m_action_time.
-    DBUG_ASSERT(m_event == TRG_EVENT_MAX);
-    DBUG_ASSERT(m_action_time == TRG_ACTION_MAX);
+    assert(m_event == TRG_EVENT_MAX);
+    assert(m_action_time == TRG_ACTION_MAX);
 
     m_event = lex.sphead->m_trg_chistics.event;
     m_action_time = lex.sphead->m_trg_chistics.action_time;
   }
 
-  DBUG_ASSERT(m_event == lex.sphead->m_trg_chistics.event);
-  DBUG_ASSERT(m_action_time == lex.sphead->m_trg_chistics.action_time);
+  assert(m_event == lex.sphead->m_trg_chistics.event);
+  assert(m_action_time == lex.sphead->m_trg_chistics.action_time);
 
   // Take ownership of SP object.
 
-  DBUG_ASSERT(!m_sp);
+  assert(!m_sp);
 
   m_sp = lex.sphead;
-  lex.sphead = NULL; /* Prevent double cleanup. */
+  lex.sphead = nullptr; /* Prevent double cleanup. */
 
   /*
     Set some SP attributes.
@@ -618,14 +619,14 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
                  0,  // MODIFIED timestamp (not used for triggers)
                  &lex.sp_chistics, m_sql_mode);
 
-  DBUG_ASSERT(!m_sp->get_creation_ctx());
+  assert(!m_sp->get_creation_ctx());
   m_sp->set_creation_ctx(creation_ctx);
 
   /*
     construct_definer_value() that is called from the constructor of
     class Trigger guarantees that the definer has not empty value.
   */
-  DBUG_ASSERT(m_definer.length);
+  assert(m_definer.length);
 
   // Set the definer attribute in SP.
   m_sp->set_definer(m_definer.str, m_definer.length);

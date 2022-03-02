@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ Group_action_information::Group_action_information()
       execution_message_area(new Group_action_diagnostics()),
       action_result(Group_action::GROUP_ACTION_RESULT_END) {}
 
-Group_action_information::~Group_action_information() {}
+Group_action_information::~Group_action_information() = default;
 
 /**
  The 'action' / 'action information' object life cycle:
@@ -125,7 +125,7 @@ Group_action_coordinator::Group_action_coordinator(
                    &group_thread_end_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_group_action_coordinator_thread_end,
                   &group_thread_end_cond);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   failure_debug_flag = false;
 #endif
 }
@@ -154,7 +154,7 @@ void Group_action_coordinator::set_stop_wait_timeout(ulong timeout) {
 static void *launch_handler_thread(void *arg) {
   Group_action_coordinator *handler = (Group_action_coordinator *)arg;
   handler->execute_group_action_handler();
-  return 0;
+  return nullptr;
 }
 
 bool Group_action_coordinator::is_group_action_running() {
@@ -182,7 +182,7 @@ void Group_action_coordinator::reset_coordinator_process() {
   member_leaving_group = false;
   remote_warnings_reported = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_group_action_start_msg_error",
                   { failure_debug_flag = true; });
 #endif
@@ -381,7 +381,7 @@ end:
 }
 
 bool Group_action_coordinator::thread_killed() {
-  return current_thd != NULL && current_thd->is_killed();
+  return current_thd != nullptr && current_thd->is_killed();
 }
 
 bool Group_action_coordinator::handle_action_message(
@@ -487,7 +487,7 @@ bool Group_action_coordinator::handle_action_start_message(
   if (!is_sender) {
     Group_action_message::enum_action_message_type message_type =
         message->get_group_action_message_type();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (failure_debug_flag) {
       message_type = Group_action_message::ACTION_UNKNOWN_MESSAGE;
     }
@@ -631,11 +631,11 @@ void Group_action_coordinator::terminate_action() {
 
   signal_and_wait_action_termination(true);
 
-  DBUG_ASSERT(current_executing_action);
+  assert(current_executing_action);
 
   // Log what was the result of the action
   LogPluginErr(
-      INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
+      SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
       current_executing_action->executing_action->get_action_name(),
       current_executing_action->execution_message_area->get_execution_message()
           .c_str());
@@ -733,10 +733,10 @@ int Group_action_coordinator::signal_action_terminated() {
     const char act[] =
         "now signal signal.action_stopping wait_for "
         "signal.action_stop_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  Group_action_message *end_message = NULL;
+  Group_action_message *end_message = nullptr;
   current_executing_action->executing_action->get_action_message(&end_message);
   end_message->set_group_action_message_phase(
       Group_action_message::ACTION_END_PHASE);
@@ -789,13 +789,14 @@ int Group_action_coordinator::execute_group_action_handler() {
   DBUG_TRACE;
   int error = 0;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
   global_thd_manager_add_thd(thd);
+  Notification_context notification_ctx;
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_running();
@@ -804,7 +805,7 @@ int Group_action_coordinator::execute_group_action_handler() {
 
   DBUG_EXECUTE_IF("group_replication_block_group_action", {
     const char act[] = "now wait_for signal.action_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   current_executing_action->action_result =
@@ -813,14 +814,20 @@ int Group_action_coordinator::execute_group_action_handler() {
   monitoring_stage_handler.initialize_stage_monitor();
   is_group_action_being_executed = true;
 
-  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
                current_executing_action->executing_action->get_action_name());
   while (Group_action::GROUP_ACTION_RESULT_RESTART ==
          current_executing_action->action_result) {
     current_executing_action->action_result =
         current_executing_action->executing_action->execute_action(
-            is_sender, &monitoring_stage_handler);
+            is_sender, &monitoring_stage_handler, &notification_ctx);
   }
+  Gcs_view *view = gcs_module->get_current_view();
+  if (view != nullptr) {
+    notification_ctx.set_view_id(view->get_view_id().get_representation());
+    delete view;
+  }
+  notify_and_reset_ctx(notification_ctx);
   is_group_action_being_executed = false;
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
                current_executing_action->executing_action->get_action_name());
@@ -866,7 +873,7 @@ int Group_action_coordinator::execute_group_action_handler() {
     default:
       awake_coordinator_on_error(current_executing_action, is_sender,
                                  true); /* purecov: inspected */
-      DBUG_ASSERT(0);                   /* purecov: inspected */
+      assert(0);                        /* purecov: inspected */
       break;                            /* purecov: inspected */
   }
 

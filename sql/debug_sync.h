@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 extern int debug_sync_init(void);
 extern void debug_sync_end(void);
 extern void debug_sync_init_thread(THD *thd);
-extern void debug_sync_claim_memory_ownership(THD *thd);
+extern void debug_sync_claim_memory_ownership(THD *thd, bool claim);
 extern void debug_sync_end_thread(THD *thd);
 extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
 extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
@@ -71,10 +71,10 @@ extern void conditional_sync_point(std::string name);
   This macro simplifies when a DBUG_EXECUTE_IF will generate a given
   signal and then will wait for another signal to continue.
 */
-#define DBUG_SIGNAL_WAIT_FOR(T, A, B, C)                          \
-  DBUG_EXECUTE_IF(A, {                                            \
-    const char act[] = "now SIGNAL " B " WAIT_FOR " C;            \
-    DBUG_ASSERT(!debug_sync_set_action(T, STRING_WITH_LEN(act))); \
+#define DBUG_SIGNAL_WAIT_FOR(T, A, B, C)                     \
+  DBUG_EXECUTE_IF(A, {                                       \
+    const char act[] = "now SIGNAL " B " WAIT_FOR " C;       \
+    assert(!debug_sync_set_action(T, STRING_WITH_LEN(act))); \
   };)
 
 /**

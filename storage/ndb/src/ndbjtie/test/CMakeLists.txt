@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -100,41 +100,54 @@ IF(WITH_ASAN)
   RETURN()
 ENDIF()
 
+# Needed on Windows, to find SSL .dlls at runtime.
+IF(WIN32)
+  SET(JAVATEST_WORKING_DIRECTORY
+    WORKING_DIRECTORY
+    "${CMAKE_BINARY_DIR}/runtime_output_directory/${JAVA_SUBDIR}")
+ENDIF()
+
+MESSAGE(STATUS "JAVATEST_WORKING_DIRECTORY is ${JAVATEST_WORKING_DIRECTORY}")
+
 ADD_TEST(
   NAME test_ndbjtie_mutils
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}"
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "test.MySqlUtilsTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
   NAME test_ndbjtie_constants
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}"
-  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPARATOR}${BIN_DIR}"
   "-Dtest.NdbJTieConstantsTest.ndbjtie_jar_file=${NDBJTIE_JAR}"
   "test.NdbJTieConstantsTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
   NAME test_ndbjtie_multilib
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}${JAVA_SEPERATOR}${MYJAPI_TEST_JAR}"
-  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}${JAVA_SEPARATOR}${MYJAPI_TEST_JAR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPARATOR}${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}${JAVA_SEPARATOR}${BIN_DIR}"
   "test.NdbJTieMultiLibTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
   NAME test_ndbjtie_smoke
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}"
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "test.NdbJTieSmokeTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 SET(UNLOAD_TEST "com.mysql.jtie.test.MyLoadUnloadTest")
@@ -144,12 +157,13 @@ ADD_TEST(
   NAME test_ndbjtie_unload_mutils
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}${JAVA_SEPERATOR}${UNLOAD_TEST_JAR}"
-  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}${JAVA_SEPARATOR}${UNLOAD_TEST_JAR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPARATOR}${BIN_DIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.MySqlUtilsTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 
@@ -157,35 +171,49 @@ ADD_TEST(
   NAME test_ndbjtie_unload_constants
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}${JAVA_SEPERATOR}${UNLOAD_TEST_JAR}"
-  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}${JAVA_SEPARATOR}${UNLOAD_TEST_JAR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPARATOR}${BIN_DIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieConstantsTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "-Dtest.NdbJTieConstantsTest.ndbjtie_jar_file=${NDBJTIE_JAR}"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
   NAME test_ndbjtie_unload_multilib
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}${JAVA_SEPERATOR}${UNLOAD_TEST_JAR}${JAVA_SEPERATOR}${MYJAPI_TEST_JAR}"
-  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}${JAVA_SEPARATOR}${UNLOAD_TEST_JAR}${JAVA_SEPARATOR}${MYJAPI_TEST_JAR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPARATOR}${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}${JAVA_SEPARATOR}${BIN_DIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,myjapi.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieMultiLibTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
   NAME test_ndbjtie_unload_smoke
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}${JAVA_SEPERATOR}${UNLOAD_TEST_JAR}"
+  "-classpath" "${TEST_JAR}${JAVA_SEPARATOR}${NDBJTIE_JAR}${JAVA_SEPARATOR}${UNLOAD_TEST_JAR}"
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieSmokeTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
+
+SET_TESTS_PROPERTIES(
+  test_ndbjtie_constants
+  test_ndbjtie_multilib
+  test_ndbjtie_mutils
+  test_ndbjtie_smoke
+  test_ndbjtie_unload_constants
+  test_ndbjtie_unload_multilib
+  test_ndbjtie_unload_mutils
+  test_ndbjtie_unload_smoke
+  PROPERTIES LABELS "NDB")

@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 #include <iterator>
 #include <map>
@@ -35,8 +36,9 @@
 
 #include "field_types.h"  // enum_field_types
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
+#include "my_time.h"  // my_time_flags_t
 #include "mysql/mysql_lex_string.h"
 #include "mysql_time.h"            // MYSQL_TIME
 #include "prealloced_array.h"      // Prealloced_array
@@ -180,7 +182,7 @@ class Json_dom {
   void set_parent(Json_container *parent) { m_parent = parent; }
 
  public:
-  virtual ~Json_dom() {}
+  virtual ~Json_dom() = default;
 
   /**
     Allocate space on the heap for a Json_dom object.
@@ -199,7 +201,7 @@ class Json_dom {
   /**
     Nothrow delete.
   */
-  void operator delete(void *ptr, const std::nothrow_t &)noexcept;
+  void operator delete(void *ptr, const std::nothrow_t &) noexcept;
 
   /**
     Get the parent dom to which this dom is attached.
@@ -635,7 +637,7 @@ class Json_array final : public Json_container {
     @return the value at index
   */
   Json_dom *operator[](size_t index) const {
-    DBUG_ASSERT(m_v[index]->parent() == this);
+    assert(m_v[index]->parent() == this);
     return m_v[index].get();
   }
 
@@ -686,10 +688,10 @@ class Json_array final : public Json_container {
 class Json_scalar : public Json_dom {
  public:
 #ifdef MYSQL_SERVER
-  uint32 depth() const final override { return 1; }
+  uint32 depth() const final { return 1; }
 #endif
 
-  bool is_scalar() const final override { return true; }
+  bool is_scalar() const final { return true; }
 };
 
 /**
@@ -732,7 +734,7 @@ class Json_string final : public Json_scalar {
 */
 class Json_number : public Json_scalar {
  public:
-  bool is_number() const final override { return true; }
+  bool is_number() const final { return true; }
 };
 
 /**
@@ -1067,14 +1069,37 @@ class Json_boolean final : public Json_scalar {
 };
 
 /**
-  Function for double-quoting a string and escaping characters
-  to make up a valid EMCA Json text.
+  Perform quoting on a JSON string to make an external representation
+  of it. It wraps double quotes (text quotes) around the string (cptr)
+  and also performs escaping according to the following table:
+  <pre>
+  @verbatim
+  Common name     C-style  Original unescaped     Transformed to
+                  escape   UTF-8 bytes            escape sequence
+                  notation                        in UTF-8 bytes
+  ---------------------------------------------------------------
+  quote           \"       %x22                    %x5C %x22
+  backslash       \\       %x5C                    %x5C %x5C
+  backspace       \b       %x08                    %x5C %x62
+  formfeed        \f       %x0C                    %x5C %x66
+  linefeed        \n       %x0A                    %x5C %x6E
+  carriage-return \r       %x0D                    %x5C %x72
+  tab             \t       %x09                    %x5C %x74
+  unicode         \uXXXX  A hex number in the      %x5C %x75
+                          range of 00-1F,          followed by
+                          except for the ones      4 hex digits
+                          handled above (backspace,
+                          formfeed, linefeed,
+                          carriage-return,
+                          and tab).
+  ---------------------------------------------------------------
+  @endverbatim
+  </pre>
 
-  @param[in]     cptr    the unquoted character string
-  @param[in]     length  its length
-  @param[in,out] buf     the destination buffer
-
-  @return false on success, true on error
+  @param[in] cptr pointer to string data
+  @param[in] length the length of the string
+  @param[in,out] buf the destination buffer
+  @retval true on error
 */
 bool double_quote(const char *cptr, size_t length, String *buf);
 
@@ -1122,7 +1147,8 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right);
 
 enum enum_coercion_error {
   CE_WARNING,  // Throw a warning, default
-  CE_ERROR     // Throw an error
+  CE_ERROR,    // Throw an error
+  CE_IGNORE    // Let the caller handle the error
 };
 
 /**
@@ -1275,7 +1301,7 @@ class Json_wrapper {
     If is_dom() returns false, the result of calling this function is undefined.
   */
   const Json_dom *get_dom() const {
-    DBUG_ASSERT(m_is_dom);
+    assert(m_is_dom);
     return m_dom_value;
   }
 
@@ -1285,7 +1311,7 @@ class Json_wrapper {
     undefined.
   */
   const json_binary::Value &get_binary_value() const {
-    DBUG_ASSERT(!m_is_dom);
+    assert(!m_is_dom);
     return m_value;
   }
 
@@ -1569,58 +1595,77 @@ class Json_wrapper {
   /**
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
-    @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    true <=> error occur during coercion
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[out] err    true <=> error occur during coercion
+    @param[out] unsigned_flag Whether the value read from JSON data is
+                              unsigned
+
     @returns json value coerced to int
   */
-  longlong coerce_int(const char *msgnam, bool *err = nullptr,
-                      enum_coercion_error cr_error = CE_WARNING) const;
+  longlong coerce_int(const char *msgnam, enum_coercion_error cr_error,
+                      bool *err, bool *unsigned_flag) const;
+
+  /// Shorthand for coerce_int(msgnam, CE_WARNING, nullptr, nullptr).
+  longlong coerce_int(const char *msgnam) const {
+    return coerce_int(msgnam, CE_WARNING, nullptr, nullptr);
+  }
 
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
-    @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    true <=> error occur during coercion
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[out] err    true <=> error occur during coercion
     @returns json value coerced to real
   */
-  double coerce_real(const char *msgnam, bool *err = nullptr,
-                     enum_coercion_error cr_error = CE_WARNING) const;
+  double coerce_real(const char *msgnam, enum_coercion_error cr_error,
+                     bool *err) const;
+
+  /// Shorthand for coerce_real(msgnam, CE_WARNING, nullptr).
+  double coerce_real(const char *msgnam) const {
+    return coerce_real(msgnam, CE_WARNING, nullptr);
+  }
 
   /**
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
-    @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    true <=> error occur during coercion
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[out] err    true <=> error occur during coercion
     @returns json value coerced to decimal
   */
   my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam,
-                             bool *err = nullptr,
-                             enum_coercion_error cr_error = CE_WARNING) const;
+                             enum_coercion_error cr_error, bool *err) const;
+
+  /// Shorthand for coerce_decimal(decimal_value, msgnam, CE_WARNING, nullptr).
+  my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam) {
+    return coerce_decimal(decimal_value, msgnam, CE_WARNING, nullptr);
+  }
 
   /**
     Extract a date from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param msgnam
+    @param msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[in] date_flags_arg Flags to use for string -> date conversion
     @returns json value coerced to date
    */
   bool coerce_date(MYSQL_TIME *ltime, const char *msgnam,
-                   enum_coercion_error cr_error = CE_WARNING) const;
+                   enum_coercion_error cr_error = CE_WARNING,
+                   my_time_flags_t date_flags_arg = 0) const;
 
   /**
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param msgnam
+    @param msgnam  to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
 

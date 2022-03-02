@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,15 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include <mysql/components/my_service.h>
-#include <mysql/components/services/log_builtins.h>
-#include <mysqld_error.h>
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/log_builtins.h"
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_sys.h"  // my_write, my_malloc
-#include "template_utils.h"
+#include "my_dbug.h"         // NOLINT(build/include_subdir)
+#include "my_inttypes.h"     // NOLINT(build/include_subdir)
+#include "my_io.h"           // NOLINT(build/include_subdir)
+#include "my_sys.h"          // NOLINT(build/include_subdir)
+#include "mysqld_error.h"    // NOLINT(build/include_subdir)
+#include "template_utils.h"  // NOLINT(build/include_subdir)
 
 static const char *log_filename = "test_x_sessions_init";
 
@@ -45,11 +45,11 @@ static const char *log_filename = "test_x_sessions_init";
 
 #define WRITE_STR(format)                         \
   snprintf(buffer, sizeof(buffer), "%s", format); \
-  my_write(outfile, (uchar *)buffer, strlen(buffer), MYF(0))
+  my_write(outfile, reinterpret_cast<uchar *>(buffer), strlen(buffer), MYF(0))
 
 #define WRITE_VAL(format, value)                   \
   snprintf(buffer, sizeof(buffer), format, value); \
-  my_write(outfile, (uchar *)buffer, strlen(buffer), MYF(0))
+  my_write(outfile, reinterpret_cast<uchar *>(buffer), strlen(buffer), MYF(0))
 
 static const char *sep =
     "========================================================================"
@@ -62,9 +62,9 @@ static const char *sep =
 /* Only effective at start od mysqld by setting it as option --loose-...  */
 int nb_sessions;
 static MYSQL_SYSVAR_INT(nb_sessions, nb_sessions, PLUGIN_VAR_RQCMDARG,
-                        "number of sessions", NULL, NULL, 1, 1, 500, 0);
+                        "number of sessions", nullptr, nullptr, 1, 1, 500, 0);
 
-static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(nb_sessions), NULL};
+static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(nb_sessions), nullptr};
 
 struct st_plugin_ctx {
   char message[1024];
@@ -82,25 +82,26 @@ struct st_plugin_ctx {
 };
 
 const struct st_command_service_cbs sql_cbs = {
-    NULL,  // sql_start_result_metadata,
-    NULL,  // sql_field_metadata,
-    NULL,  // sql_end_result_metadata,
-    NULL,  // sql_start_row,
-    NULL,  // sql_end_row,
-    NULL,  // sql_abort_row,
-    NULL,  // sql_get_client_capabilities,
-    NULL,  // sql_get_null,
-    NULL,  // sql_get_integer,
-    NULL,  // sql_get_longlong,
-    NULL,  // sql_get_decimal,
-    NULL,  // sql_get_double,
-    NULL,  // sql_get_date,
-    NULL,  // sql_get_time,
-    NULL,  // sql_get_datetime,
-    NULL,  // sql_get_string,
-    NULL,  // sql_handle_ok,
-    NULL,  // sql_handle_error,
-    NULL   // sql_shutdown,
+    nullptr,  // sql_start_result_metadata,
+    nullptr,  // sql_field_metadata,
+    nullptr,  // sql_end_result_metadata,
+    nullptr,  // sql_start_row,
+    nullptr,  // sql_end_row,
+    nullptr,  // sql_abort_row,
+    nullptr,  // sql_get_client_capabilities,
+    nullptr,  // sql_get_null,
+    nullptr,  // sql_get_integer,
+    nullptr,  // sql_get_longlong,
+    nullptr,  // sql_get_decimal,
+    nullptr,  // sql_get_double,
+    nullptr,  // sql_get_date,
+    nullptr,  // sql_get_time,
+    nullptr,  // sql_get_datetime,
+    nullptr,  // sql_get_string,
+    nullptr,  // sql_handle_ok,
+    nullptr,  // sql_handle_error,
+    nullptr,  // sql_shutdown,
+    nullptr,  // sql_alive,
 };
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
@@ -126,7 +127,7 @@ static void test_session(void *p) {
 
   unsigned int thread_count = srv_session_info_thread_count((const void *)p);
   WRITE_VAL("Number of threads of this plugin: %d\n", thread_count);
-  thread_count = srv_session_info_thread_count(NULL);
+  thread_count = srv_session_info_thread_count(nullptr);
   WRITE_VAL("Number of threads of all (NULL) plugins: %d\n", thread_count);
 
   /*  close sessions: Must pass */
@@ -192,6 +193,7 @@ static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   COM_DATA cmd;
   pctx->reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "SELECT * FROM test.t_int";
   cmd.com_query.length = strlen(cmd.com_query.query);
   command_service_run_command(NULL, COM_QUERY, &cmd,
@@ -223,7 +225,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -252,7 +254,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_session_service_plugin_init(void *p) {
@@ -298,15 +300,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_session_service_plugin,
     "test_x_sessions_init",
-    "Horst Hunger, Andrey Hristov",
+    PLUGIN_AUTHOR_ORACLE,
     "Test session service in init",
     PLUGIN_LICENSE_GPL,
     test_session_service_plugin_init,   /* Plugin Init      */
-    NULL,                               /* Plugin Check uninstall    */
+    nullptr,                            /* Plugin Check uninstall    */
     test_session_service_plugin_deinit, /* Plugin Deinit    */
     0x0100,                             /* 1.0              */
-    NULL,                               /* status variables */
+    nullptr,                            /* status variables */
     test_services_sysvars,              /* system variables */
-    NULL,                               /* config options   */
+    nullptr,                            /* config options   */
     0,                                  /* flags            */
 } mysql_declare_plugin_end;

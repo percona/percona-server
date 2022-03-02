@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ static char *fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
   FILE *real_in = input->m_file;
   char *line = fgets(buffer, (int)size, real_in);
   if (error) {
-    *error = (line == NULL) ? ferror(real_in) : 0;
+    *error = (line == nullptr) ? ferror(real_in) : 0;
   }
   return line;
 }

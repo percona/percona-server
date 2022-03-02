@@ -1,5 +1,12 @@
+--source include/big_test.inc
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
+
+--echo # Ensure that there is not already lot of data to be purged.
+--echo # If timeout happens here, then check the chain of previously
+--echo # executed test cases.
+let $wait_timeout = 100;
+--source include/wait_innodb_all_purged.inc
 
 SET GLOBAL innodb_compression_level = 0;
 
@@ -29,7 +36,7 @@ COMMIT;
 
 FLUSH TABLES `t` FOR EXPORT;
 UNLOCK TABLES;
-let $wait_timeout = 60;
+let $wait_timeout = 100;
 --source include/wait_innodb_all_purged.inc
 
 SET @fs1 = (SELECT file_size FROM information_schema.innodb_tablespaces
@@ -41,7 +48,7 @@ COMMIT;
 
 FLUSH TABLES `t` FOR EXPORT;
 UNLOCK TABLES;
-let $wait_timeout = 60;
+let $wait_timeout = 100;
 --source include/wait_innodb_all_purged.inc
 
 SET @fs2 = (SELECT file_size FROM information_schema.innodb_tablespaces
@@ -62,7 +69,7 @@ ROLLBACK;
 
 FLUSH TABLES `t` FOR EXPORT;
 UNLOCK TABLES;
-let $wait_timeout = 60;
+let $wait_timeout = 100;
 --source include/wait_innodb_all_purged.inc
 
 SET @fs3 = (SELECT file_size FROM information_schema.innodb_tablespaces

@@ -28,3 +28,9 @@ Xhis is a string
 SELECT mask_outer('This is a string', 100, 500);
 mask_outer('This is a string', 100, 500)
 XXXXXXXXXXXXXXXX
+SELECT mask_outer('abcdef', 0, 5);
+mask_outer('abcdef', 0, 5)
+aXXXXX
+SELECT mask_outer('abcdef', 0, 5, '#');
+mask_outer('abcdef', 0, 5, '#')
+a#####

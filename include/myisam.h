@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_check_opt.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -68,9 +69,9 @@
 #define MI_NAME_DEXT ".MYD"
 
 /* Possible values for myisam_block_size (must be power of 2) */
-#define MI_KEY_BLOCK_LENGTH 1024     /* default key block length */
-#define MI_MIN_KEY_BLOCK_LENGTH 1024 /* Min key block length */
-#define MI_MAX_KEY_BLOCK_LENGTH 16384
+#define MI_KEY_BLOCK_LENGTH 1024U     /* default key block length */
+#define MI_MIN_KEY_BLOCK_LENGTH 1024U /* Min key block length */
+#define MI_MAX_KEY_BLOCK_LENGTH 16384U
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.
@@ -148,7 +149,7 @@ struct MI_ISAMINFO /* Struct from h_info */
   time_t update_time{0};
   uint reflength{0};
   ulong record_offset{0};
-  ulong *rec_per_key{0}; /* for sql optimizing */
+  ulong *rec_per_key{nullptr}; /* for sql optimizing */
 };
 
 struct MI_CREATE_INFO {

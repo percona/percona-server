@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 namespace udf_ext {
 namespace consts {
-const std::string charset("charset");
-const std::string collation("collation");
+constexpr const char *charset = "charset";
+constexpr const char *collation = "collation";
 }  // namespace consts
 
 /**
@@ -42,16 +42,15 @@ const std::string collation("collation");
   @param [in]   expected_arg_count The number of arguments UDf accepts
   @param [out]  type    UDF type if it is collation or charset.s
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::prepare_return_udf(UDF_INIT *initid, UDF_ARGS *args,
                                           const size_t expected_arg_count,
                                           Type type) {
   if (Character_set_converter::acquire() || Udf_metadata::acquire()) {
     Character_set_converter::release();
-    s_message << Error_capture::get_last_error();
+    *s_message << Error_capture::get_last_error();
     return true;
   }
   set_ext_type(type);
@@ -78,18 +77,16 @@ bool Test_udf_charset::prepare_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] expected_arg_count The number of arguments UDf accepts
-  @param [out] message  Usually error message returned
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::prepare_args_udf(UDF_INIT *initid, UDF_ARGS *args,
                                         const size_t expected_arg_count,
                                         Type type) {
   if (Character_set_converter::acquire() || Udf_metadata::acquire()) {
     Character_set_converter::release();
-    s_message << Error_capture::get_last_error();
+    *s_message << Error_capture::get_last_error();
     return true;
   }
   set_ext_type(type);
@@ -114,11 +111,10 @@ bool Test_udf_charset::prepare_args_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [out] result The return value the UDF will return
-  @param [out] message  Usually error message returned
+  @param [out] result_len The return value the UDF will return
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
                                       char **result,
@@ -137,11 +133,9 @@ bool Test_udf_charset::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [out] result The return value the UDF will return
   @param [out] result_len The return value the UDF will return
-  @param [out] message  Usually error message returned
 
-  @returns
-    @retval false Success
-    @retval true  Otherwise.
+  @retval false Success
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::run_args_udf(UDF_INIT *initid, UDF_ARGS *args,
                                     char **result, unsigned long &result_len) {
@@ -153,8 +147,8 @@ bool Test_udf_charset::run_args_udf(UDF_INIT *initid, UDF_ARGS *args,
 
   @param [in] initid  A pointer to the UDF_INIT structure
 */
-void Test_udf_charset::deinit(UDF_INIT *initd) {
-  Test_udf_charset_base::deinit(initd);
+void Test_udf_charset::deinit(UDF_INIT *initid) {
+  Test_udf_charset_base::deinit(initid);
 }
 
 /**
@@ -165,17 +159,16 @@ void Test_udf_charset::deinit(UDF_INIT *initd) {
   @param [in] index Index of the UDF argument
   @param [in] name  Charset/collation name
 
-  @returns
-    @retval false Success
-    @retval true  Otherwise.
+  @retval false Success
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::fetch_charset_or_collation_from_arg(UDF_ARGS *args,
                                                            const int index,
                                                            std::string &name) {
   void *p = nullptr;
-  if (Udf_metadata::get()->argument_get(args, s_ext_type.c_str(), index, &p)) {
-    s_message << "Unable to fetch extension " << s_ext_type << " of argument "
-              << index + 1;
+  if (Udf_metadata::get()->argument_get(args, s_ext_type, index, &p)) {
+    *s_message << "Unable to fetch extension " << s_ext_type << " of argument "
+               << index + 1;
     return true;
   }
   name = ((const char *)p);
@@ -190,18 +183,16 @@ bool Test_udf_charset::fetch_charset_or_collation_from_arg(UDF_ARGS *args,
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] expected_arg_count The number of arguments UDf accepts
-  @param [out] message  Usually error message returned
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::prepare_return_udf(
     UDF_INIT *initid, UDF_ARGS *args, const size_t expected_arg_count,
     Type type) {
   if (Character_set_converter::acquire() || Udf_metadata::acquire()) {
     Character_set_converter::release();
-    s_message << Error_capture::get_last_error();
+    *s_message << Error_capture::get_last_error();
     return true;
   }
   set_ext_type(type);
@@ -227,18 +218,16 @@ bool Test_udf_charset_const_value::prepare_return_udf(
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] expected_arg_count The number of arguments UDf accepts
-  @param [out] message  Usually error message returned
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::prepare_args_udf(
     UDF_INIT *initid, UDF_ARGS *args, const size_t expected_arg_count,
     Type type) {
   if (Character_set_converter::acquire() || Udf_metadata::acquire()) {
     Character_set_converter::release();
-    s_message << Error_capture::get_last_error();
+    *s_message << Error_capture::get_last_error();
     return true;
   }
   set_ext_type(type);
@@ -263,11 +252,10 @@ bool Test_udf_charset_const_value::prepare_args_udf(
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [out] result The return value the UDF will return
-  @param [out] message  Usually error message returned
+  @param [out] result_len The return value the UDF will return
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::run_return_udf(UDF_INIT *initid,
                                                   UDF_ARGS *args, char **result,
@@ -286,11 +274,9 @@ bool Test_udf_charset_const_value::run_return_udf(UDF_INIT *initid,
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [out] result The return value the UDF will return
   @param [out] result_len The return value the UDF will return
-  @param [out] message  Usually error message returned
 
-  @returns
-    @retval false UDF executed successfully.
-    @retval true  Otherwise.
+  @retval false UDF executed successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::run_args_udf(UDF_INIT *initid,
                                                 UDF_ARGS *args, char **result,
@@ -303,8 +289,8 @@ bool Test_udf_charset_const_value::run_args_udf(UDF_INIT *initid,
 
   @param [in] initid  A pointer to the UDF_INIT structure
 */
-void Test_udf_charset_const_value::deinit(UDF_INIT *initd) {
-  Test_udf_charset_base::deinit(initd);
+void Test_udf_charset_const_value::deinit(UDF_INIT *initid) {
+  Test_udf_charset_base::deinit(initid);
 }
 /**
   Fetch the charset/collation name from the UDF argument.
@@ -317,22 +303,32 @@ bool Test_udf_charset_const_value::fetch_charset_or_collation_from_arg(
     UDF_ARGS *args, const int index, std::string &name) {
   name = args->args[index];
   if (name.empty()) {
-    s_message << s_ext_type << " name cannot be empty. Specify " << s_ext_type
-              << " name that is supported by server.";
+    *s_message << s_ext_type << " name cannot be empty. Specify " << s_ext_type
+               << " name that is supported by server.";
   }
   return false;
 }
 
-std::stringstream Test_udf_charset_base::s_message;
-std::string Test_udf_charset_base::s_ext_type;
+std::stringstream *Test_udf_charset_base::s_message{nullptr};
+
+void Test_udf_charset_base::udf_charset_base_init() {
+  s_message = new std::stringstream();
+}
+
+void Test_udf_charset_base::udf_charset_base_deinit() {
+  delete s_message;
+  s_message = nullptr;
+}
+
+const char *Test_udf_charset_base::s_ext_type;
 
 /*
   Return the last error message if encountered any.
   Clear the error stream
 */
 std::string Test_udf_charset_base::get_last_error() {
-  std::string err = s_message.str();
-  std::stringstream().swap(s_message);  // Reset the the Stringstream
+  std::string err = s_message->str();
+  std::stringstream().swap(*s_message);  // Reset the the Stringstream
   return err;
 }
 
@@ -342,26 +338,25 @@ std::string Test_udf_charset_base::get_last_error() {
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] expected_arg_count The number of arguments UDf accepts
 
-  @returns
-    @retval false Arguments are validated successfully.
-    @retval true  Otherwise.
+  @retval false Arguments are validated successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::validate_inputs(UDF_ARGS *args,
                                             const size_t expected_arg_count) {
   if (!args) {
-    s_message << "UDF_ARGS cannot be NULL.";
+    *s_message << "UDF_ARGS cannot be NULL.";
     return true;
   }
   if (args->arg_count != expected_arg_count) {
-    s_message << "Arguments count mismatch. Expected " << expected_arg_count
-              << " while specified arguments " << args->arg_count << ".";
+    *s_message << "Arguments count mismatch. Expected " << expected_arg_count
+               << " while specified arguments " << args->arg_count << ".";
     return true;
   }
 
   for (unsigned int i = 0; i < args->arg_count; i++) {
     if (args->arg_type[i] != STRING_RESULT) {
-      s_message << "This UDF accepts only string arguments. Specify argument "
-                << i + 1 << " as string.";
+      *s_message << "This UDF accepts only string arguments. Specify argument "
+                 << i + 1 << " as string.";
       return true;
     }
   }
@@ -378,28 +373,27 @@ bool Test_udf_charset_base::validate_inputs(UDF_ARGS *args,
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [out] result The return value the UDF will return
-  @param [out] message  Usually error message returned
+  @param [out] result_len The return value the UDF will return
 
-  @returns
-    @retval false UDF executed successully.
-    @retval true  Otherwise.
+  @retval false UDF executed successully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
                                            char **result,
                                            unsigned long &result_len) {
   for (uint i = 0; i < args->arg_count; i++) {
     if (!args->args[i]) {
-      s_message << "Recieved argument " << i + 1
-                << " as null. Specify valid argument";
+      *s_message << "Recieved argument " << i + 1
+                 << " as null. Specify valid argument";
       return true;
     }
   }
   void *return_charset_name_ptr = nullptr;  // Retrieve the charset of args
-  if (Udf_metadata::get()->result_get(initid, consts::charset.c_str(),
+  if (Udf_metadata::get()->result_get(initid, consts::charset,
                                       &return_charset_name_ptr) &&
       !return_charset_name_ptr) {
-    s_message << "Could not retrieve requested " << consts::charset
-              << " extension argument.";
+    *s_message << "Could not retrieve requested " << consts::charset
+               << " extension argument.";
     return true;
   }
 
@@ -408,10 +402,10 @@ bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   // Retrieve the charset of first arg
   void *first_arg_charset_ptr = nullptr;
   const int index = 0;
-  if (Udf_metadata::get()->argument_get(args, consts::charset.c_str(), index,
+  if (Udf_metadata::get()->argument_get(args, consts::charset, index,
                                         &first_arg_charset_ptr)) {
-    s_message << "Could not retrieve requested " << consts::charset
-              << " extension argument.";
+    *s_message << "Could not retrieve requested " << consts::charset
+               << " extension argument.";
     return true;
   }
 
@@ -424,7 +418,7 @@ bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   if (Character_set_converter::convert(out_charset_name, in_charset_name,
                                        in_buffer, initid->max_length,
                                        *result)) {
-    s_message << Character_set_converter::get_last_error();
+    *s_message << Character_set_converter::get_last_error();
     return true;
   }
 
@@ -437,9 +431,8 @@ bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
 
-  @returns
-    @retval false UDF_INIT structure is set for return value
-    @retval true  Otherwise.
+  @retval false UDF_INIT structure is set for return value
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::set_udf_init(UDF_INIT *initid, UDF_ARGS *args) {
   /*
@@ -451,12 +444,12 @@ bool Test_udf_charset_base::set_udf_init(UDF_INIT *initid, UDF_ARGS *args) {
   try {
     initid->ptr = new char[length];
   } catch (...) {
-    s_message << "UDF could not allocate the memory. Try after some time once "
-                 "the load on server is reduced.";
+    *s_message << "UDF could not allocate the memory. Try after some time once "
+                  "the load on server is reduced.";
     return true;
   }
   initid->max_length = length;
-  initid->maybe_null = 1;
+  initid->maybe_null = true;
   return false;
 }
 /**
@@ -465,16 +458,15 @@ bool Test_udf_charset_base::set_udf_init(UDF_INIT *initid, UDF_ARGS *args) {
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] name  Value to be set.
 
-  @returns
-    @retval false Success
-    @retval true  Otherwise
+  @retval false Success
+  @retval true  Otherwise
 */
 bool Test_udf_charset_base::set_args_init(UDF_ARGS *args,
                                           const std::string &name) {
   char *value = const_cast<char *>(name.c_str());
-  if (Udf_metadata::get()->argument_set(args, s_ext_type.c_str(), 0,
+  if (Udf_metadata::get()->argument_set(args, s_ext_type, 0,
                                         static_cast<void *>(value))) {
-    s_message << "Could not set the " << s_ext_type << " = " << name;
+    *s_message << "Could not set the " << s_ext_type << " = " << name;
     return true;
   }
   return false;
@@ -495,19 +487,17 @@ void Test_udf_charset_base::set_ext_type(Type ext_type) {
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [out] result The return value the UDF will return
   @param [out] result_len The return value the UDF will return
-  @param [out] message  Usually error message returned
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::run_args_udf(UDF_INIT *initid, UDF_ARGS *args,
                                          char **result,
                                          unsigned long &result_len) {
   for (uint i = 0; i < args->arg_count; i++) {
     if (!args->args[i]) {
-      s_message << "Recieved argument " << i + 1
-                << " as null. Specify valid argument";
+      *s_message << "Recieved argument " << i + 1
+                 << " as null. Specify valid argument";
       return true;
     }
   }
@@ -532,18 +522,16 @@ void Test_udf_charset_base::deinit(UDF_INIT *initd) {
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] name    Value to be set in the extension argument.
 
-  @returns
-    @retval false Value is set successfully.
-    @retval true  Otherwise.
+  @retval false Value is set successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::set_return_value_charset_or_collation(
     UDF_INIT *initid, const std::string &name) {
   char *ret_name = const_cast<char *>(name.c_str());
-  if (Udf_metadata::get()->result_set(initid, s_ext_type.c_str(),
-                                      (void *)(ret_name))) {
-    s_message << "Unable to set " << s_ext_type << " : " << name
-              << " of result argument. Specify " << s_ext_type
-              << " name which is supported by Server.";
+  if (Udf_metadata::get()->result_set(initid, s_ext_type, (void *)(ret_name))) {
+    *s_message << "Unable to set " << s_ext_type << " : " << name
+               << " of result argument. Specify " << s_ext_type
+               << " name which is supported by Server.";
     return true;
   }
   return false;

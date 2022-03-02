@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,15 @@ class Compression_algorithms_validator
 
 template <int64_t(Compression_config::*member)>
 class Compression_int_store
+    : public Value_validator<Context, Integer_validator> {
+ public:
+  void visit_integer(const int64_t value) override {
+    get_ctxt()->m_compression_config.*member = value;
+  }
+};
+
+template <xpl::Optional_value<int32_t>(Compression_config::*member)>
+class Compression_optional_int_store
     : public Value_validator<Context, Integer_validator> {
  public:
   void visit_integer(const int64_t value) override {

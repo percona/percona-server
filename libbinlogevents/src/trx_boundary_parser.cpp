@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* Event parser state names */
 static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
                                                  "Error"};
@@ -40,7 +40,7 @@ static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
   -----------------------------------------
 */
 
-Transaction_boundary_parser::~Transaction_boundary_parser() {}
+Transaction_boundary_parser::~Transaction_boundary_parser() = default;
 
 /**
    Reset the transaction boundary parser.
@@ -80,7 +80,7 @@ bool Transaction_boundary_parser::check_row_logging_constraints(
            current_parser_state != EVENT_PARSER_DDL;
   }
 
-  // DDL
+  // DDL or TRANSACTION_PAYLOAD_EVENT
   if (EVENT_BOUNDARY_TYPE_STATEMENT == m_current_boundary_state ||
       current_parser_state == EVENT_PARSER_NONE) {
     if (log_event_info.query_length > 16 &&
@@ -119,7 +119,9 @@ bool Transaction_boundary_parser::check_row_logging_constraints(
             !native_strncasecmp(log_event_info.query,
                                 STRING_WITH_LEN("XA PREPARE")) ||
             !native_strncasecmp(log_event_info.query,
-                                STRING_WITH_LEN("SAVEPOINT")))
+                                STRING_WITH_LEN("SAVEPOINT")) ||
+            !native_strncasecmp(log_event_info.query,
+                                STRING_WITH_LEN("CREATE TABLE")))
           return false;
       }
       return true;
@@ -250,6 +252,10 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::TRANSACTION_CONTEXT_EVENT:
     case binary_log::START_5_7_ENCRYPTION_EVENT:
       boundary_type = EVENT_BOUNDARY_TYPE_IGNORE;
+      break;
+
+    case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      boundary_type = EVENT_BOUNDARY_TYPE_TRANSACTION_PAYLOAD;
       break;
 
     /*
@@ -439,6 +445,20 @@ bool Transaction_boundary_parser::update_state(
         case EVENT_PARSER_DML:
           new_parser_state = current_parser_state;
           break;
+        case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+          error = true;
+          break;
+      }
+      break;
+
+    case EVENT_BOUNDARY_TYPE_TRANSACTION_PAYLOAD:
+      switch (current_parser_state) {
+        case EVENT_PARSER_GTID:
+          new_parser_state = EVENT_PARSER_NONE;
+          break;
+        case EVENT_PARSER_NONE:
+        case EVENT_PARSER_DML:
+        case EVENT_PARSER_DDL:
         case EVENT_PARSER_ERROR: /* we probably threw a warning before */
           error = true;
           break;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,16 +38,19 @@
 
 #define JAM_FILE_ID 456
 
+class FsReadWriteReq;
 
 class Tsman : public SimulatedBlock
 {
 public:
   Tsman(Block_context&);
-  virtual ~Tsman();
+  ~Tsman() override;
   BLOCK_DEFINES(Tsman);
   
+public:
+  void execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */;
+
 protected:
-  
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -62,7 +65,6 @@ protected:
 
   void execSTART_RECREQ(Signal*);
   
-  void execFSWRITEREQ(Signal*);
   void execFSOPENREF(Signal*);
   void execFSOPENCONF(Signal*);
   void execFSREADREF(Signal*);
@@ -236,12 +238,13 @@ private:
   Lgman * m_lgman;
   SimulatedBlock * m_tup;
 
-  NdbMutex *m_client_mutex[MAX_NDBMT_LQH_THREADS + 1];
+  mutable NdbMutex *m_client_mutex[MAX_NDBMT_LQH_THREADS + 1];
   NdbMutex *m_alloc_extent_mutex;
-  void client_lock();
-  void client_unlock();
-  void client_lock(Uint32 instance);
-  void client_unlock(Uint32 instance);
+  void client_lock() const;
+  void client_unlock() const;
+  void client_lock(Uint32 instance) const;
+  void client_unlock(Uint32 instance) const;
+  bool is_datafile_ready(Uint32 file_no);
   void lock_extent_page(Uint32 file_no, Uint32 page_no);
   void unlock_extent_page(Uint32 file_no, Uint32 page_no);
   void lock_extent_page(Datafile*, Uint32 page_no);
@@ -414,6 +417,11 @@ public:
   int unmap_page(Local_key*, Uint32 bits);
 
   /**
+   * Check if datafile is ready for checkpoints.
+   */
+  bool is_datafile_ready(Uint32 file_no);
+
+  /**
    * Lock/Unlock extent page to ensure that access to this extent
    * page is serialised.
    */
@@ -551,6 +559,13 @@ Tablespace_client::get_page_free_bits(Local_key *key,
 				      unsigned* commited)
 {
   return m_tsman->get_page_free_bits(m_signal, key, uncommited, commited);
+}
+
+inline
+bool
+Tablespace_client::is_datafile_ready(Uint32 file_no)
+{
+  return m_tsman->is_datafile_ready(file_no);
 }
 
 inline

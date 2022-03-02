@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
+
+#include <algorithm>
 
 #include <NdbEnv.h>
 #include <NdbConfig.h>
@@ -53,7 +55,6 @@
 
 #define JAM_FILE_ID 484
 
-extern EventLogger * g_eventLogger;
 
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
@@ -375,7 +376,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         redomem += (16 - tmp);
       }
 
-      filepages += lqhInstances * redomem; // Add to RG_FILE_BUFFERS
+      filepages += logParts * redomem; // Add to RG_FILE_BUFFERS
     }
   }
 
@@ -451,15 +452,17 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_min = sbpages;
     /**
      * allow over allocation (from SharedGlobalMemory) of up to 25% of
-     *   totally allocated SendBuffer
+     *   totally allocated SendBuffer, at most 25% of SharedGlobalMemory.
      */
-    require(sbpages + (sbpages * 25) / 100 > 0);
-    rl.m_max = sbpages + (sbpages * 25) / 100;
+    const Uint32 sb_max_shared_pages = 25 * std::min(sbpages, shared_pages) / 100;
+    require(sbpages + sb_max_shared_pages > 0);
+    rl.m_max = sbpages + sb_max_shared_pages;
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
-    g_eventLogger->info("Send buffers use %u MB, can overallocate 25%%"
-                        " more using SharedGlobalMemory",
-                         sbpages/32);
+    g_eventLogger->info("Send buffers use %u MB, can overallocate %u MB"
+                        " more using SharedGlobalMemory.",
+                        sbpages / 32,
+                        sb_max_shared_pages / 32);
   }
   else
   {
@@ -475,12 +478,15 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     /**
      * Disk page buffer memory
      */
+    Uint32 recoverInstances = globalData.ndbMtRecoverThreads +
+                              globalData.ndbMtQueryThreads;
     Uint64 page_buffer = 64*1024*1024;
     ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY,&page_buffer);
 
     Uint32 pages = 0;
     pages += Uint32(page_buffer / GLOBAL_PAGE_SIZE); // in pages
     pages += LCP_RESTORE_BUFFER * lqhInstances;
+    pages += LCP_RESTORE_BUFFER * recoverInstances;
 
     pgman_pages += pages;
     pgman_pages += 64;
@@ -708,23 +714,21 @@ get_multithreaded_config(EmulatorData& ed)
   // multithreaded is compiled in ndbd/ndbmtd for now
   if (!globalData.isNdbMt)
   {
-    ndbout << "NDBMT: non-mt" << endl;
+    g_eventLogger->info("NDBMT: non-mt");
     return 0;
   }
 
   THRConfig & conf = ed.theConfiguration->m_thr_config;
   Uint32 threadcount = conf.getThreadCount();
-  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << threadcount << endl;
+  g_eventLogger->info("NDBMT: MaxNoOfExecutionThreads=%u", threadcount);
 
   if (!globalData.isNdbMtLqh)
     return 0;
 
-  ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
-         << " threads=" << globalData.ndbMtLqhThreads
-         << " tc=" << globalData.ndbMtTcThreads
-         << " send=" << globalData.ndbMtSendThreads
-         << " receive=" << globalData.ndbMtReceiveThreads
-         << endl;
+  g_eventLogger->info("NDBMT: workers=%u threads=%u tc=%u send=%u receive=%u",
+                      globalData.ndbMtLqhWorkers, globalData.ndbMtLqhThreads,
+                      globalData.ndbMtTcThreads, globalData.ndbMtSendThreads,
+                      globalData.ndbMtReceiveThreads);
 
   return 0;
 }
@@ -1035,7 +1039,7 @@ ndbd_run(bool foreground, int report_fd,
     _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
               "ndbd_shutdown_%d", GetCurrentProcessId());
 
-    g_shutdown_event = CreateEvent(NULL, TRUE, FALSE, shutdown_event_name);
+    g_shutdown_event = CreateEvent(NULL, true, false, shutdown_event_name);
     if (g_shutdown_event == NULL)
     {
       g_eventLogger->error("Failed to create shutdown event, error: %d",
@@ -1208,7 +1212,7 @@ ndbd_run(bool foreground, int report_fd,
       BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
       for (char* q = buf; *q != 0; q++)
         *q = toupper(toascii(*q));
-      ndbout_c("Turning on signal logging using block spec.: '%s'", buf);
+      g_eventLogger->info("Turning on signal logging using block spec.: '%s'", buf);
       globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
       globalData.testOn = 1;
     }
@@ -1216,8 +1220,8 @@ ndbd_run(bool foreground, int report_fd,
   else
   {
     // Failed to open signal log, print an error and ignore
-    ndbout_c("Failed to open signal logging file '%s', errno: %d",
-             signal_log_name, errno);
+    g_eventLogger->info("Failed to open signal logging file '%s', errno: %d",
+                        signal_log_name, errno);
   }
   free(signal_log_name);
 #endif
@@ -1267,7 +1271,7 @@ ndbd_run(bool foreground, int report_fd,
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
   if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
-    ndbout_c("globalTransporterRegistry.start_service() failed");
+    g_eventLogger->info("globalTransporterRegistry.start_service() failed");
     ndbd_exit(-1);
   }
   // Re-use the mgm handle as a transporter
@@ -1279,7 +1283,7 @@ ndbd_run(bool foreground, int report_fd,
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
   {
-    ndbout_c("globalTransporterRegistry.start_clients() failed");
+    g_eventLogger->info("globalTransporterRegistry.start_clients() failed");
     ndbd_exit(-1);
   }
   NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();

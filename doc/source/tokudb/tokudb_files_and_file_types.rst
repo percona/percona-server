@@ -4,6 +4,19 @@
 TokuDB files and file types
 ===========================
 
+.. Important:: 
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+
+
 The |TokuDB| file set consists of many different files that all serve various
 purposes.
 
@@ -37,7 +50,7 @@ metadata about the system, such as creation times, current file format
 versions, etc.
 
 |Percona FT| will create/expect this file in the directory specified by the
-|MySQL| :term:`datadir`.
+|MySQL| `datadir`.
 
 tokudb.rollback
 ---------------
@@ -52,7 +65,7 @@ if the transaction is explicitly rolled back, or rolled back via recovery as a
 result of an uncommitted transaction when a crash occurs.
 
 |Percona FT| will create/expect this file in the directory specified by the
-|MySQL| :term:`datadir`.
+|MySQL| `datadir`.
 
 tokudb.directory
 ----------------
@@ -64,7 +77,7 @@ single |Percona FT| dictionary file and takes up space within the |Percona FT|
 cachetable just like any other |Percona FT| dictionary.
 
 |Percona FT| will create/expect this file in the directory specified by the
-|MySQL| :term:`datadir`.
+|MySQL| `datadir`.
 
 Dictionary files
 ----------------
@@ -98,7 +111,7 @@ These files have a rolling naming convention, but use:
 ``log<log_file_number>.tokulog<log_file_format_version>``.
 
 |Percona FT| creates/expects these files in the directory specified by
-:variable:`tokudb_log_dir` if set, otherwise the |MySQL| :term:`datadir` is
+:variable:`tokudb_log_dir` if set, otherwise the |MySQL| `datadir` is
 used.
 
 |Percona FT| does not track what log files should or shouldn't be present. Upon
@@ -119,7 +132,7 @@ There are no temporary files left behind upon a clean shutdown,
 
 |Percona FT| creates/expects these files in the directory specified by
 :variable:`tokudb_tmp_dir` if set. If not, the :variable:`tokudb_data_dir` is
-used if set, otherwise the |MySQL| :term:`datadir` is used.
+used if set, otherwise the |MySQL| `datadir` is used.
 
 Lock files
 ----------

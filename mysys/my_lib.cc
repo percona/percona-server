@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,19 +84,19 @@ static char *directory_file_name(char *dst, const char *src);
 
 MY_DIR *my_dir(const char *path, myf MyFlags) {
   char *buffer;
-  MY_DIR *result = 0;
+  MY_DIR *result = nullptr;
   FILEINFO finfo;
   Entries_array *dir_entries_storage;
   MEM_ROOT *names_storage;
   DIR *dirp;
   char tmp_path[FN_REFLEN + 2], *tmp_file;
-  void *rawmem = NULL;
+  void *rawmem = nullptr;
 
   DBUG_TRACE;
   DBUG_PRINT("my", ("path: '%s' MyFlags: %d", path, MyFlags));
 
   dirp = opendir(directory_file_name(tmp_path, path));
-  if (dirp == NULL ||
+  if (dirp == nullptr ||
       !(buffer = static_cast<char *>(
             my_malloc(key_memory_MY_DIR,
                       ALIGN_SIZE(sizeof(MY_DIR)) +
@@ -129,7 +129,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
       (void)my_stat(tmp_path, finfo.mystat, MyFlags);
       if (!(finfo.mystat->st_mode & MY_S_IREAD)) continue;
     } else
-      finfo.mystat = NULL;
+      finfo.mystat = nullptr;
 
     if (dir_entries_storage->push_back(finfo)) goto error;
   }
@@ -166,7 +166,7 @@ error:
 static char *directory_file_name(char *dst, const char *src) {
   /* Process as Unix format: just remove test the final slash. */
   char *end;
-  DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
+  assert(strlen(src) < (FN_REFLEN + 1));
 
   if (src[0] == 0) src = "."; /* Use empty as current */
   end = my_stpnmov(dst, src, FN_REFLEN + 1);
@@ -306,7 +306,7 @@ int my_fstat(File Filedes, MY_STAT *stat_area) {
 
 MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf MyFlags) {
   DBUG_TRACE;
-  DBUG_ASSERT(stat_area != nullptr);
+  assert(stat_area != nullptr);
   DBUG_PRINT("my", ("path: '%s'  stat_area: %p  MyFlags: %d", path, stat_area,
                     MyFlags));
 

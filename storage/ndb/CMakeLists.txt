@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ SET(NDBCLUSTER_SOURCES
   plugin/ha_ndb_index_stat.cc
   plugin/ha_ndb_ddl_fk.cc
   plugin/ha_ndbinfo.cc
+  plugin/ha_ndbinfo_sql.cc
   plugin/ndb_local_connection.cc
   plugin/ndb_share.cc
   plugin/ndb_thd.cc
@@ -93,7 +94,16 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_sql_metadata_table.cc
   plugin/ndb_stored_grants.cc
   plugin/ndb_dd_fk.cc
+  plugin/ndb_pfs_init.cc
+  plugin/ndb_pfs_table.cc
+  plugin/ndb_sync_pending_objects_table.cc
+  plugin/ndb_sync_excluded_objects_table.cc
+  plugin/ndb_dd_sync.cc
+  plugin/ndb_upgrade_util.cc
+  plugin/ndb_mysql_services.cc
 )
+
+NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
@@ -124,10 +134,8 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -fno-strict-aliasing")
 ENDIF()
 
-IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
-  MESSAGE(STATUS "Building NDB 32-bit")
-ELSE()
-  MESSAGE(STATUS "Building NDB 64-bit")
+IF(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+  MESSAGE(FATAL_ERROR "Only 64-bit build of NDB is supported")
 ENDIF()
 
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
@@ -184,25 +192,37 @@ ELSE()
   ENDIF()
 ENDIF()
 
+SET(DEBUG_FLAGS
+  -DACC_SAFE_QUEUE
+  -DAPI_TRACE
+  -DARRAY_GUARD
+  -DERROR_INSERT
+  -DNDB_DEBUG
+  -DVM_TRACE
+  )
+SET(DEBUG_FLAGS_STRING "")
+FOREACH(flag ${DEBUG_FLAGS})
+  STRING_APPEND(DEBUG_FLAGS_STRING " ${flag}")
+ENDFOREACH()
+
+IF(APPLE_ARM)
+  # Do not add any flags, ndbmtd gets signal 10 = sigbus
+  # Without any additional flags, ~10 out of 200 tests fail.
+ELSE()
+  STRING_APPEND(CMAKE_C_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
+  STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
+ENDIF()
+
 OPTION(WITH_ERROR_INSERT
   "Enable error injection in NDB" OFF)
+IF(WITH_ERROR_INSERT)
+  ADD_DEFINITIONS(-DERROR_INSERT)
+ENDIF()
 
 OPTION(WITH_NDB_DEBUG
   "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
-
-IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-  MESSAGE(STATUS "Turning on special NDB debug features")
-  ADD_DEFINITIONS(-DVM_TRACE)
-  ADD_DEFINITIONS(-DNDB_DEBUG)
-  ADD_DEFINITIONS(-DERROR_INSERT)
-  ADD_DEFINITIONS(-DARRAY_GUARD)
-  ADD_DEFINITIONS(-DACC_SAFE_QUEUE)
-  ADD_DEFINITIONS(-DAPI_TRACE)
-ELSE()
-  IF(WITH_ERROR_INSERT)
-    ADD_DEFINITIONS(-DERROR_INSERT)
-  ENDIF()
-  ADD_DEFINITIONS(-DNDEBUG)
+IF(WITH_NDB_DEBUG)
+  ADD_DEFINITIONS(${DEBUG_FLAGS})
 ENDIF()
 
 # Set extra compiler switches from WITH_NDB_CCFLAGS
@@ -228,7 +248,14 @@ CHECK_FUNCTION_EXISTS (getrlimit HAVE_GETRLIMIT)
 
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
-SET(WITH_NDB_JAVA_DEFAULT ON)
+
+IF(APPLE_ARM)
+  SET(WITH_NDB_JAVA_DEFAULT OFF)
+  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to OFF")
+ELSE()
+  SET(WITH_NDB_JAVA_DEFAULT ON)
+ENDIF()
+
 # Check if the default for WITH_NDB_JAVA should be overriden
 # by environment variable
 IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
@@ -366,8 +393,6 @@ ENDIF()
 IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
-ADD_SUBDIRECTORY(memcache)
-ADD_SUBDIRECTORY(mcc)
 
 SET(WITH_NDB_NODEJS_DEFAULT ON)
 
@@ -392,7 +417,3 @@ IF(WITH_NDBAPI_EXAMPLES)
 ENDIF()
 
 ADD_SUBDIRECTORY(wix)
-
-IF(WITH_UNIT_TESTS)
-  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
-ENDIF()

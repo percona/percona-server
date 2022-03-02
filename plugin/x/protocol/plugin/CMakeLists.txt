@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,25 +20,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(protoc_plugin_SRC
-  message_field_chain.cc
-  messages_used_by_server.cc
-  xprotocol_plugin.cc
-)
+DISABLE_MISSING_PROFILE_WARNING()
+
+INCLUDE(source_files.cmake)
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
 )
 
-ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
+ADD_COMPILE_FLAGS(${PROTOC_PLUGIN_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
-
 MYSQL_ADD_EXECUTABLE(
   xprotocol_plugin
-  ${protoc_plugin_SRC}
+  ${PROTOC_PLUGIN_SRC}
   SKIP_INSTALL
 )
 
@@ -62,10 +58,7 @@ TARGET_LINK_LIBRARIES(
 # It can be observed with gcc+gold and gcc+lld.
 #
 IF(MY_COMPILER_IS_GNU)
-  SET_TARGET_PROPERTIES(
-    xprotocol_plugin
-    PROPERTIES LINK_FLAGS
-    "-Wl,--no-as-needed -lpthread")
+  MY_TARGET_LINK_OPTIONS(xprotocol_plugin "-Wl,--no-as-needed -lpthread")
 ENDIF()
 
 SET(PROTOC_PLUGIN_GENERATED_HDR

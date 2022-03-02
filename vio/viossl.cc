@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@
   00 00 00 00                                           ....
   ~~~~~~~
 
-  Then the rest of the communication is swithed to TLS:
+  Then the rest of the communication is switched to TLS:
   ~~~~~~~
   16 03 01 00 5e 01 00 00    5a 03 01 4c a3 49 2e 7a    ....^...Z..L.I.z
   b5 06 75 68 5c 30 36 73    f1 82 79 70 58 4c 64 bb    ..uh\06s..ypXLd.
@@ -118,9 +118,7 @@
 */
 /* clang-format on */
 
-#ifdef HAVE_OPENSSL
-
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void report_errors(SSL *ssl) {
   unsigned long l;
@@ -241,7 +239,7 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
       /* first save the top ERR error */
       err_error = ERR_get_error();
       /* now report all remaining errors on and/or clear the error stack */
-#ifndef DBUG_OFF /* Debug build */
+#ifndef NDEBUG /* Debug build */
       /* Note: the OpenSSL error queue gets cleared in report_errors(). */
       report_errors(ssl);
 #else /* Release build */
@@ -272,7 +270,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret = SSL_read(ssl, buf, (int)size);
 
@@ -314,7 +312,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
       SSL_write() returns an error from the error queue, when SSL_write() failed
       because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret = SSL_write(ssl, buf, (int)size);
 
@@ -385,7 +383,7 @@ void vio_ssl_delete(Vio *vio) {
 
   if (vio->ssl_arg) {
     SSL_free((SSL *)vio->ssl_arg);
-    vio->ssl_arg = 0;
+    vio->ssl_arg = nullptr;
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -427,7 +425,7 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
       SSL-handshake-function returns an error from the error queue, when the
       function failed because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     int handshake_ret;
     handshake_ret = func(ssl);
@@ -439,6 +437,11 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
 
     /* Process the SSL I/O error. */
     if (!ssl_should_retry(vio, handshake_ret, &event, ssl_errno_holder)) break;
+
+    DBUG_EXECUTE_IF("bug32372038", {
+      DBUG_SET("+d,bug32372038_ssl_started");
+      return VIO_SOCKET_WANT_READ;
+    };);
 
     if (!vio->is_blocking_flag) {
       switch (event) {
@@ -455,7 +458,7 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
     if (vio_socket_io_wait(vio, event)) break;
   }
 
-  vio->ssl_arg = NULL;
+  vio->ssl_arg = nullptr;
 
   return ret;
 }
@@ -495,7 +498,7 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
   switch (oper) {
     case BIO_CB_READ:
       vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
-      DBUG_ASSERT(vio->m_psi_read_locker == nullptr);
+      assert(vio->m_psi_read_locker == nullptr);
       if (vio->mysql_socket.m_psi != nullptr) {
         vio->m_psi_read_locker = PSI_SOCKET_CALL(start_socket_wait)(
             &vio->m_psi_read_state, vio->mysql_socket.m_psi, PSI_SOCKET_RECV,
@@ -511,7 +514,7 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
       break;
     case BIO_CB_WRITE:
       vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
-      DBUG_ASSERT(vio->m_psi_write_locker == nullptr);
+      assert(vio->m_psi_write_locker == nullptr);
       if (vio->mysql_socket.m_psi != nullptr) {
         vio->m_psi_write_locker = PSI_SOCKET_CALL(start_socket_wait)(
             &vio->m_psi_write_state, vio->mysql_socket.m_psi, PSI_SOCKET_SEND,
@@ -535,7 +538,7 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
     case BIO_CB_GETS:
     case BIO_CB_GETS | BIO_CB_RETURN:
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   return ret;
@@ -569,15 +572,15 @@ long pfs_ssl_bio_callback(BIO *b, int oper, const char *argp, int argi,
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
   BIO *rbio = SSL_get_rbio(ssl);
-  DBUG_ASSERT(rbio != nullptr);
-  DBUG_ASSERT(BIO_method_type(rbio) == BIO_TYPE_SOCKET);
+  assert(rbio != nullptr);
+  assert(BIO_method_type(rbio) == BIO_TYPE_SOCKET);
 
   BIO *wbio = SSL_get_wbio(ssl);
-  DBUG_ASSERT(wbio != nullptr);
-  DBUG_ASSERT(BIO_method_type(wbio) == BIO_TYPE_SOCKET);
+  assert(wbio != nullptr);
+  assert(BIO_method_type(wbio) == BIO_TYPE_SOCKET);
 
   char *cb_arg = reinterpret_cast<char *>(vio);
-  DBUG_ASSERT(cb_arg != nullptr);
+  assert(cb_arg != nullptr);
 
   BIO_set_callback_arg(rbio, cb_arg);
 
@@ -606,7 +609,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_socket sd = mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int j, n;
 #endif
 
@@ -634,9 +637,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     {
-      STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
+      STACK_OF(SSL_COMP) *ssl_comp_methods = nullptr;
       ssl_comp_methods = SSL_COMP_get_compression_methods();
       n = sk_SSL_COMP_num(ssl_comp_methods);
       DBUG_PRINT("info", ("Available compression methods:\n"));
@@ -687,7 +690,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     *sslptr = nullptr;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     /* Print some info about the peer */
     X509 *cert;
@@ -733,5 +736,3 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 bool vio_ssl_has_data(Vio *vio) {
   return SSL_pending(static_cast<SSL *>(vio->ssl_arg)) > 0 ? true : false;
 }
-
-#endif /* HAVE_OPENSSL */

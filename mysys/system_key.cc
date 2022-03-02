@@ -21,7 +21,7 @@
 
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 
 struct Valid_percona_system_key {
@@ -64,7 +64,7 @@ uchar *parse_system_key(const uchar *key, const size_t key_length,
 
   if (key == nullptr || key_length == 0) return nullptr;
 
-  for (; key[key_version_length] != ':' && key_version_length < key_length;
+  for (; key_version_length < key_length && key[key_version_length] != ':';
        ++key_version_length)
     ;
   if (key_version_length == 0 || key_version_length == key_length)
@@ -85,12 +85,12 @@ uchar *parse_system_key(const uchar *key, const size_t key_length,
   }
   my_free(version);
 
-  DBUG_ASSERT(ulong_key_version <= UINT_MAX);  // sanity check
+  assert(ulong_key_version <= UINT_MAX);  // sanity check
 
   *key_data_length =
       key_length - (key_version_length + 1);  // skip ':' after key version
   if (*key_data_length == 0) return nullptr;
-  DBUG_ASSERT(*key_data_length <= 512);
+  assert(*key_data_length <= 512);
 
   *key_data = (uchar *)(my_malloc(PSI_NOT_INSTRUMENTED,
                                   sizeof(uchar) * (*key_data_length), MYF(0)));

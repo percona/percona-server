@@ -39,18 +39,22 @@ test/t2	5	1	PRIMARY	4	3	4	50
 test/t3	5	41	PRIMARY	4	3	4	50
 test/t4	5	33	PRIMARY	4	3	4	50
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_system	System	DEFAULT	0	Any	ibdata1
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
-test/t2	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2.ibd
-test/t3	Single	DEFAULT	8192	Compressed	MYSQLD_DATADIR/test/t3.ibd
-test/t4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Compact or Redundant	MYSQLD_DATADIR/test/t2.ibd
+test/t3	Single	DEFAULT	8192	1	1	Compressed	MYSQLD_DATADIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQLD_DATADIR/test/t2.ibd
@@ -337,6 +341,7 @@ DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
+SET SESSION sort_buffer_size = 1048576;
 SELECT a,
 LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1
 ORDER BY 1, 2, 3, 4, 5, 6;
@@ -366,6 +371,7 @@ a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 66	65535	1	15840	1	adfdpplkeock
 66	65535	1	17160	1	adfdijnmnb78k
 66	65535	1	21120	1	adfdijn0loKNHJik
+SET SESSION sort_buffer_size = DEFAULT;
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 ERROR 23000: Duplicate entry '22' for key 't1.PRIMARY'
 DELETE FROM t1 WHERE d='null';
@@ -406,7 +412,7 @@ t1	CREATE TABLE `t1` (
   `d` text NOT NULL,
   PRIMARY KEY (`a`,`b`(255),`c`(255)),
   KEY `b` (`b`(767))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

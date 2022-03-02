@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 
 #include <memory>
 
-#include "my_rnd.h"
 #include "mysql/plugin.h"
 #include "plugin/keyring/common/keyring_memory.h"
 #include "plugin/keyring/common/keys_container.h"
@@ -49,13 +48,14 @@ extern mysql_rwlock_t LOCK_keyring;
 extern std::unique_ptr<IKeys_container> keys;
 extern volatile bool is_keys_container_initialized;
 extern std::unique_ptr<ILogger> logger;
-extern std::unique_ptr<char[]> keyring_file_data;
+extern char *keyring_file_data;
 extern bool keyring_open_mode;
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);
 #endif  // HAVE_PSI_INTERFACE
 
+void delete_keyring_file_data();
 bool init_keyring_locks();
 bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
@@ -84,7 +84,8 @@ template <typename T>
 bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
                      void **key, size_t *key_len, const char *plugin_name) {
   try {
-    std::unique_ptr<IKey> key_to_fetch(new T(key_id, NULL, user_id, NULL, 0));
+    std::unique_ptr<IKey> key_to_fetch(
+        new T(key_id, nullptr, user_id, nullptr, 0));
     return mysql_key_fetch(std::move(key_to_fetch), key_type, key, key_len);
   } catch (...) {
     log_operation_error("fetch a key", plugin_name);
@@ -110,7 +111,8 @@ template <typename T>
 bool mysql_key_remove(const char *key_id, const char *user_id,
                       const char *plugin_name) {
   try {
-    std::unique_ptr<IKey> key_to_remove(new T(key_id, NULL, user_id, NULL, 0));
+    std::unique_ptr<IKey> key_to_remove(
+        new T(key_id, nullptr, user_id, nullptr, 0));
     return mysql_key_remove(std::move(key_to_remove));
   } catch (...) {
     log_operation_error("remove a key", plugin_name);

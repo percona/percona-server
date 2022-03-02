@@ -163,8 +163,7 @@ static uchar *hp_allocate_one_chunk(HP_DATASPACE *info) noexcept;
 
 void hp_clear_dataspace(HP_DATASPACE *info) noexcept {
   if (info->block.levels) {
-    hp_free_level(&info->block, info->block.levels, info->block.root,
-                  (uchar *)0);
+    hp_free_level(&info->block, info->block.levels, info->block.root, nullptr);
   }
   info->block.levels = 0;
   info->del_chunk_count = info->chunk_count = 0;
@@ -193,7 +192,7 @@ static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
   uchar *first_chunk = nullptr, *curr_chunk = nullptr, *prev_chunk = nullptr;
   uchar *last_existing_chunk = nullptr;
 
-  DBUG_ASSERT(alloc_count);
+  assert(alloc_count);
 
   if (existing_set) {
     first_chunk = existing_set;

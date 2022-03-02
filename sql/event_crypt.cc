@@ -5,8 +5,8 @@
 
 bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
                    uchar *ebuf, size_t buf_len) {
-  DBUG_ASSERT(crypto.is_enabled());
-  DBUG_ASSERT(crypto.get_key() != nullptr);
+  assert(crypto.is_enabled());
+  assert(crypto.get_key() != nullptr);
 
   size_t elen;
   uchar iv[binary_log::Start_encryption_event::IV_LENGTH];
@@ -21,7 +21,7 @@ bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
     memcpy(buf, buf + EVENT_LEN_OFFSET, 4);
     return true;
   }
-  DBUG_ASSERT(elen == buf_len - 4);
+  assert(elen == buf_len - 4);
 
   memcpy(ebuf, ebuf + EVENT_LEN_OFFSET, 4);
   int4store(ebuf + EVENT_LEN_OFFSET, buf_len);

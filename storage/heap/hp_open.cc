@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
             hp_key_memory_HP_INFO,
             (uint)sizeof(HP_INFO) + 2 * share->max_key_length,
             MYF(MY_ZEROFILL)))) {
-    return 0;
+    return nullptr;
   }
   share->open_count++;
   /*
@@ -54,15 +54,15 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
     is not used for them anyway (and THR_LOCK is not initialized for them
     too).
   */
-  if (share->open_list.data != NULL)
-    thr_lock_data_init(&share->lock, &info->lock, NULL);
+  if (share->open_list.data != nullptr)
+    thr_lock_data_init(&share->lock, &info->lock, nullptr);
   info->s = share;
   info->lastkey = (uchar *)(info + 1);
   info->recbuf = (uchar *)(info->lastkey + share->max_key_length);
   info->mode = mode;
   info->current_record = (ulong)~0L; /* No current record */
   info->lastinx = info->errkey = -1;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   info->opt_flag = READ_CHECK_USED; /* Check when changing */
 #endif
   DBUG_PRINT("exit", ("heap: 0x%lx  chunk_length: %d  records_in_block: %d",
@@ -122,7 +122,7 @@ HP_INFO *heap_open(const char *name, int mode) {
   if (!(share = hp_find_named_heap(name))) {
     set_my_errno(ENOENT);
     mysql_mutex_unlock(&THR_LOCK_heap);
-    return 0;
+    return nullptr;
   }
   if ((info = heap_open_from_share(share, mode))) {
     info->open_list.data = (void *)info;
@@ -147,5 +147,5 @@ HP_SHARE *hp_find_named_heap(const char *name) {
       return info;
     }
   }
-  return (HP_SHARE *)0;
+  return (HP_SHARE *)nullptr;
 }

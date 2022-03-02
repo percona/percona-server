@@ -1,0 +1,121 @@
+# This is complementary test to keyring_and_mk_encryption_exclusions. Here we check default_table_encryption and
+# databases's DEFAULT ENCRYPTION exclusions.
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE DATABASE db_1;
+SHOW CREATE DATABASE db_1;
+USE db_1;
+CREATE TABLE t1 (a varchar(255));
+SHOW CREATE TABLE t1;
+
+--let $assert_text= Make sure ENCRYPTION is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'db_1/t1\\' AND ENCRYPTION=\\'Y\\']" = 1
+--source include/assert.inc
+
+--let $assert_text= Make sure MIN_KEY_VERSION is set to 1 in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'db_1/t1\\' AND MIN_KEY_VERSION=1]" = 1
+--source include/assert.inc
+
+# It should not be possible to create a database with DEFAULT_ENCRYPTION=Y/N while default_table_encryption is
+# equal to ONLINE_TO_KEYRING
+--error ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
+CREATE DATABASE db_2 DEFAULT ENCRYPTION='Y';
+
+--error ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH
+CREATE DATABASE db_2 DEFAULT ENCRYPTION='N';
+
+# It should not be possible to ATLER database DEFAULT_ENCRYPTION to Y/N while default_table_encryption is
+# equal to ONLINE_TO_KEYRING
+USE test;
+--error ER_DATABASE_ENCRYPTION_MK_KEYRING_MISMATCH
+ALTER DATABASE db_1 DEFAULT ENCRYPTION='Y';
+
+--error ER_DATABASE_ENCRYPTION_N_KEYRING_MISMATCH
+CREATE DATABASE db_1 DEFAULT ENCRYPTION='N';
+
+USE db_1;
+# Now let's create database with DEFAULT ENCRYPTION='Y' and then change the default_table_encryption to
+# ONLINE_TO_KEYRING
+
+SET SESSION default_table_encryption=ON;
+CREATE DATABASE db_2;
+SHOW CREATE DATABASE db_2;
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+# Now we try to create a table in db_2 database that will inherit ENCRYPTION='Y' from db_2's DEFAULT ENCRYPTION.
+# This should fail - as it is not possible to create MK encrypted tables while ONLINE_TO_KEYRING is set.
+USE db_2;
+--error ER_KEYRING_ILLEGAL_ENCRYPTION_OPTION
+CREATE TABLE t1 (a varchar(255));
+
+# We should be able to create tables in this database when ONLINE_FROM_KEYRING_TO_UNENCRYPTED is set.
+# We are decrypting only ONLINE keyring encrypted tables - so it does not collide with creating new
+# Master Key encrypted tables.
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE t1 (a varchar(255));
+
+CREATE DATABASE db_3 DEFAULT ENCRYPTION='N';
+USE db_3;
+# Only tables with explicit ENCRYPTION='N' are excluded from online encryption.
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE TABLE t1 (a varchar(255));
+CREATE TABLE t2 (a varchar(255)) ENCRYPTION='N';
+# t1 should get encrypted - as its ENCRYPTION='N' was inherited, i.e. was not set explicitly
+# and t2 should stay unencrypted - as its ENCRYPTION='N' was set explicitly.
+--let $assert_text= Make sure ENCRYPTION is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_3/t1
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'db_3/t1\\' AND ENCRYPTION=\\'Y\\']" = 1
+--source include/assert.inc
+--let $assert_text= Make sure MIN_KEY_VERSION is set to 1 in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION for db_3/t1
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'db_3/t1\\' AND MIN_KEY_VERSION=1]" = 1
+--source include/assert.inc
+--let $assert_text= Make sure ENCRYPTION is set to N in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_3/t2
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'db_3/t2\\' AND ENCRYPTION=\\'N\\']" = 1
+--source include/assert.inc
+--let $assert_text= Make sure EXCLUDED is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION for db_3/t2
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'db_3/t2\\' AND EXCLUDED=\\'Y\\']" = 1
+--source include/assert.inc
+
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE TABLE t3 (a varchar(255));
+--let $assert_text= Make sure ENCRYPTION is set to N in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_3/t3
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'db_3/t3\\' AND ENCRYPTION=\\'N\\']" = 1
+--echo # Make sure db_3/t3 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION as it was never encrypted nor
+--echo # excluded from encryption threads.
+--let $assert_text= Make sure db_3/t3 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'db_3/t3\\']" = 0
+--source include/assert.inc
+
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+CREATE DATABASE db_4 DEFAULT ENCRYPTION='Y';
+USE db_4;
+CREATE TABLE t1 (a varchar(255));
+--let $assert_text= Make sure ENCRYPTION is set to Y in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_4/t1
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'db_4/t1\\' AND ENCRYPTION=\\'Y\\']" = 1
+--echo # Make sure db_4/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION as it is
+--echo # MK encrypted.
+--let $assert_text= Make sure db_4/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'db_4/t1\\']" = 0
+--source include/assert.inc
+
+CREATE DATABASE db_5 DEFAULT ENCRYPTION='N';
+USE db_5;
+CREATE TABLE t1 (a varchar(255));
+--let $assert_text= Make sure ENCRYPTION is set to N in INFORMATION_SCHEMA.INNODB_TABLESPACES for db_5/t1
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'db_5/t1\\' AND ENCRYPTION=\\'N\\']" = 1
+--echo # Make sure db_5/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION as it is
+--echo # MK encrypted.
+--let $assert_text= Make sure db_5/t1 is not included in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME=\\'db_5/t1\\']" = 0
+--source include/assert.inc
+
+
+# cleanup
+SET GLOBAL default_table_encryption=OFF;
+DROP DATABASE db_1;
+DROP DATABASE db_2;
+DROP DATABASE db_3;
+DROP DATABASE db_4;
+DROP DATABASE db_5;
+
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup

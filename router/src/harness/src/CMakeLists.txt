@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@ ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
   loader.cc
+  dynamic_loader.cc
   utilities.cc
   config_parser.cc
   designator.cc
@@ -85,8 +86,10 @@ SET(harness_source
   logging/logging.cc
   logging/registry.cc
   random_generator.cc
+  sd_notify.cc
   socket_operations.cc
   tcp_address.cc
+  tls_cipher.cc
   tty.cc
   vt100.cc
   vt100_filter.cc
@@ -94,23 +97,17 @@ SET(harness_source
   keyring/keyring_memory.cc
   keyring/keyring_file.cc
   keyring/master_key_file.cc
-  networking/ip_address.cc
-  networking/ipv4_address.cc
-  networking/ipv6_address.cc
-  networking/resolver.cc
-  my_aes_openssl.cc)
+  )
 
 IF(WIN32)
   LIST(APPEND harness_source
     filesystem-windows.cc
     utilities-windows.cc
-    loader-windows.cc
     logging/eventlog_plugin.cc)
 ELSE()
   LIST(APPEND harness_source
     filesystem-posix.cc
     utilities-posix.cc
-    loader-posix.cc
     logging/syslog_plugin.cc)
 ENDIF()
 
@@ -135,9 +132,15 @@ ELSE()
 ENDIF()
 
 SET(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
-  ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES} mysys)
+  ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES})
 
 SET(INSTALL_INCLUDE_DIR "include/mysql/harness")
+
+## for plugin.h.in
+SET(MYSQL_HARNESS_ARCH_CPU ${MYSQL_MACHINE_TYPE})
+SET(MYSQL_HARNESS_ARCH_OS ${CMAKE_SYSTEM_NAME})
+SET(MYSQL_HARNESS_ARCH_COMPILER ${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION})
+SET(MYSQL_HARNESS_ARCH_RUNTIME "*")
 
 CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plugin.h
   ESCAPE_QUOTES @ONLY)
@@ -156,7 +159,9 @@ ENDIF()
 # create harness library - dynamic version
 ADD_LIBRARY(harness-library SHARED
   ${harness_source} ${GENERATED_SOURCES_SHARED})
-TARGET_LINK_LIBRARIES(harness-library ${common_libraries})
+
+# mysys is need for my_print_stacktrace
+TARGET_LINK_LIBRARIES(harness-library ${common_libraries} mysys)
 TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC
   ../include ${CMAKE_CURRENT_BINARY_DIR}/src_SHARED)
 
@@ -194,7 +199,7 @@ IF(WIN32)
 ENDIF()
 
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
-SET_PATH_TO_SSL(harness-library ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness-library)
 
 IF(NOT WIN32)
   INSTALL(TARGETS harness-library
@@ -207,3 +212,74 @@ ELSE()
     RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
     COMPONENT Router)
 ENDIF()
+
+ADD_LIBRARY(harness_stdx SHARED
+  stdx/filesystem.cc
+  stdx/io/file_handle.cc
+)
+TARGET_SOURCES(harness_stdx
+  INTERFACE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/bit.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/expected.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/type_traits.h
+  )
+TARGET_INCLUDE_DIRECTORIES(harness_stdx
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  )
+GENERATE_EXPORT_HEADER(harness_stdx
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/stdx_export.h)
+
+SET_TARGET_PROPERTIES(harness_stdx PROPERTIES
+  OUTPUT_NAME "mysqlharness_stdx"
+  SOVERSION 1
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+INSTALL(TARGETS harness_stdx
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  NAMELINK_SKIP
+  )
+
+## harness_tls
+
+ADD_LIBRARY(harness_tls SHARED
+  tls_client_context.cc
+  tls_context.cc
+  tls_error.cc
+  tls_server_context.cc
+  )
+
+IF(TARGET copy_openssl_dlls)
+  ADD_DEPENDENCIES(harness_tls copy_openssl_dlls)
+ENDIF()
+
+## the rpath for the bundled openssl
+ADD_INSTALL_RPATH_FOR_OPENSSL(harness_tls)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness_tls)
+
+GENERATE_EXPORT_HEADER(harness_tls
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/tls_export.h)
+
+TARGET_INCLUDE_DIRECTORIES(harness_tls
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  )
+TARGET_LINK_LIBRARIES(harness_tls
+  PUBLIC ${SSL_LIBRARIES}
+  )
+SET_TARGET_PROPERTIES(harness_tls PROPERTIES
+  OUTPUT_NAME "mysqlharness_tls"
+  SOVERSION 1
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+  )
+INSTALL(TARGETS harness_tls
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  NAMELINK_SKIP
+  )

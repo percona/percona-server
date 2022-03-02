@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
 #endif
+
+#include <mysql/components/services/bits/psi_bits.h>
 
 /**
   @file
@@ -110,6 +112,18 @@ typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
 */
 typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key, size_t size,
                                             struct PSI_thread **owner);
+
+/**
+  Instrument memory claim.
+  @param key the memory instrument key
+  @param size the size of memory allocated
+  @param[in, out] owner the memory owner
+  @param claim True to claim, false to unclaim
+  @return the effective memory instrument key
+*/
+typedef PSI_memory_key (*memory_claim_v2_t)(PSI_memory_key key, size_t size,
+                                            struct PSI_thread **owner,
+                                            bool claim);
 
 /**
   Instrument memory free.

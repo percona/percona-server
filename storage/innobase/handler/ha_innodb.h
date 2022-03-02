@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -29,9 +29,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
+#include <assert.h>
 #include <sys/types.h>
 #include "handler.h"
-#include "my_dbug.h"
+#include "mysql/components/services/clone_protocol_service.h"
+
 #include "row0pread-adapter.h"
 #include "row0pread-histogram.h"
 #include "trx0trx.h"
@@ -39,6 +41,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
+
+/** Clone protocol service. */
+extern SERVICE_TYPE(clone_protocol) * clone_protocol_svc;
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -80,7 +85,7 @@ class Dictionary_client;
 class ha_innobase : public handler {
  public:
   ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_innobase() override;
+  ~ha_innobase() override = default;
 
   row_type get_real_row_type(const HA_CREATE_INFO *create_info) const override;
 
@@ -95,7 +100,7 @@ class ha_innobase : public handler {
     /* This method is never used for FULLTEXT or SPATIAL keys.
     We rely on handler::ha_table_flags() to check if such keys
     are supported. */
-    DBUG_ASSERT(key_alg != HA_KEY_ALG_FULLTEXT && key_alg != HA_KEY_ALG_RTREE);
+    assert(key_alg != HA_KEY_ALG_FULLTEXT && key_alg != HA_KEY_ALG_RTREE);
     return key_alg == HA_KEY_ALG_BTREE;
   }
 
@@ -212,10 +217,11 @@ class ha_innobase : public handler {
   @param[in]  sampling_seed       random seed that the random generator will use
   @param[in]  sampling_method     sampling method to be used; currently only
   SYSTEM sampling is supported
+  @param[in]  tablesample         true if the sampling is for tablesample
   @return 0 for success, else one of the HA_xxx values in case of error. */
   int sample_init(void *&scan_ctx, double sampling_percentage,
-                  int sampling_seed,
-                  enum_sampling_method sampling_method) override;
+                  int sampling_seed, enum_sampling_method sampling_method,
+                  const bool tablesample) override;
 
   /** Get the next record for sampling.
   @param[in]  scan_ctx  Scan context of the sampling
@@ -295,7 +301,7 @@ class ha_innobase : public handler {
   /** Create an InnoDB table.
   @param[in]	name		table name in filename-safe encoding
   @param[in]	form		table structure
-  @param[in]	create_info	more information
+  @param[in]	create_info	more information on the table
   @param[in,out]	table_def	dd::Table describing table to be
   created. Can be adjusted by SE, the changes will be saved into data-dictionary
   at statement commit time.
@@ -336,20 +342,24 @@ class ha_innobase : public handler {
 
   void init_table_handle_for_HANDLER() override;
 
-  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong nb_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values) override;
+  void get_auto_increment(ulonglong offset, ulonglong increment,
+                          ulonglong nb_desired_values, ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
 
-  virtual bool get_error_message(int error, String *buf) override;
+  /** Do cleanup for auto increment calculation. */
+  void release_auto_increment() override;
 
-  virtual bool get_foreign_dup_key(char *, uint, char *, uint) override;
+  bool get_error_message(int error, String *buf) override;
+
+  bool get_foreign_dup_key(char *, uint, char *, uint) override;
 
   bool primary_key_is_clustered() const override;
 
   int cmp_ref(const uchar *ref1, const uchar *ref2) const override;
 
-  /** On-line ALTER TABLE interface @see handler0alter.cc @{ */
+  /** @defgroup ALTER_TABLE_INTERFACE On-line ALTER TABLE interface
+  @see handler0alter.cc
+  @{ */
 
   /** Check if InnoDB supports a particular alter table in-place
   @param altered_table TABLE object for new version of table.
@@ -358,11 +368,13 @@ class ha_innobase : public handler {
 
   @retval HA_ALTER_INPLACE_NOT_SUPPORTED Not supported
   @retval HA_ALTER_INPLACE_NO_LOCK Supported
-  @retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
-          Supported, but requires lock during main phase and
-          exclusive lock during prepare phase.
-  @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
-          Supported, prepare phase requires exclusive lock.  */
+  @retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE Supported, but requires
+  lock during main phase and exclusive lock during prepare phase.
+  @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
+  requires exclusive lock (any transactions that have accessed the table
+  must commit or roll back first, and no transactions can access the table
+  while prepare_inplace_alter_table() is executing)
+  */
   enum_alter_inplace_result check_if_supported_inplace_alter(
       TABLE *altered_table, Alter_inplace_info *ha_alter_info) override;
 
@@ -370,7 +382,6 @@ class ha_innobase : public handler {
   writes blocked (provided that check_if_supported_inplace_alter()
   did not return HA_ALTER_INPLACE_NO_LOCK).
   This will be invoked before inplace_alter_table().
-
   @param[in]	altered_table	TABLE object for new version of table.
   @param[in,out]	ha_alter_info	Structure describing changes to be done
   by ALTER TABLE and holding data used during in-place alter.
@@ -379,7 +390,6 @@ class ha_innobase : public handler {
   @param[in,out]	new_dd_tab	dd::Table object for the new version of
   the table. Can be adjusted by this call. Changes to the table definition will
   be persisted in the data-dictionary at statement commit time.
-
   @retval true Failure
   @retval false Success
   */
@@ -392,7 +402,6 @@ class ha_innobase : public handler {
   specified using HA_ALTER_FLAGS and Alter_inplace_information.
   The level of concurrency allowed during this operation depends
   on the return value from check_if_supported_inplace_alter().
-
   @param[in]	altered_table	TABLE object for new version of table.
   @param[in,out]	ha_alter_info	Structure describing changes to be done
   by ALTER TABLE and holding data used during in-place alter.
@@ -401,7 +410,6 @@ class ha_innobase : public handler {
   @param[in,out]	 new_dd_tab	dd::Table object for the new version of
   the table. Can be adjusted by this call. Changes to the table definition will
   be persisted in the data-dictionary at statement commit time.
-
   @retval true Failure
   @retval false Success
   */
@@ -417,20 +425,18 @@ class ha_innobase : public handler {
   inplace_alter_table() and thus might be higher than during
   prepare_inplace_alter_table(). (E.g concurrent writes were
   blocked during prepare, but might not be during commit).
-
   @param[in]	altered_table	TABLE object for new version of table.
   @param[in,out]	ha_alter_info	Structure describing changes to be done
   by ALTER TABLE and holding data used during in-place alter.
-  @param commit true => Commit, false => Rollback.
-  @param old_dd_tab dd::Table object describing old version
-  of the table.
-  @param new_dd_tab dd::Table object for the new version of the
-  table. Can be adjusted by this call. Changes to the table
+  @param[in]	commit		True to commit or false to rollback.
+  @param[in]	old_dd_tab	dd::Table object representing old
+  version of the table
+  @param[in,out]	new_dd_tab	dd::Table object representing new
+  version of the table. Can be adjusted by this call. Changes to the table
   definition will be persisted in the data-dictionary at statement
   commit time.
-  @retval true Failure
-  @retval false Success
-  */
+  @retval	true Failure
+  @retval	false Success */
   bool commit_inplace_alter_table(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info,
                                   bool commit, const dd::Table *old_dd_tab,
@@ -457,13 +463,18 @@ class ha_innobase : public handler {
   /** Initializes a parallel scan. It creates a scan_ctx that has to
   be used across all parallel_scan methods. Also, gets the number of threads
   that would be spawned for parallel scan.
-  @param[out]   scan_ctx        A scan context created by this method
-                                that has to be used in
-                                parallel_scan
-  @param[out]   num_threads     Number of threads to be spawned
+  @param[out]   scan_ctx              A scan context created by this method
+                                      that has to be used in
+                                      parallel_scan
+  @param[out]   num_threads           Number of threads to be spawned
+  @param[in]    use_reserved_threads  true if reserved threads are to be used
+                                      if we exhaust the max cap of number of
+                                      parallel read threads that can be
+                                      spawned at a time
   @return error code
   @retval 0 on success */
-  int parallel_scan_init(void *&scan_ctx, size_t &num_threads) override;
+  int parallel_scan_init(void *&scan_ctx, size_t *num_threads,
+                         bool use_reserved_threads) override;
 
   /** Start parallel read of InnoDB records.
   @param[in]  scan_ctx          A scan context created by parallel_scan_init
@@ -480,54 +491,34 @@ class ha_innobase : public handler {
                     Reader::Load_fn load_fn, Reader::End_fn end_fn) override;
 
   /** End of the parallel scan.
-  @param[in]      scan_ctx      A scan context created by parallel_scan_init.
-  @return error code
-  @retval 0 on success */
-  int parallel_scan_end(void *scan_ctx) override;
+  @param[in]      scan_ctx      A scan context created by parallel_scan_init. */
+  void parallel_scan_end(void *scan_ctx) override;
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
 
  private:
-  /** @name Multi Range Read interface @{ */
+  /** @name Multi Range Read interface
+  @{ */
 
-  /** Initialize multi range read @see DsMrr_impl::dsmrr_init
-  @param seq
-  @param seq_init_param
-  @param n_ranges
-  @param mode
-  @param buf */
+  /** Initialize multi range read @see DsMrr_impl::dsmrr_init */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode,
                             HANDLER_BUFFER *buf) override;
 
-  /** Process next multi range read @see DsMrr_impl::dsmrr_next
-  @param range_info */
+  /** Process next multi range read @see DsMrr_impl::dsmrr_next */
   int multi_range_read_next(char **range_info) override;
 
   /** Initialize multi range read and get information.
   @see ha_myisam::multi_range_read_info_const
-  @see DsMrr_impl::dsmrr_info_const
-  @param keyno
-  @param seq
-  @param seq_init_param
-  @param n_ranges
-  @param bufsz
-  @param flags
-  @param cost */
+  @see DsMrr_impl::dsmrr_info_const */
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, uint n_ranges,
                                       uint *bufsz, uint *flags,
                                       Cost_estimate *cost) override;
 
   /** Initialize multi range read and get information.
-  @see DsMrr_impl::dsmrr_info
-  @param keyno
-  @param n_ranges
-  @param keys
-  @param bufsz
-  @param flags
-  @param cost */
+  @see DsMrr_impl::dsmrr_info */
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags,
                                 Cost_estimate *cost) override;
@@ -537,7 +528,7 @@ class ha_innobase : public handler {
   @param[in] idx_cond Index condition to be checked
   @return idx_cond if pushed; NULL if not pushed */
   Item *idx_cond_push(uint keyno, Item *idx_cond) override;
-  /* @} */
+  /** @} */
 
  private:
   void update_thd();
@@ -579,8 +570,9 @@ class ha_innobase : public handler {
   int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
 
  protected:
-  /** Enter InnoDB engine after checking max allowed threads */
-  void srv_concurrency_enter();
+  /** Enter InnoDB engine after checking max allowed threads.
+  @return mysql error code. */
+  int srv_concurrency_enter();
 
   /** Leave Innodb, if no more tickets are left */
   void srv_concurrency_exit();
@@ -591,18 +583,16 @@ class ha_innobase : public handler {
 
   virtual dict_index_t *innobase_get_index(uint keynr);
 
-  /** Builds a 'template' to the prebuilt struct.
-
-  The template is used in fast retrieval of just those column
-  values MySQL needs in its processing.
-  @param whole_row true if access is needed to a whole row,
-  false if accessing individual fields is enough */
+  /** Builds a 'template' to the m_prebuilt struct. The template is used in fast
+  retrieval of just those column values MySQL needs in its processing.
+  @param[in] whole_row true if access is needed to a whole row, false if
+  accessing individual fields is enough */
   void build_template(bool whole_row);
 
-  /** Returns statistics information of the table to the MySQL
-  interpreter, in various fields of the handle object.
+  /** Returns statistics information of the table to the MySQL interpreter, in
+  various fields of the handle object.
   @param[in]	flag		what information is requested
-  @param[in]	is_analyze	True if called from "::analyze()"
+  @param[in]	is_analyze	True if called from "::analyze()".
   @return HA_ERR_* error code or 0 */
   virtual int info_low(uint flag, bool is_analyze);
 
@@ -636,12 +626,14 @@ class ha_innobase : public handler {
   @param[in,out]	ha_alter_info	Structure describing changes to be done
                                   by ALTER TABLE and holding data used
                                   during in-place alter.
-  @param[in]	old_dd_tab	dd::Table object representing old
-                                  version of the table
-  @param[in,out]	new_dd_tab	dd::Table object representing new
-                                  version of the table
-  @retval	true Failure
-  @retval	false Success */
+  @param[in]	old_dd_tab	dd::Table object describing old version
+                                  of the table.
+  @param[in,out]	new_dd_tab	dd::Table object for the new version of
+  the table. Can be adjusted by this call. Changes to the table definition will
+  be persisted in the data-dictionary at statement commit time.
+  @retval true Failure
+  @retval false Success
+  */
   template <typename Table>
   bool inplace_alter_table_impl(TABLE *altered_table,
                                 Alter_inplace_info *ha_alter_info,
@@ -744,6 +736,12 @@ Allocates an InnoDB transaction for a MySQL handler object.
 @return InnoDB transaction handle */
 trx_t *innobase_trx_allocate(THD *thd); /*!< in: user thread handle */
 
+/** Maps a MySQL trx isolation level code to the InnoDB isolation level code.
+@param[in]  iso MySQL isolation level code
+@return	InnoDB isolation level */
+trx_t::isolation_level_t innobase_trx_map_isolation_level(
+    enum_tx_isolation iso);
+
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
 is consistent between KEY info from mysql and that from innodb index.
@@ -769,9 +767,9 @@ bool innobase_index_name_is_reserved(
 /** Check if the explicit tablespace targeted is file_per_table.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table is intended to use a file_per_table tablespace. */
-UNIV_INLINE
-bool tablespace_is_file_per_table(const HA_CREATE_INFO *create_info) {
-  return (create_info->tablespace != NULL &&
+static inline bool tablespace_is_file_per_table(
+    const HA_CREATE_INFO *create_info) {
+  return (create_info->tablespace != nullptr &&
           (0 ==
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
 }
@@ -780,9 +778,9 @@ bool tablespace_is_file_per_table(const HA_CREATE_INFO *create_info) {
 or system tablespace.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table will use a shared general or system tablespace. */
-UNIV_INLINE
-bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
-  return (create_info->tablespace != NULL &&
+static inline bool tablespace_is_shared_space(
+    const HA_CREATE_INFO *create_info) {
+  return (create_info->tablespace != nullptr &&
           create_info->tablespace[0] != '\0' &&
           (0 !=
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
@@ -791,10 +789,11 @@ bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
 /** Check if table will be explicitly put in a general tablespace.
 @param[in]	create_info	Metadata for the table to create.
 @return true if the table will use a general tablespace. */
-UNIV_INLINE
-bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
+static inline bool tablespace_is_general_space(
+    const HA_CREATE_INFO *create_info) {
   return (
-      create_info->tablespace != NULL && create_info->tablespace[0] != '\0' &&
+      create_info->tablespace != nullptr &&
+      create_info->tablespace[0] != '\0' &&
       (0 !=
        strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)) &&
       (0 != strcmp(create_info->tablespace, dict_sys_t::s_temp_space_name)) &&
@@ -804,13 +803,44 @@ bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
 /** Check if tablespace is shared tablespace.
 @param[in]	tablespace_name	Name of the tablespace
 @return true if tablespace is a shared tablespace. */
-UNIV_INLINE
-bool is_shared_tablespace(const char *tablespace_name) {
-  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+static inline bool is_shared_tablespace(const char *tablespace_name) {
+  if (tablespace_name != nullptr && tablespace_name[0] != '\0' &&
       (strcmp(tablespace_name, dict_sys_t::s_file_per_table_name) != 0)) {
     return true;
   }
   return false;
+}
+
+#define SIZE_MB (1024 * 1024)
+
+/** Validate AUTOEXTEND_SIZE attribute for a tablespace.
+@param[in]	ext_size	Value of autoextend_size attribute
+@return DB_SUCCESS if the value of AUTOEXTEND_SIZE is valid. */
+static inline int validate_autoextend_size_value(uint64_t ext_size) {
+  ut_ad(ext_size > 0);
+
+  page_no_t extent_size_pages = fsp_get_extent_size_in_pages(
+      {static_cast<uint32_t>(srv_page_size),
+       static_cast<uint32_t>(srv_page_size), false});
+
+  /* Validate following for the AUTOEXTEND_SIZE attribute
+  1. The autoextend_size should be a multiple of size of 4 extents
+  2. The autoextend_size value should be between size of 4 extents and 4G */
+  if (ext_size < (FSP_FREE_ADD * extent_size_pages * srv_page_size) ||
+      ext_size > FSP_MAX_AUTOEXTEND_SIZE) {
+    my_error(ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE, MYF(0),
+             (FSP_FREE_ADD * extent_size_pages * srv_page_size) / SIZE_MB,
+             FSP_MAX_AUTOEXTEND_SIZE / SIZE_MB);
+    return ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE;
+  }
+
+  if ((ext_size / srv_page_size) % (FSP_FREE_ADD * extent_size_pages) != 0) {
+    my_error(ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE, MYF(0),
+             FSP_FREE_ADD * extent_size_pages * srv_page_size / SIZE_MB);
+    return ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE;
+  }
+
+  return DB_SUCCESS;
 }
 
 /** Parse hint for table and its indexes, and update the information
@@ -836,7 +866,7 @@ class create_table_info_t {
   create_table_info_t(THD *thd, TABLE *form, HA_CREATE_INFO *create_info,
                       char *table_name, char *remote_path, char *tablespace,
                       bool file_per_table, bool skip_strict, uint32_t old_flags,
-                      uint32_t old_flags2)
+                      uint32_t old_flags2, bool is_partition)
       : m_thd(thd),
         m_trx(thd_to_trx(thd)),
         m_form(form),
@@ -847,7 +877,8 @@ class create_table_info_t {
         m_innodb_file_per_table(file_per_table),
         m_flags(old_flags),
         m_flags2(old_flags2),
-        m_skip_strict(skip_strict) {}
+        m_skip_strict(skip_strict),
+        m_partition(is_partition) {}
 
   /** Initialize the object. */
   int initialize();
@@ -864,9 +895,9 @@ class create_table_info_t {
   int create_table_update_dict();
 
   /** Update the global data dictionary.
-  @param[in]	dd_table	table object
-  @return	0		On success
-  @retval	error number	On failure*/
+  @param[in]		dd_table	dd::Table or dd::Partition
+  @retval	0		On success
+  @retval	error number	On failure */
   template <typename Table>
   int create_table_update_global_dd(Table *dd_table);
 
@@ -880,8 +911,19 @@ class create_table_info_t {
   @return NULL if valid, string name of bad option if not. */
   const char *create_options_are_invalid();
 
+ private:
+  /** Put a warning or error message to the error log for the
+  DATA DIRECTORY option.
+  @param[in]  msg     The reason that data directory is wrong.
+  @param[in]  ignore  If true, append a message about ignoring
+                      the data directory location.
+  @return true if valid, false if not. */
+  void log_error_invalid_location(std::string &msg, bool ignore);
+
+ public:
   /** Validate DATA DIRECTORY option. */
-  bool create_option_data_directory_is_valid();
+  bool create_option_data_directory_is_valid(bool ignore = false);
+
   /** Validate TABLESPACE option. */
   bool create_option_tablespace_is_valid();
 
@@ -894,8 +936,10 @@ class create_table_info_t {
   /** Prepare to create a table. */
   int prepare_create_table(const char *name);
 
-  /** Determines InnoDB table flags.
+  /** Determine InnoDB table flags.
   If strict_mode=OFF, this will adjust the flags to what should be assumed.
+  However, if an existing general tablespace is being targeted, we will NOT
+  assume anything or adjust these flags.
   @retval true if successful, false if error */
   bool innobase_table_flags();
 
@@ -975,9 +1019,9 @@ class create_table_info_t {
   remote path if needed.*/
   int parse_table_name(const char *name);
 
-  /** Create the internal innodb table definition.
+  /** Create a table definition to an InnoDB database.
   @param[in]	dd_table	dd::Table or nullptr for intrinsic table
-  @return ER_* level error */
+  @return HA_* level error */
   int create_table_def(const dd::Table *dd_table);
 
   /** Initialize the autoinc of this table if necessary, which should
@@ -1035,6 +1079,9 @@ class create_table_info_t {
 
   /** Skip strict check */
   bool m_skip_strict;
+
+  /** True if this table is a partition */
+  bool m_partition;
 };
 
 /** Class of basic DDL implementation, for CREATE/DROP/RENAME TABLE */
@@ -1062,17 +1109,20 @@ class innobase_basic_ddl {
   static int create_impl(THD *thd, const char *name, TABLE *form,
                          HA_CREATE_INFO *create_info, Table *dd_tab,
                          bool file_per_table, bool evictable, bool skip_strict,
-                         ulint old_flags, ulint old_flags2);
+                         uint32_t old_flags, uint32_t old_flags2);
 
   /** Drop an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
   @param[in,out]	thd		THD object
   @param[in]	name		table name
   @param[in]	dd_tab		dd::Table describing table to be dropped
+  @param[in]	td		MySQL table definition
   @return	error number
   @retval	0 on success */
+
   template <typename Table>
-  static int delete_impl(THD *thd, const char *name, const Table *dd_tab);
+  static int delete_impl(THD *thd, const char *name, const Table *dd_tab,
+                         const TABLE *td);
 
   /** Renames an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
@@ -1083,11 +1133,14 @@ class innobase_basic_ddl {
                                   with old name
   @param[in]	to_table	dd::Table or dd::Partition of the table
                                   with new name
+  @param[in]	td		MySQL table definition
   @return	error number
   @retval	0 on success */
+
   template <typename Table>
   static int rename_impl(THD *thd, const char *from, const char *to,
-                         const Table *from_table, const Table *to_table);
+                         const Table *from_table, const Table *to_table,
+                         const TABLE *td);
 };
 
 /** Class to handle TRUNCATE for one InnoDB table or one partition */
@@ -1177,10 +1230,10 @@ class innobase_truncate {
   bool m_keep_autoinc;
 
   /** flags of the table to be truncated, which should not change */
-  uint64_t m_flags;
+  uint32_t m_flags;
 
   /** flags2 of the table to be truncated, which should not change */
-  uint64_t m_flags2;
+  uint32_t m_flags2;
 };
 
 /**
@@ -1294,23 +1347,24 @@ Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"
 rec_per_key_t innodb_rec_per_key(const dict_index_t *index, ulint i,
                                  ha_rows records);
 
-/** Build template for the virtual columns and their base columns
+/** Build template for the virtual columns and their base columns. This
+is done when the table first opened.
 @param[in]	table		MySQL TABLE
 @param[in]	ib_table	InnoDB dict_table_t
 @param[in,out]	s_templ		InnoDB template structure
 @param[in]	add_v		new virtual columns added along with
                                 add index call
-@param[in]	locked		true if innobase_share_mutex is held
+@param[in]	locked		true if dict_sys mutex is held
 @param[in]	share_tbl_name	original MySQL table name */
 void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
                             dict_vcol_templ_t *s_templ,
                             const dict_add_v_col_t *add_v, bool locked,
                             const char *share_tbl_name);
 
-/** callback used by MySQL server layer to initialized
+/** Callback used by MySQL server layer to initialize
 the table virtual columns' template
 @param[in]	table		MySQL TABLE
-@param[in,out]	ib_table	InnoDB dict_table_t */
+@param[in,out]	ib_table	InnoDB table */
 void innobase_build_v_templ_callback(const TABLE *table, void *ib_table);
 
 /** Callback function definition, used by MySQL server layer to initialized

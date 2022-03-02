@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include "storage/perfschema/table_events_statements.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/plugin_table.h"
 #include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
@@ -101,7 +102,7 @@ Plugin_table table_events_statements_current::m_table_def(
 PFS_engine_table_share table_events_statements_current::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_current::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_statements_current::delete_all_rows,
     table_events_statements_current::get_row_count,
     sizeof(pos_events_statements_current), /* ref length */
@@ -172,7 +173,7 @@ Plugin_table table_events_statements_history::m_table_def(
 PFS_engine_table_share table_events_statements_history::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_history::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_statements_history::delete_all_rows,
     table_events_statements_history::get_row_count,
     sizeof(pos_events_statements_history), /* ref length */
@@ -242,7 +243,7 @@ Plugin_table table_events_statements_history_long::m_table_def(
 PFS_engine_table_share table_events_statements_history_long::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_history_long::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_statements_history_long::delete_all_rows,
     table_events_statements_history_long::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -293,7 +294,7 @@ int table_events_statements_common::make_row_part_1(
 
   PFS_statement_class *unsafe = (PFS_statement_class *)statement->m_class;
   PFS_statement_class *klass = sanitize_statement_class(unsafe);
-  if (unlikely(klass == NULL)) {
+  if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -316,8 +317,8 @@ int table_events_statements_common::make_row_part_1(
                         &m_row.m_timer_wait);
   m_row.m_lock_time = statement->m_lock_time * MICROSEC_TO_PICOSEC;
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
 
   m_row.m_current_schema_name_length = statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
@@ -416,14 +417,14 @@ int table_events_statements_common::read_row_values(TABLE *table,
   uint len;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 3);
+  assert(table->s->null_bytes == 3);
   buf[0] = 0;
   buf[1] = 0;
   buf[2] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* THREAD_ID */
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
@@ -627,7 +628,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -656,7 +657,7 @@ int table_events_statements_current::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       uint safe_events_statements_count = pfs_thread->m_events_statements_count;
 
       if (safe_events_statements_count == 0) {
@@ -688,7 +689,7 @@ int table_events_statements_current::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
+  if (pfs_thread != nullptr) {
     uint safe_events_statements_count = pfs_thread->m_events_statements_count;
 
     if (safe_events_statements_count == 0) {
@@ -703,11 +704,11 @@ int table_events_statements_current::rnd_pos(const void *pos) {
       }
     }
 
-    DBUG_ASSERT(m_pos.m_index_2 < statement_stack_max);
+    assert(m_pos.m_index_2 < statement_stack_max);
 
     statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
 
-    if (statement->m_class != NULL) {
+    if (statement->m_class != nullptr) {
       return make_row(pfs_thread, statement);
     }
   }
@@ -722,7 +723,7 @@ int table_events_statements_current::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           uint safe_events_statements_count =
@@ -740,7 +741,7 @@ int table_events_statements_current::index_next(void) {
           }
 
           statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
-          if (statement->m_class != NULL) {
+          if (statement->m_class != nullptr) {
             if (m_opened_index->match(statement)) {
               if (!make_row(pfs_thread, statement)) {
                 m_next_pos.set_after(&m_pos);
@@ -749,7 +750,7 @@ int table_events_statements_current::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (statement->m_class != NULL);
+        } while (statement->m_class != nullptr);
       }
     }
   }
@@ -794,7 +795,7 @@ ha_rows table_events_statements_current::get_row_count(void) {
 int table_events_statements_current::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool) {
   PFS_index_events_statements *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_events_statements);
   m_opened_index = result;
   m_index = result;
@@ -827,7 +828,7 @@ int table_events_statements_history::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_pos.m_index_2 >= events_statements_history_per_thread) {
         /* This thread does not have more (full) history */
         continue;
@@ -841,7 +842,7 @@ int table_events_statements_history::rnd_next(void) {
 
       statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
 
-      if (statement->m_class != NULL) {
+      if (statement->m_class != nullptr) {
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
         return make_row(pfs_thread, statement);
@@ -856,12 +857,12 @@ int table_events_statements_history::rnd_pos(const void *pos) {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
 
-  DBUG_ASSERT(events_statements_history_per_thread != 0);
+  assert(events_statements_history_per_thread != 0);
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
-    DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
+  if (pfs_thread != nullptr) {
+    assert(m_pos.m_index_2 < events_statements_history_per_thread);
 
     if (!pfs_thread->m_statements_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_statements_history_index)) {
@@ -869,7 +870,7 @@ int table_events_statements_history::rnd_pos(const void *pos) {
     }
 
     statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
-    if (statement->m_class != NULL) {
+    if (statement->m_class != nullptr) {
       return make_row(pfs_thread, statement);
     }
   }
@@ -888,7 +889,7 @@ int table_events_statements_history::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           if (m_pos.m_index_2 >= events_statements_history_per_thread) {
@@ -903,7 +904,7 @@ int table_events_statements_history::index_next(void) {
           }
 
           statement = &pfs_thread->m_statements_history[m_pos.m_index_2];
-          if (statement->m_class != NULL) {
+          if (statement->m_class != nullptr) {
             if (m_opened_index->match(statement)) {
               if (!make_row(pfs_thread, statement)) {
                 m_next_pos.set_after(&m_pos);
@@ -912,7 +913,7 @@ int table_events_statements_history::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (statement->m_class != NULL);
+        } while (statement->m_class != nullptr);
       }
     }
   }
@@ -954,7 +955,7 @@ ha_rows table_events_statements_history::get_row_count(void) {
 int table_events_statements_history::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool) {
   PFS_index_events_statements *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_events_statements);
   m_opened_index = result;
   m_index = result;
@@ -995,7 +996,7 @@ int table_events_statements_history_long::rnd_next(void) {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < limit; m_pos.next()) {
     statement = &events_statements_history_long_array[m_pos.m_index];
 
-    if (statement->m_class != NULL) {
+    if (statement->m_class != nullptr) {
       /* Next iteration, look for the next entry */
       m_next_pos.set_after(&m_pos);
       return make_row(statement);
@@ -1027,7 +1028,7 @@ int table_events_statements_history_long::rnd_pos(const void *pos) {
 
   statement = &events_statements_history_long_array[m_pos.m_index];
 
-  if (statement->m_class == NULL) {
+  if (statement->m_class == nullptr) {
     return HA_ERR_RECORD_DELETED;
   }
 

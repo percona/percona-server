@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -109,10 +109,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   if (online && dict_index_is_online_ddl(index)) {
     const rec_t *rec = btr_cur_get_rec(btr_cur);
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     const ulint *offsets =
-        rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
-    row_log_table_delete(node->trx, rec, node->row, index, offsets, NULL);
+        rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    row_log_table_delete(node->trx, rec, node->row, index, offsets, nullptr);
     mem_heap_free(heap);
   }
 
@@ -134,7 +134,8 @@ retry:
   ut_a(success);
 
   btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, node->trx->id,
-                             node->undo_no, node->rec_type, &mtr, &node->pcur);
+                             node->undo_no, node->rec_type, &mtr, &node->pcur,
+                             nullptr);
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
@@ -145,7 +146,8 @@ retry:
 
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }
@@ -249,7 +251,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     only matters when deleting a record that contains
     externally stored columns. */
     ut_ad(!index->is_clustered());
-    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr);
+    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr,
+                               &pcur, nullptr);
   }
 func_exit:
   btr_pcur_close(&pcur);
@@ -292,7 +295,8 @@ retry:
   if (err != DB_SUCCESS && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }
@@ -322,23 +326,23 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
   ut_ad(type == TRX_UNDO_INSERT_REC);
   node->rec_type = type;
 
-  node->update = NULL;
+  node->update = nullptr;
 
   node->table = dd_table_open_on_id(table_id, thd, mdl, false, true);
 
   /* Skip the UNDO if we can't find the table or the .ibd file. */
-  if (node->table == NULL) {
-  } else if (node->table->file_unreadable) {
+  if (node->table == nullptr) {
+  } else if (node->table->ibd_file_missing) {
   close_table:
     dd_table_close(node->table, thd, mdl, false);
 
-    node->table = NULL;
+    node->table = nullptr;
   } else {
     ut_ad(!node->table->skip_alter_undo);
 
     clust_index = node->table->first_index();
 
-    if (clust_index != NULL) {
+    if (clust_index != nullptr) {
       ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &node->ref, node->heap);
 
       if (!row_undo_search_clust_to_pcur(node)) {
@@ -398,7 +402,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   heap = mem_heap_create(1024);
 
-  while (index != NULL) {
+  while (index != nullptr) {
     dtuple_t *entry;
 
     if (index->type & DICT_FTS) {
@@ -472,7 +476,7 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
   row_undo_ins_parse_undo_rec(node, thd,
                               dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
-  if (node->table == NULL) {
+  if (node->table == nullptr) {
     return (DB_SUCCESS);
   }
 
@@ -497,7 +501,7 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
 
   dd_table_close(node->table, thd, &mdl, false);
 
-  node->table = NULL;
+  node->table = nullptr;
 
   return (err);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"  // my_xdr_free
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
@@ -74,7 +73,7 @@ Gcs_xcom_communication::Gcs_xcom_communication(
                                      group_id.get_group_id().size());
 }
 
-Gcs_xcom_communication::~Gcs_xcom_communication() {}
+Gcs_xcom_communication::~Gcs_xcom_communication() = default;
 
 std::map<int, const Gcs_communication_event_listener &>
     *Gcs_xcom_communication::get_event_listeners() {
@@ -219,7 +218,7 @@ void Gcs_xcom_communication::notify_received_message(
 
 void Gcs_xcom_communication::buffer_incoming_packet(
     Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
-  DBUG_ASSERT(m_view_control->is_view_changing());
+  assert(m_view_control->is_view_changing());
 
   MYSQL_GCS_LOG_TRACE("Buffering packet cargo=%u", packet.get_cargo_type());
 
@@ -258,7 +257,7 @@ void Gcs_xcom_communication::update_members_information(
 std::vector<Gcs_xcom_node_information>
 Gcs_xcom_communication::possible_packet_recovery_donors() const {
   auto const &all_members = m_xcom_nodes.get_nodes();
-  DBUG_ASSERT(!all_members.empty());
+  assert(!all_members.empty());
 
   std::vector<Gcs_xcom_node_information> donors;
 
@@ -274,7 +273,7 @@ Gcs_xcom_communication::possible_packet_recovery_donors() const {
         };
     std::copy_if(all_members.cbegin(), all_members.cend(),
                  std::back_inserter(donors), not_me_predicate);
-    DBUG_ASSERT(donors.size() == all_members.size() - 1);
+    assert(donors.size() == all_members.size() - 1);
   }
 
   return donors;
@@ -477,8 +476,8 @@ bool Gcs_xcom_communication::recover_packets(
 
     successful = true;
 
-    ::my_xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
-                  reinterpret_cast<char *>(&recovered_data));
+    ::xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
+               reinterpret_cast<char *>(&recovered_data));
   }
 
   return successful;
@@ -533,7 +532,7 @@ Gcs_message *Gcs_xcom_communication::convert_packet_to_message(
   intf = static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
   destination =
       intf->get_xcom_group_information(packet_synode.get_synod().group_id);
-  DBUG_ASSERT(destination != nullptr);
+  assert(destination != nullptr);
   // Construct the message.
   message = new Gcs_message(origin, *destination, message_data);
 

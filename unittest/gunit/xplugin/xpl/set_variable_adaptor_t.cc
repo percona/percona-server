@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ const ulonglong k_label_zero = 0;
 class Set_variable_adaptor_test : public ::testing::Test {
  public:
   void set_variable_value(ulonglong val) { *m_variable.value() = val; }
-  Set_variable m_variable{{"LABEL_A", "LABEL_B", "LABEL_C", nullptr}};
+  Set_variable m_variable{{"LABEL_A", "LABEL_B", "LABEL_C"}};
   enum class Labels { k_B, k_C, k_A };
   Set_variable_adaptor<Labels> m_adaptor{
       m_variable, {Labels::k_A, Labels::k_B, Labels::k_C}};
@@ -92,9 +92,9 @@ Param_is_allowed_value is_allowed_value_param[] = {
     {k_label_a + k_label_b + k_label_c, true, true, true},
 };
 
-INSTANTIATE_TEST_CASE_P(Set_variable_adaptor_is_allowed_value,
-                        Set_variable_adaptor_is_allowed_value_test,
-                        testing::ValuesIn(is_allowed_value_param));
+INSTANTIATE_TEST_SUITE_P(Set_variable_adaptor_is_allowed_value,
+                         Set_variable_adaptor_is_allowed_value_test,
+                         testing::ValuesIn(is_allowed_value_param));
 
 }  // namespace test
 }  // namespace xpl

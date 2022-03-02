@@ -1,56 +1,57 @@
---echo # Check that only percona_innodb key can be rotated with rotate_system_key. This part of the test needs updating
---echo # each time a new system key is added.
-
 # Create KEYRING encrypted table, so it would generated percona-0 key, that we can rotate
-CREATE TABLE t1 (a VARCHAR(255)) ENCRYPTION='KEYRING';
+CREATE TABLE t0 (a VARCHAR(255)) ENCRYPTION='KEYRING';
 
---let $assert_text= It should not be possible to rotate key percona_key
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_key\\"\\) = 0]" = 1
---source include/assert.inc
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 10;
 
---let $assert_text= It should not be possible to rotate key percona_123
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_123\\"\\) = 0]" = 1
---source include/assert.inc
+--error ER_PARSE_ERROR
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY -1;
 
---let $assert_text= It should not be possible to rotate key percona_bin
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_bin\\"\\) = 0]" = 1
---source include/assert.inc
+--error ER_PARSE_ERROR
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY K;
 
---let $assert_text= It should not be possible to rotate key percona_b
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_b\\"\\) = 0]" = 1
---source include/assert.inc
+--error ER_PARSE_ERROR
+ALTER INSTANCE ROTATE INNODB MASTER KEY 0;
 
---let $assert_text= It should not be possible to rotate key percona_
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_\\"\\) = 0]" = 1
---source include/assert.inc
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
 
---let $assert_text= It should not be possible to rotate key percona
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona\\"\\) = 0]" = 1
---source include/assert.inc
+--error ER_SYSTEM_KEY_ROTATION_MAX_KEY_ID_EXCEEDED
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967295;
 
---let $assert_text= It should not be possible to rotate key system_key
---let $assert_cond= "[SELECT rotate_system_key\\(\\"system_key\\"\\) = 0]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
 
---let $assert_text= It should not be possible to rotate key system_key
---let $assert_cond= "[SELECT rotate_system_key\\(\\"system_key\\"\\) = 0]" = 1
---source include/assert.inc
+CREATE TABLE t1 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1;
 
---let $assert_text= It should not be possible to rotate key system_key
---let $assert_cond= "[SELECT rotate_system_key\\(\\"123\\"\\) = 0]" = 1
---source include/assert.inc
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 1;
 
---let $assert_text= It should be possible to rotate key percona_innodb
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
---source include/assert.inc
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 2;
+
+CREATE TABLE t2 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
+
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 2;
+
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
+
+CREATE TABLE t4294967295 (a VARCHAR(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4294967294;
+
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
 
 UNINSTALL PLUGIN keyring_file;
 
---let $assert_text= It should not be possible to rotate key percona_innodb without keyring_file installed
---let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 0]" = 1
---source include/assert.inc
+--echo # It should not be possible to rotate key percona_innodb without keyring_file installed
+--echo # Key ids 0,1 and 4294967294 exist.
 
-DROP TABLE t1;
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 0;
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 1;
+--error ER_SYSTEM_KEY_ROTATION_KEY_DOESNT_EXIST
+ALTER INSTANCE ROTATE INNODB SYSTEM KEY 4294967294;
+
+DROP TABLE t0,t1,t2,t4294967295;
 
 # cleanup, restore keyring_file and keyring_file_data variable
 --let $restart_parameters=restart:

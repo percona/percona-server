@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    *
    * Disconnect and release the connection to the metadata node.
    */
-  virtual ~GRClusterMetadata() override;
+  ~GRClusterMetadata() override;
 
   /** @brief Returns replicasets defined in the metadata server
    *
@@ -116,6 +116,19 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    */
   mysqlrouter::ClusterType get_cluster_type() override;
 
+  /** @brief Get authentication data of the rest users from the metadata.
+   *
+   * Authentication data is stored in the router_rest_accounts table. This
+   * method fetches the following information: username, password hash,
+   * privileges and name of the authentication mechanism that should be used.
+   *
+   * @param cluster_name - name of the cluster
+   *
+   * @returns authentication data of the rest users stored in the metadata
+   */
+  auth_credentials_t fetch_auth_credentials(
+      const std::string &cluster_name) override;
+
  protected:
   /** @brief Queries the metadata server for the list of instances and
    * replicasets that belong to the desired cluster.
@@ -140,8 +153,8 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
 
   metadata_cache::ReplicasetStatus check_replicaset_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
-      const std::map<std::string, GroupReplicationMember> &member_status) const
-      noexcept;
+      const std::map<std::string, GroupReplicationMember> &member_status,
+      bool &metadata_gr_discrepancy) const noexcept;
 
   void reset_metadata_backend(const mysqlrouter::ClusterType type);
   std::unique_ptr<GRMetadataBackend> metadata_backend_;
@@ -163,6 +176,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
               UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes);
+  FRIEND_TEST(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_3NodeSetup);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariableNodeSetup);

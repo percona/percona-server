@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ static SERVICE_TYPE_NO_CONST(mysql_admin_session) * admin_session_factory;
 /* Sql_service_interface constructor */
 Sql_service_interface::Sql_service_interface(enum cs_text_or_binary cs_txt_bin,
                                              const CHARSET_INFO *charset)
-    : m_plugin(NULL), m_txt_or_bin(cs_txt_bin), m_charset(charset) {}
+    : m_plugin(nullptr), m_txt_or_bin(cs_txt_bin), m_charset(charset) {}
 
 Sql_service_interface::~Sql_service_interface() {
   /* close server session */
@@ -63,22 +63,28 @@ static void srv_session_error_handler(void *, unsigned int sql_errno,
 int Sql_service_interface::open_session() {
   DBUG_TRACE;
 
-  m_session = NULL;
+  m_session = nullptr;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT)) {
-    m_session = admin_session_factory->open(srv_session_error_handler, NULL);
-    if (m_session == NULL) return 1; /* purecov: inspected */
+    m_session = admin_session_factory->open(srv_session_error_handler, nullptr);
+    if (m_session == nullptr) return 1; /* purecov: inspected */
   } else {
     return 1; /* purecov: inspected */
+  }
+
+  if (configure_session()) {
+    srv_session_close(m_session);
+    m_session = nullptr;
+    return 1;
   }
 
   return 0;
 }
 
 int Sql_service_interface::open_thread_session(void *plugin_ptr) {
-  DBUG_ASSERT(plugin_ptr != NULL);
+  assert(plugin_ptr != nullptr);
 
-  m_session = NULL;
+  m_session = nullptr;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT)) {
     /* initalize new thread to be used with server session */
@@ -90,8 +96,8 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr) {
       /* purecov: end */
     }
 
-    m_session = admin_session_factory->open(srv_session_error_handler, NULL);
-    if (m_session == NULL) {
+    m_session = admin_session_factory->open(srv_session_error_handler, nullptr);
+    if (m_session == nullptr) {
       srv_session_deinit_thread();
       return 1;
     }
@@ -99,8 +105,22 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr) {
     return 1; /* purecov: inspected */
   }
 
+  if (configure_session()) {
+    srv_session_close(m_session);
+    m_session = nullptr;
+    srv_session_deinit_thread();
+    return 1;
+  }
+
   m_plugin = plugin_ptr;
   return 0;
+}
+
+long Sql_service_interface::configure_session() {
+  DBUG_TRACE;
+  assert(m_session != nullptr);
+
+  return execute_query("SET SESSION group_replication_consistency= EVENTUAL;");
 }
 
 long Sql_service_interface::execute_internal(
@@ -168,10 +188,11 @@ long Sql_service_interface::execute_internal(
 
 long Sql_service_interface::execute_query(std::string sql_string) {
   DBUG_TRACE;
-  DBUG_ASSERT(sql_string.length() <= UINT_MAX);
+  assert(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   Sql_resultset rset;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = sql_string.c_str();
   cmd.com_query.length = static_cast<unsigned int>(sql_string.length());
 
@@ -185,8 +206,9 @@ long Sql_service_interface::execute_query(std::string sql_string,
                                           enum cs_text_or_binary cs_txt_or_bin,
                                           const CHARSET_INFO *cs_charset) {
   DBUG_TRACE;
-  DBUG_ASSERT(sql_string.length() <= UINT_MAX);
+  assert(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = sql_string.c_str();
   cmd.com_query.length = static_cast<unsigned int>(sql_string.length());
 
@@ -243,7 +265,7 @@ int Sql_service_interface::set_session_user(const char *user) {
     return 1;
     /* purecov: end */
   }
-  if (security_context_lookup(sc, user, "localhost", NULL, NULL)) {
+  if (security_context_lookup(sc, user, "localhost", nullptr, nullptr)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_SQL_SERVICE_SERVER_ACCESS_DENIED_FOR_USER, user);
@@ -263,7 +285,7 @@ bool Sql_service_interface::is_acl_disabled() {
   if (false != security_context_get_option(scontext, "priv_user", &value))
     return false; /* purecov: inspected */
 
-  return 0 != value.length && NULL != strstr(value.str, "skip-grants ");
+  return 0 != value.length && nullptr != strstr(value.str, "skip-grants ");
 }
 
 bool sql_service_interface_init() {

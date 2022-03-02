@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@
 
 #define JAM_FILE_ID 388
 
-extern EventLogger * g_eventLogger;
 
 AsyncIoThread::AsyncIoThread(class Ndbfs& fs, bool bound)
   : m_fs(fs),
@@ -176,7 +175,7 @@ AsyncIoThread::run()
       }
       if (yield_flag)
       {
-        if (NdbThread_yield_rt(theThreadPtr, TRUE))
+        if (NdbThread_yield_rt(theThreadPtr, true))
         {
           m_real_time = false;
         }
@@ -186,7 +185,7 @@ AsyncIoThread::run()
     request = theMemoryChannelPtr->readChannel();
     if (!request || request->action == Request::end)
     {
-      DEBUG(ndbout_c("Nothing read from Memory Channel in AsyncFile"));
+      DEBUG(g_eventLogger->info("Nothing read from Memory Channel in AsyncFile"));
       theStartFlag = false;
       return;
     }//if
@@ -212,21 +211,11 @@ AsyncIoThread::run()
     case Request::read:
       file->readReq(request);
       break;
-    case Request::readv:
-      file->readvReq(request);
-      break;
     case Request::write:
       file->writeReq(request);
       break;
-    case Request::writev:
-      file->writevReq(request);
-      break;
     case Request::writeSync:
       file->writeReq(request);
-      file->syncReq(request);
-      break;
-    case Request::writevSync:
-      file->writevReq(request);
       file->syncReq(request);
       break;
     case Request::sync:
@@ -271,7 +260,7 @@ AsyncIoThread::run()
         return;
       }
     default:
-      DEBUG(ndbout_c("Invalid Request"));
+      DEBUG(g_eventLogger->info("Invalid Request"));
       abort();
       break;
     }//switch
@@ -365,16 +354,10 @@ Request::actionName(Request::Action action)
     return "closeRemove";
   case Request::read:
     return "read";
-  case Request::readv:
-    return "readv";
   case Request::write:
     return "write";
-  case Request::writev:
-    return "writev";
   case Request::writeSync:
     return "writeSync";
-  case Request::writevSync:
-    return "writevSync";
   case Request::sync:
     return "sync";
   case Request::end:

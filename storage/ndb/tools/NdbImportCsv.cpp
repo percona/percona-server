@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include <time.h>
 
 #include "m_ctype.h"
 #include "my_byteorder.h"
@@ -371,6 +373,14 @@ NdbImportCsv::Alloc::free_field_list(FieldList& field_list)
   }
   m_free_field_cnt += field_list.cnt();
   m_field_free.push_back_from(field_list);
+}
+
+void
+NdbImportCsv::Alloc::free_field(Field *field)
+{
+  free_data_list(field->m_data_list);
+  m_field_free.push_back(field);
+  m_free_field_cnt++;
 }
 
 NdbImportCsv::Line*
@@ -1081,7 +1091,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_linenr = linenr;
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
-  const uint fieldcnt = line->m_field_list.cnt();
+  uint fieldcnt = line->m_field_list.cnt();
   const uint has_hidden_pk = (uint)table.m_has_hidden_pk;
   const uint expect_attrcnt = attrcnt - has_hidden_pk;
   Error error;  // local error
@@ -1093,6 +1103,15 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
         error, __LINE__, 0,
         "line %" PRIu64 ": too few fields (%u < %u)",
         linenr, fieldcnt, attrcnt);
+      break;
+    }
+    if(fieldcnt == expect_attrcnt + 1 &&
+       line->m_field_list.final_field_is_empty())
+    {
+      /* Handle field terminator at end of line */
+      Field * empty_field = line->m_field_list.pop_back();
+      fieldcnt--;
+      m_input.free_field(empty_field);
       break;
     }
     if (fieldcnt > expect_attrcnt)

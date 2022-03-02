@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ void Object_queue::queue_thread() {
 
     if (m_is_queue_running.load() == false) break;
 
-    Item_processing_data *item_to_process = NULL;
+    Item_processing_data *item_to_process = nullptr;
     {
       std::lock_guard<std::mutex> lock(m_queue_mutex);
       if (m_items_ready_for_processing.size() > 0) {
@@ -72,7 +72,7 @@ void Object_queue::queue_thread() {
       }
     }
 
-    if (item_to_process != NULL) {
+    if (item_to_process != nullptr) {
       this->format_object(item_to_process);
       this->object_processing_ends(item_to_process);
     }
@@ -96,7 +96,7 @@ void Object_queue::read_object(Item_processing_data *item_to_process) {
   Abstract_dump_task *dump_task = dynamic_cast<Abstract_dump_task *>(
       item_to_process->get_process_task_object());
 
-  if (dump_task == NULL) {
+  if (dump_task == nullptr) {
     (*this->get_message_handler())(Mysql::Tools::Base::Message_data(
         0, "Not supported operation called.",
         Mysql::Tools::Base::Message_type_error));
@@ -142,13 +142,19 @@ void Object_queue::stop_queue() {
     In case of error we stop all the running queues. Make sure the
     cleanup of the items is done properly.
   */
-  while (m_items_ready_for_processing.size() > 0) {
-    Item_processing_data *item_to_process =
-        m_items_ready_for_processing.front();
-    m_items_ready_for_processing.pop();
-    this->object_processing_ends(item_to_process);
+  if (m_is_queue_running) {
+    Item_processing_data *item_to_process = nullptr;
+    do {
+      {
+        std::lock_guard<std::mutex> lock(m_queue_mutex);
+        if (m_items_ready_for_processing.size() == 0) break;
+        item_to_process = m_items_ready_for_processing.front();
+        m_items_ready_for_processing.pop();
+      }
+      this->object_processing_ends(item_to_process);
+    } while (item_to_process != nullptr);
+    m_is_queue_running = false;
   }
-  m_is_queue_running = false;
 }
 
 Object_queue::~Object_queue() {

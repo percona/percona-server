@@ -182,7 +182,7 @@ In order for this table to be populated with statistics, additional variable :va
 
 .. table:: INFORMATION_SCHEMA.USER_STATISTICS
 
-  :column USER: The username. The value ``#mysql_system_user#`` appears when there is no username (such as for the slave SQL thread).
+  :column USER: The username. The value ``#mysql_system_user#`` appears when there is no username (such as for the replica SQL thread).
   :column TOTAL_CONNECTIONS: The number of connections created for this user.
   :column CONCURRENT_CONNECTIONS: The number of concurrent connections for this user.
   :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this user.

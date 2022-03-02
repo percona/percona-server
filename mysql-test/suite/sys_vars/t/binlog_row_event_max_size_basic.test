@@ -89,20 +89,20 @@ SET @@persist.binlog_row_event_max_size = 256;
 --let $assert_cond= $val = $min
 --source include/assert.inc
 
-# min - 1  (by design or bug (?), set persist_only does not check variables ranges)
+# min - 1  (the value gets truncated to min)
 --replace_result $min_minus_one MIN_MINUS_ONE
 --eval SET @@$scope.binlog_row_event_max_size = $min_minus_one
 --let $val = `SELECT variable_value FROM performance_schema.$table WHERE variable_name = 'binlog_row_event_max_size'`
---let $assert_text= Assert that the variable is set to minimum minus one
---let $assert_cond= $val = $min_minus_one
+--let $assert_text= Assert that the variable is set to minimum
+--let $assert_cond= $val = $min
 --source include/assert.inc
 
-# max
+# max (the resulting value will be truncated to a multiple of 256)
 --replace_result $max MAX
 --eval SET @@$scope.binlog_row_event_max_size = $max
 --let $val = `SELECT variable_value FROM performance_schema.$table WHERE variable_name = 'binlog_row_event_max_size'`
 --let $assert_text= Assert that the variable is set to max
---let $assert_cond= $val = $max
+--let $assert_cond= $val = $max - $max % 256
 --source include/assert.inc
 
 # max + 1 (error when setting it to the overflow value)

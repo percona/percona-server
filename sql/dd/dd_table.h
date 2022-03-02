@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -478,5 +478,34 @@ bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab);
 */
 bool uses_general_tablespace(const Table &t);
 
+/**
+  Throw deprecation warnings if table uses prefix keys in the partitioning
+  function.
+
+  @param  thd             Thread handler
+  @param  schema_name     Schema name
+  @param  orig_table_name Original table name (required in case of ALTER TABLE,
+  since temporary table name is created)
+  @param  table           dd::Table instance
+  @param  is_upgrade      True if this is called during upgrade. Warning will be
+  sent to error log instead of the client.
+
+*/
+void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
+                                             const char *orig_table_name,
+                                             const Table *table,
+                                             const bool is_upgrade);
+
+/**
+  Get the autoextend_size option value for implicit tablespaces
+  @param  thd             Thread handler
+  @param  table           dd::Table instance
+  @param  autoextend_size Value of autoextend_size attribute
+
+  @return true  - On failure
+  @return false - On success
+*/
+bool get_implicit_tablespace_options(THD *thd, const Table *table,
+                                     ulonglong *autoextend_size);
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,6 @@
   @file include/sslopt-case.h
 */
 
-#if defined(HAVE_OPENSSL)
-
 #ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif
@@ -50,4 +48,3 @@ case OPT_SSL_CRL:
 case OPT_SSL_CRLPATH:
 case OPT_TLS_VERSION:
   break;
-#endif /* HAVE_OPENSSL */

@@ -65,6 +65,7 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_BOOL:
       ret_val = true;
       goto exit;
     //
@@ -78,6 +79,7 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:
@@ -173,6 +175,7 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_BOOL:
       ret_val = toku_type_int;
       goto exit;
     case MYSQL_TYPE_TIME:
@@ -225,6 +228,7 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:
@@ -967,7 +971,7 @@ static int create_toku_key_descriptor_for_key(KEY *key, uchar *buf) {
         assert_always(num_bytes_in_field < 256);
         *pos = (uchar)(num_bytes_in_field & 255);
         pos++;
-        *pos = (field->flags & UNSIGNED_FLAG) ? 1 : 0;
+        *pos = (field->is_flag_set(UNSIGNED_FLAG)) ? 1 : 0;
         pos++;
         break;
       //
@@ -1217,15 +1221,15 @@ static uchar *pack_toku_key_field(
                                     0, num_bytes, field->charset());
       goto exit;
     case (toku_type_varbinary):
-      new_pos = pack_toku_varbinary(to_tokudb, from_mysql,
-                                    ((Field_varstring *)field)->length_bytes,
-                                    key_part_length);
+      new_pos = pack_toku_varbinary(
+          to_tokudb, from_mysql, ((Field_varstring *)field)->get_length_bytes(),
+          key_part_length);
       goto exit;
     case (toku_type_varstring):
-      new_pos = pack_toku_varstring(to_tokudb, from_mysql,
-                                    get_length_bytes_from_max(key_part_length),
-                                    ((Field_varstring *)field)->length_bytes,
-                                    key_part_length, field->charset());
+      new_pos = pack_toku_varstring(
+          to_tokudb, from_mysql, get_length_bytes_from_max(key_part_length),
+          ((Field_varstring *)field)->get_length_bytes(), key_part_length,
+          field->charset());
       goto exit;
     case (toku_type_blob):
       new_pos = pack_toku_blob(
@@ -1333,7 +1337,7 @@ uchar *unpack_toku_key_field(uchar *to_mysql, uchar *from_tokudb, Field *field,
     case (toku_type_varstring):
       new_pos = unpack_toku_varbinary(
           to_mysql, from_tokudb, get_length_bytes_from_max(key_part_length),
-          ((Field_varstring *)field)->length_bytes);
+          ((Field_varstring *)field)->get_length_bytes());
       goto exit;
     case (toku_type_blob):
       new_pos = unpack_toku_blob(
@@ -1722,7 +1726,7 @@ int32_t KEY_AND_COL_INFO::initialize(const TABLE_SHARE &table_share,
         field_types[i] = KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
         field_lengths[i] = 0;
         length_bytes[i] = static_cast<uchar>(
-            static_cast<const Field_varstring *>(field)->length_bytes);
+            static_cast<const Field_varstring *>(field)->get_length_bytes());
         max_var_bytes += field->field_length;
         break;
       default:
@@ -1873,7 +1877,7 @@ static uint32_t pack_desc_pk_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                   TABLE_SHARE *table_share,
                                   KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16_t field_index = key_part->field->field_index;
+  uint16_t field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t key_part_length = key_part->length;
@@ -1919,7 +1923,7 @@ static uint32_t pack_desc_pk_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
 static uint32_t pack_desc_pk_offset_info(uchar *buf, KEY_PART_INFO *key_part,
                                          KEY *prim_key, uchar *pk_info) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   bool found_col_in_pk = false;
   uint32_t index_in_pk;
 
@@ -1927,7 +1931,7 @@ static uint32_t pack_desc_pk_offset_info(uchar *buf, KEY_PART_INFO *key_part,
   uint32_t offset = 0;
   for (uint i = 0; i < prim_key->user_defined_key_parts; i++) {
     KEY_PART_INFO curr = prim_key->key_part[i];
-    uint16 curr_field_index = curr.field->field_index;
+    uint16 curr_field_index = curr.field->field_index();
 
     if (pk_info[2 * i] == COL_VAR_FIELD) {
       is_constant_offset = false;
@@ -1961,7 +1965,7 @@ static uint32_t pack_desc_offset_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                       uint pk_index, TABLE_SHARE *table_share,
                                       KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   bool found_index = false;
@@ -2012,7 +2016,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                           TABLE_SHARE *table_share,
                                           KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t key_part_length = key_part->length;
@@ -2049,7 +2053,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
 static uint32_t pack_desc_char_info(uchar *buf, TABLE_SHARE *table_share,
                                     KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16 field_index = key_part->field->field_index();
   Field *field = table_share->field[field_index];
   TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t charset_num = 0;
@@ -2456,7 +2460,7 @@ static uint32_t create_toku_secondary_key_pack_descriptor(
 
   for (uint i = 0; i < key_info->user_defined_key_parts; i++) {
     KEY_PART_INFO curr_kpi = key_info->key_part[i];
-    uint16 field_index = curr_kpi.field->field_index;
+    uint16 field_index = curr_kpi.field->field_index();
     Field *field = table_share->field[field_index];
     bool is_col_in_pk = false;
 
@@ -2927,11 +2931,12 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_BOOL:
       // length, unsigned, auto increment
       if (a->pack_length() != b->pack_length() ||
-          (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG) ||
-          (a->flags & AUTO_INCREMENT_FLAG) !=
-              (b->flags & AUTO_INCREMENT_FLAG)) {
+          (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG)) ||
+          (a->is_flag_set(AUTO_INCREMENT_FLAG)) !=
+              (b->is_flag_set(AUTO_INCREMENT_FLAG))) {
         retval = false;
         goto cleanup;
       }
@@ -2940,9 +2945,9 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_FLOAT:
       // length, unsigned, auto increment
       if (a->pack_length() != b->pack_length() ||
-          (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG) ||
-          (a->flags & AUTO_INCREMENT_FLAG) !=
-              (b->flags & AUTO_INCREMENT_FLAG)) {
+          (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG)) ||
+          (a->is_flag_set(AUTO_INCREMENT_FLAG)) !=
+              (b->is_flag_set(AUTO_INCREMENT_FLAG))) {
         retval = false;
         goto cleanup;
       }
@@ -2950,7 +2955,7 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_NEWDECIMAL:
       // length, unsigned
       if (a->pack_length() != b->pack_length() ||
-          (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG)) {
+          (a->is_flag_set(UNSIGNED_FLAG)) != (b->is_flag_set(UNSIGNED_FLAG))) {
         retval = false;
         goto cleanup;
       }
@@ -3061,6 +3066,7 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
 
     // NOT SUPPORTED in 8.0
     case MYSQL_TYPE_TYPED_ARRAY:

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
+#include <EventLogger.hpp>
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -83,6 +84,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedNodes(0),
   noOfConnectedDBNodes(0),
   minDbVersion(0),
+  minApiVersion(0),
   theClusterMgrThread(NULL),
   m_process_info(NULL),
   m_cluster_state(CS_waiting_for_clean_cache),
@@ -96,7 +98,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   Uint32 ret = this->open(&theFacade, API_CLUSTERMGR);
   if (unlikely(ret == 0))
   {
-    ndbout_c("Failed to register ClusterMgr! ret: %d", ret);
+    g_eventLogger->info("Failed to register ClusterMgr! ret: %d", ret);
     abort();
   }
   DBUG_VOID_RETURN;
@@ -127,7 +129,7 @@ void
 ClusterMgr::configure(Uint32 nodeId,
                       const ndb_mgm_configuration* config)
 {
-  ndb_mgm_configuration_iterator iter(* config, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()){
     Uint32 nodeId = 0;
     if(iter.get(CFG_NODE_ID, &nodeId))
@@ -238,7 +240,9 @@ ClusterMgr::startThread()
                                          NDB_THREAD_PRIO_HIGH);
   if (theClusterMgrThread == NULL)
   {
-    ndbout_c("ClusterMgr::startThread: Failed to create thread for cluster management.");
+    g_eventLogger->info(
+        "ClusterMgr::startThread:"
+        " Failed to create thread for cluster management.");
     assert(theClusterMgrThread != NULL);
     DBUG_VOID_RETURN;
   }
@@ -451,7 +455,8 @@ ClusterMgr::threadMain()
           signal.theReceiversBlockNumber = QMGR;
 
 #ifdef DEBUG_REG
-	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
+        g_eventLogger->info("ClusterMgr: Sending API_REGREQ to node %d",
+                            (int)nodeId);
 #endif
         if (nodeId == getOwnNodeId())
         {
@@ -686,6 +691,52 @@ ClusterMgr::recalcMinDbVersion()
   minDbVersion = newMinDbVersion;
 }
 
+/**
+ * recalcMinApiVersion
+ *
+ * This method is called whenever the 'minimum API node
+ * version' data for the connected DB nodes changes
+ * It calculates the minimum version of all the connected
+ * API nodes.
+ * This information is cached by Ndb object instances.
+ * This information is useful when implementing API compatibility
+ * with older API nodes
+ */
+void
+ClusterMgr::recalcMinApiVersion()
+{
+  Uint32 newMinApiVersion = ~ (Uint32) 0;
+
+  for (Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    trp_node& node = theNodes[i];
+
+    if (node.is_connected() &&
+        node.is_confirmed() &&
+        node.m_info.getType() == NodeInfo::DB)
+    {
+      /* Include this node in the set of nodes used to
+       * compute the lowest current API node version
+       */
+      assert(node.m_info.m_version);
+
+      if (node.minApiVersion < newMinApiVersion)
+      {
+        newMinApiVersion = node.minApiVersion;
+      }
+    }
+  }
+
+  /* Now update global min Api version if we have one.
+   * Otherwise set it to 0
+   */
+  newMinApiVersion = (newMinApiVersion == ~ (Uint32) 0) ?
+                     0 :
+                     newMinApiVersion;
+
+  minApiVersion = newMinApiVersion;
+}
+
 /******************************************************************************
  * Send PROCESSINFO_REP
  ******************************************************************************/
@@ -735,7 +786,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   const NodeId nodeId = refToNode(apiRegReq->ref);
 
 #ifdef DEBUG_REG
-  ndbout_c("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
+  g_eventLogger->info("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
 #endif
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -783,11 +834,16 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->apiHeartbeatFrequency = m_hbFrequency/10;
 
   conf->minDbVersion= 0;
+  conf->minApiVersion= 0;
   conf->nodeState= node.m_state;
 
+  DEBUG_FPRINTF((stderr, "set_confirmed on node: %u\n", nodeId));
   node.set_confirmed(true);
   if (safe_sendSignal(&signal, nodeId) != 0)
+  {
+    DEBUG_FPRINTF((stderr, "reset_confirmed on node: %u\n", nodeId));
     node.set_confirmed(false);
+  }
 }
 
 void
@@ -799,7 +855,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
 #ifdef DEBUG_REG
-  ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
+  g_eventLogger->info("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -821,12 +877,21 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
 					      node.m_info.m_version);
   }
 
+  DEBUG_FPRINTF((stderr, "2:set_confirmed on node %u\n", nodeId));
+
   node.set_confirmed(true);
 
   if (node.minDbVersion != apiRegConf->minDbVersion)
   {
     node.minDbVersion = apiRegConf->minDbVersion;
     recalcMinDbVersion();
+  }
+
+  if (ndbd_send_min_api_version(apiRegConf->mysql_version) &&
+      node.minApiVersion != apiRegConf->minApiVersion)
+  {
+    node.minApiVersion = apiRegConf->minApiVersion;
+    recalcMinApiVersion();
   }
 
   node.m_state = apiRegConf->nodeState;
@@ -926,7 +991,8 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
 
   switch(ref->errorCode){
   case ApiRegRef::WrongType:
-    ndbout_c("Node %d reports that this node should be a NDB node", nodeId);
+    g_eventLogger->info("Node %d reports that this node should be a NDB node",
+                        nodeId);
     abort();
   case ApiRegRef::UnsupportedVersion:
   default:
@@ -1177,6 +1243,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_node_fail_rep = false;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
+  theNode.minApiVersion = 0;
 
   /**
    * End of protected ClusterMgr updates of shared global data.
@@ -1224,7 +1291,6 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
    */
   if (unlikely(!node_connected))
   {
-    assert(node_connected);
     if (theFacade.m_poll_owner != this)
       unlock();
     return;
@@ -1356,6 +1422,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   }
 
   recalcMinDbVersion();
+  recalcMinApiVersion();
   if (copy->noOfNodes)
   {
     LinearSectionPtr lsptr[3];
@@ -1573,7 +1640,8 @@ ArbitMgr::doStart(const Uint32* theData)
     NDB_THREAD_PRIO_HIGH);
   if (theThread == NULL)
   {
-    ndbout_c("ArbitMgr::doStart: Failed to create thread for arbitration.");
+    g_eventLogger->info(
+        "ArbitMgr::doStart: Failed to create thread for arbitration.");
     assert(theThread != NULL);
   }
   NdbMutex_Unlock(theThreadMutex);

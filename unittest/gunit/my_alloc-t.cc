@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class Mock_global_error_handler {
       EXPECT_GT(m_handle_called, 0);
     }
     error_handler_hook = m_old_error_handler_hook;
-    current = NULL;
+    current = nullptr;
   }
 
   void error_handler(uint err) {
@@ -68,10 +68,10 @@ class Mock_global_error_handler {
   uint m_expected_error;
   int m_handle_called;
 
-  void (*m_old_error_handler_hook)(uint, const char *, myf);
+  ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 
-Mock_global_error_handler *Mock_global_error_handler::current = NULL;
+Mock_global_error_handler *Mock_global_error_handler::current = nullptr;
 
 /*
   Error handler function.
@@ -87,47 +87,52 @@ const size_t num_iterations = 1ULL;
 
 class MyAllocTest : public ::testing::TestWithParam<size_t> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_root, 1024, 0);
   }
-  virtual void TearDown() { free_root(&m_root, MYF(0)); }
+  void TearDown() override { free_root(&m_root, MYF(0)); }
   size_t m_num_objects;
   MEM_ROOT m_root;
 };
 
 class MyPreAllocTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_prealloc_root, 1024, 2048);
   }
-  virtual void TearDown() { free_root(&m_prealloc_root, MYF(0)); }
+  void TearDown() override { free_root(&m_prealloc_root, MYF(0)); }
   size_t m_num_objects;
   MEM_ROOT m_prealloc_root;
 };
 
 size_t test_values[] = {100, 1000, 10000, 100000};
 
-INSTANTIATE_TEST_CASE_P(MyAlloc, MyAllocTest, ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(MyAlloc, MyAllocTest,
+                         ::testing::ValuesIn(test_values));
 
 TEST_P(MyAllocTest, NoMemoryLimit) {
   m_num_objects = GetParam();
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      m_root.Alloc(100);
+      EXPECT_NE(nullptr, m_root.Alloc(8));
   }
+  // Normally larger, but with Valgrind/ASan, we'll get exact-sized blocks,
+  // so also allow equal.
+  EXPECT_GE(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
 TEST_P(MyAllocTest, WithMemoryLimit) {
   m_num_objects = GetParam();
-  m_root.set_max_capacity(num_iterations * m_num_objects * 100);
+  m_root.set_max_capacity(num_iterations * m_num_objects * 8);
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      m_root.Alloc(100);
+      EXPECT_NE(nullptr, m_root.Alloc(8));
   }
+  EXPECT_EQ(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
-  const void *null_pointer = NULL;
+  const void *null_pointer = nullptr;
   EXPECT_TRUE(m_root.Alloc(1000));
   m_root.set_max_capacity(100);
   EXPECT_EQ(null_pointer, m_root.Alloc(1000));
@@ -163,6 +168,34 @@ TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations) {
   // The allocated block is too small to satisfy this new, larger allocation.
   void *ptr2 = alloc.Alloc(605);
   EXPECT_NE(ptr, ptr2);
+}
+
+TEST_F(MyAllocTest, RawInterface) {
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
+
+  // Nothing allocated yet.
+  std::pair<char *, char *> block = alloc.Peek();
+  EXPECT_EQ(0, block.second - block.first);
+
+  // Create a block.
+  alloc.ForceNewBlock(16);
+  block = alloc.Peek();
+  EXPECT_EQ(512, block.second - block.first);
+
+  // Write and commit some memory.
+  char *store_ptr = reinterpret_cast<char *>(block.first);
+  strcpy(store_ptr, "12345");
+  alloc.RawCommit(6);
+  block = alloc.Peek();
+  EXPECT_EQ(506, block.second - block.first);
+
+  // Get a new block.
+  alloc.ForceNewBlock(512);
+  block = alloc.Peek();
+  EXPECT_EQ(768, block.second - block.first);
+
+  // The value should still be there.
+  EXPECT_STREQ("12345", store_ptr);
 }
 
 }  // namespace my_alloc_unittest

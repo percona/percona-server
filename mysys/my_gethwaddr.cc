@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,8 +99,8 @@ bool my_gethwaddr(uchar *to) {
   int res = 1;
   struct ifreq ifr;
   struct ifreq ifs[MAX_IFS];
-  struct ifreq *ifri = NULL;
-  struct ifreq *ifend = NULL;
+  struct ifreq *ifri = nullptr;
+  struct ifreq *ifend = nullptr;
 
   char zero_array[ETHER_ADDR_LEN] = {0};
   struct ifconf ifc;

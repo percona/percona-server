@@ -117,7 +117,7 @@ static bool btr_scrub_lock_dict_func(space_id_t space_id,
       return false;
     }
 
-    os_thread_sleep(250000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     time_t now = time(0);
 
@@ -162,10 +162,10 @@ static void btr_scrub_table_close_for_thread(btr_scrub_t *scrub_data) {
     /* If tablespace is not marked as stopping perform
     the actual close. */
     if (!space->is_stopping()) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       /* perform the actual closing */
       btr_scrub_table_close(scrub_data->current_table);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
     // TODO:Zsolt
     // space->release();
@@ -399,7 +399,6 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
   mem_heap_t *heap = NULL;
   dtuple_t *entry = NULL;
   ulint *offsets = NULL;
-  ulint n_ext = 0;
   ulint flags = BTR_MODIFY_TREE;
 
   /**
@@ -416,8 +415,8 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
     /* The page is the root page
      * NOTE: ibuf_reset_free_bits is called inside
      * btr_root_raise_and_insert */
-    rec = btr_root_raise_and_insert(flags, &cursor, &offsets, &heap, entry,
-                                    n_ext, mtr);
+    rec =
+        btr_root_raise_and_insert(flags, &cursor, &offsets, &heap, entry, mtr);
   } else {
     /* We play safe and reset the free bits
      * NOTE: need to call this prior to btr_page_split_and_insert */
@@ -428,8 +427,8 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
       }
     }
 
-    rec = btr_page_split_and_insert(flags, &cursor, &offsets, &heap, entry,
-                                    n_ext, mtr);
+    rec =
+        btr_page_split_and_insert(flags, &cursor, &offsets, &heap, entry, mtr);
   }
 
   if (heap) {
@@ -470,7 +469,7 @@ static bool btr_scrub_table_needs_scrubbing(dict_table_t *table) {
     return false;
   }
 
-  if (!table->is_readable()) {
+  if (table->ibd_file_missing) {
     return false;
   }
 

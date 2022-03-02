@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,23 +195,29 @@ enum page_cur_mode_t {
 
 /** Compressed page descriptor */
 struct page_zip_des_t {
-  page_zip_t *data; /*!< compressed page data */
+  /** Compressed page data */
+  page_zip_t *data;
 
 #ifdef UNIV_DEBUG
-  unsigned m_start : 16;   /*!< start offset of modification log */
-  bool m_external;         /*!< Allocated externally, not from the
-                           buffer pool */
-#endif                     /* UNIV_DEBUG */
-  unsigned m_end : 16;     /*!< end offset of modification log */
-  unsigned m_nonempty : 1; /*!< TRUE if the modification log
-                           is not empty */
-  unsigned n_blobs : 12;   /*!< number of externally stored
-                           columns on the page; the maximum
-                           is 744 on a 16 KiB page */
-  unsigned ssize : PAGE_ZIP_SSIZE_BITS;
-  /*!< 0 or compressed page shift size;
-  the size in bytes is
-  (UNIV_ZIP_SIZE_MIN >> 1) << ssize. */
+  /** Start offset of modification log */
+  uint16_t m_start;
+  /** Allocated externally, not from the buffer pool */
+  bool m_external;
+#endif /* UNIV_DEBUG */
+
+  /** End offset of modification log */
+  uint16_t m_end;
+
+  /** Number of externally stored columns on the page; the maximum is 744
+  on a 16 KiB page */
+  uint16_t n_blobs;
+
+  /** true if the modification log is not empty.  */
+  bool m_nonempty;
+
+  /** 0 or compressed page shift size; the size in bytes is:
+  (UNIV_ZIP_SIZE_MIN * >> 1) << ssize. */
+  uint8_t ssize;
 };
 
 /** Compression statistics for a given page size */
@@ -255,11 +261,12 @@ void page_zip_rec_set_deleted(
     ulint flag);              /*!< in: the deleted flag (nonzero=TRUE) */
 
 /** Write the "owned" flag of a record on a compressed page.  The n_owned field
- must already have been written on the uncompressed page. */
-void page_zip_rec_set_owned(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const byte *rec,          /*!< in: record on the uncompressed page */
-    ulint flag);              /*!< in: the owned flag (nonzero=TRUE) */
+ must already have been written on the uncompressed page.
+@param[in,out] page_zip Compressed page
+@param[in] rec Record on the uncompressed page
+@param[in] flag The owned flag (nonzero=true) */
+void page_zip_rec_set_owned(page_zip_des_t *page_zip, const byte *rec,
+                            ulint flag);
 
 /** Shift the dense page directory when a record is deleted.
 @param[in,out]	page_zip	compressed page
@@ -271,9 +278,9 @@ void page_zip_dir_delete(page_zip_des_t *page_zip, byte *rec,
                          dict_index_t *index, const ulint *offsets,
                          const byte *free);
 
-/** Add a slot to the dense page directory. */
-void page_zip_dir_add_slot(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    bool is_clustered);       /*!< in: nonzero for clustered index,
-                              zero for others */
+/** Add a slot to the dense page directory.
+@param[in,out]  page_zip      Compressed page
+@param[in]      is_clustered  Nonzero for clustered index, zero for others */
+void page_zip_dir_add_slot(page_zip_des_t *page_zip, bool is_clustered);
+
 #endif

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 SET(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
 
-SET(NODE_VERSION 6.10.2)
+SET(NODE_VERSION 12.22.1)
 
 IF(NDB_NODEJS_EXTRAS_PATH)
   SET(NODE_LIBRARIES ${NDB_NODEJS_EXTRAS_PATH}/windows-libs/${NODE_VERSION})
@@ -122,17 +122,7 @@ IF(WIN32)
     LINK_DIRECTORIES(${NODE_LIBRARIES}/win-x86)
   ENDIF()
 ELSE()
-  # Remove any -std=xxx compiler flag present, and add -std=c++14
-  SET(CXX_FLAGS_VAL ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER}})
-  STRING(REGEX REPLACE "-std=[cgnu]+..[0-9]+" ""
-    CXX_FLAGS_VAL "${CXX_FLAGS_VAL}")
-  SET(CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} "${CXX_FLAGS_VAL} -std=c++14")
-
   SET(ADAPTER_REQUIRED_LIBS ndbclient_static)
-
-  # Remove -Wundef from C++ compiler flags since there are several
-  # undefined identifiers which are evaluated in for example v8config.h
-  STRING(REPLACE "-Wundef " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
 #  IT SHOULD BE POSSIBLE TO LINK DYNAMICALLY WITH PROPER RPATH
 #  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
@@ -142,9 +132,8 @@ ENDIF()
 # Disable certain compiler warnings
 FOREACH(warning
     "unused-parameter"
-    "cast-function-type"
+    "undef"
     "undefined-reinterpret-cast"
-    "cast-qual"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
@@ -183,15 +172,15 @@ INSTALL(
 
 INSTALL(
   DIRECTORY jones-ndb
-  DESTINATION ${nodejs_install}/node_modules
+  DESTINATION ${nodejs_install}
   COMPONENT nodejs)
 
 INSTALL(
   TARGETS ndb_adapter
-  DESTINATION ${nodejs_install}/node_modules/jones-ndb/build/Static
+  DESTINATION ${nodejs_install}/jones-ndb/build/Static
   COMPONENT nodejs)
 
 INSTALL(
-  FILES ReadMe jones_deployments.js run-jones-test-suite.js
+  FILES ReadMe jones_deployments.js run-jones-test-suite.js create-test-user.sql
   DESTINATION ${nodejs_install}
   COMPONENT nodejs)

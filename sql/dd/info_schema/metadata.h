@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <mysql/plugin.h>  // st_plugin_int
 
+#include "mysql_version.h"       // MYSQL_VERSION_ID
 #include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
@@ -143,7 +144,7 @@ namespace info_schema {
                   STATS FOR PARTITIONED TABLES
     This bug changes definition of I_S.STATISTICS.
 
-  80019: Current
+  80019: Not published (see below)
   ------------------------------------
   Changes from version 80018:
 
@@ -156,20 +157,63 @@ namespace info_schema {
        INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
        INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
 
-  80020: Current
+  80020: Published by mistake in server version 8.0.19. To correct this,
+  we set the IS version number to 800201 in mysql server version 8.0.20.
+  Then, in server version 8.0.21, we're back on track with IS_version 80021.
   ------------------------------------
-  Changes from version 80019:
+  Changes from version 80018:
 
   - Bug#29871530: MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
                   OBSERVING CUSTOM TIMEZONE
     This bug updates LAST_EXECUTED to include time zones in
     I_S.EVENTS.
 
-  80021: Next IS version number after the previous is public.
+  800201: Published in 8.0.20
+  ------------------------------------
+  Changes from version 80020:
+
+  - Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+    This bug updates the character set of columns returned from JSON_TABLE
+    expressions in INFORMATION_SCHEMA views.
+
+  80021: Published in 8.0.21
+  ------------------------------------
+  Changes from version 800201:
+
+     - WL#13562 CREATE/ALTER USER COMMENT 'JSON'
+
+     - WL#13341: Store options for secondary engines.
+
+     - Bug#30766181 and Bug#30216864 updates I_S.KEY_COLUMN_USAGE and
+       I_S.TABLE_CONSTRAINTS views.
+
+  80022: Published in 8.0.22
+  ------------------------------------
+  Changes from version 80021:
+
+  - WL#13369: Added new I_S view 'SCHEMATA_EXTENSIONS'.
+  - Bug #31427410: Added a WHERE clause to I_S.USER_ATTRIBUTES
+
+  80023: Published in 8.0.23
+  ------------------------------------
+  Changes from version 80022:
+
+  - WL#12819: Affects size of I_S.KEYWORDS.WORD column length.
+    Following bug was raised for the same.
+    Bug#31982157 THE KEYWORD LEN IN I_S GETS UPDATED WHEN
+    A KEYWORD > EXISTING MAX LEN IS ADDED
+
+  - WL#10905: INFORMATION_SCHEMA.COLUMNS table is modified to list "INVISIBLE"
+              value in EXTRA column for INVISIBLE columns.
+
+  80024: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80020;
+static const uint IS_DD_VERSION = 80023;
+static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
+                  ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
+              "This release can not use a version number from the future");
 
 /**
   Initialize INFORMATION_SCHEMA system views.

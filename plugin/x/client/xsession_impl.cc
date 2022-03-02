@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>  // NOLINT(build/c++11)
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -306,6 +307,18 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
       return Option_descriptor{new Compression_int_store<
           &Compression_config::m_use_server_max_combine_messages>()};
 
+    case Mysqlx_option::Compression_level_client:
+      return Option_descriptor{new Compression_optional_int_store<
+          &Compression_config::m_use_level_client>()};
+
+    case Mysqlx_option::Compression_level_server:
+      return Option_descriptor{new Compression_optional_int_store<
+          &Compression_config::m_use_level_server>()};
+
+    case Mysqlx_option::Buffer_recevie_size:
+      return Option_descriptor{
+          new Con_int_store<&Con_conf::m_buffer_receive_size>()};
+
     default:
       return {};
   }
@@ -412,11 +425,7 @@ Session_impl::Session_impl(std::unique_ptr<Protocol_factory> factory)
 }
 
 Session_impl::~Session_impl() {
-  auto &connection = get_protocol().get_connection();
-
-  if (connection.state().is_connected()) {
-    connection.close();
-  }
+  if (is_connected()) get_protocol().get_connection().close();
 }
 
 XProtocol &Session_impl::get_protocol() { return *m_protocol; }
@@ -582,6 +591,8 @@ XError Session_impl::connect(const char *host, const uint16_t port,
                                          m_context->m_internet_protocol);
   if (result) return result;
 
+  get_protocol().reset_buffering();
+
   const auto connection_type = connection.state().get_connection_type();
   details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
 
@@ -601,6 +612,8 @@ XError Session_impl::connect(const char *socket_file, const char *user,
       details::value_or_default_string(socket_file, MYSQLX_UNIX_ADDR));
 
   if (result) return result;
+
+  get_protocol().reset_buffering();
 
   const auto connection_type = connection.state().get_connection_type();
 
@@ -834,7 +847,20 @@ XError Session_impl::authenticate(const char *user, const char *pass,
                                         get_compression_capability());
       error = protocol.execute_set_capability(capability_builder.get_result());
       // We shouldn't fail here, server supports needed capability
-      if (error) return error;
+      // still there is possibility that compression_level is not
+      // supported by the server
+      if (error && error.is_fatal()) return error;
+
+      if (error) {
+        const bool without_compression_level = false;
+        capability_builder.clear();
+        capability_builder.add_capability(
+            "compression",
+            get_compression_capability(without_compression_level));
+        // We shouldn't fail here, server supports needed capability
+        error =
+            protocol.execute_set_capability(capability_builder.get_result());
+      }
     }
 
     // Server doesn't support given compression configuration
@@ -842,7 +868,13 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     if (error) return error;
   }
 
-  m_protocol->use_compression(m_context->m_compression_config.m_use_algorithm);
+  if (m_context->m_compression_config.m_use_level_client.has_value())
+    m_protocol->use_compression(
+        m_context->m_compression_config.m_use_algorithm,
+        m_context->m_compression_config.m_use_level_client.value());
+  else
+    m_protocol->use_compression(
+        m_context->m_compression_config.m_use_algorithm);
 
   const auto is_secure_connection =
       connection.state().is_ssl_activated() ||
@@ -997,7 +1029,7 @@ Session_impl::validate_and_adjust_auth_methods(
 
   std::vector<std::string> auth_method_string_list;
 
-  for (const auto auth_method :
+  for (const auto &auth_method :
        auto_sequence.empty() ? auth_methods : auto_sequence) {
     if (0 < m_server_supported_auth_methods.count(auth_method))
       auth_method_string_list.push_back(get_method_from_auth(auth_method));
@@ -1084,7 +1116,8 @@ Argument_uobject Session_impl::get_connect_attrs() const {
   };
 }
 
-Argument_value Session_impl::get_compression_capability() const {
+Argument_value Session_impl::get_compression_capability(
+    const bool include_compression_level) const {
   static const std::map<Compression_algorithm, std::string> k_algorithm{
       {Compression_algorithm::k_deflate, "DEFLATE_STREAM"},
       {Compression_algorithm::k_lz4, "LZ4_MESSAGE"},
@@ -1097,6 +1130,8 @@ Argument_value Session_impl::get_compression_capability() const {
       config.m_use_server_combine_mixed_messages;
   obj["server_max_combine_messages"] =
       static_cast<int64_t>(config.m_use_server_max_combine_messages);
+  if (config.m_use_level_server.has_value() && include_compression_level)
+    obj["level"] = static_cast<int64_t>(config.m_use_level_server.value());
 
   return Argument_value{obj};
 }
@@ -1140,31 +1175,10 @@ Session_impl::Session_connect_timeout_scope_guard::
       (write_timeout < 0) ? -1 : write_timeout / 1000));
 }
 
-static void initialize_xmessages() {
-  /* Workaround for initialization of protobuf data.
-     Call default_instance for first msg from every
-     protobuf file.
-
-     This should have be changed to a proper fix.
-   */
-  Mysqlx::ServerMessages::default_instance();
-  Mysqlx::Sql::StmtExecute::default_instance();
-  Mysqlx::Session::AuthenticateStart::default_instance();
-  Mysqlx::Resultset::ColumnMetaData::default_instance();
-  Mysqlx::Notice::Warning::default_instance();
-  Mysqlx::Expr::Expr::default_instance();
-  Mysqlx::Expect::Open::default_instance();
-  Mysqlx::Datatypes::Any::default_instance();
-  Mysqlx::Crud::Update::default_instance();
-  Mysqlx::Connection::Capabilities::default_instance();
-}
-
 std::unique_ptr<XSession> create_session(const char *socket_file,
                                          const char *user, const char *pass,
                                          const char *schema,
                                          XError *out_error) {
-  initialize_xmessages();
-
   auto result = create_session();
   auto error = result->connect(socket_file, user, pass, schema);
 
@@ -1180,8 +1194,6 @@ std::unique_ptr<XSession> create_session(const char *host, const uint16_t port,
                                          const char *user, const char *pass,
                                          const char *schema,
                                          XError *out_error) {
-  initialize_xmessages();
-
   auto result = create_session();
   auto error = result->connect(host, port, user, pass, schema);
 
@@ -1194,8 +1206,6 @@ std::unique_ptr<XSession> create_session(const char *host, const uint16_t port,
 }
 
 std::unique_ptr<XSession> create_session() {
-  initialize_xmessages();
-
   std::unique_ptr<XSession> result{new Session_impl()};
 
   return result;

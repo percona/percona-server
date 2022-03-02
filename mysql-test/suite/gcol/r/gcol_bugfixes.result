@@ -207,7 +207,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	p1	NULL	const	col_varchar_key,col_varchar_key_2	col_varchar_key	10	const	1	100.00	NULL
 1	SIMPLE	p2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.p1.col_int_key	1	100.00	Using index; FirstMatch(gp1)
-1	SIMPLE	gp2	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	gp2	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	1292	Incorrect datetime value: '6' for column 'col_datetime_key' at row 1
 Note	1003	/* select#1 */ select `test`.`gp1`.`col_datetime_key` AS `g1` from `test`.`cc` `gp1` left join `test`.`c` `gp2` on((`test`.`gp2`.`col_datetime_key` <> cast(`test`.`gp1`.`col_time_nokey` as datetime))) semi join (`test`.`bb` `p1` left join `test`.`bb` `p2` on((`test`.`p1`.`col_int_key` = `test`.`p2`.`pk`))) where ((`test`.`gp1`.`col_varchar_nokey` = 'b') and ('b' = `test`.`p1`.`col_varchar_key`)) having (`g1` > 6)
@@ -483,8 +483,8 @@ CREATE VIEW view_C AS SELECT * FROM C;
 SELECT /*+ NO_BNL(t1) */ t1.c13 FROM C AS t2 STRAIGHT_JOIN C AS t1 FORCE INDEX(c13);
 c13
 00:00:00
-00:00:01
 00:00:00
+00:00:01
 00:00:01
 SELECT DISTINCT t1.c13 FROM C AS t1, view_C AS t2;
 c13
@@ -625,9 +625,13 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 DO (SELECT (@c2:= c) - a FROM t);
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
 SELECT @c2 - @c1;
 @c2 - @c1
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
+Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
 DROP TABLE t;
 #
 # Bug#22133710 GCOLS: READ UNCOMMITTED: ASSERT !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TA
@@ -1408,3 +1412,97 @@ b	a
 ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
 DROP TABLES t1;
+#
+# Bug #30417361: MAKE THE SORTING CODE INDEPENDENT OF QEP_TABS
+#
+CREATE TABLE t1 (i INTEGER, a INTEGER, vgc INTEGER GENERATED ALWAYS AS (-a) VIRTUAL);
+INSERT INTO t1 (i, a) VALUES (1, 1), (2, 2);
+SELECT i FROM t1 ORDER BY vgc;
+i
+2
+1
+DROP TABLE t1;
+#
+# Bug #30664660 GCOLS, CRASH AND CORRUPTIONS WITH DELETE IGNORE + JSON
+#
+CREATE TABLE t (
+a JSON NOT NULL,
+b TIMESTAMP GENERATED ALWAYS AS (a) VIRTUAL NOT NULL,
+KEY (b)
+) ENGINE=INNODB;
+INSERT IGNORE INTO t(a) VALUES ('{}');
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column a at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+DELETE IGNORE FROM t;
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column a at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'b' at row 1
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column a at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+#
+# Bug #31463511: NATURAL JOIN RETURNS WRONG RESULT WHEN EXPRESSION INDEX IS USED
+#
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (a INTEGER);
+CREATE INDEX idx ON t1 ((a+1));
+CREATE INDEX idx ON t2 ((a+2));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT * FROM t1 NATURAL JOIN t2;
+a
+1
+DROP TABLE t1, t2;
+#
+# Bug#31982292: ITEM_JSON_FUNC.CC:1406: BOOL SQL_SCALAR_TO_JSON(ITEM*,
+# CONST CHAR*, STRING*, STR
+#
+CREATE TABLE t(x VARCHAR(10),
+y INT GENERATED ALWAYS AS (x),
+z JSON GENERATED ALWAYS AS (JSON_ARRAY(x, y)));
+INSERT INTO t (x) VALUES ('abc');
+ERROR HY000: Incorrect integer value: 'abc' for column 'y' at row 1
+DROP TABLE t;
+CREATE TABLE t(x VARCHAR(10));
+INSERT INTO t VALUES ('');
+ALTER TABLE t
+ADD COLUMN g1 JSON GENERATED ALWAYS AS (x),
+ADD COLUMN g2 JSON GENERATED ALWAYS AS (JSON_ARRAY(x));
+SELECT * FROM t;
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.g1'.
+DROP TABLE t;
+#
+# Bug#32234773: UPDATE_GENERATED_READ_FIELDS:
+#               ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED
+#
+CREATE TABLE t (
+id INT PRIMARY KEY AUTO_INCREMENT,
+i INT,
+gc INT GENERATED ALWAYS AS (1) STORED,
+KEY (i)
+);
+INSERT INTO t(i) VALUES (5853267), (32766);
+SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
+ERROR 22003: BIGINT value is out of range in '(`test`.`t`.`i` * <cache>(from_unixtime(1536999224)))'
+DROP TABLE t;
+# Bug#32824978: Generated columns inconsistency
+CREATE TABLE t1 (
+id INTEGER NOT NULL,
+mac BIGINT UNSIGNED DEFAULT NULL,
+str CHAR(12) AS (LPAD(CONVERT(HEX(mac) USING utf8mb4), 12,_utf8mb4'0')) VIRTUAL,
+separated CHAR(17) AS (INSERT(INSERT(INSERT(INSERT(INSERT(str, 11, 0, _utf8mb4':'), 9, 0, _utf8mb4':'), 7, 0, _utf8mb4':'), 5, 0, _utf8mb4':'), 3, 0, _utf8mb4':')) VIRTUAL,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 (id, mac) VALUES
+(1, 10), (2, 564685488), (3, NULL), (4, 684756486);
+SELECT * FROM t1;
+id	mac	str	separated
+1	10	00000000000A	00:00:00:00:00:0A
+2	564685488	000021A86AB0	00:00:21:A8:6A:B0
+3	NULL	NULL	NULL
+4	684756486	000028D08E06	00:00:28:D0:8E:06
+DROP TABLE t1;

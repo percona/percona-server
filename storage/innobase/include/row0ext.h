@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,12 +58,16 @@ in the clustered index
 @param[in]	tuple	data tuple containing the field references of the
 externally stored columns; must be indexed by col_no; the clustered index record
 must be covered by a lock or a page latch to prevent deletion (rollback
-or purge)
-@param[in]	is_sdi	true for SDI Indexes
-@param[in]	heap	heap where created
+or purge) */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi	true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
+@param[in,out]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
-                               const ulint *ext, ulint flags,
+                               const ulint *ext, uint32_t flags,
                                const dtuple_t *tuple,
 #ifdef UNIV_DEBUG
                                bool is_sdi,
@@ -77,8 +81,8 @@ row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
                         determined by DICT_MAX_FIELD_LEN_BY_FORMAT()
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i, ulint *len);
+static inline const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i,
+                                             ulint *len);
 
 /** Looks up a column prefix of an externally stored column.
 @param[in]	ext	column prefix cache
@@ -89,15 +93,16 @@ const byte *row_ext_lookup_ith(const row_ext_t *ext, ulint i, ulint *len);
                         determined by DICT_MAX_FIELD_LEN_BY_FORMAT()
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup(const row_ext_t *ext, ulint col, ulint *len);
+static inline const byte *row_ext_lookup(const row_ext_t *ext, ulint col,
+                                         ulint *len);
 
 /** Prefixes of externally stored columns */
 struct row_ext_t {
   /** The clustered index from where LOB is fetched. */
   const dict_index_t *index;
 
-  ulint n_ext;      /*!< number of externally stored columns */
+  ulint n_ext;      /*!< number of externally stored columns which are part of
+                    index */
   const ulint *ext; /*!< col_no's of externally stored columns */
   byte *buf;        /*!< backing store of the column prefix cache */
   ulint max_len;    /*!< maximum prefix length, it could be

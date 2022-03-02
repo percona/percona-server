@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,18 @@
 
 #include "plugin/x/tests/driver/driver_command_line_options.h"
 
+#include <algorithm>
+#include <array>
 #include <cctype>
 #include <iostream>
+#include <stdexcept>
 
 #include "my_dbug.h"                   // NOLINT(build/include_subdir)
 #include "print_version.h"             // NOLINT(build/include_subdir)
 #include "welcome_copyright_notice.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
@@ -47,6 +51,35 @@ std::vector<std::string> multivalue_argument(const std::string &value) {
   aux::split(result, value, ",", false);
 
   return result;
+}
+
+int32_t integer_argument(const std::string &value, int32_t *exit_code) {
+  try {
+    return std::stoi(value);
+  } catch (std::invalid_argument &) {
+    *exit_code = 1;
+    std::cerr << "'" << value << "' is not an integer value\n";
+  }
+  return 0;
+}
+
+bool boolean_argument(const std::string &value, int32_t *exit_code) {
+  static const std::array<const char *, 5> k_true = {
+      "t", "true", "y", "yes", "1",
+  };
+  static const std::array<const char *, 5> k_false = {
+      "f", "false", "n", "no", "0",
+  };
+  const auto val = xpl::to_lower(value);
+  const auto is_valid = [&val](const char *v) {
+    return std::strcmp(v, val.c_str()) == 0;
+  };
+
+  if (std::any_of(k_true.begin(), k_true.end(), is_valid)) return true;
+  if (std::any_of(k_false.begin(), k_false.end(), is_valid)) return false;
+  *exit_code = 1;
+  std::cerr << "'" << value << "' is not an boolean value\n";
+  return false;
 }
 
 }  // namespace
@@ -135,6 +168,10 @@ void Driver_command_line_options::print_help() {
   std::cout << "--compression-max-combine-messages=<N>  "
                "If set, the server MUST not store more than N uncompressed "
                "messages into a compressed message (default: no limit)\n";
+  std::cout << "--compression-level=<N>  "
+               "If set, the server MUST compress messages with given level N; "
+               "otherwise the server use default level "
+               "(depend on compression algorithm)\n";
   std::cout << "--ssl-mode            SSL configuration (default: \"\")\n";
   std::cout << "                      \"\" - require encryption when at last "
                "one ssl option is set, otherwise is should be disabled.\n";
@@ -165,6 +202,11 @@ void Driver_command_line_options::print_help() {
   std::cout << "-B, --bindump         Dump binary representation of messages "
                "sent, in format suitable for\n";
   std::cout << "--trace-protocol      Enable X Protocol tracing\n";
+  std::cout << "--history-protocol=<0|1|true|false>\n";
+  std::cout << "                      Enable/disable X Protocol message "
+               "tracing into\n";
+  std::cout << "                      history buffer, which is printed at test "
+               "failure\n";
   std::cout << "--verbose             Enable extra verbose messages\n";
   std::cout << "--daemon              Work as a daemon (unix only)\n";
   std::cout << "--help                Show command line help\n";
@@ -206,9 +248,9 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg(argv, i, "--mysql41-auth", nullptr)) {
       m_connection_options.auth_methods.push_back("MYSQL41");
     } else if (check_arg_with_value(argv, i, "--debug", nullptr, value)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_PUSH(value);
-#endif  // DBUG_OFF
+#endif  // NDEBUG
     } else if (check_arg_with_value(argv, i, "--sql", nullptr, value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {
@@ -225,11 +267,16 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
                                     "--compression-combine-mixed-messages",
                                     nullptr, value)) {
       m_connection_options.compression_combine_mixed_messages =
-          std::stoi(value);
+          boolean_argument(value, &exit_code);
     } else if (check_arg_with_value(argv, i,
                                     "--compression-max-combine-messages",
                                     nullptr, value)) {
-      m_connection_options.compression_max_combine_messages = std::stoi(value);
+      m_connection_options.compression_max_combine_messages =
+          integer_argument(value, &exit_code);
+    } else if (check_arg_with_value(argv, i, "--compression-level", nullptr,
+                                    value)) {
+      m_connection_options.compression_level =
+          integer_argument(value, &exit_code);
     } else if (check_arg_with_value(argv, i, "--ssl-mode", nullptr, value)) {
       m_connection_options.ssl_mode = value;
     } else if (check_arg_with_value(argv, i, "--ssl-key", nullptr, value)) {
@@ -259,18 +306,19 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg_with_value(argv, i, "--schema", nullptr, value)) {
       m_connection_options.schema = value;
     } else if (check_arg_with_value(argv, i, "--port", "-P", value)) {
-      m_connection_options.port = std::stoi(value);
+      m_connection_options.port = integer_argument(value, &exit_code);
     } else if (check_arg_with_value(argv, i, "--ipv", nullptr, value)) {
-      m_connection_options.ip_mode = set_protocol(std::stoi(value));
+      m_connection_options.ip_mode =
+          set_protocol(integer_argument(value, &exit_code));
     } else if (check_arg_with_value(argv, i, "--timeout", "-t", value)) {
       m_connection_options.session_connect_timeout =
-          m_connection_options.io_timeout = std::stoi(value);
+          m_connection_options.io_timeout = integer_argument(value, &exit_code);
     } else if (check_arg_with_value(argv, i, "--expect-error", nullptr,
                                     value)) {
       m_expected_error_code = mysqlxtest::get_error_code_by_text(value);
     } else if (check_arg_with_value(argv, i, "--fatal-errors", nullptr,
                                     value)) {
-      m_context_options.m_fatal_errors = std::stoi(value);
+      m_context_options.m_fatal_errors = integer_argument(value, &exit_code);
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
     } else if (check_arg_with_value(argv, i, "--socket", "-S", value)) {
@@ -283,6 +331,10 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_connection_options.socket = get_socket_name();
     } else if (check_arg(argv, i, "--trace-protocol", nullptr)) {
       m_connection_options.trace_protocol = true;
+    } else if (check_arg_with_value(argv, i, "--history-protocol", nullptr,
+                                    value)) {
+      m_connection_options.trace_protocol_history =
+          boolean_argument(value, &exit_code);
     } else if (check_arg(argv, i, "--close-no-sync", nullptr)) {
       m_connection_options.dont_wait_for_disconnect = true;
     } else if (check_arg(argv, i, "--bindump", "-B")) {

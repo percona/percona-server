@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ static const LEX_CSTRING CONDITION_ITEM_NAMES[] = {
 
 bool Set_signal_information::set_item(enum_condition_item_name name,
                                       Item *item) {
-  if (m_item[name] != NULL) {
+  if (m_item[name] != nullptr) {
     my_error(ER_DUP_SIGNAL_SET, MYF(0), CONDITION_ITEM_NAMES[name].str);
     return true;
   }
@@ -106,24 +106,24 @@ void Sql_cmd_common_signal::assign_defaults(
 }
 
 void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond) {
-  DBUG_ASSERT(cond);
+  assert(cond);
 
   const char *sqlstate;
-  bool set_defaults = (m_cond != 0);
+  bool set_defaults = (m_cond != nullptr);
 
   if (set_defaults) {
     /*
       SIGNAL is restricted in sql_yacc.yy to only signal SQLSTATE conditions.
     */
-    DBUG_ASSERT(m_cond->type == sp_condition_value::SQLSTATE);
+    assert(m_cond->type == sp_condition_value::SQLSTATE);
     sqlstate = m_cond->sql_state;
     cond->set_returned_sqlstate(sqlstate);
   } else
     sqlstate = cond->returned_sqlstate();
 
-  DBUG_ASSERT(sqlstate);
+  assert(sqlstate);
   /* SQLSTATE class "00": illegal, rejected in the parser. */
-  DBUG_ASSERT(!is_sqlstate_completion(sqlstate));
+  assert(!is_sqlstate_completion(sqlstate));
 
   if (is_sqlstate_warning(sqlstate)) {
     /* SQLSTATE class "01": warning. */
@@ -156,8 +156,8 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
   size_t dummy_offset;
 
   src_str = src->ptr();
-  if (src_str == NULL) {
-    dst->set((const char *)NULL, 0, dst_cs);
+  if (src_str == nullptr) {
+    dst->set((const char *)nullptr, 0, dst_cs);
     return false;
   }
 
@@ -186,7 +186,7 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
       dst_copied = well_formed_copy_nchars(
           dst_cs, dst_str, dst_len, src_cs, src_str, src_len, numchars,
           &well_formed_error_pos, &cannot_convert_error_pos, &from_end_pos);
-      DBUG_ASSERT(dst_copied <= dst_len);
+      assert(dst_copied <= dst_len);
       dst_len = dst_copied; /* In case the copy truncated the data */
       dst_str[dst_copied] = '\0';
     }
@@ -267,6 +267,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
     if (set) {
       if (!set->fixed) {
         if (set->fix_fields(thd, &set)) goto end;
+        if (set->propagate_type(thd)) return true;
         m_set_signal_information->m_item[i] = set;
       }
     }
@@ -279,7 +280,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   for (j = 0; j < array_elements(map); j++) {
     item_enum = map[j].m_item;
     set = m_set_signal_information->m_item[item_enum];
-    if (set != NULL) {
+    if (set != nullptr) {
       member = &(cond->*map[j].m_member);
       name = &CONDITION_ITEM_NAMES[item_enum];
       if (assign_condition_item(cond->m_mem_root, name->str, thd, set, member))
@@ -292,7 +293,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   */
 
   set = m_set_signal_information->m_item[CIN_MESSAGE_TEXT];
-  if (set != NULL) {
+  if (set != nullptr) {
     if (set->is_null()) {
       thd->raise_error_printf(ER_WRONG_VALUE_FOR_VAR, "MESSAGE_TEXT", "NULL");
       goto end;
@@ -328,7 +329,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   }
 
   set = m_set_signal_information->m_item[CIN_MYSQL_ERRNO];
-  if (set != NULL) {
+  if (set != nullptr) {
     if (set->is_null()) {
       thd->raise_error_printf(ER_WRONG_VALUE_FOR_VAR, "MYSQL_ERRNO", "NULL");
       goto end;
@@ -381,14 +382,14 @@ bool Sql_cmd_signal::execute(THD *thd) {
   thd->set_row_count_func(0);
   thd->get_stmt_da()->reset_condition_info(thd);
 
-  DBUG_ASSERT(thd->lex->query_tables == NULL);
+  assert(thd->lex->query_tables == nullptr);
 
   eval_defaults(thd, &cond);
   if (eval_signal_informations(thd, &cond)) return true;
 
   /* SIGNAL should not signal SL_NOTE */
-  DBUG_ASSERT((cond.severity() == Sql_condition::SL_WARNING) ||
-              (cond.severity() == Sql_condition::SL_ERROR));
+  assert((cond.severity() == Sql_condition::SL_WARNING) ||
+         (cond.severity() == Sql_condition::SL_ERROR));
 
   Sql_condition *raised =
       thd->raise_condition(cond.mysql_errno(), cond.returned_sqlstate(),
@@ -416,7 +417,7 @@ bool Sql_cmd_signal::execute(THD *thd) {
 */
 
 bool Sql_cmd_resignal::execute(THD *thd) {
-  sp_rcontext::Handler_call_frame *frame = NULL;
+  sp_rcontext::Handler_call_frame *frame = nullptr;
 
   DBUG_TRACE;
 
@@ -433,7 +434,7 @@ bool Sql_cmd_resignal::execute(THD *thd) {
   // allow set_error_status(), in raise_condition() or here.
   da->reset_diagnostics_area();
 
-  Sql_condition *raised = NULL;
+  Sql_condition *raised = nullptr;
 
   // RESIGNAL with signal_value.
   if (m_cond) {
@@ -475,8 +476,8 @@ bool Sql_cmd_resignal::execute(THD *thd) {
   }
 
   // RESIGNAL should not resignal SL_NOTE
-  DBUG_ASSERT(!raised || (raised->severity() == Sql_condition::SL_WARNING) ||
-              (raised->severity() == Sql_condition::SL_ERROR));
+  assert(!raised || (raised->severity() == Sql_condition::SL_WARNING) ||
+         (raised->severity() == Sql_condition::SL_ERROR));
 
   /*
     We now have the following possibilities:

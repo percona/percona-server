@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,16 @@ class MockGcsMpscQueue : public Gcs_mpsc_queue<xcom_input_request,
   MOCK_METHOD1(push, bool(xcom_input_request *payload));
 
   MockGcsMpscQueue() { ON_CALL(*this, push(_)).WillByDefault(Return(false)); }
-  ~MockGcsMpscQueue() {}
+  ~MockGcsMpscQueue() = default;
 };
 
 class GcsXcomInputQueueTest : public GcsBaseTest {
  protected:
-  GcsXcomInputQueueTest() {}
+  GcsXcomInputQueueTest() = default;
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 /* The XCom queue fails to push into the backend MPSC queue. This tests covers

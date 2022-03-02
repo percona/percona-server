@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,19 +25,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <limits>
 
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h" /* Needed for MY_ERRNO_ERANGE */
@@ -99,7 +102,7 @@ size_t my_strnxfrm_simple(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   const uchar *end;
   const uchar *remainder;
   size_t frmlen;
-  if ((frmlen = MY_MIN(dstlen, nweights)) > srclen) frmlen = srclen;
+  if ((frmlen = std::min<size_t>(dstlen, nweights)) > srclen) frmlen = srclen;
   end = src + frmlen;
 
   // Do the first few bytes.
@@ -169,7 +172,7 @@ int my_strnncollsp_simple(const CHARSET_INFO *cs, const uchar *a,
   size_t length;
   int res;
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (map[*a++] != map[*b++]) return ((int)map[a[-1]] - (int)map[b[-1]]);
   }
@@ -214,7 +217,7 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused))) {
   char *end = src + srclen;
   const uchar *map = cs->to_upper;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for (; src != end; src++) *src = (char)map[(uchar)*src];
   return srclen;
 }
@@ -224,7 +227,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused))) {
   char *end = src + srclen;
   const uchar *map = cs->to_lower;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for (; src != end; src++) *src = (char)map[(uchar)*src];
   return srclen;
 }
@@ -675,7 +678,7 @@ size_t my_long10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     val = new_val;
   }
 
-  len = MY_MIN(len, (size_t)(e - p));
+  len = std::min(len, size_t(e - p));
   memcpy(dst, p, len);
   return len + sign;
 }
@@ -722,7 +725,7 @@ size_t my_longlong10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     long_val = quo;
   }
 
-  len = MY_MIN(len, (size_t)(e - p));
+  len = std::min(len, size_t(e - p));
 cnv:
   memcpy(dst, p, len);
   return len + sign;
@@ -918,7 +921,7 @@ size_t my_well_formed_len_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                size_t nchars, int *error) {
   size_t nbytes = (size_t)(end - start);
   *error = 0;
-  return MY_MIN(nbytes, nchars);
+  return std::min(nbytes, nchars);
 }
 
 size_t my_lengthsp_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
@@ -980,11 +983,7 @@ uint my_instr_simple(const CHARSET_INFO *cs, const char *b, size_t b_length,
 extern "C" {
 static size_t my_well_formed_len_ascii(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *start,
-    const char *end, size_t nchars, int *error) {
-  /**
-    @todo: Currently return warning on invalid character.
-           Return error in future release.
-  */
+    const char *end, size_t nchars MY_ATTRIBUTE((unused)), int *error) {
   const char *oldstart = start;
   *error = 0;
   while (start < end) {
@@ -994,7 +993,7 @@ static size_t my_well_formed_len_ascii(
     }
     start++;
   }
-  return MY_MIN((size_t)(end - oldstart), nchars);
+  return start - oldstart;
 }
 }  // extern "C"
 
@@ -1142,9 +1141,9 @@ int my_mb_ctype_8bit(const CHARSET_INFO *cs, int *ctype, const uchar *s,
   return 1;
 }
 
-#define CUTOFF (ULLONG_MAX / 10)
-#define CUTLIM (ULLONG_MAX % 10)
-#define DIGITS_IN_ULONGLONG 20
+constexpr const uint64_t CUTOFF{ULLONG_MAX / 10};
+constexpr const uint64_t CUTLIM{ULLONG_MAX % 10};
+constexpr const int DIGITS_IN_ULONGLONG{20};
 
 static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
                                              10,
@@ -1231,7 +1230,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   ulonglong ull;
   ulong ul;
   uchar ch;
-  int shift = 0, digits = 0, negative, addon;
+  int shift = 0, digits = 0, addon;
+  bool negative;
 
   /* Skip leading spaces and tabs */
   for (; str < end && (*str == ' ' || *str == '\t'); str++)
@@ -1271,7 +1271,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   digits = (int)(str - beg);
 
   /* Continue to accumulate into ulonglong */
-  for (dot = NULL, ull = ul; str < end; str++) {
+  for (dot = nullptr, ull = ul; str < end; str++) {
     if ((ch = (uchar)(*str - '0')) < 10) {
       if (ull < CUTOFF || (ull == CUTOFF && ch <= CUTLIM)) {
         ull = ull * 10 + ch;
@@ -1308,8 +1308,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     if (*str == '.') {
       if (dot) {
         /* The second dot character */
-        addon = 0;
-        goto exp;
+        goto dotshift;
       } else {
         dot = str + 1;
       }
@@ -1319,6 +1318,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     /* Unknown character, exit the loop */
     break;
   }
+
+dotshift:
   shift = dot ? (int)(dot - str) : 0; /* Right shift */
   addon = 0;
 
@@ -1334,7 +1335,7 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
     if (str < end) {
       longlong negative_exp, exponent;
       if ((negative_exp = (*str == '-')) || *str == '+') {
-        if (++str == end) goto ret_sign;
+        if (++str == end) goto check_shift_overflow;
       }
       for (exponent = 0; str < end && (ch = (uchar)(*str - '0')) < 10; str++) {
         if (exponent <= (std::numeric_limits<longlong>::max() - ch) / 10)
@@ -1359,16 +1360,17 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
   {
     ulonglong d, r;
 
-    if (-shift >= DIGITS_IN_ULONGLONG)
+    if (shift == INT_MIN32 || -shift >= DIGITS_IN_ULONGLONG)
       goto ret_zero; /* Exponent is a big negative number, return 0 */
 
     d = d10[-shift];
-    r = (ull % d) * 2;
+    r = ull % d;
     ull /= d;
-    if (r >= d) ull++;
+    if (r >= d / 2) ull++;
     goto ret_sign;
   }
 
+check_shift_overflow:
   if (shift > DIGITS_IN_ULONGLONG) /* Huge left shift */
   {
     if (!ull) goto ret_sign;
@@ -1424,8 +1426,13 @@ ret_edom:
 ret_too_big:
   *endptr = str;
   *error = MY_ERRNO_ERANGE;
-  return unsigned_flag ? ULLONG_MAX
-                       : negative ? (ulonglong)LLONG_MIN : (ulonglong)LLONG_MAX;
+  if (unsigned_flag) {
+    if (negative) return 0;
+    return ULLONG_MAX;
+  } else {
+    if (negative) return LLONG_MIN;
+    return LLONG_MAX;
+  }
 }
 
 /*
@@ -1494,8 +1501,9 @@ uint my_strxfrm_flag_normalize(uint flags) {
 
 size_t my_strxfrm_pad(const CHARSET_INFO *cs, uchar *str, uchar *frmend,
                       uchar *strend, uint nweights, uint flags) {
-  if (nweights && frmend < strend && !(flags & MY_STRXFRM_NOPAD_WITH_SPACE)) {
-    uint fill_length = MY_MIN((uint)(strend - frmend), nweights * cs->mbminlen);
+  if (nweights && frmend < strend) {
+    // PAD SPACE behavior.
+    uint fill_length = std::min<uint>(strend - frmend, nweights * cs->mbminlen);
     cs->cset->fill(cs, (char *)frmend, fill_length, cs->pad_char);
     frmend += fill_length;
   }
@@ -1508,7 +1516,7 @@ size_t my_strxfrm_pad(const CHARSET_INFO *cs, uchar *str, uchar *frmend,
 }
 
 MY_CHARSET_HANDLER my_charset_8bit_handler = {my_cset_init_8bit,
-                                              NULL, /* ismbchar      */
+                                              nullptr, /* ismbchar      */
                                               my_mbcharlen_8bit, /* mbcharlen */
                                               my_numchars_8bit,
                                               my_charpos_8bit,
@@ -1537,7 +1545,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler = {my_cset_init_8bit,
 
 MY_CHARSET_HANDLER my_charset_ascii_handler = {
     my_cset_init_8bit,
-    NULL,              /* ismbchar      */
+    nullptr,           /* ismbchar      */
     my_mbcharlen_8bit, /* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,

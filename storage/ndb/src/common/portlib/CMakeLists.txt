@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,12 @@ IF(WIN32)
   SET(EXTRA_SRC ndb_nt_servc.cc)
 ENDIF(WIN32)
 
+IF(WIN32)
+  SET(EXTRA_SRC ${EXTRA_SRC} ndb_file_win32.cpp)
+ELSE()
+  SET(EXTRA_SRC ${EXTRA_SRC} ndb_file_posix.cpp)
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbCondition.cpp
   NdbMutex.cpp
@@ -45,21 +51,27 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbEnv.cpp
   NdbThread.cpp
   NdbHost.cpp
+  NdbHW.cpp
   NdbTCP.cpp
   NdbMem.cpp
   NdbConfig.cpp
   NdbTick.cpp
   NdbDir.cpp
   ndb_daemon.cpp
+  ndb_file_common.cpp
+  ndb_password.cpp
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp
   NdbMutex_DeadlockDetector.cpp
   NdbGetRUsage.cpp
   NdbLockCpuUtil.cpp
+  NdbSpin.cpp
   LINK_LIBRARIES mysys ${LIBSOCKET}
   )
 
-NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbportlib)
+NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbgeneral ndbportlib)
+
+NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbgeneral ndbportlib)
 
 NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ${LIBSOCKET} ${LIBNSL})

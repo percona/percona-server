@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,6 @@ int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
   info->current_record = pos->record_no;
 
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
-  info->current_hash_ptr = 0; /* Can't use rnext */
+  info->current_hash_ptr = nullptr; /* Can't use rnext */
   return 0;
 } /* heap_rrnd */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 
+#include "my_sys.h"  // ErrorHandlerFunctionPointer
 #include "sql/dd/string_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 
@@ -57,7 +58,7 @@ namespace upgrade {
 
 class Bootstrap_error_handler {
  private:
-  void (*m_old_error_handler_hook)(uint, const char *, myf);
+  ErrorHandlerFunctionPointer m_old_error_handler_hook;
 
   //  Set the error in DA. Optionally print error in log.
   static void my_message_bootstrap(uint error, const char *str, myf MyFlags);
@@ -101,9 +102,9 @@ class Syntax_error_handler : public Internal_error_handler {
   Syntax_error_handler() : m_global_counter(nullptr) {}
   Syntax_error_handler(Upgrade_error_counter *counter)
       : m_global_counter(counter) {}
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg);
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override;
 
   static bool has_too_many_errors();
   static bool has_errors();

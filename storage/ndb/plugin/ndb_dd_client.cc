@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,6 @@
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
-#include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
 Ndb_dd_client::Ndb_dd_client(THD *thd)
@@ -433,7 +432,7 @@ bool Ndb_dd_client::rename_table(
   }
   if (new_schema == nullptr) {
     // Database does not exist, unexpected
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -471,7 +470,7 @@ bool Ndb_dd_client::rename_table(
   if (dd::rename_foreign_keys(m_thd, old_schema_name, old_table_name,
                               ndbcluster_hton, new_schema_name, to_table_def)) {
     // Failed to rename foreign keys or commit/rollback, unexpected
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -490,7 +489,7 @@ bool Ndb_dd_client::rename_table(
   // Save table in DD
   if (m_client->update(to_table_def)) {
     // Failed to save, unexpected
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -537,7 +536,7 @@ bool Ndb_dd_client::remove_table(const char *schema_name,
   DBUG_PRINT("info", ("removing existing table"));
   if (m_client->drop(existing)) {
     // Failed to remove existing
-    DBUG_ASSERT(false);  // Catch in debug, unexpected error
+    assert(false);  // Catch in debug, unexpected error
     return false;
   }
 
@@ -550,6 +549,15 @@ bool Ndb_dd_client::deserialize_table(const dd::sdi_t &sdi,
     return false;
   }
   return true;
+}
+
+bool Ndb_dd_client::store_table(dd::Table *install_table) const {
+  DBUG_TRACE;
+
+  if (!m_client->store(install_table)) {
+    return true;  // OK
+  }
+  return false;
 }
 
 bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
@@ -587,7 +595,7 @@ bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
 
     // Double check that old table is in NDB
     if (old_table_def->engine() != "ndbcluster") {
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
 
@@ -598,7 +606,7 @@ bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
     }
 
     if (old_schema == nullptr) {
-      DBUG_ASSERT(false);  // Database does not exist
+      assert(false);  // Database does not exist
       return false;
     }
 
@@ -627,7 +635,7 @@ bool Ndb_dd_client::store_table(dd::Table *install_table, int ndb_table_id) {
     }
 
     // Removed old table and stored the new, return OK
-    DBUG_ASSERT(!m_thd->is_error());
+    assert(!m_thd->is_error());
     return true;
   }
 
@@ -645,7 +653,7 @@ bool Ndb_dd_client::install_table(
     return false;
   }
   if (schema == nullptr) {
-    DBUG_ASSERT(false);  // Database does not exist
+    assert(false);  // Database does not exist
     return false;
   }
 
@@ -656,13 +664,13 @@ bool Ndb_dd_client::install_table(
 
   // Verify that table_name in the unpacked table definition
   // matches the table name to install
-  DBUG_ASSERT(ndb_dd_fs_name_case(install_table->name()) == table_name);
+  assert(ndb_dd_fs_name_case(install_table->name()) == table_name);
 
   // Verify that table defintion unpacked from NDB
   // does not have any se_private fields set, those will be set
   // from the NDB table metadata
-  DBUG_ASSERT(install_table->se_private_id() == dd::INVALID_OBJECT_ID);
-  DBUG_ASSERT(install_table->se_private_data().raw_string() == "");
+  assert(install_table->se_private_id() == dd::INVALID_OBJECT_ID);
+  assert(install_table->se_private_data().raw_string() == "");
 
   // Assign the id of the schema to the table_object
   install_table->set_schema_id(schema->id());
@@ -707,7 +715,7 @@ bool Ndb_dd_client::install_table(
                                                 object_version)) {
       DBUG_PRINT("error", ("Could not extract object_id and object_version "
                            "from table definition"));
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
 
@@ -723,7 +731,7 @@ bool Ndb_dd_client::install_table(
     // Table already exists
     if (!force_overwrite) {
       // Don't overwrite existing table
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
 
@@ -732,7 +740,7 @@ bool Ndb_dd_client::install_table(
     DBUG_PRINT("info", ("dropping existing table"));
     if (m_client->drop(existing)) {
       // Failed to drop existing
-      DBUG_ASSERT(false);  // Catch in debug, unexpected error
+      assert(false);  // Catch in debug, unexpected error
       return false;
     }
   }
@@ -758,8 +766,7 @@ bool Ndb_dd_client::migrate_table(const char *schema_name,
                                   const char *table_name,
                                   const unsigned char *frm_data,
                                   unsigned int unpacked_len,
-                                  bool force_overwrite,
-                                  bool compare_definitions) {
+                                  bool force_overwrite) {
   if (force_overwrite) {
     // Remove the old table before migrating
     DBUG_PRINT("info", ("dropping existing table"));
@@ -771,8 +778,7 @@ bool Ndb_dd_client::migrate_table(const char *schema_name,
   }
 
   const bool migrate_result = dd::ndb_upgrade::migrate_table_to_dd(
-      m_thd, schema_name, table_name, frm_data, unpacked_len, false,
-      compare_definitions);
+      m_thd, this, schema_name, table_name, frm_data, unpacked_len);
 
   return migrate_result;
 }
@@ -813,7 +819,7 @@ bool Ndb_dd_client::set_tablespace_id_in_table(const char *schema_name,
     return false;
   }
   if (table_def == nullptr) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -1032,10 +1038,19 @@ bool Ndb_dd_client::is_local_table(const char *schema_name,
   }
   if (table == nullptr) {
     // The table doesn't exist
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
   local_table = table->engine() != "ndbcluster";
+  return true;
+}
+
+bool Ndb_dd_client::get_schema(const char *schema_name,
+                               const dd::Schema **schema_def) const {
+  if (m_client->acquire(schema_name, schema_def)) {
+    // Error is reported by the dictionary subsystem.
+    return false;
+  }
   return true;
 }
 
@@ -1067,7 +1082,7 @@ bool Ndb_dd_client::update_schema_version(const char *schema_name,
   DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u", schema_name,
                        counter, node_id));
 
-  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(m_thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA, schema_name, "", MDL_EXCLUSIVE));
 
   dd::Schema *schema;
@@ -1095,7 +1110,7 @@ bool Ndb_dd_client::lookup_tablespace_id(const char *tablespace_name,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("tablespace_name: %s", tablespace_name));
 
-  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(m_thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLESPACE, "", tablespace_name, MDL_INTENTION_EXCLUSIVE));
 
   // Acquire tablespace.
@@ -1215,7 +1230,7 @@ bool Ndb_dd_client::install_tablespace(
   tablespace->set_engine("ndbcluster");
 
   // Add data files
-  for (const auto data_file_name : data_file_names) {
+  for (const auto &data_file_name : data_file_names) {
     ndb_dd_disk_data_add_file(tablespace.get(), data_file_name.c_str());
   }
 
@@ -1369,7 +1384,7 @@ bool Ndb_dd_client::install_logfile_group(
   logfile_group->set_engine("ndbcluster");
 
   // Add undofiles
-  for (const auto undo_file_name : undo_file_names) {
+  for (const auto &undo_file_name : undo_file_names) {
     ndb_dd_disk_data_add_file(logfile_group.get(), undo_file_name.c_str());
   }
 
@@ -1451,7 +1466,7 @@ bool Ndb_dd_client::get_schema_uuid(dd::String_type *value) const {
   const dd::Table *table = nullptr;
   if (m_client->acquire(Ndb_schema_dist_table::DB_NAME.c_str(),
                         Ndb_schema_dist_table::TABLE_NAME.c_str(), &table)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -1477,13 +1492,13 @@ bool Ndb_dd_client::update_schema_uuid(const char *value) const {
   if (m_client->acquire_for_modification(
           Ndb_schema_dist_table::DB_NAME.c_str(),
           Ndb_schema_dist_table::TABLE_NAME.c_str(), &table)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
   if (table == nullptr) {
     // Table does not exist in DD
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -1491,7 +1506,7 @@ bool Ndb_dd_client::update_schema_uuid(const char *value) const {
   ndb_dd_table_set_schema_uuid(table, value);
 
   if (m_client->update(table)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -1591,9 +1606,7 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
 }
 
 /**
-  Invalidate all the tables in the referenced_tables set by closing
-  any cached instances in the table definition cache and invalidating
-  the same from the local DD.
+  @brief Invalidate all the referenced tables from the MySQL DD cache.
 
   @return true        On success.
   @return false       Invalidation failed.
@@ -1601,13 +1614,12 @@ bool Ndb_referenced_tables_invalidator::fetch_referenced_tables_to_invalidate(
 bool Ndb_referenced_tables_invalidator::invalidate() const {
   DBUG_TRACE;
   for (auto parent_it : m_referenced_tables) {
-    // Invalidate Table and Table Definition Caches too.
+    // Invalidate the table from DD
     const char *schema_name = parent_it.first.c_str();
     const char *table_name = parent_it.second.c_str();
     DBUG_PRINT("info",
                ("Invalidating parent table '%s.%s'", schema_name, table_name));
-    if (ndb_tdc_close_cached_table(m_thd, schema_name, table_name) ||
-        m_thd->dd_client()->invalidate(schema_name, table_name) != 0) {
+    if (m_thd->dd_client()->invalidate(schema_name, table_name) != 0) {
       DBUG_PRINT("error", ("Unable to invalidate table '%s.%s'", schema_name,
                            table_name));
       return false;

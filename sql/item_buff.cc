@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,19 +67,12 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
       return new (thd->mem_root) Cached_item_decimal(item);
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(0);
-      return 0;
+      assert(0);
+      return nullptr;
   }
 }
 
-Cached_item::~Cached_item() {}
-
-/**
-  Compare with old value and replace value with new value.
-
-  @return
-    Return true if values have changed
-*/
+Cached_item::~Cached_item() = default;
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
     : Cached_item(arg),
@@ -87,13 +80,19 @@ Cached_item_str::Cached_item_str(THD *thd, Item *arg)
           min<uint32>(arg->max_length, thd->variables.max_sort_length)),
       value(value_max_length) {}
 
+/**
+  Compare with old value and replace value with new value.
+
+  @return
+    Return true if values have changed
+*/
 bool Cached_item_str::cmp(void) {
   String *res;
   bool tmp;
 
   DBUG_TRACE;
-  DBUG_ASSERT(!item->is_temporal());
-  DBUG_ASSERT(item->data_type() != MYSQL_TYPE_JSON);
+  assert(!item->is_temporal());
+  assert(item->data_type() != MYSQL_TYPE_JSON);
   if ((res = item->val_str(&tmp_value)))
     res->length(min(res->length(), static_cast<size_t>(value_max_length)));
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),
@@ -110,7 +109,7 @@ bool Cached_item_str::cmp(void) {
 }
 
 Cached_item_str::~Cached_item_str() {
-  item = 0;  // Safety
+  item = nullptr;  // Safety
 }
 
 Cached_item_json::Cached_item_json(Item *item_arg)

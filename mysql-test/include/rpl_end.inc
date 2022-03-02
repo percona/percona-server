@@ -2,11 +2,11 @@
 #
 # Shut down replication initialized by include/rpl_init.inc.
 #
-# This syncs all servers, executes STOP SLAVE on all servers, executes
-# CHANGE MASTER on all servers, and disconnects all connections
+# This syncs all servers, executes STOP REPLICA on all servers, executes
+# CHANGE REPLICATION SOURCE on all servers, and disconnects all connections
 # configured by rpl_init.inc.
 #
-# It does not execute RESET MASTER or RESET SLAVE, because that would
+# It does not execute RESET MASTER or RESET REPLICA, because that would
 # remove binlogs which are possibly useful debug information in case
 # the test case later fails with a result mismatch.  If you need that,
 # source include/rpl_reset.inc before you source this file.
@@ -14,11 +14,14 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_only_running_threads= 1]
-# [--let $rpl_debug= 1]
-# [--let $rpl_group_replication= 1]
-# [--let $rpl_gtid_utils= 1]
-# [--let $rpl_assert_transaction_length= 1]
+# [--let $rpl_skip_sync = 1]
+# [--let $rpl_skip_delete_channels = 1]
+# [--let $rpl_skip_stop_slave = 1]
+# [--let $rpl_only_running_threads = 1]
+# [--let $rpl_debug = 1]
+# [--let $rpl_group_replication = 1]
+# [--let $rpl_gtid_utils = 1]
+# [--let $rpl_assert_transaction_length = 1]
 # --source include/rpl_end.inc
 #
 # Parameters:
@@ -34,6 +37,10 @@
 #     channels are deleted in multi-source. set it to 1, if channel deletion
 #     is not required.
 #
+#  $rpl_skip_stop_slave
+#     If set to '1' the slaves are not stopped. Useful if the slaves are stopped
+#     in the test case before sourcing this file.
+#
 #   $rpl_only_running_threads
 #     If one or both of the IO and SQL threads is stopped, sync and
 #     stop only the threads that are running.  See
@@ -44,7 +51,7 @@
 #
 #   $rpl_group_replication
 #     This checks for whether we have Group Replication enabled or not. Based
-#     on the check this parameter we execute change master or not in this
+#     on the check this parameter we execute CHANGE REPLICATION SOURCE or not in this
 #     inc file.
 #
 #   $rpl_gtid_utils
@@ -60,7 +67,7 @@
 #
 #     --source include/wait_for_slave_sql_error.inc
 #     --source include/stop_slave_io.inc
-#     RESET SLAVE;
+#     RESET REPLICA;
 #     --let $rpl_only_running_threads= 1
 #     --source include/rpl_end.inc
 #
@@ -125,6 +132,25 @@ if ($rpl_assert_transaction_length)
   }
 }
 
+# Assert that replication asynchronous connection failover tables are properly
+# clean on the tests that do use them.
+--let $_rpl_server= $rpl_server_count
+while ($_rpl_server)
+{
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+
+  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover on server$_rpl_server'
+  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover, count, 1] = 0
+  --source include/assert.inc
+
+  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover_managed on server$_rpl_server'
+  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover_managed, count, 1] = 0
+  --source include/assert.inc
+
+  --dec $_rpl_server
+}
+
 if ($rpl_group_replication)
 {
   --let $_rpl_server= $rpl_server_count
@@ -145,7 +171,51 @@ if ($rpl_group_replication)
 
 if (!$rpl_group_replication)
 {
-  --source include/rpl_stop_slaves.inc
+  if (!$rpl_skip_stop_slave)
+  {
+    --source include/rpl_stop_slaves.inc
+  }
+}
+
+# Clear the configuration of privilege_checks_user account
+if (!$rpl_group_replication)
+{
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    if ($rpl_privilege_checks_user != '')
+    {
+      --let $rpl_server_number= $_rpl_server
+      --source include/rpl_get_instance_priv_checks_user.inc
+      if ($rpl_instance_privilege_checks_user != NULL)
+      {
+        --disable_query_log
+        --let $rpl_connection_name= server_$_rpl_server
+        --source include/rpl_connection.inc
+
+        if (!$rpl_multi_source)
+        {
+          CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
+        }
+        if ($rpl_multi_source)
+        {
+          if($rpl_channel_name)
+          {
+            eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL $rpl_channel_name;
+          }
+          if(!$rpl_channel_name)
+          {
+            CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL '';
+          }
+        }
+        --enable_query_log
+        --source include/rpl_clear_priv_checks_user_configuration.inc
+      }
+    }
+    --dec $_rpl_server
+  }
+  --let $rpl_privilege_checks_user=
+  --let $rpl_change_topology_user_created=
 }
 
 # Restore the server state by deleting all channels
@@ -163,7 +233,7 @@ if ($rpl_multi_source)
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
 
-# rpl_change_topology executes CHANGE MASTER for each connection.
+# rpl_change_topology executes CHANGE REPLICATION SOURCE for each connection.
 # we restore the gtid state by sourcing rpl_change_topology below
 --let $use_gtids= 0
 --let $rpl_group_replication= 0
@@ -192,36 +262,11 @@ while ($_rpl_server)
   --source include/rpl_connection.inc
   --source include/stop_dump_threads.inc
 
-  # Drop applier user, if created
-  --let $_rpl_change_topology_user_created_index= `SELECT LOCATE('$_rpl_server:', "$rpl_change_topology_user_created")`
-  if ($_rpl_change_topology_user_created_index)
-  {
-    --disable_query_log
-    --let $_rpl_change_topology_user_created= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_change_topology_user_created", $_rpl_change_topology_user_created_index), ' ', 1), ':', -1)`
-    --eval DROP USER $_rpl_change_topology_user_created
-    if ($rpl_privilege_checks_use_roles != '')
-    {
-        --eval DROP ROLE 'sql_applier_thread'
-    }
-    --enable_query_log
-  }
-
-  # Restore state for PRIVILEGE_CHECKS_USER
-  if ($rpl_privilege_checks_user)
-  {
-    --disable_query_log
-    SET @@sql_log_bin = 0;
-    # Drop created privileged database
-    DROP DATABASE rpl_priv;
-    SET @@sql_log_bin = 1;
-    CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL;
-    --enable_query_log
-  }
   # Restore state for REQUIRE_ROW_FORMAT
   if ($rpl_require_row_format)
   {
     --disable_query_log
-    CHANGE MASTER TO REQUIRE_ROW_FORMAT=0;
+    CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
     --enable_query_log
   }
 

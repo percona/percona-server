@@ -66,26 +66,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
         STRUCT_FLD(open_method, 0)                                     \
   }
 
-/** Auxiliary function to store char* value in MYSQL_TYPE_STRING field.
-@return	0 on success */
-static int field_store_string(
-    Field *field,    /*!< in/out: target field for storage */
-    const char *str) /*!< in: NUL-terminated utf-8 string,
-                     or NULL */
-{
-  int ret;
-
-  if (str != nullptr) {
-    ret = field->store(str, strlen(str), system_charset_info);
-    field->set_notnull();
-  } else {
-    ret = 0; /* success */
-    field->set_null();
-  }
-
-  return (ret);
-}
-
 static int i_s_common_deinit(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_common_deinit");
@@ -98,24 +78,24 @@ static int i_s_common_deinit(void *p) /*!< in/out: table schema object */
 static ST_FIELD_INFO xtradb_read_view_fields_info[] = {
 #define READ_VIEW_LOW_LIMIT_NUMBER 0
     {STRUCT_FLD(field_name, "READ_VIEW_LOW_LIMIT_TRX_NUMBER"),
-     STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
-     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
-     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
 #define READ_VIEW_UPPER_LIMIT_ID 1
     {STRUCT_FLD(field_name, "READ_VIEW_UPPER_LIMIT_TRX_ID"),
-     STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
-     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
-     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
 #define READ_VIEW_LOW_LIMIT_ID 2
     {STRUCT_FLD(field_name, "READ_VIEW_LOW_LIMIT_TRX_ID"),
 
-     STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
-     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
-     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
@@ -134,15 +114,11 @@ static int xtradb_read_view_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   TABLE *table = tables->table;
   Field **fields = table->field;
 
-  char trx_id[TRX_ID_MAX_LEN + 1];
-  snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, read_view.low_limit_no);
-  OK(field_store_string(fields[READ_VIEW_LOW_LIMIT_NUMBER], trx_id));
+  OK(fields[READ_VIEW_LOW_LIMIT_NUMBER]->store(read_view.low_limit_no, true));
 
-  snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, read_view.up_limit_id);
-  OK(field_store_string(fields[READ_VIEW_UPPER_LIMIT_ID], trx_id));
+  OK(fields[READ_VIEW_UPPER_LIMIT_ID]->store(read_view.up_limit_id, true));
 
-  snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, read_view.low_limit_id);
-  OK(field_store_string(fields[READ_VIEW_LOW_LIMIT_ID], trx_id));
+  OK(fields[READ_VIEW_LOW_LIMIT_ID]->store(read_view.low_limit_id, true));
 
   OK(schema_table_store_record(thd, table));
 

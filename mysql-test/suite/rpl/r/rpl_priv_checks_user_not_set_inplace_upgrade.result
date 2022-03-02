@@ -27,11 +27,17 @@ include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PR
 include/stop_slave.inc
 CREATE USER 'u1'@'localhost';;
 GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1;
 include/start_slave.inc
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = 'u1'@'localhost']
 [connection master]
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 DROP USER 'u1'@'localhost';;
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
+SET GLOBAL relay_log_info_repository="FILE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
 include/rpl_end.inc

@@ -47,13 +47,13 @@ STOP SLAVE;
 # Clear Primary Binlog
 RESET MASTER;
 
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_SERVER_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_SERVER_PORT,SOURCE_USER="root"
 
 # Start Primary replicating from Secondary
 START SLAVE;
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$PRIMARY_SERVER_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$PRIMARY_SERVER_PORT,SOURCE_USER="root"
 
 # Start Secondary replicating from Primary
 START SLAVE;
@@ -240,7 +240,7 @@ call test.doit(200);
 --echo -- Restart slave on Primary Cluster
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # TODO : Reenable with new slave counts
-#--source suite/ndb_rpl/include/ndb_init_slave_counts.inc
+#--source suite/ndb_rpl/include/ndb_init_replica_counts.inc
 start slave;
 
 --source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
@@ -295,7 +295,7 @@ eval insert into mysql.ndb_replication values
 
 --disable_query_log
 # Only need suppress here, as table creation fails due to this.
-call mtr.add_suppression("NDB Slave: .* Too many extra Gci bits at .*");
+call mtr.add_suppression("NDB Replica: .* Too many extra Gci bits at .*");
 --enable_query_log
 
 --error ER_CONFLICT_FN_PARSE_ERROR

@@ -100,7 +100,7 @@ ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
 --connection con1
 --echo # Connection 1 unlocks the table and locks it again:
 UNLOCK TABLES;
---real_sleep 1
+--sleep 1
 LOCK TABLE t1 READ;
 
 --connection con2
@@ -179,7 +179,7 @@ ALTER TABLE t3 ADD PARTITION PARTITIONS 2;
 send RENAME TABLE t3 TO t4;
 
 --connection con1
---real_sleep 1
+--sleep 1
 --echo # Connection 1 unlocks the table:
 UNLOCK TABLES;
 

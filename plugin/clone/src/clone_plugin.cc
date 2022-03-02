@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,9 @@ static char *clone_ssl_cert;
 /** Clone system variable: SSL Certificate authority */
 static char *clone_ssl_ca;
 
+/** Clone system variable: timeout for clone restart after n/w failure */
+uint clone_restart_timeout;
+
 /** Key for registering clone allocations with performance schema */
 PSI_memory_key clone_mem_key;
 
@@ -147,7 +150,7 @@ int validate_local_params(THD *thd) {
 
   if (is_exception || val <= 0) {
     /* purecov: begin deadcode */
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Error extracting integer value for"
              "'max_allowed_packet' configuration");
@@ -285,7 +288,7 @@ static int match_valid_donor_address(MYSQL_THD thd, const char *host,
 @param[out]	save	possibly updated variable value
 @param[in]	value	current variable value
 @return error code */
-static int check_donor_addr_format(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+static int check_donor_addr_format(MYSQL_THD thd,
                                    SYS_VAR *var MY_ATTRIBUTE((unused)),
                                    void *save, struct st_mysql_value *value) {
   char temp_buffer[STRING_BUFFER_USUAL_SIZE];
@@ -293,11 +296,15 @@ static int check_donor_addr_format(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   auto addrs_cstring = value->val_str(value, temp_buffer, &buf_len);
 
+  if (addrs_cstring && (addrs_cstring == temp_buffer)) {
+    addrs_cstring = thd_strmake(thd, addrs_cstring, buf_len);
+  }
+
   if (addrs_cstring == nullptr) {
     /* purecov: begin deadcode */
     (*(const char **)save) = nullptr;
-    my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid Input Value NULL");
-    return (ER_INTERNAL_ERROR);
+    /* NULL is a valid value */
+    return (0);
     /* purecov: end */
   }
 
@@ -378,7 +385,7 @@ static int plugin_clone_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
   mysql_statement_register(clone_plugin_name, clone_stmts, count);
 
   /* Set the statement key values */
-  DBUG_ASSERT(count >= 3);
+  assert(count >= 3);
   clone_stmt_local_key = clone_stmts[0].m_key;
   clone_stmt_client_key = clone_stmts[1].m_key;
   clone_stmt_server_key = clone_stmts[2].m_key;
@@ -428,7 +435,7 @@ static int plugin_clone_local(THD *thd, const char *data_dir) {
   myclone::Server server(thd, MYSQL_INVALID_SOCKET);
 
   /* Update session and statement PFS keys */
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
   mysql_service_clone_protocol->mysql_clone_start_statement(
       thd, PSI_NOT_INSTRUMENTED, clone_stmt_local_key);
 
@@ -462,7 +469,7 @@ static int plugin_clone_remote_client(THD *thd, const char *remote_host,
                                      remote_passwd, data_dir, ssl_mode);
 
   /* Update session and statement PFS keys */
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   mysql_service_clone_protocol->mysql_clone_start_statement(
       thd, PSI_NOT_INSTRUMENTED, clone_stmt_client_key);
@@ -496,16 +503,16 @@ file to network or destination file. Set to high value for faster
 data transfer to/from file system. Especially for direct i/o where
 disk driver can do parallel IO for transfer. */
 static MYSQL_SYSVAR_UINT(buffer_size, clone_buffer_size, PLUGIN_VAR_RQCMDARG,
-                         "buffer size used by clone for data transfer", NULL,
-                         NULL, CLONE_MIN_BLOCK * 4, /* Default =   4M */
-                         CLONE_MIN_BLOCK,           /* Minimum =   1M */
-                         CLONE_MIN_BLOCK * 256,     /* Maximum = 256M */
-                         CLONE_MIN_BLOCK);          /* Block   =   1M */
+                         "buffer size used by clone for data transfer", nullptr,
+                         nullptr, CLONE_MIN_BLOCK * 4, /* Default =   4M */
+                         CLONE_MIN_BLOCK,              /* Minimum =   1M */
+                         CLONE_MIN_BLOCK * 256,        /* Maximum = 256M */
+                         CLONE_MIN_BLOCK);             /* Block   =   1M */
 
 /** Time in seconds to wait for DDL lock */
 static MYSQL_SYSVAR_UINT(ddl_timeout, clone_ddl_timeout, PLUGIN_VAR_RQCMDARG,
-                         "Time in seconds to wait for DDL lock", NULL, NULL,
-                         60 * 5,            /* Default =   5 min */
+                         "Time in seconds to wait for DDL lock", nullptr,
+                         nullptr, 60 * 5,   /* Default =   5 min */
                          0,                 /* Minimum =   0 skip lock */
                          60 * 60 * 24 * 30, /* Maximum =   1 month */
                          1);                /* Step    =   1 sec */
@@ -513,40 +520,41 @@ static MYSQL_SYSVAR_UINT(ddl_timeout, clone_ddl_timeout, PLUGIN_VAR_RQCMDARG,
 /** If concurrency is automatically tuned */
 static MYSQL_SYSVAR_BOOL(autotune_concurrency, clone_autotune_concurrency,
                          PLUGIN_VAR_NOCMDARG,
-                         "If concurrency is automatically tuned", NULL, NULL,
-                         true); /* Enable auto tuning by default */
+                         "If concurrency is automatically tuned", nullptr,
+                         nullptr, true); /* Enable auto tuning by default */
 
 /** Maximum number of concurrent threads for clone */
 static MYSQL_SYSVAR_UINT(max_concurrency, clone_max_concurrency,
                          PLUGIN_VAR_RQCMDARG,
-                         "Maximum number of concurrent threads for clone", NULL,
-                         NULL, CLONE_DEF_CON, /* Default =   8 threads */
-                         1,                   /* Minimum =   1 thread */
-                         128,                 /* Maximum = 128 threads */
-                         1);                  /* Step    =   1 thread */
+                         "Maximum number of concurrent threads for clone",
+                         nullptr, nullptr,
+                         CLONE_DEF_CON, /* Default =   8 threads */
+                         1,             /* Minimum =   1 thread */
+                         128,           /* Maximum = 128 threads */
+                         1);            /* Step    =   1 thread */
 
 /** Maximum network bandwidth for clone */
 static MYSQL_SYSVAR_UINT(max_network_bandwidth, clone_max_network_bandwidth,
                          PLUGIN_VAR_RQCMDARG,
-                         "Maximum network bandwidth for clone in MiB/sec", NULL,
-                         NULL, 0,     /* Default =   0 unlimited */
-                         0,           /* Minimum =   0 unlimited */
-                         1024 * 1024, /* Maximum =   1 TiB/sec */
-                         1);          /* Step    =   1 MiB/sec */
+                         "Maximum network bandwidth for clone in MiB/sec",
+                         nullptr, nullptr, 0, /* Default =   0 unlimited */
+                         0,                   /* Minimum =   0 unlimited */
+                         1024 * 1024,         /* Maximum =   1 TiB/sec */
+                         1);                  /* Step    =   1 MiB/sec */
 
 /** Maximum IO bandwidth for clone */
 static MYSQL_SYSVAR_UINT(max_data_bandwidth, clone_max_io_bandwidth,
                          PLUGIN_VAR_RQCMDARG,
                          "Maximum File data bandwidth for clone in MiB/sec",
-                         NULL, NULL, 0, /* Default =   0 unlimited */
-                         0,             /* Minimum =   0 unlimited */
-                         1024 * 1024,   /* Maximum =   1 TiB/sec */
-                         1);            /* Step    =   1 MiB/sec */
+                         nullptr, nullptr, 0, /* Default =   0 unlimited */
+                         0,                   /* Minimum =   0 unlimited */
+                         1024 * 1024,         /* Maximum =   1 TiB/sec */
+                         1);                  /* Step    =   1 MiB/sec */
 
 /** If data is compressed in network layer. */
 static MYSQL_SYSVAR_BOOL(enable_compression, clone_enable_compression,
                          PLUGIN_VAR_NOCMDARG,
-                         "If compression is done at network", NULL, NULL,
+                         "If compression is done at network", nullptr, nullptr,
                          false); /* Disable compression by default */
 
 /** List of valid donor addresses allowed to clone from. */
@@ -574,19 +582,35 @@ static MYSQL_SYSVAR_STR(ssl_ca, clone_ssl_ca,
                         "SSL path name for Certificate Authority (CA) file",
                         nullptr, nullptr, nullptr);
 
+/** Donor allows an on going clone operation to resume after short network
+failures. This is the time in minutes up to which the donor allows recipient to
+re-connect and resume after a network failure. After timeout, donor drops the
+current snapshot and the clone operation can no longer be resumed. */
+static MYSQL_SYSVAR_UINT(donor_timeout_after_network_failure,
+                         clone_restart_timeout, PLUGIN_VAR_RQCMDARG,
+                         "Time in minutes up to which donor allows recipient"
+                         " to re-connect and restart cloning after network"
+                         " failure.",
+                         nullptr, nullptr, 5, /* Default =   5 min */
+                         0,                   /* Minimum =   0 min: no wait */
+                         30,                  /* Maximum =  30 min */
+                         1);                  /* Step    =   1 min */
+
 /** Clone system variables */
-static SYS_VAR *clone_system_variables[] = {MYSQL_SYSVAR(buffer_size),
-                                            MYSQL_SYSVAR(ddl_timeout),
-                                            MYSQL_SYSVAR(max_concurrency),
-                                            MYSQL_SYSVAR(max_network_bandwidth),
-                                            MYSQL_SYSVAR(max_data_bandwidth),
-                                            MYSQL_SYSVAR(enable_compression),
-                                            MYSQL_SYSVAR(autotune_concurrency),
-                                            MYSQL_SYSVAR(valid_donor_list),
-                                            MYSQL_SYSVAR(ssl_key),
-                                            MYSQL_SYSVAR(ssl_cert),
-                                            MYSQL_SYSVAR(ssl_ca),
-                                            NULL};
+static SYS_VAR *clone_system_variables[] = {
+    MYSQL_SYSVAR(buffer_size),
+    MYSQL_SYSVAR(ddl_timeout),
+    MYSQL_SYSVAR(max_concurrency),
+    MYSQL_SYSVAR(max_network_bandwidth),
+    MYSQL_SYSVAR(max_data_bandwidth),
+    MYSQL_SYSVAR(enable_compression),
+    MYSQL_SYSVAR(autotune_concurrency),
+    MYSQL_SYSVAR(valid_donor_list),
+    MYSQL_SYSVAR(ssl_key),
+    MYSQL_SYSVAR(ssl_cert),
+    MYSQL_SYSVAR(ssl_ca),
+    MYSQL_SYSVAR(donor_timeout_after_network_failure),
+    nullptr};
 
 /** Declare clone plugin */
 mysql_declare_plugin(clone_plugin){
@@ -595,18 +619,18 @@ mysql_declare_plugin(clone_plugin){
     &clone_descriptor,
     clone_plugin_name, /* Plugin name */
 
-    "ORACLE",
+    PLUGIN_AUTHOR_ORACLE,
     "CLONE PLUGIN", /* Plugin descriptive text */
     PLUGIN_LICENSE_GPL,
 
     plugin_clone_init,   /* Plugin Init */
-    NULL,                /* Plugin check uninstall */
+    nullptr,             /* Plugin check uninstall */
     plugin_clone_deinit, /* Plugin Deinit */
 
     CLONE_PLUGIN_VERSION,   /* Plugin Version */
-    NULL,                   /* status variables */
+    nullptr,                /* status variables */
     clone_system_variables, /* system variables */
-    NULL,                   /* config options */
+    nullptr,                /* config options */
     0,                      /* flags */
 } /** Declare clone plugin */
 mysql_declare_plugin_end;

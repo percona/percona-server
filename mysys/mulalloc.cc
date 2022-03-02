@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ void *my_multi_malloc(PSI_memory_key key, myf myFlags, ...) {
   va_end(args);
 
   if (!(start = (char *)my_malloc(key, tot_length, myFlags)))
-    return 0; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   va_start(args, myFlags);
   res = start;

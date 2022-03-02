@@ -4,7 +4,10 @@
 #
 # Run all default suites without specifying any replication mode. This will run
 # rpl tests in all 3 modes row, stmt and mixed
-perl mysql-test-run.pl --force --timer   --comment=all-default  --vardir=var-all-default  --report-features --unit-tests-report --no-skip
+perl mysql-test-run.pl --force --timer   --comment=all-default  --vardir=var-all-default  --report-features --unit-tests-report --no-skip --skip-ndb
+# Run all ndb tests separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --force --timer   --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only
 
 # Run the suites that are not part of the default
 # funcs_1, funcs_2, stress, jp, nist, GR
@@ -24,4 +27,4 @@ perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine --va
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached  --suite=memcached --no-skip
 
 # Group Replication
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-group_replication_ssl_mode_required --suite=group_replication --mysqld=--loose-group_replication_ssl_mode=REQUIRED

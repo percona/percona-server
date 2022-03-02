@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -207,8 +207,6 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     return (DB_IO_ERROR);
   }
 
-  dberr_t err = DB_SUCCESS;
-
   /* Write SDI Index */
   if (has_sdi) {
     dict_mutex_enter_for_mysql();
@@ -217,22 +215,22 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
     dict_mutex_exit_for_mysql();
 
-    ut_ad(index != NULL);
-    err = row_quiesce_write_one_index(index, file, thd);
+    ut_ad(index != nullptr);
+    const auto err = row_quiesce_write_one_index(index, file, thd);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
   }
 
   /* Write the table indexes meta data. */
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != 0 && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
-    err = row_quiesce_write_one_index(index, file, thd);
+  for (const dict_index_t *index : table->indexes) {
+    const auto err = row_quiesce_write_one_index(index, file, thd);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
   }
 
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  return (err);
+  return DB_SUCCESS;
 }
 
 /** Write the metadata (table columns) config file. Serialise the contents
@@ -367,7 +365,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   // The table is read locked so it will not be dropped
   ut_ad(space != NULL);
   /* Write the current meta-data version number. */
-  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V4;
+  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V6;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
@@ -392,7 +390,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   const char *hostname = server_get_hostname();
 
   /* Play it safe and check for NULL. */
-  if (hostname == 0) {
+  if (hostname == nullptr) {
     static const char NullHostname[] = "Hostname unknown";
 
     ib::warn(ER_IB_MSG_1013) << "Unable to determine server hostname.";
@@ -415,7 +413,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   /* The table name includes the NUL byte. */
-  ut_a(table->name.m_name != NULL);
+  ut_a(table->name.m_name != nullptr);
   len = static_cast<ib_uint32_t>(strlen(table->name.m_name) + 1);
 
   /* Write the table name. */
@@ -467,6 +465,18 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_IO_ERROR);
   }
 
+  if (cfg_version >= IB_EXPORT_CFG_VERSION_V5) {
+    /* write number of nullable column before first instant column */
+    mach_write_to_4(value, table->first_index()->n_instant_nullable);
+
+    if (fwrite(&value, 1, sizeof(value), file) != sizeof(value)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                  strerror(errno), "while writing table meta-data.");
+
+      return (DB_IO_ERROR);
+    }
+  }
+
   /* Write the space flags */
   uint32_t space_flags = fil_space_get_flags(table->space);
   ut_ad(space_flags != UINT32_UNDEFINED);
@@ -477,6 +487,20 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                 strerror(errno), "while writing space_flags.");
 
     return (DB_IO_ERROR);
+  }
+
+  if (cfg_version >= IB_EXPORT_CFG_VERSION_V6) {
+    /* Write compression type info. */
+    uint8_t compression_type =
+        static_cast<uint8_t>(fil_get_compression(table->space));
+    mach_write_to_1(value, compression_type);
+
+    if (fwrite(&value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                  strerror(errno), "while writing compression type info.");
+
+      return DB_IO_ERROR;
+    }
   }
 
   return (DB_SUCCESS);
@@ -492,15 +516,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
 
-  dd_get_meta_data_filename(table, NULL, name, sizeof(name));
+  dd_get_meta_data_filename(table, nullptr, name, sizeof(name));
 
   ib::info(ER_IB_MSG_1014) << "Writing table metadata to '" << name << "'";
 
   FILE *file = fopen(name, "w+b");
 
-  if (file == NULL) {
-    ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
-            strerror(errno));
+  if (file == nullptr) {
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
+                strerror(errno));
 
     err = DB_IO_ERROR;
   } else {
@@ -545,15 +569,15 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_quiesce_write_transfer_key(const dict_table_t *table, FILE *file,
                                    THD *thd) {
   byte key_size[sizeof(ib_uint32_t)];
-  byte row[ENCRYPTION_KEY_LEN * 3];
+  byte row[Encryption::KEY_LEN * 3];
   byte *ptr = row;
   byte *transfer_key = ptr;
   lint elen;
 
-  ut_ad(table->encryption_key != NULL && table->encryption_iv != NULL);
+  ut_ad(table->encryption_key != nullptr && table->encryption_iv != nullptr);
 
   /* Write the encryption key size. */
-  mach_write_to_4(key_size, ENCRYPTION_KEY_LEN);
+  mach_write_to_4(key_size, Encryption::KEY_LEN);
 
   if (fwrite(&key_size, 1, sizeof(key_size), file) != sizeof(key_size)) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -564,20 +588,21 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   /* Generate and write the transfer key. */
   Encryption::random_value(transfer_key);
-  if (fwrite(transfer_key, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fwrite(transfer_key, 1, Encryption::KEY_LEN, file) !=
+      Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing transfer key.");
 
     return (DB_IO_ERROR);
   }
 
-  ptr += ENCRYPTION_KEY_LEN;
+  ptr += Encryption::KEY_LEN;
 
   /* Encrypt tablespace key. */
   elen = my_aes_encrypt(
       reinterpret_cast<unsigned char *>(table->encryption_key),
-      ENCRYPTION_KEY_LEN, ptr, reinterpret_cast<unsigned char *>(transfer_key),
-      ENCRYPTION_KEY_LEN, my_aes_256_ecb, NULL, false);
+      Encryption::KEY_LEN, ptr, reinterpret_cast<unsigned char *>(transfer_key),
+      Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -586,19 +611,19 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   /* Write encrypted tablespace key */
-  if (fwrite(ptr, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fwrite(ptr, 1, Encryption::KEY_LEN, file) != Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing encrypted tablespace key.");
 
     return (DB_IO_ERROR);
   }
-  ptr += ENCRYPTION_KEY_LEN;
+  ptr += Encryption::KEY_LEN;
 
   /* Encrypt tablespace iv. */
   elen = my_aes_encrypt(reinterpret_cast<unsigned char *>(table->encryption_iv),
-                        ENCRYPTION_KEY_LEN, ptr,
+                        Encryption::KEY_LEN, ptr,
                         reinterpret_cast<unsigned char *>(transfer_key),
-                        ENCRYPTION_KEY_LEN, my_aes_256_ecb, NULL, false);
+                        Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -607,7 +632,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   /* Write encrypted tablespace iv */
-  if (fwrite(ptr, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fwrite(ptr, 1, Encryption::KEY_LEN, file) != Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing encrypted tablespace iv.");
 
@@ -637,25 +662,25 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   /* Get the encryption key and iv from space */
   /* For encrypted table, before we discard the tablespace,
-  we need save the encryption information into table, otherwise,
+  we need to save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
-  if (table->encryption_key == NULL) {
+  if (table->encryption_key == nullptr) {
     lint old_size = mem_heap_get_size(table->heap);
 
     table->encryption_key =
-        static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
+        static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
 
     table->encryption_iv =
-        static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
+        static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
 
     lint new_size = mem_heap_get_size(table->heap);
     dict_sys->size += new_size - old_size;
 
-    ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-    memcpy(table->encryption_key, space->encryption_key, ENCRYPTION_KEY_LEN);
-    memcpy(table->encryption_iv, space->encryption_iv, ENCRYPTION_KEY_LEN);
+    memcpy(table->encryption_key, space->encryption_key, Encryption::KEY_LEN);
+    memcpy(table->encryption_iv, space->encryption_iv, Encryption::KEY_LEN);
   }
 
   srv_get_encryption_data_filename(table, name, sizeof(name));
@@ -665,9 +690,9 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   FILE *file = fopen(name, "w+b");
 
-  if (file == NULL) {
-    ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
-            strerror(errno));
+  if (file == nullptr) {
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
+                strerror(errno));
 
     err = DB_IO_ERROR;
   } else {
@@ -696,8 +721,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   /* Clean the encryption information */
-  table->encryption_key = NULL;
-  table->encryption_iv = NULL;
+  table->encryption_key = nullptr;
+  table->encryption_iv = nullptr;
 
   return (err);
 }
@@ -711,8 +736,7 @@ static bool row_quiesce_table_has_fts_index(
 
   dict_mutex_enter_for_mysql();
 
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != 0; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (const dict_index_t *index : table->indexes) {
     if (index->type & DICT_FTS) {
       exists = true;
       break;
@@ -724,17 +748,17 @@ static bool row_quiesce_table_has_fts_index(
   return (exists);
 }
 
-/** Quiesce the tablespace that the table resides in. */
-void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
-                             trx_t *trx) /*!< in/out: transaction/session */
-{
-  ut_a(trx->mysql_thd != 0);
+/** Quiesce the tablespace that the table resides in.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_start(dict_table_t *table, trx_t *trx) {
+  ut_a(trx->mysql_thd != nullptr);
   ut_a(srv_n_purge_threads > 0);
   ut_ad(!srv_read_only_mode);
 
-  ut_a(trx->mysql_thd != 0);
+  ut_a(trx->mysql_thd != nullptr);
 
-  ut_ad(fil_space_get(table->space) != NULL);
+  ut_ad(fil_space_get(table->space) != nullptr);
 
   ib::info(ER_IB_MSG_1016) << "Sync to disk of " << table->name << " started.";
 
@@ -791,14 +815,13 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
   ut_a(err == DB_SUCCESS);
 }
 
-/** Cleanup after table quiesce. */
-void row_quiesce_table_complete(
-    dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx)          /*!< in/out: transaction/session */
-{
+/** Cleanup after table quiesce.
+@param[in] table Quiesce this table
+@param[in,out] trx Transaction/session */
+void row_quiesce_table_complete(dict_table_t *table, trx_t *trx) {
   ulint count = 0;
 
-  ut_a(trx->mysql_thd != 0);
+  ut_a(trx->mysql_thd != nullptr);
 
   /* We need to wait for the operation to complete if the
   transaction has been killed. */
@@ -810,8 +833,7 @@ void row_quiesce_table_complete(
           << "Waiting for quiesce of " << table->name << " to complete";
     }
 
-    /* Sleep for a second. */
-    os_thread_sleep(1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     ++count;
   }
@@ -821,9 +843,9 @@ void row_quiesce_table_complete(
   the user tries to drop the database (remove directory). */
   char cfg_name[OS_FILE_MAX_PATH];
 
-  dd_get_meta_data_filename(table, NULL, cfg_name, sizeof(cfg_name));
+  dd_get_meta_data_filename(table, nullptr, cfg_name, sizeof(cfg_name));
 
-  os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
+  os_file_delete_if_exists(innodb_data_file_key, cfg_name, nullptr);
 
   ib::info(ER_IB_MSG_1024) << "Deleting the meta-data file '" << cfg_name
                            << "'";
@@ -833,7 +855,7 @@ void row_quiesce_table_complete(
 
     srv_get_encryption_data_filename(table, cfp_name, sizeof(cfp_name));
 
-    os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
+    os_file_delete_if_exists(innodb_data_file_key, cfp_name, nullptr);
 
     ib::info(ER_IB_MSG_1025)
         << "Deleting the meta-data file '" << cfp_name << "'";

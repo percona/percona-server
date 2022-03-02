@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,10 @@
 
 #include "errors.h"
 
+#include <assert.h>
 #include <cstddef>
 #include <unordered_map>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"     // MYF
 #include "my_sys.h"          // my_error
 #include "mysqld_error.h"    // Error codes
@@ -74,7 +74,8 @@ std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     {U_REGEX_TIME_OUT, ER_REGEXP_TIME_OUT},
     {U_REGEX_PATTERN_TOO_BIG, ER_REGEXP_PATTERN_TOO_BIG},
     {U_REGEX_INVALID_CAPTURE_GROUP_NAME, ER_REGEXP_INVALID_CAPTURE_GROUP_NAME},
-    {U_REGEX_INVALID_FLAG, ER_REGEXP_INVALID_FLAG}};
+    {U_REGEX_INVALID_FLAG, ER_REGEXP_INVALID_FLAG},
+    {U_REGEX_NUMBER_TOO_BIG, ER_REGEX_NUMBER_TOO_BIG}};
 
 bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
   if (status == U_ZERO_ERROR || U_SUCCESS(status)) return false;
@@ -87,7 +88,7 @@ bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
       release builds, we just get e.g. "Got error 'U_REGEX_TIME_OUT' from
       regexp".
     */
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_REGEXP_ERROR, MYF(0), u_errorName(status));
     return true;
   }

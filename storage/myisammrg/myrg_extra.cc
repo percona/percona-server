@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ int myrg_extra(MYRG_INFO *info, enum ha_extra_function function,
 
   if (!info->children_attached) return 1;
   if (function == HA_EXTRA_RESET_STATE) {
-    info->current_table = 0;
+    info->current_table = nullptr;
     info->last_used_table = info->open_tables;
   }
   for (file = info->open_tables; file != info->end_table; file++) {
@@ -55,7 +55,7 @@ int myrg_reset(MYRG_INFO *info) {
   MYRG_TABLE *file;
   DBUG_TRACE;
 
-  info->current_table = 0;
+  info->current_table = nullptr;
   info->last_used_table = info->open_tables;
 
   /*

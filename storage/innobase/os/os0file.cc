@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -44,14 +44,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "log0log.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_io.h"
+
+#include "fil0fil.h"
+#include "ha_prototypes.h"
+#include "os0file.h"
 #include "sql_const.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "system_key.h"
 #include "trx0trx.h"
 #ifndef UNIV_HOTBACKUP
 #include "os0event.h"
@@ -96,6 +97,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <ctime>
 #include <functional>
 #include <new>
+#include <ostream>
 #include <vector>
 
 #ifdef UNIV_HOTBACKUP
@@ -114,20 +116,8 @@ static const ulint IO_LOG_SEGMENT = 1;
 /** Number of retries for partial I/O's */
 static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
 
-/** Blocks for doing IO, used in the transparent compression
-and encryption code. */
-struct Block {
-  /** Default constructor */
-  Block() : m_ptr(), m_in_use() {}
-
-  byte *m_ptr;
-
-  byte pad[INNOBASE_CACHE_LINE_SIZE - sizeof(ulint)];
-  lock_word_t m_in_use;
-};
-
 /** For storing the allocated blocks */
-typedef std::vector<Block> Blocks;
+using Blocks = std::vector<file::Block>;
 
 /** Block collection */
 static Blocks *block_cache;
@@ -294,15 +284,18 @@ the completed IO request and calls completion routine on it.
 mysql_pfs_key_t innodb_log_file_key;
 mysql_pfs_key_t innodb_data_file_key;
 mysql_pfs_key_t innodb_temp_file_key;
+mysql_pfs_key_t innodb_dblwr_file_key;
 mysql_pfs_key_t innodb_arch_file_key;
 mysql_pfs_key_t innodb_clone_file_key;
 mysql_pfs_key_t innodb_bmp_file_key;
-mysql_pfs_key_t innodb_parallel_dblwrite_file_key;
 #endif /* UNIV_PFS_IO */
 
 #endif /* !UNIV_HOTBACKUP */
+
 /** The asynchronous I/O context */
 struct Slot {
+  /** Default constructor/assignment etc. are OK */
+
   /** index of the slot in the aio array */
   uint16_t pos{0};
 
@@ -390,7 +383,7 @@ struct Slot {
   uint32 original_len{0};
 
   /** Buffer block for compressed pages or encrypted pages */
-  Block *buf_block{nullptr};
+  file::Block *buf_block{nullptr};
 
   /** true, if we shouldn't punch a hole after writing the page */
   bool skip_punch_hole{false};
@@ -403,15 +396,42 @@ struct Slot {
     memset(&control, 0, sizeof(control));
 #endif /* LINUX_NATIVE_AIO */
   }
+
+  /** Serialize the object into JSON format.
+  @return the object in JSON format. */
+  std::string to_json() const noexcept MY_ATTRIBUTE((warn_unused_result));
+
+  /** Print this object into the given output stream.
+  @return the output stream into which object was printed. */
+  std::ostream &print(std::ostream &out) const noexcept;
 };
+
+std::string Slot::to_json() const noexcept {
+  std::ostringstream out;
+  out << "{";
+  out << "\"className\": \"Slot\",";
+  out << "\"objectPtr\": \"" << (void *)this << "\",";
+  out << "\"buf_block\": \"" << (void *)buf_block << "\"";
+  out << "}";
+  return out.str();
+}
+
+std::ostream &Slot::print(std::ostream &out) const noexcept {
+  out << to_json();
+  return (out);
+}
+
+inline std::ostream &operator<<(std::ostream &out, const Slot &obj) noexcept {
+  return (obj.print(out));
+}
 
 /** The asynchronous i/o array structure */
 class AIO {
  public:
   /** Constructor
-  @param[in]	id		Latch ID
-  @param[in]	n		Number of slots to configure
-  @param[in]	segments	Number of segments to configure */
+  @param[in]	id		The latch ID
+  @param[in]	n		Number of AIO slots
+  @param[in]	segments	Number of segments */
   AIO(latch_id_t id, ulint n, ulint segments);
 
   /** Destructor */
@@ -425,21 +445,19 @@ class AIO {
   until not_full-event becomes signaled.
 
   @param[in,out]	type	IO context
-  @param[in,out]	m1	message to be passed along with the AIO
-                          operation
-  @param[in,out]	m2	message to be passed along with the AIO
-                          operation
+  @param[in,out]	m1	message to be passed along with AIO operation
+  @param[in,out]	m2	message to be passed along with AIO operation
   @param[in]	file	file handle
-  @param[in]	name	name of the file or path as a null-terminated
-                          string
+  @param[in]	name	name of the file or path as a null-terminated string
   @param[in,out]	buf	buffer where to read or from which to write
-  @param[in]	offset	file offset, where to read from or start writing
-  @param[in]	len	length of the block to read or write
+  @param[in]	offset	        file offset, where to read from or start writing
+  @param[in]	len	        length of the block to read or write
+  @param[in]	e_block         Encrypted block or nullptr.
   @return pointer to slot */
   Slot *reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                      pfs_os_file_t file, const char *name, void *buf,
-                     os_offset_t offset, ulint len, space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+                     os_offset_t offset, ulint len, const file::Block *e_block,
+                     space_id_t space_id) MY_ATTRIBUTE((warn_unused_result));
 
   /** @return number of reserved slots */
   ulint pending_io_count() const;
@@ -455,17 +473,19 @@ class AIO {
 
   /** Non const version */
   Slot *at(ulint i) MY_ATTRIBUTE((warn_unused_result)) {
-    ut_a(i < m_slots.size());
+    if (i >= m_slots.size()) {
+      ib::fatal(ER_IB_MSG_1357) << "i: " << i << " slots: " << m_slots.size();
+    }
 
     return (&m_slots[i]);
   }
 
-  /** Frees a slot in the AIO array, assumes caller owns the mutex.
-  @param[in,out]	slot	Slot to release */
+  /** Frees a slot in the aio array. Assumes caller owns the mutex.
+  @param[in,out]	slot		Slot to release */
   void release(Slot *slot);
 
-  /** Frees a slot in the AIO array, assumes caller doesn't own the mutex.
-  @param[in,out]	slot	Slot to release */
+  /** Frees a slot in the AIO array. Assumes caller doesn't own the mutex.
+  @param[in,out]	slot		Slot to release */
   void release_with_mutex(Slot *slot);
 
   /** Prints info about the aio array.
@@ -495,8 +515,8 @@ class AIO {
   /** Release the mutex */
   void release() const { mutex_exit(&m_mutex); }
 
-  /** Write out the state to the file/stream
-  @param[in, out]	file	File to write to */
+  /** Prints all pending IO for the array
+  @param[in,out]	file	file where to print */
   void to_file(FILE *file) const;
 
   /** Submit buffered AIO requests on the given segment to the kernel.
@@ -583,9 +603,7 @@ class AIO {
 
   /** The non asynchronous IO array.
   @return the synchronous AIO array instance. */
-  static AIO *sync_array() MY_ATTRIBUTE((warn_unused_result)) {
-    return (s_sync);
-  }
+  static AIO *sync_array() MY_ATTRIBUTE((warn_unused_result)) { return s_sync; }
 
   /**
   Get the AIO handles for a segment.
@@ -604,11 +622,14 @@ class AIO {
   }
 #endif /* _WIN32 */
 
-  /** Create an instance using new(std::nothrow)
+  /** Creates an aio wait array. Note that we return NULL in case of failure.
+  We don't care about freeing memory here because we assume that a
+  failure will result in server refusing to start up.
   @param[in]	id		Latch ID
-  @param[in]	n		The number of AIO request slots
-  @param[in]	n_segments	The number of segments
-  @return a new AIO instance */
+  @param[in]	n		maximum number of pending AIO operations
+                                  allowed; n must be divisible by m_n_segments
+  @param[in]	n_segments	number of segments in the AIO array
+  @return own: AIO array, NULL on failure */
   static AIO *create(latch_id_t id, ulint n, ulint n_segments)
       MY_ATTRIBUTE((warn_unused_result));
 
@@ -639,7 +660,7 @@ class AIO {
   @param[out]	array		AIO wait array
   @param[in]	segment		global segment number
   @return local segment number within the aio array */
-  static ulint get_array_and_local_segment(AIO **array, ulint segment)
+  static ulint get_array_and_local_segment(AIO *&array, ulint segment)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Select the IO slot array
@@ -659,10 +680,8 @@ class AIO {
   static ulint get_segment_no_from_slot(const AIO *array, const Slot *slot)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Wakes up a simulated AIO I/O-handler thread if it has something
-  to do.
-  @param[in]	global_segment	the number of the segment in the
-                                  AIO arrays */
+  /** Wakes up a simulated AIO I/O handler thread if it has something to do.
+  @param[in]	global_segment	The number of the segment in the AIO arrays */
   static void wake_simulated_handler_thread(ulint global_segment);
 
   /** Check if it is a read request
@@ -691,19 +710,18 @@ class AIO {
   @return DB_SUCCESS or error code */
   dberr_t init_slots() MY_ATTRIBUTE((warn_unused_result));
 
-  /** Wakes up a simulated AIO I/O-handler thread if it has something
-  to do for a local segment in the AIO array.
-  @param[in]	global_segment	the number of the segment in the
-                                  AIO arrays
-  @param[in]	segment		the local segment in the AIO array */
+  /** Wakes up a simulated AIO I/O-handler thread if it has something to do
+  for a local segment in the AIO array.
+  @param[in]	global_segment	The number of the segment in the AIO arrays
+  @param[in]	segment		The local segment in the AIO array */
   void wake_simulated_handler_thread(ulint global_segment, ulint segment);
 
   /** Prints pending IO requests per segment of an aio array.
   We probably don't need per segment statistics but they can help us
   during development phase to see if the IO requests are being
   distributed as expected.
-  @param[in,out]	file		file where to print
-  @param[in]	segments	pending IO array */
+  @param[in,out]	file		File where to print
+  @param[in]	segments	Pending IO array */
   void print_segment_info(FILE *file, const ulint *segments);
 
 #ifdef LINUX_NATIVE_AIO
@@ -711,6 +729,13 @@ class AIO {
   @return DB_SUCCESS or error code */
   dberr_t init_linux_native_aio() MY_ATTRIBUTE((warn_unused_result));
 #endif /* LINUX_NATIVE_AIO */
+
+  /** Submit buffered AIO requests on the array to the kernel.
+  (low level function).
+  @param[in] acquire_mutex specifies whether to lock array mutex
+  @param[in] array for which to submit IO */
+  static void os_aio_dispatch_read_array_submit_low_for_array(
+      bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO *arr);
 
  private:
   typedef std::vector<Slot> Slots;
@@ -737,6 +762,13 @@ class AIO {
   /** Number of reserved slots in the AIO array outside
   the ibuf segment */
   ulint m_n_reserved;
+
+  /** The index of last slot used to reserve. This is used to balance the
+   incoming requests more evenly throughout the segments.
+   This field is not guarded by any lock.
+   This is only used as a heuristic and any value read or written to it is OK.
+   It is atomic as it is accesses without any latches from multiple threads. */
+  std::atomic_size_t m_last_slot_used;
 
 #ifdef _WIN32
   typedef std::vector<HANDLE, ut_allocator<HANDLE>> Handles;
@@ -798,17 +830,17 @@ AIO *AIO::s_sync;
 
 #if defined(LINUX_NATIVE_AIO)
 /** timeout for each io_getevents() call = 500ms. */
-static const ulint OS_AIO_REAP_TIMEOUT = 500000000UL;
+static constexpr uint64_t OS_AIO_REAP_TIMEOUT = 500000000UL;
 
-/** time to sleep, in microseconds if io_setup() returns EAGAIN. */
-static const ulint OS_AIO_IO_SETUP_RETRY_SLEEP = 500000UL;
+/** time to sleep, in milliseconds if io_setup() returns EAGAIN. */
+static constexpr uint64_t OS_AIO_IO_SETUP_RETRY_SLEEP_MS = 500UL;
 
 /** number of attempts before giving up on io_setup(). */
 static const int OS_AIO_IO_SETUP_RETRY_ATTEMPTS = 5;
 #endif /* LINUX_NATIVE_AIO */
 
 /** Array of events used in simulated AIO */
-static os_event_t *os_aio_segment_wait_events = NULL;
+static os_event_t *os_aio_segment_wait_events = nullptr;
 
 /** Number of asynchronous I/O segments.  Set by os_aio_init(). */
 static ulint os_aio_n_segments = ULINT_UNDEFINED;
@@ -825,9 +857,9 @@ static ulint os_n_file_reads_old = 0;
 static ulint os_n_file_writes_old = 0;
 static ulint os_n_fsyncs_old = 0;
 /** Number of pending write operations */
-ulint os_n_pending_writes = 0;
+std::atomic<ulint> os_n_pending_writes{0};
 /** Number of pending read operations */
-ulint os_n_pending_reads = 0;
+std::atomic<ulint> os_n_pending_reads{0};
 
 static ib_time_monotonic_t os_last_printout;
 bool os_has_said_disk_full = false;
@@ -854,8 +886,7 @@ static bool os_file_handle_error(const char *name, const char *operation);
 @return DB_SUCCESS or error code */
 dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off, os_offset_t len);
 
-/**
-Does error handling when a file operation fails.
+/** Does error handling when a file operation fails.
 @param[in]	name		File name or NULL
 @param[in]	operation	Name of operation e.g., "read", "write"
 @param[in]	on_error_silent	if true then don't print any message to the log.
@@ -976,15 +1007,17 @@ static bool os_file_can_delete(const char *name) {
   return (false);
 }
 
-/** Allocate a page for sync IO
-@return pointer to page */
-static Block *os_alloc_block() {
+byte *os_block_get_frame(const file::Block *block) noexcept {
+  return (static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align)));
+}
+
+file::Block *os_alloc_block() noexcept {
   size_t pos;
   Blocks &blocks = *block_cache;
   size_t i = static_cast<size_t>(my_timer_cycles());
   const size_t size = blocks.size();
   ulint retry = 0;
-  Block *block;
+  file::Block *block;
 
   DBUG_EXECUTE_IF("os_block_cache_busy", retry = MAX_BLOCKS * 3;);
 
@@ -997,41 +1030,39 @@ static Block *os_alloc_block() {
       ptr = static_cast<byte *>(
           ut_malloc_nokey(sizeof(*block) + BUFFER_BLOCK_SIZE));
 
-      block = new (ptr) Block();
+      block = new (ptr) file::Block();
       block->m_ptr = static_cast<byte *>(ptr + sizeof(*block));
-      block->m_in_use = 1;
+      block->m_in_use = true;
 
       break;
     }
 
     pos = i++ % size;
 
-    if (TAS(&blocks[pos].m_in_use, 1) == 0) {
+    if (blocks[pos].m_in_use.exchange(true) == false) {
       block = &blocks[pos];
       break;
     }
 
-    os_thread_yield();
+    std::this_thread::yield();
 
     ++retry;
   }
 
-  ut_a(block->m_in_use != 0);
+  ut_a(block->m_in_use);
 
   return (block);
 }
 
-/** Free a page after sync IO
-@param[in,out]	block		The block to free/release */
-static void os_free_block(Block *block) {
-  ut_ad(block->m_in_use == 1);
+void os_free_block(file::Block *block) noexcept {
+  ut_ad(block->m_in_use);
 
-  TAS(&block->m_in_use, 0);
+  block->m_in_use.store(false);
 
   /* When this block is not in the block cache, and it's
   a temporary block, we need to free it directly. */
-  if (std::less<Block *>()(block, &block_cache->front()) ||
-      std::greater<Block *>()(block, &block_cache->back())) {
+  if (std::less<file::Block *>()(block, &block_cache->front()) ||
+      std::greater<file::Block *>()(block, &block_cache->back())) {
     ut_free(block);
   }
 }
@@ -1048,8 +1079,9 @@ class AIOHandler {
   static dberr_t io_complete(const Slot *slot) {
     ut_a(slot->offset > 0);
     ut_a(slot->type.is_read() || !slot->skip_punch_hole);
-    return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf, NULL,
-                                slot->original_len, slot->offset, slot->len));
+    return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf,
+                                nullptr, slot->original_len, slot->offset,
+                                slot->len));
   }
 
  private:
@@ -1097,8 +1129,7 @@ class AIOHandler {
     const byte *src = slot->buf;
 
     version = mach_read_from_1(src + FIL_PAGE_VERSION);
-
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
 
     /* Includes the page header size too */
     ulint size = compressed_page_size(slot);
@@ -1177,7 +1208,7 @@ ulint os_file_compressed_page_size(const byte *buf) {
 
   if (type == FIL_PAGE_COMPRESSED) {
     ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
     return (mach_read_from_2(buf + FIL_PAGE_COMPRESS_SIZE_V1));
   }
 
@@ -1193,7 +1224,7 @@ ulint os_file_original_page_size(const byte *buf) {
 
   if (type == FIL_PAGE_COMPRESSED) {
     ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
 
     return (mach_read_from_2(buf + FIL_PAGE_ORIGINAL_SIZE_V1));
   }
@@ -1248,14 +1279,14 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
     err = DB_FAIL;
   }
 
-  if (slot->buf_block != NULL) {
+  if (slot->buf_block != nullptr) {
     os_free_block(slot->buf_block);
-    slot->buf_block = NULL;
+    slot->buf_block = nullptr;
   }
 
-  if (slot->encrypt_log_buf != NULL) {
+  if (slot->encrypt_log_buf != nullptr) {
     ut_free(slot->encrypt_log_buf);
-    slot->encrypt_log_buf = NULL;
+    slot->encrypt_log_buf = nullptr;
   }
 
   return (err);
@@ -1293,7 +1324,8 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       }
 
       ut_ad(err == DB_SUCCESS || err == DB_UNSUPPORTED ||
-            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL);
+            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL ||
+            err == DB_IO_DECRYPT_FAIL);
     } else if (!slot->type.is_log() && slot->type.is_read() &&
                Encryption::can_page_be_keyring_encrypted(slot->buf) &&
                !slot->type.is_encryption_disabled()) {
@@ -1306,14 +1338,14 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       err = DB_SUCCESS;
     }
 
-    if (slot->buf_block != NULL) {
+    if (slot->buf_block != nullptr) {
       os_free_block(slot->buf_block);
-      slot->buf_block = NULL;
+      slot->buf_block = nullptr;
     }
 
-    if (slot->encrypt_log_buf != NULL) {
+    if (slot->encrypt_log_buf != nullptr) {
       ut_free(slot->encrypt_log_buf);
-      slot->encrypt_log_buf = NULL;
+      slot->encrypt_log_buf = nullptr;
     }
   } else if ((ulint)slot->n_bytes == (ulint)slot->len) {
     /* It *must* be a partial read. */
@@ -1381,6 +1413,8 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 
   /* Shouldn't compress an already compressed page. */
   ut_ad(page_type != FIL_PAGE_COMPRESSED);
+  ut_ad(page_type != FIL_PAGE_ENCRYPTED);
+  ut_ad(page_type != FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
 
   /* The page must be at least twice as large as the file system
   block size if we are to save any space. Ignore R-Tree pages for now,
@@ -1468,7 +1502,7 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
   /* Add compression control information. Required for decompressing. */
   mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_COMPRESSED);
 
-  mach_write_to_1(dst + FIL_PAGE_VERSION, 1);
+  mach_write_to_1(dst + FIL_PAGE_VERSION, Compression::FIL_PAGE_VERSION_2);
 
   mach_write_to_1(dst + FIL_PAGE_ALGORITHM_V1, compression.m_type);
 
@@ -1533,7 +1567,7 @@ static bool os_aio_validate_skip() {
 #define USE_FILE_LOCK
 #if defined(UNIV_HOTBACKUP) || defined(_WIN32)
 /* InnoDB Hot Backup does not lock the data files.
- * On Windows, mandatory locking is used.
+ On Windows, mandatory locking is used.
  */
 #undef USE_FILE_LOCK
 #endif /* UNIV_HOTBACKUP || _WIN32 */
@@ -1566,42 +1600,45 @@ static int os_file_lock(int fd, const char *name) {
 }
 #endif /* USE_FILE_LOCK */
 
-/** Calculates local segment number and aio array from global segment number.
-@param[out]	array		aio wait array
+/** Calculates local segment number and aio array from global
+segment number.
+@param[out]	array		AIO wait array
 @param[in]	segment		global segment number
 @return local segment number within the aio array */
-ulint AIO::get_array_and_local_segment(AIO **array, ulint segment) {
-  ulint local_segment;
-  ulint n_extra_segs = (srv_read_only_mode) ? 0 : 2;
+ulint AIO::get_array_and_local_segment(AIO *&array, ulint segment) {
+  ulint limit = srv_read_only_mode ? 0 : 2;
 
   ut_a(segment < os_aio_n_segments);
 
-  if (!srv_read_only_mode && segment < n_extra_segs) {
+  if (!srv_read_only_mode && segment < limit) {
     /* We don't support ibuf/log IO during read only mode. */
 
     if (segment == IO_IBUF_SEGMENT) {
-      *array = s_ibuf;
+      array = s_ibuf;
 
     } else if (segment == IO_LOG_SEGMENT) {
-      *array = s_log;
+      array = s_log;
 
     } else {
-      *array = NULL;
+      array = nullptr;
     }
 
-    local_segment = 0;
-
-  } else if (segment < s_reads->m_n_segments + n_extra_segs) {
-    *array = s_reads;
-    local_segment = segment - n_extra_segs;
-
-  } else {
-    *array = s_writes;
-
-    local_segment = segment - (s_reads->m_n_segments + n_extra_segs);
+    return 0;
   }
 
-  return (local_segment);
+  if (segment < s_reads->m_n_segments + limit) {
+    array = s_reads;
+
+    return segment - limit;
+  }
+
+  limit += s_reads->m_n_segments;
+
+  ut_a(segment < s_writes->m_n_segments + limit);
+
+  array = s_writes;
+
+  return segment - limit;
 }
 
 /** Frees a slot in the aio array. Assumes caller owns the mutex.
@@ -1654,23 +1691,17 @@ void AIO::release_with_mutex(Slot *slot) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Creates a temporary file.  This function is like tmpfile(3), but
-the temporary file is created in the given parameter path. If the path
-is NULL then it will create the file in the MySQL server configuration
-parameter (--tmpdir).
-@param[in]	path	location for creating temporary file
-@return temporary file handle, or NULL on error */
-FILE *os_file_create_tmpfile(const char *path) {
-  FILE *file = NULL;
-  int fd = innobase_mysql_tmpfile(path);
+FILE *os_file_create_tmpfile() {
+  FILE *file = nullptr;
+  int fd = innobase_mysql_tmpfile(mysql_tmpdir);
 
   if (fd >= 0) {
     file = fdopen(fd, "w+b");
   }
 
-  if (file == NULL) {
-    ib::error(ER_IB_MSG_751)
-        << "Unable to create temporary file; errno: " << errno;
+  if (file == nullptr) {
+    ib::error(ER_IB_MSG_751) << "Unable to create temporary file inside \""
+                             << mysql_tmpdir << "\"; errno: " << errno;
 
     if (fd >= 0) {
       close(fd);
@@ -1697,59 +1728,56 @@ void os_file_read_string(FILE *file, char *str, ulint size) {
   }
 }
 
-static dberr_t verify_post_encryption_checksum(const IORequest &type,
-                                               Encryption &encryption,
-                                               byte *buf, ulint src_len) {
+/** In case we resume Master Key to Keyring re-encryption we need a way of
+telling which pages were already re-encrypted. For Keyring encrypted page during
+MK => Keyring re-encryption we calculate a checksum. In case this checksum
+matches it means that the page is Keyring encrypted, it not it means page is MK
+encrypted.
+@param[in] type IO context
+@param[in,out] encryption information. Gets m_type set to appropriate encryption
+               either Encryption::KEYRING or ENCRYPTION::AES
+@param[in] page - for which we are determining the encryption
+@param[in] page_size size of the page */
+static void verify_encryption_for_rotation(const IORequest &type,
+                                           Encryption &encryption, byte *page,
+                                           ulint page_size) {
+  ut_ad(encryption.get_type() == Encryption::KEYRING &&
+        encryption.get_encryption_rotation() ==
+            Encryption_rotation::MASTER_KEY_TO_KEYRING);
+
   bool is_crypt_checksum_correct =
       false;  // For MK encryption is_crypt_checksum_correct stays false
   ulint original_type =
-      static_cast<uint16_t>(mach_read_from_2(buf + FIL_PAGE_ORIGINAL_TYPE_V1));
+      static_cast<uint16_t>(mach_read_from_2(page + FIL_PAGE_ORIGINAL_TYPE_V1));
 
-  if (encryption.m_type == Encryption::KEYRING &&
-      Encryption::can_page_be_keyring_encrypted(original_type)) {
+  if (Encryption::can_page_be_keyring_encrypted(original_type)) {
     if (type.is_page_zip_compressed()) {
-      byte zip_magic[ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN];
-      memcpy(zip_magic, buf + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
-             ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
+      byte zip_magic[Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN];
+      memcpy(zip_magic, page + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
+             Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
       is_crypt_checksum_correct =
-          memcmp(zip_magic, ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
-                 ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN) == 0;
+          memcmp(zip_magic, Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
+                 Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN) == 0;
     } else {
       is_crypt_checksum_correct = fil_space_verify_crypt_checksum(
-          buf, src_len, type.is_page_zip_compressed(),
-          encryption.is_encrypted_and_compressed(buf));
+          page, page_size, type.is_page_zip_compressed(),
+          encryption.is_encrypted_and_compressed(page));
     }
 
-    if (encryption.m_encryption_rotation == Encryption_rotation::NO_ROTATION &&
-        !is_crypt_checksum_correct) {  // There is no re-encryption going on
-      const auto space_id =
-          mach_read_from_4(buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-      const auto page_no = mach_read_from_4(buf + FIL_PAGE_OFFSET);
-      ib::error() << "Post - encryption checksum verification failed - "
-                     "decryption failed for space id = "
-                  << space_id << " page_no = " << page_no;
-      return (DB_IO_DECRYPT_FAIL);
-    }
-  }
-
-  if (encryption.m_encryption_rotation ==
-      Encryption_rotation::MASTER_KEY_TO_KEYRING) {  // There is re-encryption
-                                                     // going on
-    encryption.m_type =
+    encryption.set_type(
         is_crypt_checksum_correct
             ? Encryption::KEYRING  // assume page is RK encrypted
-            : Encryption::AES;     // assume page is MK encrypted
+            : Encryption::AES);    // assume page is MK encrypted
   }
-  return DB_SUCCESS;
 }
 
 static void assing_key_version(byte *buf, Encryption &encryption,
                                bool is_page_encrypted) {
-  if (is_page_encrypted && encryption.m_type == Encryption::KEYRING) {
+  if (is_page_encrypted && encryption.get_type() == Encryption::KEYRING) {
     mach_write_to_2(buf + FIL_PAGE_ORIGINAL_TYPE_V1, FIL_PAGE_ENCRYPTED);
-    ut_ad(encryption.m_key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
+    ut_ad(encryption.get_key_version() != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
     mach_write_to_4(buf + FIL_PAGE_ENCRYPTION_KEY_VERSION,
-                    encryption.m_key_version);
+                    encryption.get_key_version());
   } else {
     mach_write_to_4(buf + FIL_PAGE_ENCRYPTION_KEY_VERSION,
                     ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
@@ -1758,7 +1786,7 @@ static void assing_key_version(byte *buf, Encryption &encryption,
 
 static bool load_key_needed_for_decryption(const IORequest &type,
                                            Encryption &encryption, byte *buf) {
-  if (encryption.m_type == Encryption::KEYRING) {
+  if (encryption.get_type() == Encryption::KEYRING) {
     ulint key_version_read_from_page = ENCRYPTION_KEY_VERSION_INVALID;
     ulint page_type = mach_read_from_2(buf + FIL_PAGE_TYPE);
     if (page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
@@ -1772,41 +1800,25 @@ static bool load_key_needed_for_decryption(const IORequest &type,
     ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_INVALID);
     ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
 
-    // in rare cases - when (re-)encryption was aborted there can be pages
-    // encrypted with different key versions in a given tablespace - retrieve
-    // needed key here
+    ut_ad(encryption.get_key_versions_cache() != nullptr);
 
-    byte *key_read;
-
-    size_t key_len;
-    if (Encryption::get_tablespace_key(
-            encryption.m_key_id, encryption.m_key_id_uuid,
-            key_version_read_from_page, &key_read, &key_len) == false) {
-      return false;
+    if (encryption.get_key_version() != key_version_read_from_page) {
+      encryption.set_key(
+          (*encryption.get_key_versions_cache())[key_version_read_from_page],
+          Encryption::KEY_LEN);
     }
-
-    // For test
-    if (key_version_read_from_page == encryption.m_key_version) {
-      ut_ad(memcmp(key_read, encryption.m_key, key_len) == 0);
-    }
-
-    // TODO: Allocated or not depends on whether key was taken from cache or
-    // keyring
-    encryption.set_key(key_read, static_cast<ulint>(key_len), true);
-    // encryption.m_key = key_read;
-    //******
-
-    encryption.m_key_version = key_version_read_from_page;
+    encryption.set_key_version(key_version_read_from_page);
   } else {
-    ut_ad(encryption.m_type == Encryption::AES);
-    if (encryption.m_encryption_rotation == Encryption_rotation::NO_ROTATION)
+    ut_ad(encryption.get_type() == Encryption::AES);
+    if (encryption.get_encryption_rotation() ==
+        Encryption_rotation::NO_ROTATION)
       return true;  // we are all set - needed key was alread loaded into
                     // encryption module
 
-    ut_ad(encryption.m_encryption_rotation ==
+    ut_ad(encryption.get_encryption_rotation() ==
               Encryption_rotation::MASTER_KEY_TO_KEYRING &&
-          encryption.m_tablespace_key != nullptr);
-    encryption.set_key(encryption.m_tablespace_key, ENCRYPTION_KEY_LEN, false);
+          encryption.get_tablespace_key() != nullptr);
+    encryption.set_key(encryption.get_tablespace_key(), Encryption::KEY_LEN);
   }
 
   return true;
@@ -1819,8 +1831,8 @@ static bool load_key_needed_for_decryption(const IORequest &type,
 @param[in,out]	scratch		Scratch area for read decompression
 @param[in]	src_len		Length of the buffer before compression
 @param[in]	offset		file offset from the start where to read
-@param[in]	len		Used buffer length for write and output
-                                buf len for read
+@param[in]	len		Compressed buffer length for write and size
+                                of buf len for read
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                    byte *buf, byte *scratch, ulint src_len,
@@ -1841,16 +1853,26 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 
     return (ret);
   } else if (type.is_read()) {
+    ut_ad(!type.is_row_log());
     Encryption encryption(type.encryption_algorithm());
 
     bool is_page_encrypted = type.is_encryption_disabled()
                                  ? false
                                  : encryption.is_encrypted_page(buf);
 
-    if (is_page_encrypted && encryption.m_type != Encryption::NONE) {
-      dberr_t err =
-          verify_post_encryption_checksum(type, encryption, buf, src_len);
-      if (err != DB_SUCCESS) return err;
+    if (is_page_encrypted && encryption.get_type() != Encryption::NONE) {
+      // for Master Key to Keyring re-encryption we do not have yet information
+      // whether the page we are going to decrypt is Master Key or Keyring
+      // encrypted. We differentiate it by looking at checksum generated for
+      // keyring encrypted pages. If the checksum is correct - it means the page
+      // was already encrypted with keyring encryption (important when we are
+      // resuming the re-encryption, which was previously stopped by shutdown or
+      // a crash).
+      if (encryption.get_type() == Encryption::KEYRING &&
+          encryption.get_encryption_rotation() ==
+              Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+        verify_encryption_for_rotation(type, encryption, buf, src_len);
+      }
 
       if (!load_key_needed_for_decryption(type, encryption, buf))
         return DB_IO_DECRYPT_FAIL;
@@ -1859,7 +1881,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     ret = encryption.decrypt(type, buf, src_len, scratch, len);
     if (ret != DB_SUCCESS) return ret;
 
-    ret = os_file_decompress_page(type.is_dblwr_recover(), buf, scratch, len);
+    ret = os_file_decompress_page(type.is_dblwr(), buf, scratch, len);
     if (ret != DB_SUCCESS) return ret;
     if (Encryption::can_page_be_keyring_encrypted(buf) &&
         !type.is_encryption_disabled())
@@ -1898,20 +1920,6 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     return (os_file_punch_hole(fh, offset, src_len - len));
   }
 
-#ifdef UNIV_DEBUG
-  if (type.is_write() &&
-      type.encryption_algorithm().m_type == Encryption::KEYRING) {
-    Encryption encryption(type.encryption_algorithm());
-    bool was_page_encrypted = encryption.is_encrypted_page(buf);
-
-    // TODO:Robert czy bez type.is_page_zip_compressed to działa - powinno
-    ut_ad(!was_page_encrypted ||  //! type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(
-              buf, src_len, type.is_page_zip_compressed(),
-              encryption.is_encrypted_and_compressed(buf)));
-  }
-#endif
-
   ut_ad(!type.is_log());
 
   return (DB_SUCCESS);
@@ -1922,8 +1930,7 @@ to the last directory separator that the caller has fixed.
 @param[in]	path		path name
 @param[in]	last_slash	last directory separator in the path
 @return true if this path is a drive root, false if not */
-UNIV_INLINE
-bool os_file_is_root(const char *path, const char *last_slash) {
+static inline bool os_file_is_root(const char *path, const char *last_slash) {
   return (
 #ifdef _WIN32
       (last_slash == path + 2 && path[1] == ':') ||
@@ -1950,7 +1957,7 @@ static char *os_file_get_parent_dir(const char *path) {
 
   if (!last_slash) {
     /* No slash in the path, return NULL */
-    return (NULL);
+    return (nullptr);
   }
 
   /* Ok, there is a slash. Is there anything after it? */
@@ -1965,7 +1972,7 @@ static char *os_file_get_parent_dir(const char *path) {
 
   /* Check for the root of a drive. */
   if (os_file_is_root(path, last_slash)) {
-    return (NULL);
+    return (nullptr);
   }
 
   /* If a trailing slash prevented the first strrchr() from trimming
@@ -1985,20 +1992,19 @@ static char *os_file_get_parent_dir(const char *path) {
 
   /* Check for the root of a drive. */
   if (os_file_is_root(path, last_slash)) {
-    return (NULL);
+    return (nullptr);
   }
 
   if (last_slash - path < 0) {
     /* Sanity check, it prevents gcc from trying to handle this case which
-     * results in warnings for some optimized builds */
-    return (NULL);
+    results in warnings for some optimized builds */
+    return (nullptr);
   }
 
   /* Non-trivial directory component */
 
   return (mem_strdupl(path, last_slash - path));
 }
-
 #ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
 
 /* Test the function os_file_get_parent_dir. */
@@ -2068,7 +2074,7 @@ dberr_t os_file_create_subdirs_if_needed(const char *path) {
 
   char *subdir = os_file_get_parent_dir(path);
 
-  if (subdir == NULL) {
+  if (subdir == nullptr) {
     /* subdir is root or cwd, nothing to do */
     return (DB_SUCCESS);
   }
@@ -2096,17 +2102,29 @@ dberr_t os_file_create_subdirs_if_needed(const char *path) {
   return (success ? DB_SUCCESS : DB_ERROR);
 }
 
-/** Allocate the buffer for IO on a transparently compressed table.
-@param[in]	type		IO flags
-@param[out]	buf		buffer to read or write
-@param[in,out]	n		number of bytes to read/write, starting from
-                                offset
-@return pointer to allocated page, compressed data is written to the offset
-        that is aligned on the disk sector size */
-static Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
+file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
   ut_ad(!type.is_log());
   ut_ad(type.is_write());
   ut_ad(type.is_compressed());
+
+#ifdef UNIV_DEBUG
+  /* Uncompressed length. */
+  const ulint buf_len = *n;
+  {
+    Fil_page_header fph(reinterpret_cast<byte *>(buf));
+    space_id_t space_id = fph.get_space_id();
+    page_no_t page_no = fph.get_page_no();
+    fil_space_t *space = fil_space_get(space_id);
+    if (space != nullptr) {
+      fil_node_t *node = space->get_file_node(&page_no);
+      ut_ad(node->block_size == type.block_size());
+      /* The page size must be a multiple of the OS punch hole size. */
+      ut_ad(!(*n % node->block_size));
+      ut_ad(
+          BlockReporter::is_lsn_valid(reinterpret_cast<byte *>(buf), buf_len));
+    }
+  }
+#endif /* UNIV_DEBUG */
 
   ulint n_alloc = *n * 2;
 
@@ -2114,7 +2132,7 @@ static Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
   ut_a(type.compression_algorithm().m_type != Compression::LZ4 ||
        static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
-  Block *block = os_alloc_block();
+  auto block = os_alloc_block();
 
   ulint old_compressed_len;
   ulint compressed_len = *n;
@@ -2139,8 +2157,8 @@ static Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
   buf_ptr = os_file_compress_page(
       type.compression_algorithm(), type.block_size(),
       reinterpret_cast<byte *>(buf), *n, compressed_page, &compressed_len,
-      type.encryption_algorithm().m_type == Encryption::KEYRING &&
-          type.encryption_algorithm().m_key != NULL);
+      type.encryption_algorithm().get_type() == Encryption::KEYRING &&
+          type.encryption_algorithm().get_key() != NULL);
 
   if (buf_ptr != buf) {
     /* Set new compressed size to uncompressed page. */
@@ -2150,7 +2168,8 @@ static Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
     buf = buf_ptr;
     *n = compressed_len;
 
-    if (compressed_len >= old_compressed_len) {
+    if (compressed_len >= old_compressed_len &&
+        !type.is_punch_hole_optimisation_disabled()) {
       ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
 
       type.clear_punch_hole();
@@ -2160,14 +2179,7 @@ static Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
   return (block);
 }
 
-/** Encrypt a page content when write it to disk.
-@param[in]	type		IO flags
-@param[out]	buf		buffer to read or write
-@param[in,out]	n		number of bytes to read/write, starting from
-                                offset
-@return pointer to the encrypted page */
-static Block *os_file_encrypt_page(const IORequest &type, void *&buf,
-                                   ulint *n) {
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n) {
   byte *encrypted_page;
   ulint encrypted_len = *n;
   byte *buf_ptr;
@@ -2176,7 +2188,7 @@ static Block *os_file_encrypt_page(const IORequest &type, void *&buf,
   ut_ad(type.is_write());
   ut_ad(type.is_encrypted());
 
-  Block *block = os_alloc_block();
+  auto block = os_alloc_block();
 
   encrypted_page = static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align));
 
@@ -2200,13 +2212,13 @@ static Block *os_file_encrypt_page(const IORequest &type, void *&buf,
 @param[in,out]	n		number of bytes to read/write, starting from
                                 offset
 @return pointer to the encrypted log blocks */
-static Block *os_file_encrypt_log(const IORequest &type, void *&buf,
-                                  byte *&scratch, ulint *n) {
+static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
+                                        byte *&scratch, ulint *n) {
   byte *encrypted_log;
   ulint encrypted_len = *n;
   byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
-  Block *block = NULL;
+  file::Block *block{};
 
   ut_ad(type.is_write());
   ut_ad(type.is_encrypted());
@@ -2215,14 +2227,14 @@ static Block *os_file_encrypt_log(const IORequest &type, void *&buf,
 
   if (*n <= BUFFER_BLOCK_SIZE - os_io_ptr_align) {
     block = os_alloc_block();
-    buf_ptr = block->m_ptr;
-    scratch = NULL;
+    buf_ptr = static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align));
+    scratch = nullptr;
   } else {
-    buf_ptr = static_cast<byte *>(ut_malloc_nokey(*n + os_io_ptr_align));
+    buf_ptr = static_cast<byte *>(ut::aligned_alloc(*n, os_io_ptr_align));
     scratch = buf_ptr;
   }
 
-  encrypted_log = static_cast<byte *>(ut_align(buf_ptr, os_io_ptr_align));
+  encrypted_log = buf_ptr;
 
   encrypted_log = encryption.encrypt_log(type, reinterpret_cast<byte *>(buf),
                                          *n, encrypted_log, &encrypted_len);
@@ -2323,7 +2335,7 @@ class LinuxAIOHandler {
 
     /* Find the array and the local segment. */
 
-    m_segment = AIO::get_array_and_local_segment(&m_array, m_global_segment);
+    m_segment = AIO::get_array_and_local_segment(m_array, m_global_segment);
 
     m_n_slots = m_array->slots_per_segment();
   }
@@ -2505,7 +2517,7 @@ Slot *LinuxAIOHandler::find_completed_slot(ulint *n_pending) {
 
   m_array->release();
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** This function is only used in Linux native asynchronous i/o. This is
@@ -2520,7 +2532,6 @@ The io-thread also exits in this function. It checks server status at
 each wakeup and that is why we use timed wait in io_getevents(). */
 void LinuxAIOHandler::collect() {
   ut_ad(m_n_slots > 0);
-  ut_ad(m_array != NULL);
   ut_ad(m_segment < m_array->get_n_segments());
 
   /* Which io_context we are going to use. */
@@ -2548,20 +2559,16 @@ void LinuxAIOHandler::collect() {
     timeout.tv_sec = 0;
     timeout.tv_nsec = OS_AIO_REAP_TIMEOUT;
 
-    int ret;
-
-    ret = io_getevents(io_ctx, 1, m_n_slots, events, &timeout);
+    auto ret = io_getevents(io_ctx, 1, m_n_slots, events, &timeout);
 
     for (int i = 0; i < ret; ++i) {
-      struct iocb *iocb;
+      auto iocb = reinterpret_cast<struct iocb *>(events[i].obj);
+      ut_a(iocb != nullptr);
 
-      iocb = reinterpret_cast<struct iocb *>(events[i].obj);
-      ut_a(iocb != NULL);
-
-      Slot *slot = reinterpret_cast<Slot *>(iocb->data);
+      auto slot = reinterpret_cast<Slot *>(iocb->data);
 
       /* Some sanity checks. */
-      ut_a(slot != NULL);
+      ut_a(slot != nullptr);
       ut_a(slot->is_reserved);
 
       /* We are not scribbling previous segment. */
@@ -2570,12 +2577,10 @@ void LinuxAIOHandler::collect() {
       /* We have not overstepped to next segment. */
       ut_a(slot->pos < end_pos);
 
-      /* We never compress/decompress the first page */
-
       if (slot->offset > 0 && !slot->skip_punch_hole &&
           slot->type.is_compression_enabled() && !slot->type.is_log() &&
           slot->type.is_write() && slot->type.is_compressed() &&
-          slot->type.punch_hole()) {
+          slot->type.punch_hole() && !slot->type.is_dblwr()) {
         slot->err = AIOHandler::io_complete(slot);
       } else {
         slot->err = DB_SUCCESS;
@@ -2589,7 +2594,7 @@ void LinuxAIOHandler::collect() {
       ut_ad(events[i].res2 == 0);
       slot->io_already_done = true;
 
-      /*Even though events[i].res is an unsigned number in libaio, it is
+      /* Even though events[i].res is an unsigned number in libaio, it is
       used to return a negative value (negated errno value) to indicate
       error and a positive value to indicate number of bytes read or
       written. */
@@ -2658,7 +2663,7 @@ dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
 
     slot = find_completed_slot(&n_pending);
 
-    if (slot != NULL) {
+    if (slot != nullptr) {
       ut_ad(m_array->is_mutex_owned());
 
       err = check_state(slot);
@@ -2683,8 +2688,8 @@ dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
       no pending request at all, and the system is
       being shut down, exit. */
 
-      *m1 = NULL;
-      *m2 = NULL;
+      *m1 = nullptr;
+      *m2 = nullptr;
 
       return (DB_SUCCESS);
 
@@ -2747,8 +2752,10 @@ static dberr_t os_aio_linux_handler(ulint global_segment, fil_node_t **m1,
   dberr_t err = handler.poll(m1, m2, request);
 
   if (err == DB_IO_NO_PUNCH_HOLE) {
-    fil_no_punch_hole(*m1);
-    err = DB_SUCCESS;
+    if (!request->is_dblwr()) {
+      fil_no_punch_hole(*m1);
+      err = DB_SUCCESS;
+    }
   }
 
   return (err);
@@ -2760,11 +2767,23 @@ static dberr_t os_aio_linux_handler(ulint global_segment, fil_node_t **m1,
 @param[in] acquire_mutex specifies whether to lock array mutex */
 void AIO::os_aio_dispatch_read_array_submit_low(
     bool acquire_mutex MY_ATTRIBUTE((unused))) {
+  os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_reads);
+  if (s_ibuf != nullptr) {
+    os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_ibuf);
+  }
+}
+
+/** Submit buffered AIO requests on the array to the kernel.
+(low level function).
+@param[in] acquire_mutex specifies whether to lock array mutex
+@param[in] array for which to submit IO */
+void AIO::os_aio_dispatch_read_array_submit_low_for_array(
+    bool acquire_mutex MY_ATTRIBUTE((unused)), const AIO *arr) {
   if (!srv_use_native_aio) {
     return;
   }
 #if defined(LINUX_NATIVE_AIO)
-  AIO *array = AIO::s_reads;
+  const AIO *array = arr;
   ulint total_submitted = 0;
   if (acquire_mutex) array->acquire();
   /* Submit aio requests buffered on all segments. */
@@ -2842,7 +2861,7 @@ bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
   ulint io_ctx_index = slot->pos / slots_per_segment;
 
   if (should_buffer) {
-    ut_ad(this == s_reads);
+    ut_ad(this == s_reads || this == s_ibuf);
 
     acquire();
     /* There are m_slots.size() elements in m_pending,
@@ -2859,7 +2878,7 @@ bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
     m_pending[n] = iocb;
     ++count;
     if (count == slots_per_segment) {
-      AIO::os_aio_dispatch_read_array_submit_low(false);
+      AIO::os_aio_dispatch_read_array_submit_low_for_array(false, this);
     }
     release();
     return (true);
@@ -2914,7 +2933,8 @@ bool AIO::linux_create_io_ctx(ulint max_events, io_context_t *io_ctx) {
 
           ib::warn(ER_IB_MSG_758) << "io_setup() attempt " << n_retries << ".";
 
-          os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
+          std::this_thread::sleep_for(
+              std::chrono::milliseconds(OS_AIO_IO_SETUP_RETRY_SLEEP_MS));
 
           continue;
         }
@@ -2965,7 +2985,7 @@ bool AIO::is_linux_native_aio_supported() {
 
   } else if (!srv_read_only_mode) {
     /* Now check if tmpdir supports native aio ops. */
-    fd = innobase_mysql_tmpfile(NULL);
+    fd = innobase_mysql_tmpfile(nullptr);
 
     if (fd < 0) {
       ib::warn(ER_IB_MSG_763) << "Unable to create temp file to check"
@@ -3002,33 +3022,32 @@ bool AIO::is_linux_native_aio_supported() {
 
   memset(&io_event, 0x0, sizeof(io_event));
 
-  byte *buf = static_cast<byte *>(ut_malloc_nokey(UNIV_PAGE_SIZE * 2));
-  byte *ptr = static_cast<byte *>(ut_align(buf, UNIV_PAGE_SIZE));
+  byte *buf =
+      static_cast<byte *>(ut::aligned_zalloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
   struct iocb iocb;
 
   /* Suppress valgrind warning. */
-  memset(buf, 0x00, UNIV_PAGE_SIZE * 2);
   memset(&iocb, 0x0, sizeof(iocb));
 
   struct iocb *p_iocb = &iocb;
 
   if (!srv_read_only_mode) {
-    io_prep_pwrite(p_iocb, fd, ptr, UNIV_PAGE_SIZE, 0);
+    io_prep_pwrite(p_iocb, fd, buf, UNIV_PAGE_SIZE, 0);
 
   } else {
     ut_a(UNIV_PAGE_SIZE >= 512);
-    io_prep_pread(p_iocb, fd, ptr, 512, 0);
+    io_prep_pread(p_iocb, fd, buf, 512, 0);
   }
 
   int err = io_submit(io_ctx, 1, &p_iocb);
 
   if (err >= 1) {
     /* Now collect the submitted IO request. */
-    err = io_getevents(io_ctx, 1, 1, &io_event, NULL);
+    err = io_getevents(io_ctx, 1, 1, &io_event, nullptr);
   }
 
-  ut_free(buf);
+  ut::aligned_free(buf);
   close(fd);
 
   switch (err) {
@@ -3096,7 +3115,7 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
                                   " the access rights to the directory.";
 
     } else {
-      if (strerror(err) != NULL) {
+      if (strerror(err) != nullptr) {
         ib::error(ER_IB_MSG_771)
             << "Error number " << err << " means '" << strerror(err) << "'";
       }
@@ -3131,9 +3150,10 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
   return (OS_FILE_ERROR_MAX + err);
 }
 
-/** Wrapper to fsync(2) that retries the call on some errors.
+/** Wrapper to fsync(2)/fdatasync(2) that retries the call on some errors.
 Returns the value 0 if successful; otherwise the value -1 is returned and
-the global variable errno is set to indicate the error.
+the global variable errno is set to indicate the error. srv_use_fdatasync
+determines whether fsync or fdatasync will be used. (true -> fdatasync)
 @param[in]	file		open file handle
 @return 0 if success, -1 otherwise */
 static int os_file_fsync_posix(os_file_t file) {
@@ -3151,7 +3171,11 @@ static int os_file_fsync_posix(os_file_t file) {
     meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-    int ret = fsync(file);
+#if defined(HAVE_FDATASYNC) && defined(HAVE_DECL_FDATASYNC)
+    const auto ret = srv_use_fdatasync ? fdatasync(file) : fsync(file);
+#else
+    const auto ret = fsync(file);
+#endif
 
     if (ret == 0) {
       return (ret);
@@ -3169,15 +3193,16 @@ static int os_file_fsync_posix(os_file_t file) {
         }
 
         /* 0.2 sec */
-        os_thread_sleep(200000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         break;
 
       case EIO: {
         const auto fd_path = os_file_find_path_for_fd(file);
         if (!fd_path.empty())
-          ib::fatal() << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
+          ib::fatal(ER_IB_MSG_1358)
+              << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
         else
-          ib::fatal() << "fsync() returned EIO, aborting.";
+          ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
         break;
       }
 
@@ -3209,9 +3234,11 @@ static bool os_file_status_posix(const char *path, bool *exists,
 
   int ret = stat(path, &statinfo);
 
-  *exists = !ret;
+  if (exists != nullptr) {
+    *exists = !ret;
+  }
 
-  if (!ret) {
+  if (ret == 0) {
     /* file exists, everything OK */
 
   } else if (errno == ENOENT || errno == ENOTDIR) {
@@ -3232,8 +3259,8 @@ static bool os_file_status_posix(const char *path, bool *exists,
   } else {
     *type = OS_FILE_TYPE_FAILED;
 
-    /* file exists, but stat call failed */
-    os_file_handle_error_no_exit(path, "stat", false);
+    /* The stat() call failed with some other error. */
+    os_file_handle_error_no_exit(path, "file_status_posix_stat", false);
     return (false);
   }
 
@@ -3255,6 +3282,28 @@ static bool os_file_status_posix(const char *path, bool *exists,
   }
 
   return (true);
+}
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+static bool os_file_exists_posix(const char *path) {
+  struct stat statinfo;
+
+  int ret = stat(path, &statinfo);
+
+  if (ret == 0) {
+    return (true);
+  }
+
+  if (!(errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG ||
+        errno == EACCES)) {
+    os_file_handle_error_no_exit(path, "file_exists_posix_stat", false);
+  }
+
+  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -3280,7 +3329,7 @@ bool os_file_flush_func(os_file_t file) {
 
   ib::error(ER_IB_MSG_775) << "The OS said file flush did not succeed";
 
-  os_file_handle_error(NULL, "flush");
+  os_file_handle_error(nullptr, "flush");
 
   /* It is a fatal error if a file flush does not succeed, because then
   the database can get corrupt on disk */
@@ -3311,14 +3360,6 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
 
   ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
   ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
-
-  int create_o_sync;
-  if (create_mode & OS_FILE_O_SYNC) {
-    create_o_sync = O_SYNC;
-    create_mode &= ~(static_cast<ulint>(OS_FILE_O_SYNC));
-  } else {
-    create_o_sync = 0;
-  }
 
   if (create_mode == OS_FILE_OPEN) {
     if (access_type == OS_FILE_READ_ONLY) {
@@ -3363,7 +3404,7 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
   bool retry;
 
   do {
-    file = ::open(name, create_flag | create_o_sync, os_innodb_umask);
+    file = ::open(name, create_flag, os_innodb_umask);
 
     if (file == -1) {
       *success = false;
@@ -3469,23 +3510,6 @@ bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_create(), not directly
-this function!
-Opens an existing file or creates a new.
-@param[in]	name		name of the file or path as a null-terminated
-                                string
-@param[in]	create_mode	create mode
-@param[in]	purpose		OS_FILE_AIO, if asynchronous, non-buffered I/O
-                                is desired, OS_FILE_NORMAL, if any normal file;
-                                NOTE that it also depends on type, os_aio_..
-                                and srv_.. variables whether we really use async
-                                I/O or unbuffered I/O: look in the function
-                                source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
-@param[in]	read_only	true, if read only checks should be enforcedm
-@param[in]	success		true if succeeded
-@return handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
 pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
                                   ulint purpose, ulint type, bool read_only,
                                   bool *success) {
@@ -3499,7 +3523,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
                   errno = ENOSPC; file.m_file = OS_FILE_CLOSED; return (file););
 
   int create_flag;
-  const char *mode_str = NULL;
+  const char *mode_str = nullptr;
 
   on_error_no_exit = create_mode & OS_FILE_ON_ERROR_NO_EXIT ? true : false;
   on_error_silent = create_mode & OS_FILE_ON_ERROR_SILENT ? true : false;
@@ -3549,7 +3573,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     return (file);
   }
 
-  ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE ||
+  ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE || type == OS_DBLWR_FILE ||
        type == OS_CLONE_DATA_FILE || type == OS_CLONE_LOG_FILE ||
        type == OS_BUFFERED_FILE || type == OS_REDO_LOG_ARCHIVE_FILE);
 
@@ -3591,11 +3615,13 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   } while (retry);
 
-  /* We disable OS caching (O_DIRECT) only on data files. For clone we
-  need to set O_DIRECT even for read_only mode. */
+  /* Do fsync() on log and parallel doublewrite files
+  when setting O_DIRECT fails.
+  See log_io_complete() and buf_dblwr_flush_buffered_writes() */
 
   if ((!read_only || type == OS_CLONE_DATA_FILE) && *success &&
-      (type == OS_DATA_FILE || type == OS_CLONE_DATA_FILE) &&
+      (type == OS_DATA_FILE || type == OS_CLONE_DATA_FILE ||
+       type == OS_DBLWR_FILE) &&
       (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT ||
        srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
     os_file_set_nocache(file.m_file, name, mode_str);
@@ -3610,7 +3636,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
       ib::info(ER_IB_MSG_780) << "Retrying to lock the first data file";
 
       for (int i = 0; i < 100; i++) {
-        os_thread_sleep(1000000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         if (!os_file_lock(file.m_file, name)) {
           *success = true;
@@ -3752,16 +3778,14 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
 #ifdef UNIV_DEBUG
+  /* New path must be valid but not exist. */
   os_file_type_t type;
   bool exists;
-
-  /* New path must not exist. */
   ut_ad(os_file_status(newpath, &exists, &type));
   ut_ad(!exists);
 
   /* Old path must exist. */
-  ut_ad(os_file_status(oldpath, &exists, &type));
-  ut_ad(exists);
+  ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
   int ret = rename(oldpath, newpath);
@@ -3775,17 +3799,17 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_close(), not directly this
-function!
+/** NOTE! Use the corresponding macro os_file_close(), not directly
+this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@param[in]	file		Handle to close
+@param[in]	file		Handle to a file
 @return true if success */
 bool os_file_close_func(os_file_t file) {
   int ret = close(file);
 
   if (ret == -1) {
-    os_file_handle_error(NULL, "close");
+    os_file_handle_error(nullptr, "close");
 
     return (false);
   }
@@ -3826,7 +3850,7 @@ bool os_file_advise(pfs_os_file_t file, os_offset_t offset, os_offset_t len,
 }
 
 /** Gets a file size.
-@param[in]	file		handle to an open file
+@param[in]	file		Handle to a file
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t os_file_get_size(pfs_os_file_t file) {
   /* Store current position */
@@ -3837,10 +3861,6 @@ os_offset_t os_file_get_size(pfs_os_file_t file) {
   return (file_size);
 }
 
-/** Gets a file size.
-@param[in]	filename	Full path to the filename to check
-@return file size if OK, else set m_total_size to ~0 and m_alloc_size to
-        errno */
 os_file_size_t os_file_get_size(const char *filename) {
   struct stat s;
   os_file_size_t file_size;
@@ -4091,6 +4111,9 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
     ret = WriteFile(m_fh, m_buf, static_cast<DWORD>(m_n), &n_bytes, &seek);
   }
 
+  /* Sync IO can't be done on a file opened in AIO mode. */
+  // ut_a(GetLastError() != ERROR_IO_PENDING);
+
   return (ret ? static_cast<ssize_t>(n_bytes) : -1);
 }
 
@@ -4109,6 +4132,9 @@ ssize_t SyncFileIO::execute(Slot *slot) {
                     &slot->control);
   }
 
+  /* Sync IO can't be done on a file opened in AIO mode. */
+  // ut_a(GetLastError() != ERROR_IO_PENDING);
+
   return (ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
 }
 
@@ -4125,13 +4151,17 @@ static bool os_is_sparse_file_supported_win32(const char *filename) {
         << "Failed to get the volume path name for: " << filename
         << "- OS error number " << GetLastError();
 
-    return (false);
+    return false;
   }
 
   DWORD flags;
 
-  GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags, NULL,
-                       MAX_PATH);
+  result = GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags,
+                                NULL, MAX_PATH);
+
+  if (!result) {
+    return false;
+  }
 
   return (flags & FILE_SUPPORTS_SPARSE_FILES) ? true : false;
 }
@@ -4160,16 +4190,20 @@ static dberr_t os_file_punch_hole_win32(os_file_t fh, os_offset_t off,
   return (!result ? DB_IO_NO_PUNCH_HOLE : DB_SUCCESS);
 }
 
-/** Check the existence and type of the given file.
-@param[in]	path		path name of file
-@param[out]	exists		true if the file exists
-@param[out]	type		Type of the file, if it exists
+/** Check the existence and type of a given path.
+@param[in]   path    pathname of the file
+@param[out]  exists  true if file exists
+@param[out]  type    type of the file (if it exists)
 @return true if call succeeded */
 static bool os_file_status_win32(const char *path, bool *exists,
                                  os_file_type_t *type) {
   struct _stat64 statinfo;
 
   int ret = _stat64(path, &statinfo);
+
+  if (exists != nullptr) {
+    *exists = !ret;
+  }
 
   if (ret == 0) {
     /* file exists, everything OK */
@@ -4192,8 +4226,8 @@ static bool os_file_status_win32(const char *path, bool *exists,
   } else {
     *type = OS_FILE_TYPE_FAILED;
 
-    /* file exists, but stat call failed */
-    os_file_handle_error_no_exit(path, "stat", false);
+    /* The _stat64() call failed with some other error */
+    os_file_handle_error_no_exit(path, "file_status_win_stat64", false);
     return (false);
   }
 
@@ -4212,6 +4246,28 @@ static bool os_file_status_win32(const char *path, bool *exists,
   }
 
   return (true);
+}
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+static bool os_file_exists_win32(const char *path) {
+  struct _stat64 statinfo;
+
+  int ret = _stat64(path, &statinfo);
+
+  if (ret == 0) {
+    return (true);
+  }
+
+  if (!(errno == ENOENT || errno == EINVAL || errno == EACCES)) {
+    /* The _stat64() call failed with an unknown error */
+    os_file_handle_error_no_exit(path, "file_exists_win_stat64", false);
+  }
+
+  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -4340,7 +4396,7 @@ A simple function to open or create a file.
                                 string
 @param[in]	create_mode	create mode
 @param[in]	access_type	OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]	read_only	if true read only mode checks are enforced
+@param[in]	read_only	if true, read only checks are enforced
 @param[out]	success		true if succeed, false if error
 @return handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
@@ -4465,8 +4521,8 @@ the call succeeds, unless the fail_if_exists arguments is true.
 If another error occurs, such as a permission error, this does not crash,
 but reports the error and returns false.
 @param[in]	pathname	directory name as null-terminated string
-@param[in]	fail_if_exists	if true, pre-existing directory is treated
-                                as an error.
+@param[in]	fail_if_exists	if true, pre-existing directory is treated as
+                                an error.
 @return true if call succeeds, false on error */
 bool os_file_create_directory(const char *pathname, bool fail_if_exists) {
   BOOL rcode;
@@ -4526,22 +4582,6 @@ bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_create(), not directly
-this function!
-Opens an existing file or creates a new.
-@param[in]	name		name of the file or path as a null-terminated
-                                string
-@param[in]	create_mode	create mode
-@param[in]	purpose		OS_FILE_AIO, if asynchronous, non-buffered I/O
-                                is desired, OS_FILE_NORMAL, if any normal file;
-                                NOTE that it also depends on type, os_aio_..
-                                and srv_.. variables whether we really use async
-                                I/O or unbuffered I/O: look in the function
-                                source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
-@param[in]	success		true if succeeded
-@return handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
 pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
                                   ulint purpose, ulint type, bool read_only,
                                   bool *success) {
@@ -4618,8 +4658,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 #ifdef UNIV_HOTBACKUP
   attributes |= FILE_FLAG_NO_BUFFERING;
 #else /* UNIV_HOTBACKUP */
-  if (purpose == OS_FILE_AIO) {
 
+  if (purpose == OS_FILE_AIO) {
 #ifdef WIN_ASYNC_IO
     /* If specified, use asynchronous (overlapped) io and no
     buffering of writes in the OS */
@@ -4643,8 +4683,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 #ifdef UNIV_NON_BUFFERED_IO
   // TODO: Create a bug, this looks wrong. The flush log
   // parameter is dynamic.
-  if ((type == OS_BUFFERED_FILE) || (type == OS_CLONE_LOG_FILE) ||
-      (type == OS_LOG_FILE)) {
+  if (type == OS_BUFFERED_FILE || type == OS_CLONE_LOG_FILE ||
+      type == OS_LOG_FILE) {
     /* Do not use unbuffered i/o for the log files because
     we write really a lot and we have log flusher for fsyncs. */
 
@@ -4804,13 +4844,36 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
     *exist = true;
   }
 
-  ulint count = 0;
+  char name_to_delete[MAX_PATH + 8];
 
+  uint32_t count = 0;
+  /* On Windows, deleting a file may fail if some other process uses it.
+  However, the file might have been opened with FILE_SHARE_DELETE mode, in
+  which case the delete will succeed, but the file will not be deleted,
+  only marked for deletion when all handles are closed. To work around this, we
+  first move the file to new randomized name, which will not collide with a real
+  name. */
+  for (DWORD random_id = GetTickCount(); count < 1000; ++count, ++random_id) {
+    random_id &= 0xFFFF;
+    sprintf(name_to_delete, "%s.%04X.d", name, random_id);
+    if (MoveFile(name, name_to_delete)) break;
+    auto err = GetLastError();
+    /* We have chosen the "random" value that is already being used. Try another
+    one. */
+    if (err == ERROR_ALREADY_EXISTS) continue;
+
+    if (err == ERROR_ACCESS_DENIED) continue;
+
+    /* We just failed to move the file. It may be being used without
+    FILE_SHARE_DELETE mode. We just try to delete the original filename.*/
+    sprintf(name_to_delete, "%s", name);
+
+    break;
+  }
+
+  count = 0;
   for (;;) {
-    /* In Windows, deleting an .ibd file may fail if mysqlbackup
-    is copying it */
-
-    bool ret = DeleteFile((LPCTSTR)name);
+    bool ret = DeleteFile((LPCTSTR)name_to_delete);
 
     if (ret) {
       return (true);
@@ -4829,17 +4892,26 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 
     ++count;
 
-    if (count > 100 && 0 == (count % 10)) {
+    if (count % 10 == 0) {
       /* Print error information */
       os_file_get_last_error(true);
 
-      ib::warn(ER_IB_MSG_803) << "Delete of file '" << name << "' failed.";
+      if (strcmp(name, name_to_delete) == 0) {
+        ib::warn(ER_IB_MSG_803)
+            << "Failed to delete file '" << name_to_delete
+            << "'. Please check if any other process is using it.";
+      } else {
+        ib::warn(ER_IB_MSG_803)
+            << "Failed to delete file '" << name_to_delete
+            << "', which was renamed from '" << name
+            << "'. Please check if any other process is using it.";
+      }
     }
 
-    /* Sleep for a second */
-    os_thread_sleep(1000000);
+    /* Sleep for a 0.1 second */
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    if (count > 2000) {
+    if (count > 20) {
       return (false);
     }
   }
@@ -4849,46 +4921,13 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 @param[in]	name		File path as NUL terminated string
 @return true if success */
 bool os_file_delete_func(const char *name) {
-  ulint count = 0;
-
-  for (;;) {
-    /* In Windows, deleting an .ibd file may fail if mysqlbackup
-    is copying it */
-
-    BOOL ret = DeleteFile((LPCTSTR)name);
-
-    if (ret) {
-      return (true);
-    }
-
-    if (GetLastError() == ERROR_FILE_NOT_FOUND) {
-      /* If the file does not exist, we classify this as
-      a 'mild' error and return */
-
-      return (false);
-    }
-
-    ++count;
-
-    if (count > 100 && 0 == (count % 10)) {
-      /* print error information */
-      os_file_get_last_error(true);
-
-      ib::warn(ER_IB_MSG_804)
-          << "Cannot delete file '" << name << "'. Are you running mysqlbackup"
-          << " to back up the file?";
-    }
-
-    /* sleep for a second */
-    os_thread_sleep(1000000);
-
-    if (count > 2000) {
-      return (false);
-    }
+  bool existed;
+  if (os_file_delete_if_exists_func(name, &existed)) {
+    /* File did not exist already, this is an error. */
+    return existed;
+  } else {
+    return false;
   }
-
-  ut_error;
-  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_rename(), not directly this
@@ -4900,16 +4939,14 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
 #ifdef UNIV_DEBUG
+  /* New path must be valid but not exist. */
   os_file_type_t type;
   bool exists;
-
-  /* New path must not exist. */
   ut_ad(os_file_status(newpath, &exists, &type));
   ut_ad(!exists);
 
   /* Old path must exist. */
-  ut_ad(os_file_status(oldpath, &exists, &type));
-  ut_ad(exists);
+  ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
   if (MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath)) {
@@ -4925,7 +4962,7 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
 this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
-@param[in,own]	file		Handle to a file
+@param[in]	file		Handle to a file
 @return true if success */
 bool os_file_close_func(os_file_t file) {
   ut_a(file != INVALID_HANDLE_VALUE);
@@ -4954,10 +4991,6 @@ os_offset_t os_file_get_size(pfs_os_file_t file) {
   return (os_offset_t(low | (os_offset_t(high) << 32)));
 }
 
-/** Gets a file size.
-@param[in]	filename	Full path to the filename to check
-@return file size if OK, else set m_total_size to ~0 and m_alloc_size to
-        errno */
 os_file_size_t os_file_get_size(const char *filename) {
   struct __stat64 s;
   os_file_size_t file_size;
@@ -4972,16 +5005,13 @@ os_file_size_t os_file_get_size(const char *filename) {
 
     low_size = GetCompressedFileSize(filename, &high_size);
 
-    if (low_size != INVALID_FILE_SIZE) {
+    if (low_size != INVALID_FILE_SIZE || GetLastError() == NO_ERROR) {
       file_size.m_alloc_size = high_size;
       file_size.m_alloc_size <<= 32;
       file_size.m_alloc_size |= low_size;
-
     } else {
-      ib::error(ER_IB_MSG_805)
-          << "GetCompressedFileSize(" << filename << ", ..) failed.";
-
-      file_size.m_alloc_size = (os_offset_t)-1;
+      file_size.m_total_size = ~0;
+      file_size.m_alloc_size = (os_offset_t)errno;
     }
   } else {
     file_size.m_total_size = ~0;
@@ -5197,9 +5227,9 @@ void AIO::simulated_put_read_threads_to_sleep() {
   os_aio_recommend_sleep_for_read_threads = true;
 
   for (ulint i = 0; i < os_aio_n_segments; i++) {
-    AIO *array;
+    AIO *array{};
 
-    get_array_and_local_segment(&array, i);
+    get_array_and_local_segment(array, i);
 
     if (array == s_reads) {
       os_event_reset(os_aio_segment_wait_events[i]);
@@ -5292,11 +5322,9 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
       if ((dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && recursive) {
         path.append("\\*");
 
-        using value_type = Stack::value_type;
+        using Value = Stack::value_type;
 
-        value_type dir(path, current.m_depth + 1);
-
-        directories.push(dir);
+        directories.push(Value{path, current.m_depth + 1});
 
       } else {
         f(path, current.m_depth + 1);
@@ -5314,7 +5342,7 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 }
 #endif /* !_WIN32*/
 
-/** Does a syncronous read or write depending upon the type specified
+/** Does a synchronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]	in_type		IO flags
@@ -5323,41 +5351,58 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]	offset		file offset from the start where to read
 @param[in]	n		number of bytes to read, starting from offset
 @param[out]	err		DB_SUCCESS or error code
+@param[in]	e_block         encrypted block or nullptr.
 @return number of bytes read/written, -1 if error */
 static MY_ATTRIBUTE((warn_unused_result)) ssize_t
     os_file_io(const IORequest &in_type, os_file_t file, void *buf, ulint n,
-               os_offset_t offset, dberr_t *err) {
-  Block *block = NULL;
+               os_offset_t offset, dberr_t *err, const file::Block *e_block) {
   ulint original_n = n;
+  file::Block *block{};
   IORequest type = in_type;
   ssize_t bytes_returned = 0;
-  byte *encrypt_log_buf = NULL;
+  byte *encrypt_log_buf = nullptr;
 
   if (type.is_compressed()) {
     /* We don't compress the first page of any file. */
     ut_ad(offset > 0);
-    block = os_file_compress_page(type, buf, &n);
+    ut_ad(!type.is_log());
+    if (e_block == nullptr) {
+      block = os_file_compress_page(type, buf, &n);
+    } else {
+      /* Since e_block is valid, encryption must have already happened. Since we
+      do compression before encryption, we assert here that there is no
+      encryption involved. */
+      ut_ad(!type.is_encrypted());
+    }
   } else {
-    block = NULL;
+    block = nullptr;
   }
 
   /* We do encryption after compression, since if we do encryption
   before compression, the encrypted data will cause compression fail
   or low compression rate. */
-  if (type.is_encrypted() && type.is_write() &&
-      (type.encryption_algorithm().m_type != Encryption::KEYRING ||
-       (type.encryption_algorithm().m_key != NULL &&
+  if ((type.is_encrypted() || e_block != nullptr) && type.is_write() &&
+      (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
+       (type.encryption_algorithm().get_key() != NULL &&
         Encryption::can_page_be_keyring_encrypted(
             reinterpret_cast<byte *>(buf))))) {
     if (!type.is_log()) {
       /* We don't encrypt the first page of any file. */
-      Block *compressed_block = block;
+      auto compressed_block = block;
       ut_ad(offset > 0);
 
-      ut_ad(type.encryption_algorithm().m_key != NULL);
-      block = os_file_encrypt_page(type, buf, &n);
+      /* If dblwr is involved, we should not be reaching here, because we
+      encrypt the page at higher layer so that the same encrypted page can be
+      written to the dblwr file and the data file. During importing an
+      encrypted tablespace, we reach here. */
+      if (e_block == nullptr) {
+        ut_ad(type.encryption_algorithm().get_key() != NULL);
+        block = os_file_encrypt_page(type, buf, &n);
+      } else {
+        block = const_cast<file::Block *>(e_block);
+      }
 
-      if (compressed_block != NULL) {
+      if (compressed_block != nullptr) {
         os_free_block(compressed_block);
       }
     } else {
@@ -5382,16 +5427,16 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 
       if (offset > 0 && (type.is_compressed() || type.is_read())) {
         *err = os_file_io_complete(type, file, reinterpret_cast<byte *>(buf),
-                                   NULL, original_n, offset, n);
+                                   nullptr, original_n, offset, n);
       } else {
         *err = DB_SUCCESS;
       }
 
-      if (block != NULL) {
+      if (block != nullptr) {
         os_free_block(block);
       }
 
-      if (encrypt_log_buf != NULL) {
+      if (encrypt_log_buf != nullptr) {
         ut_free(encrypt_log_buf);
       }
 
@@ -5417,15 +5462,17 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
     sync_file_io.advance(n_bytes);
   }
 
-  if (block != NULL) {
+  if (block != nullptr) {
     os_free_block(block);
   }
 
-  if (encrypt_log_buf != NULL) {
+  if (encrypt_log_buf != nullptr) {
     ut_free(encrypt_log_buf);
   }
 
-  *err = DB_IO_ERROR;
+  if (*err != DB_IO_DECRYPT_FAIL) {
+    *err = DB_IO_ERROR;
+  }
 
   if (!type.is_partial_io_warning_disabled()) {
     ib::warn(ER_IB_MSG_813)
@@ -5443,10 +5490,12 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 @param[in]	n		number of bytes to read, starting from offset
 @param[in]	offset		file offset from the start where to read
 @param[out]	err		DB_SUCCESS or error code
+@param[in]	e_block         encrypted block or nullptr.
 @return number of bytes written, -1 if error */
 static MY_ATTRIBUTE((warn_unused_result)) ssize_t
     os_file_pwrite(IORequest &type, os_file_t file, const byte *buf, ulint n,
-                   os_offset_t offset, dberr_t *err) {
+                   os_offset_t offset, dberr_t *err,
+                   const file::Block *e_block) {
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
 #endif /* UNIV_HOTBACKUP */
@@ -5461,12 +5510,13 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-  (void)os_atomic_increment_ulint(&os_n_pending_writes, 1);
+  os_n_pending_writes.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 
-  ssize_t n_bytes = os_file_io(type, file, (void *)buf, n, offset, err);
+  ssize_t n_bytes =
+      os_file_io(type, file, (void *)buf, n, offset, err, e_block);
 
-  (void)os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+  os_n_pending_writes.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 
   return (n_bytes);
@@ -5480,16 +5530,18 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 @param[out]	buf		buffer from which to write
 @param[in]	offset		file offset from the start where to read
 @param[in]	n		number of bytes to read, starting from offset
+@param[in]	e_block         encrypted block or nullptr.
 @return DB_SUCCESS if request was successful, false if fail */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     os_file_write_page(IORequest &type, const char *name, os_file_t file,
-                       const byte *buf, os_offset_t offset, ulint n) {
-  dberr_t err;
+                       const byte *buf, os_offset_t offset, ulint n,
+                       const file::Block *e_block) {
+  dberr_t err(DB_ERROR_UNSET);
 
   ut_ad(type.validate());
   ut_ad(n > 0);
 
-  ssize_t n_bytes = os_file_pwrite(type, file, buf, n, offset, &err);
+  ssize_t n_bytes = os_file_pwrite(type, file, buf, n, offset, &err, e_block);
 
   if ((ulint)n_bytes != n && !os_has_said_disk_full) {
     ib::error(ER_IB_MSG_814) << "Write to file " << name << " failed at offset "
@@ -5506,7 +5558,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                 " Check also that the disk is not full"
                                 " or a disk quota exceeded.";
 
-    if (strerror(errno) != NULL) {
+    if (strerror(errno) != nullptr) {
       ib::error(ER_IB_MSG_815)
           << "Error number " << errno << " means '" << strerror(errno) << "'";
     }
@@ -5542,14 +5594,14 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 
   const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, n);
 
-  (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
+  os_n_pending_reads.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
-  ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err);
+  ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err, nullptr);
 
   trx_stats::end_io_read(trx, start_time);
 
-  (void)os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+  os_n_pending_reads.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 
   return (n_bytes);
@@ -5570,6 +5622,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     os_file_read_page(IORequest &type, const char *file_name, os_file_t file,
                       void *buf, os_offset_t offset, ulint n, ulint *o,
                       bool exit_on_err, trx_t *trx) {
+  dberr_t err(DB_ERROR_UNSET);
+
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
 
@@ -5583,25 +5637,22 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ut_ad(type.validate());
   ut_ad(n > 0);
 
-  dberr_t err;
   for (;;) {
     ssize_t n_bytes;
 
     n_bytes = os_file_pread(type, file, buf, n, offset, trx, &err);
 
-    if (o != NULL) {
+    if (o != nullptr) {
       *o = n_bytes;
     }
 
-    if (err != DB_SUCCESS && !exit_on_err) {
-      return (err);
+    if (err == DB_IO_DECRYPT_FAIL) {
+      return err;
+
+    } else if (err != DB_SUCCESS && !exit_on_err) {
+      return err;
 
     } else if ((ulint)n_bytes == n) {
-      /*The page decryption failed - will handled by buf_io_comptelete*/
-      if (err == DB_IO_DECRYPT_FAIL) {
-        return (DB_IO_DECRYPT_FAIL);
-      }
-
       /** The read will succeed but decompress can fail
       for various reasons. */
 
@@ -5654,7 +5705,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
-@param[in]	report_all_errors	true if we want an error printed
+@param[in]	report_all_errors	true if we want an error message printed
                                         for all errors
 @return error number, or OS error number + 100 */
 ulint os_file_get_last_error(bool report_all_errors) {
@@ -5714,13 +5765,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
 
     case OS_FILE_SHARING_VIOLATION:
 
-      os_thread_sleep(10000000); /* 10 sec */
+      std::this_thread::sleep_for(std::chrono::seconds(10));
       return (true);
 
     case OS_FILE_OPERATION_ABORTED:
     case OS_FILE_INSUFFICIENT_RESOURCE:
 
-      os_thread_sleep(100000); /* 100 ms */
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       return (true);
 
     case OS_FILE_NAME_TOO_LONG:
@@ -5734,7 +5785,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
 
       if (should_exit || !on_error_silent) {
         ib::error(ER_IB_MSG_821)
-            << "File " << (name != NULL ? name : "(unknown)") << ": '"
+            << "File " << (name != nullptr ? name : "(unknown)") << ": '"
             << operation
             << "'"
                " returned OS error "
@@ -5755,8 +5806,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
 }
 
 /** Does error handling when a file operation fails.
-@param[in]	name		name of a file or NULL
-@param[in]	operation	operation name that failed
+@param[in]	name		File name or NULL
+@param[in]	operation	Name of operation e.g., "read", "write"
 @return true if we should retry the operation */
 static bool os_file_handle_error(const char *name, const char *operation) {
   /* Exit in case of unknown error */
@@ -5764,8 +5815,8 @@ static bool os_file_handle_error(const char *name, const char *operation) {
 }
 
 /** Does error handling when a file operation fails.
-@param[in]	name		name of a file or NULL
-@param[in]	operation	operation name that failed
+@param[in]	name		File name or NULL
+@param[in]	operation	Name of operation e.g., "read", "write"
 @param[in]	on_error_silent	if true then don't print any message to the log.
 @return true if we should retry the operation */
 static bool os_file_handle_error_no_exit(const char *name,
@@ -5781,13 +5832,10 @@ static bool os_file_handle_error_no_exit(const char *name,
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	operation_name	"open" or "create"; used in the diagnostic
                                 message
-@param[in]	failure_warning	if true (the default), the failure to disable
-caching is diagnosed at warning severity, and at note severity otherwise
 @return true if operation is success and false */
 bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
                          const char *file_name MY_ATTRIBUTE((unused)),
-                         const char *operation_name MY_ATTRIBUTE((unused)),
-                         bool failure_warning MY_ATTRIBUTE((unused))) {
+                         const char *operation_name MY_ATTRIBUTE((unused))) {
 /* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
   if (directio(fd, DIRECTIO_ON) == -1) {
@@ -5808,7 +5856,7 @@ bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
       if (!warning_message_printed) {
         warning_message_printed = true;
 #ifdef UNIV_LINUX
-        ib::warn_or_info(ER_IB_MSG_824, failure_warning)
+        ib::warn(ER_IB_MSG_824)
             << "Failed to set O_DIRECT on file" << file_name << "; "
             << operation_name << ": " << strerror(errno_save)
             << ", "
@@ -5824,10 +5872,9 @@ bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
 #ifndef UNIV_LINUX
     short_warning:
 #endif
-      ib::warn_or_info(ER_IB_MSG_825, failure_warning)
-          << "Failed to set O_DIRECT on file " << file_name << "; "
-          << operation_name << " : " << strerror(errno_save)
-          << ", continuing anyway.";
+      ib::warn(ER_IB_MSG_825) << "Failed to set O_DIRECT on file " << file_name
+                              << "; " << operation_name << " : "
+                              << strerror(errno_save) << ", continuing anyway.";
     }
     return false;
   }
@@ -5835,15 +5882,39 @@ bool os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
   return true;
 }
 
-/**  Write the specified number of zeros to a file from specific offset.
-@param[in]	name		name of the file or path as a null-terminated
-                                string
-@param[in]	file		handle to a file
-@param[in]	offset		file offset
-@param[in]	size		file size
-@param[in]	read_only	Enable read-only checks if true
-@param[in]	flush		Flush file content to disk
-@return true if success */
+bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
+                           os_offset_t offset, os_offset_t size, bool read_only,
+                           bool flush) {
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX) && \
+    defined(HAVE_FALLOC_FL_ZERO_RANGE)
+  ut_a(size >= offset);
+
+  static bool print_message = true;
+
+  int ret =
+      fallocate(pfs_file.m_file, FALLOC_FL_ZERO_RANGE, offset, size - offset);
+
+  if (ret == 0) {
+    if (flush) {
+      return os_file_flush(pfs_file);
+    }
+
+    return true;
+  }
+
+  ut_a(ret == -1);
+
+  /* Print the failure message only once for all the redo log files. */
+  if (print_message) {
+    ib::info(ER_IB_MSG_1359) << "fallocate() failed with errno " << errno
+                             << " - falling back to writing NULLs.";
+    print_message = false;
+  }
+#endif /* !NO_FALLOCATE && UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
+
+  return os_file_set_size(name, pfs_file, offset, size, read_only, flush);
+}
+
 bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
                       os_offset_t size, bool read_only, bool flush) {
   /* Write up to FSP_EXTENT_SIZE bytes at a time. */
@@ -5861,20 +5932,12 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
   buf_size *= UNIV_PAGE_SIZE;
 
   /* Align the buffer for possible raw i/o */
-  byte *buf2;
-
-  buf2 = static_cast<byte *>(ut_malloc_nokey(buf_size + UNIV_PAGE_SIZE));
-
-  byte *buf = static_cast<byte *>(ut_align(buf2, UNIV_PAGE_SIZE));
-
-  /* Write buffer full of zeros */
-  memset(buf, 0, buf_size);
-
-  if (size >= (os_offset_t)100 << 20) {
-    ib::info(ER_IB_MSG_826) << "Progress in MB:";
-  }
+  byte *buf = static_cast<byte *>(ut::aligned_zalloc(buf_size, UNIV_PAGE_SIZE));
 
   os_offset_t current_size = offset;
+
+  /* Count to check and print progress of file write for file_size > 100 MB. */
+  uint percentage_count = 10;
 
   while (current_size < size) {
     ulint n_bytes;
@@ -5901,14 +5964,8 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
 #endif /* UNIV_HOTBACKUP */
 
     if (err != DB_SUCCESS) {
-      ut_free(buf2);
+      ut::aligned_free(buf);
       return (false);
-    }
-
-    /* Print about progress for each 100 MB written */
-    if ((current_size + n_bytes) / (100 << 20) != current_size / (100 << 20)) {
-      fprintf(stderr, " %lu00",
-              (ulong)((current_size + n_bytes) / (100 << 20)));
     }
 
     /* Flush after each os_fsync_threhold bytes */
@@ -5923,20 +5980,27 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
         bool ret = os_file_flush(file);
 
         if (!ret) {
-          ut_free(buf2);
+          ut::aligned_free(buf);
           return (false);
         }
+      }
+    }
+
+    /* Print percentage of progress if the size is more than 100MB */
+    if ((size >> 20) > 100) {
+      float progress_percentage =
+          ((float)(current_size + n_bytes) / (float)size) * 100;
+
+      if (progress_percentage >= percentage_count) {
+        ib::info(ER_IB_MSG_1062, name, ulonglong{size >> 20}, percentage_count);
+        percentage_count += 10;
       }
     }
 
     current_size += n_bytes;
   }
 
-  if (size >= (os_offset_t)100 << 20) {
-    fprintf(stderr, "\n");
-  }
-
-  ut_free(buf2);
+  ut::aligned_free(buf);
 
   if (flush) {
     return (os_file_flush(file));
@@ -6001,17 +6065,16 @@ bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset) {
   return (success);
 }
 
-/** NOTE! Use the corresponding macro os_file_read(), not directly this
-function!
-Requests a synchronous positioned read operation.
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
-@param[in]	type		IO flags
+/** NOTE! Use the corresponding macro os_file_read_first_page(), not directly
+this function!
+Requests a synchronous read operation of page 0 of IBD file.
+@param[in]	type		IO request context
 @param[in]  file_name file name
-@param[in]	file		handle to an open file
+@param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-@param[in]	offset		file offset from the start where to read
-@param[in]	n		number of bytes to read, starting from offset
-@return DB_SUCCESS or error code */
+@param[in]	offset		file offset where to read
+@param[in]	n		number of bytes to read
+@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 dberr_t os_file_read_func(IORequest &type, const char *file_name,
                           os_file_t file, void *buf, os_offset_t offset,
                           ulint n, trx_t *trx) {
@@ -6021,15 +6084,14 @@ dberr_t os_file_read_func(IORequest &type, const char *file_name,
                             true, trx));
 }
 
-/** NOTE! Use the corresponding macro os_file_read_first_page(), not
-directly this function!
-Requests a synchronous positioned read operation of page 0 of IBD file
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
-@param[in]	type		IO flags
+/** NOTE! Use the corresponding macro os_file_read_first_page(),
+not directly this function!
+Requests a synchronous read operation of page 0 of IBD file
+@param[in]	type		IO request context
 @param[in]  file_name file name
-@param[in]	file		handle to an open file
+@param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-@param[in]	n		number of bytes to read, starting from offset
+@param[in]	n		number of bytes to read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS or error code */
 dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
@@ -6069,10 +6131,7 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
   uint request_size;
   const uint BUF_SIZE = 4 * UNIV_SECTOR_SIZE;
 
-  char buf[BUF_SIZE + UNIV_SECTOR_SIZE];
-  char *buf_ptr;
-
-  buf_ptr = static_cast<char *>(ut_align(buf, UNIV_SECTOR_SIZE));
+  alignas(UNIV_SECTOR_SIZE) char buf[BUF_SIZE];
 
   IORequest read_request(IORequest::READ);
   read_request.disable_compression();
@@ -6089,15 +6148,15 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
       request_size = size;
     }
 
-    err = os_file_read_func(read_request, nullptr, src_file, buf_ptr,
-                            src_offset, request_size, nullptr);
+    err = os_file_read_func(read_request, nullptr, src_file, &buf, src_offset,
+                            request_size, nullptr);
 
     if (err != DB_SUCCESS) {
       return (err);
     }
     src_offset += request_size;
 
-    err = os_file_write_func(write_request, "file copy", dest_file, buf_ptr,
+    err = os_file_write_func(write_request, "file copy", dest_file, &buf,
                              dest_offset, request_size);
 
     if (err != DB_SUCCESS) {
@@ -6110,7 +6169,8 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
   return (DB_SUCCESS);
 }
 
-/** copy data from one file to another file.
+/** Copy data from one file to another file. Data is read/written
+at current file offset.
 @param[in]	src_file	file handle to copy from
 @param[in]	src_offset	offset to copy from
 @param[in]	dest_file	file handle to copy to
@@ -6182,14 +6242,14 @@ dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
-Requests a synchronous positioned read operation.
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
-@param[in]	type		IO flags
+Requests a synchronous positioned read operation. This function does not do
+any error handling. In case of error it returns FALSE.
+@param[in]	type		IO request context
 @param[in]  file_name file name
-@param[in]	file		handle to an open file
+@param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
-@param[in]	offset		file offset from the start where to read
-@param[in]	n		number of bytes to read, starting from offset
+@param[in]	offset		file offset where to read
+@param[in]	n		number of bytes to read
 @param[out]	o		number of bytes actually read
 @return DB_SUCCESS or error code */
 dberr_t os_file_read_no_error_handling_func(IORequest &type,
@@ -6203,16 +6263,17 @@ dberr_t os_file_read_no_error_handling_func(IORequest &type,
                             nullptr));
 }
 
-/** NOTE! Use the corresponding macro os_file_write(), not directly
+/** NOTE! Use the corresponding macro os_file_write(), not directly this
+function!
 Requests a synchronous write operation.
-@param[in]	type		IO flags
+@param[in,out]	type		IO request context
 @param[in]	name		name of the file or path as a null-terminated
                                 string
-@param[in]	file		handle to an open file
-@param[out]	buf		buffer from which to write
-@param[in]	offset		file offset from the start where to read
-@param[in]	n		number of bytes to read, starting from offset
-@return DB_SUCCESS if request was successful, false if fail */
+@param[in]	file		Open file handle
+@param[out]	buf		buffer where to read
+@param[in]	offset		file offset where to read
+@param[in]	n		number of bytes to read
+@return DB_SUCCESS if request was successful */
 dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
                            const void *buf, os_offset_t offset, ulint n) {
   ut_ad(type.validate());
@@ -6226,19 +6287,23 @@ dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
 
   const byte *ptr = reinterpret_cast<const byte *>(buf);
 
-  return (os_file_write_page(type, name, file, ptr, offset, n));
+  return os_file_write_page(type, name, file, ptr, offset, n,
+                            type.get_encrypted_block());
 }
 
-/** Check the existence and type of the given file.
-@param[in]	path		path name of file
-@param[out]	exists		true if the file exists
-@param[out]	type		Type of the file, if it exists
-@return true if call succeeded */
 bool os_file_status(const char *path, bool *exists, os_file_type_t *type) {
 #ifdef _WIN32
   return (os_file_status_win32(path, exists, type));
 #else
   return (os_file_status_posix(path, exists, type));
+#endif /* _WIN32 */
+}
+
+bool os_file_exists(const char *path) {
+#ifdef _WIN32
+  return (os_file_exists_win32(path));
+#else
+  return (os_file_exists_posix(path));
 #endif /* _WIN32 */
 }
 
@@ -6337,12 +6402,60 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
   return (ret);
 }
 
-/** Waits for an AIO operation to complete. This function is used to wait
-for completed requests. The aio array of pending requests is divided
+/** Fill the pages with NULs
+@param[in] file		File handle
+@param[in] name		File name
+@param[in] page_size	physical page size
+@param[in] start	Offset from the start of the file in bytes
+@param[in] len		Length in bytes
+@param[in] read_only_mode
+                        if true, then read only mode checks are enforced.
+@return DB_SUCCESS or error code */
+dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
+                            ulint page_size, os_offset_t start, ulint len,
+                            bool read_only_mode) {
+  ut_a(len > 0);
+
+  /* Extend at most 1M at a time */
+  ulint n_bytes = ut_min(static_cast<ulint>(1024 * 1024), len);
+
+  byte *buf = reinterpret_cast<byte *>(ut::aligned_zalloc(n_bytes, page_size));
+
+  os_offset_t offset = start;
+  dberr_t err = DB_SUCCESS;
+  const os_offset_t end = start + len;
+  IORequest request(IORequest::WRITE);
+
+  while (offset < end) {
+#ifdef UNIV_HOTBACKUP
+    err = os_file_write(request, name, file, buf, offset, n_bytes);
+#else
+    err = os_aio(request, AIO_mode::SYNC, name, file, buf, offset, n_bytes,
+                 read_only_mode, nullptr, nullptr, 0, nullptr, false);
+#endif /* UNIV_HOTBACKUP */
+
+    if (err != DB_SUCCESS) {
+      break;
+    }
+
+    offset += n_bytes;
+
+    n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
+
+    DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
+  }
+
+  ut::aligned_free(buf);
+
+  return (err);
+}
+
+/** Waits for an AIO operation to complete. This function is used to wait the
+for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the aio slot,
+for. NOTE: this function will also take care of freeing the AIO slot,
 therefore no other thread is allowed to do the freeing!
-@param[in]	segment		The number of the segment in the aio arrays to
+@param[in]	segment		The number of the segment in the AIO arrays to
                                 wait for; segment 0 is the ibuf I/O thread,
                                 segment 1 the log I/O thread, then follow the
                                 non-ibuf read threads, and as the last are the
@@ -6371,7 +6484,6 @@ dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
 #elif defined(LINUX_NATIVE_AIO)
 
     err = os_aio_linux_handler(segment, m1, m2, request);
-
 #else
     ut_error;
 
@@ -6395,7 +6507,8 @@ dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
 AIO::AIO(latch_id_t id, ulint n, ulint segments)
     : m_slots(n),
       m_n_segments(segments),
-      m_n_reserved()
+      m_n_reserved(),
+      m_last_slot_used(0)
 #ifdef LINUX_NATIVE_AIO
       ,
       m_aio_ctx(),
@@ -6412,8 +6525,8 @@ AIO::AIO(latch_id_t id, ulint n, ulint segments)
 
   mutex_create(id, &m_mutex);
 
-  m_not_full = os_event_create("aio_not_full");
-  m_is_empty = os_event_create("aio_is_empty");
+  m_not_full = os_event_create();
+  m_is_empty = os_event_create();
 
 #ifdef LINUX_NATIVE_AIO
   memset(&m_events[0], 0x0, sizeof(m_events[0]) * m_events.size());
@@ -6461,12 +6574,12 @@ dberr_t AIO::init_linux_native_aio() {
   /* Initialize the io_context array. One io_context
   per segment in the array. */
 
-  ut_a(m_aio_ctx == NULL);
+  ut_a(m_aio_ctx == nullptr);
 
   m_aio_ctx = static_cast<io_context **>(
       ut_zalloc_nokey(m_n_segments * sizeof(*m_aio_ctx)));
 
-  if (m_aio_ctx == NULL) {
+  if (m_aio_ctx == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
 
@@ -6526,19 +6639,21 @@ failure will result in server refusing to start up.
 @param[in]	n_segments	number of segments in the AIO array
 @return own: AIO array, NULL on failure */
 AIO *AIO::create(latch_id_t id, ulint n, ulint n_segments) {
+  ut_a(n_segments > 0);
+
   if ((n % n_segments)) {
     ib::error(ER_IB_MSG_828) << "Maximum number of AIO operations must be "
                              << "divisible by number of segments";
 
-    return (NULL);
+    return (nullptr);
   }
 
   AIO *array = UT_NEW_NOKEY(AIO(id, n, n_segments));
 
-  if (array != NULL && array->init() != DB_SUCCESS) {
+  if (array != nullptr && array->init() != DB_SUCCESS) {
     UT_DELETE(array);
 
-    array = NULL;
+    array = nullptr;
   }
 
   return (array);
@@ -6582,18 +6697,18 @@ AIO::~AIO() {
   m_slots.clear();
 }
 
-/** Initializes the asynchronous io system. Creates one array each for ibuf
-and log i/o. Also creates one array each for read and write where each
-array is divided logically into n_readers and n_writers
+/** Initializes the asynchronous io system. Creates one array each
+for ibuf and log I/O. Also creates one array each for read and write
+where each array is divided logically into n_readers and n_writers
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
-No i/o handler thread needs to be created for that
+No I/O handler thread needs to be created for that
 @param[in]	n_per_seg	maximum number of pending aio
                                 operations allowed per segment
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
 @param[in]	n_slots_sync	number of slots in the sync aio array
-@return true if the AIO sub-system was started successfully */
+@return true if AIO sub-system was started successfully */
 bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
                 ulint n_slots_sync) {
 #if defined(LINUX_NATIVE_AIO)
@@ -6610,8 +6725,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   s_reads =
       create(LATCH_ID_OS_AIO_READ_MUTEX, n_readers * n_per_seg, n_readers);
 
-  if (s_reads == NULL) {
-    return (false);
+  if (s_reads == nullptr) {
+    return false;
   }
 
   ulint start = srv_read_only_mode ? 0 : 2;
@@ -6630,8 +6745,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   if (!srv_read_only_mode) {
     s_ibuf = create(LATCH_ID_OS_AIO_IBUF_MUTEX, n_per_seg, 1);
 
-    if (s_ibuf == NULL) {
-      return (false);
+    if (s_ibuf == nullptr) {
+      return false;
     }
 
     ++n_segments;
@@ -6642,8 +6757,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
     s_log = create(LATCH_ID_OS_AIO_LOG_MUTEX, n_per_seg, 1);
 
-    if (s_log == NULL) {
-      return (false);
+    if (s_log == nullptr) {
+      return false;
     }
 
     ++n_segments;
@@ -6653,14 +6768,14 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 #endif /* !UNIV_HOTBAKUP */
 
   } else {
-    s_ibuf = s_log = NULL;
+    s_ibuf = s_log = nullptr;
   }
 
   s_writes =
       create(LATCH_ID_OS_AIO_WRITE_MUTEX, n_writers * n_per_seg, n_writers);
 
-  if (s_writes == NULL) {
-    return (false);
+  if (s_writes == nullptr) {
+    return false;
   }
 
   n_segments += n_writers;
@@ -6676,8 +6791,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
   s_sync = create(LATCH_ID_OS_AIO_SYNC_MUTEX, n_slots_sync, 1);
 
-  if (s_sync == NULL) {
-    return (false);
+  if (s_sync == nullptr) {
+    return false;
   }
 
   os_aio_n_segments = n_segments;
@@ -6687,35 +6802,35 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   os_aio_segment_wait_events = static_cast<os_event_t *>(
       ut_zalloc_nokey(n_segments * sizeof *os_aio_segment_wait_events));
 
-  if (os_aio_segment_wait_events == NULL) {
-    return (false);
+  if (os_aio_segment_wait_events == nullptr) {
+    return false;
   }
 
   for (ulint i = 0; i < n_segments; ++i) {
-    os_aio_segment_wait_events[i] = os_event_create(0);
+    os_aio_segment_wait_events[i] = os_event_create();
   }
 
   os_last_printout = ut_time_monotonic();
 
-  return (true);
+  return true;
 }
 
 /** Free the AIO arrays */
 void AIO::shutdown() {
   UT_DELETE(s_ibuf);
-  s_ibuf = NULL;
+  s_ibuf = nullptr;
 
   UT_DELETE(s_log);
-  s_log = NULL;
+  s_log = nullptr;
 
   UT_DELETE(s_writes);
-  s_writes = NULL;
+  s_writes = nullptr;
 
   UT_DELETE(s_sync);
-  s_sync = NULL;
+  s_sync = nullptr;
 
   UT_DELETE(s_reads);
-  s_reads = NULL;
+  s_reads = nullptr;
 }
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
@@ -6731,7 +6846,6 @@ void os_fusionio_get_sector_size() {
     ulint sector_size = UNIV_SECTOR_SIZE;
     char *path = srv_data_home;
     os_file_t check_file;
-    byte *ptr;
     byte *block_ptr;
     char current_dir[3];
     char *dir_end;
@@ -6778,10 +6892,10 @@ void os_fusionio_get_sector_size() {
 
     /* Try to write the file with different sector size
     alignment. */
-    ptr = static_cast<byte *>(ut_zalloc_nokey(2 * MAX_SECTOR_SIZE));
+    alignas(MAX_SECTOR_SIZE) byte data[MAX_SECTOR_SIZE];
 
     while (sector_size <= MAX_SECTOR_SIZE) {
-      block_ptr = static_cast<byte *>(ut_align(ptr, sector_size));
+      block_ptr = static_cast<byte *>(ut_align(&data, sector_size));
       ret = pwrite(check_file, block_ptr, sector_size, 0);
       if (ret > 0 && (ulint)ret == sector_size) {
         break;
@@ -6796,7 +6910,6 @@ void os_fusionio_get_sector_size() {
     unlink(check_file_name);
 
     ut_free(check_file_name);
-    ut_free(ptr);
     errno = 0;
 
     os_io_ptr_align = sector_size;
@@ -6813,40 +6926,40 @@ It is also called by MEB while applying the redo logs on TDE tablespaces,
 the "Blocks" allocated in this block_cache are used to hold the decrypted
 page data. */
 void os_create_block_cache() {
-  ut_a(block_cache == NULL);
+  ut_a(block_cache == nullptr);
 
   block_cache = UT_NEW_NOKEY(Blocks(MAX_BLOCKS));
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
-    ut_a(it->m_in_use == 0);
-    ut_a(it->m_ptr == NULL);
+    ut_a(!it->m_in_use);
+    ut_a(it->m_ptr == nullptr);
 
     /* Allocate double of max page size memory, since
-    compress could generate more bytes than orgininal
+    compress could generate more bytes than original
     data. */
     it->m_ptr = static_cast<byte *>(ut_malloc_nokey(BUFFER_BLOCK_SIZE));
 
-    ut_a(it->m_ptr != NULL);
+    ut_a(it->m_ptr != nullptr);
   }
 }
 
 #ifdef UNIV_HOTBACKUP
 /** De-allocates block cache at InnoDB shutdown. */
 void meb_free_block_cache() {
-  if (block_cache == NULL) {
+  if (block_cache == nullptr) {
     return;
   }
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
-    ut_a(it->m_in_use == 0);
+    ut_a(!it->m_in_use);
     ut_free(it->m_ptr);
   }
 
   UT_DELETE(block_cache);
 
-  block_cache = NULL;
+  block_cache = nullptr;
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -6858,7 +6971,7 @@ segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
-@param[in]	n_slots_sync	number of slots in the sync aio array */
+@param[in]	n_slots_sync	number of dblwr slots in the sync aio array */
 bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync) {
   /* Maximum number of pending aio operations allowed per segment */
   ulint limit = 8 * OS_AIO_N_PENDING_IOS_PER_THREAD;
@@ -6887,18 +7000,18 @@ void os_aio_free() {
   }
 
   ut_free(os_aio_segment_wait_events);
-  os_aio_segment_wait_events = 0;
+  os_aio_segment_wait_events = nullptr;
   os_aio_n_segments = 0;
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
-    ut_a(it->m_in_use == 0);
+    ut_a(!it->m_in_use);
     ut_free(it->m_ptr);
   }
 
   UT_DELETE(block_cache);
 
-  block_cache = NULL;
+  block_cache = nullptr;
 }
 
 /** Wakes up all async i/o threads so that they know to exit themselves in
@@ -6941,7 +7054,7 @@ void os_aio_wait_until_no_pending_writes() {
 @param[in]	array		AIO wait array
 @param[in]	slot		slot in this array
 @return segment number (which is the number used by, for example,
-        I/O-handler threads) */
+        I/O handler threads) */
 ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
   ulint segment;
   ulint seg_len;
@@ -6968,45 +7081,21 @@ ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
     segment = s_reads->m_n_segments + (srv_read_only_mode ? 0 : 2) +
               slot->pos / seg_len;
   }
-
   return (segment);
 }
 
-/** Requests for a slot in the aio array. If no slot is available, waits until
-not_full-event becomes signaled.
-
-@param[in,out]	type		IO context
-@param[in,out]	m1		message to be passed along with the AIO
-                                operation
-@param[in,out]	m2		message to be passed along with the AIO
-                                operation
-@param[in]	file		file handle
-@param[in]	name		name of the file or path as a NUL-terminated
-                                string
-@param[in,out]	buf		buffer where to read or from which to write
-@param[in]	offset		file offset, where to read from or start writing
-@param[in]	len		length of the block to read or write
-@return pointer to slot */
 Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                         pfs_os_file_t file, const char *name, void *buf,
-                        os_offset_t offset, ulint len, space_id_t space_id) {
+                        os_offset_t offset, ulint len,
+                        const file::Block *e_block, space_id_t space_id) {
 #ifdef WIN_ASYNC_IO
   ut_a((len & 0xFFFFFFFFUL) == len);
 #endif /* WIN_ASYNC_IO */
 
   /* No need of a mutex. Only reading constant fields */
-  ulint slots_per_seg;
-
   ut_ad(type.validate());
 
-  slots_per_seg = slots_per_segment();
-
-  /* We attempt to keep adjacent blocks in the same local
-  segment. This can help in merging IO requests when we are
-  doing simulated AIO */
-  ulint local_seg;
-
-  local_seg = (offset >> (UNIV_PAGE_SIZE_SHIFT + 6)) % m_n_segments;
+  const auto slots_per_seg = slots_per_segment();
 
   for (;;) {
     acquire();
@@ -7027,26 +7116,53 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     os_event_wait(m_not_full);
   }
 
-  ulint counter = 0;
-  Slot *slot = NULL;
-
-  /* We start our search for an available slot from our preferred
-  local segment and do a full scan of the array. We are
-  guaranteed to find a slot in full scan. */
-  for (ulint i = local_seg * slots_per_seg; counter < m_slots.size();
-       ++i, ++counter) {
-    i %= m_slots.size();
-
-    slot = at(i);
-
-    if (slot->is_reserved == false) {
-      break;
+  /* We will check first, next(first), next(next(first))... which should be a
+  permutation of values 0,..,m_slots.size()-1.*/
+  auto find_slot = [this](size_t first, auto next) {
+    size_t i = first;
+    for (size_t counter = 0; counter < m_slots.size(); ++counter) {
+      if (!at(i)->is_reserved) {
+        return i;
+      }
+      i = next(i);
     }
+    /* We know that there is a free slot, because m_n_reserved != m_slots.size()
+    was checked under the mutex protection, which we still hold. Additionally
+    the permutation generated by next() should visit all slots. If we checked
+    m_slots.size() elements of the sequence and not found a free slot, then it
+    was not a permutation, or there was no free slot.*/
+    ut_error;
+  };
+  size_t free_index;
+  if (srv_use_native_aio) {
+    /* We assume the m_slots.size() cannot be changed during runtime. */
+    ut_a(m_last_slot_used < m_slots.size());
+    /* We iterate through slots starting with the last used and then trying next
+    ones from consecutive segments to balance the incoming requests evenly
+    between the AIO threads. */
+    free_index = find_slot(m_last_slot_used, [&](size_t i) {
+      i += slots_per_seg;
+      if (i >= m_slots.size()) {
+        /* Start again from the first segment, this time trying next slot in
+        each segment. If we checked the last slot in segment, start with
+        first slot. */
+        i = (i + 1) % slots_per_seg;
+      }
+      return i;
+    });
+    m_last_slot_used = free_index;
+  } else {
+    /* We attempt to keep adjacent blocks in the same local
+    segment. This can help in merging IO requests when we are
+    doing simulated AIO */
+    const size_t local_seg =
+        (offset >> (UNIV_PAGE_SIZE_SHIFT + 6)) % m_n_segments;
+    /* We start our search for an available slot from our preferred
+    local segment and do a full scan of the array. */
+    free_index = find_slot(local_seg * slots_per_seg,
+                           [&](size_t i) { return (i + 1) % m_slots.size(); });
   }
-
-  /* We MUST always be able to get hold of a reserved slot. */
-  ut_a(counter < m_slots.size());
-
+  Slot *const slot = at(free_index);
   ut_a(slot->is_reserved == false);
 
   ++m_n_reserved;
@@ -7078,8 +7194,12 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   slot->original_len = static_cast<uint32>(len);
   slot->io_already_done = false;
   slot->space_id = space_id;
-  slot->buf_block = NULL;
-  slot->encrypt_log_buf = NULL;
+  slot->buf_block = nullptr;
+  slot->encrypt_log_buf = nullptr;
+
+  if (!srv_use_native_aio) {
+    slot->buf_block = const_cast<file::Block *>(e_block);
+  }
 
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
       type.is_compressed()) {
@@ -7090,7 +7210,10 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     release();
 
     void *src_buf = slot->buf;
-    slot->buf_block = os_file_compress_page(type, src_buf, &compressed_len);
+
+    if (e_block == nullptr) {
+      slot->buf_block = os_file_compress_page(type, src_buf, &compressed_len);
+    }
 
     slot->buf = static_cast<byte *>(src_buf);
     slot->ptr = slot->buf;
@@ -7108,21 +7231,25 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   before compression, the encrypted data will cause compression fail
   or low compression rate. */
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
-      type.is_encrypted() &&
-      (type.encryption_algorithm().m_type != Encryption::KEYRING ||
-       (type.encryption_algorithm().m_key != NULL &&
+      (type.is_encrypted() || e_block != nullptr) &&
+      (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
+       (type.encryption_algorithm().get_key() != NULL &&
         Encryption::can_page_be_keyring_encrypted(slot->buf)))) {
     ulint encrypted_len = slot->len;
-    Block *encrypted_block;
+    file::Block *encrypted_block;
     byte *encrypt_log_buf;
 
     release();
 
     void *src_buf = slot->buf;
     if (!type.is_log()) {
-      encrypted_block = os_file_encrypt_page(type, src_buf, &encrypted_len);
+      if (e_block == nullptr) {
+        encrypted_block = os_file_encrypt_page(type, src_buf, &encrypted_len);
+      } else {
+        encrypted_block = const_cast<file::Block *>(e_block);
+      }
 
-      if (slot->buf_block != NULL) {
+      if (slot->buf_block != nullptr) {
         os_free_block(slot->buf_block);
       }
 
@@ -7133,13 +7260,13 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
         encrypted_block =
             os_file_encrypt_log(type, src_buf, encrypt_log_buf, &encrypted_len);
 
-        if (slot->buf_block != NULL) {
+        if (slot->buf_block != nullptr) {
           os_free_block(slot->buf_block);
         }
 
         slot->buf_block = encrypted_block;
 
-        if (slot->encrypt_log_buf != NULL) {
+        if (slot->encrypt_log_buf != nullptr) {
           ut_free(slot->encrypt_log_buf);
         }
 
@@ -7183,7 +7310,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     ut_a(sizeof(aio_offset) >= sizeof(offset) ||
          ((os_offset_t)aio_offset) == offset);
 
-    struct iocb *iocb = &slot->control;
+    auto iocb = &slot->control;
 
     if (type.is_read()) {
       io_prep_pread(iocb, file.m_file, slot->ptr, slot->len, aio_offset);
@@ -7204,13 +7331,14 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   return (slot);
 }
 
-/** Wakes up a simulated aio i/o-handler thread if it has something to do.
+/** Wakes up a simulated AIO I/O handler thread if it has something to do.
 @param[in]	global_segment	The number of the segment in the AIO arrays */
 void AIO::wake_simulated_handler_thread(ulint global_segment) {
   ut_ad(!srv_use_native_aio);
 
-  AIO *array;
-  ulint segment = get_array_and_local_segment(&array, global_segment);
+  AIO *array{};
+
+  auto segment = get_array_and_local_segment(array, global_segment);
 
   array->wake_simulated_handler_thread(global_segment, segment);
 }
@@ -7237,11 +7365,7 @@ void AIO::wake_simulated_handler_thread(ulint global_segment, ulint segment) {
 
       release();
 
-      os_event_t event;
-
-      event = os_aio_segment_wait_events[global_segment];
-
-      os_event_set(event);
+      os_event_set(os_aio_segment_wait_events[global_segment]);
 
       return;
     }
@@ -7260,7 +7384,7 @@ void os_aio_simulated_wake_handler_threads() {
 
   os_aio_recommend_sleep_for_read_threads = false;
 
-  for (ulint i = 0; i < os_aio_n_segments; i++) {
+  for (ulint i = 0; i < os_aio_n_segments; ++i) {
     AIO::wake_simulated_handler_thread(i);
   }
 }
@@ -7278,7 +7402,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 
   switch (aio_mode) {
     case AIO_mode::NORMAL:
-
       array = type.is_read() ? AIO::s_reads : AIO::s_writes;
       break;
 
@@ -7294,7 +7417,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
       break;
 
     case AIO_mode::LOG:
-
       array = read_only ? AIO::s_reads : AIO::s_log;
       break;
 
@@ -7342,14 +7464,14 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
                                       void **m2, IORequest *type) {
   Slot *slot;
   dberr_t err;
-  AIO *array;
+  AIO *array{};
   ulint orig_seg = segment;
 
   if (segment == ULINT_UNDEFINED) {
     segment = 0;
     array = AIO::sync_array();
   } else {
-    segment = AIO::get_array_and_local_segment(&array, segment);
+    segment = AIO::get_array_and_local_segment(array, segment);
   }
 
   /* NOTE! We only access constant fields in os_aio_array. Therefore
@@ -7475,31 +7597,6 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
 }
 #endif /* WIN_ASYNC_IO */
 
-/**
-NOTE! Use the corresponding macro os_aio(), not directly this function!
-Requests an asynchronous i/o operation.
-@param[in]	type		IO request context
-@param[in]	aio_mode	IO mode
-@param[in]	name		Name of the file or path as NUL terminated
-                                string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[in]	read_only	if true read only mode checks are enforced
-@param[in,out]	m1		Message for the AIO handler, (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is AIO_mode::SYNC
-@param[in,out]	m2		message for the AIO handler (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is AIO_mode::SYNC
-@param[in]	should_buffer	Whether to buffer an aio request.
-                                AIO read ahead uses this. If you plan to
-                                use this parameter, make sure you remember to
-                                call os_aio_dispatch_read_array_submit()
-                                when you're ready to commit all your
-                                requests.
-@return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
                     bool read_only, fil_node_t *m1, void *m2,
@@ -7507,6 +7604,14 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
 #ifdef WIN_ASYNC_IO
   BOOL ret = TRUE;
 #endif /* WIN_ASYNC_IO */
+
+  const file::Block *e_block = type.get_encrypted_block();
+
+#ifdef UNIV_DEBUG
+  if (type.is_write() && e_block != nullptr) {
+    ut_ad(os_block_get_frame(e_block) == buf);
+  }
+#endif /* UNIV_DEBUG */
 
   ut_ad(n > 0);
   ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
@@ -7547,14 +7652,10 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
 
 try_again:
 
-  AIO *array;
+  auto array = AIO::select_slot_array(type, read_only, aio_mode);
 
-  array = AIO::select_slot_array(type, read_only, aio_mode);
-
-  Slot *slot;
-
-  slot =
-      array->reserve_slot(type, m1, m2, file, name, buf, offset, n, space_id);
+  auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n,
+                                  e_block, space_id);
 
   if (type.is_read()) {
     trx_stats::bump_io_read(trx, n);
@@ -7603,9 +7704,9 @@ try_again:
       /* AIO was queued successfully! */
 
       if (aio_mode == AIO_mode::SYNC) {
-        IORequest dummy_type;
         void *dummy_mess2;
-        struct fil_node_t *dummy_mess1;
+        IORequest dummy_type;
+        fil_node_t *dummy_mess1;
 
         /* We want a synchronous i/o operation on a
         file where we also use async i/o: in Windows
@@ -7652,7 +7753,6 @@ class SimulatedAIOHandler {
         m_array(array),
         m_n_slots(),
         m_segment(segment),
-        m_ptr(),
         m_buf() {
     ut_ad(m_segment < 100);
 
@@ -7660,11 +7760,7 @@ class SimulatedAIOHandler {
   }
 
   /** Destructor */
-  ~SimulatedAIOHandler() {
-    if (m_ptr != NULL) {
-      ut_free(m_ptr);
-    }
-  }
+  ~SimulatedAIOHandler() { ut::aligned_free(m_buf); }
 
   /** Reset the state of the handler
   @param[in]	n_slots	Number of pending AIO operations supported */
@@ -7674,12 +7770,10 @@ class SimulatedAIOHandler {
     m_n_slots = n_slots;
     m_lowest_offset = IB_UINT64_MAX;
 
-    if (m_ptr != NULL) {
-      ut_free(m_ptr);
-      m_ptr = m_buf = NULL;
-    }
+    ut::aligned_free(m_buf);
+    m_buf = nullptr;
 
-    m_slots[0] = NULL;
+    m_slots[0] = nullptr;
   }
 
   /** Check if there is a slot for which the i/o has already been done
@@ -7706,7 +7800,7 @@ class SimulatedAIOHandler {
       }
     }
 
-    return (NULL);
+    return (nullptr);
   }
 
   /** If there are at least 2 seconds old requests, then pick the
@@ -7727,7 +7821,7 @@ class SimulatedAIOHandler {
     /* if m_n_elems != 0, then we have assigned
     something valid to consecutive_ios[0] */
     ut_ad(m_n_elems != 0);
-    ut_ad(first_slot() != NULL);
+    ut_ad(first_slot() != nullptr);
 
     Slot *slot = first_slot();
 
@@ -7744,7 +7838,7 @@ class SimulatedAIOHandler {
     ulint len;
     Slot *slot = first_slot();
 
-    ut_ad(m_ptr == NULL);
+    ut_ad(m_buf == nullptr);
 
     if (slot->type.is_read() && m_n_elems > 1) {
       len = 0;
@@ -7753,10 +7847,7 @@ class SimulatedAIOHandler {
         len += m_slots[i]->len;
       }
 
-      m_ptr = static_cast<byte *>(ut_malloc_nokey(len + UNIV_PAGE_SIZE));
-
-      m_buf = static_cast<byte *>(ut_align(m_ptr, UNIV_PAGE_SIZE));
-
+      m_buf = static_cast<byte *>(ut::aligned_alloc(len, UNIV_PAGE_SIZE));
     } else {
       len = first_slot()->len;
       m_buf = first_slot()->buf;
@@ -7957,7 +8048,6 @@ class SimulatedAIOHandler {
 
   slots_t m_slots;
 
-  byte *m_ptr;
   byte *m_buf;
 };
 
@@ -7994,26 +8084,25 @@ ulint SimulatedAIOHandler::check_pending(ulint global_segment,
 thread.
 
 @param[in]	global_segment	The number of the segment in the aio arrays to
-                                wait for; segment 0 is the ibuf i/o thread,
+                                await for; segment 0 is the ibuf i/o thread,
                                 segment 1 the log i/o thread, then follow the
                                 non-ibuf read threads, and as the last are the
                                 non-ibuf write threads
 @param[out]	m1		the messages passed with the AIO request; note
                                 that also in the case where the AIO operation
                                 failed, these output parameters are valid and
-                                can be used to restart
-                                the operation, for example
+                                can be used to restart the operation, for
+                                example
 @param[out]	m2		Callback argument
 @param[in]	type		IO context
 @return DB_SUCCESS or error code */
 static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
                                         void **m2, IORequest *type) {
   Slot *slot;
-  AIO *array;
-  ulint segment;
+  AIO *array{};
   os_event_t event = os_aio_segment_wait_events[global_segment];
 
-  segment = AIO::get_array_and_local_segment(&array, global_segment);
+  auto segment = AIO::get_array_and_local_segment(array, global_segment);
 
   SimulatedAIOHandler handler(array, segment);
 
@@ -8036,7 +8125,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
     slot = handler.check_completed(&n_reserved);
 
-    if (slot != NULL) {
+    if (slot != nullptr) {
       break;
 
     } else if (n_reserved == 0
@@ -8052,9 +8141,9 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
       array->release();
 
-      *m1 = NULL;
+      *m1 = nullptr;
 
-      *m2 = NULL;
+      *m2 = nullptr;
 
       return (DB_SUCCESS);
 
@@ -8080,7 +8169,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
   /** Found a slot that has already completed its IO */
 
-  if (slot == NULL) {
+  if (slot == nullptr) {
     /* Merge adjacent requests */
     handler.merge();
 
@@ -8139,19 +8228,19 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 ulint AIO::total_pending_io_count() {
   ulint count = s_reads->pending_io_count();
 
-  if (s_writes != NULL) {
+  if (s_writes != nullptr) {
     count += s_writes->pending_io_count();
   }
 
-  if (s_ibuf != NULL) {
+  if (s_ibuf != nullptr) {
     count += s_ibuf->pending_io_count();
   }
 
-  if (s_log != NULL) {
+  if (s_log != nullptr) {
     count += s_log->pending_io_count();
   }
 
-  if (s_sync != NULL) {
+  if (s_sync != nullptr) {
     count += s_sync->pending_io_count();
   }
 
@@ -8229,22 +8318,22 @@ void AIO::print(FILE *file) {
 void AIO::print_all(FILE *file) {
   s_reads->print(file);
 
-  if (s_writes != NULL) {
+  if (s_writes != nullptr) {
     fputs(", aio writes:", file);
     s_writes->print(file);
   }
 
-  if (s_ibuf != NULL) {
+  if (s_ibuf != nullptr) {
     fputs(",\n ibuf aio reads:", file);
     s_ibuf->print(file);
   }
 
-  if (s_log != NULL) {
+  if (s_log != nullptr) {
     fputs(", log i/o's:", file);
     s_log->print(file);
   }
 
-  if (s_sync != NULL) {
+  if (s_sync != nullptr) {
     fputs(", sync i/o's:", file);
     s_sync->print(file);
   }
@@ -8286,9 +8375,11 @@ void os_aio_print(FILE *file) {
           fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes,
           os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
-  if (os_n_pending_writes != 0 || os_n_pending_reads != 0) {
+  auto pending_writes = os_n_pending_writes.load();
+  auto pending_reads = os_n_pending_reads.load();
+  if (pending_writes != 0 || pending_reads != 0) {
     fprintf(file, ULINTPF " pending preads, " ULINTPF " pending pwrites\n",
-            os_n_pending_reads, os_n_pending_writes);
+            pending_reads, pending_writes);
   }
 
   if (os_n_file_reads == os_n_file_reads_old) {
@@ -8338,7 +8429,7 @@ bool os_aio_all_slots_free() { return (AIO::total_pending_io_count() == 0); }
 
 #ifdef UNIV_DEBUG
 /** Prints all pending IO for the array
-@param[in]	file	file where to print */
+@param[in,out]	file	file where to print */
 void AIO::to_file(FILE *file) const {
   acquire();
 
@@ -8363,22 +8454,22 @@ void AIO::print_to_file(FILE *file) {
 
   s_reads->to_file(file);
 
-  if (s_writes != NULL) {
+  if (s_writes != nullptr) {
     fprintf(file, "Pending normal aio writes:");
     s_writes->to_file(file);
   }
 
-  if (s_ibuf != NULL) {
+  if (s_ibuf != nullptr) {
     fprintf(file, "Pending ibuf aio reads:");
     s_ibuf->to_file(file);
   }
 
-  if (s_log != NULL) {
+  if (s_log != nullptr) {
     fprintf(file, "Pending log i/o's:");
     s_log->to_file(file);
   }
 
-  if (s_sync != NULL) {
+  if (s_sync != nullptr) {
     fprintf(file, "Pending sync i/o's:");
     s_sync->to_file(file);
   }
@@ -8390,38 +8481,6 @@ void os_aio_print_pending_io(FILE *file) { AIO::print_to_file(file); }
 
 #endif /* UNIV_DEBUG */
 
-Encryption::Encryption(const Encryption &other) noexcept
-    : m_type(other.m_type),
-      m_key(other.m_key),
-      m_klen(other.m_klen),
-      m_key_allocated(other.m_key_allocated),
-      m_iv(other.m_iv),
-      m_tablespace_key(other.m_tablespace_key),
-      m_key_version(other.m_key_version),
-      m_key_id(other.m_key_id),
-      m_checksum(other.m_checksum),
-      m_encryption_rotation(other.m_encryption_rotation) {
-  if (other.m_key_allocated && other.m_key != NULL)
-    m_key = static_cast<byte *>(
-        my_memdup(PSI_NOT_INSTRUMENTED, other.m_key, other.m_klen, MYF(0)));
-  memcpy(m_key_id_uuid, other.m_key_id_uuid, ENCRYPTION_SERVER_UUID_LEN + 1);
-}
-
-Encryption::~Encryption() {
-  if (m_key_allocated && m_key != NULL) {
-    my_free(m_key);
-  }
-}
-
-void Encryption::set_key(byte *key, ulint key_len, bool allocated) {
-  if (m_key_allocated && m_key != NULL) {
-    my_free(m_key);
-  }
-  m_key = key;
-  m_klen = key_len;
-  m_key_allocated = allocated;
-}
-
 /** Set the file create umask
 @param[in]	umask		The umask to use for file creation. */
 void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
@@ -8429,1873 +8488,6 @@ void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
 /** Get the file create umask
 @return the umask to use for file creation. */
 ulint os_file_get_umask() { return (os_innodb_umask); }
-
-/**
-@param[in]      type            The encryption type
-@return the string representation */
-const char *Encryption::to_string(Type type) {
-  switch (type) {
-    case NONE:
-      return ("N");
-    case AES:
-      return ("Y");
-    case KEYRING:
-      return ("KEYRING");
-  }
-
-  ut_ad(0);
-
-  return ("<UNKNOWN>");
-}
-
-/** Generate random encryption value for key and iv.
-@param[in,out]	value	Encryption value */
-void Encryption::random_value(byte *value) {
-  ut_ad(value != NULL);
-
-  my_rand_buffer(value, ENCRYPTION_KEY_LEN);
-}
-
-void Encryption::fill_key_name(char *key_name, uint key_id, const char *uuid) {
-#ifndef UNIV_INNOCHECKSUM
-  // Each key that we fetch/remove/store in keyring for KEYRING encryption has
-  // to go through one of fill_key_name function. All InnoDB keys used for
-  // KEYRING encryption should have uuid assigned.
-  ut_ad(strlen(uuid) > 0);
-
-  memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-
-  snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%u-%s",
-           ENCRYPTION_PERCONA_SYSTEM_KEY_PREFIX, key_id, uuid);
-#endif
-}
-
-void Encryption::fill_key_name(char *key_name, uint key_id, const char *uuid,
-                               uint key_version) {
-#ifndef UNIV_INNOCHECKSUM
-  // Each key that we fetch/remove/store in keyring for KEYRING encryption has
-  // to go through one of fill_key_name function. All InnoDB keys used for
-  // KEYRING encryption should have uuid assigned.
-  ut_ad(strlen(uuid) > 0);
-
-  memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-
-  snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%u-%s:%u",
-           ENCRYPTION_PERCONA_SYSTEM_KEY_PREFIX, key_id, uuid, key_version);
-#endif
-}
-
-void Encryption::create_tablespace_key(byte **tablespace_key, uint key_id,
-                                       const char *uuid) {
-#ifndef UNIV_INNOCHECKSUM
-  char *key_type = nullptr;
-  size_t key_len;
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-  int ret;
-
-  // Newly created tablespace keys should always have uuid equal to server_uuid.
-  // There are situations when server_uuid is not available - like when parsing
-  // redo logs. Then we read uuid from crypto's redo log.
-  ut_ad(strlen(server_uuid) == 0 ||
-        memcmp(server_uuid, uuid, ENCRYPTION_SERVER_UUID_LEN) == 0);
-
-  fill_key_name(key_name, key_id, uuid);
-
-  /* We call key ring API to generate tablespace key here. */
-  ret = my_key_generate(key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
-
-  if (ret) {
-    ib::error() << "Encryption can't generate tablespace key : " << key_name;
-    *tablespace_key = nullptr;
-    return;
-  }
-
-  byte *system_tablespace_key = nullptr;
-  /* We call key ring API to get tablespace key here. */
-  ret =
-      my_key_fetch(key_name, &key_type, nullptr,
-                   reinterpret_cast<void **>(&system_tablespace_key), &key_len);
-
-  if (ret || system_tablespace_key == nullptr) {
-    ib::error() << "Encryption can't find tablespace key " << key_name
-                << " please check"
-                   " that the keyring plugin is loaded.";
-    *tablespace_key = NULL;
-    my_free(key_type);
-    return;
-  }
-  my_free(key_type);
-
-  uint tablespace_key_version = 0;
-  size_t tablespace_key_data_length = 0;
-
-  if (parse_system_key(system_tablespace_key, key_len, &tablespace_key_version,
-                       tablespace_key, &tablespace_key_data_length) == NULL) {
-    my_free(system_tablespace_key);
-    return;
-  }
-  my_free(system_tablespace_key);
-  // Newly created key should have 1 assigned as its key version
-  ut_ad(tablespace_key_version == 1);
-  ut_ad(tablespace_key_data_length == ENCRYPTION_KEY_LEN);
-#endif
-}
-
-void Encryption::get_keyring_key(const char *key_name, byte **key,
-                                 size_t *key_len) {
-#ifndef UNIV_INNOCHECKSUM
-  int ret;
-  char *key_type = NULL;
-  /* We call key ring API to get master key here. */
-  ret = my_key_fetch(key_name, &key_type, NULL, reinterpret_cast<void **>(key),
-                     key_len);
-
-  if (key_type) {
-    my_free(key_type);
-  }
-
-  if (ret) {
-    *key = NULL;
-  }
-#endif
-}
-
-bool Encryption::get_tablespace_key(uint key_id, const char *uuid,
-                                    uint tablespace_key_version,
-                                    byte **tablespace_key, size_t *key_len) {
-  bool result = true;
-#ifndef UNIV_INNOCHECKSUM
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-
-  fill_key_name(key_name, key_id, uuid, tablespace_key_version);
-
-  Encryption::get_keyring_key(key_name, tablespace_key, key_len);
-
-  if (*tablespace_key == NULL) {
-    ib::error() << "Encryption can't find tablespace key, please check"
-                   " the keyring plugin is loaded.";
-    result = false;
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  if (*tablespace_key) {
-    fprintf(stderr, "Fetched tablespace key:%s ", key_name);
-    ut_print_buf(stderr, *tablespace_key, *key_len);
-    fprintf(stderr, "\n");
-  }
-#endif /* DEBUG_TDE */
-#endif
-  return result;
-}
-
-void Encryption::get_latest_system_key(const char *system_key_name, byte **key,
-                                       uint *key_version, size_t *key_length) {
-#ifndef UNIV_INNOCHECKSUM
-  size_t system_key_len = 0;
-  uchar *system_key = NULL;
-  get_keyring_key(system_key_name, &system_key, &system_key_len);
-  if (system_key == NULL) {
-    *key = NULL;
-    return;
-  }
-
-  parse_system_key(system_key, system_key_len, key_version, (uchar **)key,
-                   key_length);
-  my_free(system_key);
-#endif
-}
-
-// tablespace_key_version as output parameter
-void Encryption::get_latest_tablespace_key(uint key_id, const char *uuid,
-                                           uint *tablespace_key_version,
-                                           byte **tablespace_key) {
-#ifndef UNIV_INNOCHECKSUM
-  size_t key_len;
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-
-  fill_key_name(key_name, key_id, uuid);
-
-  get_latest_system_key(key_name, tablespace_key, tablespace_key_version,
-                        &key_len);
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  if (*tablespace_key) {
-    fprintf(stderr, "Fetched tablespace key:%s ", key_name);
-    ut_print_buf(stderr, *tablespace_key, key_len);
-    fprintf(stderr, "\n");
-  }
-#endif /* DEBUG_TDE */
-
-#endif
-}
-
-bool Encryption::tablespace_key_exists(uint key_id, const char *uuid) {
-  uint tablespace_key_version = 0;
-  byte *tablespace_key = NULL;
-
-  get_latest_tablespace_key(key_id, uuid, &tablespace_key_version,
-                            &tablespace_key);
-
-  if (tablespace_key == NULL) {
-    return false;
-  }
-
-  my_free(tablespace_key);
-  return true;
-}
-
-bool Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
-    uint key_id, const char *uuid) {
-  uint tablespace_key_version;
-  byte *tablespace_key;
-
-  get_latest_key_or_create(key_id, uuid, &tablespace_key_version,
-                           &tablespace_key);
-
-  if (tablespace_key == NULL) {
-    return false;
-  }
-
-  my_free(tablespace_key);
-  return true;
-}
-
-bool Encryption::create_tablespace_key(EncryptionKeyId key_id) {
-  byte *tablespace_key = nullptr;
-  Encryption::create_tablespace_key(&tablespace_key, key_id, server_uuid);
-  if (tablespace_key == nullptr) {
-    return true;
-  }
-  my_free(tablespace_key);
-  return false;
-}
-
-void Encryption::get_latest_key_or_create(uint tablespace_key_id,
-                                          const char *uuid,
-                                          uint *tablespace_key_version,
-                                          byte **tablespace_key) {
-  get_latest_tablespace_key(tablespace_key_id, uuid, tablespace_key_version,
-                            tablespace_key);
-  if (*tablespace_key == NULL) {
-    Encryption::create_tablespace_key(tablespace_key, tablespace_key_id, uuid);
-    *tablespace_key_version = 1;
-  }
-}
-
-/** Checks if keyring is installed and it is operational.
- *  This is done by trying to fetch/create
- *  dummy percona_keyring_test key
-@return true if success */
-bool Encryption::is_keyring_alive() {
-  byte *keyring_test_key{nullptr};
-  size_t key_len{0};
-  const char *percona_keyring_test_key_name{"percona_keyring_test"};
-
-  Encryption::get_keyring_key(percona_keyring_test_key_name, &keyring_test_key,
-                              &key_len);
-
-  if (keyring_test_key != nullptr) {
-    my_free(keyring_test_key);
-    return true;
-  }
-
-  int ret = my_key_generate(percona_keyring_test_key_name, "AES", nullptr,
-                            ENCRYPTION_KEY_LEN);
-
-  return (ret == 0) ? true : false;
-}
-
-bool Encryption::can_page_be_keyring_encrypted(ulint page_type) {
-  switch (page_type) {
-    case FIL_PAGE_TYPE_FSP_HDR:
-    case FIL_PAGE_TYPE_XDES:
-    case FIL_PAGE_RTREE:
-      /* File space header, extent descriptor or spatial index
-      are not encrypted. */
-      return false;
-  }
-  return true;
-}
-
-bool Encryption::can_page_be_keyring_encrypted(byte *page) {
-  ut_ad(page != NULL);
-  return can_page_be_keyring_encrypted(mach_read_from_2(page + FIL_PAGE_TYPE));
-}
-
-uint Encryption::encryption_get_latest_version(uint key_id, const char *uuid) {
-#ifndef UNIV_INNOCHECKSUM
-  uint tablespace_key_version = ENCRYPTION_KEY_VERSION_INVALID;
-  byte *tablespace_key = nullptr;
-
-  get_latest_tablespace_key(key_id, uuid, &tablespace_key_version,
-                            &tablespace_key);
-
-  if (tablespace_key == NULL) return ENCRYPTION_KEY_VERSION_INVALID;
-
-  my_free(tablespace_key);
-  return tablespace_key_version;
-#endif
-  return ENCRYPTION_KEY_VERSION_INVALID;
-}
-
-/** Create new master key for key rotation.
-@param[in,out]	master_key	master key */
-void Encryption::create_master_key(byte **master_key) {
-#ifndef UNIV_HOTBACKUP
-  size_t key_len;
-  char *key_type = NULL;
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-
-  /* If uuid does not match with current server uuid,
-  set uuid as current server uuid. */
-  if (strcmp(s_uuid, server_uuid) != 0) {
-    memcpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
-  }
-
-  /* Generate new master key */
-  snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%s-" ULINTPF,
-           ENCRYPTION_MASTER_KEY_PRIFIX, s_uuid, s_master_key_id + 1);
-
-  /* We call key ring API to generate master key here. */
-  int ret = my_key_generate(key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
-
-  /* We call key ring API to get master key here. */
-  ret = my_key_fetch(key_name, &key_type, nullptr,
-                     reinterpret_cast<void **>(master_key), &key_len);
-
-  if (ret != 0 || *master_key == nullptr) {
-    ib::error(ER_IB_MSG_831) << "Encryption can't find master key,"
-                             << " please check the keyring plugin is loaded."
-                             << " ret=" << ret;
-
-    *master_key = nullptr;
-  } else {
-    ++s_master_key_id;
-  }
-
-  if (key_type != nullptr) {
-    my_free(key_type);
-  }
-#endif /* !UNIV_HOTBACKUP */
-}
-
-/** Get master key by key id.
-@param[in]	master_key_id	master key id
-@param[in]	srv_uuid	uuid of server instance
-@param[in,out]	master_key	master key */
-void Encryption::get_master_key(ulint master_key_id, char *srv_uuid,
-                                byte **master_key) {
-  size_t key_len = 0;
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-
-  memset(key_name, 0x0, sizeof(key_name));
-
-  if (srv_uuid != nullptr) {
-    ut_ad(strlen(srv_uuid) > 0);
-
-    snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%s-" ULINTPF,
-             ENCRYPTION_MASTER_KEY_PRIFIX, srv_uuid, master_key_id);
-  } else {
-    /* For compitable with 5.7.11, we need to get master key with
-    server id. */
-
-    snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" ULINTPF,
-             ENCRYPTION_MASTER_KEY_PRIFIX, server_id, master_key_id);
-  }
-
-#ifndef UNIV_HOTBACKUP
-  /* We call key ring API to get master key here. */
-  get_keyring_key(key_name, master_key, &key_len);
-#else  /* !UNIV_HOTBACKUP */
-  /* We call MEB to get master key here. */
-  int ret = meb_key_fetch(key_name, &key_type, NULL,
-                          reinterpret_cast<void **>(master_key), &key_len);
-  if (key_type != nullptr) {
-    my_free(key_type);
-  }
-
-  if (ret != 0) {
-    *master_key = nullptr;
-  }
-#endif /* !UNIV_HOTBACKUP */
-  if (*master_key == NULL) {
-    ib::error(ER_IB_MSG_832) << "Encryption can't find master key,"
-                             << " please check the keyring plugin is loaded.";
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  if (*master_key != nullptr) {
-    std::ostringstream msg;
-
-    ut_print_buf(msg, *master_key, key_len);
-
-    ib::info(ER_IB_MSG_833)
-        << "Fetched master key: " << master_key_id << "{" << msg.str() << "}";
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-}
-
-/** Current master key id */
-ulint Encryption::s_master_key_id = 0;
-
-/** Current uuid of server instance */
-char Encryption::s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
-
-/** Get current master key and master key id
-@param[in,out]	master_key_id	master key id
-@param[in,out]	master_key	master key */
-void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
-#ifndef UNIV_HOTBACKUP
-  int ret;
-  size_t key_len;
-  char *key_type = nullptr;
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-  extern ib_mutex_t master_key_id_mutex;
-  bool key_id_locked = false;
-
-  if (s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
-    /* Take mutex as master_key_id is going to change. */
-    mutex_enter(&master_key_id_mutex);
-    key_id_locked = true;
-  }
-
-  memset(key_name, 0x0, sizeof(key_name));
-
-  /* Check for s_master_key_id again, as a parallel rotation might have caused
-  it to change. */
-  if (s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
-    memset(s_uuid, 0x0, sizeof(s_uuid));
-
-    /* If m_master_key is ENCRYPTION_DEFAULT_MASTER_KEY_ID, it means there's
-    no encrypted tablespace yet. Generate the first master key now and store
-    it to keyring. */
-    memcpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
-
-    /* Prepare the server s_uuid. */
-    snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%s-1",
-             ENCRYPTION_MASTER_KEY_PRIFIX, s_uuid);
-
-    /* We call key ring API to generate master key here. */
-    ret = my_key_generate(key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
-
-    /* We call key ring API to get master key here. */
-    ret = my_key_fetch(key_name, &key_type, nullptr,
-                       reinterpret_cast<void **>(master_key), &key_len);
-
-    if (ret == 0 && *master_key != nullptr) {
-      ++s_master_key_id;
-      *master_key_id = s_master_key_id;
-    }
-#ifdef UNIV_ENCRYPT_DEBUG
-    if (ret == 0 && *master_key != nullptr) {
-      std::ostringstream msg;
-
-      ut_print_buf(msg, *master_key, key_len);
-
-      ib::info(ER_IB_MSG_834)
-          << "Generated new master key: {" << msg.str() << "}";
-    }
-#endif /* UNIV_ENCRYPT_DEBUG */
-  } else {
-    *master_key_id = s_master_key_id;
-
-    snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%s-" ULINTPF,
-             ENCRYPTION_MASTER_KEY_PRIFIX, s_uuid, *master_key_id);
-
-    /* We call key ring API to get master key here. */
-    ret = my_key_fetch(key_name, &key_type, nullptr,
-                       reinterpret_cast<void **>(master_key), &key_len);
-
-    /* For compitability with 5.7.11, we need to try to get master
-    key with server id when get master key with server uuid
-    failure. */
-    if (ret != 0 || *master_key == nullptr) {
-      if (key_type != nullptr) {
-        my_free(key_type);
-      }
-
-      snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" ULINTPF,
-               ENCRYPTION_MASTER_KEY_PRIFIX, server_id, *master_key_id);
-
-      ret = my_key_fetch(key_name, &key_type, nullptr,
-                         reinterpret_cast<void **>(master_key), &key_len);
-    }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-    if (ret == 0 && *master_key != nullptr) {
-      std::ostringstream msg;
-
-      ut_print_buf(msg, *master_key, key_len);
-
-      ib::info(ER_IB_MSG_835) << "Fetched master key: " << *master_key_id
-                              << ": {" << msg.str() << "}";
-    }
-#endif /* UNIV_ENCRYPT_DEBUG */
-  }
-
-  if (ret != 0) {
-    *master_key = nullptr;
-    ib::error(ER_IB_MSG_836) << "Encryption can't find master key, please check"
-                             << " the keyring plugin is loaded.";
-  }
-
-  if (key_type != nullptr) {
-    my_free(key_type);
-  }
-
-  if (key_id_locked) {
-    mutex_exit(&master_key_id_mutex);
-  }
-
-#endif /* !UNIV_HOTBACKUP */
-}
-
-/** Fill the encryption information.
-@param[in]	key		encryption key
-@param[in]	iv		encryption iv
-@param[in,out]	encrypt_info	encryption information
-@param[in]	is_boot		if it's for bootstrap
-@return true if success */
-bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                      bool is_boot, bool encrypt_key) {
-  byte *master_key = nullptr;
-  ulint master_key_id = 0;
-  bool is_default_master_key = false;
-
-  /* Get master key from key ring. For bootstrap, we use a default
-  master key which master_key_id is 0. */
-  if (encrypt_key) {
-    if (is_boot || strlen(server_uuid) == 0) {
-      master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
-
-      ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
-
-      strcpy(reinterpret_cast<char *>(master_key),
-             ENCRYPTION_DEFAULT_MASTER_KEY);
-      is_default_master_key = true;
-      default_master_key_used = is_default_master_key;
-    } else {
-      get_master_key(&master_key_id, &master_key);
-
-      if (master_key == nullptr) {
-        return (false);
-      }
-    }
-  }
-
-  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
-
-  /* Use the new master key to encrypt the key. */
-  ut_ad(encrypt_info != nullptr);
-  auto ptr = encrypt_info;
-
-  memcpy(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE);
-
-  ptr += ENCRYPTION_MAGIC_SIZE;
-
-  /* Write master key id. */
-  mach_write_to_4(ptr, master_key_id);
-  ptr += sizeof(uint32);
-
-  /* Write server uuid. */
-  memcpy(reinterpret_cast<char *>(ptr), s_uuid, sizeof(s_uuid));
-  ptr += sizeof(s_uuid) - 1;
-
-  /* We should never write empty UUID. Only exemption is for
-  tablespaces when InnoDB is initializing (like system, temp, etc).
-  These tablespaces UUID will be fixed by handlerton API after server
-  generates uuid */
-  ut_ad(!srv_is_uuid_ready || strlen(s_uuid) != 0);
-
-  byte key_info[ENCRYPTION_KEY_LEN * 2];
-
-  memset(key_info, 0x0, sizeof(key_info));
-
-  memcpy(key_info, key, ENCRYPTION_KEY_LEN);
-
-  memcpy(key_info + ENCRYPTION_KEY_LEN, iv, ENCRYPTION_KEY_LEN);
-
-  if (encrypt_key) {
-    /* Encrypt key and iv. */
-    auto elen =
-        my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
-                       ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
-
-    if (elen == MY_AES_BAD_DATA) {
-      my_free(master_key);
-      return (false);
-    }
-  } else {
-    /* Keep tablespace key unencrypted. Used by clone. */
-    memcpy(ptr, key_info, sizeof(key_info));
-  }
-
-  ptr += sizeof(key_info);
-
-  /* Write checksum bytes. */
-  auto crc = ut_crc32(key_info, sizeof(key_info));
-
-  mach_write_to_4(ptr, crc);
-
-  if (encrypt_key) {
-    ut_ad(master_key != nullptr);
-    if (is_default_master_key) {
-      ut_free(master_key);
-    } else {
-      my_free(master_key);
-    }
-  }
-
-  return (true);
-}
-
-bool Encryption::fill_encryption_info(uint key_version, byte *iv,
-                                      byte *encrypt_info) {
-  byte *ptr = encrypt_info;
-  ulint crc;
-  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
-  memcpy(ptr, ENCRYPTION_KEY_MAGIC_RK_V2, ENCRYPTION_MAGIC_SIZE);
-  ptr += ENCRYPTION_MAGIC_SIZE;
-  /* Write master key id. */
-  mach_write_to_4(ptr, key_version);
-  ptr += 4;
-  /* Write server uuid. */
-  memcpy(ptr, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
-  ptr += ENCRYPTION_SERVER_UUID_LEN;
-  /* Write tablespace iv. */
-  memcpy(ptr, iv, ENCRYPTION_KEY_LEN);
-  ptr += ENCRYPTION_KEY_LEN;
-  /* Write checksum bytes. */
-  crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN);
-  mach_write_to_4(ptr, crc);
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Encrypting log with key version: %u\n", key_version);
-#endif
-  return true;
-}
-
-/** Get master key from encryption information
-@param[in]	encrypt_info	encryption information
-@param[in]	version		version of encryption information
-@param[in,out]	m_key_id	master key id
-@param[in,out]	srv_uuid	server uuid
-@param[in,out]	master_key	master key
-@return position after master key id or uuid, or the old position
-if can't get the master key. */
-byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
-                                           uint32_t *m_key_id, char *srv_uuid,
-                                           byte **master_key) {
-  byte *ptr;
-  uint32 key_id;
-
-  ptr = encrypt_info;
-  *m_key_id = 0;
-
-  /* Get master key id. */
-  key_id = mach_read_from_4(ptr);
-  ptr += sizeof(uint32);
-
-  /* Handle different version encryption information. */
-  switch (version) {
-    case ENCRYPTION_VERSION_1:
-      /* For version 1, it's possible master key id
-      occupied 8 bytes. */
-      if (mach_read_from_4(ptr) == 0) {
-        ptr += sizeof(uint32);
-      }
-
-      get_master_key(key_id, nullptr, master_key);
-      if (*master_key == nullptr) {
-        return (encrypt_info);
-      }
-
-      *m_key_id = key_id;
-      return (ptr);
-
-    case ENCRYPTION_VERSION_2:
-      /* For version 2, it's also possible master key id
-      occupied 8 bytes. */
-      if (mach_read_from_4(ptr) == 0) {
-        ptr += sizeof(uint32);
-      }
-
-      /* Get server uuid. */
-      memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-      memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
-
-      ut_ad(strlen(srv_uuid) != 0);
-      ptr += ENCRYPTION_SERVER_UUID_LEN;
-
-      /* Get master key. */
-      get_master_key(key_id, srv_uuid, master_key);
-      if (*master_key == nullptr) {
-        return (encrypt_info);
-      }
-
-      *m_key_id = key_id;
-      break;
-
-    case ENCRYPTION_VERSION_3:
-      /* Get server uuid. */
-      memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-      memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
-
-      ptr += ENCRYPTION_SERVER_UUID_LEN;
-
-      if (key_id == 0) {
-        /* When key_id is 0, which means it's the
-        default master key for bootstrap. */
-        *master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
-        memcpy(*master_key, ENCRYPTION_DEFAULT_MASTER_KEY,
-               strlen(ENCRYPTION_DEFAULT_MASTER_KEY));
-        *m_key_id = 0;
-      } else {
-        ut_ad(strlen(srv_uuid) != 0);
-
-        /* Get master key. */
-        get_master_key(key_id, srv_uuid, master_key);
-        if (*master_key == nullptr) {
-          return (encrypt_info);
-        }
-
-        *m_key_id = key_id;
-      }
-      break;
-  }
-
-  ut_ad(*master_key != nullptr);
-
-  return (ptr);
-}
-
-/** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	key		key
-@param[in,out]	iv		iv
-@param[in]	encryption_info	encryption info
-@return true if success */
-bool Encryption::decode_encryption_info(byte *key, byte *iv,
-                                        byte *encryption_info,
-                                        bool decrypt_key) {
-  byte *ptr;
-  byte *master_key = nullptr;
-  uint32 master_key_id = 0;
-  byte key_info[ENCRYPTION_KEY_LEN * 2];
-  ulint crc1;
-  ulint crc2;
-  char srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
-  Version version;
-
-  ptr = encryption_info;
-
-  /* For compatibility with 5.7.11, we need to handle the
-  encryption information which created in this old version. */
-  if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE) == 0) {
-    version = ENCRYPTION_VERSION_1;
-  } else if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
-    version = ENCRYPTION_VERSION_2;
-  } else if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) == 0) {
-    version = ENCRYPTION_VERSION_3;
-  } else {
-    /* We don't report an error during recovery, since the
-    encryption info maybe hasn't writen into datafile when
-    the table is newly created. */
-    if (recv_recovery_is_on()) {
-      return (true);
-    }
-
-    ib::error(ER_IB_MSG_837) << "Failed to decrypt encryption information,"
-                             << " found unexpected version of it!";
-    return (false);
-  }
-
-  ptr += ENCRYPTION_MAGIC_SIZE;
-
-  if (decrypt_key) {
-    /* Get master key by key id. */
-    ptr = get_master_key_from_info(ptr, version, &master_key_id, srv_uuid,
-                                   &master_key);
-
-    /* If can't find the master key, return failure. */
-    if (master_key == nullptr) {
-      return (false);
-    }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-    {
-      std::ostringstream msg;
-
-      ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
-
-      ib::info(ER_IB_MSG_838)
-          << "Key ID: " << m_key_id << " hex: {" << msg.str() << "}";
-    }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-    /* Decrypt tablespace key and iv. */
-    auto len =
-        my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
-                       ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
-
-    if (master_key_id == 0) {
-      ut_free(master_key);
-    } else {
-      my_free(master_key);
-    }
-
-    /* If decryption failed, return error. */
-    if (len == MY_AES_BAD_DATA) {
-      return (false);
-    }
-  } else {
-    ut_ad(version == ENCRYPTION_VERSION_3);
-    /* Skip master Key and server UUID*/
-    ptr += sizeof(uint32);
-    ptr += ENCRYPTION_SERVER_UUID_LEN;
-
-    /* Get tablespace key information. */
-    memcpy(key_info, ptr, sizeof(key_info));
-  }
-
-  /* Check checksum bytes. */
-  ptr += sizeof(key_info);
-
-  crc1 = mach_read_from_4(ptr);
-  crc2 = ut_crc32(key_info, sizeof(key_info));
-
-  if (crc1 != crc2) {
-    /* This check could fail only while decrypting key. */
-    ut_ad(decrypt_key);
-
-    ib::error(ER_IB_MSG_839)
-        << "Failed to decrypt encryption information,"
-        << " please check whether key file has been changed!";
-
-    return (false);
-  }
-
-  /* Get tablespace key */
-  memcpy(key, key_info, ENCRYPTION_KEY_LEN);
-
-  /* Get tablespace iv */
-  memcpy(iv, key_info + ENCRYPTION_KEY_LEN, ENCRYPTION_KEY_LEN);
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    std::ostringstream msg;
-
-    ut_print_buf_hex(msg, key, ENCRYPTION_KEY_LEN);
-
-    ib::info(ER_IB_MSG_840) << "Key: {" << msg.str() << "}";
-  }
-  {
-    std::ostringstream msg;
-
-    ut_print_buf_hex(msg, iv, ENCRYPTION_KEY_LEN);
-    ib::info(ER_IB_MSG_841) << "IV: {" << msg.str() << "}";
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  if (decrypt_key && (s_master_key_id < master_key_id)) {
-    s_master_key_id = master_key_id;
-    memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
-  }
-
-  return (true);
-}
-
-/** Check if page is encrypted page or not
-@param[in]	page	page which need to check
-@return true if it is a encrypted page */
-bool Encryption::is_encrypted_page(const byte *page) {
-  ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
-
-  return (page_type == FIL_PAGE_ENCRYPTED ||
-          page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED ||
-          page_type == FIL_PAGE_ENCRYPTED_RTREE);
-}
-
-bool Encryption::is_encrypted_and_compressed(const byte *page) {
-  ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
-
-  return page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED;
-}
-
-/** Check if redo log block is encrypted block or not
-@param[in]	block	log block to check
-@return true if it is an encrypted block */
-bool Encryption::is_encrypted_log(const byte *block) {
-  return (log_block_get_encrypt_bit(block));
-}
-
-/** Encrypt the redo log block.
-@param[in]	type		IORequest
-@param[in]	src_ptr		log block which need to encrypt
-@param[in,out]	dst_ptr		destination area
-@return true if success. */
-bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
-                                   byte *dst_ptr) {
-  ulint len = 0;
-  ulint main_len;
-  ulint remain_len;
-  byte remain_buf[MY_AES_BLOCK_SIZE * 2];
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    std::ostringstream msg;
-
-    ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-
-    ib::info(ER_IB_MSG_842)
-        << "Encrypting block: " << log_block_get_hdr_no(src_ptr) << "{"
-        << msg.str() << "}";
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  /* This is data size which need to encrypt. */
-  const ulint unencrypted_trailer_size =
-      (m_type == Encryption::KEYRING) ? LOG_BLOCK_TRL_SIZE : 0;
-  const ulint data_len =
-      OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - unencrypted_trailer_size;
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
-
-  /* Encrypt the block. */
-  /* Copy the header as is. */
-  memmove(dst_ptr, src_ptr, LOG_BLOCK_HDR_SIZE);
-  ut_ad(memcmp(src_ptr, dst_ptr, LOG_BLOCK_HDR_SIZE) == 0);
-
-  switch (m_type) {
-    case Encryption::NONE:
-      ut_error;
-
-    case Encryption::KEYRING:
-    case Encryption::AES: {
-      ut_ad(m_klen == ENCRYPTION_KEY_LEN);
-
-      auto elen = my_aes_encrypt(
-          src_ptr + LOG_BLOCK_HDR_SIZE, static_cast<uint32>(main_len),
-          dst_ptr + LOG_BLOCK_HDR_SIZE,
-          reinterpret_cast<unsigned char *>(m_key), static_cast<uint32>(m_klen),
-          my_aes_256_cbc, reinterpret_cast<unsigned char *>(m_iv), false);
-
-      if (elen == MY_AES_BAD_DATA) {
-        return (false);
-      }
-
-      len = static_cast<ulint>(elen);
-      ut_ad(len == main_len);
-
-      /* Copy remain bytes. */
-      memcpy(dst_ptr + LOG_BLOCK_HDR_SIZE + len,
-             src_ptr + LOG_BLOCK_HDR_SIZE + len,
-             OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - len);
-
-      /* Encrypt the remain bytes. Since my_aes_encrypt
-      request the content which need to encrypt is
-      multiple of MY_AES_BLOCK_SIZE, but the block
-      content is possiblly not, so, we need to handle
-      the tail bytes first. */
-      if (remain_len != 0) {
-        remain_len = MY_AES_BLOCK_SIZE * 2;
-
-        elen =
-            my_aes_encrypt(dst_ptr + LOG_BLOCK_HDR_SIZE + data_len - remain_len,
-                           static_cast<uint32>(remain_len), remain_buf,
-                           reinterpret_cast<unsigned char *>(m_key),
-                           static_cast<uint32>(m_klen), my_aes_256_cbc,
-                           reinterpret_cast<unsigned char *>(m_iv), false);
-
-        if (elen == MY_AES_BAD_DATA) {
-          return (false);
-        }
-
-        memcpy(dst_ptr + LOG_BLOCK_HDR_SIZE + data_len - remain_len, remain_buf,
-               remain_len);
-      }
-
-      break;
-    }
-
-    default:
-      ut_error;
-  }
-
-  /* Set the encrypted flag. */
-  log_block_set_encrypt_bit(dst_ptr, true);
-
-  if (m_type == Encryption::KEYRING) {
-    const ulint crc = log_block_calc_checksum_crc32(dst_ptr);
-    log_block_set_checksum(dst_ptr, crc + m_key_version);
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Encrypted block %u.\n", log_block_get_hdr_no(dst_ptr));
-  std::ostringstream msg;
-  ut_print_buf_hex(msg, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "%s\n", msg.str().c_str());
-
-  byte *check_buf =
-      static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-
-  memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  log_block_set_encrypt_bit(check_buf, true);
-  dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
-                            OS_FILE_LOG_BLOCK_SIZE);
-  if (err != DB_SUCCESS ||
-      memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) !=
-          0) {
-    msg.clear();
-    msg << "\n\n";
-    ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-    msg << "\n\n";
-    ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-    msg << "\n\n";
-    std::string str = msg.str();
-    fprintf(stderr, "%s\n", str.c_str());
-    ut_ad(0);
-  }
-  ut_free(buf2);
-  ut_free(check_buf);
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  return (true);
-}
-
-/** Encrypt the redo log data contents.
-@param[in]	type		IORequest
-@param[in]	src		page data which need to encrypt
-@param[in]	src_len		Size of the source in bytes
-@param[in,out]	dst		destination area
-@param[in,out]	dst_len		Size of the destination in bytes
-@return buffer data, dst_len will have the length of the data */
-byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
-                              byte *dst, ulint *dst_len) {
-  byte *src_ptr = src;
-  byte *dst_ptr = dst;
-
-  ut_ad(type.is_log());
-  ut_ad(src_len % OS_FILE_LOG_BLOCK_SIZE == 0);
-  ut_ad(m_type != Encryption::NONE);
-
-  /* Encrypt the log blocks one by one. */
-  while (src_ptr != src + src_len) {
-    if (!encrypt_log_block(type, src_ptr, dst_ptr)) {
-      *dst_len = src_len;
-      ib::error(ER_IB_MSG_843) << " Can't encrypt data of"
-                               << " redo log";
-      return (src);
-    }
-
-    src_ptr += OS_FILE_LOG_BLOCK_SIZE;
-    dst_ptr += OS_FILE_LOG_BLOCK_SIZE;
-  }
-
-  return (dst);
-}
-
-/** Encrypt the page data contents. Page type can't be
-FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
-FIL_PAGE_ENCRYPTED_RTREE.
-@param[in]	type		IORequest
-@param[in]	src		page data which need to encrypt
-@param[in]	src_len		Size of the source in bytes
-@param[in,out]	dst		destination area
-@param[in,out]	dst_len		Size of the destination in bytes
-@return buffer data, dst_len will have the length of the data */
-byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
-                          byte *dst, ulint *dst_len) {
-  ulint len = 0;
-  ulint page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
-  ulint data_len;
-  ulint main_len;
-  ulint remain_len;
-  byte remain_buf[MY_AES_BLOCK_SIZE * 2];
-
-  /* For encrypting redo log, take another way. */
-  ut_ad(!type.is_log());
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  ulint space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-  ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-
-  fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n", space_id, page_no,
-          src_len);
-  ut_print_buf(stderr, m_key, 32);
-  ut_print_buf(stderr, m_iv, 32);
-#endif /* UNIV_ENCRYPT_DEBUG */
-  // Destination header might need to acommodate key_version and checksum after
-  // encryption
-  const uint DST_HEADER_SIZE =
-      (m_type == Encryption::KEYRING && page_type == FIL_PAGE_COMPRESSED)
-          ? FIL_PAGE_DATA + 8
-          : FIL_PAGE_DATA;
-
-  /* Shouldn't encrypte an already encrypted page. */
-  ut_ad(page_type != FIL_PAGE_ENCRYPTED &&
-        page_type != FIL_PAGE_COMPRESSED_AND_ENCRYPTED &&
-        page_type != FIL_PAGE_ENCRYPTED_RTREE);
-
-  ut_ad(m_type != Encryption::NONE);
-  ut_ad(m_type != Encryption::KEYRING || m_key != NULL);
-
-  /* This is data size which need to encrypt. */
-  if (m_type == Encryption::KEYRING && page_type == FIL_PAGE_COMPRESSED) {
-    data_len = src_len - DST_HEADER_SIZE;  // We need those 8 bytes for
-                                           // key_version and post-encryption
-                                           // checksum
-  } else if (m_type == Encryption::KEYRING && !type.is_page_zip_compressed()) {
-    data_len = src_len - DST_HEADER_SIZE - 4;  // For keyring encryption we do
-                                               // not encrypt last four bytes
-                                               // which are equal to the LSN
-                                               // bytes in header
-    // So they are not encrypted anyways
-  } else {
-    data_len = src_len - DST_HEADER_SIZE;
-  }
-
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
-
-  /* Only encrypt the data + trailer, leave the header alone */
-
-  switch (m_type) {
-    case Encryption::NONE:
-      ut_error;
-
-    case Encryption::KEYRING:
-      // fallthrough
-
-    case Encryption::AES: {
-      lint elen;
-
-      ut_ad(m_klen == ENCRYPTION_KEY_LEN);
-      ut_ad(m_iv != NULL);
-
-      elen = my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(main_len),
-                            dst + DST_HEADER_SIZE,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
-
-      if (elen == MY_AES_BAD_DATA) {
-        ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-        ulint space_id =
-            mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-        *dst_len = src_len;
-        ib::error(ER_IB_MSG_844)
-            << " Can't encrypt data of page,"
-            << " page no:" << page_no << " space id:" << space_id;
-        return (src);
-      }
-
-      len = static_cast<ulint>(elen);
-      ut_ad(len == main_len);
-
-      /* Copy remain bytes and page tailer. */
-      memcpy(dst + DST_HEADER_SIZE + len, src + FIL_PAGE_DATA + len,
-             src_len - FIL_PAGE_DATA - len);
-
-      /* Encrypt the remain bytes. */
-      if (remain_len != 0) {
-        remain_len = MY_AES_BLOCK_SIZE * 2;
-
-        elen = my_aes_encrypt(dst + DST_HEADER_SIZE + data_len - remain_len,
-                              static_cast<uint32>(remain_len), remain_buf,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
-
-        if (elen == MY_AES_BAD_DATA) {
-          ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-          ulint space_id =
-              mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-
-          ib::error(ER_IB_MSG_845)
-              << " Can't encrypt data of page,"
-              << " page no:" << page_no << " space id:" << space_id;
-          *dst_len = src_len;
-          return (src);
-        }
-
-        memcpy(dst + DST_HEADER_SIZE + data_len - remain_len, remain_buf,
-               remain_len);
-      }
-
-      break;
-    }
-
-    default:
-      ut_error;
-  }
-
-  /* Copy the header as is. */
-  memmove(dst, src, FIL_PAGE_DATA);
-  ut_ad(memcmp(src, dst, FIL_PAGE_DATA) == 0);
-
-  /* Add encryption control information. Required for decrypting. */
-  if (page_type == FIL_PAGE_COMPRESSED) {
-    /* If the page is compressed, we don't need to save the
-    original type, since it is done in compression already. */
-    mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
-    ut_ad(memcmp(src + FIL_PAGE_TYPE + 2, dst + FIL_PAGE_TYPE + 2,
-                 FIL_PAGE_DATA - FIL_PAGE_TYPE - 2) == 0);
-  } else if (page_type == FIL_PAGE_RTREE) {
-    /* If the page is R-tree page, we need to save original
-    type. */
-    mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED_RTREE);
-  } else {
-    mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED);
-    mach_write_to_2(dst + FIL_PAGE_ORIGINAL_TYPE_V1, page_type);
-  }
-
-  if (m_type == Encryption::KEYRING) {
-    /* handle post encryption checksum */
-    m_checksum = 0;
-
-    ut_ad(*dst_len == src_len);
-
-    if (page_type == FIL_PAGE_COMPRESSED) {
-      memset(
-          dst + FIL_PAGE_DATA, 0,
-          4);  // set the checksum data to 0s before the checksum is calculated
-      mach_write_to_4(dst + FIL_PAGE_DATA + 4,
-                      m_key_version);  // Add it here so it would be included in
-                                       // the checksum
-    }
-
-    if (type.is_page_zip_compressed())
-      memcpy(dst + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
-             ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
-             ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
-
-#ifndef UNIV_INNOCHECKSUM  // TODO: Robert - this might need to be included in
-                           // innodbchecksum
-    uint page_size = *dst_len;
-    if (page_type == FIL_PAGE_COMPRESSED) {
-      page_size = static_cast<uint16_t>(
-          mach_read_from_2(dst + FIL_PAGE_COMPRESS_SIZE_V1));
-    } else if (type.is_page_zip_compressed()) {
-      page_size = type.get_zip_page_physical_size();
-    }
-    m_checksum = fil_crypt_calculate_checksum(page_size, dst,
-                                              type.is_page_zip_compressed());
-#endif
-    ut_ad(m_key_version != 0);  // Since we are encrypting key_version cannot be
-                                // 0 (i.e. page unencrypted)
-
-    mach_write_to_4(src + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
-
-    if (page_type == FIL_PAGE_COMPRESSED) {
-      mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum);
-    } else if (!type.is_page_zip_compressed()) {
-      mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
-      ut_ad(m_checksum != 0);
-      mach_write_to_4(dst + *dst_len - 4, m_checksum);
-    } else if (type.is_page_zip_compressed()) {
-      mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
-      ut_ad(m_key_version != 0);
-      uint32 innodb_checksum = mach_read_from_4(dst + FIL_PAGE_SPACE_OR_CHKSUM);
-      uint32 xor_checksum = innodb_checksum ^ m_checksum;
-      mach_write_to_4(dst + FIL_PAGE_SPACE_OR_CHKSUM, xor_checksum);
-      ut_ad(m_checksum != 0);
-    }
-#ifdef UNIV_ENCRYPT_DEBUG
-    ut_ad(type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(
-              dst, *dst_len, type.is_page_zip_compressed(),
-              type.is_compressed()));  // This works only for not zipped
-                                       // compressed pages
-#endif
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-#ifndef UNIV_INNOCHECKSUM
-  if (m_type == Encryption::KEYRING) {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-
-    memcpy(check_buf, dst, src_len);
-
-    fprintf(stderr, "Robert: Comparing before and after encryption");
-
-    byte *m_key_used = m_key;
-
-    if (m_type == Encryption::KEYRING)  // TODO:Robert:For decryption KEYRING
-                                        // page key needs to be set to NULL
-      m_key = NULL;
-
-    dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
-    if (space_id == 23 && page_no == 1) {
-      fprintf(stderr, "Robert: After encrypting page 23:1:");
-      ut_print_buf(stderr, dst, src_len);
-    }
-
-    if (err != DB_SUCCESS ||
-        memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-               src_len - FIL_PAGE_DATA - 4) != 0) {
-      fprintf(stderr,
-              "Robert: After and before encryption are different. "
-              " key_version used for encryption: %d, key used for encryption:",
-              m_key_version);
-      ut_print_buf(stderr, m_key_used, 32);
-      m_key_version =
-          mach_read_from_4(check_buf + FIL_PAGE_ENCRYPTION_KEY_VERSION);
-      fprintf(stderr,
-              "Robert: After and before encryption are different. "
-              " key_version used for decryption: %d, key used for decryption:",
-              m_key_version);
-
-      size_t key_len;
-      get_tablespace_key(m_key_id, m_key_version, &m_key, &key_len);
-      ut_print_buf(stderr, m_key, 32);
-
-      ut_ad(0);
-    }
-    ut_free(buf2);
-    ut_free(check_buf);
-
-    ut_ad(type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(dst, *dst_len,
-                                          type.is_page_zip_compressed(),
-                                          type.is_compressed()));
-
-    ut_ad(type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(dst, *dst_len,
-                                          type.is_page_zip_compressed(),
-                                          type.is_compressed()));
-  }
-  fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
-
-#endif
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  *dst_len = src_len;
-
-#if !defined(UNIV_INNOCHECKSUM)
-  srv_stats.pages_encrypted.inc();
-#endif
-  return (dst);
-}
-
-/** Decrypt the log block.
-@param[in]	type		IORequest
-@param[in,out]	src		Data read from disk, decrypted data will be
-                                copied to this page
-@param[in,out]	dst		Scratch area to use for decryption
-@return DB_SUCCESS or error code */
-dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
-                                      byte *dst) {
-  ulint main_len;
-  ulint remain_len;
-  byte remain_buf[MY_AES_BLOCK_SIZE * 2];
-  byte *ptr = src;
-
-  /* This is data size which need to encrypt. */
-  const ulint unencrypted_trailer_size =
-      (m_type == Encryption::KEYRING) ? LOG_BLOCK_TRL_SIZE : 0;
-  const ulint data_len =
-      OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - unencrypted_trailer_size;
-
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
-
-  ptr += LOG_BLOCK_HDR_SIZE;
-  switch (m_type) {
-    case Encryption::KEYRING: {
-      const ulint block_crc = log_block_calc_checksum_crc32(src);
-      const ulint written_crc = log_block_get_checksum(src);
-
-      const ulint enc_key_version = written_crc - block_crc;
-
-      if (m_key_version != enc_key_version &&
-          enc_key_version != REDO_LOG_ENCRYPT_NO_VERSION) {
-        redo_log_key *mkey = redo_log_key_mgr.load_key_version(
-            nullptr, m_key_id_uuid, enc_key_version);
-        m_key_version = mkey->version;
-        m_key = reinterpret_cast<unsigned char *>(mkey->key);
-      }
-    }
-      /* FALLTHROUGH */
-
-    case Encryption::AES: {
-      lint elen;
-
-      /* First decrypt the last 2 blocks data of data, since
-      data is no block aligned. */
-      if (remain_len != 0) {
-        ut_ad(m_klen == ENCRYPTION_KEY_LEN);
-
-        remain_len = MY_AES_BLOCK_SIZE * 2;
-
-        /* Copy the last 2 blocks. */
-        memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
-
-        elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              dst + data_len - remain_len,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
-        if (elen == MY_AES_BAD_DATA) {
-          return (DB_IO_DECRYPT_FAIL);
-        }
-
-        /* Copy the other data bytes to temp area. */
-        memcpy(dst, ptr, data_len - remain_len);
-      } else {
-        ut_ad(data_len == main_len);
-
-        /* Copy the data bytes to temp area. */
-        memcpy(dst, ptr, data_len);
-      }
-
-      /* Then decrypt the main data */
-      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
-      if (elen == MY_AES_BAD_DATA) {
-        return (DB_IO_DECRYPT_FAIL);
-      }
-
-      ut_ad(static_cast<ulint>(elen) == main_len);
-
-      /* Copy the remain bytes. */
-      memcpy(ptr + main_len, dst + main_len, data_len - main_len);
-
-      break;
-    }
-
-    default:
-      ib::error(ER_IB_MSG_846) << "Encryption algorithm support missing: "
-                               << Encryption::to_string(m_type);
-      return (DB_UNSUPPORTED);
-  }
-
-  ptr -= LOG_BLOCK_HDR_SIZE;
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Decrypted block %u.\n", log_block_get_hdr_no(ptr));
-  std::ostringstream msg;
-  ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "%s\n", msg.str().c_str());
-#endif
-
-  /* Reset the encrypted flag. */
-  log_block_set_encrypt_bit(ptr, false);
-
-  if (m_type == Encryption::KEYRING) {
-    const ulint crc = log_block_calc_checksum_crc32(ptr);
-    log_block_set_checksum(ptr, crc);
-  }
-
-  return (DB_SUCCESS);
-}
-
-/** Decrypt the log data contents.
-@param[in]	type		IORequest
-@param[in,out]	src		Data read from disk, decrypted data will be
-                                copied to this page
-@param[in]	src_len		source data length
-@param[in,out]	dst		Scratch area to use for decryption
-@param[in]	dst_len		Size of the scratch area in bytes
-@return DB_SUCCESS or error code */
-dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                                byte *dst, ulint dst_len) {
-  Block *block;
-  byte *ptr = src;
-  dberr_t ret;
-
-  /* Do nothing if it's not a log request. */
-  ut_ad(type.is_log());
-
-  /* The caller doesn't know what to expect */
-  if (dst == NULL) {
-    block = os_alloc_block();
-    dst = block->m_ptr;
-  } else {
-    block = NULL;
-  }
-
-  /* Decrypt the log blocks one by one. */
-  while (ptr != src + src_len) {
-#ifdef UNIV_ENCRYPT_DEBUG
-    {
-      std::ostringstream msg;
-
-      ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
-
-      ib::info(ER_IB_MSG_847)
-          << "Decrypting block: " << log_block_get_hdr_no(ptr) << "\n"
-          << "data={"
-          << "\n"
-          << msg.str() << "\n"
-          << "}";
-    }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-    /* If it's not an encrypted block, skip it. */
-    if (!is_encrypted_log(ptr)) {
-      ptr += OS_FILE_LOG_BLOCK_SIZE;
-      continue;
-    }
-
-    /* Decrypt block */
-    ret = decrypt_log_block(type, ptr, dst);
-    if (ret != DB_SUCCESS) {
-      if (block != NULL) {
-        os_free_block(block);
-      }
-
-      return (ret);
-    }
-
-    ptr += OS_FILE_LOG_BLOCK_SIZE;
-  }
-
-  if (block != NULL) {
-    os_free_block(block);
-  }
-
-  return (DB_SUCCESS);
-}
-
-/** Decrypt the page data contents. Page type must be FIL_PAGE_ENCRYPTED,
-if not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	type		IORequest
-@param[in,out]	src		Data read from disk, decrypted data will be
-                                copied to this page
-@param[in]	src_len		source data length
-@param[in,out]	dst		Scratch area to use for decryption
-@param[in]	dst_len		Size of the scratch area in bytes
-@return DB_SUCCESS or error code */
-dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
-                            byte *dst, ulint dst_len) {
-  ulint data_len;
-  ulint main_len;
-  ulint remain_len;
-  ulint original_type;
-  ulint page_type;
-  byte remain_buf[MY_AES_BLOCK_SIZE * 2];
-  Block *block;
-
-  if (!is_encrypted_page(src) || m_type == Encryption::NONE) {
-    /* There is nothing we can do. */
-    return (DB_SUCCESS);
-  }
-
-  if (m_type == Encryption::KEYRING && type.is_page_zip_compressed()) {
-    uint32 post_enc_checksum = fil_crypt_calculate_checksum(
-        type.get_zip_page_physical_size(), src, type.is_page_zip_compressed());
-    uint32 xor_checksum = mach_read_from_4(src + FIL_PAGE_SPACE_OR_CHKSUM);
-    ut_ad(xor_checksum != 0);
-    uint32 innodb_checksum = xor_checksum ^ post_enc_checksum;
-    mach_write_to_4(src + FIL_PAGE_SPACE_OR_CHKSUM, innodb_checksum);
-  }
-
-  /* For compressed page, we need to get the compressed size
-  for decryption */
-  page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
-  if (page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
-    src_len = static_cast<uint16_t>(
-                  mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1)) +
-              FIL_PAGE_DATA;
-    src_len = ut_calc_align(src_len, type.block_size());
-  }
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  auto space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-
-  auto page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-
-  {
-    std::ostringstream msg;
-
-    msg << "key={";
-    ut_print_buf(msg, m_key, 32);
-    msg << "}" << std::endl << "iv= {";
-    ut_print_buf(msg, m_iv, 32);
-    msg << "}";
-
-    ib::info(ER_IB_MSG_848) << "Decrypting page: " << space_id << "." << page_no
-                            << " len: " << src_len << "\n"
-                            << msg.str();
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  const uint HEADER_SIZE = (m_type == Encryption::KEYRING &&
-                            page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED)
-                               ? FIL_PAGE_DATA + 8
-                               : FIL_PAGE_DATA;
-  original_type =
-      static_cast<uint16_t>(mach_read_from_2(src + FIL_PAGE_ORIGINAL_TYPE_V1));
-
-  byte *ptr = src + HEADER_SIZE;
-
-  /* The caller doesn't know what to expect */
-  if (dst == NULL) {
-    block = os_alloc_block();
-    dst = block->m_ptr;
-  } else {
-    block = NULL;
-  }
-
-  ut_ad(m_key != NULL);
-
-  data_len = src_len - HEADER_SIZE;
-
-  if (page_type == FIL_PAGE_ENCRYPTED && m_type == Encryption::KEYRING &&
-      !type.is_page_zip_compressed()) {
-    data_len -= 4;  // last 4 bytes are not encrypted
-  }
-
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
-
-  switch (m_type) {
-    case Encryption::KEYRING:
-    case Encryption::AES: {
-      lint elen;
-
-      /* First decrypt the last 2 blocks data of data, since
-      data is no block aligned. */
-      if (remain_len != 0) {
-        ut_ad(m_klen == ENCRYPTION_KEY_LEN);
-        ut_ad(m_iv != NULL);
-
-        remain_len = MY_AES_BLOCK_SIZE * 2;
-
-        /* Copy the last 2 blocks. */
-        memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
-
-        elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              dst + data_len - remain_len,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
-        if (elen == MY_AES_BAD_DATA) {
-          if (block != NULL) {
-            os_free_block(block);
-          }
-
-          return (DB_IO_DECRYPT_FAIL);
-        }
-
-        /* Copy the other data bytes to temp area. */
-        memcpy(dst, ptr, data_len - remain_len);
-      } else {
-        ut_ad(data_len == main_len);
-
-        /* Copy the data bytes to temp area. */
-        memcpy(dst, ptr, data_len);
-      }
-
-      if (m_type == Encryption::KEYRING &&
-          page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
-        ptr -= 8;  // This much is unused as it was previously used by key
-                   // version and encrypted checksum
-        // It is not needed - overwrite this with decrypted data
-        memset(ptr + data_len, 0, 8);
-      }
-
-      /* Then decrypt the main data */
-      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
-      if (elen == MY_AES_BAD_DATA) {
-        if (block != NULL) {
-          os_free_block(block);
-        }
-
-        return (DB_IO_DECRYPT_FAIL);
-      }
-
-      ut_ad(static_cast<ulint>(elen) == main_len);
-
-      /* Copy the remain bytes. */
-      memcpy(ptr + main_len, dst + main_len, data_len - main_len);
-
-      break;
-    }
-
-    default:
-      if (!type.is_dblwr_recover()) {
-        ib::error(ER_IB_MSG_849) << "Encryption algorithm support missing: "
-                                 << Encryption::to_string(m_type);
-      }
-
-      if (block != NULL) {
-        os_free_block(block);
-      }
-
-      return (DB_UNSUPPORTED);
-  }
-
-  if (m_type == Encryption::KEYRING &&
-      page_type != FIL_PAGE_COMPRESSED_AND_ENCRYPTED &&
-      !type.is_page_zip_compressed()) {
-    // restore LSN
-    memcpy(src + src_len - FIL_PAGE_END_LSN_OLD_CHKSUM + 4,
-           src + FIL_PAGE_LSN + 4, 4);
-  }
-
-  /* Restore the original page type. If it's a compressed and
-  encrypted page, just reset it as compressed page type, since
-  we will do uncompress later. */
-
-  if (page_type == FIL_PAGE_ENCRYPTED) {
-    mach_write_to_2(src + FIL_PAGE_TYPE, original_type);
-  } else if (page_type == FIL_PAGE_ENCRYPTED_RTREE) {
-    mach_write_to_2(src + FIL_PAGE_TYPE, FIL_PAGE_RTREE);
-  } else {
-    ut_ad(page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
-    mach_write_to_2(src + FIL_PAGE_TYPE, FIL_PAGE_COMPRESSED);
-  }
-
-  // mark orignal page_type as encrypted - so that when checksum check fail - we
-  // will be able to report that if failed because decryption failed
-  if (original_type != FIL_PAGE_TYPE_ALLOCATED &&
-      page_type != FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
-    mach_write_to_2(src + FIL_PAGE_ORIGINAL_TYPE_V1, FIL_PAGE_ENCRYPTED);
-  }
-
-  if (block != NULL) {
-    os_free_block(block);
-  }
-
-  if (m_type == Encryption::KEYRING && type.is_page_zip_compressed()) {
-    memset(src + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC, 0,
-           ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
-  }
-#ifdef UNIV_ENCRYPT_DEBUG
-  ib::info(ER_IB_MSG_850) << "Decrypted page: " << space_id << "." << page_no;
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  DBUG_EXECUTE_IF("ib_crash_during_decrypt_page", DBUG_SUICIDE(););
-
-#if !defined(UNIV_INNOCHECKSUM)
-  srv_stats.pages_decrypted.inc();
-#endif
-  return (DB_SUCCESS);
-}
-
-#ifndef UNIV_HOTBACKUP
-/** Check if keyring plugin loaded. */
-bool Encryption::check_keyring() {
-  size_t key_len;
-  bool ret = false;
-  char *key_type = nullptr;
-  char *master_key = nullptr;
-  char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-
-  key_name[sizeof(ENCRYPTION_DEFAULT_MASTER_KEY)] = 0;
-
-  strncpy(key_name, ENCRYPTION_DEFAULT_MASTER_KEY, sizeof(key_name));
-
-  /* We call key ring API to generate master key here. */
-  int my_ret = my_key_generate(key_name, "AES", NULL, ENCRYPTION_KEY_LEN);
-
-  /* We call key ring API to get master key here. */
-  my_ret = my_key_fetch(key_name, &key_type, nullptr,
-                        reinterpret_cast<void **>(&master_key), &key_len);
-
-  if (my_ret != 0) {
-    ib::error(ER_IB_MSG_851) << "Check keyring plugin fail, please check the"
-                             << " keyring plugin is loaded.";
-  } else {
-    my_key_remove(key_name, nullptr);
-    ret = true;
-  }
-
-  if (key_type != nullptr) {
-    my_free(key_type);
-  }
-
-  if (master_key != nullptr) {
-    my_free(master_key);
-  }
-
-  return (ret);
-}
-#endif /* !UNIV_HOTBACKUP */
-
-/** Encrypt a doublewrite buffer page. The page is encrypted
-using the key of tablespace object provided.
-Caller should allocate buffer for encrypted page
-@param[in]	space			tablespace object
-@param[in]	in_page			unencrypted page
-@param[in,out]	encrypted_buf		buffer to hold the encrypted page
-@param[in]	encrypted_buf_len	length of the encrypted buffer
-@return true on success, false on failure */
-bool os_dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
-                           page_t *encrypted_buf, ulint encrypted_buf_len) {
-  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    return (false);
-  }
-
-  IORequest write_request(IORequest::WRITE);
-  write_request.encryption_key(space->encryption_key, space->encryption_klen,
-                               false, space->encryption_iv, 0, 0, nullptr,
-                               nullptr);
-  write_request.encryption_algorithm(Encryption::AES);
-
-  page_size_t page_size(space->flags);
-
-  ulint bytes = page_size.physical();
-
-  /* After successful encryption, in_page will point
-  to a new memory block which is encrypted and
-  the bytes will have value of length of encrypted data */
-  void *in_page_before = in_page;
-  Block *block = os_file_encrypt_page(write_request, in_page_before, &bytes);
-
-  ut_ad(block != nullptr);
-
-  if (in_page_before == in_page) {
-    os_free_block(block);
-    return (false);
-  }
-
-  ut_ad(bytes == page_size.physical());
-  ut_ad(bytes <= encrypted_buf_len);
-
-  memcpy(encrypted_buf, in_page_before /*encrypted page*/, bytes);
-
-  os_free_block(block);
-  return (true);
-}
-
-/** Decrypt a page from doublewrite buffer. Tablespace object
-(fil_space_t) must have encryption key, iv set properly.
-The decrpyted page will be written in the same buffer of input page.
-@param[in]	space	tablespace obejct
-@param[in,out]	page	in: encrypted page
-out: decrypted page
-@return DB_SUCCESS on success, others on failure */
-dberr_t os_dblwr_decrypt_page(fil_space_t *space, page_t *page) {
-  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    return (DB_SUCCESS);
-  }
-
-  IORequest decrypt_request;
-
-  decrypt_request.encryption_key(space->encryption_key, space->encryption_klen,
-                                 false, space->encryption_iv, 0, 0, nullptr,
-                                 nullptr);
-
-  decrypt_request.encryption_algorithm(Encryption::AES);
-
-  Encryption encryption(decrypt_request.encryption_algorithm());
-
-  page_size_t page_size(space->flags);
-
-  dberr_t err = encryption.decrypt(decrypt_request, page, page_size.physical(),
-                                   NULL, page_size.physical());
-
-  ut_ad(err == DB_SUCCESS);
-  return (err);
-}
 
 /** Check if the path is a directory. The file/directory must exist.
 @param[in]	path		The path to check
@@ -10315,4 +8507,25 @@ bool Dir_Walker::is_directory(const Path &path) {
   ut_ad(type != OS_FILE_TYPE_MISSING);
 
   return (false);
+}
+
+dberr_t os_file_write_retry(IORequest &type, const char *name,
+                            pfs_os_file_t file, const void *buf,
+                            os_offset_t offset, ulint n) {
+  dberr_t err;
+  for (;;) {
+    err = os_file_write(type, name, file, buf, offset, n);
+
+    if (err == DB_SUCCESS || err == DB_TABLESPACE_DELETED) {
+      break;
+    } else if (err == DB_IO_ERROR) {
+      ib::error(ER_INNODB_IO_WRITE_ERROR_RETRYING, name);
+      std::chrono::seconds ten(10);
+      std::this_thread::sleep_for(ten);
+      continue;
+    } else {
+      ib::fatal(ER_INNODB_IO_WRITE_FAILED, name);
+    }
+  }
+  return err;
 }

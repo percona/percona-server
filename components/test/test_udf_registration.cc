@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +47,8 @@ class udf_list {
  public:
   ~udf_list() { unregister(); }
   bool add_scalar(const char *func_name, enum Item_result return_type,
-                  Udf_func_any func, Udf_func_init init_func = NULL,
-                  Udf_func_deinit deinit_func = NULL) {
+                  Udf_func_any func, Udf_func_init init_func = nullptr,
+                  Udf_func_deinit deinit_func = nullptr) {
     if (!mysql_service_udf_registration->udf_register(
             func_name, return_type, func, init_func, deinit_func)) {
       set.push_back(func_name);
@@ -58,10 +58,10 @@ class udf_list {
   }
 
   bool add_aggregate(const char *func_name, enum Item_result return_type,
-                     Udf_func_any func, Udf_func_add add_func = NULL,
-                     Udf_func_clear clear_func = NULL,
-                     Udf_func_init init_func = NULL,
-                     Udf_func_deinit deinit_func = NULL) {
+                     Udf_func_any func, Udf_func_add add_func = nullptr,
+                     Udf_func_clear clear_func = nullptr,
+                     Udf_func_init init_func = nullptr,
+                     Udf_func_deinit deinit_func = nullptr) {
     if (!mysql_service_udf_registration_aggregate->udf_register(
             func_name, return_type, func, init_func, deinit_func, add_func,
             clear_func)) {

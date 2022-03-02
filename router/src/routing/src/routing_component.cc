@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ int MySQLRoutingAPI::get_active_connections() const {
 }
 
 std::string MySQLRoutingAPI::get_bind_address() const {
-  return r_->get_context().get_bind_address().addr;
+  return r_->get_context().get_bind_address().address();
 }
 
 std::chrono::milliseconds MySQLRoutingAPI::get_destination_connect_timeout()
@@ -66,13 +66,17 @@ std::vector<mysql_harness::TCPAddress> MySQLRoutingAPI::get_destinations()
   return r_->get_destinations();
 }
 
+bool MySQLRoutingAPI::is_accepting_connections() const {
+  return r_->is_accepting_connections();
+}
+
 std::vector<MySQLRoutingAPI::ConnData> MySQLRoutingAPI::get_connections()
     const {
   return r_->get_connections();
 }
 
 std::string MySQLRoutingAPI::get_protocol_name() const {
-  return r_->get_context().get_protocol().get_type() ==
+  return r_->get_context().get_protocol() ==
                  BaseProtocol::Type::kClassicProtocol
              ? "classic"
              : "x";
@@ -101,35 +105,13 @@ std::string MySQLRoutingAPI::get_socket() const {
 }
 
 uint16_t MySQLRoutingAPI::get_bind_port() const {
-  return r_->get_context().get_bind_address().port;
+  return r_->get_context().get_bind_address().port();
 }
 
 std::vector<std::string> MySQLRoutingAPI::get_blocked_client_hosts() const {
-  std::vector<std::string> res;
-
-  for (const auto &el : r_->get_context().get_blocked_client_hosts()) {
-    char str[INET6_ADDRSTRLEN];
-
-    // ClientAddrArray should be replaced by something that
-    //
-    // - does not overlap IPv4 and IPv6
-    // - does not overlap IPv6 addresses from different scopes (sin6_scope_id)
-    int family = AF_INET6;
-
-    std::array<uint8_t, 16 - 4> trailer{{0}};
-    if (::memcmp(el.data() + 4, trailer.data(), el.size() - 4) == 0) {
-      family = AF_INET;
-    }
-
-    if (nullptr != inet_ntop(family, el.data(), str, sizeof(str))) {
-      res.emplace_back(str);
-    } else {
-      // std::cout << __LINE__ << strerror(errno) << std::endl;
-    }
-  }
-
-  return res;
+  return r_->get_context().get_blocked_client_hosts();
 }
+
 std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }

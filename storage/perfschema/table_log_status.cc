@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ Plugin_table table_log_status::m_table_def(
 PFS_engine_table_share table_log_status::m_share = {
     &pfs_readonly_acl,
     table_log_status::create,
-    NULL,                            /* write_row */
-    NULL,                            /* delete_all_rows */
+    nullptr,                         /* write_row */
+    nullptr,                         /* delete_all_rows */
     table_log_status::get_row_count, /* records */
     sizeof(PFS_simple_index),        /* ref length */
     &m_table_lock,
@@ -77,7 +77,7 @@ PFS_engine_table *table_log_status::create(PFS_engine_table_share *) {
 table_log_status::table_log_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_log_status::~table_log_status() {}
+table_log_status::~table_log_status() = default;
 
 void table_log_status::reset_position(void) {
   m_pos.m_index = 0;
@@ -119,7 +119,7 @@ static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
   bool result = false;
 
-  DBUG_ASSERT(plugin_state(plugin) == PLUGIN_IS_READY);
+  assert(plugin_state(plugin) == PLUGIN_IS_READY);
 
   /* The storage engine must implement all three functions to be supported */
   if (hton->lock_hton_log && hton->unlock_hton_log &&
@@ -222,7 +222,8 @@ int table_log_status::make_row() {
   */
   {
     Log_resource *res;
-    res = Log_resource_factory::get_wrapper(gtid_state, &json_local);
+    res = Log_resource_factory::get_wrapper(gtid_state, &mysql_bin_log,
+                                            &json_local);
     if ((error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res))) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "LOCAL",
                "failed to allocate memory to collect "
@@ -316,12 +317,12 @@ int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
                                       bool read_all MY_ATTRIBUTE((unused))) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /*server_uuid*/
           set_field_char_utf8(f, m_row.server_uuid, UUID_LENGTH);
           break;
@@ -335,7 +336,7 @@ int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
           set_field_json(f, &m_row.w_storage_engines);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

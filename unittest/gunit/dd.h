@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,6 @@
 
 #ifndef DD_INCLUDED
 #define DD_INCLUDED
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -133,7 +130,7 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
 
   Mock_dd_field_longlong() : Base_mock_field_longlong() {}
 
-  virtual ~Mock_dd_field_longlong() {}
+  virtual ~Mock_dd_field_longlong() = default;
 };
 
 /**
@@ -172,7 +169,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   Mock_dd_field_varstring(uint32 length, TABLE_SHARE *share)
       : Base_mock_field_varstring(length, share) {}
 
-  virtual ~Mock_dd_field_varstring() {}
+  virtual ~Mock_dd_field_varstring() = default;
 };
 
 /**
@@ -180,7 +177,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
 */
 inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   List<Field> m_field_list;
-  Fake_TABLE *table = NULL;
+  Fake_TABLE *table = nullptr;
   Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
@@ -444,7 +441,7 @@ inline void set_attributes(dd::Column_statistics *obj,
 
 template <typename T>
 T *nullp() {
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace dd_unittest

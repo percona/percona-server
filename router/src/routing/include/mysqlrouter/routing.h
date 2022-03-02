@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,27 +25,9 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
-#include "mysqlrouter/plugin_config.h"
-#include "socket_operations.h"
-#include "tcp_address.h"
-
+#include <chrono>
 #include <map>
 #include <string>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <poll.h>
-#endif
-
-#ifdef _WIN32
-typedef ULONG nfds_t;
-typedef long ssize_t;
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
 
 namespace routing {
 
@@ -104,13 +86,6 @@ extern const unsigned int kDefaultNetBufferLength;
  *
  */
 extern const std::chrono::seconds kDefaultClientConnectTimeout;
-
-#ifdef _WIN32
-const SOCKET kInvalidSocket =
-    INVALID_SOCKET;  // windows defines INVALID_SOCKET already
-#else
-const int kInvalidSocket = -1;
-#endif
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
@@ -183,62 +158,6 @@ RoutingStrategy get_routing_strategy(const std::string &value);
  */
 std::string get_routing_strategy_name(
     RoutingStrategy routing_strategy) noexcept;
-
-/** @class RoutingSockOpsInterface
- * @brief Interface class to allow multiple RoutingSockOps implementations
- *        (at least one "real" and one mock for testing purposes)
- */
-class RoutingSockOpsInterface {
- public:
-  virtual ~RoutingSockOpsInterface() = default;
-  virtual int get_mysql_socket(mysql_harness::TCPAddress addr,
-                               std::chrono::milliseconds connect_timeout_ms,
-                               bool log = true) noexcept = 0;
-  virtual mysql_harness::SocketOperationsBase *so() const = 0;
-};
-
-/** @class RoutingSockOps
- * @brief This class provides a "real" (not mock) implementation
- */
-class RoutingSockOps : public RoutingSockOpsInterface {
- public:
-  RoutingSockOps(mysql_harness::SocketOperationsBase *sock_ops)
-      : so_(sock_ops) {}
-
-  static RoutingSockOps *instance(
-      mysql_harness::SocketOperationsBase *sock_ops);
-
-  /** @brief Returns socket descriptor of connected MySQL server
-   *
-   * Iterates through all available connections (until it succesfully connects)
-   * to the selected address as returned by getaddrinfo()
-   * (see its documentation for the details).
-   * If it's not able to connect via any path, it returns value < 0.
-   *
-   * Returns a socket descriptor for the connection to the MySQL Server or
-   * negative value when error occurred:
-   *  -2 - if connection timeout has expired for at least one of the attempted
-   * paths -1 - in case of any other error
-   *
-   * @param addr information of the server we connect with
-   * @param connect_timeout timeout waiting for connection
-   * @param log whether to log errors or not
-   * @return a socket descriptor
-   */
-  int get_mysql_socket(mysql_harness::TCPAddress addr,
-                       std::chrono::milliseconds connect_timeout,
-                       bool log = true) noexcept override;
-
-  /** @brief Returns SocketOperations implementation used by this class */
-  mysql_harness::SocketOperationsBase *so() const override { return so_; }
-
- private:
-  RoutingSockOps() = default;
-  RoutingSockOps(const RoutingSockOps &) = delete;
-  RoutingSockOps operator=(const RoutingSockOps &) = delete;
-
-  mysql_harness::SocketOperationsBase *so_;
-};
 
 }  // namespace routing
 

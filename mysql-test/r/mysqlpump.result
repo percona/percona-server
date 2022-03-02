@@ -469,10 +469,10 @@ Variable_name	Value
 relay_log_info_repository	TABLE
 SET GLOBAL master_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	FILE
@@ -482,7 +482,11 @@ relay_log_info_repository	FILE
 Pattern "CREATE TABLE `mysql`.`slave_master_info`" not found
 Pattern "CREATE TABLE `mysql`.`slave_relay_log_info`" not found
 SET GLOBAL master_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	TABLE
@@ -530,10 +534,15 @@ SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`id` AS `id` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 DROP USER 'u1'@'%';
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
 FLUSH PRIVILEGES;
-Pattern "\[NOTE\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist" found
 Pattern "\[ERROR\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist" found
 CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
 DROP USER 'u1'@'%';
+Warnings:
+Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
 DROP DATABASE db1;
 DROP DATABASE db2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,19 +115,19 @@ bool Alter_info::has_compressed_columns() const {
 }
 
 Alter_table_ctx::Alter_table_ctx()
-    : datetime_field(NULL),
+    : datetime_field(nullptr),
       error_if_not_empty(false),
       tables_opened(0),
-      db(NULL),
-      table_name(NULL),
-      alias(NULL),
-      new_db(NULL),
-      new_name(NULL),
-      new_alias(NULL),
+      db(nullptr),
+      table_name(nullptr),
+      alias(nullptr),
+      new_db(nullptr),
+      new_name(nullptr),
+      new_alias(nullptr),
       fk_info(nullptr),
       fk_count(0),
       fk_max_generated_name_number(0)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       ,
       tmp_table(false)
 #endif
@@ -137,7 +137,7 @@ Alter_table_ctx::Alter_table_ctx()
 Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  uint tables_opened_arg, const char *new_db_arg,
                                  const char *new_name_arg)
-    : datetime_field(NULL),
+    : datetime_field(nullptr),
       error_if_not_empty(false),
       tables_opened(tables_opened_arg),
       new_db(new_db_arg),
@@ -145,7 +145,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
       fk_info(nullptr),
       fk_count(0),
       fk_max_generated_name_number(0)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       ,
       tmp_table(false)
 #endif
@@ -214,7 +214,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
       this case. This fact is enforced with assert.
     */
     build_tmptable_filename(thd, tmp_path, sizeof(tmp_path));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     tmp_table = true;
 #endif
   }
@@ -233,18 +233,18 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
   }
 }
 
-Alter_table_ctx::~Alter_table_ctx() {}
+Alter_table_ctx::~Alter_table_ctx() = default;
 
 bool Sql_cmd_alter_table::execute(THD *thd) {
   /* Verify that none one of the DISCARD and IMPORT flags are set. */
-  DBUG_ASSERT(!thd_tablespace_op(thd));
+  assert(!thd_tablespace_op(thd));
   DBUG_EXECUTE_IF("delay_alter_table_by_one_second", { my_sleep(1000000); });
 
   LEX *lex = thd->lex;
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex = lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table = select_lex->get_table_list();
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *query_block = lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *first_table = query_block->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -265,8 +265,8 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
 
   {
     partition_info *part_info = thd->lex->part_info;
-    if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-        check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false))
+    if (part_info != nullptr && has_external_data_or_index_dir(*part_info) &&
+        check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false))
 
       return true;
   }
@@ -279,15 +279,15 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
     priv_needed |= DROP_ACL;
 
   /* Must be set in the parser */
-  DBUG_ASSERT(alter_info.new_db_name.str);
-  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
-  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
+  assert(alter_info.new_db_name.str);
+  assert(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
+  assert(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
                    &first_table->grant.m_internal, false, false) ||
       check_access(thd, INSERT_ACL | CREATE_ACL, alter_info.new_db_name.str,
                    &priv,
-                   NULL, /* Don't use first_tab->grant with sel_lex->db */
+                   nullptr, /* Don't use first_tab->grant with sel_lex->db */
                    false, false))
     return true; /* purecov: inspected */
 
@@ -340,7 +340,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   if (alter_info.new_table_name.str &&
       !test_all_bits(priv, INSERT_ACL | CREATE_ACL)) {
     // Rename of table
-    DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_RENAME);
+    assert(alter_info.flags & Alter_info::ALTER_RENAME);
     TABLE_LIST tmp_table;
     tmp_table.table_name = alter_info.new_table_name.str;
     tmp_table.db = alter_info.new_db_name.str;
@@ -357,7 +357,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   if (create_info.index_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING, WARN_OPTION_IGNORED,
                         ER_THD(thd, WARN_OPTION_IGNORED), "INDEX DIRECTORY");
-  create_info.data_file_name = create_info.index_file_name = NULL;
+  create_info.data_file_name = create_info.index_file_name = nullptr;
 
   thd->set_slow_log_for_admin_command();
 
@@ -377,22 +377,22 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
 
 bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
   /* Verify that exactly one of the DISCARD and IMPORT flags are set. */
-  DBUG_ASSERT((m_alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE) ^
-              (m_alter_info->flags & Alter_info::ALTER_IMPORT_TABLESPACE));
+  assert((m_alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE) ^
+         (m_alter_info->flags & Alter_info::ALTER_IMPORT_TABLESPACE));
 
   /*
     Verify that none of the other flags are set, except for
     ALTER_ALL_PARTITION, which may be set or not, and is
     therefore masked away along with the DISCARD/IMPORT flags.
   */
-  DBUG_ASSERT(!(m_alter_info->flags & ~(Alter_info::ALTER_DISCARD_TABLESPACE |
-                                        Alter_info::ALTER_IMPORT_TABLESPACE |
-                                        Alter_info::ALTER_ALL_PARTITION)));
+  assert(!(m_alter_info->flags & ~(Alter_info::ALTER_DISCARD_TABLESPACE |
+                                   Alter_info::ALTER_IMPORT_TABLESPACE |
+                                   Alter_info::ALTER_ALL_PARTITION)));
 
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex = thd->lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *table_list = select_lex->get_table_list();
+  /* first Query_block (have special meaning for many of non-SELECTcommands) */
+  Query_block *query_block = thd->lex->query_block;
+  /* first table of first Query_block */
+  TABLE_LIST *table_list = query_block->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
                    &table_list->grant.m_internal, false, false))
@@ -431,15 +431,14 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
 
 bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
   // One of the SECONDARY_LOAD/SECONDARY_UNLOAD flags must have been set.
-  DBUG_ASSERT(
-      ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD) == 0) !=
-      ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_UNLOAD) == 0));
+  assert(((m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD) == 0) !=
+         ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_UNLOAD) == 0));
 
   // No other flags should've been set.
-  DBUG_ASSERT(!(m_alter_info->flags & ~(Alter_info::ALTER_SECONDARY_LOAD |
-                                        Alter_info::ALTER_SECONDARY_UNLOAD)));
+  assert(!(m_alter_info->flags & ~(Alter_info::ALTER_SECONDARY_LOAD |
+                                   Alter_info::ALTER_SECONDARY_UNLOAD)));
 
-  TABLE_LIST *table_list = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *table_list = thd->lex->query_block->get_table_list();
 
   if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
                    &table_list->grant.m_internal, false, false))

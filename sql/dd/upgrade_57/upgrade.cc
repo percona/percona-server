@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -263,7 +263,7 @@ bool finalize_upgrade(THD *thd) {
       // Get the name without the file extension.
       if (check_file_extension(file_ext)) {
         if (fn_format(from_path, file.c_str(), mysql_real_data_home, "",
-                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr)
           return true;
 
         (void)mysql_file_delete(key_file_misc, from_path, MYF(0));
@@ -277,7 +277,7 @@ bool finalize_upgrade(THD *thd) {
     char dir_path[FN_REFLEN];
 
     if (fn_format(dir_path, dir_name.c_str(), path.c_str(), "",
-                  MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+                  MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr)
       continue;
 
     if (!(b = my_dir(dir_path, MYF(MY_WANT_STAT)))) continue;
@@ -295,7 +295,7 @@ bool finalize_upgrade(THD *thd) {
       // Get the name without the file extension.
       if (check_file_extension(file_ext)) {
         if (fn_format(from_path, file.c_str(), dir_path, "",
-                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr)
           continue;
 
         (void)mysql_file_delete(key_file_misc, from_path, MYF(0));
@@ -416,7 +416,7 @@ static void drop_sdi_files() {
     if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode)) {
       char dir_path[FN_REFLEN];
       if (fn_format(dir_path, file.c_str(), path.c_str(), "",
-                    MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL) {
+                    MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
         LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file.c_str());
         continue;
       }
@@ -438,7 +438,7 @@ static void drop_sdi_files() {
         if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0) {
           char to_path[FN_REFLEN];
           if (fn_format(to_path, file2.c_str(), dir_path, "",
-                        MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL) {
+                        MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
             LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file2.c_str());
             continue;
           }
@@ -456,7 +456,7 @@ static void drop_sdi_files() {
       if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0) {
         char to_path[FN_REFLEN];
         if (fn_format(to_path, file.c_str(), path.c_str(), "",
-                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL) {
+                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
           LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file.c_str());
           continue;
         }
@@ -620,7 +620,7 @@ bool Upgrade_status::create() {
 
 // Open status file.
 bool Upgrade_status::open(int flags) {
-  DBUG_ASSERT(m_file == nullptr);
+  assert(m_file == nullptr);
 
   if (!(m_file = my_fopen(m_filename.c_str(), flags, MYF(0)))) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_OPEN_FAILED, m_filename.c_str(),
@@ -633,7 +633,7 @@ bool Upgrade_status::open(int flags) {
 
 // Read status from file.
 Upgrade_status::enum_stage Upgrade_status::read() {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   enum_stage stage = enum_stage::NONE;
   size_t items_read MY_ATTRIBUTE((unused));
@@ -645,7 +645,7 @@ Upgrade_status::enum_stage Upgrade_status::read() {
 
 // Write status to file.
 bool Upgrade_status::write(Upgrade_status::enum_stage stage) {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   fwrite(&stage, sizeof(int), 1, m_file);
   fflush(m_file);
@@ -659,7 +659,7 @@ bool Upgrade_status::exists() {
 
 // Close status file.
 bool Upgrade_status::close() {
-  DBUG_ASSERT(m_file);
+  assert(m_file);
 
   if (my_fclose(m_file, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED,
@@ -674,7 +674,7 @@ bool Upgrade_status::close() {
 
 // Delete status file.
 bool Upgrade_status::remove() {
-  DBUG_ASSERT(!m_file);
+  assert(!m_file);
   (void)mysql_file_delete(key_file_misc, m_filename.c_str(), MYF(MY_WME));
   return false;
 }
@@ -742,7 +742,7 @@ static bool ha_migrate_tablespaces(THD *thd, plugin_ref plugin, void *) {
 */
 static bool ha_migrate_tablespaces(THD *thd) {
   return (plugin_foreach(thd, ha_migrate_tablespaces,
-                         MYSQL_STORAGE_ENGINE_PLUGIN, 0));
+                         MYSQL_STORAGE_ENGINE_PLUGIN, nullptr));
 }
 
 /**
@@ -824,7 +824,7 @@ static bool upgrade_logs(THD *thd, plugin_ref plugin, void *) {
   @retval true   ON FAILURE
 */
 static bool ha_upgrade_engine_logs(THD *thd) {
-  if (plugin_foreach(thd, upgrade_logs, MYSQL_STORAGE_ENGINE_PLUGIN, 0))
+  if (plugin_foreach(thd, upgrade_logs, MYSQL_STORAGE_ENGINE_PLUGIN, nullptr))
     return true;
 
   return false;
@@ -839,7 +839,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   Disable_autocommit_guard autocommit_guard(thd);
   Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   char path[FN_REFLEN + 1];

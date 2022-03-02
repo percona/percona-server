@@ -131,9 +131,9 @@ class Rdb_io_perf {
   void init(Rdb_atomic_perf_counters *const atomic_counters,
             my_io_perf_atomic_t *const shared_io_perf_read,
             ha_statistics *const stats) {
-    DBUG_ASSERT(atomic_counters != nullptr);
-    DBUG_ASSERT(shared_io_perf_read != nullptr);
-    DBUG_ASSERT(stats != nullptr);
+    assert(atomic_counters != nullptr);
+    assert(shared_io_perf_read != nullptr);
+    assert(stats != nullptr);
 
     m_atomic_counters = atomic_counters;
     m_shared_io_perf_read = shared_io_perf_read;

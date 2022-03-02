@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ TEST(Mysys, CreateTempFile) {
   File fileno = create_temp_file(dst, "/tmp", prefix, 42, UNLINK_FILE, 0);
   EXPECT_GE(fileno, 0);
   my_close(fileno, 0);
-  EXPECT_THAT(dst, MatchesRegex("/tmp/[a]+[a-z0-9]+"));
+  EXPECT_THAT(dst, MatchesRegex("/tmp/[a]+(fd=[0-9]+|[a-zA-Z0-9]+)"));
   aset(dst, 0xaa);
 
   char *env_tmpdir = getenv("TMPDIR");
@@ -203,7 +203,7 @@ TEST(Mysys, UnpackDirname) {
   // Verify that ~ is expanded to home_dir+/
   // If home_dir is not set (WIN32) tilde expansion does not happen.
   std::string hd{home_dir ? home_dir : "~"};
-  hd.append(1, FN_LIBCHAR);
+  if (hd != "/") hd.append(1, FN_LIBCHAR);
   aset(dst, 0xaa);
   unpack_dirname(dst, "~");
   EXPECT_EQ(hd, std::string{dst});

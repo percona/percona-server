@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <mysql/psi/mysql_file.h>
 #include <stdarg.h>
@@ -31,7 +32,6 @@
 #include <sstream>
 #include <utility>
 
-#include "my_dbug.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "sql/current_thd.h"
@@ -45,9 +45,9 @@ bool is_super_user() {
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_super_privilege = false;
 
-  DBUG_ASSERT(thd != NULL);
+  assert(thd != nullptr);
 
-  if (thd == NULL || thd_get_security_context(thd, &sec_ctx) ||
+  if (thd == nullptr || thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "privilege_super",
                                   &has_super_privilege))
     return false;
@@ -143,7 +143,7 @@ int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags) {
                   << ". Please check if file " << my_filename(file)
                   << " was not removed. OS returned this error: "
                   << strerror(errno);
-    if (current_thd != NULL && is_super_user())
+    if (current_thd != nullptr && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
     logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_GET_FILE_STAT,
@@ -157,7 +157,7 @@ bool File_io::remove(const char *filename, myf myFlags) {
     std::stringstream error_message;
     error_message << "Could not remove file " << filename
                   << " OS retuned this error: " << strerror(errno);
-    if (current_thd != NULL && is_super_user())
+    if (current_thd != nullptr && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
     logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_REMOVE_FILE, filename,
@@ -187,12 +187,12 @@ bool File_io::truncate(File file, myf myFlags) {
 #elif defined(HAVE_FTRUNCATE)
   if (ftruncate(file, (off_t)0) && (myFlags & MY_WME)) {
 #else
-  DBUG_ASSERT(0);
+  assert(0);
 #endif
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
                   << ". OS retuned this error: " << strerror(errno);
-    if (current_thd != NULL && is_super_user())
+    if (current_thd != nullptr && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
     logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_TRUNCATE_FILE,
@@ -200,7 +200,7 @@ bool File_io::truncate(File file, myf myFlags) {
     return true;
   }
   //#else
-  //  DBUG_ASSERT(0);
+  //  assert(0);
   //#endif
   return false;
 }  // namespace keyring
@@ -212,7 +212,7 @@ void File_io::my_warning(int nr, ...) {
   if (!(format = my_get_err_msg(nr))) {
     std::stringstream error_message;
     error_message << "Unknown error " << nr;
-    if (current_thd != NULL && is_super_user())
+    if (current_thd != nullptr && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, nr,
                    error_message.str().c_str());
     logger->log(ERROR_LEVEL, ER_KEYRING_UNKNOWN_ERROR, nr);
@@ -222,7 +222,7 @@ void File_io::my_warning(int nr, ...) {
     va_start(args, nr);
     vsnprintf(warning, sizeof(warning), format, args);
     va_end(args);
-    if (current_thd != NULL && is_super_user())
+    if (current_thd != nullptr && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, nr, warning);
     logger->log(ERROR_LEVEL, ER_KEYRING_FILE_IO_ERROR, warning);
   }

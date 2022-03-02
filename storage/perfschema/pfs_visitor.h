@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,8 @@ struct PFS_connection_slice;
 */
 class PFS_connection_visitor {
  public:
-  PFS_connection_visitor() {}
-  virtual ~PFS_connection_visitor() {}
+  PFS_connection_visitor() = default;
+  virtual ~PFS_connection_visitor() = default;
   /** Visit all connections. */
   virtual void visit_global() {}
   /** Visit all connections of a host. */
@@ -149,7 +149,9 @@ class PFS_connection_iterator {
     @param thd the THD to visit.
     @param visitor the visitor to call.
   */
-  static void visit_THD(THD *thd, PFS_connection_visitor *visitor);
+  static inline void visit_THD(THD *thd, PFS_connection_visitor *visitor) {
+    visitor->visit_THD(thd);
+  }
 };
 
 /**
@@ -158,8 +160,8 @@ class PFS_connection_iterator {
 */
 class PFS_instance_visitor {
  public:
-  PFS_instance_visitor() {}
-  virtual ~PFS_instance_visitor() {}
+  PFS_instance_visitor() = default;
+  virtual ~PFS_instance_visitor() = default;
   /** Visit a mutex class. */
   virtual void visit_mutex_class(PFS_mutex_class *) {}
   /** Visit a rwlock class. */
@@ -266,8 +268,8 @@ class PFS_instance_iterator {
 */
 class PFS_object_visitor {
  public:
-  PFS_object_visitor() {}
-  virtual ~PFS_object_visitor() {}
+  PFS_object_visitor() = default;
+  virtual ~PFS_object_visitor() = default;
   /** Visit global data. */
   virtual void visit_global() {}
   /** Visit a table share. */
@@ -307,12 +309,12 @@ class PFS_connection_wait_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_wait_visitor(PFS_instr_class *klass);
-  virtual ~PFS_connection_wait_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_wait_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** EVENT_NAME instrument index. */
   uint m_index;
@@ -328,12 +330,12 @@ class PFS_connection_all_wait_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_all_wait_visitor();
-  virtual ~PFS_connection_all_wait_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_all_wait_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** Wait statistic collected. */
   PFS_single_stat m_stat;
@@ -350,12 +352,12 @@ class PFS_connection_stage_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_stage_visitor(PFS_stage_class *klass);
-  virtual ~PFS_connection_stage_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_stage_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** EVENT_NAME instrument index. */
   uint m_index;
@@ -371,12 +373,12 @@ class PFS_connection_statement_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_statement_visitor(PFS_statement_class *klass);
-  virtual ~PFS_connection_statement_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_statement_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** EVENT_NAME instrument index. */
   uint m_index;
@@ -392,12 +394,12 @@ class PFS_connection_all_statement_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_all_statement_visitor();
-  virtual ~PFS_connection_all_statement_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_all_statement_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** Statement statistic collected. */
   PFS_statement_stat m_stat;
@@ -414,12 +416,12 @@ class PFS_connection_transaction_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_transaction_visitor(PFS_transaction_class *klass);
-  virtual ~PFS_connection_transaction_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_transaction_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** EVENT_NAME instrument index. */
   uint m_index;
@@ -434,18 +436,18 @@ class PFS_connection_transaction_visitor : public PFS_connection_visitor {
 class PFS_connection_error_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_error_visitor(PFS_error_class *klass, int index);
-  virtual ~PFS_connection_error_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  PFS_connection_error_visitor(PFS_error_class *klass, uint index);
+  ~PFS_connection_error_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** EVENT_NAME instrument index. */
   uint m_index;
   /** index of a specific error. */
-  int m_error_index;
+  uint m_error_index;
   /** Error statistic collected. */
   PFS_error_single_stat m_stat;
 };
@@ -458,12 +460,12 @@ class PFS_connection_stat_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_stat_visitor();
-  virtual ~PFS_connection_stat_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_stat_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** Connection statistic collected. */
   PFS_connection_stat m_stat;
@@ -477,17 +479,17 @@ class PFS_connection_memory_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_memory_visitor(PFS_memory_class *klass);
-  virtual ~PFS_connection_memory_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
+  ~PFS_connection_memory_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
 
   /** EVENT_NAME instrument index. */
   uint m_index;
   /** Statement statistic collected. */
-  PFS_memory_safe_stat m_stat;
+  PFS_memory_monitoring_stat m_stat;
 };
 
 /**
@@ -498,13 +500,13 @@ class PFS_connection_status_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
   PFS_connection_status_visitor(System_status_var *status_vars);
-  virtual ~PFS_connection_status_visitor();
-  virtual void visit_global();
-  virtual void visit_host(PFS_host *pfs);
-  virtual void visit_account(PFS_account *pfs);
-  virtual void visit_user(PFS_user *pfs);
-  virtual void visit_thread(PFS_thread *pfs);
-  virtual void visit_THD(THD *thd);
+  ~PFS_connection_status_visitor() override;
+  void visit_global() override;
+  void visit_host(PFS_host *pfs) override;
+  void visit_account(PFS_account *pfs) override;
+  void visit_user(PFS_user *pfs) override;
+  void visit_thread(PFS_thread *pfs) override;
+  void visit_THD(THD *thd) override;
 
  private:
   System_status_var *m_status_vars;
@@ -517,17 +519,17 @@ class PFS_connection_status_visitor : public PFS_connection_visitor {
 class PFS_instance_wait_visitor : public PFS_instance_visitor {
  public:
   PFS_instance_wait_visitor();
-  virtual ~PFS_instance_wait_visitor();
-  virtual void visit_mutex_class(PFS_mutex_class *pfs);
-  virtual void visit_rwlock_class(PFS_rwlock_class *pfs);
-  virtual void visit_cond_class(PFS_cond_class *pfs);
-  virtual void visit_file_class(PFS_file_class *pfs);
-  virtual void visit_socket_class(PFS_socket_class *pfs);
-  virtual void visit_mutex(PFS_mutex *pfs);
-  virtual void visit_rwlock(PFS_rwlock *pfs);
-  virtual void visit_cond(PFS_cond *pfs);
-  virtual void visit_file(PFS_file *pfs);
-  virtual void visit_socket(PFS_socket *pfs);
+  ~PFS_instance_wait_visitor() override;
+  void visit_mutex_class(PFS_mutex_class *pfs) override;
+  void visit_rwlock_class(PFS_rwlock_class *pfs) override;
+  void visit_cond_class(PFS_cond_class *pfs) override;
+  void visit_file_class(PFS_file_class *pfs) override;
+  void visit_socket_class(PFS_socket_class *pfs) override;
+  void visit_mutex(PFS_mutex *pfs) override;
+  void visit_rwlock(PFS_rwlock *pfs) override;
+  void visit_cond(PFS_cond *pfs) override;
+  void visit_file(PFS_file *pfs) override;
+  void visit_socket(PFS_socket *pfs) override;
 
   /** Wait statistic collected. */
   PFS_single_stat m_stat;
@@ -540,10 +542,10 @@ class PFS_instance_wait_visitor : public PFS_instance_visitor {
 class PFS_object_wait_visitor : public PFS_object_visitor {
  public:
   PFS_object_wait_visitor();
-  virtual ~PFS_object_wait_visitor();
-  virtual void visit_global();
-  virtual void visit_table_share(PFS_table_share *pfs);
-  virtual void visit_table(PFS_table *pfs);
+  ~PFS_object_wait_visitor() override;
+  void visit_global() override;
+  void visit_table_share(PFS_table_share *pfs) override;
+  void visit_table(PFS_table *pfs) override;
 
   /** Object wait statistic collected. */
   PFS_single_stat m_stat;
@@ -556,10 +558,10 @@ class PFS_object_wait_visitor : public PFS_object_visitor {
 class PFS_table_io_wait_visitor : public PFS_object_visitor {
  public:
   PFS_table_io_wait_visitor();
-  virtual ~PFS_table_io_wait_visitor();
-  virtual void visit_global();
-  virtual void visit_table_share(PFS_table_share *pfs);
-  virtual void visit_table(PFS_table *pfs);
+  ~PFS_table_io_wait_visitor() override;
+  void visit_global() override;
+  void visit_table_share(PFS_table_share *pfs) override;
+  void visit_table(PFS_table *pfs) override;
 
   /** Table I/O wait statistic collected. */
   PFS_single_stat m_stat;
@@ -572,9 +574,9 @@ class PFS_table_io_wait_visitor : public PFS_object_visitor {
 class PFS_table_io_stat_visitor : public PFS_object_visitor {
  public:
   PFS_table_io_stat_visitor();
-  virtual ~PFS_table_io_stat_visitor();
-  virtual void visit_table_share(PFS_table_share *pfs);
-  virtual void visit_table(PFS_table *pfs);
+  ~PFS_table_io_stat_visitor() override;
+  void visit_table_share(PFS_table_share *pfs) override;
+  void visit_table(PFS_table *pfs) override;
 
   /** Table I/O statistic collected. */
   PFS_table_io_stat m_stat;
@@ -587,9 +589,9 @@ class PFS_table_io_stat_visitor : public PFS_object_visitor {
 class PFS_index_io_stat_visitor : public PFS_object_visitor {
  public:
   PFS_index_io_stat_visitor();
-  virtual ~PFS_index_io_stat_visitor();
-  virtual void visit_table_share_index(PFS_table_share *pfs, uint index);
-  virtual void visit_table_index(PFS_table *pfs, uint index);
+  ~PFS_index_io_stat_visitor() override;
+  void visit_table_share_index(PFS_table_share *pfs, uint index) override;
+  void visit_table_index(PFS_table *pfs, uint index) override;
 
   /** Index I/O statistic collected. */
   PFS_table_io_stat m_stat;
@@ -602,10 +604,10 @@ class PFS_index_io_stat_visitor : public PFS_object_visitor {
 class PFS_table_lock_wait_visitor : public PFS_object_visitor {
  public:
   PFS_table_lock_wait_visitor();
-  virtual ~PFS_table_lock_wait_visitor();
-  virtual void visit_global();
-  virtual void visit_table_share(PFS_table_share *pfs);
-  virtual void visit_table(PFS_table *pfs);
+  ~PFS_table_lock_wait_visitor() override;
+  void visit_global() override;
+  void visit_table_share(PFS_table_share *pfs) override;
+  void visit_table(PFS_table *pfs) override;
 
   /** Table lock wait statistic collected. */
   PFS_single_stat m_stat;
@@ -618,9 +620,9 @@ class PFS_table_lock_wait_visitor : public PFS_object_visitor {
 class PFS_table_lock_stat_visitor : public PFS_object_visitor {
  public:
   PFS_table_lock_stat_visitor();
-  virtual ~PFS_table_lock_stat_visitor();
-  virtual void visit_table_share(PFS_table_share *pfs);
-  virtual void visit_table(PFS_table *pfs);
+  ~PFS_table_lock_stat_visitor() override;
+  void visit_table_share(PFS_table_share *pfs) override;
+  void visit_table(PFS_table *pfs) override;
 
   /** Table lock statistic collected. */
   PFS_table_lock_stat m_stat;
@@ -633,9 +635,9 @@ class PFS_table_lock_stat_visitor : public PFS_object_visitor {
 class PFS_instance_socket_io_stat_visitor : public PFS_instance_visitor {
  public:
   PFS_instance_socket_io_stat_visitor();
-  virtual ~PFS_instance_socket_io_stat_visitor();
-  virtual void visit_socket_class(PFS_socket_class *pfs);
-  virtual void visit_socket(PFS_socket *pfs);
+  ~PFS_instance_socket_io_stat_visitor() override;
+  void visit_socket_class(PFS_socket_class *pfs) override;
+  void visit_socket(PFS_socket *pfs) override;
 
   /** Wait and byte count statistics collected. */
   PFS_socket_io_stat m_socket_io_stat;
@@ -648,9 +650,9 @@ class PFS_instance_socket_io_stat_visitor : public PFS_instance_visitor {
 class PFS_instance_file_io_stat_visitor : public PFS_instance_visitor {
  public:
   PFS_instance_file_io_stat_visitor();
-  virtual ~PFS_instance_file_io_stat_visitor();
-  virtual void visit_file_class(PFS_file_class *pfs);
-  virtual void visit_file(PFS_file *pfs);
+  ~PFS_instance_file_io_stat_visitor() override;
+  void visit_file_class(PFS_file_class *pfs) override;
+  void visit_file(PFS_file *pfs) override;
 
   /** Wait and byte count statistics collected. */
   PFS_file_io_stat m_file_io_stat;

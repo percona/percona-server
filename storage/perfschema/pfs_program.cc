@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,11 @@
 
 #include "storage/perfschema/pfs_program.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/mysqld.h"  //system_charset_info
@@ -68,9 +69,9 @@ static const uchar *program_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_program *program;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_program *const *>(entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != nullptr);
   program = *typed_entry;
-  DBUG_ASSERT(program != NULL);
+  assert(program != nullptr);
   *length = program->m_key.m_key_length;
   result = program->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -100,8 +101,8 @@ void cleanup_program_hash(void) {
 static void set_program_key(PFS_program_key *key, enum_object_type object_type,
                             const char *object_name, uint object_name_length,
                             const char *schema_name, uint schema_name_length) {
-  DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
-  DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
+  assert(object_name_length <= COL_OBJECT_NAME_SIZE);
+  assert(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
 
   /*
     To make sure generated key is case insensitive,
@@ -150,9 +151,9 @@ void reset_esms_by_program() {
 }
 
 static LF_PINS *get_program_hash_pins(PFS_thread *thread) {
-  if (unlikely(thread->m_program_hash_pins == NULL)) {
+  if (unlikely(thread->m_program_hash_pins == nullptr)) {
     if (!program_hash_inited) {
-      return NULL;
+      return nullptr;
     }
     thread->m_program_hash_pins = lf_hash_get_pins(&program_hash);
   }
@@ -165,9 +166,9 @@ PFS_program *find_or_create_program(
   bool is_enabled, is_timed;
 
   LF_PINS *pins = get_program_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     global_program_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
   /* Prepare program key */
@@ -176,7 +177,7 @@ PFS_program *find_or_create_program(
                   schema_name, schema_name_length);
 
   PFS_program **entry;
-  PFS_program *pfs = NULL;
+  PFS_program *pfs = nullptr;
   uint retry_count = 0;
   const uint retry_max = 3;
   pfs_dirty_state dirty_state;
@@ -203,7 +204,7 @@ search:
 
   /* Else create a new record in program stat array. */
   pfs = global_program_container.allocate(&dirty_state);
-  if (pfs != NULL) {
+  if (pfs != nullptr) {
     /* Do the assignments. */
     memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
     pfs->m_key.m_key_length = key.m_key_length;
@@ -231,23 +232,23 @@ search:
       if (++retry_count > retry_max) {
         /* Avoid infinite loops */
         global_program_container.m_lost++;
-        return NULL;
+        return nullptr;
       }
       goto search;
     }
     /* OOM in lf_hash_insert */
     global_program_container.m_lost++;
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void drop_program(PFS_thread *thread, enum_object_type object_type,
                   const char *object_name, uint object_name_length,
                   const char *schema_name, uint schema_name_length) {
   LF_PINS *pins = get_program_hash_pins(thread);
-  if (unlikely(pins == NULL)) {
+  if (unlikely(pins == nullptr)) {
     return;
   }
 
@@ -261,7 +262,7 @@ void drop_program(PFS_thread *thread, enum_object_type object_type,
       lf_hash_search(&program_hash, pins, key.m_hash_key, key.m_key_length));
 
   if (entry && (entry != MY_LF_ERRPTR)) {
-    PFS_program *pfs = NULL;
+    PFS_program *pfs = nullptr;
     pfs = *entry;
 
     lf_hash_delete(&program_hash, pins, key.m_hash_key, key.m_key_length);

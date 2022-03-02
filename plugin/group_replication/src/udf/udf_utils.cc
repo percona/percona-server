@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,33 @@ void log_privilege_status_result(privilege_result const &privilege,
   }
 }
 
+std::pair<bool, std::string> check_super_read_only_is_disabled() {
+  bool read_only_mode = false, super_read_only_mode = false;
+
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
+  bool error = sql_command_interface->establish_session_connection(
+                   PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer()) ||
+               get_read_mode_state(sql_command_interface, &read_only_mode,
+                                   &super_read_only_mode);
+  delete sql_command_interface;
+
+  if (error) {
+    /* purecov: begin inspected */
+    return std::make_pair<bool, std::string>(
+        true, "Unable to check if super_read_only is disabled.");
+    /* purecov: end */
+  }
+
+  if (super_read_only_mode) {
+    return std::make_pair<bool, std::string>(
+        true, "Server must have super_read_only=0.");
+  }
+
+  return std::make_pair<bool, std::string>(false,
+                                           "super_read_only is disabled.");
+}
+
 bool member_online_with_majority() {
   if (!plugin_is_group_replication_running()) return false;
 
@@ -162,7 +189,7 @@ bool validate_uuid_parameter(std::string &uuid, size_t length,
 
 bool throw_udf_error(const char *action_name, const char *error_message,
                      bool log_error) {
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if ((registry = get_plugin_registry())) {
     my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error(
         "mysql_runtime_error", registry);

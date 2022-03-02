@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #endif
 
 #include <sys/types.h>
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 
@@ -251,7 +252,7 @@ class table_def {
     containing an uninitialized table_def object which is only conditionally
     initialized. See Table_map_log_event::do_apply_event().
   */
-  table_def() {}
+  table_def() = default;
 
   /**
     Constructor.
@@ -305,7 +306,7 @@ class table_def {
     returned.
    */
   enum_field_types type(ulong index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     /*
       If the source type is MYSQL_TYPE_STRING, it can in reality be
       either MYSQL_TYPE_STRING, MYSQL_TYPE_ENUM, or MYSQL_TYPE_SET, so
@@ -350,7 +351,7 @@ class table_def {
     in the event that the master's field is smaller than the slave.
   */
   uint field_metadata(uint index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     if (m_field_metadata_size)
       return m_field_metadata[index];
     else
@@ -361,7 +362,7 @@ class table_def {
     Returns whether or not the field at `index` is a typed array.
    */
   bool is_array(uint index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     if (m_field_metadata_size)
       return m_is_array[index];
     else
@@ -373,7 +374,7 @@ class table_def {
     This value is derived from field->maybe_null().
   */
   bool maybe_null(uint index) const {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     return ((m_null_bits[(index / 8)] & (1 << (index % 8))) ==
             (1 << (index % 8)));
   }
@@ -402,7 +403,7 @@ class table_def {
 
       - Each column on the master that also exists on the slave can be
         converted according to the current settings of @c
-        SLAVE_TYPE_CONVERSIONS.
+        REPLICA_TYPE_CONVERSIONS.
 
     @param thd   Current thread
     @param rli   Pointer to relay log info
@@ -516,17 +517,17 @@ class Deferred_log_events {
 */
 
 std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
-    const uchar *metadata_ptr, enum_field_types type);
+    const uchar *buffer, enum_field_types binlog_type);
 
 // NB. number of printed bit values is limited to sizeof(buf) - 1
-#define DBUG_PRINT_BITSET(N, FRM, BS)                           \
-  do {                                                          \
-    char buf[256];                                              \
-    uint i;                                                     \
-    for (i = 0; i < MY_MIN(sizeof(buf) - 1, (BS)->n_bits); i++) \
-      buf[i] = bitmap_is_set((BS), i) ? '1' : '0';              \
-    buf[i] = '\0';                                              \
-    DBUG_PRINT((N), ((FRM), buf));                              \
+#define DBUG_PRINT_BITSET(N, FRM, BS)                                   \
+  do {                                                                  \
+    char buf[256];                                                      \
+    uint i;                                                             \
+    for (i = 0; i < std::min(uint{sizeof(buf) - 1}, (BS)->n_bits); i++) \
+      buf[i] = bitmap_is_set((BS), i) ? '1' : '0';                      \
+    buf[i] = '\0';                                                      \
+    DBUG_PRINT((N), ((FRM), buf));                                      \
   } while (0)
 
 #ifdef MYSQL_SERVER
@@ -615,6 +616,18 @@ std::string replace_all_in_str(std::string from, std::string find,
           false otherwise
  */
 bool evaluate_command_row_only_restrictions(THD *thd);
+
+/**
+  This function shall blindly replace some deprecated terms used in the
+  field names with more recent ones. This function must be removed
+  once the related syntax (SHOW SLAVE STATUS and friends) is removed.
+
+  @param thd the thread context.
+  @param field_list the list of fields that will have their name checked
+                    and altered if needed.
+ */
+void rename_fields_use_old_replica_source_terms(
+    THD *thd, mem_root_deque<Item *> &field_list);
 
 #endif  // MYSQL_SERVER
 

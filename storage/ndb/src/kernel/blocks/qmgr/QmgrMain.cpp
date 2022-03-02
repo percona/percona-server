@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #define QMGR_C
 #include "Qmgr.hpp"
 #include <pc.hpp>
+#include <NdbSleep.h>
 #include <NdbTick.h>
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/EventReport.hpp>
@@ -53,17 +54,25 @@
 #include <signaldata/LocalSysfile.hpp>
 #include <signaldata/SyncThreadViaReqConf.hpp>
 #include <signaldata/TakeOverTcConf.hpp>
+#include <signaldata/GetNumMultiTrp.hpp>
+#include <signaldata/Sync.hpp>
 #include <ndb_version.h>
 #include <OwnProcessInfo.hpp>
 #include <NodeInfo.hpp>
+#include <NdbSleep.h>
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
+
 
 #include <TransporterRegistry.hpp> // Get connect address
 
 #include "../dbdih/Dbdih.hpp"
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_MULTI_TRP 1
+//#define DEBUG_STARTUP 1
 //#define DEBUG_ARBIT 1
 #endif
 
@@ -73,18 +82,30 @@ extern EventLogger * g_eventLogger;
 #define DEB_ARBIT(arglist) do { } while (0)
 #endif
 
+#ifdef DEBUG_MULTI_TRP
+#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MULTI_TRP(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_STARTUP
+#define DEB_STARTUP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_STARTUP(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
 #include <DebuggerNames.hpp>
-#define DEBUG(x) ndbout << "QMGR " << __LINE__ << ": " << x << endl
-#define DEBUG_START(gsn, node, msg) DEBUG(getSignalName(gsn) << " to: " << node << " - " << msg)
+#define QMGR_DEBUG(x) ndbout << "QMGR " << __LINE__ << ": " << x << endl
+#define DEBUG_START(gsn, node, msg) QMGR_DEBUG(getSignalName(gsn) << " to: " << node << " - " << msg)
 #define DEBUG_START2(gsn, rg, msg) { \
   char nodes[NdbNodeBitmask::TextLength + 1]; \
-  DEBUG(getSignalName(gsn) << " to: " << rg.m_nodes.getText(nodes) << " - " << msg); \
+  QMGR_DEBUG(getSignalName(gsn) << " to: " << rg.m_nodes.getText(nodes) << " - " << msg); \
 }
-#define DEBUG_START3(signal, msg) DEBUG(getSignalName(signal->header.theVerId_signalNumber) << " from " << refToNode(signal->getSendersBlockRef()) << " - " << msg);
+#define DEBUG_START3(signal, msg) QMGR_DEBUG(getSignalName(signal->header.theVerId_signalNumber) << " from " << refToNode(signal->getSendersBlockRef()) << " - " << msg);
 #else
-#define DEBUG(x)
+#define QMGR_DEBUG(x)
 #define DEBUG_START(gsn, node, msg)
 #define DEBUG_START2(gsn, rg, msg)
 #define DEBUG_START3(signal, msg)
@@ -302,19 +323,19 @@ void Qmgr::execCONTINUEB(Signal* signal)
       return;
     }//if
     //regreqMasterTimeLimitLab(signal);
-    failReportLab(signal, c_start.m_startNode, FailRep::ZSTART_IN_REGREQ, getOwnNodeId());
+    failReportLab(signal,
+                  c_start.m_startNode,
+                  FailRep::ZSTART_IN_REGREQ,
+                  getOwnNodeId());
     return;
-    break;
   case ZTIMER_HANDLING:
     jam();
     timerHandlingLab(signal);
     return;
-    break;
   case ZARBIT_HANDLING:
     jam();
     runArbitThread(signal);
     return;
-    break;
   case ZSTART_FAILURE_LIMIT:{
     if (cpresident != ZNIL)
     {
@@ -347,13 +368,29 @@ void Qmgr::execCONTINUEB(Signal* signal)
     handleStateChange(signal, tdata0);
     return;
   }
-
+  case ZCHECK_MULTI_TRP_CONNECT:
+  {
+    jam();
+    check_connect_multi_transporter(signal, tdata0);
+    return;
+  }
+  case ZRESEND_GET_NUM_MULTI_TRP_REQ:
+  {
+    jam();
+    send_get_num_multi_trp_req(signal, signal->theData[1]);
+    return;
+  }
+  case ZSWITCH_MULTI_TRP:
+  {
+    jam();
+    send_switch_multi_transporter(signal, signal->theData[1], true);
+    return;
+  }
   default:
     jam();
     // ZCOULD_NOT_OCCUR_ERROR;
     systemErrorLab(signal, __LINE__);
     return;
-    break;
   }//switch
   return;
 }//Qmgr::execCONTINUEB()
@@ -421,6 +458,55 @@ Qmgr::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+  m_num_multi_trps = 0;
+  if (isNdbMt() && globalData.ndbMtSendThreads)
+  {
+    ndb_mgm_get_int_parameter(p,
+                              CFG_DB_NODE_GROUP_TRANSPORTERS,
+                              &m_num_multi_trps);
+    if (m_num_multi_trps == 0)
+    {
+      jam();
+      /**
+       * The default assignment is to use the same number of multi
+       * transporters as there are LDM instances in this node.
+       * So essentially each LDM thread will have its own transporter
+       * to the corresponding LDM thread in the other nodes in the
+       * same node group. This will ensure that I can assign the
+       * transporter to the send thread the LDM thread assists as
+       * well.
+       */
+      m_num_multi_trps = globalData.ndbMtLqhThreads;
+    }
+    else
+    {
+      jam();
+      /**
+       * No reason to use more sockets than the maximum threads in one
+       * thread group. We select the socket to use based on the
+       * instance id of the receiving thread. So if we use more sockets
+       * than threads in the largest thread group, there will be unused
+       * sockets.
+       *
+       * So we select the configured number unless the maximum number of
+       * LDM and/or TC threads is smaller than this number.
+       */
+      m_num_multi_trps = MIN(m_num_multi_trps,
+                         MAX(globalData.ndbMtLqhThreads,
+                             globalData.ndbMtTcThreads));
+    }
+    /**
+     * Whatever value this node has choosen, we will never be able to use
+     * more transporters than the other node permits as well. This will be
+     * established in the setup phase of multi transporters.
+     */
+  }
+  if (m_num_multi_trps == 0)
+  {
+    jam();
+    m_num_multi_trps = 1;
+  }
+  m_num_multi_trps = MIN(m_num_multi_trps, MAX_NODE_GROUP_TRANSPORTERS);
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -460,6 +546,7 @@ void Qmgr::execSTTOR(Signal* signal)
   
   switch(signal->theData[1]){
   case 1:
+    jam();
     initData(signal);
     g_eventLogger->info("Starting QMGR phase 1");
     c_ndbcntr = (Ndbcntr*)globalData.getBlock(NDBCNTR);
@@ -468,11 +555,17 @@ void Qmgr::execSTTOR(Signal* signal)
     recompute_version_info(NodeInfo::API);
     recompute_version_info(NodeInfo::MGM);
     return;
+  case 3:
+    jam();
+    break;
   case 7:
+    jam();
     if (cpresident == getOwnNodeId())
     {
+      jam();
       switch(arbitRec.method){
       case ArbitRec::DISABLED:
+        jam();
         break;
 
       case ArbitRec::METHOD_EXTERNAL:
@@ -488,6 +581,7 @@ void Qmgr::execSTTOR(Signal* signal)
     }
     break;
   case 9:{
+    jam();
     /**
      * Enable communication to all API nodes by setting state
      *   to ZFAIL_CLOSING (which will make it auto-open in checkStartInterface)
@@ -503,12 +597,13 @@ void Qmgr::execSTTOR(Signal* signal)
     NodeRecPtr nodePtr;
     for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++)
     {
-      jam();
       Uint32 type = getNodeInfo(nodePtr.i).m_type;
       if (type != NodeInfo::API)
         continue;
 
       ptrAss(nodePtr, nodeRec);
+      jam();
+      jamLine(Uint16(nodePtr.i));
       if (nodePtr.p->phase == ZAPI_INACTIVE)
       {
         jam();
@@ -531,13 +626,14 @@ void Qmgr::sendSttorryLab(Signal* signal, bool first_phase)
     g_eventLogger->info("Include node protocol completed, phase 1 in QMGR"
                         " completed");
   }
-/****************************<*/
-/*< STTORRY                  <*/
-/****************************<*/
-  signal->theData[3] = 7;
-  signal->theData[4] = 9;
-  signal->theData[5] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+/*****************************/
+/*  STTORRY                  */
+/*****************************/
+  signal->theData[3] = 3;
+  signal->theData[4] = 7;
+  signal->theData[5] = 9;
+  signal->theData[6] = 255;
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
   return;
 }//Qmgr::sendSttorryLab()
 
@@ -549,6 +645,7 @@ void Qmgr::startphase1(Signal* signal)
   nodePtr.i = getOwnNodeId();
   ptrAss(nodePtr, nodeRec);
   nodePtr.p->phase = ZSTARTING;
+  DEB_STARTUP(("phase(%u) = ZSTARTING", nodePtr.i));
 
   DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
   req->senderRef = reference();
@@ -690,7 +787,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   if (ERROR_INSERTED(931))
   {
     jam();
-    ndbout_c("Discarding CONNECT_REP(%d)", connectedNodeId);
+    g_eventLogger->info("Discarding CONNECT_REP(%d)", connectedNodeId);
     infoEvent("Discarding CONNECT_REP(%d)", connectedNodeId);
     return;
   }
@@ -700,7 +797,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Discarding one API CONNECT_REP(%d)", connectedNodeId);
+    g_eventLogger->info("Discarding one API CONNECT_REP(%d)", connectedNodeId);
     infoEvent("Discarding one API CONNECT_REP(%d)", connectedNodeId);
     return;
   }
@@ -713,6 +810,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   }
 
   c_connectedNodes.set(connectedNodeId);
+  DEB_STARTUP(("c_connectedNodes(%u) set", connectedNodeId));
 
   {
     NodeRecPtr connectedNodePtr;
@@ -1081,7 +1179,8 @@ void Qmgr::cmInfoconf010Lab(Signal* signal)
 }//Qmgr::cmInfoconf010Lab()
 
 void
-Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId){
+Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId)
+{
   CmRegReq * req = (CmRegReq *)&signal->theData[0];
   req->blockRef = reference();
   req->nodeId = getOwnNodeId();
@@ -1096,6 +1195,7 @@ Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId){
    */
   memset(req->unused_words, 0, sizeof(req->unused_words));
   sendSignal(ref, GSN_CM_REGREQ, signal, CmRegReq::SignalLength, JBB);
+  DEB_STARTUP(("CM_REGREQ sent to node %u", nodeId));
   DEBUG_START(GSN_CM_REGREQ, nodeId, "");
   
   c_start.m_regReqReqSent++;
@@ -1206,12 +1306,14 @@ void Qmgr::execCM_REGREQ(Signal* signal)
 
   if (creadyDistCom == ZFALSE) {
     jam();
+    DEB_STARTUP(("Not ready for distributed communication yet"));
     /* NOT READY FOR DISTRIBUTED COMMUNICATION.*/
     return;	     	      	             	      	             
   }//if
   
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, startingVersion)) {
     jam();
+    DEB_STARTUP(("Incompatible versions"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION,
                     startingVersion);
     return;
@@ -1230,6 +1332,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   if (check_start_type(start_type, c_start.m_start_type))
   {
     jam();
+    DEB_STARTUP(("Incompatible start types"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_START_TYPE,
                     startingVersion);
     return;
@@ -1256,7 +1359,10 @@ void Qmgr::execCM_REGREQ(Signal* signal)
 	jam();
 	c_start.m_president_candidate = addNodePtr.i;
 	c_start.m_president_candidate_gci = gci;
+        DEB_STARTUP(("President candidate: %u, gci: %u",
+                     addNodePtr.i, gci));
       }
+      DEB_STARTUP(("Election error to %x", Tblockref));
       sendCmRegrefLab(signal, Tblockref, CmRegRef::ZELECTION,
                       startingVersion);
       return;
@@ -1267,6 +1373,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
      * We know the president.
      * President will answer.
      */
+    DEB_STARTUP(("Not president error"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_PRESIDENT,
                     startingVersion);
     return;
@@ -1278,10 +1385,11 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     /**
      * President busy by adding another node
     */
+    DEB_STARTUP(("Busy president error"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZBUSY_PRESIDENT,
                     startingVersion);
     return;
-  }//if
+  }
   
   if (ctoStatus == Q_ACTIVE) 
   {   
@@ -1289,6 +1397,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     /**
      * Active taking over as president
      */
+    DEB_STARTUP(("President take over error"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZBUSY_TO_PRES,
                     startingVersion);
     return;
@@ -1300,6 +1409,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     /** 
      * The new node is not in config file
      */
+    DEB_STARTUP(("Not in cfg error"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_IN_CFG,
                     startingVersion);
     return;
@@ -1314,6 +1424,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
      */
     // handle rolling upgrade
     jam();
+    DEB_STARTUP(("Single user mode error"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE,
                     startingVersion);
     return;
@@ -1324,7 +1435,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   if (phase != ZINIT)
   {
     jam();
-    DEBUG("phase = " << phase);
+    QMGR_DEBUG("phase = " << phase);
+    DEB_STARTUP(("Not dead error"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_DEAD,
                     startingVersion);
     return;
@@ -1346,6 +1458,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
    */
   c_start.m_startKey++;
   c_start.m_startNode = addNodePtr.i;
+  DEB_STARTUP(("Node %u is starting node", addNodePtr.i));
   
   /**
    * Assign dynamic id
@@ -1367,6 +1480,14 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   cmRegConf->presidentMysqlVersion = getNodeInfo(getOwnNodeId()).m_mysql_version;
   cmRegConf->dynamicId         = TdynId;
   const Uint32 packed_nodebitmask_length = c_clusterNodes.getPackedLengthInWords();
+#ifdef DEBUG_STARTUP
+  {
+    char node_mask[NdbNodeBitmask::TextLength + 1];
+    c_clusterNodes.getText(node_mask);
+    DEB_STARTUP(("Sending CM_REGCONF from president, c_clusterNodes: %s",
+                 node_mask));
+  }
+#endif
   if (ndbd_send_node_bitmask_in_section(startingVersion))
   {
     jam();
@@ -1381,6 +1502,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     lsptr[0].p = &signal->theData[CmRegConf::SignalLength_v1];
     lsptr[0].sz = packed_nodebitmask_length;
 
+    DEB_STARTUP(("Sending CM_REGCONF to %x", Tblockref));
     sendSignal(Tblockref,
                GSN_CM_REGCONF,
                signal,
@@ -1393,6 +1515,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   {
     jam();
     c_clusterNodes.copyto(NdbNodeBitmask48::Size, cmRegConf->allNdbNodes_v1);
+    DEB_STARTUP(("2:Sending CM_REGCONF to %x", Tblockref));
     sendSignal(Tblockref, GSN_CM_REGCONF, signal,
                CmRegConf::SignalLength_v1, JBA);
   }
@@ -1401,6 +1524,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     infoEvent("Connection from node %u refused as it does not support node "
               "bitmask in signal section.",
               addNodePtr.i);
+    DEB_STARTUP(("Incompatible start types"));
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_START_TYPE,
                     startingVersion);
   }
@@ -1516,6 +1640,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 
   CmRegConf * const cmRegConf = (CmRegConf *)&signal->theData[0];
 
+  DEB_STARTUP(("Received CM_REGCONF"));
   NdbNodeBitmask allNdbNodes;
   if (signal->getNoOfSections() >= 1)
   {
@@ -1572,7 +1697,17 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 
   // set own MT config here or in REF, and others in CM_NODEINFOREQ/CONF
   setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
-  
+  setNodeInfo(getOwnNodeId()).m_query_threads = globalData.ndbMtQueryThreads;
+  setNodeInfo(getOwnNodeId()).m_log_parts = globalData.ndbLogParts;
+
+#ifdef DEBUG_STARTUP
+  {
+    char node_mask[NdbNodeBitmask::TextLength + 1];
+    c_clusterNodes.getText(node_mask);
+    DEB_STARTUP(("CM_REGCONF from president: %u, c_clusterNodes: %s",
+                cpresident, node_mask));
+  }
+#endif
 /*--------------------------------------------------------------*/
 // Send this as an EVENT REPORT to inform about hearing about
 // other NDB node proclaiming to be president.
@@ -1588,8 +1723,10 @@ void Qmgr::execCM_REGCONF(Signal* signal)
       jamLine(nodePtr.i);
       ptrAss(nodePtr, nodeRec);
 
+      DEB_MULTI_TRP(("Node %u in ZRUNNING", nodePtr.i));
       ndbrequire(nodePtr.p->phase == ZINIT);
       nodePtr.p->phase = ZRUNNING;
+      DEB_STARTUP(("phase(%u) = ZRUNNING", nodePtr.i));
 
       if(c_connectedNodes.get(nodePtr.i)){
 	jam();
@@ -1660,7 +1797,7 @@ retry:
 		       "I think president is: %d",
 		       nodeId, president, cpresident);
 
-  ndbout_c("%s", buf);
+  g_eventLogger->info("%s", buf);
   CRASH_INSERTION(933);
 
   if (getNodeState().startLevel == NodeState::SL_STARTED)
@@ -1774,6 +1911,8 @@ Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
   req->version = getNodeInfo(getOwnNodeId()).m_version;
   req->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
   req->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
+  req->query_threads = getNodeInfo(getOwnNodeId()).m_query_threads;
+  req->log_parts = getNodeInfo(getOwnNodeId()).m_log_parts;
   const Uint32 ref = calcQmgrBlockRef(nodeId);
   sendSignal(ref,GSN_CM_NODEINFOREQ, signal, CmNodeInfoReq::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOREQ, nodeId, "");
@@ -1896,6 +2035,8 @@ void Qmgr::execCM_REGREF(Signal* signal)
 
   // set own MT config here or in CONF, and others in CM_NODEINFOREQ/CONF
   setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
+  setNodeInfo(getOwnNodeId()).m_query_threads = globalData.ndbMtQueryThreads;
+  setNodeInfo(getOwnNodeId()).m_log_parts = globalData.ndbLogParts;
   
   char buf[100];
   switch (TrefuseReason) {
@@ -1958,6 +2099,8 @@ void Qmgr::execCM_REGREF(Signal* signal)
       signal->theData[3] = 2;
       c_start.m_president_candidate = candidate;
       c_start.m_president_candidate_gci = candidate_gci;
+      DEB_STARTUP(("2:President candidate: %u, gci: %u",
+                   candidate, candidate_gci));
     } else {
       signal->theData[3] = 4;
     }//if
@@ -1988,21 +2131,21 @@ void Qmgr::execCM_REGREF(Signal* signal)
   if(cpresidentAlive == ZTRUE)
   {
     jam();
-    DEBUG("cpresidentAlive");
+    QMGR_DEBUG("cpresidentAlive");
     return;
   }
   
   if(c_start.m_regReqReqSent != c_start.m_regReqReqRecv)
   {
     jam();
-    DEBUG(c_start.m_regReqReqSent << " != " << c_start.m_regReqReqRecv);
+    QMGR_DEBUG(c_start.m_regReqReqSent << " != " << c_start.m_regReqReqRecv);
     return;
   }
   
   if(c_start.m_president_candidate != getOwnNodeId())
   {
     jam();
-    DEBUG("i'm not the candidate");
+    QMGR_DEBUG("i'm not the candidate");
     return;
   }
   
@@ -2068,8 +2211,10 @@ Qmgr::check_startup(Signal* signal)
     }
     else if (no_nodegroup_active)
     {
+      jam();
       if (elapsed < c_restartNoNodegroupTimeout)
       {
+        jam();
         signal->theData[1] = 6;
         signal->theData[2] = Uint32((c_restartNoNodegroupTimeout - elapsed + 500) / 1000);
         report_mask.assign(wait);
@@ -2079,6 +2224,7 @@ Qmgr::check_startup(Signal* signal)
       tmp.bitOR(c_start.m_no_nodegroup_nodes);
       if (tmp.equal(c_definedNodes))
       {
+        jam();
         signal->theData[1] = 0x8000;
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
@@ -2109,10 +2255,12 @@ Qmgr::check_startup(Signal* signal)
   if (c_restartNoNodegroupTimeout != Uint32(~0) &&
       elapsed >= c_restartNoNodegroupTimeout)
   {
+    jam();
     tmp.bitOR(c_start.m_no_nodegroup_nodes);
   }
 
   {
+    jam();
     const bool all = c_start.m_starting_nodes.equal(c_definedNodes);
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
 
@@ -2129,7 +2277,7 @@ Qmgr::check_startup(Signal* signal)
       sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
       sd->mask = check;
       EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                     CheckNodeGroups::SignalLength);
+                     CheckNodeGroups::SignalLengthArbitCheckShort);
 
       if (sd->output == CheckNodeGroups::Lose)
       {
@@ -2137,12 +2285,13 @@ Qmgr::check_startup(Signal* signal)
         goto missing_nodegroup;
       }
     }
-  
+
+    jam();
     sd->blockRef = reference();
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
     sd->mask = c_start.m_starting_nodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                   CheckNodeGroups::SignalLength);
+                   CheckNodeGroups::SignalLengthArbitCheckShort);
   
     const Uint32 result = sd->output;
   
@@ -2150,7 +2299,7 @@ Qmgr::check_startup(Signal* signal)
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
     sd->mask = c_start.m_starting_nodes_w_log;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                   CheckNodeGroups::SignalLength);
+                   CheckNodeGroups::SignalLengthArbitCheckShort);
   
     const Uint32 result_w_log = sd->output;
 
@@ -2161,19 +2310,25 @@ Qmgr::check_startup(Signal* signal)
        *   this means that we will now start or die
        */
       jam();    
-      switch(result_w_log){
+      switch(result_w_log)
+      {
       case CheckNodeGroups::Lose:
       {
         jam();
         goto missing_nodegroup;
       }
       case CheckNodeGroups::Win:
+      {
+        jam();
         signal->theData[1] = all ? 0x8001 : 0x8002;
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
         retVal = 1;
         goto check_log;
+      }
       case CheckNodeGroups::Partitioning:
+      {
+        jam();
         ndbrequire(result != CheckNodeGroups::Lose);
         signal->theData[1] = 
           all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
@@ -2182,8 +2337,12 @@ Qmgr::check_startup(Signal* signal)
         retVal = 1;
         goto check_log;
       }
+      default:
+      {
+        ndbabort();
+      }
+      }
     }
-
     if (c_restartPartialTimeout == Uint32(~0) ||
         elapsed < c_restartPartialTimeout)
     {
@@ -2199,33 +2358,43 @@ Qmgr::check_startup(Signal* signal)
 
       if (no_nodegroup_active && elapsed < c_restartNoNodegroupTimeout)
       {
+        jam();
         signal->theData[1] = 7;
         signal->theData[2] = Uint32((c_restartNoNodegroupTimeout - elapsed + 500) / 1000);
       }
       else if (no_nodegroup_active && elapsed >= c_restartNoNodegroupTimeout)
       {
+        jam();
         report_mask.bitANDC(c_start.m_no_nodegroup_nodes);
       }
-
       goto start_report;
     }
   
     /**
      * Start partial has passed...check for partitioning...
      */  
-    switch(result_w_log){
+    switch(result_w_log)
+    {
     case CheckNodeGroups::Lose:
+    {
       jam();
       goto missing_nodegroup;
+    }
     case CheckNodeGroups::Partitioning:
+    {
+      jam();
       if (elapsed != Uint32(~0) &&
           elapsed < partitionedTimeout &&
           result != CheckNodeGroups::Win)
       {
+        jam();
         goto missinglog;
       }
-      // Fall through...
+    }
+    // Fall through
     case CheckNodeGroups::Win:
+    {
+      jam();
       signal->theData[1] = 
         all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
       report_mask.assign(c_definedNodes);
@@ -2233,13 +2402,17 @@ Qmgr::check_startup(Signal* signal)
       retVal = 2;
       goto check_log;
     }
+    default:
+    {
+      ndbabort();
+    }
+    }
   }
-  ndbabort();
 
 check_log:
   jam();
   {
-    Uint32 save[4+4*NdbNodeBitmask::Size];
+    Uint32 save[1+1*NdbNodeBitmask::Size];
     memcpy(save, signal->theData, sizeof(save));
 
     DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
@@ -2310,7 +2483,8 @@ start_report:
 missing_nodegroup:
   jam();
   {
-    char buf[NdbNodeBitmask::TextLength + 1];
+    const Uint32 extra = 100;
+    char buf[2 * (NdbNodeBitmask::TextLength + 1) + extra];
     char mask1[NdbNodeBitmask::TextLength + 1];
     char mask2[NdbNodeBitmask::TextLength + 1];
     c_start.m_starting_nodes.getText(mask1);
@@ -2329,7 +2503,24 @@ missing_nodegroup:
 incomplete_log:
   jam();
   {
-    char buf[NdbNodeBitmask::TextLength + 1];
+    DihRestartReq * req = (DihRestartReq*)&signal->theData[0];
+    for (Uint32 i = 0; i <= incompleteng; i++)
+    {
+      g_eventLogger->info("Node group GCI = %u for NG %u",
+                          req->node_gcis[i],
+                          i);
+    }
+    for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
+    {
+      if (c_start.m_node_gci[i] != 0)
+      {
+        g_eventLogger->info("Node GCI = %u for node %u",
+                            c_start.m_node_gci[i],
+                            i);
+      }
+    }
+    const Uint32 extra = 100;
+    char buf[NdbNodeBitmask::TextLength + 1 + extra];
     char mask1[NdbNodeBitmask::TextLength + 1];
     c_start.m_starting_nodes.getText(mask1);
     BaseString::snprintf(buf, sizeof(buf),
@@ -2351,6 +2542,8 @@ Qmgr::electionWon(Signal* signal)
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   
   myNodePtr.p->phase = ZRUNNING;
+  DEB_STARTUP(("phase(%u) = ZRUNNING", myNodePtr.i));
+  DEB_MULTI_TRP(("Node %u in ZRUNNING, electionWon", myNodePtr.i));
 
   cpdistref = reference();
   cneighbourl = ZNIL;
@@ -2425,6 +2618,13 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
   Uint32 lqh_workers = conf->lqh_workers;
+  Uint32 query_threads = conf->query_threads;
+  Uint32 log_parts = conf->log_parts;
+  if (signal->length() == CmNodeInfoConf::OldSignalLength)
+  {
+    query_threads = 0;
+    log_parts = lqh_workers;
+  }
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2444,6 +2644,8 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   setNodeInfo(replyNodePtr.i).m_version = version;
   setNodeInfo(replyNodePtr.i).m_mysql_version = mysql_version;
   setNodeInfo(replyNodePtr.i).m_lqh_workers = lqh_workers;
+  setNodeInfo(replyNodePtr.i).m_query_threads = query_threads;
+  setNodeInfo(replyNodePtr.i).m_log_parts = log_parts;
 
   recompute_version_info(NodeInfo::DB, version);
   
@@ -2477,6 +2679,7 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   jamEntry();
 
   const Uint32 Tblockref = signal->getSendersBlockRef();
+  const Uint32 sig_len = signal->length();
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2504,6 +2707,16 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   Uint32 lqh_workers = req->lqh_workers;
   setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
 
+  Uint32 query_threads = req->query_threads;
+  Uint32 log_parts = req->log_parts;
+  if (sig_len == CmNodeInfoReq::OldSignalLength)
+  {
+    query_threads = 0;
+    log_parts = lqh_workers;
+  }
+  setNodeInfo(addNodePtr.i).m_query_threads = query_threads;
+  setNodeInfo(addNodePtr.i).m_log_parts = log_parts;
+
   c_maxDynamicId = req->dynamicId & 0xFFFF;
 
   cmAddPrepare(signal, addNodePtr, nodePtr.p);
@@ -2517,6 +2730,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   case ZINIT:
     jam();
     nodePtr.p->phase = ZSTARTING;
+    DEB_STARTUP(("2:phase(%u) = ZSTARTING", nodePtr.i));
     return;
   case ZFAIL_CLOSING:
     jam();
@@ -2566,6 +2780,8 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   conf->version = getNodeInfo(getOwnNodeId()).m_version;
   conf->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
   conf->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
+  conf->query_threads = getNodeInfo(getOwnNodeId()).m_query_threads;
+  conf->log_parts = getNodeInfo(getOwnNodeId()).m_log_parts;
   sendSignal(nodePtr.p->blockRef, GSN_CM_NODEINFOCONF, signal,
 	     CmNodeInfoConf::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOCONF, refToNode(nodePtr.p->blockRef), "");
@@ -2681,6 +2897,8 @@ void Qmgr::execCM_ADD(Signal* signal)
     jam();
     ndbrequire(addNodePtr.p->phase == ZSTARTING);
     addNodePtr.p->phase = ZRUNNING;
+    DEB_STARTUP(("2:phase(%u) = ZRUNNING", addNodePtr.i));
+    DEB_MULTI_TRP(("Node %u in ZRUNNING, AddCommit", addNodePtr.i));
     m_connectivity_check.reportNodeConnect(addNodePtr.i);
     set_hb_count(addNodePtr.i) = 0;
     c_clusterNodes.set(addNodePtr.i);
@@ -2763,7 +2981,9 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    * HEARTBEAT PROTOCOL AND WE WILL ALSO ENABLE COMMUNICATION WITH ALL 
    * NODES IN THE CLUSTER.
    */
+  DEB_MULTI_TRP(("Node %u in ZRUNNING, AddCommit", nodePtr.i));
   nodePtr.p->phase = ZRUNNING;
+  DEB_STARTUP(("3:phase(%u) = ZRUNNING", nodePtr.i));
   set_hb_count(nodePtr.i) = 0;
   findNeighbours(signal, __LINE__);
   c_clusterNodes.set(nodePtr.i);
@@ -3145,6 +3365,7 @@ void Qmgr::initData(Signal* signal)
     arbitRec.method = ArbitRec::DISABLED;
   }
 
+  setNodeInfo(getOwnNodeId()).m_version = NDB_VERSION;
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 
   ndb_mgm_configuration_iterator * iter =
@@ -3363,7 +3584,7 @@ void Qmgr::sendHeartbeat(Signal* signal)
 
   if(ERROR_INSERTED(946))
   {
-    sleep(180);
+    NdbSleep_SecSleep(180);
     return;
   }
 
@@ -3527,6 +3748,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
         case NodeInfo::DB:
           jam();
           nodePtr.p->phase = ZINIT;
+          DEB_STARTUP(("2:phase(%u) = ZINIT", nodePtr.i));
           break;
         case NodeInfo::MGM:
           jam();
@@ -3718,15 +3940,15 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
       !remove_failconf_block(failedNodePtr, block))
   {
     jam();
-    ndbout << "execAPI_FAILCONF from " << block
-           << " failedNodePtr.p->failState = "
-	   << (Uint32)(failedNodePtr.p->failState)
-           << " blocks: ";
+    char logbuf[512] = "";
     for (Uint32 i = 0;i<NDB_ARRAY_SIZE(failedNodePtr.p->m_failconf_blocks);i++)
     {
-      printf("%u ", failedNodePtr.p->m_failconf_blocks[i]);
+      BaseString::snappend(logbuf, 512, "%u ",
+                           failedNodePtr.p->m_failconf_blocks[i]);
     }
-    ndbout << endl;
+    g_eventLogger->info(
+        "execAPI_FAILCONF from %u failedNodePtr.p->failState = %d blocks: %s",
+        block, (Uint32)(failedNodePtr.p->failState), logbuf);
     systemErrorLab(signal, __LINE__);
   }//if
 
@@ -3744,6 +3966,7 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
      *   so that no block risks reading 0 as node-version
      */
     setNodeInfo(failedNodePtr.i).m_version = 0;
+    setNodeInfo(failedNodePtr.i).m_mysql_version = 0;
     recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
   }
   return;
@@ -3880,6 +4103,7 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
    *   so that no block risks reading 0 as node version
    */
   setNodeInfo(failedNodePtr.i).m_version = 0;
+  setNodeInfo(failedNodePtr.i).m_mysql_version = 0;
   recompute_version_info(NodeInfo::DB);
 
   /** 
@@ -3959,6 +4183,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   const Uint32 err = rep->err;
   const NodeInfo nodeInfo = getNodeInfo(nodeId);
   c_connectedNodes.clear(nodeId);
+  DEB_STARTUP(("connectedNodes(%u) cleared", nodeId));
 
   if (nodeInfo.getType() == NodeInfo::DB)
   {
@@ -3971,11 +4196,40 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
       CRASH_INSERTION(942);
     }
   }
-  
+
+  {
+    NodeRecPtr disc_nodePtr;
+    disc_nodePtr.i = nodeId;
+    ptrCheckGuard(disc_nodePtr, MAX_NODES, nodeRec);
+
+    disc_nodePtr.p->m_is_activate_trp_ready_for_me = false;
+    disc_nodePtr.p->m_is_activate_trp_ready_for_other = false;
+    disc_nodePtr.p->m_is_multi_trp_setup = false;
+    disc_nodePtr.p->m_is_freeze_thread_completed = false;
+    disc_nodePtr.p->m_is_ready_to_switch_trp = false;
+    disc_nodePtr.p->m_is_preparing_switch_trp = false;
+    disc_nodePtr.p->m_is_using_multi_trp = false;
+    disc_nodePtr.p->m_set_up_multi_trp_started = false;
+    disc_nodePtr.p->m_used_num_multi_trps = 0;
+    disc_nodePtr.p->m_multi_trp_blockref = 0;
+    disc_nodePtr.p->m_check_multi_trp_connect_loop_count = 0;
+    disc_nodePtr.p->m_num_activated_trps = 0;
+    if (disc_nodePtr.p->m_is_in_same_nodegroup)
+    {
+      jam();
+      DEB_MULTI_TRP(("Change neighbour node setup for node %u",
+                     disc_nodePtr.i));
+      check_no_multi_trp(signal, disc_nodePtr.i);
+      startChangeNeighbourNode();
+      setNeighbourNode(disc_nodePtr.i);
+      endChangeNeighbourNode();
+    }
+  }
+
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
-  
+ 
   char buf[100];
   if (nodeInfo.getType() == NodeInfo::DB &&
       getNodeState().startLevel < NodeState::SL_STARTED)
@@ -4025,8 +4279,9 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
 
   if (ERROR_INSERTED(939) && ERROR_INSERT_EXTRA == nodeId)
   {
-    ndbout_c("Ignoring DISCONNECT_REP for node %u that was force disconnected",
-             nodeId);
+    g_eventLogger->info(
+        "Ignoring DISCONNECT_REP for node %u that was force disconnected",
+        nodeId);
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }
@@ -4062,7 +4317,9 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
      *   Force "real" failure handling
      */
     jam();
+    DEB_MULTI_TRP(("Node %u in ZRUNNING, failedNode", failedNodePtr.i));
     failedNodePtr.p->phase = ZRUNNING;
+    DEB_STARTUP(("4:phase(%u) = ZRUNNING", failedNodePtr.i));
     failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE, getOwnNodeId());
     return;
   case ZFAIL_CLOSING:  // Close already in progress
@@ -4080,6 +4337,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     /*---------------------------------------------------------------------*/
     failedNodePtr.p->failState = NORMAL;
     failedNodePtr.p->phase = ZFAIL_CLOSING;
+    DEB_STARTUP(("phase(%u) = ZFAIL_CLOSING", failedNodePtr.i));
     set_hb_count(failedNodePtr.i) = 0;
 
     CloseComReqConf * const closeCom = 
@@ -4218,7 +4476,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   }
 
 #if 0
-  ndbout_c("Qmgr::execAPI_REGREQ: Recd API_REGREQ (NodeId=%d)", apiNodePtr.i);
+  g_eventLogger->info("Qmgr::execAPI_REGREQ: Recd API_REGREQ (NodeId=%d)", apiNodePtr.i);
 #endif
 
   bool compatability_check;
@@ -4420,6 +4678,7 @@ Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
   }
   NodeVersionInfo info = getNodeVersionInfo();
   apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
+  apiRegConf->minApiVersion = info.m_type[NodeInfo::API].m_min_version;
   apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 }
@@ -4467,18 +4726,26 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   Uint32 nodeId = req->nodeId;
 
   ApiVersionConf * conf = (ApiVersionConf *)req;
-  if(getNodeInfo(nodeId).m_connected)
+  static_assert(sizeof(in6_addr) <= 16,
+                "Cannot fit in6_inaddr into ApiVersionConf:m_inet6_addr");
+  NodeInfo nodeInfo = getNodeInfo(nodeId);
+  conf->m_inet_addr = 0;
+  if(nodeInfo.m_connected)
   {
-    conf->version = getNodeInfo(nodeId).m_version;
-    conf->mysql_version = getNodeInfo(nodeId).m_mysql_version;
-    struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
-    conf->m_inet_addr= in.s_addr;
+    conf->version = nodeInfo.m_version;
+    conf->mysql_version = nodeInfo.m_mysql_version;
+    struct in6_addr in= globalTransporterRegistry.get_connect_address(nodeId);
+    memcpy(conf->m_inet6_addr, in.s6_addr, sizeof(conf->m_inet6_addr));
+    if (IN6_IS_ADDR_V4MAPPED(&in))
+    {
+      memcpy(&conf->m_inet_addr, &conf->m_inet6_addr[12], sizeof(in_addr));
+    }
   }
   else
   {
     conf->version =  0;
     conf->mysql_version =  0;
-    conf->m_inet_addr= 0;
+    memset(conf->m_inet6_addr, 0, sizeof(conf->m_inet6_addr));
   }
   conf->nodeId = nodeId;
   conf->isSingleUser = (nodeId == getNodeState().getSingleUserApi());
@@ -4858,6 +5125,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   if (nodes.get(c_start.m_startNode))
   {
     jam();
+    DEB_STARTUP(("Clear c_start.m_startNode"));
     c_start.reset();
   }
   if (c_start.m_gsn == GSN_CM_NODEINFOCONF)
@@ -5153,7 +5421,9 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
    */
   arbitRec.failureNr = cfailureNr;
   const NodeState & s = getNodeState();
-  if(s.startLevel == NodeState::SL_STOPPING_3 && s.stopping.systemShutdown){
+  if(s.startLevel == NodeState::SL_STOPPING_3 &&
+     s.stopping.systemShutdown)
+  {
     jam();
     /**
      * We're performing a system shutdown, 
@@ -5202,7 +5472,7 @@ Qmgr::sendCommitFailReq(Signal* signal)
 #ifdef ERROR_INSERT    
     if (false && ERROR_INSERTED(935) && nodePtr.i == c_error_insert_extra)
     {
-      ndbout_c("skipping node %d", c_error_insert_extra);
+      g_eventLogger->info("skipping node %d", c_error_insert_extra);
       CLEAR_ERROR_INSERT_VALUE;
       signal->theData[0] = 9999;
       sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
@@ -5334,6 +5604,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
     SyncThreadViaReqConf* syncReq =(SyncThreadViaReqConf*)&signal->theData[0];
     syncReq->senderRef = reference();
     syncReq->senderData = TfailureNr;
+    syncReq->actionType = SyncThreadViaReqConf::FOR_NODE_FAILREP;
     sendSignal(TRPMAN_REF, GSN_SYNC_THREAD_VIA_REQ, signal,
                SyncThreadViaReqConf::SignalLength, JBA);
 
@@ -5346,6 +5617,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
         jamLine(nodePtr.i);
         ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
         nodePtr.p->phase = ZFAIL_CLOSING;
+        DEB_STARTUP(("2: phase(%u) = ZFAIL_CLOSING", nodePtr.i));
         nodePtr.p->failState = WAITING_FOR_NDB_FAILCONF;
         set_hb_count(nodePtr.i) = 0;
         c_clusterNodes.clear(nodePtr.i);
@@ -5407,38 +5679,49 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
 
 void Qmgr::execSYNC_THREAD_VIA_CONF(Signal* signal)
 {
-  jamEntry();
-
   const SyncThreadViaReqConf* syncConf =
     (const SyncThreadViaReqConf*)&signal->theData[0];
-  const Uint32 index = syncConf->senderData % MAX_DATA_NODE_FAILURES;
-  NodeFailRec* TnodeFailRec = &nodeFailRec[index];
-  ndbrequire(TnodeFailRec->president != 0);
-  ndbrequire(TnodeFailRec->nodes.count() != 0);
-  NodeFailRep* nodeFail = (NodeFailRep*)&signal->theData[0];
-  nodeFail->failNo = TnodeFailRec->failureNr;
-  nodeFail->masterNodeId = TnodeFailRec->president;
-  nodeFail->noOfNodes = TnodeFailRec->nodes.count();
-
-  LinearSectionPtr lsptr[3];
-  lsptr->p = TnodeFailRec->nodes.rep.data;
-  lsptr->sz = TnodeFailRec->nodes.getPackedLengthInWords();
-
-  TnodeFailRec->president = 0; // Mark entry as unused.
-
-  if (ERROR_INSERTED(936))
+  if (syncConf->actionType == SyncThreadViaReqConf::FOR_NODE_FAILREP)
   {
-    SectionHandle handle(this);
-    ndbrequire(import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz));
-    handle.m_cnt = 1;
-    sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
-                        200, NodeFailRep::SignalLength, &handle);
-    releaseSections(handle);
+    jam();
+    const Uint32 index = syncConf->senderData % MAX_DATA_NODE_FAILURES;
+    NodeFailRec* TnodeFailRec = &nodeFailRec[index];
+    ndbrequire(TnodeFailRec->president != 0);
+    ndbrequire(TnodeFailRec->nodes.count() != 0);
+    NodeFailRep* nodeFail = (NodeFailRep*)&signal->theData[0];
+    nodeFail->failNo = TnodeFailRec->failureNr;
+    nodeFail->masterNodeId = TnodeFailRec->president;
+    nodeFail->noOfNodes = TnodeFailRec->nodes.count();
+
+    LinearSectionPtr lsptr[3];
+    lsptr->p = TnodeFailRec->nodes.rep.data;
+    lsptr->sz = TnodeFailRec->nodes.getPackedLengthInWords();
+
+    TnodeFailRec->president = 0; // Mark entry as unused.
+
+    if (ERROR_INSERTED(936))
+    {
+      SectionHandle handle(this);
+      ndbrequire(import(handle.m_ptr[0], lsptr[0].p, lsptr[0].sz));
+      handle.m_cnt = 1;
+      sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
+                          200, NodeFailRep::SignalLength, &handle);
+      releaseSections(handle);
+    }
+    else
+    {
+      sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal,
+                 NodeFailRep::SignalLength, JBA, lsptr, 1);
+    }
+  }
+  else if (syncConf->actionType == SyncThreadViaReqConf::FOR_ACTIVATE_TRP_REQ)
+  {
+    jam();
+    handle_activate_trp_req(signal, syncConf->senderData);
   }
   else
   {
-    sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal,
-               NodeFailRep::SignalLength, JBA, lsptr, 1);
+    ndbabort();
   }
 }
 
@@ -5673,9 +5956,10 @@ void Qmgr::failReport(Signal* signal,
     if (ERROR_INSERTED(938))
     {
       nodeFailCount++;
-      ndbout_c("QMGR : execFAIL_REP(Failed : %u Source : %u  Cause : %u) : "
-               "%u nodes have failed", 
-               aFailedNode, sourceNode, aFailCause, nodeFailCount);
+      g_eventLogger->info(
+          "QMGR : execFAIL_REP(Failed : %u Source : %u  Cause : %u) : "
+          "%u nodes have failed",
+          aFailedNode, sourceNode, aFailCause, nodeFailCount);
       /* Count DB nodes */
       Uint32 nodeCount = 0;
       for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
@@ -5687,7 +5971,8 @@ void Qmgr::failReport(Signal* signal,
       /* When > 25% of cluster has failed, resume communications */
       if (nodeFailCount > (nodeCount / 4))
       {
-        ndbout_c("QMGR : execFAIL_REP > 25%% nodes failed, resuming comms");
+        g_eventLogger->info(
+            "QMGR : execFAIL_REP > 25%% nodes failed, resuming comms");
         Signal save = *signal;
         signal->theData[0] = 9991;
         sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
@@ -5713,6 +5998,7 @@ void Qmgr::failReport(Signal* signal,
         sendSignal(QMGR_REF, GSN_PRES_TOCONF, signal, 2, JBA);
       }//if
     }//if
+    DEB_STARTUP(("phase(%u) = ZPREPARE_FAIL", failedNodePtr.i));
     failedNodePtr.p->phase = ZPREPARE_FAIL;
     failedNodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
     failedNodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
@@ -5781,6 +6067,7 @@ void Qmgr::failReport(Signal* signal,
         cfailureNr = cprepareFailureNr;
         ctoFailureNr = 0;
         ctoStatus = Q_ACTIVE;
+        DEB_STARTUP(("2:Clear c_start.m_startNode"));
 	c_start.reset(); // Don't take over nodes being started
         if (!ccommitFailedNodes.isclear()) {
           jam();
@@ -6195,6 +6482,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask survivorNodes;
+  NdbNodeBitmask beforeFailureNodes;
   /**
    * computeArbitNdbMask will only count nodes in the state ZRUNNING, crashed
    * nodes are thus not part of this set of nodes. The method
@@ -6204,14 +6492,18 @@ Qmgr::handleArbitCheck(Signal* signal)
    * arbitration is required.
    */
   computeArbitNdbMask(survivorNodes);
+  computeBeforeFailNdbMask(beforeFailureNodes);
   {
     jam();
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
     sd->blockRef = reference();
-    sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+    sd->requestType = CheckNodeGroups::Direct |
+                      CheckNodeGroups::ArbitCheck |
+                      CheckNodeGroups::UseBeforeFailMask;
     sd->mask = survivorNodes;
+    sd->before_fail_mask = beforeFailureNodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		   CheckNodeGroups::SignalLength);
+		   CheckNodeGroups::SignalLengthArbitCheckLong);
     jamEntry();
     if (ERROR_INSERTED(943))
     {
@@ -7129,6 +7421,25 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
   }
 }
 
+void
+Qmgr::computeBeforeFailNdbMask(NdbNodeBitmaskPOD& aMask)
+{
+  NodeRecPtr aPtr;
+  aMask.clear();
+  for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
+  {
+    jam();
+    ptrAss(aPtr, nodeRec);
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        (aPtr.p->phase == ZRUNNING ||
+         aPtr.p->phase == ZPREPARE_FAIL))
+    {
+      jam();
+      aMask.set(aPtr.i);
+    }
+  }
+}
+
 /**
  * Report arbitration event.  We use arbitration signal format
  * where sender (word 0) is event type.
@@ -7231,7 +7542,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == 900 && signal->getLength() == 2)
   {
-    ndbout_c("disconnecting %u", signal->theData[1]);
+    g_eventLogger->info("disconnecting %u", signal->theData[1]);
     api_failed(signal, signal->theData[1]);
   }
 
@@ -7303,8 +7614,9 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
           break;
         }
         }
-        ndbout_c("QMGR : Mapping request on node id %u to node id %u (%s)",
-                 nodeId, newNodeId, type);
+        g_eventLogger->info(
+            "QMGR : Mapping request on node id %u to node id %u (%s)", nodeId,
+            newNodeId, type);
         if (newNodeId != nodeId)
         {
           sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, length, JBB);
@@ -7315,7 +7627,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 
   if (dumpCode == 9994)
   {
-    ndbout_c("setCCDelay(%u)", signal->theData[1]);
+    g_eventLogger->info("setCCDelay(%u)", signal->theData[1]);
     setCCDelay(signal->theData[1]);
     m_connectivity_check.m_enabled = true;
   }
@@ -7325,7 +7637,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
   {
     jam();
     Uint32 nodeId = signal->theData[1];
-    ndbout_c("Force close communication to %u", nodeId);
+    g_eventLogger->info("Force close communication to %u", nodeId);
     SET_ERROR_INSERT_VALUE2(939, nodeId);
     CloseComReqConf * closeCom = CAST_PTR(CloseComReqConf,
                                           signal->getDataPtrSend());
@@ -7398,11 +7710,79 @@ Qmgr::execNODE_FAILREP(Signal * signal)
     memset(nodeFail->theNodes + NdbNodeBitmask48::Size, 0,
            _NDB_NBM_DIFF_BYTES);
   }
+
+  NdbNodeBitmask allFailed; 
+  allFailed.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
+
   // make sure any distributed signals get acknowledged
   // destructive of the signal
   NdbNodeBitmask failedNodes;
   failedNodes.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
   c_counterMgr.execNODE_FAILREP(signal, failedNodes);
+  Uint32 nodeId = 0;
+  while (!allFailed.isclear())
+  {
+    nodeId = allFailed.find(nodeId + 1);
+    //ndbrequire(nodeId != Bitmask::NotFound);
+    allFailed.clear(nodeId);
+    NodeRecPtr nodePtr;
+    nodePtr.i = nodeId;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+    nodePtr.p->m_is_multi_trp_setup = false;
+    nodePtr.p->m_is_ready_to_switch_trp = false;
+    nodePtr.p->m_is_freeze_thread_completed = false;
+    nodePtr.p->m_is_activate_trp_ready_for_me = false;
+    nodePtr.p->m_is_activate_trp_ready_for_other = false;
+    nodePtr.p->m_is_preparing_switch_trp = false;
+    nodePtr.p->m_is_using_multi_trp = false;
+    nodePtr.p->m_set_up_multi_trp_started = false;
+    nodePtr.p->m_multi_trp_blockref = 0;
+    nodePtr.p->m_used_num_multi_trps = 0;
+    nodePtr.p->m_check_multi_trp_connect_loop_count = 0;
+    nodePtr.p->m_num_activated_trps = 0;
+    if (nodePtr.p->m_is_in_same_nodegroup)
+    {
+      jam();
+      check_no_multi_trp(signal, nodePtr.i);
+      globalTransporterRegistry.lockMultiTransporters();
+      bool switch_required = false;
+      Multi_Transporter *multi_trp =
+        globalTransporterRegistry.get_node_multi_transporter(nodePtr.i);
+      if (multi_trp && 
+          globalTransporterRegistry.get_num_active_transporters(multi_trp) > 1)
+      {
+        /**
+         * The timing of the NODE_FAILREP signal is such that the transporter
+         * haven't had time to switch the active transporters yet, we know
+         * this will happen, so we switch now to use the old transporter for
+         * the neighbour node. The node is currently down, so will have to
+         * be setup before it can be used again.
+         *
+         * We will restore the active transporters to be the multi
+         * transporters to enable the transporters to be handled by the
+         * disconnect code. This is why it is required to lock the
+         * multi transporter mutex while performing this action.
+         */
+        switch_required = true;
+        DEB_MULTI_TRP(("switch_active_trp for node %u's transporter",
+                       nodePtr.i));
+        globalTransporterRegistry.switch_active_trp(multi_trp);
+      }
+        
+      DEB_MULTI_TRP(("Change neighbour node setup for node %u",
+                     nodePtr.i));
+      startChangeNeighbourNode();
+      setNeighbourNode(nodePtr.i);
+      endChangeNeighbourNode();
+      if (switch_required)
+      {
+        globalTransporterRegistry.switch_active_trp(multi_trp);
+        DEB_MULTI_TRP(("switch_active_trp for node %u's transporter",
+                       nodePtr.i));
+      }
+      globalTransporterRegistry.unlockMultiTransporters();
+    }
+  }
 }
 
 void
@@ -7442,7 +7822,7 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
       if (getOwnNodeId() == cpresident)
       {
         jam();
-        g_eventLogger->info("President, but not master at ALLOC_NODEID_REQ");
+        g_eventLogger->debug("President, but not master at ALLOC_NODEID_REQ");
       }
       error = AllocNodeIdRef::NotMaster;
     }
@@ -7475,9 +7855,9 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     if (error)
     {
       jam();
-      g_eventLogger->info("Alloc node id for node %u failed, err: %u",
-                          nodePtr.i,
-                          error);
+      g_eventLogger->debug("Alloc node id for node %u failed, err: %u",
+                           nodePtr.i,
+                           error);
       AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
       ref->senderRef = reference();
       ref->errorCode = error;
@@ -8140,8 +8520,8 @@ Qmgr::execNODE_PINGCONF(Signal* signal)
 
   if (ERROR_INSERTED(938))
   {
-    ndbout_c("QMGR : execNODE_PING_CONF() from %u in tick %u",
-             sendersNodeId, m_connectivity_check.m_tick);
+    g_eventLogger->info("QMGR : execNODE_PING_CONF() from %u in tick %u",
+                        sendersNodeId, m_connectivity_check.m_tick);
   }
 
   /* Node must have been pinged, we must be waiting for the response,
@@ -8520,10 +8900,10 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
           /* MGM/API node is too old to send ProcessInfoRep, so create a
              fallback-style report */
 
-          struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
-          char service_uri[32];
+          struct in6_addr addr= globalTransporterRegistry.get_connect_address(i);
+          char service_uri[INET6_ADDRSTRLEN + 6];
           strcpy(service_uri, "ndb://");
-          Ndb_inet_ntop(AF_INET, & addr, service_uri + 6, 24);
+          Ndb_inet_ntop(AF_INET6, & addr, service_uri + 6, 46);
 
           Ndbinfo::Row row(signal, req);
           row.write_uint32(getOwnNodeId());                 // reporting_node_id
@@ -8580,7 +8960,7 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
          of ProcessInfo::setHostAddress() is also available, which
          takes a struct sockaddr * and length.
       */
-      struct in_addr addr=
+      struct in6_addr addr=
         globalTransporterRegistry.get_connect_address(report->node_id);
       processInfo->setHostAddress(& addr);
     }
@@ -8810,4 +9190,1484 @@ Qmgr::handleStateChange(Signal* signal, Uint32 nodeToNotify)
   }
 
   return;
+}
+
+/**
+ * SET_UP_MULTI_TRP_REQ starts the setup of multi socket transporters
+ * that currently is setup between two data nodes in the same node group.
+ * This signal is sent in start phase 3 from NDBCNTR  when we are performing
+ * an initial start or a cluster restart at a time when we know the version
+ * info about other data nodes. For node restarts it is sent later in phase
+ * 4 when the master has informed us of the current sysfile. We need to wait
+ * for this to ensure that we know the node group information for all nodes.
+ * We will only allow one use of SET_UP_MULTI_TRP_REQ per start of a data
+ * node. We can still participate in setting up multi sockets after that,
+ * but only when another node is starting and requesting us to assist in
+ * setting up a multi socket setup.
+ *
+ * We cannot use multi sockets towards versions before MySQL Cluster
+ * 8.0.20.
+ *
+ * The signal flow to accomplish this setup of multi sockets is the
+ * following. It is currently only possible to setup when a node is
+ * starting up, but some parts of the code is prepared to also handle
+ * this change while the cluster is operational.
+ *
+ * The protocol below assumes that both node support multi sockets.
+ *
+ * NDBCNTR/DBDIH          QMGR                              QMGR neighbour
+ *    SET_UP_MULTI_TRP_REQ
+ *    ------------------->
+ *
+ * Scenario 1: QMGR Neighbour starts after first QMGR
+ *                        GET_NUM_MULTI_TRP_REQ
+ *                        ------------------------------------->
+ *                        GET_NUM_MULTI_TRP_CONF
+ *                        <------------------------------------
+ *                     Create multi transporters
+ *                     Connect multi transporters
+ *
+ *                        GET_NUM_MULTI_TRP_REQ
+ *                        <------------------------------------
+ *                        GET_NUM_MULTI_TRP_CONF
+ *                        ------------------------------------>
+ *                                                  Create multi transporter
+ *                                                  Connect multi transporter
+ *                       Multi transporters connect to each other
+ *
+ * QMGR                                                  QMGR Neighbour
+ *     SWITCH_MULTI_TRP_REQ
+ *   ---------------------------------------------------------->
+ *                                                       When QMGR neighbour
+ *                                                       has added to epoll
+ *                                                       set.
+ *     SWITCH_MULTI_TRP_REQ
+ *   <---------------------------------------------------------
+ *     SWITCH_MULTI_TRP_CONF
+ *   <-------------------------------------------------------->
+ *     Now both nodes are ready to perform the actual switch over
+ *
+ *  QMGR               THRMAN Proxy                 THRMAN
+ *    FREEZE_THREAD_REQ
+ *    ---------------------->
+ *                           FREEZE_THREAD_REQ
+ *                           -------------------------->>
+ *                                                   Freeze all threads
+ *                                                   except main thread
+ *              FREEZE_ACTION_REQ
+ *    <--------------------------------------------------
+ *    Switch to using multi transporter sockets
+ *
+ * At this point the only thread that is active is the main thread.
+ * Every other thread is frozen waiting to be woken up when the
+ * new multi socket setup is set up. We will send the last signal
+ * ACTIVATE_TRP_REQ on the old transporter, before we send that we
+ * ensure that we have locked all send transporters and after that
+ * we enable the send buffer and after that all signals will be
+ * sent on the new multi sockets.
+ *
+ * QMGR                  THRMAN (main thread)            QMGR Neighbour
+ *       ACTIVATE_TRP_REQ
+ *   -------------------------------------------------------->
+ *       FREEZE_ACTION_CONF
+ *   -------------------------->
+ *                           unlock all thread
+ *                           wait until all threads woken up again
+ *       FREEZE_THREAD_CONF
+ *   <--------------------------
+ *
+ * In parallel with the above we will also do the same thing in the
+ * neighbour node and this node will initiate the second round of
+ * events when we receive the signal ACTIVATE_TRP_REQ.
+ *
+ * QMGR         TRPMAN Proxy     TRPMAN                  QMGR Neighbour
+ *       ACTIVATE_TRP_REQ
+ *   <--------------------------------------------------------
+ *   SYNC_THREAD_VIA_REQ
+ *   --------------->
+ *                   SYNC_THREAD_VIA_REQ
+ *                   --------------->>                  THRMANs
+ *                                    SYNC_THREAD_REQ
+ *                                    -------------------->>
+ *                                    SYNC_THREAD_CONF
+ *                                    <<--------------------
+ *                   SYNC_THREAD_VIA_CONF
+ *                   <<---------------
+ *   SYNC_THREAD_VIA_CONF
+ *   <---------------
+ *
+ * SYNC_THREAD_VIA_REQ/CONF is used to ensure that all receive threads
+ * have delivered any signals it has received. Since at this point we
+ * haven't activated the new multi sockets, and we have deactivated
+ * the old socket, this means that we have a clear signal order in that
+ * signal sent on old socket is always delivered to all other threads
+ * before any new signal on the new multi socket transporters are
+ * delivered.
+ *
+ *   <---------------
+ *     ACTIVATE_TRP_REQ
+ *   --------------->-------------->>
+ *                                Activate the receive on the
+ *                                new transporters
+ *     ACTIVATE_TRP_CONF
+ *   <<------------------------------
+ *     ACTIVATE_TRP_CONF
+ *   --------------------------------------------------------->
+ *                                                           Here the
+ *                                                        switch is completed
+ *  After receiving ACTIVATE_TRP_CONF we have no use of the socket anymore
+ *  and since the sender obviously has also
+ *
+ * If more nodes are in node group to also set up we do it after this.
+ * Otherwise we are ready.
+ *
+ *  QMGR                           NDBCNTR/DBDIH
+ *      SET_UP_MULTI_TRP_CONF
+ *    ------------------------------->
+ */
+void
+Qmgr::execSET_UP_MULTI_TRP_REQ(Signal *signal)
+{
+  jamEntry();
+  if (m_ref_set_up_multi_trp_req != 0)
+  {
+    jam();
+    DEB_MULTI_TRP(("Already handled SET_UP_MULTI_TRP_REQ"));
+    sendSignal(signal->theData[0],
+               GSN_SET_UP_MULTI_TRP_CONF,
+               signal,
+               1,
+               JBB);
+    return;
+  }
+  m_ref_set_up_multi_trp_req = signal->theData[0];
+  m_get_num_multi_trps_sent = 0;
+  for (Uint32 node_id = 1; node_id < MAX_NDB_NODES; node_id++)
+  {
+    NodeRecPtr nodePtr;
+    nodePtr.i = node_id;
+    ptrAss(nodePtr, nodeRec);
+    nodePtr.p->m_used_num_multi_trps = m_num_multi_trps;
+    nodePtr.p->m_initial_set_up_multi_trp_done = false;
+  }
+  DEB_MULTI_TRP(("m_num_multi_trps = %u", m_num_multi_trps));
+  bool done = false;
+  bool completed = get_num_multi_trps(signal, done);
+  if (!completed)
+  {
+    jam();
+    return;
+  }
+  else
+  {
+    jam();
+    DEB_MULTI_TRP(("m_num_multi_trps == 1, no need to setup multi sockets"));
+  }
+  complete_multi_trp_setup(signal, done);
+}
+
+void
+Qmgr::get_node_group_mask(Signal *signal, NdbNodeBitmask& mask)
+{
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType =
+    CheckNodeGroups::Direct |
+    CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = getOwnNodeId();
+  EXECUTE_DIRECT_MT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		    CheckNodeGroups::SignalLength, 0);
+  jamEntry();
+  mask.assign(sd->mask);
+  mask.clear(getOwnNodeId());
+}
+
+bool
+Qmgr::get_num_multi_trps(Signal *signal, bool &done)
+{
+  jamEntry();
+  NdbNodeBitmask mask;
+  get_node_group_mask(signal, mask);
+  m_get_num_multi_trps_sent++;
+  if (m_num_multi_trps == 1)
+  {
+    jam();
+    done = true;
+  }
+  for (Uint32 node_id = 1; node_id < MAX_NDB_NODES; node_id++)
+  {
+    if (mask.get(node_id))
+    {
+      jam();
+      jamLine(node_id);
+      DEB_MULTI_TRP(("Node %u is in the same node group", node_id));
+      NodeRecPtr nodePtr;
+      nodePtr.i = node_id;
+      ptrAss(nodePtr, nodeRec);
+      nodePtr.p->m_is_in_same_nodegroup = true;
+      done = true;
+      Uint32 version = getNodeInfo(nodePtr.i).m_version;
+      if (m_num_multi_trps > 1)
+      {
+        create_multi_transporter(nodePtr.i);
+        if (nodePtr.p->phase == ZRUNNING &&
+            ndbd_use_multi_ng_trps(version) &&
+            (c_ndbcntr->is_node_started(nodePtr.i) ||
+             c_ndbcntr->is_node_starting(nodePtr.i)))
+        {
+          jam();
+          if (ERROR_INSERTED(970))
+          {
+            NdbSleep_MilliSleep(500);
+          }
+          nodePtr.p->m_set_up_multi_trp_started = true;
+          inc_get_num_multi_trps_sent(nodePtr.i);
+          send_get_num_multi_trp_req(signal, node_id);
+        }
+      }
+    }
+  }
+  m_get_num_multi_trps_sent--;
+  return (m_get_num_multi_trps_sent == 0);
+}
+
+void
+Qmgr::execGET_NUM_MULTI_TRP_REQ(Signal* signal)
+{
+  jamEntry();
+  GetNumMultiTrpReq* req = (GetNumMultiTrpReq*)&signal->theData[0];
+  Uint32 sender_node_id = req->nodeId;
+
+  NodeRecPtr nodePtr;
+  nodePtr.i = sender_node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  nodePtr.p->m_initial_set_up_multi_trp_done =
+    req->initial_set_up_multi_trp_done;
+  /*
+   * Set used number of multi sockets to be minimum of our own config
+   * and the node config of the node contacting us.
+   */
+  nodePtr.p->m_used_num_multi_trps =
+    MIN(req->numMultiTrps, m_num_multi_trps);
+
+  if (m_initial_set_up_multi_trp_done && nodePtr.p->m_used_num_multi_trps > 1)
+  {
+    /**
+     * We passed the startup phase 2 where the connection setup
+     * of multi transporters happens normally. So the node sending
+     * this message is a new node starting and we're either already
+     * started or have passed phase 2 of the startup. We will start
+     * enabling communication to this new node.
+     *
+     * This is only required if we want to use more than one socket.
+     */
+    jam();
+    DEB_MULTI_TRP(("Node %u starting, prepare switch trp using %u trps",
+                   sender_node_id,
+                   nodePtr.p->m_used_num_multi_trps));
+    connect_multi_transporter(signal, sender_node_id);
+    if (ERROR_INSERTED(972))
+    {
+      NdbSleep_MilliSleep(500);
+    }
+  }
+  else
+  {
+    jam();
+    if (ERROR_INSERTED(971))
+    {
+      NdbSleep_MilliSleep(500);
+    }
+  }
+  if (m_ref_set_up_multi_trp_req != 0)
+  {
+    jam();
+    DEB_MULTI_TRP(("Node %u starting, sent GET_NUM_MULTI_TRP_REQ, get"
+                   " num multi %u",
+                   sender_node_id,
+                   nodePtr.p->m_used_num_multi_trps));
+    GetNumMultiTrpConf* conf = (GetNumMultiTrpConf*)signal->getDataPtrSend();
+    conf->numMultiTrps = nodePtr.p->m_used_num_multi_trps;
+    conf->nodeId = getOwnNodeId();
+    conf->initial_set_up_multi_trp_done = m_initial_set_up_multi_trp_done;
+
+    BlockReference ref = calcQmgrBlockRef(sender_node_id);
+    sendSignal(ref, GSN_GET_NUM_MULTI_TRP_CONF, signal,
+               GetNumMultiTrpConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DEB_MULTI_TRP(("Node %u starting, GET_NUM_MULTI_TRP_REQ sent,"
+                   " we're not ready",
+                   sender_node_id));
+    GetNumMultiTrpRef* ref = (GetNumMultiTrpRef*)signal->getDataPtrSend();
+    ref->nodeId = getOwnNodeId();
+    ref->errorCode = GetNumMultiTrpRef::NotReadyYet;
+    BlockReference block_ref = calcQmgrBlockRef(sender_node_id);
+    sendSignal(block_ref, GSN_GET_NUM_MULTI_TRP_REF, signal,
+               GetNumMultiTrpRef::SignalLength, JBB);
+  }
+}
+
+void
+Qmgr::execGET_NUM_MULTI_TRP_REF(Signal *signal)
+{
+  GetNumMultiTrpRef ref = *(GetNumMultiTrpRef*)&signal->theData[0];
+  /**
+   * The other node is not ready yet, we'll wait for it to become ready before
+   * progressing.
+   */
+  NodeRecPtr nodePtr;
+  nodePtr.i = ref.nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  nodePtr.p->m_count_multi_trp_ref++;
+  if (nodePtr.p->m_count_multi_trp_ref > 60)
+  {
+    jam();
+    nodePtr.p->m_count_multi_trp_ref = 0;
+    DEB_MULTI_TRP(("GET_NUM_MULTI_TRP_REF 60 times from %u", ref.nodeId));
+    ndbassert(false);
+    dec_get_num_multi_trps_sent(ref.nodeId);
+    complete_multi_trp_setup(signal, false);
+    return;
+  }
+  DEB_MULTI_TRP(("GET_NUM_MULTI_TRP_REF received from %u", ref.nodeId));
+  signal->theData[0] = ZRESEND_GET_NUM_MULTI_TRP_REQ;
+  signal->theData[1] = ref.nodeId;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 2);
+}
+
+void
+Qmgr::complete_multi_trp_setup(Signal *signal, bool set_done)
+{
+  if (m_get_num_multi_trps_sent == 0)
+  {
+    jam();
+    if (set_done)
+    {
+      jam();
+      m_initial_set_up_multi_trp_done = true;
+    }
+    sendSignal(m_ref_set_up_multi_trp_req,
+               GSN_SET_UP_MULTI_TRP_CONF,
+               signal,
+               1,
+               JBB);
+    if (!set_done)
+    {
+      jam();
+      m_ref_set_up_multi_trp_req = 0;
+    }
+  }
+  else
+  {
+    jam();
+  }
+}
+
+void
+Qmgr::send_get_num_multi_trp_req(Signal *signal, NodeId node_id)
+{
+  if (m_get_num_multi_trps_sent == 0)
+  {
+    jam();
+    DEB_MULTI_TRP(("We have already completed the SET_UP_MULTI_TRP_REQ"
+                   ", no need to continue retrying"));
+    complete_multi_trp_setup(signal, false);
+    return;
+  }
+  jam();
+  DEB_MULTI_TRP(("Get num multi trp for node %u", node_id));
+  GetNumMultiTrpReq* req = (GetNumMultiTrpReq*)signal->getDataPtrSend();
+  req->nodeId = getOwnNodeId();
+  req->numMultiTrps = m_num_multi_trps;
+  req->initial_set_up_multi_trp_done = false;
+  BlockReference ref = calcQmgrBlockRef(node_id);
+  sendSignal(ref, GSN_GET_NUM_MULTI_TRP_REQ, signal,
+             GetNumMultiTrpReq::SignalLength, JBB);
+}
+
+void
+Qmgr::inc_get_num_multi_trps_sent(NodeId node_id)
+{
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  ndbrequire(!nodePtr.p->m_is_get_num_multi_trp_active);
+  m_get_num_multi_trps_sent++;
+  nodePtr.p->m_is_get_num_multi_trp_active = true;
+}
+
+void
+Qmgr::dec_get_num_multi_trps_sent(NodeId node_id)
+{
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  ndbrequire(m_get_num_multi_trps_sent > 0);
+  ndbrequire(nodePtr.p->m_is_get_num_multi_trp_active);
+  m_get_num_multi_trps_sent--;
+  nodePtr.p->m_is_get_num_multi_trp_active = false;
+}
+
+void
+Qmgr::execGET_NUM_MULTI_TRP_CONF(Signal* signal)
+{
+  /**
+   * We receive the number of sockets to use from the other node. Could
+   * also be a signal we sent to ourselves if the other node isn't
+   * started yet or is running a version not supporting multi sockets.
+   * In these cases the number of sockets will always be 1.
+   */
+  jamEntry();
+  CRASH_INSERTION(951);
+  GetNumMultiTrpConf* conf = (GetNumMultiTrpConf*)&signal->theData[0];
+  Uint32 sender_node_id = conf->nodeId;
+  NodeRecPtr nodePtr;
+  nodePtr.i = sender_node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+
+  nodePtr.p->m_count_multi_trp_ref = 0;
+  Uint32 rec_num_multi_trps = conf->numMultiTrps;
+  Uint32 initial_set_up_multi_trp_done = conf->initial_set_up_multi_trp_done;
+  ndbrequire(nodePtr.p->m_used_num_multi_trps > 0);
+  ndbrequire(rec_num_multi_trps <= m_num_multi_trps);
+  /**
+   * If the other side cannot handle the number of multi sockets we wanted,
+   * we set it to the other sides number instead.
+   */
+  nodePtr.p->m_used_num_multi_trps =
+    MIN(conf->numMultiTrps, nodePtr.p->m_used_num_multi_trps);
+  nodePtr.p->m_initial_set_up_multi_trp_done =
+    initial_set_up_multi_trp_done;
+  dec_get_num_multi_trps_sent(nodePtr.i);
+  if (rec_num_multi_trps == 1)
+  {
+    jam();
+    DEB_MULTI_TRP(("No need to setup multi sockets to node %u",
+                   nodePtr.i));
+    complete_multi_trp_setup(signal, true);
+    return;
+  }
+  DEB_MULTI_TRP(("GET_NUM_MULTI_TRP_CONF received from %u using %u trps",
+                 sender_node_id,
+                 nodePtr.p->m_used_num_multi_trps));
+  jam();
+  connect_multi_transporter(signal, nodePtr.i);
+  if (ERROR_INSERTED(973))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+}
+
+void
+Qmgr::create_multi_transporter(NodeId node_id)
+{
+  jamEntry();
+  DEB_MULTI_TRP(("Create multi trp for node %u", node_id));
+  globalTransporterRegistry.createMultiTransporter(node_id,
+                                                   m_num_multi_trps);
+}
+
+#include "../../../common/transporter/Transporter.hpp"
+#include "../../../common/transporter/Multi_Transporter.hpp"
+
+void
+Qmgr::connect_multi_transporter(Signal *signal, NodeId node_id)
+{
+  /**
+   * We have created the Multi transporters, now it is time to setup
+   * connections to those that are running and also to switch over to
+   * using the multi transporter. We currently only perform this as
+   * part of startup. This means that if a node is already started
+   * it is the responsibility of the starting node always to perform
+   * the setup. If both nodes are starting the node with lowest node
+   * id is responsible for the setup.
+   */
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  nodePtr.p->m_check_multi_trp_connect_loop_count = 0;
+  nodePtr.p->m_is_preparing_switch_trp = true;
+  /**
+   * Connect a multi-transporter.
+   * For clients this happens by moving the transporters inside the
+   * multi-transporter into the allTransporters array. This leads to
+   * that they are checked in start_clients_thread. These transporters
+   * are special in that they only connect in the CONNECTED state.
+   *
+   * To differentiate between normal transporters and these transporters
+   * that are part of a multi-transporter we have a method called
+   * isPartOfMultiTransporter. The method set_part_of_multi_transporter
+   * toggles this state, by default it is false.
+   *
+   * By replacing the position in theNodeIdTransporters with a
+   * multi transporter we ensure that connect_server will handle the
+   * connection properly.
+   *
+   * By placing the transporters in the allTransporters array ensures
+   * that we connect as clients in start_clients_thread.
+   */
+  Multi_Transporter *multi_trp =
+    globalTransporterRegistry.get_node_multi_transporter(node_id);
+  ndbrequire(multi_trp != 0);
+
+  globalTransporterRegistry.lockMultiTransporters();
+  multi_trp->set_num_inactive_transporters(
+    nodePtr.p->m_used_num_multi_trps);
+  Uint32 num_inactive_transporters =
+    multi_trp->get_num_inactive_transporters();
+  Transporter *current_trp =
+    globalTransporterRegistry.get_node_transporter(node_id);
+  if (current_trp->isMultiTransporter())
+  {
+    jam();
+    DEB_MULTI_TRP(("Get current trp from multi transporter"));
+    ndbrequire(current_trp == multi_trp);
+    current_trp = multi_trp->get_active_transporter(0);
+    ndbrequire(multi_trp->get_num_active_transporters() == 1);
+  }
+  DEB_MULTI_TRP(("Base transporter has trp_id: %u",
+                 current_trp->getTransporterIndex()));
+  int trp_port = current_trp->get_s_port();
+
+  for (Uint32 i = 0; i < num_inactive_transporters; i++)
+  {
+    /**
+     * It is vital that we set the port number in the transporters used
+     * by the multi transporter. It is possible that the node comes up
+     * with a different port number after a restart. For the first
+     * transporter this port number is set in start_clients_thread.
+     * Thus before we connect using these transporters we update the
+     * port number of those transporters to be the same port number as
+     * used by the first transporter.
+     */
+    jam();
+    Transporter *t = multi_trp->get_inactive_transporter(i);
+    t->set_s_port(trp_port);
+    globalTransporterRegistry.insert_allTransporters(t);
+    assign_recv_thread_new_trp(t->getTransporterIndex());
+    DEB_MULTI_TRP(("Insert trp id %u for node %u, mti = %u, server: %u"
+                   ", port: %d",
+                   t->getTransporterIndex(),
+                   node_id,
+                   t->get_multi_transporter_instance(),
+                   t->isServer,
+                   trp_port));
+  }
+  globalTransporterRegistry.unlockMultiTransporters();
+  signal->theData[0] = ZCHECK_MULTI_TRP_CONNECT;
+  signal->theData[1] = node_id;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 2);
+}
+
+void
+Qmgr::check_connect_multi_transporter(Signal *signal, NodeId node_id)
+{
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  globalTransporterRegistry.lockMultiTransporters();
+  Multi_Transporter *multi_trp =
+    globalTransporterRegistry.get_node_multi_transporter(node_id);
+  if (nodePtr.p->phase == ZRUNNING)
+  {
+    jam();
+    bool connected = true;
+    Uint32 num_inactive_transporters =
+      multi_trp->get_num_inactive_transporters();
+    for (Uint32 i = 0; i < num_inactive_transporters; i++)
+    {
+      jam();
+      Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
+      bool is_connected = tmp_trp->isConnected();
+      if (!is_connected)
+      {
+        jam();
+        connected = false;
+        break;
+      }
+    }
+    if (!connected)
+    {
+      jam();
+      globalTransporterRegistry.unlockMultiTransporters();
+      nodePtr.p->m_check_multi_trp_connect_loop_count++;
+      /**
+       * We are only connecting to nodes already connected, thus we
+       * should not fail to connect here, just in case something
+       * weird happens we will still fail after waiting for
+       * 30 minutes (100 * 30 * 60 times sending 10ms delayed signal).
+       */
+      ndbrequire(nodePtr.p->m_check_multi_trp_connect_loop_count <
+                 (100 * 60 * 30));
+      signal->theData[0] = ZCHECK_MULTI_TRP_CONNECT;
+      signal->theData[1] = node_id;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 2);
+      return;
+    }
+    DEB_MULTI_TRP(("Multi trp connected for node %u", node_id));
+    globalTransporterRegistry.unlockMultiTransporters();
+    ndbrequire(nodePtr.p->m_is_multi_trp_setup == false);
+    nodePtr.p->m_is_multi_trp_setup = true;
+    if (!check_all_multi_trp_nodes_connected())
+    {
+      jam();
+      /* We are not ready to start switch process yet. */
+      return;
+    }
+    if (!select_node_id_for_switch(node_id, true))
+    {
+      /**
+       * We were already busy with a switch, could also be
+       * that we didn't find any lower node id to switch to.
+       * We will only initiate switch from nodes with lower
+       * node ids than our node id.
+       *
+       * By always selecting the highest node id to start with,
+       * we ensure that we select a node that hasn't initiated
+       * any switch on their own. Thus we are certain that this
+       * node will eventually accept our switch request even if
+       * it has to process all the other neighbour nodes before
+       * us. This is definitely not an optimal algorithm, but it
+       * is safe in that it avoids deadlock that could lead to
+       * eternal wait states.
+       */
+      jam();
+      return;
+    }
+    assign_multi_trps_to_send_threads();
+    send_switch_multi_transporter(signal, node_id, false);
+    return;
+  }
+  else
+  {
+    /**
+     * The connection is no longer using the Multi_Transporter object.
+     * Can only happen when the connection is broken before we completed
+     * the connection setup of all connections. No need to do anything
+     * more in this case other than release mutex.
+     */
+    jam();
+    if (ERROR_INSERTED(974))
+    {
+      NdbSleep_MilliSleep(1500);
+    }
+    nodePtr.p->m_is_preparing_switch_trp = false;
+    globalTransporterRegistry.unlockMultiTransporters();
+    check_more_trp_switch_nodes(signal);
+  }
+  return;
+}
+
+void
+Qmgr::send_switch_multi_transporter(Signal *signal,
+                                    NodeId node_id,
+                                    bool retry)
+{
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  jam();
+  if (!retry)
+  {
+    jam();
+    ndbrequire(m_current_switch_multi_trp_node == 0);
+  }
+  else if (m_current_switch_multi_trp_node == node_id)
+  {
+    jam();
+    DEB_MULTI_TRP(("Retry of send SWITCH_MULTI_TRP_REQ to node %u"
+                   " not needed since already ongoing",
+                   node_id));
+    return;
+  }
+  else if (m_current_switch_multi_trp_node != 0)
+  {
+    jam();
+    DEB_MULTI_TRP(("Retry of send SWITCH_MULTI_TRP_REQ to node %u"
+                   " failed since other node already started",
+                   node_id));
+    return;
+  }
+  else if (nodePtr.p->m_is_using_multi_trp)
+  {
+    jam();
+    DEB_MULTI_TRP(("Retry of send SWITCH_MULTI_TRP_REQ to node %u"
+                   " not needed since already setup",
+                   node_id));
+    return;
+  }
+  else
+  {
+    jam();
+    DEB_MULTI_TRP(("Retry of SWITCH_MULTI_TRP_REQ to node %u",
+                   node_id));
+  }
+  m_current_switch_multi_trp_node = node_id;
+  nodePtr.p->m_is_ready_to_switch_trp = true;
+  DEB_MULTI_TRP(("Send SWITCH_MULTI_TRP_REQ to node %u", node_id));
+  SwitchMultiTrpReq* req = (SwitchMultiTrpReq*)signal->getDataPtrSend();
+  req->nodeId = getOwnNodeId();
+  req->senderRef = reference();
+  BlockReference ref = calcQmgrBlockRef(node_id);
+  sendSignal(ref, GSN_SWITCH_MULTI_TRP_REQ, signal,
+             SwitchMultiTrpReq::SignalLength, JBB);
+  if (ERROR_INSERTED(978))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+}
+
+void
+Qmgr::execSWITCH_MULTI_TRP_REQ(Signal *signal)
+{
+  SwitchMultiTrpReq* req = (SwitchMultiTrpReq*)&signal->theData[0];
+  NodeId node_id = req->nodeId;
+  BlockReference block_ref = req->senderRef;
+  DEB_MULTI_TRP(("SWITCH_MULTI_TRP_REQ node %u", node_id));
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  assign_multi_trps_to_send_threads();
+
+  CRASH_INSERTION(954);
+  if (!check_all_multi_trp_nodes_connected())
+  {
+    if (nodePtr.p->m_is_multi_trp_setup &&
+        m_current_switch_multi_trp_node == 0)
+    {
+      ndbrequire(nodePtr.p->phase == ZRUNNING);
+      ndbrequire(nodePtr.p->m_is_in_same_nodegroup);
+      ndbrequire(nodePtr.p->m_is_preparing_switch_trp);
+      /* Fall through to send SWITCH_MULTI_TRP_CONF */ 
+    }
+    else
+    {
+      jam();
+      ndbrequire(m_current_switch_multi_trp_node != node_id);
+      DEB_MULTI_TRP(("Send SWITCH_MULTI_TRP_REF node %u", node_id));
+      SwitchMultiTrpRef *ref = (SwitchMultiTrpRef*)signal->getDataPtrSend();
+      ref->nodeId = getOwnNodeId();
+      ref->errorCode = SwitchMultiTrpRef::SMTR_NOT_READY_FOR_SWITCH;
+      sendSignal(block_ref, GSN_SWITCH_MULTI_TRP_REF, signal,
+                 SwitchMultiTrpRef::SignalLength, JBB);
+      return;
+    }
+  }
+  else if (m_current_switch_multi_trp_node != 0 &&
+           m_current_switch_multi_trp_node != node_id)
+  {
+    /**
+     * We are already trying to connect multi sockets to another
+     * node. We will wait for this to complete before moving
+     * on to the next node.
+     */
+    jam();
+    DEB_MULTI_TRP(("2:Send SWITCH_MULTI_TRP_REF node %u", node_id));
+    SwitchMultiTrpRef *ref = (SwitchMultiTrpRef*)signal->getDataPtrSend();
+    ref->nodeId = getOwnNodeId();
+    ref->errorCode = SwitchMultiTrpRef::SMTR_NOT_READY_FOR_SWITCH;
+    sendSignal(block_ref, GSN_SWITCH_MULTI_TRP_REF, signal,
+               SwitchMultiTrpRef::SignalLength, JBB);
+    return;
+  }
+  /**
+   * We haven't selected any node to connect multi sockets to yet.
+   * In that case it is safe to answer positively since we know
+   * that this cannot cause any deadlock.
+   */
+  if (m_current_switch_multi_trp_node == 0)
+  {
+    jam();
+    ndbrequire(!nodePtr.p->m_is_ready_to_switch_trp);
+    SwitchMultiTrpReq* req = (SwitchMultiTrpReq*)signal->getDataPtrSend();
+    req->nodeId = getOwnNodeId();
+    req->senderRef = reference();
+    BlockReference ref = calcQmgrBlockRef(node_id);
+    sendSignal(ref, GSN_SWITCH_MULTI_TRP_REQ, signal,
+               SwitchMultiTrpReq::SignalLength, JBB);
+  }
+  else
+  {
+    ndbrequire(m_current_switch_multi_trp_node == node_id);
+  }
+  ndbrequire(nodePtr.p->m_is_multi_trp_setup)
+  nodePtr.p->m_is_ready_to_switch_trp = true;
+  m_current_switch_multi_trp_node = node_id;
+  jam();
+  DEB_MULTI_TRP(("Send SWITCH_MULTI_TRP_CONF node %u", node_id));
+  if (ERROR_INSERTED(979))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+  SwitchMultiTrpConf *conf = (SwitchMultiTrpConf*)signal->getDataPtrSend();
+  conf->nodeId = getOwnNodeId();
+  sendSignal(block_ref, GSN_SWITCH_MULTI_TRP_CONF, signal,
+             SwitchMultiTrpConf::SignalLength, JBB);
+}
+
+void
+Qmgr::execSWITCH_MULTI_TRP_CONF(Signal *signal)
+{
+  /**
+   * This signal can get lost if the other node fails and we have
+   * already started.
+   *
+   * The TransporterRegistry will ensure that we switch back to using a
+   * single transporter in this case, the DISCONNECT_REP code and the
+   * NODE_FAILREP code will ensure that we reset the variables used
+   * to setup the multi sockets next time the node starts up.
+   */
+  jamEntry();
+  CRASH_INSERTION(955);
+  SwitchMultiTrpConf *conf = (SwitchMultiTrpConf*)&signal->theData[0];
+  Uint32 node_id = conf->nodeId;
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  ndbrequire(nodePtr.p->m_is_ready_to_switch_trp == true);
+  ndbrequire(nodePtr.p->m_is_multi_trp_setup == true);
+  DEB_MULTI_TRP(("Recvd SWITCH_MULTI_TRP_CONF node %u", node_id));
+  if (ERROR_INSERTED(980))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+  switch_multi_transporter(signal, node_id);
+}
+
+void
+Qmgr::execSWITCH_MULTI_TRP_REF(Signal *signal)
+{
+  /**
+   * The other node wasn't ready to connect multi sockets to us yet.
+   * We will wait for a short time and try again.
+   */
+  SwitchMultiTrpRef *ref = (SwitchMultiTrpRef*)&signal->theData[0];
+  Uint32 node_id = ref->nodeId;
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  ndbrequire(m_current_switch_multi_trp_node == node_id);
+  ndbrequire(nodePtr.p->m_is_ready_to_switch_trp);
+  m_current_switch_multi_trp_node = 0;
+  nodePtr.p->m_is_ready_to_switch_trp = false;
+  DEB_MULTI_TRP(("Recvd SWITCH_MULTI_TRP_REF from node %u", node_id));
+  signal->theData[0] = ZSWITCH_MULTI_TRP;
+  signal->theData[1] = node_id;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+}
+
+void
+Qmgr::switch_multi_transporter(Signal *signal, NodeId node_id)
+{
+  ndbrequire(m_current_switch_multi_trp_node == node_id);
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  g_eventLogger->info("Switch to %u multi trp for node %u",
+                      nodePtr.p->m_used_num_multi_trps,
+                      node_id);
+  nodePtr.p->m_is_preparing_switch_trp = false;
+  nodePtr.p->m_is_ready_to_switch_trp = false;
+  nodePtr.p->m_is_multi_trp_setup = false;
+  /**
+   * We have now reached the point where it is time to switch the transporter
+   * from using the old transporters, currently in the active transporter set.
+   * 
+   * The switch must be made such that we don't risk changing signal order
+   * for signals sent from one thread to another thread in another node.
+   *
+   * To accomplish this we will ensure that all block threads are blocked
+   * in THRMAN. THRMAN exists in each block thread. So a signal to THRMAN
+   * in each THRMAN can be used to quickly synchronize all threads in the
+   * node and keep them waiting in THRMAN. When all threads have stopped we
+   * will also call lockMultiTransporters to avoid the connect threads from
+   * interfering in the middle of this change and finally we will lock
+   * the send mutex on the node we are changing to ensure that also the
+   * send threads avoid interference with this process.
+   *
+   * At this point also each thread will have flushed the send buffers to
+   * ensure that we can ensure that the last signal sent in the node
+   * connection is a ACTIVATE_TRP_REQ signal. When the receiver gets this
+   * signal he can activate the receiving from the new transporters since
+   * we have ensured that no more signals will be received on the old
+   * transporters.
+   *
+   * When all this things have been prepared and the ACTIVATE_TRP_REQ signal
+   * is sent, now is the time to switch the active transporters and also
+   * to change the MultiTransporter to use the new hash algorithm, this
+   * is automatic by changing the number of transporters.
+   *
+   * We close the original socket when ACTIVATE_TRP_CONF is received from
+   * the other side indicating that we are now in communication with the
+   * other side over the new transporters.
+   */
+  FreezeThreadReq* req = CAST_PTR(FreezeThreadReq, signal->getDataPtrSend());
+  req->nodeId = node_id;
+  req->senderRef = reference();
+  sendSignal(THRMAN_REF, GSN_FREEZE_THREAD_REQ, signal,
+             FreezeThreadReq::SignalLength, JBA);
+  return;
+}
+
+void
+Qmgr::execFREEZE_ACTION_REQ(Signal *signal)
+{
+  jamEntry();
+  FreezeActionReq *req = (FreezeActionReq*)&signal->theData[0];
+  Uint32 node_id = req->nodeId;
+  BlockReference ret_ref = req->senderRef;
+  CRASH_INSERTION(956);
+  if (ERROR_INSERTED(981))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+  /**
+   * All threads except our thread is now frozen.
+   *
+   * Before we send the final signal on the current transporter we switch to
+   * having the multi socket transporters as neighbours. By so doing we ensure
+   * that the current transporter is inserted into the non-neighbour list when
+   * sending the signal. If we would change after the sending we would miss
+   * sending this signal since we change to the new neighbour setup after
+   * sending, but before we perform the actual send.
+   *
+   * It is a bit tricky to change the neighbour transporters. We check the
+   * neighbour in sendSignal and expect that in do_send that the same
+   * neighbour handling is performed. We handle this here by first changing
+   * the neighbour setting and next sending the signal. This ensures that
+   * the transporter will be handled by non-neighbour handling.
+   *
+   * We will lock the send to
+   * the current transporter to ensure that the transporter will notice when
+   * the last signal have been sent. Next we will send the last signal
+   * on the the currently active socket. When this signal is sent we will flush
+   * the send buffers to ensure that the transporter knows when the last data
+   * have been sent. We will then flag to the transporter that it should
+   * shutdown the socket for writes. When both sides have performed this
+   * action the socket will be closed.
+   *
+   * These actions will ensure that ACTIVATE_TRP_REQ is the last data
+   * received on the current transporter and ensure that from now on
+   * all sends are directed to the new set of transporters.
+   * To ensure that no other thread is changing the multi transporter
+   * setup we will lock the multi transporter mutex while performing
+   * these actions. The only other thread that can be active here is
+   * the send threads since we blocked all other threads at this point.
+   *
+   * Next we will release all mutexes and send FREEZE_ACTION_CONF to
+   * THRMAN to ensure that things get started again. We will receive
+   * FREEZE_THREAD_CONF back from THRMAN when all threads are in action
+   * again.
+   */
+  DEB_MULTI_TRP(("Block threads frozen for node %u", node_id));
+
+  globalTransporterRegistry.lockMultiTransporters();
+  Multi_Transporter *multi_trp =
+    globalTransporterRegistry.get_node_multi_transporter(node_id);
+  if (is_multi_socket_setup_active(node_id, true))
+  {
+    jam();
+
+    Transporter *current_trp = multi_trp->get_active_transporter(0);
+    TrpId current_trp_id = current_trp->getTransporterIndex();
+    multi_trp->get_callback_obj()->lock_send_transporter(node_id,
+                                                         current_trp_id);
+
+    Uint32 num_inactive_transporters =
+      multi_trp->get_num_inactive_transporters();
+    for (Uint32 i = 0; i < num_inactive_transporters; i++)
+    {
+      jam();
+      Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
+      TrpId trp_id = tmp_trp->getTransporterIndex();
+      multi_trp->get_callback_obj()->lock_send_transporter(node_id, trp_id);
+    }
+
+    ActivateTrpReq* act_trp_req = CAST_PTR(ActivateTrpReq,
+                                           signal->getDataPtrSend());
+    act_trp_req->nodeId = getOwnNodeId();
+    act_trp_req->numTrps = num_inactive_transporters;
+    act_trp_req->senderRef = reference();
+    sendSignal(calcQmgrBlockRef(node_id), GSN_ACTIVATE_TRP_REQ, signal,
+               ActivateTrpReq::SignalLength, JBB);
+
+    flush_send_buffers();
+    /* Either perform send or insert_trp below TODO */
+    multi_trp->get_callback_obj()->unlock_send_transporter(node_id,
+                                                           current_trp_id);
+
+    if (ERROR_INSERTED(982))
+    {
+      NdbSleep_MilliSleep(2500);
+    }
+    multi_trp->switch_active_trp();
+
+    Uint32 num_active_transporters =
+      multi_trp->get_num_active_transporters();
+    for (Uint32 i = 0; i < num_active_transporters; i++)
+    {
+      jam();
+      Transporter *tmp_trp = multi_trp->get_active_transporter(i);
+      TrpId id = tmp_trp->getTransporterIndex();
+      multi_trp->get_callback_obj()->unlock_send_transporter(node_id, id);
+      multi_trp->get_callback_obj()->enable_send_buffer(node_id, id);
+    }
+    globalTransporterRegistry.insert_node_transporter(node_id, multi_trp);
+    globalTransporterRegistry.unlockMultiTransporters();
+
+    if (ERROR_INSERTED(983))
+    {
+      NdbSleep_MilliSleep(2500);
+    }
+    DEB_MULTI_TRP(("Change neighbour node setup for node %u",
+                   node_id));
+    startChangeNeighbourNode();
+    setNeighbourNode(node_id);
+    endChangeNeighbourNode();
+
+    if (ERROR_INSERTED(984))
+    {
+      NdbSleep_MilliSleep(2500);
+    }
+    DEB_MULTI_TRP(("Now communication is active with node %u using multi trp"
+                   ", using %u transporters",
+                   node_id,
+                   num_active_transporters));
+  }
+  else
+  {
+    jam();
+    DEB_MULTI_TRP(("Node %u failed when freezing threads", node_id));
+    globalTransporterRegistry.unlockMultiTransporters();
+  }
+  FreezeActionConf *conf =
+    CAST_PTR(FreezeActionConf, signal->getDataPtrSend());
+  conf->nodeId = node_id;
+  sendSignal(ret_ref, GSN_FREEZE_ACTION_CONF, signal,
+             FreezeActionConf::SignalLength, JBA);
+}
+
+bool
+Qmgr::is_multi_socket_setup_active(Uint32 node_id, bool locked)
+{
+  bool ret_val = false;
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  if (!locked)
+  {
+    globalTransporterRegistry.lockMultiTransporters();
+  }
+  if (c_connectedNodes.get(node_id) &&
+      nodePtr.p->phase == ZRUNNING)
+  {
+    jam();
+    DEB_MULTI_TRP(("Multi socket setup for node %u is active",
+                   node_id));
+    ret_val = true;
+  }
+  if (!locked)
+  {
+    globalTransporterRegistry.unlockMultiTransporters();
+  }
+  return ret_val;
+}
+
+void
+Qmgr::execFREEZE_THREAD_CONF(Signal *signal)
+{
+  FreezeThreadConf *conf = (FreezeThreadConf*)&signal->theData[0];
+  Uint32 node_id = conf->nodeId;
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  CRASH_INSERTION(957);
+  if (is_multi_socket_setup_active(node_id, false))
+  {
+    jam();
+    nodePtr.p->m_is_freeze_thread_completed = true;
+    DEB_MULTI_TRP(("Freeze block threads for node %u completed", node_id));
+    if (ERROR_INSERTED(985))
+    {
+      NdbSleep_MilliSleep(1500);
+    }
+    check_switch_completed(signal, node_id);
+  }
+  else
+  {
+    jam();
+    DEB_MULTI_TRP(("2:Node %u failed when freezing threads", node_id));
+  }
+}
+
+void
+Qmgr::execACTIVATE_TRP_REQ(Signal *signal)
+{
+  /**
+   * Receiving this signal implies that node sending it is still
+   * seen as being up and running.
+   */
+  jamEntry();
+  CRASH_INSERTION(958);
+  ActivateTrpReq* req = (ActivateTrpReq*)&signal->theData[0];
+  Uint32 node_id = req->nodeId;
+  Uint32 num_trps = req->numTrps;
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  nodePtr.p->m_multi_trp_blockref = req->senderRef;
+  nodePtr.p->m_num_activated_trps = num_trps;
+  ndbrequire(num_trps == nodePtr.p->m_used_num_multi_trps);
+
+  if (ERROR_INSERTED(977))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+  SyncThreadViaReqConf *syncReq =
+    (SyncThreadViaReqConf*)signal->getDataPtrSend();
+  syncReq->senderRef = reference();
+  syncReq->senderData = node_id;
+  syncReq->actionType = SyncThreadViaReqConf::FOR_ACTIVATE_TRP_REQ;
+  sendSignal(TRPMAN_REF, GSN_SYNC_THREAD_VIA_REQ, signal,
+             SyncThreadViaReqConf::SignalLength, JBA);
+}
+
+void
+Qmgr::handle_activate_trp_req(Signal *signal, Uint32 node_id)
+{
+  jam();
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  Uint32 num_trps = nodePtr.p->m_num_activated_trps;
+  CRASH_INSERTION(959);
+  nodePtr.p->m_num_activated_trps = 0;
+  DEB_MULTI_TRP(("Activate receive in multi trp for node %u, from ref: %x",
+                 node_id,
+                 nodePtr.p->m_multi_trp_blockref));
+  globalTransporterRegistry.lockMultiTransporters();
+  Multi_Transporter *multi_trp =
+    globalTransporterRegistry.get_node_multi_transporter(node_id);
+  if (is_multi_socket_setup_active(node_id, true))
+  {
+    jam();
+    Transporter *t;
+    for (Uint32 i = 0; i < num_trps; i++)
+    {
+      if (multi_trp->get_num_inactive_transporters() == num_trps)
+      {
+        jam();
+        t = multi_trp->get_inactive_transporter(i);
+      }
+      else
+      {
+        jam();
+        t = multi_trp->get_active_transporter(i);
+        ndbrequire(multi_trp->get_num_active_transporters());
+      }
+      Uint32 trp_id = t->getTransporterIndex();
+      ActivateTrpReq *act_trp_req =
+        CAST_PTR(ActivateTrpReq, signal->getDataPtrSend());
+      act_trp_req->nodeId = node_id;
+      act_trp_req->trpId = trp_id;
+      act_trp_req->numTrps = num_trps;
+      act_trp_req->senderRef = reference();
+      sendSignal(TRPMAN_REF, GSN_ACTIVATE_TRP_REQ, signal,
+                 ActivateTrpReq::SignalLength, JBB);
+      if (ERROR_INSERTED(986))
+      {
+        NdbSleep_MilliSleep(500);
+      }
+    }
+  }
+  globalTransporterRegistry.unlockMultiTransporters();
+}
+
+void
+Qmgr::execACTIVATE_TRP_CONF(Signal *signal)
+{
+  jamEntry();
+  ActivateTrpConf *conf = (ActivateTrpConf*)&signal->theData[0];
+  Uint32 node_id = conf->nodeId;
+  BlockReference sender_ref = conf->senderRef;
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+
+  DEB_MULTI_TRP(("ACTIVATE_TRP_CONF(QMGR) own node %u about node %u"
+                 ", ref: %x",
+                 getOwnNodeId(),
+                 node_id,
+                 sender_ref));
+  if (refToNode(sender_ref) == getOwnNodeId())
+  {
+    if (is_multi_socket_setup_active(node_id, false))
+    {
+      jam();
+      CRASH_INSERTION(960);
+      nodePtr.p->m_num_activated_trps++;
+      if (nodePtr.p->m_num_activated_trps < nodePtr.p->m_used_num_multi_trps)
+      {
+        jam();
+        return;
+      }
+      DEB_MULTI_TRP(("Complete activation recv for multi trp node %u,"
+                     " own node: %u",
+                     node_id,
+                     getOwnNodeId()));
+      ndbrequire(nodePtr.p->m_num_activated_trps ==
+                 nodePtr.p->m_used_num_multi_trps);
+      ActivateTrpConf *conf =
+        CAST_PTR(ActivateTrpConf, signal->getDataPtrSend());
+      conf->nodeId = getOwnNodeId();
+      conf->senderRef = reference();
+      BlockReference ref = nodePtr.p->m_multi_trp_blockref;
+      nodePtr.p->m_multi_trp_blockref = 0;
+      ndbrequire(refToNode(ref) == node_id);
+      ndbrequire(refToMain(ref) == QMGR);
+      sendSignal(ref, GSN_ACTIVATE_TRP_CONF, signal,
+                 ActivateTrpConf::SignalLength, JBB);
+      nodePtr.p->m_is_activate_trp_ready_for_me = true;
+      if (ERROR_INSERTED(975))
+      {
+        NdbSleep_MilliSleep(1500);
+      }
+      check_switch_completed(signal, node_id);
+    }
+    else
+    {
+      jam();
+      DEB_MULTI_TRP(("Node %u failed in multi trp activation", node_id));
+    }
+  }
+  else
+  {
+    jam();
+    CRASH_INSERTION(952);
+    DEB_MULTI_TRP(("Completed activation recv for multi trp node %u",
+                   node_id));
+    ndbrequire(is_multi_socket_setup_active(node_id, false));
+    nodePtr.p->m_is_activate_trp_ready_for_other = true;
+    check_switch_completed(signal, node_id);
+  }
+}
+
+void
+Qmgr::check_switch_completed(Signal *signal, NodeId node_id)
+{
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  if (!(nodePtr.p->m_is_activate_trp_ready_for_other &&
+        nodePtr.p->m_is_activate_trp_ready_for_me &&
+        nodePtr.p->m_is_freeze_thread_completed))
+  {
+    jam();
+    DEB_MULTI_TRP(("Still waiting for node %u switch to complete", node_id));
+    return;
+  }
+
+  globalTransporterRegistry.lockMultiTransporters();
+  Multi_Transporter *multi_trp =
+    globalTransporterRegistry.get_node_multi_transporter(node_id);
+  ndbrequire(multi_trp && multi_trp->isMultiTransporter());
+  Uint32 num_inactive_transporters =
+    multi_trp->get_num_inactive_transporters();
+  Transporter *array_trp[MAX_NODE_GROUP_TRANSPORTERS];
+  for (Uint32 i = 0; i < num_inactive_transporters; i++)
+  {
+    jam();
+    Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
+    array_trp[i] = tmp_trp;
+  }
+  globalTransporterRegistry.unlockMultiTransporters();
+  for (Uint32 i = 0; i < num_inactive_transporters; i++)
+  {
+    jam();
+    Transporter *tmp_trp = array_trp[i];
+    TrpId trp_id = tmp_trp->getTransporterIndex();
+    tmp_trp->get_callback_obj()->lock_transporter(node_id, trp_id);
+    tmp_trp->shutdown();
+    tmp_trp->get_callback_obj()->unlock_transporter(node_id, trp_id);
+    multi_trp->get_callback_obj()->disable_send_buffer(node_id, trp_id);
+  }
+  /**
+   * We have now completed the switch to new set of transporters, the
+   * old set is inactive and will be put back if the node fails. We
+   * are now ready to see if any more nodes require attention.
+   */
+  if (ERROR_INSERTED(976))
+  {
+    NdbSleep_MilliSleep(1500);
+  }
+  m_current_switch_multi_trp_node = 0;
+  nodePtr.p->m_is_using_multi_trp = true;
+  nodePtr.p->m_is_ready_to_switch_trp = false;
+  nodePtr.p->m_is_activate_trp_ready_for_me = false;
+  nodePtr.p->m_is_activate_trp_ready_for_other = false;
+  nodePtr.p->m_is_freeze_thread_completed = false;
+  nodePtr.p->m_set_up_multi_trp_started = false;
+  DEB_MULTI_TRP(("Completed switch to multi trp for node %u", node_id));
+  CRASH_INSERTION(953);
+  check_more_trp_switch_nodes(signal);
+}
+
+void
+Qmgr::check_more_trp_switch_nodes(Signal* signal)
+{
+  if (!check_all_multi_trp_nodes_connected())
+  {
+    jam();
+    /* Still waiting for nodes to complete connect */
+    DEB_MULTI_TRP(("Still waiting for nodes to complete connect"));
+    return;
+  }
+  NodeId node_id = 0;
+  if (select_node_id_for_switch(node_id, false))
+  {
+    jam();
+    send_switch_multi_transporter(signal, node_id, false);
+    return;
+  }
+  if (m_initial_set_up_multi_trp_done)
+  {
+    jam();
+    DEB_MULTI_TRP(("Initial setup already done"));
+    return;
+  }
+  if (m_get_num_multi_trps_sent != 0)
+  {
+    jam();
+    DEB_MULTI_TRP(("Still waiting for GET_NUM_MULTI_TRP_REQ"));
+    return;
+  }
+  bool done = true;
+  for (Uint32 node_id = 1; node_id < MAX_NDB_NODES; node_id++)
+  {
+    NodeRecPtr nodePtr;
+    nodePtr.i = node_id;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+    if (nodePtr.p->m_is_in_same_nodegroup &&
+        nodePtr.p->phase == ZRUNNING &&
+        nodePtr.p->m_set_up_multi_trp_started)
+    {
+      if (!nodePtr.p->m_is_using_multi_trp)
+      {
+        jam();
+        done = false;
+      }
+    }
+  }
+  if (done)
+  {
+    jam();
+    DEB_MULTI_TRP(("Initial setup of multi trp now done"));
+    m_initial_set_up_multi_trp_done = true;
+    sendSignal(m_ref_set_up_multi_trp_req,
+               GSN_SET_UP_MULTI_TRP_CONF,
+               signal,
+               1,
+               JBB);
+  }
+  else
+  {
+    DEB_MULTI_TRP(("Not done with setup of multi trp yet"));
+    jam();
+  }
+}
+
+void
+Qmgr::check_no_multi_trp(Signal *signal, NodeId node_id)
+{
+  NodeRecPtr nodePtr;
+  nodePtr.i = node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  if (nodePtr.p->m_is_get_num_multi_trp_active)
+  {
+    jam();
+    dec_get_num_multi_trps_sent(nodePtr.i);
+  }
+  DEB_MULTI_TRP(("check_no_multi_trp for node %u", node_id));
+  if (node_id == m_current_switch_multi_trp_node)
+  {
+    jam();
+    m_current_switch_multi_trp_node = 0;
+    check_more_trp_switch_nodes(signal);
+  }
+}
+
+bool
+Qmgr::check_all_multi_trp_nodes_connected()
+{
+  /**
+   * Wait for all neighbour nodes to connect all multi transporters
+   * before proceeding with the next phase where we start switching
+   * to multi transporter setup.
+   */
+  NodeRecPtr nodePtr;
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRec);
+    if (nodePtr.p->phase == ZRUNNING &&
+        nodePtr.p->m_is_in_same_nodegroup &&
+        (nodePtr.p->m_is_preparing_switch_trp ||
+         nodePtr.p->m_is_get_num_multi_trp_active))
+    {
+      /* Neighbour node preparing switch */
+      jam();
+      jamLine(Uint16(nodePtr.i));
+      if (!nodePtr.p->m_is_multi_trp_setup)
+      {
+        jam();
+        /* Still waiting for connections of this node to complete */
+        return false;
+      }
+    }
+  }
+  jam();
+  /* All nodes to connect are done */
+  return true;
+}
+
+bool
+Qmgr::select_node_id_for_switch(NodeId &node_id, bool check_found)
+{
+  NodeId max_node_id = 0;
+  NodeRecPtr nodePtr;
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRec);
+    if (nodePtr.p->phase == ZRUNNING &&
+        nodePtr.p->m_is_in_same_nodegroup &&
+        nodePtr.p->m_is_preparing_switch_trp &&
+        nodePtr.p->m_is_multi_trp_setup)
+    {
+      if (nodePtr.i > max_node_id)
+      {
+        jam();
+        jamLine(Uint16(nodePtr.i));
+        max_node_id = nodePtr.i;
+      }
+    }
+  }
+  ndbrequire((!check_found) || (max_node_id != 0));
+  if (m_current_switch_multi_trp_node != 0)
+  {
+    jam();
+    return false;
+  }
+  if (max_node_id < getOwnNodeId())
+  {
+    jam();
+    return false;
+  }
+  node_id = max_node_id;
+  nodePtr.i = max_node_id;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  ndbrequire(!nodePtr.p->m_is_ready_to_switch_trp);
+  jam();
+  return true;
 }

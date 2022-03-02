@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,11 +51,11 @@ struct st_test_statement {
 
 static struct st_test_statement test_query_plan[] = {
     /* DB   RESULT   QUERY */
-    {NULL, true, "SELECT 'first complex command' as a"},
-    {NULL, false, "SET AUTOCOMMIT = 0"},
+    {nullptr, true, "SELECT 'first complex command' as a"},
+    {nullptr, false, "SET AUTOCOMMIT = 0"},
     {"test", false, "INSERT INTO t1 VALUES (8,4)"},
-    {NULL, false, "COMMIT"},
-    {NULL, false, "SET AUTOCOMMIT = 1"},
+    {nullptr, false, "COMMIT"},
+    {nullptr, false, "SET AUTOCOMMIT = 1"},
     {"test", true, "SELECT COUNT(*) FROM t1"}};
 
 #define STRING_BUFFER_SIZE 1024
@@ -137,7 +137,7 @@ struct st_plugin_ctx {
   st_plugin_ctx() { reset(); }
 
   void reset() {
-    resultcs = NULL;
+    resultcs = nullptr;
     server_status = 0;
     current_col = 0;
     warn_count = 0;
@@ -164,7 +164,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
@@ -418,6 +419,7 @@ const struct st_command_service_cbs protocol_callbacks = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 #define WRITE_DASHED_LINE() \
@@ -547,7 +549,8 @@ static void dump_cs_info(const CHARSET_INFO *cs) {
   }
 
   WRITE_VAL("\t\t[meta][charset result] number: %d\n", cs->number);
-  WRITE_VAL("\t\t[meta][charset result] name: %s\n", cs->csname);
+  WRITE_VAL("\t\t[meta][charset result] name: %s\n",
+            replace_utf8_utf8mb3(cs->csname));
   WRITE_VAL("\t\t[meta][charset result] collation: %s\n", cs->name);
   WRITE_VAL("\t\t[meta][charset result] sort order: %s\n", cs->sort_order);
 }
@@ -663,6 +666,7 @@ static void dump_closing_ok(struct st_plugin_ctx *ctx) {
 static void set_query_in_com_data(const char *query, union COM_DATA *cmd) {
   char buffer[STRING_BUFFER_SIZE];
 
+  memset(cmd, 0, sizeof(union COM_DATA));
   cmd->com_query.query = query;
   cmd->com_query.length = strlen(query);
   WRITE_VAL2("EXECUTING:[%u][%s]\n", cmd->com_query.length, query);
@@ -732,7 +736,7 @@ static void test_selects(MYSQL_SESSION session, void *p) {
 
   struct st_plugin_ctx *plugin_ctx = new st_plugin_ctx();
 
-  const char *last_db = NULL;
+  const char *last_db = nullptr;
   size_t stmt_count = sizeof(test_query_plan) / sizeof(test_query_plan[0]);
   for (size_t i = 0; i < stmt_count; i++) {
     /* Change current DB if needed */
@@ -793,7 +797,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -822,7 +826,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -864,15 +868,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_sql_commit",
-    "Pavan Naik, Andrey Hristov",
+    PLUGIN_AUTHOR_ORACLE,
     "Test SQL commit",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100,                         /* 1.0 */
-    NULL,                           /* status variables */
-    NULL,                           /* system variables */
-    NULL,                           /* config options */
+    nullptr,                        /* status variables */
+    nullptr,                        /* system variables */
+    nullptr,                        /* config options */
     0,                              /* flags */
 } mysql_declare_plugin_end;

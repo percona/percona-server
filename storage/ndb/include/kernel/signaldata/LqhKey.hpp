@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,11 @@ class LqhKeyReq {
   friend class Dbspj;
   friend class Dbtc;      
   friend class Restore;
+
+  /**
+   * Users
+   */
+  friend class Dbtup;
   
   /**
    * For printing
@@ -50,15 +55,15 @@ class LqhKeyReq {
   friend bool printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( FixedSignalLength = 11 );
-  STATIC_CONST( MaxKeyInfo = 4 );
-  STATIC_CONST( MaxAttrInfo = 5);
+  static constexpr Uint32 FixedSignalLength = 11;
+  static constexpr Uint32 MaxKeyInfo = 4;
+  static constexpr Uint32 MaxAttrInfo = 5;
 
   /* Long LQHKEYREQ definitions */
-  STATIC_CONST( KeyInfoSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );
+  static constexpr Uint32 KeyInfoSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;
 
-  STATIC_CONST( UnlockKeyLen = 2 );
+  static constexpr Uint32 UnlockKeyLen = 2;
 
 private:
 
@@ -218,7 +223,6 @@ private:
     RI_NOWAIT_SHIFT      =  3,
 
     /* Currently unused */
-    RI_CLEAR_SHIFT4      =  4,
     RI_CLEAR_SHIFT5      =  5,
     RI_CLEAR_SHIFT6      =  6,
     RI_CLEAR_SHIFT7      =  7,
@@ -288,6 +292,7 @@ private:
  * T = no triggers            - 1  Bit (1)
  * U = Operation came from UTIL - 1 Bit (2)
  * w = NoWait flag            = 1 Bit (3)
+ * Q = Query Thread Flag      = 1 Bit (4)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -298,7 +303,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *   FTUw      llgnqpdisooorrAPDcumxz
+ *   FTUwQ     llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -719,7 +724,6 @@ UintR
 LqhKeyReq::getLongClearBits(const UintR& requestInfo)
 {
   const Uint32 mask =
-    (1 << RI_CLEAR_SHIFT4) |
     (1 << RI_CLEAR_SHIFT5) |
     (1 << RI_CLEAR_SHIFT6) |
     (1 << RI_CLEAR_SHIFT7) |
@@ -812,7 +816,7 @@ class LqhKeyConf {
   friend bool printLQHKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
 
@@ -870,7 +874,7 @@ class LqhKeyRef {
   friend bool printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
 

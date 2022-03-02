@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,16 +23,14 @@
 #ifndef PARSE_TREE_ITEMS_INCLUDED
 #define PARSE_TREE_ITEMS_INCLUDED
 
-#include <stddef.h>
-
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "sql/comp_creator.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/item_subselect.h"
 #include "sql/item_sum.h"       // Item_sum_count
 #include "sql/item_timefunc.h"  // Item_func_now_local
 #include "sql/parse_location.h"
@@ -43,20 +41,6 @@
 class PT_subquery;
 class PT_window;
 struct udf_func;
-
-class PTI_table_wild : public Parse_tree_item {
-  typedef Parse_tree_item super;
-
-  const char *schema;
-  const char *table;
-
- public:
-  explicit PTI_table_wild(const POS &pos, const char *schema_arg,
-                          const char *table_arg)
-      : super(pos), schema(schema_arg), table(table_arg) {}
-
-  bool itemize(Parse_context *pc, Item **item) override;
-};
 
 class PTI_truth_transform : public Parse_tree_item {
   typedef Parse_tree_item super;
@@ -152,7 +136,7 @@ class PTI_simple_ident_q_2d : public PTI_simple_ident_q_3d {
  public:
   PTI_simple_ident_q_2d(const POS &pos, const char *table_arg,
                         const char *field_arg)
-      : super(pos, NULL, table_arg, field_arg) {}
+      : super(pos, nullptr, table_arg, field_arg) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
@@ -355,7 +339,7 @@ class PTI_literal_underscore_charset_hex_num : public Item_string {
 
     set_repertoire_from_value();
     set_cs_specified(true);
-    return check_well_formed_result(&str_value, true, true) == NULL;
+    return check_well_formed_result(&str_value, true, true) == nullptr;
   }
 };
 
@@ -374,7 +358,7 @@ class PTI_literal_underscore_charset_bin_num : public Item_string {
     if (super::itemize(pc, res)) return true;
 
     set_cs_specified(true);
-    return check_well_formed_result(&str_value, true, true) == NULL;
+    return check_well_formed_result(&str_value, true, true) == nullptr;
   }
 };
 
@@ -383,17 +367,16 @@ class PTI_variable_aux_set_var final : public Item_func_set_user_var {
 
  public:
   PTI_variable_aux_set_var(const POS &pos, const LEX_STRING &var, Item *expr)
-      : super(pos, var, expr, false) {}
+      : super(pos, var, expr) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
 
-class PTI_variable_aux_ident_or_text final : public Item_func_get_user_var {
+class PTI_user_variable final : public Item_func_get_user_var {
   typedef Item_func_get_user_var super;
 
  public:
-  PTI_variable_aux_ident_or_text(const POS &pos, const LEX_STRING &var)
-      : super(pos, var) {}
+  PTI_user_variable(const POS &pos, const LEX_STRING &var) : super(pos, var) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
@@ -428,7 +411,8 @@ class PTI_count_sym : public Item_sum_count {
   typedef Item_sum_count super;
 
  public:
-  PTI_count_sym(const POS &pos, PT_window *w) : super(pos, (Item *)NULL, w) {}
+  PTI_count_sym(const POS &pos, PT_window *w)
+      : super(pos, (Item *)nullptr, w) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
@@ -516,16 +500,29 @@ class PTI_expr_with_alias : public Parse_tree_item {
   bool itemize(Parse_context *pc, Item **res) override;
 };
 
-class PTI_limit_option_ident : public Parse_tree_item {
-  typedef Parse_tree_item super;
-
-  LEX_CSTRING ident;
-  Symbol_location ident_loc;
+class PTI_int_splocal : public Parse_tree_item {
+  using super = Parse_tree_item;
 
  public:
-  PTI_limit_option_ident(const POS &pos, const LEX_CSTRING &ident_arg,
-                         const Symbol_location &ident_loc_arg)
-      : super(pos), ident(ident_arg), ident_loc(ident_loc_arg) {}
+  PTI_int_splocal(const POS &pos, const LEX_CSTRING &name)
+      : super(pos), m_location{pos}, m_name{name} {}
+
+  bool itemize(Parse_context *pc, Item **res) override;
+
+ private:
+  /// Location of the variable name.
+  const POS m_location;
+
+  /// Same data as in PTI_in_sum_expr#m_location but 0-terminated "for free".
+  const LEX_CSTRING m_name;
+};
+
+class PTI_limit_option_ident : public PTI_int_splocal {
+  using super = PTI_int_splocal;
+
+ public:
+  PTI_limit_option_ident(const POS &pos, const LEX_CSTRING &name)
+      : super{pos, name} {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };

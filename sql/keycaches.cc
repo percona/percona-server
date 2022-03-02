@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ static uchar *find_named(I_List<NAMED_ILINK> *list, const char *name,
       return element->data;
     }
   }
-  return 0;
+  return nullptr;
 }
 
 void NAMED_ILIST::delete_elements() {
@@ -67,7 +67,7 @@ zero_key_cache;  ///< @@nonexistent_cache.param->value_ptr() points here
 KEY_CACHE *get_key_cache(const LEX_CSTRING *cache_name) {
   if (!cache_name || !cache_name->length) cache_name = &default_key_cache_base;
   return ((KEY_CACHE *)find_named(&key_caches, cache_name->str,
-                                  cache_name->length, 0));
+                                  cache_name->length, nullptr));
 }
 
 KEY_CACHE *create_key_cache(const char *name, size_t length) {
@@ -80,7 +80,7 @@ KEY_CACHE *create_key_cache(const char *name, size_t length) {
                                   MYF(MY_ZEROFILL | MY_WME)))) {
     if (!new NAMED_ILINK(&key_caches, name, length, (uchar *)key_cache)) {
       my_free(key_cache);
-      key_cache = 0;
+      key_cache = nullptr;
     } else {
       /*
         Set default values for a key cache

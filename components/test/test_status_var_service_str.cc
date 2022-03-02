@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,8 @@ static char char_variable_value[] =
 static SHOW_VAR char_variable[] = {
     {"test_str_component.char_variable", (char *)&char_variable_value,
      SHOW_CHAR, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /**

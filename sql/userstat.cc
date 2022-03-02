@@ -78,10 +78,11 @@ void userstat_finish_timer(double start_busy_usecs, double start_cpu_nsecs,
     }
   }
 
+  double end_cpu_nsecs = 0.0;
+
 #ifdef HAVE_CLOCK_GETTIME
   /* Get end cputime */
   struct timespec tp;
-  double end_cpu_nsecs = 0.0;
   if (start_cpu_nsecs > 0.0 && !clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp))
     end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
 #endif

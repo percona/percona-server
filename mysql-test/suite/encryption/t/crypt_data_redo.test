@@ -1,0 +1,117 @@
+--source include/have_debug.inc
+
+# PS-7140: crypt redo logs are not applied correctly
+
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
+--let t2_IBD = $MYSQLD_DATADIR/test/t2.ibd
+--let t3_IBD = $MYSQLD_DATADIR/test/t3.ibd
+
+--echo # Make sure that changes to disk will not get
+--echo # applied and stay only in redo.
+set global innodb_page_cleaner_disabled_debug=on;
+create table t1(a varchar(255)) encryption='N';
+insert t1 values (repeat('foobarsecret', 12));
+create table t2(a varchar(255)) encryption='KEYRING';
+insert t2 values (repeat('tempsecret', 12));
+
+--source include/kill_and_restart_mysqld.inc
+
+--let $assert_text= Make sure t1 is included in INFORMATION_SCHEMA tablespace with MIN_KEY_VERSION equal to 0
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'test/t1\\']" = 0
+--source include/assert.inc
+
+--let $assert_text= Make sure t2 is included in INFORMATION_SCHEMA tablespace with MIN_KEY_VERSION equal to 1
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'test/t2\\']" = 1
+--source include/assert.inc
+
+--let SEARCH_PATTERN=PSC
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+--let SEARCH_FILE=$t2_IBD
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN=foobarsecret
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=tempsecret
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t2_IBD
+--source include/search_pattern_in_file.inc
+
+--echo #cleanup
+DROP TABLE t1,t2;
+
+--echo # Now check that tablespace encrypted by encryption threads is retrieved correctly from redo log.
+
+#--let $MYSQLD_DATADIR=`select @@datadir`
+#--let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+#We do not encrypt temporary tablespace
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+
+create table t1(a varchar(255));
+insert t1 values (repeat('foobarsecret', 12));
+
+set global innodb_page_cleaner_disabled_debug=on;
+
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--source include/kill_and_restart_mysqld.inc
+
+--let $assert_text= Encryption threads should be disabled
+--let $assert_cond= "[SELECT @@innodb_encryption_threads]" = 0
+--source include/assert.inc
+
+--let $assert_text= Make sure t1 is included in INFORMATION_SCHEMA tablespace with ENCRYPTION_SCHEME equal to 1
+--let $assert_cond= "[SELECT ENCRYPTION_SCHEME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'test/t1\\']" = 1
+--source include/assert.inc
+
+--let $assert_text= Make sure t1 is included in INFORMATION_SCHEMA tablespace with MIN_KEY_VERSION equal to 1
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE name=\\'test/t1\\']" = 1
+--source include/assert.inc
+
+--let SEARCH_PATTERN=PSC
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN=foobarsecret
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+--echo #cleanup
+DROP TABLE t1;
+
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--echo # Wait max 10 min for key encryption threads to decrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+
+

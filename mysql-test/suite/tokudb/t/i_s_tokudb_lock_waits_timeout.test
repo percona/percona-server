@@ -30,7 +30,7 @@ send replace into t values (1);
 connection default;
 let $wait_condition= select count(*)=1 from information_schema.processlist where info='replace into t values (1)' and state='update';
 source include/wait_condition.inc;
-real_sleep 1; # delay a little to shorten the update -> write row -> lock wait race
+sleep 1; # delay a little to shorten the update -> write row -> lock wait race
 
 replace_column 1 TRX_ID 2 MYSQL_ID; 
 select * from information_schema.tokudb_locks;
@@ -44,7 +44,7 @@ replace_column 1 TRX_ID 2 MYSQL_ID;
 select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 
 connection conn_a;
-real_sleep 45; # sleep till we get close to timeout since wait_condidion will timeout @ 30 seconds
+sleep 45; # sleep till we get close to timeout since wait_condidion will timeout @ 30 seconds
 let $wait_condition= select count(*)=0 from information_schema.processlist where info='replace into t values (1)' and state='update';
 source include/wait_condition.inc;
 commit;

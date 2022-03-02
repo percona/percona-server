@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,5 +46,7 @@ const std::string k_variable_option_compression_max_combine_messages =
     "%OPTION_COMPRESSION_MAX_COMBINE_MESSAGES%";
 const std::string k_variable_option_compression_combine_mixed_messages =
     "%OPTION_COMPRESSION_COMBINE_MIXED_MESSAGES%";
+const std::string k_variable_option_compression_level =
+    "%OPTION_COMPRESSION_LEVEL%";
 
 #endif  // PLUGIN_X_TESTS_DRIVER_PROCESSOR_VARIABLE_NAMES_H_

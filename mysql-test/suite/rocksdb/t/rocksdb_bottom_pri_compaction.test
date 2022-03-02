@@ -1,0 +1,24 @@
+--source include/have_rocksdb.inc
+--source include/linux.inc
+
+--exec grep "Set 1 compaction thread(s) with lower scheduling priority." $MYSQLTEST_VARDIR/log/mysqld.1.err | tail -n 1 | wc -l
+
+CREATE TABLE t1 (
+  a int not null,
+  b int not null,
+  primary key (a,b),
+  key (b)
+) ENGINE=RocksDB;
+
+# Populate tables
+let $max = 1000;
+let $table = t1;
+--source ../include/drop_table_repopulate_table.inc
+
+set @@global.rocksdb_compact_cf = 'default';
+
+--let $pid_file= query_get_value(SELECT @@pid_file, @@pid_file, 1)
+--exec perl suite/rocksdb/t/rocksdb_bottom_pri_compaction_check.pl $pid_file 1 1
+
+drop table t1;
+

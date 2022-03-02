@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include <NdbSqlUtil.hpp>
 
-#include <math.h>
+#include <cmath>
 
 #include "my_byteorder.h"
 #include "m_ctype.h"
@@ -396,7 +396,7 @@ NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* 
   float v1, v2;
   memcpy(&v1, p1, 4);
   memcpy(&v2, p2, 4);
-  require(!isnan(v1) && !isnan(v2));
+  require(!std::isnan(v1) && !std::isnan(v2));
   if (v1 < v2)
     return -1;
   if (v1 > v2)
@@ -411,7 +411,7 @@ NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void*
   double v1, v2;
   memcpy(&v1, p1, 8);
   memcpy(&v2, p2, 8);
-  require(!isnan(v1) && !isnan(v2));
+  require(!std::isnan(v1) && !std::isnan(v2));
   if (v1 < v2)
     return -1;
   if (v1 > v2)

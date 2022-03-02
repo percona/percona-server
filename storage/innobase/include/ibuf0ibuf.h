@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -94,9 +94,8 @@ affects the free space.  It is unsafe to increment the bits in a
 separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
-/** Creates the insert buffer data structure at a database startup.
-@return DB_SUCCESS or failure */
-dberr_t ibuf_init_at_db_start(void);
+/** Creates the insert buffer data structure at a database startup. */
+void ibuf_init_at_db_start(void);
 /** Updates the max_size value for ibuf. */
 void ibuf_max_size_update(ulint new_val); /*!< in: new value in terms of
                                           percentage of the buffer pool size */
@@ -104,14 +103,14 @@ void ibuf_max_size_update(ulint new_val); /*!< in: new value in terms of
  tree and updates the counter in fil_system. */
 void ibuf_update_max_tablespace_id(void);
 /** Starts an insert buffer mini-transaction. */
-UNIV_INLINE
-void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
+static inline void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
 /** Commits an insert buffer mini-transaction. */
-UNIV_INLINE
-void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
+static inline void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
+
 /** Initializes an ibuf bitmap page. */
 void ibuf_bitmap_page_init(buf_block_t *block, /*!< in: bitmap page */
-                           mtr_t *mtr);        /*!< in: mtr */
+                           mtr_t *mtr /*!< in: mtr */);
+
 /** Resets the free bits of the page in the ibuf bitmap. This is done in a
  separate mini-transaction, hence this operation does not restrict
  further work to only ibuf bitmap operations, which would result if the
@@ -145,9 +144,9 @@ not update the free bits here, because that would break crash recovery.
 @param[in]	increase	upper limit for the additional space used in
                                 the latest operation, if known, or
                                 ULINT_UNDEFINED */
-UNIV_INLINE
-void ibuf_update_free_bits_if_full(buf_block_t *block, ulint max_ins_size,
-                                   ulint increase);
+static inline void ibuf_update_free_bits_if_full(buf_block_t *block,
+                                                 ulint max_ins_size,
+                                                 ulint increase);
 
 /** Updates the free bits for an uncompressed page to reflect the present
  state.  Does this in the mtr given, which means that the latching
@@ -189,8 +188,8 @@ and recommended.
 @param[in]	ignore_sec_unique	if != 0, we should ignore UNIQUE
                                         constraint on a secondary index when
                                         we decide*/
-UNIV_INLINE
-ibool ibuf_should_try(dict_index_t *index, ulint ignore_sec_unique);
+static inline ibool ibuf_should_try(dict_index_t *index,
+                                    ulint ignore_sec_unique);
 
 /** Returns TRUE if the current OS thread is performing an insert buffer
  routine.
@@ -198,23 +197,26 @@ ibool ibuf_should_try(dict_index_t *index, ulint ignore_sec_unique);
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
-UNIV_INLINE
-ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
+static inline ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if a bitmap page */
-UNIV_INLINE
-ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size);
+static inline ibool ibuf_bitmap_page(const page_id_t &page_id,
+                                     const page_size_t &page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]	page_size	page size */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the
-bitmap page)
+bitmap page) */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in,out]	mtr		mtr which will contain an x-latch to the
@@ -232,9 +234,9 @@ ibool ibuf_page_low(const page_id_t &page_id, const page_size_t &page_size,
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		tablespace/page identifier
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction or NULL
+@param[in]	page_id		Tablespace/page identifier
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction or NULL
 @return true if level 2 or level 3 page */
 #define ibuf_page(page_id, page_size, mtr) \
   ibuf_page_low(page_id, page_size, TRUE, __FILE__, __LINE__, mtr)
@@ -243,9 +245,9 @@ Must not be called when recv_no_ibuf_operations==true.
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		tablespace/page identifier
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction or NULL
+@param[in]	page_id		Tablespace/page identifier
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction or NULL
 @return true if level 2 or level 3 page */
 #define ibuf_page(page_id, page_size, mtr) \
   ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
@@ -281,7 +283,8 @@ pointer to the page x-latched, else NULL
 @param[in]	page_id			page id of the index page
 @param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
 if we have deleted or are deleting the tablespace, then we naturally do not
-want to update a non-existent bitmap page */
+want to update a non-existent bitmap page
+@param[in]	page_size		page size */
 void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
                                    const page_size_t *page_size,
                                    ibool update_ibuf_bitmap);

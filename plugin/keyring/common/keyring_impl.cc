@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysqld_error.h"
 #include "plugin/keyring/common/keyring.h"
@@ -43,7 +44,7 @@ extern mysql_rwlock_t LOCK_keyring;
 std::unique_ptr<IKeys_container> keys(nullptr);
 volatile bool is_keys_container_initialized = false;
 std::unique_ptr<ILogger> logger(nullptr);
-std::unique_ptr<char[]> keyring_file_data(nullptr);
+char *keyring_file_data(nullptr);
 bool keyring_open_mode = false;  // 0 - Read|Write|Create; 1 - Read only
 
 #ifdef HAVE_PSI_INTERFACE
@@ -52,6 +53,11 @@ static PSI_rwlock_info all_keyring_rwlocks[] = {
 
 static PSI_memory_info all_keyring_memory[] = {
     {&keyring::key_memory_KEYRING, "KEYRING", 0, 0, PSI_DOCUMENT_ME}};
+
+void delete_keyring_file_data() {
+  free(keyring_file_data);
+  keyring_file_data = nullptr;
+}
 
 void keyring_init_psi_keys(void) {
   const char *category = "keyring";
@@ -95,7 +101,7 @@ bool is_key_length_and_type_valid(const char *key_type, size_t key_len) {
 
 void log_operation_error(const char *failed_operation,
                          const char *plugin_name) {
-  if (logger != NULL) {
+  if (logger != nullptr) {
     logger->log(ERROR_LEVEL, ER_KEYRING_OPERATION_FAILED_DUE_TO_INTERNAL_ERROR,
                 failed_operation, plugin_name);
   }
@@ -128,7 +134,7 @@ bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path) {
 
 void log_opearation_error(const char *failed_operation,
                           const char *plugin_name) {
-  if (logger != NULL) {
+  if (logger != nullptr) {
     logger->log(ERROR_LEVEL, ER_KEYRING_OPERATION_FAILED_DUE_TO_INTERNAL_ERROR,
                 failed_operation, plugin_name);
   }
@@ -142,11 +148,12 @@ void update_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   IKeys_container *new_keys =
       *reinterpret_cast<IKeys_container **>(const_cast<void *>(save_ptr));
   keys.reset(new_keys);
-  keyring_file_data.reset(
-      new char[new_keys->get_keyring_storage_url().length() + 1]);
-  memcpy(keyring_file_data.get(), new_keys->get_keyring_storage_url().c_str(),
+  free(keyring_file_data);
+  keyring_file_data = (static_cast<char *>(
+      malloc(new_keys->get_keyring_storage_url().length() + 1)));
+  memcpy(keyring_file_data, new_keys->get_keyring_storage_url().c_str(),
          new_keys->get_keyring_storage_url().length() + 1);
-  *reinterpret_cast<char **>(var_ptr) = keyring_file_data.get();
+  *reinterpret_cast<char **>(var_ptr) = keyring_file_data;
   is_keys_container_initialized = true;
   mysql_rwlock_unlock(&LOCK_keyring);
 }
@@ -170,7 +177,7 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
         my_strdup(keyring::key_memory_KEYRING,
                   fetched_key->get_key_type_as_string()->c_str(), MYF(MY_WME));
   } else
-    *key = NULL;
+    *key = nullptr;
   return false;
 }
 
@@ -232,13 +239,13 @@ void mysql_keyring_iterator_deinit(Keys_iterator *key_iterator) {
 
 bool mysql_keyring_iterator_get_key(Keys_iterator *key_iterator, char *key_id,
                                     char *user_id) {
-  keyring::Key_metadata *key_loaded = NULL;
+  keyring::Key_metadata *key_loaded = nullptr;
   bool error = key_iterator->get_key(&key_loaded);
-  if (error == false && key_loaded != NULL) {
+  if (error == false && key_loaded != nullptr) {
     if (key_id) strcpy(key_id, key_loaded->id->c_str());
     if (user_id) strcpy(user_id, key_loaded->user->c_str());
     delete key_loaded;
-  } else if (error == false && key_loaded == NULL) {
+  } else if (error == false && key_loaded == nullptr) {
     /* no keys exists or all keys are read */
     return true;
   }

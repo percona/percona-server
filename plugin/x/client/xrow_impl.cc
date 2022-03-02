@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -78,12 +78,12 @@ std::string floating_point_as_string(const Column_metadata &m,
   char buffer[100];
 
   if (m.fractional_digits < DECIMAL_NOT_SPECIFIED) {
-    my_fcvt(value, m.fractional_digits, buffer, NULL);
+    my_fcvt(value, m.fractional_digits, buffer, nullptr);
 
     return buffer;
   }
 
-  my_gcvt(value, arg_type, sizeof(buffer) - 1, buffer, NULL);
+  my_gcvt(value, arg_type, sizeof(buffer) - 1, buffer, nullptr);
 
   return buffer;
 }

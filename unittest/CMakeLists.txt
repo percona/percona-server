@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,15 @@ ADD_WSHADOW_WARNING()
 
 ADD_SUBDIRECTORY(gunit)
 
+INCLUDE(ProcessorCount)
+ProcessorCount(CORES)
+IF (CORES EQUAL 0)
+  SET(CORES 1)
+ENDIF()
+
 ADD_CUSTOM_TARGET(
   test-unit
-  COMMAND ctest
+  COMMAND ctest --progress --parallel ${CORES} --output-on-failure --timeout=300
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  USES_TERMINAL
 )

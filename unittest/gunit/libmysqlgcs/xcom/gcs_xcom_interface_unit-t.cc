@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
   gcs->initialize(if_params);
 
   // invoke the callback with a message with size zero
-  do_cb_xcom_receive_data(null_synode, NULL, null_synode, 0, NULL);
+  do_cb_xcom_receive_data(null_synode, nullptr, null_synode, 0, nullptr);
 
   // finalize the interface
   gcs->finalize();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ const char *client_errors[] = {
     "Unknown MySQL error",
     "Can't create UNIX socket (%d)",
     "Can't connect to local MySQL server through socket '%-.100s' (%d)",
-    "Can't connect to MySQL server on '%-.100s' (%d)",
+    "Can't connect to MySQL server on '%-.100s:%u' (%d)",
     "Can't create TCP/IP socket (%d)",
     "Unknown MySQL server host '%-.100s' (%d)",
     "MySQL server has gone away",
@@ -108,7 +108,14 @@ const char *client_errors[] = {
     "File name is too long",
     "Set FIPS mode ON/STRICT failed",
     "Compression protocol not supported with asynchronous protocol",
-    "Connection failed due to wrongly configured compression algorithm",
+    "Connection failed due to wrongly "
+    "configured compression "
+    "algorithm",
+    "SSO user not found, Please perform SSO authentication using kerberos.",
+    "LOAD DATA LOCAL INFILE file request rejected due to restrictions on "
+    "access.",
+    "Determining the real path for '%s' failed with error (%d): %s",
+    "DNS SRV lookup failed with error : %d",
     ""};
 
 static const char *get_client_errmsg(int nr) {

@@ -1,10 +1,9 @@
 .. _simple-ldap:
 
+
 ======================================================
 Using Simple LDAP Authentication
 ======================================================
-
-This feature is **Experimental** quality.
 
 This feature was implemented in |Percona Server| version :rn:`8.0.19-10`.
 
@@ -17,9 +16,7 @@ MySQL Enterprise Simple LDAP plugin.
 
 .. rubric:: Install the plugin
 
-Install the plugin with the following command:
-
-.. code-block:: MySQL
+Install the plugin with the following command::
 
     mysql> INSTALL PLUGIN authentication_ldap_simple SONAME 'authentication_ldap_simple.so';
 
@@ -44,7 +41,7 @@ The installation adds the following variables:
       -
       - global
       - Yes
-      - String
+      - string
     * - authentication_ldap_simple_bind_root_dn
       - Root distinguished name (DN)
       -
@@ -55,7 +52,7 @@ The installation adds the following variables:
       - string
     * - authentication_ldap_simple_bind_root_pwd
       - Password for the root distinguished name
-      -
+      - 
       -
       -
       - global
@@ -95,7 +92,7 @@ The installation adds the following variables:
       - yes
       - uint
     * - authentication_ldap_simple_log_status
-      - looging level
+      - logging level
       - 1
       - 1
       - 5
@@ -127,8 +124,7 @@ The installation adds the following variables:
       - yes
       - uint
     * - authentication_ldap_simple_ssl
-      - Whether connections by the plugin to the LDAP server are using the SSL
-        protocol (ldaps://)
+      - If plugin connections to the LDAP server use the SSL protocol (ldaps://)
       - OFF
       -
       -
@@ -136,8 +132,7 @@ The installation adds the following variables:
       - yes
       - bool
     * - authentication_ldap_simple_tls
-      - Whether connections by the plugin to the LDAP server are secured with
-        STARTTTLS (ldap://)
+      - If plugin connections to the LDAP server are secured with STARTTLS (ldap://)
       - OFF
       -
       -
@@ -154,21 +149,15 @@ The installation adds the following variables:
       - yes
       - string
 
-.. warning::
 
-    The password for the root distinguished name can be read by anyone able to
-    access the server.
-    
 For simple LDAP authentication, you must specify the authentication_ldap_simple
-plugin in the ``CREATE USER`` statement or the ``ALTER USER`` statement.
+plugin in the ``CREATE USER`` statement or the ``ALTER USER`` statement.::
 
-.. code-block:: mysql
+    mysql> CREATE USER ... IDENTIFIED WITH authentication_ldap_simple;
 
-    CREATE USER ... IDENTIFIED WITH authentication_ldap_simple;
+or ::
 
-    or
-
-    CREATE USER ... IDENTIFIED WITH authentication_ldap_simple BY 'cn=[user
+    mysql> CREATE USER ... IDENTIFIED WITH authentication_ldap_simple BY 'cn=[user
     name],ou=[organization unit],dc=[domain component],dc=com'
 
 .. note::
@@ -183,11 +172,11 @@ plugin in the ``CREATE USER`` statement or the ``ALTER USER`` statement.
     * authentication_ldap_simple_group_search_attr
 
     If the user is created with "IDENTIFIED BY authentication_ldap_simple" the
-    variables are used.
+    listed variables are used.
 
 If a MySQL user `rshimek` has the following entry in the LDAP directory:
 
-.. code-block:: guess
+.. code-block:: text
 
     uid=rshimek, ou=users, dc=hr, dc=com
 
@@ -203,15 +192,13 @@ To create a MySQL account for `rshimek`, use the following statement:
 
     **Security** The plugin requires sending the password in clear text.
 
-.. seealso:: 
+.. seealso::
 
     `Client-Side Cleartext Pluggable Authentication <https://dev.mysql.com/doc/refman/8.0/en/cleartext-pluggable-authentication.html>`_
 
 .. rubric:: Uninstall the plugin
 
-To uninstall the plugin, run the following command:
-
-.. code-block:: MySQL
+To uninstall the plugin, run the following command::
 
     mysql> UNINSTALL PLUGIN authentication_ldap_simple;
 

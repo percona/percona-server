@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,6 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
 
-extern EventLogger* g_eventLogger;
 
 void
 TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned line,
@@ -240,7 +239,7 @@ unpack_one(Uint32* (&readPtr), Uint32* eodPtr, Uint32 *endPtr,
     if (unlikely(messageLen32 == 0 ||
                 messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
     {
-      DEBUG("Message Size = " << messageLenBytes);
+      DEBUG("Message Size = " << messageLen32);
       errorCode = TE_INVALID_MESSAGE_LENGTH;
       return false;
     }//if
@@ -294,8 +293,11 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       Uint32 sBlockNum = signalHeader.theSendersBlockRef;
       sBlockNum = numberToRef(sBlockNum, remoteNodeId);
       signalHeader.theSendersBlockRef = sBlockNum;
-      
-      doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+      doStopReceiving = recvHandle.deliver_signal(&signalHeader,
+                                                  prio,
+                                                  errorCode,
+                                                  signalData,
+                                                  ptr);
       
     }//while
   } else {
@@ -322,7 +324,11 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sBlockNum = numberToRef(sBlockNum, remoteNodeId);
 	signalHeader.theSendersBlockRef = sBlockNum;
 
-	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+	doStopReceiving = recvHandle.deliver_signal(&signalHeader,
+                                                    prio,
+                                                    errorCode,
+                                                    signalData,
+                                                    ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
@@ -393,7 +399,11 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       sBlockNum = numberToRef(sBlockNum, remoteNodeId);
       signalHeader.theSendersBlockRef = sBlockNum;
       
-      doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+      doStopReceiving = recvHandle.deliver_signal(&signalHeader,
+                                                  prio,
+                                                  errorCode,
+                                                  signalData,
+                                                  ptr);
       
     }//while
   } else {
@@ -421,7 +431,11 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sBlockNum = numberToRef(sBlockNum, remoteNodeId);
 	signalHeader.theSendersBlockRef = sBlockNum;
 
-	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
+	doStopReceiving = recvHandle.deliver_signal(&signalHeader,
+                                                    prio,
+                                                    errorCode,
+                                                    signalData,
+                                                    ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);

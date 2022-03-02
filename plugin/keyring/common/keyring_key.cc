@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,8 @@
 
 #include "plugin/keyring/common/keyring_key.h"
 
+#include <assert.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
 
 namespace keyring {
 
@@ -49,19 +48,19 @@ Key::Key(IKey *other) : Key() {
 
 void Key::init(const char *a_key_id, const char *a_key_type,
                const char *a_user_id, const void *a_key, size_t a_key_len) {
-  if (a_key_id != NULL) key_id = a_key_id;
+  if (a_key_id != nullptr) key_id = a_key_id;
 
-  if (a_key_type != NULL) {
+  if (a_key_type != nullptr) {
     key_type = a_key_type;
     set_key_type_enum(&key_type);
   } else {
     key_type_enum = Key_type::unknown;
   }
 
-  if (a_user_id != NULL) user_id = a_user_id;
+  if (a_user_id != nullptr) user_id = a_user_id;
 
   key_len = a_key_len;
-  if (a_key != NULL && key_len > 0) {
+  if (a_key != nullptr && key_len > 0) {
     key.reset(new uchar[a_key_len]);
     memcpy(key.get(), a_key, a_key_len);
   }
@@ -100,7 +99,7 @@ void Key::store_in_buffer(uchar *buffer, size_t *buffer_position) const {
       (sizeof(size_t) - (*buffer_position % sizeof(size_t))) % sizeof(size_t);
 
   *buffer_position += padding;
-  DBUG_ASSERT(*buffer_position % sizeof(size_t) == 0);
+  assert(*buffer_position % sizeof(size_t) == 0);
 }
 
 bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
@@ -164,7 +163,7 @@ bool Key::load_from_buffer(uchar *buffer,
   size_t padding =
       (sizeof(size_t) - (buffer_position % sizeof(size_t))) % sizeof(size_t);
   buffer_position += padding;
-  DBUG_ASSERT(buffer_position % sizeof(size_t) == 0);
+  assert(buffer_position % sizeof(size_t) == 0);
 
   *number_of_bytes_read_from_buffer = buffer_position;
 
@@ -184,7 +183,7 @@ size_t Key::get_key_pod_size() const {
       (sizeof(size_t) - (key_pod_size % sizeof(size_t))) % sizeof(size_t);
 
   size_t key_pod_size_aligned = key_pod_size + padding;
-  DBUG_ASSERT(key_pod_size_aligned % sizeof(size_t) == 0);
+  assert(key_pod_size_aligned % sizeof(size_t) == 0);
   return key_pod_size_aligned;
 }
 
@@ -196,7 +195,7 @@ void Key::xor_data(uchar *data, size_t data_len) {
 }
 
 void Key::xor_data() {
-  if (key == NULL) return;
+  if (key == nullptr) return;
   xor_data(key.get(), key_len);
 }
 

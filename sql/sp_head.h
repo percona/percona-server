@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,7 @@ class sp_name {
 
   sp_name(const LEX_CSTRING &db, const LEX_STRING &name, bool use_explicit_name)
       : m_db(db), m_name(name), m_explicit_name(use_explicit_name) {
-    m_qname.str = 0;
+    m_qname.str = nullptr;
     m_qname.length = 0;
   }
 
@@ -151,14 +151,14 @@ class sp_parser_data {
 
  public:
   sp_parser_data()
-      : m_current_stmt_start_ptr(NULL),
-        m_option_start_ptr(NULL),
-        m_param_start_ptr(NULL),
-        m_param_end_ptr(NULL),
-        m_body_start_ptr(NULL),
+      : m_current_stmt_start_ptr(nullptr),
+        m_option_start_ptr(nullptr),
+        m_param_start_ptr(nullptr),
+        m_param_end_ptr(nullptr),
+        m_body_start_ptr(nullptr),
         m_cont_level(0),
-        m_saved_memroot(NULL),
-        m_saved_item_list(NULL) {}
+        m_saved_memroot(nullptr),
+        m_saved_item_list(nullptr) {}
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -188,7 +188,7 @@ class sp_parser_data {
     @retval true if SP-body statement is being parsed.
     @retval false otherwise.
   */
-  bool is_parsing_sp_body() const { return m_saved_memroot != NULL; }
+  bool is_parsing_sp_body() const { return m_saved_memroot != nullptr; }
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -405,7 +405,13 @@ class sp_head {
       b) because in CONTAINS SQL case they don't provide enough
       information anyway.
      */
-    MODIFIES_DATA = 4096
+    MODIFIES_DATA = 4096,
+    /**
+      Set when a stored program contains sub-statement(s) that creates or drops
+      temporary table(s). When set, used to mark invoking statement as unsafe to
+      be binlogged in STATEMENT format, when in MIXED mode.
+    */
+    HAS_TEMP_TABLE_DDL = 8192
   };
 
  public:
@@ -645,7 +651,7 @@ class sp_head {
     @return Error status.
   */
 
-  bool execute_procedure(THD *thd, List<Item> *args);
+  bool execute_procedure(THD *thd, mem_root_deque<Item *> *args);
 
   /**
     Add instruction to SP.
@@ -664,6 +670,14 @@ class sp_head {
     @sa Comment for MODIFIES_DATA flag.
   */
   bool modifies_data() const { return m_flags & MODIFIES_DATA; }
+
+  /**
+    @returns true if stored program has sub-statement(s) to CREATE/DROP
+    temporary table(s).
+      @retval true   if HAS_TEMP_TABLE_DDL is set in m_flags.
+      @retval false  Otherwise.
+  */
+  bool has_temp_table_ddl() const { return m_flags & HAS_TEMP_TABLE_DDL; }
 
   uint instructions() { return static_cast<uint>(m_instructions.size()); }
 
@@ -687,7 +701,7 @@ class sp_head {
   */
   bool restore_lex(THD *thd);
 
-  char *name(uint *lenp = 0) const {
+  char *name(uint *lenp = nullptr) const {
     if (lenp) *lenp = (uint)m_name.length;
     return m_name.str;
   }
@@ -696,6 +710,7 @@ class sp_head {
     Create Field-object corresponding to the RETURN field of a stored function.
     This operation makes sense for stored functions only.
 
+    @param thd              thread context.
     @param field_max_length the max length (in the sense of Item classes).
     @param field_name       the field name (item name).
     @param table            the field's table.
@@ -703,8 +718,10 @@ class sp_head {
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(size_t field_max_length, const char *field_name,
-                             TABLE *table);
+  Field *create_result_field(THD *thd, size_t field_max_length,
+                             const char *field_name, TABLE *table) const;
+
+  void returns_type(THD *thd, String *result) const;
 
   void set_info(longlong created, longlong modified, st_sp_chistics *chistics,
                 sql_mode_t sql_mode);
@@ -796,7 +813,7 @@ class sp_head {
              HAS_COMMIT_OR_ROLLBACK | HAS_SQLCOM_RESET | HAS_SQLCOM_FLUSH));
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Return the routine instructions as a result set.
     @return Error status.
@@ -821,6 +838,12 @@ class sp_head {
     DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x", this, name(),
                         unsafe_flags));
     prelocking_ctx->set_stmt_unsafe_flags(unsafe_flags);
+
+    /*
+      If temporary table is created or dropped in the stored program then
+      statement is unsafe to be logged in STATEMENT format, when in MIXED mode.
+    */
+    if (has_temp_table_ddl()) prelocking_ctx->set_stmt_unsafe_with_mixed_mode();
   }
 
   /**

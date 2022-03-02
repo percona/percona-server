@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,9 @@ FT_WORD *ft_linearize(TREE *wtree, MEM_ROOT *mem_root) {
     tree_walk(wtree, &walk_and_copy, &docstat, left_root_right);
   }
   delete_tree(wtree);
-  if (!wlist) return NULL;
+  if (!wlist) return nullptr;
 
-  docstat.list->pos = NULL;
+  docstat.list->pos = nullptr;
 
   for (p = wlist; p->pos; p++) {
     p->weight = PRENORM_IN_USE;
@@ -122,7 +122,7 @@ uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
   uint mwc, length;
   int mbl;
 
-  param->yesno = (FTB_YES == ' ') ? 1 : (param->quot != 0);
+  param->yesno = (FTB_YES == ' ') ? 1 : (param->quot != nullptr);
   param->weight_adjust = param->wasign = 0;
   param->type = FT_TOKEN_EOF;
 
@@ -167,7 +167,7 @@ uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
         }
       }
       param->prev = *doc;
-      param->yesno = (FTB_YES == ' ') ? 1 : (param->quot != 0);
+      param->yesno = (FTB_YES == ' ') ? 1 : (param->quot != nullptr);
       param->weight_adjust = param->wasign = 0;
     }
 
@@ -265,7 +265,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
   wtree = ft_param->wtree;
   if (param->flags & MYSQL_FTFLAGS_NEED_COPY) {
     uchar *ptr;
-    DBUG_ASSERT(wtree->with_delete == 0);
+    assert(wtree->with_delete == 0);
     ptr = (uchar *)ft_param->mem_root->Alloc(word_len);
     memcpy(ptr, word, word_len);
     w.pos = ptr;
@@ -291,7 +291,7 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param, char *doc_arg,
   while (
       ft_simple_get_word(static_cast<const CHARSET_INFO *>(wtree->custom_arg),
                          &doc, end, &w, true))
-    if (param->mysql_add_word(param, (char *)w.pos, w.len, 0)) return 1;
+    if (param->mysql_add_word(param, (char *)w.pos, w.len, nullptr)) return 1;
   return 0;
 }
 
@@ -300,7 +300,7 @@ int ft_parse(TREE *wtree, uchar *doc, int doclen,
              MEM_ROOT *mem_root) {
   MY_FT_PARSER_PARAM my_param;
   DBUG_TRACE;
-  DBUG_ASSERT(parser);
+  assert(parser);
 
   my_param.wtree = wtree;
   my_param.mem_root = mem_root;
@@ -344,7 +344,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr,
   uint32 ftparser_nr;
   struct st_mysql_ftparser *parser;
 
-  if (!ftparser_alloc_param(info)) return 0;
+  if (!ftparser_alloc_param(info)) return nullptr;
 
   if (keynr == NO_SUCH_KEY) {
     ftparser_nr = 0;
@@ -353,7 +353,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr,
     ftparser_nr = info->s->keyinfo[keynr].ftkey_nr;
     parser = info->s->keyinfo[keynr].parser;
   }
-  DBUG_ASSERT(paramnr < MAX_PARAM_NR);
+  assert(paramnr < MAX_PARAM_NR);
   ftparser_nr = ftparser_nr * MAX_PARAM_NR + paramnr;
   if (!info->ftparser_param[ftparser_nr].mysql_add_word) {
     /* Note, that mysql_add_word is used here as a flag:
@@ -363,7 +363,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr,
     info->ftparser_param[ftparser_nr].mysql_add_word = (int (*)(
         MYSQL_FTPARSER_PARAM *, char *, int, MYSQL_FTPARSER_BOOLEAN_INFO *))1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
-      return 0;
+      return nullptr;
   }
   return &info->ftparser_param[ftparser_nr];
 }
@@ -379,7 +379,7 @@ void ftparser_call_deinitializer(MI_INFO *info) {
           &info->ftparser_param[keyinfo->ftkey_nr * MAX_PARAM_NR + j];
       if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word) {
         if (keyinfo->parser->deinit) keyinfo->parser->deinit(ftparser_param);
-        ftparser_param->mysql_add_word = 0;
+        ftparser_param->mysql_add_word = nullptr;
       } else
         break;
     }

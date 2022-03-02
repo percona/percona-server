@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +127,7 @@ struct st_plugin_ctx {
   st_plugin_ctx() { reset(); }
 
   void reset() {
-    resultcs = NULL;
+    resultcs = nullptr;
     server_status = 0;
     current_col = 0;
     warn_count = 0;
@@ -165,7 +165,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
@@ -473,6 +474,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static void get_data_str(void *ctx) {
@@ -512,6 +514,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   COM_DATA cmd;
 
   WRITE_VAL("%s\n", test_cmd);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
 
@@ -925,7 +928,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -954,7 +957,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -996,15 +999,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_sql_lock",
-    "Pavan Naik, Andrey Hristov",
+    PLUGIN_AUTHOR_ORACLE,
     "Test SQL locking mechanisms",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit */
     0x0100,                         /* 1.0 */
-    NULL,                           /* status variables */
-    NULL,                           /* system variables */
-    NULL,                           /* config options */
+    nullptr,                        /* status variables */
+    nullptr,                        /* system variables */
+    nullptr,                        /* config options */
     0,                              /* flags */
 } mysql_declare_plugin_end;

@@ -5,6 +5,34 @@ if (!$no_binlog) {
 }
 --source include/have_innodb_default_undo_tablespaces.inc
 --source ../include/clone_connection_begin.inc
+
+if ($disabled_redo) {
+  ALTER INSTANCE DISABLE INNODB REDO_LOG;
+}
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $CLONE_DATADIR1 = $MYSQL_TMP_DIR/data_new1
+
+if ($clone_upgrade) {
+  --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+  --echo # Upgrade 5.7 database
+  --let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_upgrade
+  --source ../include/clone_upgrade.inc
+
+  --echo # Cloning database immediately after upgrade
+  --replace_result $CLONE_PLUGIN CLONE_PLUGIN
+  --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+  --connection clone_conn_1
+  --source ../include/clone_command.inc
+
+  select count(*) from 57_data_table;
+
+  --echo # In connection default - Finished Cloning
+  --connection default
+  UNINSTALL PLUGIN clone;
+}
+
 --source include/count_sessions.inc
 
 # Use a couple explicit undo tablespaces
@@ -19,8 +47,6 @@ SELECT TABLESPACE_NAME, FILE_NAME, FILE_TYPE, ENGINE
        ORDER BY TABLESPACE_NAME;
 
 ## Install plugin
---let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
---let $CLONE_DATADIR1 = $MYSQL_TMP_DIR/data_new1
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -87,6 +113,17 @@ begin;
 
 --echo # In connection default - Cloning database
 --connection clone_conn_1
+
+if ($disabled_redo) {
+  --echo # Clone must return error when redo logging is disabled
+  --let disabled_redo = 0
+  --let $clone_err = ER_INNODB_REDO_DISABLED
+  --source ../include/clone_command.inc
+
+  --let disabled_redo = 1
+  --let $clone_err = 0
+}
+
 --source ../include/clone_command.inc
 --echo # In connection default - Finished Cloning
 
@@ -118,7 +155,6 @@ disconnect con3;
 disconnect con4;
 
 --source include/wait_until_count_sessions.inc
-
 
 if (!$clone_remote_replace) {
   --echo # Restart cloned database
@@ -225,6 +261,16 @@ if (!$clone_remote_replace) {
 --force-rmdir $CLONE_DATADIR1
 }
 
+if ($clone_upgrade) {
+  --echo # Cleanup: Restart with default options.
+  --let $restart_parameters =
+  --source include/restart_mysqld.inc
+
+  --echo
+  --echo # Remove upgraded data directory.
+  --force-rmdir $MYSQLD_DATADIR_UPGRADE
+}
+
 # Clean recipient by cloning the cleaned up donor
 if ($clone_remote_replace) {
   --connection clone_conn_1
@@ -233,3 +279,7 @@ if ($clone_remote_replace) {
 --source ../include/clone_connection_end.inc
 
 UNINSTALL PLUGIN clone;
+
+if ($disabled_redo) {
+  ALTER INSTANCE ENABLE INNODB REDO_LOG;
+}

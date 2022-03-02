@@ -17,8 +17,9 @@
 #CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENCRYPTION='N';
 #CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
 include/assert.inc [There should be one table test/t2 with EXCLUDED=Y set.]
-SET GLOBAL innodb_encryption_threads = 4;
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 # Wait max 10 min for key encryption threads to encrypt spaces
 include/assert.inc [test/t1 key version 1 assigned]
 include/assert.inc [test/t2 should still have EXCLUDED=Y set.]

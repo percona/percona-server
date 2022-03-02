@@ -33,14 +33,19 @@
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 
+/* RocksDB includes */
+#include "rocksdb/env.h"
+#include "rocksdb/file_system.h"
+#include "rocksdb/io_status.h"
+
 namespace myrocks {
 
 /*
   Skip past any spaces in the input
 */
 const char *rdb_skip_spaces(const CHARSET_INFO *const cs, const char *str) {
-  DBUG_ASSERT(cs != nullptr);
-  DBUG_ASSERT(str != nullptr);
+  assert(cs != nullptr);
+  assert(str != nullptr);
 
   while (my_isspace(cs, *str)) {
     str++;
@@ -55,8 +60,8 @@ const char *rdb_skip_spaces(const CHARSET_INFO *const cs, const char *str) {
   of characters in str2.
 */
 bool rdb_compare_strings_ic(const char *const str1, const char *const str2) {
-  DBUG_ASSERT(str1 != nullptr);
-  DBUG_ASSERT(str2 != nullptr);
+  assert(str1 != nullptr);
+  assert(str2 != nullptr);
 
   // Scan through the strings
   size_t ii;
@@ -79,9 +84,9 @@ const char *rdb_find_in_string(const char *str, const char *pattern,
   char quote = '\0';
   bool escape = false;
 
-  DBUG_ASSERT(str != nullptr);
-  DBUG_ASSERT(pattern != nullptr);
-  DBUG_ASSERT(succeeded != nullptr);
+  assert(str != nullptr);
+  assert(pattern != nullptr);
+  assert(succeeded != nullptr);
 
   *succeeded = false;
 
@@ -126,10 +131,10 @@ const char *rdb_find_in_string(const char *str, const char *pattern,
 const char *rdb_check_next_token(const CHARSET_INFO *const cs, const char *str,
                                  const char *const pattern,
                                  bool *const succeeded) {
-  DBUG_ASSERT(cs != nullptr);
-  DBUG_ASSERT(str != nullptr);
-  DBUG_ASSERT(pattern != nullptr);
-  DBUG_ASSERT(succeeded != nullptr);
+  assert(cs != nullptr);
+  assert(str != nullptr);
+  assert(pattern != nullptr);
+  assert(succeeded != nullptr);
 
   // Move past any spaces
   str = rdb_skip_spaces(cs, str);
@@ -149,8 +154,8 @@ const char *rdb_check_next_token(const CHARSET_INFO *const cs, const char *str,
 */
 const char *rdb_parse_id(const CHARSET_INFO *const cs, const char *str,
                          std::string *const id) {
-  DBUG_ASSERT(cs != nullptr);
-  DBUG_ASSERT(str != nullptr);
+  assert(cs != nullptr);
+  assert(str != nullptr);
 
   // Move past any spaces
   str = rdb_skip_spaces(cs, str);
@@ -210,8 +215,8 @@ const char *rdb_parse_id(const CHARSET_INFO *const cs, const char *str,
   Skip id
 */
 const char *rdb_skip_id(const CHARSET_INFO *const cs, const char *str) {
-  DBUG_ASSERT(cs != nullptr);
-  DBUG_ASSERT(str != nullptr);
+  assert(cs != nullptr);
+  assert(str != nullptr);
 
   return rdb_parse_id(cs, str, nullptr);
 }
@@ -243,7 +248,7 @@ static const std::array<char, 16> rdb_hexdigit = {{'0', '1', '2', '3', '4', '5',
 */
 std::string rdb_hexdump(const char *data, const std::size_t data_len,
                         const std::size_t maxsize) {
-  DBUG_ASSERT(data != nullptr);
+  assert(data != nullptr);
 
   // Count the elements in the string
   std::size_t elems = data_len;
@@ -345,7 +350,7 @@ bool Regex_list_handler::set_patterns(
 }
 
 bool Regex_list_handler::matches(const std::string &str) const {
-  DBUG_ASSERT(m_pattern != nullptr);
+  assert(m_pattern != nullptr);
 
   // Make sure no one else changes the list while we are accessing it.
   mysql_rwlock_rdlock(&m_rwlock);
@@ -391,14 +396,29 @@ std::vector<std::string> split_into_vector(const std::string &input,
   return elems;
 }
 
-bool rdb_check_rocksdb_corruption() {
-  return !my_access(myrocks::rdb_corruption_marker_file_name().c_str(), F_OK);
+bool rdb_has_rocksdb_corruption() {
+  rocksdb::DBOptions *rocksdb_db_options = get_rocksdb_db_options();
+  assert(rocksdb_db_options->env != nullptr);
+  const std::string fileName(myrocks::rdb_corruption_marker_file_name());
+
+  const auto &fs = rocksdb_db_options->env->GetFileSystem();
+  rocksdb::IOStatus io_s =
+      fs->FileExists(fileName, rocksdb::IOOptions(), nullptr);
+
+  return io_s.ok();
 }
 
 void rdb_persist_corruption_marker() {
-  const std::string &fileName = myrocks::rdb_corruption_marker_file_name();
-  int fd = my_open(fileName.c_str(), O_CREAT | O_SYNC, MYF(MY_WME));
-  if (fd < 0) {
+  rocksdb::DBOptions *rocksdb_db_options = get_rocksdb_db_options();
+  assert(rocksdb_db_options->env != nullptr);
+  const std::string fileName(myrocks::rdb_corruption_marker_file_name());
+
+  const auto &fs = rocksdb_db_options->env->GetFileSystem();
+  std::unique_ptr<rocksdb::FSWritableFile> file;
+  rocksdb::IOStatus io_s =
+      fs->NewWritableFile(fileName, rocksdb::FileOptions(), &file, nullptr);
+
+  if (!io_s.ok()) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
                     "Can't create file %s to mark rocksdb as corrupted.",
                     fileName.c_str());
@@ -410,10 +430,10 @@ void rdb_persist_corruption_marker() {
                     fileName.c_str());
   }
 
-  int ret = my_close(fd, MYF(MY_WME));
-  if (ret) {
-    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%d) closing the file %s", ret,
-                    fileName.c_str());
+  io_s = file->Close(rocksdb::IOOptions(), nullptr);
+  if (!io_s.ok()) {
+    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%s) closing the file %s",
+                    io_s.ToString().c_str(), fileName.c_str());
   }
 }
 

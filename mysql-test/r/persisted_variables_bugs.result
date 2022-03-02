@@ -167,7 +167,7 @@ SELECT @@global.optimizer_trace_offset;
 -1
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on,favor_range_scan=off
 SELECT @@global.enforce_gtid_consistency;
 @@global.enforce_gtid_consistency
 OFF
@@ -186,7 +186,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 binlog_cache_size	32768
 collation_database	utf8mb4_0900_ai_ci
 enforce_gtid_consistency	0
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on,favor_range_scan=off
 optimizer_trace_offset	-1
 sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 # Restart server
@@ -202,7 +202,7 @@ SELECT @@global.optimizer_trace_offset;
 -1
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on,favor_range_scan=off
 SELECT @@global.enforce_gtid_consistency;
 @@global.enforce_gtid_consistency
 OFF
@@ -214,7 +214,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 binlog_cache_size	32768
 collation_database	utf8mb4_0900_ai_ci
 enforce_gtid_consistency	0
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on,favor_range_scan=off
 optimizer_trace_offset	-1
 sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 # Cleanup
@@ -242,6 +242,8 @@ ERROR HY000: Variable size does not exist in persisted config file
 SELECT JSON_OBJECTAGG(id,x) FROM t;
 ERROR 42S22: Unknown column 'id' in 'field list'
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP DATABASE bug27903874;
 #
 # Bug #27512616: SET PERSIST COMMAND FAILS TO MAP DEFAULT(NULL) VALUES IN
@@ -271,7 +273,7 @@ RESET PERSIST;
 CREATE USER u1;
 SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 SHOW GRANTS;
 Grants for u1@%
 GRANT USAGE ON *.* TO `u1`@`%`
@@ -311,7 +313,7 @@ SHOW GRANTS;
 Grants for u1@%
 GRANT USAGE ON *.* TO `u1`@`%`
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO `u1`@`%`
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 RESET PERSIST ft_query_expansion_limit;
 ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
@@ -322,13 +324,13 @@ SHOW GRANTS;
 Grants for u1@%
 GRANT USAGE ON *.* TO `u1`@`%`
 GRANT PERSIST_RO_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 RESET PERSIST ft_query_expansion_limit;
 RESET PERSIST;
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
 SET GLOBAL sort_buffer_size = default, max_connections = default,
-slave_net_timeout = default, max_heap_table_size = default;
+replica_net_timeout = default, max_heap_table_size = default;
 DROP USER u1;
 #
 # Bug #28466045: SET PERSIST NOT SETTING CORRECT VALUES FOR VARIABLES
@@ -424,4 +426,21 @@ VARIABLE_NAME	VARIABLE_VALUE
 skip_name_resolve	OFF
 RESET PERSIST;
 DROP USER 'bug28749668'@'%';
+#
+# Bug #30169731: MYSQL SERVER DOESN'T START AND NO ERROR IN THE LOG
+#
+# config file is in wrong json format
+# server should fail to start
+include/assert_grep.inc [Server should fail to start as mysqld-auto.cnf file is with wrong JSON format.]
+# start server with all defaults
+# restart:
+#
+# Bug #32761053: SET PERSIST_ONLY ... = DEFAULT IS BROKEN FOR ENUM VARIABLES
+#
+SET PERSIST_ONLY replica_exec_mode = DEFAULT;
+SELECT * FROM performance_schema.persisted_variables
+WHERE variable_name='replica_exec_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_exec_mode	STRICT
+RESET PERSIST;
 # End of the 8.0 tests

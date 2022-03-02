@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Add executable plus some additional MySQL specific stuff
-# Usage (same as for standard CMake's ADD_EXECUTABLE)
-#
-# MYSQL_ADD_EXECUTABLE(target source1...sourceN)
-# MySQL specifics:
-# - instruct CPack to install executable under
-#   ${CMAKE_INSTALL_PREFIX}/bin directory
-#
-#   SKIP_INSTALL do not install it
-#   ADD_TEST     add a unit test with given name (and add SKIP_INSTALL)
-# On Windows :
-# - add version resource
+# MYSQL_ADD_EXECUTABLE(target sources... options/keywords...)
 #
 # All executables are built in ${CMAKE_BINARY_DIR}/runtime_output_directory
 # (can be overridden by the RUNTIME_OUTPUT_DIRECTORY option).
@@ -39,17 +28,34 @@
 # It also simplifies test tools like mtr, which have to locate executables in
 # order to run them during testing.
 
-INCLUDE(cmake_parse_arguments)
+FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
+  SET(EXECUTABLE_OPTIONS
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL   # add target, but do not build it by default
+    EXCLUDE_FROM_PGO   # add target, but do not build for PGO
+    EXCLUDE_ON_SOLARIS # do not build by default on Solaris
+    SKIP_INSTALL       # do not install it
+    )
+  SET(EXECUTABLE_ONE_VALUE_KW
+    ADD_TEST           # add unit test, sets SKIP_INSTALL
+    COMPONENT
+    DESTINATION        # install destination, defaults to ${INSTALL_BINDIR}
+    RUNTIME_OUTPUT_DIRECTORY
+    )
+  SET(EXECUTABLE_MULTI_VALUE_KW
+    DEPENDENCIES
+    INCLUDE_DIRECTORIES # for TARGET_INCLUDE_DIRECTORIES
+    LINK_LIBRARIES
+    )
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "${EXECUTABLE_OPTIONS}"
+    "${EXECUTABLE_ONE_VALUE_KW}"
+    "${EXECUTABLE_MULTI_VALUE_KW}"
+    ${ARGN}
+    )
 
-FUNCTION (MYSQL_ADD_EXECUTABLE)
-  # Pass-through arguments for ADD_EXECUTABLE
-  MYSQL_PARSE_ARGUMENTS(ARG
-   "DESTINATION;COMPONENT;ADD_TEST;DEPENDENCIES;LINK_LIBRARIES;RUNTIME_OUTPUT_DIRECTORY"
-   "SKIP_INSTALL;ENABLE_EXPORTS;EXCLUDE_FROM_ALL;EXCLUDE_ON_SOLARIS"
-   ${ARGN}
-  )
-  LIST(GET ARG_DEFAULT_ARGS 0 target)
-  LIST(REMOVE_AT  ARG_DEFAULT_ARGS 0)
+  SET(target ${target_arg})
+  SET(sources ${ARG_UNPARSED_ARGUMENTS})
 
   # Collect all executables in the same directory
   IF(ARG_RUNTIME_OUTPUT_DIRECTORY)
@@ -59,12 +65,11 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
       ${CMAKE_BINARY_DIR}/runtime_output_directory)
   ENDIF()
 
-  SET(sources ${ARG_DEFAULT_ARGS})
   ADD_VERSION_INFO(${target} EXECUTABLE sources)
 
   ADD_EXECUTABLE(${target} ${sources})
 
-  SET_PATH_TO_SSL(${target} ${TARGET_RUNTIME_OUTPUT_DIRECTORY})
+  SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
 
   IF(ARG_DEPENDENCIES)
     ADD_DEPENDENCIES(${target} ${ARG_DEPENDENCIES})
@@ -73,8 +78,19 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
     ADD_DEPENDENCIES(mysqlrouter_all ${target})
   ENDIF()
 
+  IF(ARG_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${target} PRIVATE ${ARG_INCLUDE_DIRECTORIES})
+  ENDIF()
   IF(ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  IF(ARG_EXCLUDE_FROM_PGO)
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      SET(ARG_EXCLUDE_FROM_ALL TRUE)
+      SET(ARG_SKIP_INSTALL TRUE)
+      UNSET(ARG_ADD_TEST)
+    ENDIF()
   ENDIF()
 
   IF(SOLARIS AND ARG_EXCLUDE_ON_SOLARIS)
@@ -114,6 +130,11 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
     SET(ARG_SKIP_INSTALL TRUE)
   ENDIF()
 
+  IF(COMPRESS_DEBUG_SECTIONS)
+    MY_TARGET_LINK_OPTIONS(${target}
+      "LINKER:--compress-debug-sections=zlib")
+  ENDIF()
+
   # tell CPack where to install
   IF(NOT ARG_SKIP_INSTALL)
     IF(NOT ARG_DESTINATION)
@@ -125,7 +146,6 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
       SET(COMP COMPONENT Client)
     ENDIF()
     ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
-    MYSQL_INSTALL_TARGETS(${target} DESTINATION ${ARG_DESTINATION} ${COMP})
-#   MESSAGE(STATUS "INSTALL ${target} ${ARG_DESTINATION}")
+    MYSQL_INSTALL_TARGET(${target} DESTINATION ${ARG_DESTINATION} ${COMP})
   ENDIF()
 ENDFUNCTION()

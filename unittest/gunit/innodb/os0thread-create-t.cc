@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 #include "os0thread-create.h"
 
-extern ulint srv_max_n_threads;
+extern uint32_t srv_max_n_threads;
 
 namespace {
 

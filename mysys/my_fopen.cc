@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,8 @@ constexpr FILE *nullstream = nullptr;
 
 void make_ftype(char *to, int flag) {
   /* check some possible invalid combinations */
-  DBUG_ASSERT((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));
-  DBUG_ASSERT((flag & (O_WRONLY | O_RDWR)) != (O_WRONLY | O_RDWR));
+  assert((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));
+  assert((flag & (O_WRONLY | O_RDWR)) != (O_WRONLY | O_RDWR));
 
   if ((flag & (O_RDONLY | O_WRONLY)) == O_WRONLY)
     *to++ = (flag & O_APPEND) ? 'a' : 'w';
@@ -99,7 +99,6 @@ void make_ftype(char *to, int flag) {
   @param flags	    Read | write | append | trunc (like for open())
   @param MyFlags    Flags for handling errors
 
-  @return
   @retval nullptr in case of errors
   @retval FILE pointer otherwise
 */
@@ -117,6 +116,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
   stream = mysys_priv::RetryOnEintr([&]() { return fopen(filename, type); },
                                     nullstream);
 #endif
+
   if (stream == nullptr) {
     set_my_errno(errno);
     DBUG_PRINT("error", ("Got error %d on open", my_errno()));
@@ -165,7 +165,6 @@ FILE *my_freopen(const char *filename, const char *mode, FILE *stream) {
    @param stream   FILE stream to close.
    @param MyFlags  Flags controlling error reporting.
 
-   @return
    @retval 0 on success
    @retval -1 on error
 */
@@ -208,7 +207,6 @@ int my_fclose(FILE *stream, myf MyFlags) {
                    passed to fdopen)
    @param MyFlags  Flags for error handling
 
-   @return
    @retval nullptr in case of errors
    @retval FILE stream if successful
 */

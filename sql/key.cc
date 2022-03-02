@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -497,8 +497,8 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
 */
 int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
              const uchar *key2, uint key2_length MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(key_part && key1 && key2);
-  DBUG_ASSERT((key1_length == key2_length) && key1_length != 0);
+  assert(key_part && key1 && key2);
+  assert((key1_length == key2_length) && key1_length != 0);
   uint store_length;
 
   /* Compare all the subkeys (if it is a composite key) */
@@ -583,15 +583,15 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   KEY *key_info = *(key++);  // Start with first key
   uint key_parts, key_part_num;
   KEY_PART_INFO *key_part = key_info->key_part;
-  uchar *rec0 = key_part->field->ptr - key_part->offset;
+  uchar *rec0 = key_part->field->field_ptr() - key_part->offset;
   ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
   int result = 0;
   Field *field;
   DBUG_TRACE;
 
   /* Assert that at least the first key part is read. */
-  DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
-                            key_info->key_part->field->field_index));
+  assert(bitmap_is_set(key_info->table->read_set,
+                       key_info->key_part->field->field_index()));
   /* loop over all given keys */
   do {
     key_parts = key_info->user_defined_key_parts;
@@ -606,7 +606,8 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       field = key_part->field;
 
       /* If not read, compare is done and equal! */
-      if (!bitmap_is_set(field->table->read_set, field->field_index)) return 0;
+      if (!bitmap_is_set(field->table->read_set, field->field_index()))
+        return 0;
 
       if (key_part->null_bit) {
         /* The key_part can contain NULL values */
@@ -637,8 +638,9 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
         max length. The exceptions are the BLOB and VARCHAR field types
         that take the max length into account.
       */
-      if ((result = field->cmp_max(field->ptr + first_diff,
-                                   field->ptr + sec_diff, key_part->length)))
+      if ((result =
+               field->cmp_max(field->field_ptr() + first_diff,
+                              field->field_ptr() + sec_diff, key_part->length)))
         return (sort_order < 0) ? -result : result;
     next_loop:
       key_part++;

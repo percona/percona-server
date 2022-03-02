@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 #include "violite.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/src/ngs/log.h"
 #include "plugin/x/src/ssl_context.h"
 #include "plugin/x/src/ssl_context_options.h"
 
@@ -71,12 +71,12 @@ bool Ssl_context::setup(const Config &config) {
 
   int64_t ssl_ctx_flags = process_tls_version(config.tls_version);
 
-  m_ssl_acceptor =
-      new_VioSSLAcceptorFd(config.ssl_key, config.ssl_cert, config.ssl_ca,
-                           config.ssl_capath, config.ssl_cipher, NULL, &error,
-                           config.ssl_crl, config.ssl_crlpath, ssl_ctx_flags);
+  m_ssl_acceptor = new_VioSSLAcceptorFd(
+      config.ssl_key, config.ssl_cert, config.ssl_ca, config.ssl_capath,
+      config.ssl_cipher, nullptr, &error, config.ssl_crl, config.ssl_crlpath,
+      ssl_ctx_flags);
 
-  if (NULL == m_ssl_acceptor) {
+  if (nullptr == m_ssl_acceptor) {
     log_warning(ER_XPLUGIN_FAILED_AT_SSL_CONF, sslGetErrString(error));
     return false;
   }

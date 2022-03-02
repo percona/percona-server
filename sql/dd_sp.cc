@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
   DBUG_TRACE;
 
   // ENUM/SET elements.
-  TYPELIB *interval = NULL;
+  TYPELIB *interval = nullptr;
   if (param->data_type() == dd::enum_column_types::ENUM ||
       param->data_type() == dd::enum_column_types::SET) {
     // Allocate space for interval.
@@ -138,12 +138,12 @@ static void prepare_type_string_from_dd_param(THD *thd,
     interval = static_cast<TYPELIB *>(thd->mem_root->Alloc(sizeof(TYPELIB)));
     interval->type_names = static_cast<const char **>(
         thd->mem_root->Alloc((sizeof(char *) * (interval_parts + 1))));
-    interval->type_names[interval_parts] = 0;
+    interval->type_names[interval_parts] = nullptr;
 
     interval->type_lengths = static_cast<uint *>(
         thd->mem_root->Alloc(sizeof(uint) * interval_parts));
     interval->count = interval_parts;
-    interval->name = NULL;
+    interval->name = nullptr;
 
     for (const dd::Parameter_type_element *pe : param->elements()) {
       // Read the enum/set element name
@@ -178,7 +178,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
 
   if (field->has_charset()) {
     type_str->append(STRING_WITH_LEN(" CHARSET "));
-    type_str->append(field->charset()->csname);
+    type_str->append(replace_utf8_utf8mb3(field->charset()->csname));
     if (!(field->charset()->state & MY_CS_PRIMARY)) {
       type_str->append(STRING_WITH_LEN(" COLLATE "));
       type_str->append(field->charset()->name);
@@ -203,7 +203,7 @@ void prepare_return_type_string_from_dd_routine(
 
     if (!parameters.empty()) {
       const dd::Parameter *param = *parameters.begin();
-      DBUG_ASSERT(param->ordinal_position() == 1);
+      assert(param->ordinal_position() == 1);
 
       String type_str(64);
       type_str.set_charset(system_charset_info);

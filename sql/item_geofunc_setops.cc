@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -107,7 +107,8 @@ struct cartesian;
  */
 Geometry *Item_func_spatial_operation::empty_result(String *str,
                                                     gis::srid_t srid) {
-  if ((null_value = str->reserve(GEOM_HEADER_SIZE + 4 + 16, 256))) return 0;
+  if ((null_value = str->reserve(GEOM_HEADER_SIZE + 4 + 16, 256)))
+    return nullptr;
 
   write_geometry_header(str, srid, Geometry::wkb_geometrycollection, 0);
   Gis_geometry_collection *gcol = new Gis_geometry_collection();
@@ -154,7 +155,7 @@ class BG_setop_wrapper {
 
   BG_setop_wrapper(Item_func_spatial_operation *ifso) {
     m_ifso = ifso;
-    null_value = 0;
+    null_value = false;
   }
 
   bool get_null_value() const { return null_value; }
@@ -168,7 +169,7 @@ class BG_setop_wrapper {
     */
   Geometry *point_intersection_point(Geometry *g1, Geometry *g2,
                                      String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     Point pt1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
               g1->get_srid());
@@ -193,7 +194,7 @@ class BG_setop_wrapper {
   */
   Geometry *point_intersection_multipoint(Geometry *g1, Geometry *g2,
                                           String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     Point pt(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
              g1->get_srid());
@@ -213,18 +214,17 @@ class BG_setop_wrapper {
 
   Geometry *point_intersection_geometry(Geometry *g1, Geometry *g2,
                                         String *result) {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Geometry::wkbType gt2 = g2->get_type();
 #endif
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     bool is_out = !Ifsr::bg_geo_relation_check(g1, g2, Ifsr::SP_DISJOINT_FUNC,
                                                &null_value);
 
-    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
-                gt2 == Geometry::wkb_polygon ||
-                gt2 == Geometry::wkb_multilinestring ||
-                gt2 == Geometry::wkb_multipolygon);
+    assert(gt2 == Geometry::wkb_linestring || gt2 == Geometry::wkb_polygon ||
+           gt2 == Geometry::wkb_multilinestring ||
+           gt2 == Geometry::wkb_multipolygon);
     if (!null_value) {
       if (is_out) {
         null_value = g1->as_geometry(result, true);
@@ -239,7 +239,7 @@ class BG_setop_wrapper {
 
   Geometry *multipoint_intersection_multipoint(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Point_set ptset1, ptset2;
     Multipoint *mpts = new Multipoint();
     std::unique_ptr<Multipoint> guard(mpts);
@@ -276,8 +276,8 @@ class BG_setop_wrapper {
 
   Geometry *multipoint_intersection_geometry(Geometry *g1, Geometry *g2,
                                              String *result) {
-    Geometry *retgeo = NULL;
-#if !defined(DBUG_OFF)
+    Geometry *retgeo = nullptr;
+#if !defined(NDEBUG)
     Geometry::wkbType gt2 = g2->get_type();
 #endif
     Point_set ptset;
@@ -288,10 +288,9 @@ class BG_setop_wrapper {
 
     mpts2->set_srid(g1->get_srid());
 
-    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
-                gt2 == Geometry::wkb_polygon ||
-                gt2 == Geometry::wkb_multilinestring ||
-                gt2 == Geometry::wkb_multipolygon);
+    assert(gt2 == Geometry::wkb_linestring || gt2 == Geometry::wkb_polygon ||
+           gt2 == Geometry::wkb_multilinestring ||
+           gt2 == Geometry::wkb_multipolygon);
     ptset.insert(mpts.begin(), mpts.end());
 
     for (typename Point_set::iterator i = ptset.begin(); i != ptset.end();
@@ -303,7 +302,7 @@ class BG_setop_wrapper {
         mpts2->push_back(pt);
       }
 
-      if (null_value) return 0;
+      if (null_value) return nullptr;
     }
 
     if (mpts2->size() > 0) {
@@ -320,16 +319,16 @@ class BG_setop_wrapper {
 
   Geometry *linestring_intersection_linestring(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Multilinestring *res = NULL;
-    Geometry *retgeo = NULL;
+    Multilinestring *res = nullptr;
+    Geometry *retgeo = nullptr;
 
     // BG will return all intersection lines and points in a
     // multilinestring. Intersection points are represented as lines
     // with the same start and end points.
     BGOPCALL(Multilinestring, res, intersection, Linestring, g1, Linestring, g2,
-             NULL, null_value);
+             nullptr, null_value);
 
-    if (res == NULL) return m_ifso->empty_result(result, g1->get_srid());
+    if (res == nullptr) return m_ifso->empty_result(result, g1->get_srid());
 
     retgeo = m_ifso->simplify_multilinestring(res, result);
     delete res;
@@ -339,18 +338,18 @@ class BG_setop_wrapper {
   Geometry *linestring_intersection_polygon(Geometry *g1, Geometry *g2,
                                             String *result) {
     Geometry::wkbType gt2 = g2->get_type();
-    Geometry *retgeo = NULL, *tmp1 = NULL, *tmp2 = NULL;
+    Geometry *retgeo = nullptr, *tmp1 = nullptr, *tmp2 = nullptr;
     // It is likely for there to be discrete intersection Points.
     if (gt2 == Geometry::wkb_multipolygon) {
       BGOPCALL(Multilinestring, tmp1, intersection, Linestring, g1,
-               Multipolygon, g2, NULL, null_value);
+               Multipolygon, g2, nullptr, null_value);
       BGOPCALL(Multipoint, tmp2, intersection, Linestring, g1, Multipolygon, g2,
-               NULL, null_value);
+               nullptr, null_value);
     } else {
       BGOPCALL(Multilinestring, tmp1, intersection, Linestring, g1, Polygon, g2,
-               NULL, null_value);
+               nullptr, null_value);
       BGOPCALL(Multipoint, tmp2, intersection, Linestring, g1, Polygon, g2,
-               NULL, null_value);
+               nullptr, null_value);
     }
 
     // Need merge, exclude Points that are on the result Linestring.
@@ -363,16 +362,16 @@ class BG_setop_wrapper {
 
   Geometry *linestring_intersection_multilinestring(Geometry *g1, Geometry *g2,
                                                     String *result) {
-    Multilinestring *res = NULL;
-    Geometry *retgeo = NULL;
+    Multilinestring *res = nullptr;
+    Geometry *retgeo = nullptr;
 
     // BG will return all intersection lines and points in a
     // multilinestring. Intersection points are represented as lines
     // with the same start and end points.
     BGOPCALL(Multilinestring, res, intersection, Linestring, g1,
-             Multilinestring, g2, NULL, null_value);
+             Multilinestring, g2, nullptr, null_value);
 
-    if (res == NULL || res->size() == 0)
+    if (res == nullptr || res->size() == 0)
       return m_ifso->empty_result(result, g1->get_srid());
 
     retgeo = m_ifso->simplify_multilinestring(res, result);
@@ -382,12 +381,12 @@ class BG_setop_wrapper {
 
   Geometry *polygon_intersection_multilinestring(Geometry *g1, Geometry *g2,
                                                  String *result) {
-    Geometry *retgeo = NULL, *tmp1 = NULL;
-    Multipoint *tmp2 = NULL;
+    Geometry *retgeo = nullptr, *tmp1 = nullptr;
+    Multipoint *tmp2 = nullptr;
     std::unique_ptr<Geometry> guard1;
 
     BGOPCALL(Multilinestring, tmp1, intersection, Polygon, g1, Multilinestring,
-             g2, NULL, null_value);
+             g2, nullptr, null_value);
     guard1.reset(tmp1);
 
     Multilinestring mlstr(g2->get_data_ptr(), g2->get_data_size(),
@@ -396,10 +395,10 @@ class BG_setop_wrapper {
     Point_set ptset;
 
     const void *data_ptr = g1->normalize_ring_order();
-    if (data_ptr == NULL) {
+    if (data_ptr == nullptr) {
       null_value = true;
       my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
-      return NULL;
+      return nullptr;
     }
 
     Polygon plgn(data_ptr, g1->get_data_size(), g1->get_flags(),
@@ -462,14 +461,14 @@ class BG_setop_wrapper {
   Geometry *polygon_intersection_polygon(Geometry *g1, Geometry *g2,
                                          String *result) {
     Geometry::wkbType gt2 = g2->get_type();
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     const void *pg1 = g1->normalize_ring_order();
     const void *pg2 = g2->normalize_ring_order();
-    if (pg1 == NULL || pg2 == NULL) {
+    if (pg1 == nullptr || pg2 == nullptr) {
       null_value = true;
       my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
-      return NULL;
+      return nullptr;
     }
 
     Multilinestring mls;
@@ -499,26 +498,26 @@ class BG_setop_wrapper {
   Geometry *combine_mls_mplgn_results(Multilinestring *mls,
                                       Multipolygon *mplgn_result,
                                       String *result) {
-    Geometry *geom = NULL, *retgeo = NULL;
-    DBUG_ASSERT(mls != NULL);
+    Geometry *geom = nullptr, *retgeo = nullptr;
+    assert(mls != nullptr);
 
     if (mls->size() > 0) geom = m_ifso->simplify_multilinestring(mls, result);
 
     if (mplgn_result->size() > 0) {
       if (mls->size() == 0) {
         // The multipolygon is the only result.
-        DBUG_ASSERT(result->length() == 0);
+        assert(result->length() == 0);
         null_value =
             post_fix_result(&(m_ifso->m_bg_resbuf_mgr), *mplgn_result, result);
         if (null_value)
-          return NULL;
+          return nullptr;
         else
           retgeo = mplgn_result;
       } else {
         String mplgn_resbuf;
         null_value = post_fix_result(&(m_ifso->m_bg_resbuf_mgr), *mplgn_result,
                                      &mplgn_resbuf);
-        if (null_value) return NULL;
+        if (null_value) return nullptr;
         if (geom->get_type() == Geometry::wkb_geometrycollection) {
           down_cast<Gis_geometry_collection *>(geom)->append_geometry(
               &(*mplgn_result), result);
@@ -541,7 +540,7 @@ class BG_setop_wrapper {
     } else
       retgeo = geom;
 
-    if (retgeo == NULL)
+    if (retgeo == nullptr)
       retgeo = m_ifso->empty_result(result, mplgn_result->get_srid());
 
     return retgeo;
@@ -550,16 +549,16 @@ class BG_setop_wrapper {
   Geometry *multilinestring_intersection_multilinestring(Geometry *g1,
                                                          Geometry *g2,
                                                          String *result) {
-    Multilinestring *res = NULL;
-    Geometry *retgeo = NULL;
+    Multilinestring *res = nullptr;
+    Geometry *retgeo = nullptr;
 
     // BG will return all intersection lines and points in a
     // multilinestring. Intersection points are represented as lines
     // with the same start and end points.
     BGOPCALL(Multilinestring, res, intersection, Multilinestring, g1,
-             Multilinestring, g2, NULL, null_value);
+             Multilinestring, g2, nullptr, null_value);
 
-    if (res == NULL) return m_ifso->empty_result(result, g1->get_srid());
+    if (res == nullptr) return m_ifso->empty_result(result, g1->get_srid());
 
     retgeo = m_ifso->simplify_multilinestring(res, result);
     delete res;
@@ -569,12 +568,12 @@ class BG_setop_wrapper {
   Geometry *multilinestring_intersection_multipolygon(Geometry *g1,
                                                       Geometry *g2,
                                                       String *result) {
-    Geometry *retgeo = NULL, *tmp1 = NULL;
-    Multipoint *tmp2 = NULL;
+    Geometry *retgeo = nullptr, *tmp1 = nullptr;
+    Multipoint *tmp2 = nullptr;
 
     std::unique_ptr<Geometry> guard1;
     BGOPCALL(Multilinestring, tmp1, intersection, Multilinestring, g1,
-             Multipolygon, g2, NULL, null_value);
+             Multipolygon, g2, nullptr, null_value);
     guard1.reset(tmp1);
 
     Multilinestring mlstr(g1->get_data_ptr(), g1->get_data_size(),
@@ -582,10 +581,10 @@ class BG_setop_wrapper {
     Multipoint mpts;
 
     const void *data_ptr = g2->normalize_ring_order();
-    if (data_ptr == NULL) {
+    if (data_ptr == nullptr) {
       null_value = true;
       my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
-      return NULL;
+      return nullptr;
     }
 
     Multipolygon mplgn(data_ptr, g2->get_data_size(), g2->get_flags(),
@@ -618,14 +617,14 @@ class BG_setop_wrapper {
 
   Geometry *multipolygon_intersection_multipolygon(Geometry *g1, Geometry *g2,
                                                    String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     const void *pg1 = g1->normalize_ring_order();
     const void *pg2 = g2->normalize_ring_order();
-    if (pg1 == NULL || pg2 == NULL) {
+    if (pg1 == nullptr || pg2 == nullptr) {
       null_value = true;
       my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
-      return NULL;
+      return nullptr;
     }
 
     Multilinestring mls;
@@ -648,7 +647,7 @@ class BG_setop_wrapper {
   }
 
   Geometry *point_union_point(Geometry *g1, Geometry *g2, String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Geometry::wkbType gt2 = g2->get_type();
     Point_set ptset;  // Use set to make Points unique.
 
@@ -684,23 +683,22 @@ class BG_setop_wrapper {
   }
 
   Geometry *point_union_geometry(Geometry *g1, Geometry *g2, String *result) {
-    Geometry *retgeo = NULL;
-#if !defined(DBUG_OFF)
+    Geometry *retgeo = nullptr;
+#if !defined(NDEBUG)
     Geometry::wkbType gt2 = g2->get_type();
 #endif
-    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
-                gt2 == Geometry::wkb_polygon ||
-                gt2 == Geometry::wkb_multilinestring ||
-                gt2 == Geometry::wkb_multipolygon);
+    assert(gt2 == Geometry::wkb_linestring || gt2 == Geometry::wkb_polygon ||
+           gt2 == Geometry::wkb_multilinestring ||
+           gt2 == Geometry::wkb_multipolygon);
     if (Ifsr::bg_geo_relation_check(g1, g2, Ifsr::SP_DISJOINT_FUNC,
                                     &null_value) &&
         !null_value) {
       Gis_geometry_collection *geocol = new Gis_geometry_collection(g2, result);
-      null_value = (geocol == NULL || geocol->append_geometry(g1, result));
+      null_value = (geocol == nullptr || geocol->append_geometry(g1, result));
       retgeo = geocol;
     } else if (null_value) {
-      retgeo = NULL;
-      return 0;
+      retgeo = nullptr;
+      return nullptr;
     } else {
       retgeo = g2;
       null_value = retgeo->as_geometry(result, true);
@@ -719,12 +717,12 @@ class BG_setop_wrapper {
     res->set_srid(g1->get_srid());
 
     boost::geometry::union_(ls1, ls2, *res);
-    DBUG_ASSERT(res.get() != 0);
-    DBUG_ASSERT(res->size() != 0);
+    assert(res.get() != nullptr);
+    assert(res->size() != 0);
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     return res.release();
@@ -732,13 +730,13 @@ class BG_setop_wrapper {
 
   Geometry *linestring_union_polygon(Geometry *g1, Geometry *g2,
                                      String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     const void *g2_wkb = g2->normalize_ring_order();
-    if (g2_wkb == NULL) {
+    if (g2_wkb == nullptr) {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
@@ -751,12 +749,12 @@ class BG_setop_wrapper {
     // equivalent to GeometryCollection(Polygon, Difference(LineString,
     // Polygon)).
     boost::geometry::difference(ls1, py2, *linestrings);
-    DBUG_ASSERT(linestrings.get() != 0);
-    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, NULL) &&
+    assert(linestrings.get() != nullptr);
+    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, nullptr) &&
         linestrings->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     // Return the simplest result possible.
@@ -792,12 +790,12 @@ class BG_setop_wrapper {
     res->set_srid(g1->get_srid());
 
     boost::geometry::union_(ls1, mls2, *res);
-    DBUG_ASSERT(res.get() != 0);
-    DBUG_ASSERT(res->size() != 0);
+    assert(res.get() != nullptr);
+    assert(res->size() != 0);
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     return res.release();
@@ -805,13 +803,13 @@ class BG_setop_wrapper {
 
   Geometry *linestring_union_multipolygon(Geometry *g1, Geometry *g2,
                                           String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     const void *g2_wkb = g2->normalize_ring_order();
-    if (g2_wkb == NULL) {
+    if (g2_wkb == nullptr) {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
@@ -825,12 +823,12 @@ class BG_setop_wrapper {
     // equivalent to GeometryCollection(MultiPolygon,
     // Difference(LineString, MultiPolygon)).
     boost::geometry::difference(ls1, mpy2, *linestrings);
-    DBUG_ASSERT(linestrings.get() != 0);
-    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, NULL) &&
+    assert(linestrings.get() != nullptr);
+    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, nullptr) &&
         linestrings->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     // Return the simplest result possible.
@@ -868,13 +866,13 @@ class BG_setop_wrapper {
 
   Geometry *polygon_union_multilinestring(Geometry *g1, Geometry *g2,
                                           String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     const void *g1_wkb = g1->normalize_ring_order();
-    if (g1_wkb == NULL) {
+    if (g1_wkb == nullptr) {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     Polygon py1(g1_wkb, g1->get_data_size(), g1->get_flags(), g1->get_srid());
@@ -887,12 +885,12 @@ class BG_setop_wrapper {
     // equivalent to GeometryCollection(Polygon,
     // Difference(MultiLineString, Polygon)).
     boost::geometry::difference(mls2, py1, *linestrings);
-    DBUG_ASSERT(linestrings.get() != 0);
-    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, NULL) &&
+    assert(linestrings.get() != nullptr);
+    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, nullptr) &&
         linestrings->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     // Return the simplest result possible.
@@ -920,7 +918,7 @@ class BG_setop_wrapper {
 
   Geometry *multipoint_union_multipoint(Geometry *g1, Geometry *g2,
                                         String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Point_set ptset;
     Multipoint *mpts = new Multipoint();
     std::unique_ptr<Multipoint> guard(mpts);
@@ -950,18 +948,17 @@ class BG_setop_wrapper {
 
   Geometry *multipoint_union_geometry(Geometry *g1, Geometry *g2,
                                       String *result) {
-    Geometry *retgeo = NULL;
-#if !defined(DBUG_OFF)
+    Geometry *retgeo = nullptr;
+#if !defined(NDEBUG)
     Geometry::wkbType gt2 = g2->get_type();
 #endif
     Point_set ptset;
     Multipoint mpts(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                     g1->get_srid());
 
-    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
-                gt2 == Geometry::wkb_polygon ||
-                gt2 == Geometry::wkb_multilinestring ||
-                gt2 == Geometry::wkb_multipolygon);
+    assert(gt2 == Geometry::wkb_linestring || gt2 == Geometry::wkb_polygon ||
+           gt2 == Geometry::wkb_multilinestring ||
+           gt2 == Geometry::wkb_multipolygon);
     ptset.insert(mpts.begin(), mpts.end());
 
     Gis_geometry_collection *geocol = new Gis_geometry_collection(g2, result);
@@ -979,7 +976,7 @@ class BG_setop_wrapper {
       }
     }
 
-    if (null_value) return 0;
+    if (null_value) return nullptr;
 
     if (added) {
       // Result is already filled above.
@@ -1003,12 +1000,12 @@ class BG_setop_wrapper {
     res->set_srid(g1->get_srid());
 
     boost::geometry::union_(mls1, mls2, *res);
-    DBUG_ASSERT(res.get() != 0);
-    DBUG_ASSERT(res->size() != 0);
+    assert(res.get() != nullptr);
+    assert(res->size() != 0);
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     return res.release();
@@ -1016,13 +1013,13 @@ class BG_setop_wrapper {
 
   Geometry *multilinestring_union_multipolygon(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     const void *g2_wkb = g2->normalize_ring_order();
-    if (g2_wkb == NULL) {
+    if (g2_wkb == nullptr) {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
@@ -1036,12 +1033,12 @@ class BG_setop_wrapper {
     // it's equivalent to GeometryCollection(MultiPolygon,
     // Difference(MultiLineString, MultiPolygon)).
     boost::geometry::difference(mls1, mpy2, *linestrings);
-    DBUG_ASSERT(linestrings.get() != 0);
-    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, NULL) &&
+    assert(linestrings.get() != nullptr);
+    if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *linestrings, nullptr) &&
         linestrings->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     // Return the simplest result possible.
@@ -1078,14 +1075,14 @@ class BG_setop_wrapper {
   }
 
   Geometry *polygon_union_polygon(Geometry *g1, Geometry *g2, String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     const void *g1_wkb = g1->normalize_ring_order();
     const void *g2_wkb = g2->normalize_ring_order();
-    if (g1_wkb == NULL || g2_wkb == NULL) {
+    if (g1_wkb == nullptr || g2_wkb == nullptr) {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     Polygon py1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
@@ -1099,14 +1096,14 @@ class BG_setop_wrapper {
         res->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     if (res->size() == 0) {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     retgeo = res.release();
@@ -1115,7 +1112,7 @@ class BG_setop_wrapper {
 
   Geometry *polygon_union_multipolygon(Geometry *g1, Geometry *g2,
                                        String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, union_, Polygon, g1, Multipolygon, g2,
              result, null_value);
@@ -1124,7 +1121,7 @@ class BG_setop_wrapper {
 
   Geometry *multipolygon_union_multipolygon(Geometry *g1, Geometry *g2,
                                             String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, union_, Multipolygon, g1, Multipolygon, g2,
              result, null_value);
@@ -1134,7 +1131,7 @@ class BG_setop_wrapper {
 
   Geometry *point_difference_geometry(Geometry *g1, Geometry *g2,
                                       String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     bool is_out = Ifsr::bg_geo_relation_check(g1, g2, Ifsr::SP_DISJOINT_FUNC,
                                               &null_value);
 
@@ -1152,7 +1149,7 @@ class BG_setop_wrapper {
 
   Geometry *multipoint_difference_geometry(Geometry *g1, Geometry *g2,
                                            String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Multipoint *mpts = new Multipoint();
     std::unique_ptr<Multipoint> guard(mpts);
 
@@ -1165,7 +1162,7 @@ class BG_setop_wrapper {
          ++i) {
       if (Ifsr::bg_geo_relation_check(&(*i), g2, Ifsr::SP_DISJOINT_FUNC,
                                       &null_value)) {
-        if (null_value) return 0;
+        if (null_value) return nullptr;
         ptset.insert(*i);
       }
     }
@@ -1186,7 +1183,7 @@ class BG_setop_wrapper {
 
   Geometry *linestring_difference_linestring(Geometry *g1, Geometry *g2,
                                              String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                    g1->get_srid());
     Linestring ls2(g2->get_data_ptr(), g2->get_data_size(), g2->get_flags(),
@@ -1199,16 +1196,16 @@ class BG_setop_wrapper {
     // The call to ls->set_ptr() below assumes that result->length()
     // is the length of the LineString, which is only true if result
     // is empty to begin with.
-    DBUG_ASSERT(result->length() == 0);
+    assert(result->length() == 0);
 
     if (res->size() == 0) {
       post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result);
       retgeo = m_ifso->empty_result(result, g1->get_srid());
     } else if (res->size() == 1) {
-      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL)) {
+      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, nullptr)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
@@ -1220,7 +1217,7 @@ class BG_setop_wrapper {
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       retgeo = res.release();
     }
@@ -1230,7 +1227,7 @@ class BG_setop_wrapper {
 
   Geometry *linestring_difference_polygon(Geometry *g1, Geometry *g2,
                                           String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multilinestring, retgeo, difference, Linestring, g1, Polygon, g2,
              result, null_value);
@@ -1245,7 +1242,7 @@ class BG_setop_wrapper {
 
   Geometry *linestring_difference_multilinestring(Geometry *g1, Geometry *g2,
                                                   String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                    g1->get_srid());
     Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -1258,16 +1255,16 @@ class BG_setop_wrapper {
     // The call to ls->set_ptr() below assumes that result->length()
     // is the length of the LineString, which is only true if result
     // is empty to begin with.
-    DBUG_ASSERT(result->length() == 0);
+    assert(result->length() == 0);
 
     if (res->size() == 0) {
       post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result);
       retgeo = m_ifso->empty_result(result, g1->get_srid());
     } else if (res->size() == 1) {
-      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL)) {
+      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, nullptr)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
@@ -1279,7 +1276,7 @@ class BG_setop_wrapper {
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       retgeo = res.release();
     }
@@ -1289,7 +1286,7 @@ class BG_setop_wrapper {
 
   Geometry *linestring_difference_multipolygon(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multilinestring, retgeo, difference, Linestring, g1, Multipolygon,
              g2, result, null_value);
@@ -1303,7 +1300,7 @@ class BG_setop_wrapper {
 
   Geometry *polygon_difference_polygon(Geometry *g1, Geometry *g2,
                                        String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, difference, Polygon, g1, Polygon, g2, result,
              null_value);
@@ -1317,7 +1314,7 @@ class BG_setop_wrapper {
 
   Geometry *polygon_difference_multipolygon(Geometry *g1, Geometry *g2,
                                             String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, difference, Polygon, g1, Multipolygon, g2,
              result, null_value);
@@ -1331,7 +1328,7 @@ class BG_setop_wrapper {
 
   Geometry *multilinestring_difference_linestring(Geometry *g1, Geometry *g2,
                                                   String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
                          g1->get_flags(), g1->get_srid());
     Linestring ls2(g2->get_data_ptr(), g2->get_data_size(), g2->get_flags(),
@@ -1344,16 +1341,16 @@ class BG_setop_wrapper {
     // The call to ls->set_ptr() below assumes that result->length()
     // is the length of the LineString, which is only true if result
     // is empty to begin with.
-    DBUG_ASSERT(result->length() == 0);
+    assert(result->length() == 0);
 
     if (res->size() == 0) {
       post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result);
       retgeo = m_ifso->empty_result(result, g1->get_srid());
     } else if (res->size() == 1) {
-      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL)) {
+      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, nullptr)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
@@ -1365,7 +1362,7 @@ class BG_setop_wrapper {
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       retgeo = res.release();
     }
@@ -1375,7 +1372,7 @@ class BG_setop_wrapper {
 
   Geometry *multilinestring_difference_polygon(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multilinestring, retgeo, difference, Multilinestring, g1, Polygon,
              g2, result, null_value);
@@ -1390,7 +1387,7 @@ class BG_setop_wrapper {
   Geometry *multilinestring_difference_multilinestring(Geometry *g1,
                                                        Geometry *g2,
                                                        String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
                          g1->get_flags(), g1->get_srid());
     Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -1403,16 +1400,16 @@ class BG_setop_wrapper {
     // The call to ls->set_ptr() below assumes that result->length()
     // is the length of the LineString, which is only true if result
     // is empty to begin with.
-    DBUG_ASSERT(result->length() == 0);
+    assert(result->length() == 0);
 
     if (res->size() == 0) {
       post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result);
       retgeo = m_ifso->empty_result(result, g1->get_srid());
     } else if (res->size() == 1) {
-      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, NULL)) {
+      if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, nullptr)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
@@ -1424,7 +1421,7 @@ class BG_setop_wrapper {
       if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result)) {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       retgeo = res.release();
     }
@@ -1434,7 +1431,7 @@ class BG_setop_wrapper {
 
   Geometry *multilinestring_difference_multipolygon(Geometry *g1, Geometry *g2,
                                                     String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multilinestring, retgeo, difference, Multilinestring, g1,
              Multipolygon, g2, result, null_value);
@@ -1448,7 +1445,7 @@ class BG_setop_wrapper {
 
   Geometry *multipolygon_difference_polygon(Geometry *g1, Geometry *g2,
                                             String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, difference, Multipolygon, g1, Polygon, g2,
              result, null_value);
@@ -1462,7 +1459,7 @@ class BG_setop_wrapper {
 
   Geometry *multipolygon_difference_multipolygon(Geometry *g1, Geometry *g2,
                                                  String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, difference, Multipolygon, g1, Multipolygon,
              g2, result, null_value);
@@ -1476,7 +1473,7 @@ class BG_setop_wrapper {
 
   Geometry *linestring_symdifference_linestring(Geometry *g1, Geometry *g2,
                                                 String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                    g1->get_srid());
     Linestring ls2(g2->get_data_ptr(), g2->get_data_size(), g2->get_flags(),
@@ -1485,12 +1482,12 @@ class BG_setop_wrapper {
     res->set_srid(g1->get_srid());
 
     boost::geometry::sym_difference(ls1, ls2, *res);
-    DBUG_ASSERT(res.get() != 0);
+    assert(res.get() != nullptr);
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result) &&
         res->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     if (res->size() == 0) {
@@ -1504,7 +1501,7 @@ class BG_setop_wrapper {
 
   Geometry *linestring_symdifference_multilinestring(Geometry *g1, Geometry *g2,
                                                      String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                    g1->get_srid());
     Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -1513,12 +1510,12 @@ class BG_setop_wrapper {
     res->set_srid(g1->get_srid());
 
     boost::geometry::sym_difference(ls1, mls2, *res);
-    DBUG_ASSERT(res.get() != 0);
+    assert(res.get() != nullptr);
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result) &&
         res->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     if (res->size() == 0) {
@@ -1532,7 +1529,7 @@ class BG_setop_wrapper {
 
   Geometry *polygon_symdifference_polygon(Geometry *g1, Geometry *g2,
                                           String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference, Polygon, g1, Polygon, g2,
              result, null_value);
@@ -1546,7 +1543,7 @@ class BG_setop_wrapper {
 
   Geometry *polygon_symdifference_multipolygon(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference, Polygon, g1, Multipolygon,
              g2, result, null_value);
@@ -1561,7 +1558,7 @@ class BG_setop_wrapper {
   Geometry *multilinestring_symdifference_multilinestring(Geometry *g1,
                                                           Geometry *g2,
                                                           String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
                          g1->get_flags(), g1->get_srid());
     Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -1570,12 +1567,12 @@ class BG_setop_wrapper {
     res->set_srid(g1->get_srid());
 
     boost::geometry::sym_difference(mls1, mls2, *res);
-    DBUG_ASSERT(res.get() != 0);
+    assert(res.get() != nullptr);
     if (post_fix_result(&m_ifso->m_bg_resbuf_mgr, *res, result) &&
         res->size() > 0) {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
       null_value = true;
-      return NULL;
+      return nullptr;
     }
 
     if (res->size() == 0) {
@@ -1589,7 +1586,7 @@ class BG_setop_wrapper {
 
   Geometry *multipolygon_symdifference_polygon(Geometry *g1, Geometry *g2,
                                                String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference, Multipolygon, g1, Polygon,
              g2, result, null_value);
@@ -1603,7 +1600,7 @@ class BG_setop_wrapper {
 
   Geometry *multipolygon_symdifference_multipolygon(Geometry *g1, Geometry *g2,
                                                     String *result) {
-    Geometry *retgeo = NULL;
+    Geometry *retgeo = nullptr;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference, Multipolygon, g1,
              Multipolygon, g2, result, null_value);
@@ -1632,7 +1629,7 @@ Geometry *Item_func_spatial_operation::intersection_operation(Geometry *g1,
                                                               Geometry *g2,
                                                               String *result) {
   BG_setop_wrapper<Geom_types> wrap(this);
-  Geometry *retgeo = NULL;
+  Geometry *retgeo = nullptr;
   Geometry::wkbType gt1 = g1->get_type();
   Geometry::wkbType gt2 = g2->get_type();
 
@@ -1776,7 +1773,7 @@ Geometry *Item_func_spatial_operation::union_operation(Geometry *g1,
                                                        Geometry *g2,
                                                        String *result) {
   BG_setop_wrapper<Geom_types> wrap(this);
-  Geometry *retgeo = NULL;
+  Geometry *retgeo = nullptr;
   Geometry::wkbType gt1 = g1->get_type();
   Geometry::wkbType gt2 = g2->get_type();
 
@@ -1898,11 +1895,11 @@ Geometry *Item_func_spatial_operation::union_operation(Geometry *g1,
       break;
   }
 
-  if (!null_value) null_value = wrap.get_null_value() && maybe_null;
-  if (!null_value && retgeo == NULL) {
+  if (!null_value) null_value = wrap.get_null_value() && is_nullable();
+  if (!null_value && retgeo == nullptr) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     error_str();
-    return NULL;
+    return nullptr;
   }
   return retgeo;
 }
@@ -1923,7 +1920,7 @@ Geometry *Item_func_spatial_operation::difference_operation(Geometry *g1,
                                                             Geometry *g2,
                                                             String *result) {
   BG_setop_wrapper<Geom_types> wrap(this);
-  Geometry *retgeo = NULL;
+  Geometry *retgeo = nullptr;
   Geometry::wkbType gt1 = g1->get_type();
   Geometry::wkbType gt2 = g2->get_type();
 
@@ -2072,7 +2069,7 @@ Geometry *Item_func_spatial_operation::symdifference_operation(Geometry *g1,
   typedef typename Geom_types::Coordinate_system Coordsys;
 
   BG_setop_wrapper<Geom_types> wrap(this);
-  Geometry *retgeo = NULL;
+  Geometry *retgeo = nullptr;
   Geometry::wkbType gt1 = g1->get_type();
   Geometry::wkbType gt2 = g2->get_type();
 
@@ -2205,9 +2202,9 @@ Geometry *Item_func_spatial_operation::bg_geo_set_op(Geometry *g1, Geometry *g2,
                                                      String *result) {
   typedef BG_models<Coordsys> Geom_types;
 
-  Geometry *retgeo = NULL;
+  Geometry *retgeo = nullptr;
 
-  if (g1->get_coordsys() != g2->get_coordsys()) return 0;
+  if (g1->get_coordsys() != g2->get_coordsys()) return nullptr;
 
   switch (m_spatial_op) {
     case op_intersection:
@@ -2224,7 +2221,7 @@ Geometry *Item_func_spatial_operation::bg_geo_set_op(Geometry *g1, Geometry *g2,
       break;
     default:
       // Other operations are not set operations.
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -2233,7 +2230,7 @@ Geometry *Item_func_spatial_operation::bg_geo_set_op(Geometry *g1, Geometry *g2,
   */
   if (null_value) {
     error_str();
-    DBUG_ASSERT(retgeo == NULL);
+    assert(retgeo == nullptr);
   }
 
   // If we got effective result, the wkb encoding is written to 'result', and
@@ -2271,38 +2268,38 @@ Geometry *Item_func_spatial_operation::combine_sub_results(
     Geometry *geo1, Geometry *geo2, gis::srid_t default_srid, String *result) {
   typedef BG_models<Coordsys> Geom_types;
   typedef typename Geom_types::Multipoint Multipoint;
-  Geometry *retgeo = NULL;
+  Geometry *retgeo = nullptr;
   bool isin = false, added = false;
 
   if (null_value) {
     delete geo1;
     delete geo2;
-    return NULL;
+    return nullptr;
   }
 
   std::unique_ptr<Geometry> guard1(geo1), guard2(geo2);
 
-  Gis_geometry_collection *geocol = NULL;
-  if (geo1 == NULL && geo2 == NULL)
+  Gis_geometry_collection *geocol = nullptr;
+  if (geo1 == nullptr && geo2 == nullptr)
     retgeo = empty_result(result, default_srid);
-  else if (geo1 != NULL && geo2 == NULL) {
+  else if (geo1 != nullptr && geo2 == nullptr) {
     retgeo = geo1;
     null_value = assign_result(geo1, result);
     guard1.release();
-  } else if (geo1 == NULL && geo2 != NULL) {
+  } else if (geo1 == nullptr && geo2 != nullptr) {
     retgeo = geo2;
     null_value = assign_result(geo2, result);
     guard2.release();
   }
 
-  if (geo1 == NULL || geo2 == NULL) {
-    if (null_value) retgeo = NULL;
+  if (geo1 == nullptr || geo2 == nullptr) {
+    if (null_value) retgeo = nullptr;
     return retgeo;
   }
 
-  DBUG_ASSERT((geo1->get_type() == Geometry::wkb_multilinestring ||
-               geo1->get_type() == Geometry::wkb_multipolygon) &&
-              geo2->get_type() == Geometry::wkb_multipoint);
+  assert((geo1->get_type() == Geometry::wkb_multilinestring ||
+          geo1->get_type() == Geometry::wkb_multipolygon) &&
+         geo2->get_type() == Geometry::wkb_multipoint);
   Multipoint mpts(geo2->get_data_ptr(), geo2->get_data_size(),
                   geo2->get_flags(), geo2->get_srid());
   geocol = new Gis_geometry_collection(geo1, result);
@@ -2316,7 +2313,7 @@ Geometry *Item_func_spatial_operation::combine_sub_results(
 
     if (had_error) {
       error_str();
-      return NULL;
+      return nullptr;
     }
 
     if (!isin) {
@@ -2356,7 +2353,7 @@ Geometry *Item_func_spatial_operation::combine_sub_results(
 Geometry *Item_func_spatial_operation::simplify_multilinestring(
     Gis_multi_line_string *mls, String *result) {
   // Null values are handled by caller.
-  DBUG_ASSERT(mls != NULL);
+  assert(mls != nullptr);
   Geometry *retgeo;
 
   // Loop through the multilinestring and separate true linestrings
@@ -2376,7 +2373,7 @@ Geometry *Item_func_spatial_operation::simplify_multilinestring(
   for (Gis_multi_line_string::iterator i = mls->begin(); i != mls->end(); ++i) {
     i->set_srid(mls->get_srid());
     if (i->size() != 2) {
-      DBUG_ASSERT(i->size() > 2);
+      assert(i->size() > 2);
       linestrings->push_back(*i);
       continue;
     }
@@ -2516,7 +2513,7 @@ class Singleton_extractor : public WKB_scanner_event_handler {
  public:
   Singleton_extractor() {
     ntrees = nsubtrees = depth = mg_depth = levels = gc_depth = 0;
-    bg_start = start = end = NULL;
+    bg_start = start = end = nullptr;
     bg_type = gtype = Geometry::wkb_invalid_type;
   }
 
@@ -2547,8 +2544,8 @@ class Singleton_extractor : public WKB_scanner_event_handler {
     return nsubtrees == 1 ? bg_type : gtype;
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                    const void *wkb, uint32 len, bool) override {
     if (geotype != Geometry::wkb_geometrycollection) {
       if (gc_depth == 0) {
         gc_depth = depth;
@@ -2571,14 +2568,14 @@ class Singleton_extractor : public WKB_scanner_event_handler {
     depth++;
   }
 
-  virtual void on_wkb_end(const void *wkb) {
+  void on_wkb_end(const void *wkb) override {
     depth--;
-    DBUG_ASSERT(depth >= 0);
+    assert(depth >= 0);
 
     if (levels > 0) {
       levels--;
       if (levels == 0) {
-        DBUG_ASSERT(depth == gc_depth);
+        assert(depth == gc_depth);
         ntrees++;
         end = static_cast<const char *>(wkb);
         mg_depth = 0;
@@ -2641,7 +2638,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
         p = result_buffer->ptr();
         str = result_buffer;
       }
-      DBUG_ASSERT((str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE) > 0);
+      assert((str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE) > 0);
       int4store(p + 5, static_cast<uint32>(base_type(gtype)));
       memmove(p + GEOM_HEADER_SIZE, p + GEOM_HEADER_SIZE + 4 + WKB_HEADER_SIZE,
               str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE);
@@ -2662,7 +2659,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
       }
       p = write_wkb_header(p + 4, ex.get_type());
       ptrdiff_t len = ex.get_end() - ex.get_start();
-      DBUG_ASSERT(len > 0);
+      assert(len > 0);
       memmove(p, ex.get_start(), len);
       str->length(GEOM_HEADER_SIZE + len);
       ret = true;
@@ -2678,27 +2675,24 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
  */
 String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   m_tmp_value1.length(0);
   m_tmp_value2.length(0);
   String *res1 = args[0]->val_str(&m_tmp_value1);
   String *res2 = args[1]->val_str(&m_tmp_value2);
   Geometry_buffer buffer1, buffer2;
-  Geometry *g1 = NULL, *g2 = NULL, *gres = NULL;
+  Geometry *g1 = nullptr, *g2 = nullptr, *gres = nullptr;
   bool had_except1 = false, had_except2 = false;
   bool result_is_args = false;
 
   // Release last call's result buffer.
   m_bg_resbuf_mgr.free_result_buffer();
 
-  // Clean up the result first, since caller may give us one with non-NULL
-  // buffer, we don't need it here.
-  str_value_arg->set(NullS, 0, &my_charset_bin);
-
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value)))
-    goto exit;
+    return nullptr;
+
   if (!(g1 = Geometry::construct(&buffer1, res1)) ||
       !(g2 = Geometry::construct(&buffer2, res2))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -2711,9 +2705,6 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
              g2->get_srid());
     return error_str();
   }
-
-  str_value_arg->set_charset(&my_charset_bin);
-  str_value_arg->length(0);
 
   if (g1->get_srid() != 0) {
     THD *thd = current_thd;
@@ -2730,7 +2721,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     }
 
     if (!srs->is_cartesian()) {
-      DBUG_ASSERT(srs->is_geographic());
+      assert(srs->is_geographic());
       std::string parameters(g1->get_class_info()->m_name.str);
       parameters.append(", ").append(g2->get_class_info()->m_name.str);
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
@@ -2738,6 +2729,9 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       return error_str();
     }
   }
+
+  // Use a local String here, since a BG_result_buf_mgr owns the buffer.
+  String str_value;
 
   /*
     Catch all exceptions to make sure no exception can be thrown out of
@@ -2748,10 +2742,10 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   try {
     if (g1->get_type() != Geometry::wkb_geometrycollection &&
         g2->get_type() != Geometry::wkb_geometrycollection)
-      gres = bg_geo_set_op<bgcs::cartesian>(g1, g2, str_value_arg);
+      gres = bg_geo_set_op<bgcs::cartesian>(g1, g2, &str_value);
     else
       gres = geometry_collection_set_operation<bgcs::cartesian>(g1, g2,
-                                                                str_value_arg);
+                                                                &str_value);
 
   } catch (...) {
     had_except1 = true;
@@ -2775,8 +2769,8 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       Release intermediate geometry data buffers accumulated during execution
       of this set operation.
     */
-    if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
-      m_bg_resbuf_mgr.set_result_buffer(str_value_arg->ptr());
+    if (!str_value.is_alloced() && gres != g1 && gres != g2)
+      m_bg_resbuf_mgr.set_result_buffer(str_value.ptr());
     m_bg_resbuf_mgr.free_intermediate_result_buffers();
   } catch (...) {
     had_except2 = true;
@@ -2784,23 +2778,23 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   }
 
   if (had_except1 || had_except2 || null_value) {
-    if (gres != NULL && gres != g1 && gres != g2) {
+    if (gres != nullptr && gres != g1 && gres != g2) {
       delete gres;
-      gres = NULL;
+      gres = nullptr;
     }
     return error_str();
   }
 
-  DBUG_ASSERT(gres != NULL && !null_value && str_value_arg->length() > 0);
+  assert(gres != nullptr && !null_value && str_value.length() > 0);
 
   /*
     There are 4 ways to create the result geometry object and allocate
     memory for the result String object:
     1. Created in BGOPCALL and allocated by BG code using gis_wkb_alloc
        functions; The geometry result object's memory is took over by
-       str_value_arg, thus not allocated by str_value_arg.
+       str_value, thus not allocated by str_value.
     2. Created as a new geometry object and allocated by
-       str_value_arg's String member functions.
+       str_value's String member functions.
     3. One of g1 or g2 used as result and g1/g2's String object is used as
        final result without duplicating their byte strings. Also, g1 and/or
        g2 may be used as intermediate result and their byte strings are
@@ -2814,18 +2808,18 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     Among above 4 ways, #1, #2 and #4 write the byte string only once without
     any data copying, #3 doesn't write any byte strings.
 
-    And here we always have a GEOMETRY byte string in str_value_arg, although
+    And here we always have a GEOMETRY byte string in str_value, although
     in some cases gres->has_geom_header_space() is false.
    */
-  if (!str_value_arg->is_alloced() && gres != g1 && gres != g2) {
-    DBUG_ASSERT(gres->has_geom_header_space() || gres->is_bg_adapter());
+  if (!str_value.is_alloced() && gres != g1 && gres != g2) {
+    assert(gres->has_geom_header_space() || gres->is_bg_adapter());
   } else {
-    DBUG_ASSERT(gres->has_geom_header_space() || (gres == g1 || gres == g2));
+    assert(gres->has_geom_header_space() || (gres == g1 || gres == g2));
     if (gres == g1) {
-      str_value_arg = res1;
+      str_value.copy(*res1);
       result_is_args = true;
     } else if (gres == g2) {
-      str_value_arg = res2;
+      str_value.copy(*res2);
       result_is_args = true;
     }
   }
@@ -2835,22 +2829,24 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     So if returning one of the arguments as result directly, make sure the
     simplification is done in a separate buffer.
   */
-  if (simplify_multi_geometry(str_value_arg,
-                              (result_is_args ? &m_result_buffer : NULL)) &&
+  if (simplify_multi_geometry(&str_value,
+                              (result_is_args ? &m_result_buffer : nullptr)) &&
       result_is_args)
-    str_value_arg = &m_result_buffer;
+    str_value.copy(m_result_buffer);
 
-exit:
-  if (gres != g1 && gres != g2 && gres != NULL) delete gres;
+  if (gres != g1 && gres != g2 && gres != nullptr) delete gres;
   // Result and argument SRIDs must be the same.
-  DBUG_ASSERT(null_value ||
-              uint4korr(str_value_arg->ptr()) == uint4korr(res1->ptr()));
-  return null_value ? NULL : str_value_arg;
+  assert(null_value || uint4korr(str_value.ptr()) == uint4korr(res1->ptr()));
+
+  if (null_value) return nullptr;
+
+  str_value_arg->copy(str_value);
+  return str_value_arg;
 }
 
 inline bool is_areal(const Geometry *g) {
-  return g != NULL && (g->get_type() == Geometry::wkb_polygon ||
-                       g->get_type() == Geometry::wkb_multipolygon);
+  return g != nullptr && (g->get_type() == Geometry::wkb_polygon ||
+                          g->get_type() == Geometry::wkb_multipolygon);
 }
 
 /**
@@ -2873,7 +2869,7 @@ inline bool is_areal(const Geometry *g) {
 template <typename Coordsys>
 Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
     Geometry *g1, Geometry *g2, String *result) {
-  Geometry *gres = NULL;
+  Geometry *gres = nullptr;
   BG_geometry_collection bggc1, bggc2;
 
   bggc1.set_srid(g1->get_srid());
@@ -2937,8 +2933,8 @@ Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
       (m_spatial_op != op_symdifference ||
        (is_areal(*(gv1.begin())) && is_areal(*(gv2.begin()))))) {
     gres = bg_geo_set_op<Coordsys>(*(gv1.begin()), *(gv2.begin()), result);
-    if (null_value) return NULL;
-    if (gres == NULL && !null_value) {
+    if (null_value) return nullptr;
+    if (gres == nullptr && !null_value) {
       gres = empty_result(result, g1->get_srid());
       return gres;
     }
@@ -2959,7 +2955,7 @@ Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
 
     if (do_dup) {
       String tmpres;
-      Geometry *gres2 = NULL;
+      Geometry *gres2 = nullptr;
       tmpres.append(result->ptr(), result->length());
       const void *data_start = tmpres.ptr() + GEOM_HEADER_SIZE;
 
@@ -2983,7 +2979,7 @@ Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
           gres2 = new Gis_multi_polygon;
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
 
       gres2->set_data_ptr(data_start, tmpres.length() - GEOM_HEADER_SIZE);
@@ -3011,11 +3007,12 @@ Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
       break;
     default:
       /* Only above four supported. */
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
-  if (gres == NULL && !null_value) gres = empty_result(result, g1->get_srid());
+  if (gres == nullptr && !null_value)
+    gres = empty_result(result, g1->get_srid());
   return gres;
 }
 
@@ -3037,9 +3034,9 @@ template <typename Coordsys>
 Geometry *Item_func_spatial_operation::geocol_intersection(
     const BG_geometry_collection &bggc1, const BG_geometry_collection &bggc2,
     String *result) {
-  Geometry *gres = NULL;
+  Geometry *gres = nullptr;
   String wkbres;
-  Geometry *g0 = NULL;
+  Geometry *g0 = nullptr;
   BG_geometry_collection bggc;
   const BG_geometry_collection::Geometry_list &gv1 = bggc1.get_geometries();
   const BG_geometry_collection::Geometry_list &gv2 = bggc2.get_geometries();
@@ -3049,7 +3046,8 @@ Geometry *Item_func_spatial_operation::geocol_intersection(
     return empty_result(result, bggc1.get_srid());
   }
 
-  const typename BG_geometry_collection::Geometry_list *gv = NULL, *gvr = NULL;
+  const typename BG_geometry_collection::Geometry_list *gv = nullptr,
+                                                       *gvr = nullptr;
 
   if (gv1.size() > gv2.size()) {
     gv = &gv2;
@@ -3078,14 +3076,14 @@ Geometry *Item_func_spatial_operation::geocol_intersection(
       g0 = bg_geo_set_op<Coordsys>(*i, geom, &wkbres);
 
       if (null_value) {
-        if (g0 != NULL && g0 != *i && g0 != geom) delete g0;
-        return 0;
+        if (g0 != nullptr && g0 != *i && g0 != geom) delete g0;
+        return nullptr;
       }
 
       if (g0 && !is_empty_geocollection(wkbres)) bggc.fill(g0);
-      if (g0 != NULL && g0 != *i && g0 != geom) {
+      if (g0 != nullptr && g0 != *i && g0 != geom) {
         delete g0;
-        g0 = NULL;
+        g0 = nullptr;
       }
     }
   }
@@ -3099,7 +3097,7 @@ Geometry *Item_func_spatial_operation::geocol_intersection(
     We will need to figure out how to make such enhancements.
    */
   bggc.merge_components<Coordsys>(&null_value);
-  if (null_value) return NULL;
+  if (null_value) return nullptr;
   gres = bggc.as_geometry_collection(result);
 
   return gres;
@@ -3124,7 +3122,7 @@ template <typename Coordsys>
 Geometry *Item_func_spatial_operation::geocol_union(
     const BG_geometry_collection &bggc1, const BG_geometry_collection &bggc2,
     String *result) {
-  Geometry *gres = NULL;
+  Geometry *gres = nullptr;
   BG_geometry_collection bggc;
   BG_geometry_collection::Geometry_list &gv = bggc.get_geometries();
   gv.insert(gv.end(), bggc1.get_geometries().begin(),
@@ -3160,8 +3158,8 @@ template <typename Coordsys>
 Geometry *Item_func_spatial_operation::geocol_difference(
     const BG_geometry_collection &bggc1, const BG_geometry_collection &bggc2,
     String *result) {
-  Geometry *gres = NULL;
-  String *wkbres = NULL;
+  Geometry *gres = nullptr;
+  String *wkbres = nullptr;
   BG_geometry_collection bggc;
   const BG_geometry_collection::Geometry_list *gv1 = &(bggc1.get_geometries());
   const BG_geometry_collection::Geometry_list *gv2 = &(bggc2.get_geometries());
@@ -3176,7 +3174,7 @@ Geometry *Item_func_spatial_operation::geocol_difference(
        i != gv1->end(); ++i) {
     bool g11_isempty = false;
     std::unique_ptr<Geometry> guard11;
-    Geometry *g11 = NULL;
+    Geometry *g11 = nullptr;
     g11 = *i;
     Inplace_vector<String> wkbstrs(PSI_INSTRUMENT_ME);
 
@@ -3193,45 +3191,45 @@ Geometry *Item_func_spatial_operation::geocol_difference(
       Geometry *geom = (*gv2)[j->second];
 
       wkbres = wkbstrs.append_object();
-      if (wkbres == NULL) {
+      if (wkbres == nullptr) {
         null_value = true;
-        return NULL;
+        return nullptr;
       }
       Geometry *g0 = bg_geo_set_op<Coordsys>(g11, geom, wkbres);
       std::unique_ptr<Geometry> guard0(g0);
 
       if (null_value) {
-        if (!(g0 != NULL && g0 != *i && g0 != geom)) guard0.release();
-        if (!(g11 != NULL && g11 != g0 && g11 != *i && g11 != geom))
+        if (!(g0 != nullptr && g0 != *i && g0 != geom)) guard0.release();
+        if (!(g11 != nullptr && g11 != g0 && g11 != *i && g11 != geom))
           guard11.release();
-        return NULL;
+        return nullptr;
       }
 
-      if (g0 != NULL && !is_empty_geocollection(*wkbres)) {
-        if (g11 != NULL && g11 != *i && g11 != geom && g11 != g0)
+      if (g0 != nullptr && !is_empty_geocollection(*wkbres)) {
+        if (g11 != nullptr && g11 != *i && g11 != geom && g11 != g0)
           delete guard11.release();
         else
           guard11.release();
         guard0.release();
         g11 = g0;
-        if (g0 != NULL && g0 != *i && g0 != geom) guard11.reset(g11);
+        if (g0 != nullptr && g0 != *i && g0 != geom) guard11.reset(g11);
       } else {
         g11_isempty = true;
-        if (!(g0 != NULL && g0 != *i && g0 != geom && g0 != g11))
+        if (!(g0 != nullptr && g0 != *i && g0 != geom && g0 != g11))
           guard0.release();
         break;
       }
     }
 
     if (!g11_isempty) bggc.fill(g11);
-    if (!(g11 != NULL && g11 != *i))
+    if (!(g11 != nullptr && g11 != *i))
       guard11.release();
     else
-      guard11.reset(NULL);
+      guard11.reset(nullptr);
   }
 
   bggc.merge_components<Coordsys>(&null_value);
-  if (null_value) return NULL;
+  if (null_value) return nullptr;
   gres = bggc.as_geometry_collection(result);
 
   return gres;
@@ -3255,7 +3253,7 @@ template <typename Coordsys>
 Geometry *Item_func_spatial_operation::geocol_symdifference(
     const BG_geometry_collection &bggc1, const BG_geometry_collection &bggc2,
     String *result) {
-  Geometry *res = NULL;
+  Geometry *res = nullptr;
   std::unique_ptr<Geometry> diff12;
   std::unique_ptr<Geometry> diff21;
   String diff12_wkb;
@@ -3265,12 +3263,12 @@ Geometry *Item_func_spatial_operation::geocol_symdifference(
 
   m_spatial_op = op_difference;
   diff12.reset(geocol_difference<Coordsys>(bggc1, bggc2, &diff12_wkb));
-  if (null_value) return NULL;
-  DBUG_ASSERT(diff12.get() != NULL);
+  if (null_value) return nullptr;
+  assert(diff12.get() != nullptr);
 
   diff21.reset(geocol_difference<Coordsys>(bggc2, bggc1, &diff21_wkb));
-  if (null_value) return NULL;
-  DBUG_ASSERT(diff21.get() != NULL);
+  if (null_value) return nullptr;
+  assert(diff21.get() != nullptr);
 
   m_spatial_op = op_union;
   res = geometry_collection_set_operation<Coordsys>(diff12.get(), diff21.get(),
@@ -3284,15 +3282,15 @@ Geometry *Item_func_spatial_operation::geocol_symdifference(
   }
 
   if (null_value) {
-    if (res != NULL) delete res;
-    return NULL;
+    if (res != nullptr) delete res;
+    return nullptr;
   }
 
   return res;
 }
 
 bool Item_func_spatial_operation::assign_result(Geometry *geo, String *result) {
-  DBUG_ASSERT(geo->has_geom_header_space());
+  assert(geo->has_geom_header_space());
   char *p = geo->get_cptr() - GEOM_HEADER_SIZE;
   write_geometry_header(p, geo->get_srid(), geo->get_geotype());
   result->set(p, GEOM_HEADER_SIZE + geo->get_nbytes(), &my_charset_bin);

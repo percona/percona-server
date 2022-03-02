@@ -147,8 +147,7 @@ void AuthLDAPImpl::calc_mappings(const std::string &group_str) {
   }
 }
 
-std::string AuthLDAPImpl::calc_mysql_user(
-    const std::list<std::string> &groups) {
+std::string AuthLDAPImpl::calc_mysql_user(const groups_t &groups) {
   log_srv_dbg("AuthLDAPImpl::calc_mysql_user()");
   for (const t_group_mapping &map : mappings_) {
     if (matched_map(map, groups)) {
@@ -163,7 +162,7 @@ std::string AuthLDAPImpl::calc_mysql_user(
  * All the groups in a map are present in ldap: MATCH!
  */
 bool AuthLDAPImpl::matched_map(const t_group_mapping &map,
-                               const std::list<std::string> &groups) {
+                               const groups_t &groups) {
   log_srv_dbg("AuthLDAPImpl::matched_map()");
   bool matched = true;
   std::ostringstream log_stream;
@@ -185,10 +184,9 @@ bool AuthLDAPImpl::matched_map(const t_group_mapping &map,
   return matched;
 }
 
-std::list<std::string> AuthLDAPImpl::search_ldap_groups(
-    const std::string &user_dn) {
+groups_t AuthLDAPImpl::search_ldap_groups(const std::string &user_dn) {
   log_srv_dbg("AuthLDAPImpl::search_ldap_groups");
-  std::list<std::string> list;
+  groups_t list;
 
   std::shared_ptr<Connection> conn = pool_->borrow_connection();
   if (conn == nullptr) return list;

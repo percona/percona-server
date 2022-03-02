@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,25 +31,25 @@
 #include "m_string.h"  // my_strtok_r
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "sql_string.h"  // String
 
 Server_ids::Server_ids() : dynamic_ids(PSI_NOT_INSTRUMENTED) {}
 
 bool Server_ids::unpack_dynamic_ids(char *param_dynamic_ids) {
-  char *token = NULL, *last = NULL;
+  char *token = nullptr, *last = nullptr;
   uint num_items = 0;
 
   DBUG_TRACE;
 
   token = my_strtok_r(param_dynamic_ids, " ", &last);
 
-  if (token == NULL) return true;
+  if (token == nullptr) return true;
 
   num_items = atoi(token);
   for (uint i = 0; i < num_items; i++) {
-    token = my_strtok_r(NULL, " ", &last);
-    if (token == NULL)
+    token = my_strtok_r(nullptr, " ", &last);
+    if (token == nullptr)
       return true;
     else {
       ulong val = atol(token);

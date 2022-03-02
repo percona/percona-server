@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,8 @@ extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                           void *first_cmp_arg) {
   DBUG_TRACE;
   if ((queue->root = (uchar **)my_malloc(
-           psi_key, (max_elements + 1) * sizeof(void *), MYF(MY_WME))) == 0)
+           psi_key, (max_elements + 1) * sizeof(void *), MYF(MY_WME))) ==
+      nullptr)
     return 1;
   queue->elements = 0;
   queue->compare = compare;
@@ -147,7 +148,7 @@ static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
   if (queue->max_elements == max_elements) return 0;
   if ((new_root = (uchar **)my_realloc(psi_key, (void *)queue->root,
                                        (max_elements + 1) * sizeof(void *),
-                                       MYF(MY_WME))) == 0)
+                                       MYF(MY_WME))) == nullptr)
     return 1;
   queue->elements = std::min(queue->elements, max_elements);
   queue->max_elements = max_elements;
@@ -172,14 +173,14 @@ static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
 void delete_queue(QUEUE *queue) {
   DBUG_TRACE;
   my_free(queue->root);
-  queue->root = NULL;
+  queue->root = nullptr;
 }
 
 /* Code for insert, search and delete of elements */
 
 void queue_insert(QUEUE *queue, uchar *element) {
   uint idx, next;
-  DBUG_ASSERT(queue->elements < queue->max_elements);
+  assert(queue->elements < queue->max_elements);
   queue->root[0] = element;
   idx = ++queue->elements;
   /* max_at_top swaps the comparison if we want to order by desc */
@@ -198,7 +199,7 @@ void queue_insert(QUEUE *queue, uchar *element) {
 
 uchar *queue_remove(QUEUE *queue, uint idx) {
   uchar *element;
-  DBUG_ASSERT(idx < queue->max_elements);
+  assert(idx < queue->max_elements);
   element = queue->root[++idx]; /* Intern index starts from 1 */
   queue->root[idx] = queue->root[queue->elements--];
   _downheap(queue, idx);

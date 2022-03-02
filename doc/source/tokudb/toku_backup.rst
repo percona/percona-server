@@ -4,9 +4,22 @@
 Percona TokuBackup
 ==================
 
+.. Important:: 
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+
+
 Percona |TokuBackup| is an open-source hot backup utility for |MySQL| servers running the |TokuDB| storage engine (including |Percona Server| and |MariaDB|). It does not lock your database during backup. The |TokuBackup| library intercepts system calls that write files and duplicates the writes to the backup directory.
 
-.. note:: This feature is currently considered *Experimental*
+.. note:: This feature is currently considered *tech preview* and should not be used in a production environment. 
 
 .. contents::
    :local:
@@ -22,7 +35,7 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
 
    .. admonition:: Output
 
-      .. code-block:: guess
+      .. code-block:: bash
 
 	 Checking SELinux status...
 	 INFO: SELinux is disabled.
@@ -42,7 +55,7 @@ To install |Percona TokuBackup| complete the following steps. |tip.run-all.root|
 
    .. admonition:: Output
 
-      .. code-block:: guess
+      .. code-block:: bash
 
 	 Checking SELinux status...
 	 INFO: SELinux is disabled.
@@ -214,9 +227,9 @@ TokuDB Hot Backup also has an API. This API includes the ``start capturing`` and
 portion of a file is copied to the backup location, and this portion is changed,
 these changes are also applied to the backup location.
 
-Replication often uses backup replication to create slaves. You must know the
+Replication often uses backup replication to create replicas. You must know the
 last executed global transaction identifier (GTID) or binary log position both
-for the slave and master configuration.
+for the replica and source configuration.
 
 To lock tables, use ``FLUSH TABLE WITH READ LOCK`` or use the smart locks like
 ``LOCK TABLES FOR BACKUP`` or ``LOCK BINLOG FOR BACKUP``.
@@ -236,14 +249,20 @@ After a backup is taken, there are the following files in the backup directory:
 * tokubackup_slave_info
 * tokubackup_binlog_info
 
-These files contain information for slave and master. You can use this
-information to start a new slave from the master or slave.
+These files contain information for replica and source. You can use this
+information to start a new replica from the source or replica.
 
 The ``SHOW MASTER STATUS`` and ``SHOW SLAVE STATUS`` commands provide the
 information.
 
+.. important::
+
+    As of |MySQL| 8.0.22, the ``SHOW SLAVE STATUS`` statement is
+    `deprecated <https://dev.mysql.com/doc/refman/8.0/en/show-replicas.html>`_.
+    Use ``SHOW REPLICA STATUS`` instead.
+    
 In specific binlog formats, a binary log event can contain statements that
-produce temporary tables on the slave side, and the result of further statements
+produce temporary tables on the replica side, and the result of further statements
 may depend on the temporary table content. Typically, temporary tables are not
 selected for backup because they are created in a separate directory. A backup
 created with temporary tables created by binlog events can cause issues when
@@ -254,9 +273,9 @@ The following system variables :variable:`--tokudb-backup-safe-slave`, which
 enables or disables the safe-slave mode, and
 :variable:`--tokudb-backup-safe-slave-timeout`, which defines the maximum amount
 of time in seconds to wait until temporary tables disappear.  The
-``safe-slave`` mode, when used with ``LOCK BINLOG FOR BACKUP``, the slave SQL
-thread is stopped and checked to see if temporary tables produced by the slave
-exist or do not exist. If temporary tables exist, the slave SQL thread is
+``safe-slave`` mode, when used with ``LOCK BINLOG FOR BACKUP``, the replica SQL
+thread is stopped and checked to see if temporary tables produced by the replica
+exist or do not exist. If temporary tables exist, the replica SQL thread is
 restarted until there are no temporary tables or a defined timeout is reached.
 
 You should not use this option for group-replication.

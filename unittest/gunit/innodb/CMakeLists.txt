@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,14 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
 
 SET(TESTS
   #example
+  fil_path
   ha_innodb
   log0log
   mem0mem
+  os0file
   os0thread-create
+  srv0conc
+  sync0rw
   ut0crc32
   ut0lock_free_hash
   ut0mem
@@ -49,7 +53,6 @@ IF(WIN32)
 ENDIF()
 MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
   ENABLE_EXPORTS
-  EXCLUDE_ON_SOLARIS
   ADD_TEST merge_innodb_tests-t)
 
 TARGET_LINK_LIBRARIES(merge_innodb_tests-t

@@ -8,5 +8,4 @@ SELECT 1 FROM t1 WHERE(SELECT a FROM t1)/ a;
 1
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1365	Division by 0
 DROP TABLE t1;

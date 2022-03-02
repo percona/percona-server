@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,15 +65,9 @@ public:
     open,
     close,
     closeRemove,
-    read,   // Allways leave readv directly after
-            // read because SimblockAsyncFileSystem depends on it
-    readv,
-    write,// Allways leave writev directly after
-	        // write because SimblockAsyncFileSystem depends on it
-    writev,
-    writeSync,// Allways leave writevSync directly after
-    // writeSync because SimblockAsyncFileSystem depends on it
-    writevSync,
+    read,
+    write,
+    writeSync,
     sync,
     end,
     append,
@@ -137,7 +131,6 @@ public:
   MemoryChannel<Request>::ListMember m_mem_channel;
 
   // file info for debug
-  Uint32 m_fileinfo;
   Uint32 m_file_size_hi;
   Uint32 m_file_size_lo;
 

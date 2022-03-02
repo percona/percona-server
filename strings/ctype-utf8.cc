@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -30,6 +30,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -39,7 +40,7 @@
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_uctype.h"  // IWYU pragma: keep
@@ -1625,35 +1626,38 @@ static const MY_UNICASE_CHARACTER planeFF[] = {
     {0xFFFE, 0xFFFE, 0xFFFE}, {0xFFFF, 0xFFFF, 0xFFFF}};
 
 static const MY_UNICASE_CHARACTER *my_unicase_pages_default[256] = {
-    plane00, plane01, plane02, plane03, plane04, plane05, NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    plane1E, plane1F, NULL,    plane21, NULL, NULL,
-    plane24, NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    planeFF};
+    plane00, plane01, plane02, plane03, plane04, plane05, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, plane1E, plane1F,
+    nullptr, plane21, nullptr, nullptr, plane24, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, planeFF};
 
 MY_UNICASE_INFO my_unicase_default = {0xFFFF, my_unicase_pages_default};
 
@@ -1661,262 +1665,43 @@ MY_UNICASE_INFO my_unicase_default = {0xFFFF, my_unicase_pages_default};
   Reproduce old utf8_general_ci behaviour before we fixed Bug#27877.
 */
 static const MY_UNICASE_CHARACTER *my_unicase_pages_mysql500[256] = {
-    plane00_mysql500,
-    plane01,
-    plane02,
-    plane03,
-    plane04,
-    plane05,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    plane1E,
-    plane1F,
-    NULL,
-    plane21,
-    NULL,
-    NULL,
-    plane24,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    planeFF
+    plane00_mysql500, plane01, plane02, plane03, plane04, plane05, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, plane1E, plane1F, nullptr, plane21, nullptr,
+    nullptr,          plane24, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr,          nullptr, nullptr, planeFF
 
 };
 
@@ -2061,35 +1846,38 @@ static const MY_UNICASE_CHARACTER turk00[] = {
     {0x00DE, 0x00FE, 0x00DE}, {0x0178, 0x00FF, 0x0059}};
 
 static const MY_UNICASE_CHARACTER *my_unicase_pages_turkish[256] = {
-    turk00,  plane01, plane02, plane03, plane04, plane05, NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    plane1E, plane1F, NULL,    plane21, NULL, NULL,
-    plane24, NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL, NULL,
-    NULL,    NULL,    NULL,    planeFF};
+    turk00,  plane01, plane02, plane03, plane04, plane05, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, plane1E, plane1F,
+    nullptr, plane21, nullptr, nullptr, plane24, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, planeFF};
 
 MY_UNICASE_INFO my_unicase_turkish = {0xFFFF, my_unicase_pages_turkish};
 
@@ -4453,550 +4241,550 @@ static const MY_UNICASE_CHARACTER u520p104[] = {
 };
 
 const MY_UNICASE_CHARACTER *my_unicase_pages_unicode520[4352] = {
-    u520p00, u520p01, u520p02, u520p03, u520p04,  u520p05, NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    u520p10, NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     u520p1D, u520p1E, u520p1F,
-    NULL,    u520p21, NULL,    NULL,    u520p24,  NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    u520p2C,  u520p2D, NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    u520pA6, u520pA7,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    u520pFF,
-    NULL,    NULL,    NULL,    NULL,    u520p104, NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
-    NULL,    NULL,    NULL,    NULL,    NULL,     NULL,    NULL,    NULL,
+    u520p00, u520p01, u520p02, u520p03, u520p04,  u520p05, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    u520p10, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  u520p1D, u520p1E, u520p1F,
+    nullptr, u520p21, nullptr, nullptr, u520p24,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, u520p2C,  u520p2D, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, u520pA6, u520pA7,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, u520pFF,
+    nullptr, nullptr, nullptr, nullptr, u520p104, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr,  nullptr, nullptr, nullptr,
 };
 
 MY_UNICASE_INFO my_unicase_unicode520 = {0x10FFFF, my_unicase_pages_unicode520};
@@ -5189,7 +4977,7 @@ Pointee *add_with_saturate(Pointee *ptr, Offset offset) {
 
 static size_t my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend,
                                               size_t nweights) {
-  DBUG_ASSERT(str && str <= strend);
+  assert(str && str <= strend);
   strend = std::min(
       strend, add_with_saturate(add_with_saturate(str, nweights), nweights));
 
@@ -5223,7 +5011,7 @@ static size_t my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend,
 
 static size_t my_strxfrm_pad_unicode(uchar *str, uchar *strend) {
   uchar *str0 = str;
-  DBUG_ASSERT(str && str <= strend);
+  assert(str && str <= strend);
   for (; str < strend;) {
     *str++ = 0x00;
     if (str < strend) *str++ = 0x20;
@@ -5246,7 +5034,7 @@ static inline size_t my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs,
   uchar *dst0 = dst;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  DBUG_ASSERT(src || srclen == 0);
+  assert(src || srclen == 0);
 
   // We manually hoist this if test out of the loop; seemingly GCC
   // (at least 6.1.1) isn't smart enough to do it on its own.
@@ -5303,7 +5091,7 @@ static inline size_t my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs,
   }
 
 pad:
-  if (dst < de && nweights && !(flags & MY_STRXFRM_NOPAD_WITH_SPACE))
+  if (dst < de && nweights)  // PAD SPACE behavior.
     dst += my_strxfrm_pad_nweights_unicode(dst, de, nweights);
 
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
@@ -5350,8 +5138,8 @@ size_t my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs, uchar *dst,
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
 
-  DBUG_ASSERT(src || srclen == 0);
-  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
+  assert(src || srclen == 0);
+  assert(cs->state & MY_CS_BINSORT);
 
   for (; dst < de && nweights; nweights--) {
     int res;
@@ -5460,7 +5248,7 @@ static const uchar to_upper_utf8[] = {
 static inline int bincmp(const uchar *s, const uchar *se, const uchar *t,
                          const uchar *te) {
   int slen = (int)(se - s), tlen = (int)(te - t);
-  int len = MY_MIN(slen, tlen);
+  int len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : slen - tlen;
 }
@@ -5564,7 +5352,7 @@ static size_t my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  assert(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -5613,7 +5401,7 @@ static size_t my_caseup_str_utf8(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->caseup_multiply == 1);
+  assert(cs->caseup_multiply == 1);
 
   while (*src && (srcres = my_mb_wc_utf8_no_range(&wc, (uchar *)src)) > 0) {
     my_toupper_utf8mb3(uni_plane, &wc);
@@ -5631,7 +5419,7 @@ static size_t my_casedn_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  assert(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -5649,7 +5437,7 @@ static size_t my_casedn_str_utf8(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->casedn_multiply == 1);
+  assert(cs->casedn_multiply == 1);
 
   while (*src && (srcres = my_mb_wc_utf8_no_range(&wc, (uchar *)src)) > 0) {
     my_tolower_utf8mb3(uni_plane, &wc);
@@ -5960,7 +5748,7 @@ static MY_COLLATION_HANDLER my_collation_utf8_bin_handler = {
     my_hash_sort_mb_bin,
     my_propagate_simple};
 
-MY_CHARSET_HANDLER my_charset_utf8_handler = {NULL, /* init */
+MY_CHARSET_HANDLER my_charset_utf8_handler = {nullptr, /* init */
                                               my_ismbchar_utf8,
                                               my_mbcharlen_utf8,
                                               my_numchars_mb,
@@ -5995,19 +5783,19 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8",              /* cs name      */
     "utf8_general_ci",   /* name         */
-    "",                  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
+    "UTF-8 Unicode",     /* comment      */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
     to_lower_utf8,       /* to_lower     */
     to_upper_utf8,       /* to_upper     */
     to_upper_utf8,       /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -6030,19 +5818,19 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE | MY_CS_LOWER_SORT,
     "utf8",              /* cs name      */
     "utf8_tolower_ci",   /* name         */
-    "",                  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
+    "UTF-8 Unicode",     /* comment      */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
     to_lower_utf8,       /* to_lower     */
     to_upper_utf8,       /* to_upper     */
     to_upper_utf8,       /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -6065,19 +5853,19 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state            */
     "utf8",                                          /* cs name          */
     "utf8_general_mysql500_ci",                      /* name             */
-    "",                                              /* comment          */
-    NULL,                                            /* tailoring        */
-    NULL,                                            /* coll_param       */
+    "UTF-8 Unicode",                                 /* comment          */
+    nullptr,                                         /* tailoring        */
+    nullptr,                                         /* coll_param       */
     ctype_utf8,                                      /* ctype            */
     to_lower_utf8,                                   /* to_lower         */
     to_upper_utf8,                                   /* to_upper         */
     to_upper_utf8,                                   /* sort_order       */
-    NULL,                                            /* uca              */
-    NULL,                                            /* tab_to_uni       */
-    NULL,                                            /* tab_from_uni     */
+    nullptr,                                         /* uca              */
+    nullptr,                                         /* tab_to_uni       */
+    nullptr,                                         /* tab_from_uni     */
     &my_unicase_mysql500,                            /* caseinfo         */
-    NULL,                                            /* state_map        */
-    NULL,                                            /* ident_map        */
+    nullptr,                                         /* state_map        */
+    nullptr,                                         /* ident_map        */
     1,                                               /* strxfrm_multiply */
     1,                                               /* caseup_multiply  */
     1,                                               /* casedn_multiply  */
@@ -6100,19 +5888,19 @@ CHARSET_INFO my_charset_utf8_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8",              /* cs name      */
     "utf8_bin",          /* name         */
-    "",                  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
+    "UTF-8 Unicode",     /* comment      */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
     to_lower_utf8,       /* to_lower     */
     to_upper_utf8,       /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -7222,7 +7010,7 @@ static MY_COLLATION_HANDLER my_collation_filename_handler = {
     my_propagate_complex};
 
 static MY_CHARSET_HANDLER my_charset_filename_handler = {
-    NULL, /* init */
+    nullptr, /* init */
     my_ismbchar_utf8,
     my_mbcharlen_utf8,
     my_numchars_mb,
@@ -7259,18 +7047,18 @@ CHARSET_INFO my_charset_filename = {
     "filename",          /* cs name      */
     "filename",          /* name         */
     "",                  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
     to_lower_utf8,       /* to_lower     */
     to_upper_utf8,       /* to_upper     */
     to_upper_utf8,       /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -7398,7 +7186,7 @@ static const uchar to_upper_utf8mb4[] = {
 static inline int bincmp_utf8mb4(const uchar *s, const uchar *se,
                                  const uchar *t, const uchar *te) {
   int slen = (int)(se - s), tlen = (int)(te - t);
-  int len = MY_MIN(slen, tlen);
+  int len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : slen - tlen;
 }
@@ -7550,7 +7338,7 @@ static size_t my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  assert(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8mb4(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -7595,12 +7383,12 @@ static void my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s,
 
     if (wc > 0xFFFF) {
       /*
-       Put the highest byte only if it is non-zero,
-       to make hash functions for utf8mb3 and utf8mb4
-       compatible for BMP characters.
-       This is useful to keep order of records in
-       test results, e.g. for "SHOW GRANTS".
-     */
+        Put the highest byte only if it is non-zero,
+        to make hash functions for utf8mb3 and utf8mb4
+        compatible for BMP characters.
+        This is useful to keep order of records in
+        test results, e.g. for "SHOW GRANTS".
+       */
       ch = (wc >> 16) & 0xFF;
       tmp1 ^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
       tmp2 += 3;
@@ -7617,7 +7405,7 @@ static size_t my_caseup_str_utf8mb4(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->caseup_multiply == 1);
+  assert(cs->caseup_multiply == 1);
 
   while (*src &&
          (srcres = my_mb_wc_utf8mb4_no_range(cs, &wc, (uchar *)src)) > 0) {
@@ -7636,7 +7424,7 @@ static size_t my_casedn_utf8mb4(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  assert(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8mb4(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -7654,7 +7442,7 @@ static size_t my_casedn_str_utf8mb4(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->casedn_multiply == 1);
+  assert(cs->casedn_multiply == 1);
 
   while (*src &&
          (srcres = my_mb_wc_utf8mb4_no_range(cs, &wc, (uchar *)src)) > 0) {
@@ -7978,7 +7766,7 @@ static MY_COLLATION_HANDLER my_collation_utf8mb4_bin_handler = {
     my_hash_sort_mb_bin,
     my_propagate_simple};
 
-MY_CHARSET_HANDLER my_charset_utf8mb4_handler = {NULL, /* init */
+MY_CHARSET_HANDLER my_charset_utf8mb4_handler = {nullptr, /* init */
                                                  my_ismbchar_utf8mb4,
                                                  my_mbcharlen_utf8mb4,
                                                  my_numchars_mb,
@@ -8015,18 +7803,18 @@ CHARSET_INFO my_charset_utf8mb4_general_ci = {
     MY_UTF8MB4,                   /* cs name      */
     MY_UTF8MB4_GENERAL_CI,        /* name       */
     "UTF-8 Unicode",              /* comment      */
-    NULL,                         /* tailoring    */
-    NULL,                         /* coll_param   */
+    nullptr,                      /* tailoring    */
+    nullptr,                      /* coll_param   */
     ctype_utf8mb4,                /* ctype        */
     to_lower_utf8mb4,             /* to_lower     */
     to_upper_utf8mb4,             /* to_upper     */
     to_upper_utf8mb4,             /* sort_order   */
-    NULL,                         /* uca          */
-    NULL,                         /* tab_to_uni   */
-    NULL,                         /* tab_from_uni */
+    nullptr,                      /* uca          */
+    nullptr,                      /* tab_to_uni   */
+    nullptr,                      /* tab_from_uni */
     &my_unicase_default,          /* caseinfo     */
-    NULL,                         /* state_map    */
-    NULL,                         /* ident_map    */
+    nullptr,                      /* state_map    */
+    nullptr,                      /* ident_map    */
     1,                            /* strxfrm_multiply */
     1,                            /* caseup_multiply  */
     1,                            /* casedn_multiply  */
@@ -8051,18 +7839,18 @@ CHARSET_INFO my_charset_utf8mb4_bin = {
     MY_UTF8MB4,                   /* cs name      */
     MY_UTF8MB4_BIN,               /* name         */
     "UTF-8 Unicode",              /* comment      */
-    NULL,                         /* tailoring    */
-    NULL,                         /* coll_param   */
+    nullptr,                      /* tailoring    */
+    nullptr,                      /* coll_param   */
     ctype_utf8mb4,                /* ctype        */
     to_lower_utf8mb4,             /* to_lower     */
     to_upper_utf8mb4,             /* to_upper     */
-    NULL,                         /* sort_order   */
-    NULL,                         /* uca          */
-    NULL,                         /* tab_to_uni   */
-    NULL,                         /* tab_from_uni */
+    nullptr,                      /* sort_order   */
+    nullptr,                      /* uca          */
+    nullptr,                      /* tab_to_uni   */
+    nullptr,                      /* tab_from_uni */
     &my_unicase_default,          /* caseinfo     */
-    NULL,                         /* state_map    */
-    NULL,                         /* ident_map    */
+    nullptr,                      /* state_map    */
+    nullptr,                      /* ident_map    */
     1,                            /* strxfrm_multiply */
     1,                            /* caseup_multiply  */
     1,                            /* casedn_multiply  */

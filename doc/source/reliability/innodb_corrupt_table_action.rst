@@ -21,10 +21,7 @@ which considerably reduces
 the effect of |InnoDB| subsystems
 running in the background.
 
-If the :variable:`innodb_force_recovery` variable is set to a low value
-and you expect the server to crash,
-it may still be running due to
-a non-default value of the :variable:`innodb_corrupt_table_action` variable.
+If the :variable:`innodb_force_recovery` option is <4, corrupted pages are lost and the server may continue to run due to the :variable:`innodb_corrupt_table_action` variable having a non-default value.
 
 For more information about the :variable:`innodb_force_recovery` variable,
 see `Forcing InnoDB Recovery
@@ -56,5 +53,5 @@ System Variables
 
 * If the ``warn`` value is used it will pass corruption of the table as ``corrupt table`` instead of crashing itself. For this to work :option:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion. 
 
-* When the option value is ``salvage``, |XtraDB| allows read access to a corrupted tablespace, but ignores corrupted pages".
+* When the option value is ``salvage``, |XtraDB| allows read access to a corrupted tablespace, but ignores corrupted pages". You must enable :option:`innodb_file_per_table`. 
 

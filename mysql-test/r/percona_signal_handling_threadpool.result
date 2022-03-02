@@ -1,7 +1,7 @@
 #
 # Test server signal handling with threadpool
 #
-# restart:--log-error=MYSQLTEST_VARDIR/tmp/test_threadpool_sig_handler.err
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/test_threadpool_sig_handler.err --debug=d,simulate_sighup_print_status
 SELECT @@GLOBAL.thread_handling;
 @@GLOBAL.thread_handling
 pool-of-threads

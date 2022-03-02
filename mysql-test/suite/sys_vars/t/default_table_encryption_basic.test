@@ -123,9 +123,11 @@ SELECT @@session.default_table_encryption;
 SET SESSION default_table_encryption=KEYRING_ON;
 SELECT @@session.default_table_encryption;
 
+--error ER_WRONG_ARGUMENTS
 SET SESSION default_table_encryption=ONLINE_TO_KEYRING;
 SELECT @@session.default_table_encryption;
 
+--error ER_WRONG_ARGUMENTS
 SET SESSION default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SELECT @@session.default_table_encryption;
 
@@ -139,9 +141,11 @@ SELECT @@global.default_table_encryption;
 SET PERSIST default_table_encryption=KEYRING_ON;
 SELECT @@global.default_table_encryption;
 
+--error ER_WRONG_ARGUMENTS
 SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
 SELECT @@global.default_table_encryption;
 
+--error ER_WRONG_ARGUMENTS
 SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SELECT @@global.default_table_encryption;
 
@@ -176,9 +180,11 @@ SELECT @@global.default_table_encryption;
 SET PERSIST default_table_encryption=KEYRING_ON;
 SELECT @@global.default_table_encryption;
 
+--error ER_WRONG_ARGUMENTS
 SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
 SELECT @@global.default_table_encryption;
 
+--error ER_WRONG_ARGUMENTS
 SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SELECT @@global.default_table_encryption;
 

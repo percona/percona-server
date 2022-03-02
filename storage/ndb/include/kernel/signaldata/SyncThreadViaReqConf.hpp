@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@
  *
  * Used when sending out NODE_FAILREP from Qmgr to ensure that all signals from
  * a failed node have been processed before NODE_FAILREP arrives.
+ *
+ * Also used to synchronize signal order when changing to multi socket setup.
  */
 
 class SyncThreadViaReqConf
@@ -49,11 +51,17 @@ class SyncThreadViaReqConf
   friend class Qmgr;
   friend class Trpman;
   friend class TrpmanProxy;
+  enum
+  {
+    FOR_NODE_FAILREP = 0,
+    FOR_ACTIVATE_TRP_REQ = 1
+  };
 
-  static constexpr Uint32 SignalLength = 2;
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
+  Uint32 actionType;
 };
 
 #undef JAM_FILE_ID

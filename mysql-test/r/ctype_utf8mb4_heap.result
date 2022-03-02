@@ -1502,7 +1502,7 @@ explain
 select substr(z.a,-1), z.a from t1 as y join t1 as z on y.a=z.a order by 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	y	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	z	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	z	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select substr(`test`.`z`.`a`,-(1)) AS `substr(z.a,-1)`,`test`.`z`.`a` AS `a` from `test`.`t1` `y` join `test`.`t1` `z` where (`test`.`z`.`a` = `test`.`y`.`a`) order by substr(`test`.`z`.`a`,-(1))
 select substr(z.a,-1), z.a from t1 as y join t1 as z on y.a=z.a order by 1;
@@ -2190,7 +2190,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
 u_decimal	hex(utf8mb4_encoding)	utf8mb4_encoding
 1114111		
@@ -2226,7 +2226,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
 1114111	
@@ -2238,7 +2238,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
 1114111	
@@ -2259,7 +2259,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
 1114111	
@@ -2280,7 +2280,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
 1114111	

@@ -29,5 +29,3 @@ should_be_1
 1
 SET GLOBAL innodb_monitor_disable=module_adaptive_hash;
 DROP TABLE t1, t2, t3;
-SET GLOBAL innodb_monitor_enable=default;
-SET GLOBAL innodb_monitor_disable=default;

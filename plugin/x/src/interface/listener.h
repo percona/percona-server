@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,9 @@
 
 #include "violite.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/server_properties.h"
-#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
+#include "plugin/x/src/ngs/thread.h"
+#include "plugin/x/src/server/server_properties.h"
 
 namespace xpl {
 namespace iface {
@@ -52,15 +52,15 @@ class Listener {
 
   virtual ~Listener() = default;
 
-  virtual Sync_variable_state &get_state() = 0;
-  virtual std::string get_last_error() = 0;
-  virtual std::string get_name_and_configuration() const = 0;
-  virtual std::vector<std::string> get_configuration_variables() const = 0;
+  virtual const Sync_variable_state &get_state() const = 0;
   virtual void report_properties(On_report_properties on_status) = 0;
+  virtual bool report_status() const = 0;
+  virtual std::string get_configuration_variable() const = 0;
 
   virtual bool setup_listener(On_connection) = 0;
   virtual void close_listener() = 0;
 
+  virtual void pre_loop() = 0;
   virtual void loop() = 0;
 };
 

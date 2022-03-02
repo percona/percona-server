@@ -121,12 +121,12 @@ set rocksdb_bulk_load=0;
 --remove_file $file
 
 # Make sure row count index stats are correct
---replace_column 6 # 7 # 8 # 9 # 12 #
+--replace_column 6 # 7 # 8 # 9 # 12 # 13 #
 SHOW TABLE STATUS WHERE name LIKE 't%';
 
 ANALYZE TABLE t1, t2, t3;
 
---replace_column 6 # 7 # 8 # 9 # 12 #
+--replace_column 6 # 7 # 8 # 9 # 12 # 13 #
 SHOW TABLE STATUS WHERE name LIKE 't%';
 
 # Make sure all the data is there.
@@ -142,7 +142,7 @@ select count(b) from t3;
 
 # Create a dummy file with a bulk load extesion.  It should be removed when
 # the server starts
---let $tmpext = .bulk_load.tmp
+--let $tmpext = .bulk_load.tmp.sst
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 --let $datadir = $MYSQLD_DATADIR/.rocksdb
 --write_file $datadir/test$tmpext

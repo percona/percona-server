@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,9 @@ bool ARMetadataCache::refresh() {
       log_info("view_id = %u, (%i members)", view_id,
                (int)cluster_data.members.size());
       for (auto &mi : cluster_data.members) {
-        log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(), mi.port,
-                 mi.xport, mi.role.c_str(), to_string(mi.mode).c_str());
+        log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+                 mi.xport, to_string(mi.mode).c_str(),
+                 get_hidden_info(mi).c_str());
 
         if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
           std::lock_guard<std::mutex> lock(
@@ -94,6 +95,10 @@ bool ARMetadataCache::refresh() {
     if (!metadata_servers_tmp.empty()) {
       metadata_servers_ = std::move(metadata_servers_tmp);
     }
+  } else if (trigger_acceptor_update_on_next_refresh_) {
+    // Instances information has not changed, but we failed to start listening
+    // on incoming sockets, therefore we must retry on next metadata refresh.
+    on_handle_sockets_acceptors();
   }
 
   return true;

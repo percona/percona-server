@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include "storage/perfschema/table_events_waits.h"
 
+#include <assert.h>
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -98,7 +99,7 @@ Plugin_table table_events_waits_current::m_table_def(
 PFS_engine_table_share table_events_waits_current::m_share = {
     &pfs_truncatable_acl,
     table_events_waits_current::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_waits_current::delete_all_rows,
     table_events_waits_current::get_row_count,
     sizeof(pos_events_waits_current), /* ref length */
@@ -146,7 +147,7 @@ Plugin_table table_events_waits_history::m_table_def(
 PFS_engine_table_share table_events_waits_history::m_share = {
     &pfs_truncatable_acl,
     table_events_waits_history::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_waits_history::delete_all_rows,
     table_events_waits_history::get_row_count,
     sizeof(pos_events_waits_history), /* ref length */
@@ -193,7 +194,7 @@ Plugin_table table_events_waits_history_long::m_table_def(
 PFS_engine_table_share table_events_waits_history_long::m_share = {
     &pfs_truncatable_acl,
     table_events_waits_history_long::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_events_waits_history_long::delete_all_rows,
     table_events_waits_history_long::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
@@ -224,7 +225,7 @@ int table_events_waits_common::make_table_object_columns(
   PFS_table_share *safe_table_share;
 
   safe_table_share = sanitize_table_share(wait->m_weak_table_share);
-  if (unlikely(safe_table_share == NULL)) {
+  if (unlikely(safe_table_share == nullptr)) {
     return 1;
   }
 
@@ -263,7 +264,7 @@ int table_events_waits_common::make_table_object_columns(
       PFS_table_share_index *index_stat;
       index_stat = safe_table_share->find_index_stat(safe_index);
 
-      if (index_stat != NULL) {
+      if (index_stat != nullptr) {
         m_row.m_index_name_length = index_stat->m_key.m_name_length;
 
         if (unlikely(
@@ -295,7 +296,7 @@ int table_events_waits_common::make_file_object_columns(
   PFS_file *safe_file;
 
   safe_file = sanitize_file(wait->m_weak_file);
-  if (unlikely(safe_file == NULL)) {
+  if (unlikely(safe_file == nullptr)) {
     return 1;
   }
 
@@ -327,7 +328,7 @@ int table_events_waits_common::make_socket_object_columns(
   PFS_socket *safe_socket;
 
   safe_socket = sanitize_socket(wait->m_weak_socket);
-  if (unlikely(safe_socket == NULL)) {
+  if (unlikely(safe_socket == nullptr)) {
     return 1;
   }
 
@@ -378,7 +379,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(
   PFS_metadata_lock *safe_metadata_lock;
 
   safe_metadata_lock = sanitize_metadata_lock(wait->m_weak_metadata_lock);
-  if (unlikely(safe_metadata_lock == NULL)) {
+  if (unlikely(safe_metadata_lock == nullptr)) {
     return 1;
   }
 
@@ -650,7 +651,7 @@ int table_events_waits_common::make_row(PFS_events_waits *wait) {
       return HA_ERR_RECORD_DELETED;
   }
 
-  if (unlikely(safe_class == NULL)) {
+  if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -673,8 +674,8 @@ int table_events_waits_common::make_row(PFS_events_waits *wait) {
   normalizer->to_pico(wait->m_timer_start, timer_end, &m_row.m_timer_start,
                       &m_row.m_timer_end, &m_row.m_timer_wait);
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
 
   make_source_column(wait->m_source_file, wait->m_source_line, m_row.m_source,
                      sizeof(m_row.m_source), m_row.m_source_length);
@@ -790,7 +791,7 @@ int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
                 "COUNT_OPERATION_TYPE needs to be the last element.");
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  assert(table->s->null_bytes == 2);
   buf[0] = 0;
   buf[1] = 0;
 
@@ -803,8 +804,8 @@ int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
     - OBJECT_NAME (m_object_name joins with PFS_table_share)
   */
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* THREAD_ID */
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
@@ -923,7 +924,7 @@ int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
           f->set_null();
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -967,12 +968,12 @@ PFS_events_waits *table_events_waits_current::get_wait(
   if (safe_current == top_wait) {
     /* Display the last top level wait, when completed */
     if (m_pos.m_index_2 >= 1) {
-      return NULL;
+      return nullptr;
     }
   } else {
     /* Display all pending waits, when in progress */
     if (wait >= safe_current) {
-      return NULL;
+      return nullptr;
     }
   }
 #endif
@@ -982,7 +983,7 @@ PFS_events_waits *table_events_waits_current::get_wait(
       This locker does not exist.
       There can not be more lockers in the stack, skip to the next thread
     */
-    return NULL;
+    return nullptr;
   }
 
   return wait;
@@ -995,9 +996,9 @@ int table_events_waits_current::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       wait = get_wait(pfs_thread, m_pos.m_index_2);
-      if (wait != NULL) {
+      if (wait != nullptr) {
         /* Next iteration, look for the next locker in this thread */
         m_next_pos.set_after(&m_pos);
         return make_row(pfs_thread, wait);
@@ -1015,10 +1016,10 @@ int table_events_waits_current::rnd_pos(const void *pos) {
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
-    DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
+  if (pfs_thread != nullptr) {
+    assert(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
     wait = get_wait(pfs_thread, m_pos.m_index_2);
-    if (wait != NULL) {
+    if (wait != nullptr) {
       return make_row(pfs_thread, wait);
     }
   }
@@ -1029,7 +1030,7 @@ int table_events_waits_current::rnd_pos(const void *pos) {
 int table_events_waits_current::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool) {
   PFS_index_events_waits *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_events_waits);
   m_opened_index = result;
   m_index = result;
@@ -1043,11 +1044,11 @@ int table_events_waits_current::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           wait = get_wait(pfs_thread, m_pos.m_index_2);
-          if (wait != NULL) {
+          if (wait != nullptr) {
             if (m_opened_index->match(wait)) {
               if (!make_row(pfs_thread, wait)) {
                 /* Next iteration, look for the next locker in this thread */
@@ -1057,7 +1058,7 @@ int table_events_waits_current::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (wait != NULL);
+        } while (wait != nullptr);
       }
     }
   }
@@ -1110,18 +1111,18 @@ PFS_events_waits *table_events_waits_history::get_wait(PFS_thread *pfs_thread,
 
   if (index_2 >= events_waits_history_per_thread) {
     /* This thread does not have more (full) history */
-    return NULL;
+    return nullptr;
   }
 
   if (!pfs_thread->m_waits_history_full &&
       (index_2 >= pfs_thread->m_waits_history_index)) {
     /* This thread does not have more (not full) history */
-    return NULL;
+    return nullptr;
   }
 
   wait = &pfs_thread->m_waits_history[index_2];
   if (wait->m_wait_class == NO_WAIT_CLASS) {
-    return NULL;
+    return nullptr;
   }
 
   return wait;
@@ -1138,9 +1139,9 @@ int table_events_waits_history::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       wait = get_wait(pfs_thread, m_pos.m_index_2);
-      if (wait != NULL) {
+      if (wait != nullptr) {
         /* Next iteration, look for the next history in this thread */
         m_next_pos.set_after(&m_pos);
         return make_row(pfs_thread, wait);
@@ -1155,15 +1156,15 @@ int table_events_waits_history::rnd_pos(const void *pos) {
   PFS_thread *pfs_thread;
   PFS_events_waits *wait;
 
-  DBUG_ASSERT(events_waits_history_per_thread != 0);
+  assert(events_waits_history_per_thread != 0);
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
-  if (pfs_thread != NULL) {
-    DBUG_ASSERT(m_pos.m_index_2 < events_waits_history_per_thread);
+  if (pfs_thread != nullptr) {
+    assert(m_pos.m_index_2 < events_waits_history_per_thread);
 
     wait = get_wait(pfs_thread, m_pos.m_index_2);
-    if (wait != NULL) {
+    if (wait != nullptr) {
       return make_row(pfs_thread, wait);
     }
   }
@@ -1174,7 +1175,7 @@ int table_events_waits_history::rnd_pos(const void *pos) {
 int table_events_waits_history::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool) {
   PFS_index_events_waits *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_events_waits);
   m_opened_index = result;
   m_index = result;
@@ -1192,11 +1193,11 @@ int table_events_waits_history::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (pfs_thread != NULL) {
+    if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
           wait = get_wait(pfs_thread, m_pos.m_index_2);
-          if (wait != NULL) {
+          if (wait != nullptr) {
             if (m_opened_index->match(wait)) {
               if (!make_row(pfs_thread, wait)) {
                 /* Next iteration, look for the next history in this thread */
@@ -1206,7 +1207,7 @@ int table_events_waits_history::index_next(void) {
             }
             m_pos.set_after(&m_pos);
           }
-        } while (wait != NULL);
+        } while (wait != nullptr);
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,9 @@ extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
 /* Thread self pointer. */
 struct thr_data;
 extern thread_local thr_data* NDB_THREAD_TLS_THREAD;
+
+#define qt_likely unlikely
+#define qt_unlikely likely
 
 #ifdef NDB_DEBUG_RES_OWNERSHIP
 
@@ -195,7 +198,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
 #define ERROR_INSERT_VARIABLE mutable UintR cerrorInsert, c_error_insert_extra
-#define ERROR_INSERTED(x) (cerrorInsert == (x))
+#define ERROR_INSERTED(x) (unlikely(cerrorInsert == (x)))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
 #define ERROR_INSERT_VALUE cerrorInsert
 #define ERROR_INSERT_EXTRA c_error_insert_extra
@@ -236,7 +239,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 // need large value.
 /* ------------------------------------------------------------------------- */
 #define NO_OF_FRAG_PER_NODE 1
-#define MAX_FRAG_PER_LQH 8
+#define MAX_FRAG_PER_LQH 16
 
 /**
 * DIH allocates fragments in chunk for fast find of fragment record.
@@ -267,6 +270,12 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define NO_GCP
 #endif
 #define ZUNDEFINED_GCI_LIMIT 1
+#define DEFAULT_SPIN_TIME 0
+#define MEASURE_SPIN_TIME 60
+#define MAX_SPIN_TIME 500
+#define MAX_SPIN_OVERHEAD 10000
+#define MIN_SPINTIME_PER_CALL 300
+#define MAX_SPINTIME_PER_CALL 8000
 
 /**
  * Ndb kernel blocks assertion handling
@@ -281,7 +290,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
  *
  * NOTE these may only be used within blocks
  */
-#if defined VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define ndbassert(check) \
   if(likely(check)){ \
   } else {     \

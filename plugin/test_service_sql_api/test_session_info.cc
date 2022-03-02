@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,7 +147,7 @@ struct st_plugin_ctx {
   st_plugin_ctx() { reset(); }
 
   void reset() {
-    resultcs = NULL;
+    resultcs = nullptr;
     server_status = 0;
     current_col = 0;
     warn_count = 0;
@@ -185,7 +185,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
@@ -493,6 +494,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static void get_data_str(void *ctx) {
@@ -539,6 +541,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *query,
   char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   pctx->reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = query;
   cmd.com_query.length = strlen(cmd.com_query.query);
   WRITE_VAL("%s\n", query);
@@ -878,6 +881,7 @@ static void test_sql(void *p) {
                    "INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' "
                    "ORDER BY id",
                    p, plugin_ctx, true);
+  session_1 = nullptr;  // session_1 is closed in EXEC_TEST_CMD_EX.
   WRITE_SEP();
   WRITE_VAL("srv_session_info_killed(Session 1) : %d\n",
             srv_session_info_killed(session_1));
@@ -924,6 +928,7 @@ static void test_sql(void *p) {
   snprintf(buffer_query, sizeof(buffer_query), "KILL QUERY %i /*session_2_id*/",
            session_2_id);
   WRITE_VAL("%s\n", buffer_query);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = buffer_query;
   cmd.com_query.length = strlen(buffer_query);
 
@@ -944,6 +949,7 @@ static void test_sql(void *p) {
   snprintf(buffer_query, sizeof(buffer_query),
            "KILL CONNECTION %i  /*session_2_id*/", session_2_id);
   WRITE_VAL("%s\n", buffer_query);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = buffer_query;
   cmd.com_query.length = strlen(buffer_query);
 
@@ -1032,7 +1038,7 @@ static void *test_sql_threaded_wrapper(void *param) {
   srv_session_deinit_thread();
 
   context->thread_finished = true;
-  return NULL;
+  return nullptr;
 }
 
 static void create_log_file(const char *log_name) {
@@ -1067,7 +1073,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                  "Could not create test session thread");
   else
-    my_thread_join(&context.thread, NULL);
+    my_thread_join(&context.thread, nullptr);
 }
 
 static int test_sql_service_plugin_init(void *p) {
@@ -1116,15 +1122,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_session_info",
-    "Pavan Naik, Andrey Hristov",
+    PLUGIN_AUTHOR_ORACLE,
     "Test session information",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init      */
-    NULL,                           /* Plugin Check uninstall */
+    nullptr,                        /* Plugin Check uninstall */
     test_sql_service_plugin_deinit, /* Plugin Deinit    */
     0x0100,                         /* 1.0              */
-    NULL,                           /* status variables */
-    NULL,                           /* system variables */
-    NULL,                           /* config options   */
+    nullptr,                        /* status variables */
+    nullptr,                        /* system variables */
+    nullptr,                        /* config options   */
     0,                              /* flags            */
 } mysql_declare_plugin_end;

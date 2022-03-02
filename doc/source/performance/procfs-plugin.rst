@@ -32,7 +32,7 @@ We recommend installing the plugin as part of the package. If needed, you can in
     INSTALL PLUGIN procfs SONAME 'procfs.so';
 
 Access Privileges Required 
- ---------------------------
+-----------------------------
 
 Only users with the ``ACCESS_PROCFS`` dynamic privilege can access the ``INFORMATION_SCHEMA.PROCFS`` view. During the plugin startup, this dynamic privilege is registered with the server. 
 
@@ -42,6 +42,12 @@ After the plugin installation, grant a user access to the INFORMATION_SCHEMA.PR
 
 
     GRANT ACCESS_PROCFS ON *.* TO 'user'@'host';
+
+.. important::
+
+  An SELinux policy or an AppArmor profile may prevent access to file locations needed by the ProcFS plugin, such as the ``/proc/sys/fs/file-nr`` directory or any sub-directories or files under ``/proc/irq/``. Either edit the policy or profile to ensure that the plugin has the necessary access. If the policy and profile do not allow access, the plugin may may have unexpected behavior.
+
+  For more information, see :ref:`selinux` and :ref:`enable-apparmor`.
 
 Using the ProcFS plugin
 -------------------------------------

@@ -6070,6 +6070,40 @@ static int rocksdb_init_internal(void *const p) {
   }
 
   if (rocksdb_persistent_cache_size_mb > 0) {
+    // TODO: This is the limitations in RocksDB.
+    // 1. Persistent cache size RocksDB has to be at least cache_file_size.
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:112
+    // Status ValidateSettings() const {
+    // ...
+    // if (cache_size < cache_file_size ...) {
+    // ...
+    // cache_file_size is set here.
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:165
+    // uint32_t cache_file_size = 100ULL * 1024 * 1024;
+    //
+    // 2. rocksdb_persistent_cache_path required persistent cache parameter
+    //
+    // utilities/persistent_cache/persistent_cache_tier.h:104
+    // Status ValidateSettings() const {
+    // ...
+    // if (!env || path.empty()) {
+    // ...
+    static constexpr int persistent_cache_size_mb_min = 100;
+    if (rocksdb_persistent_cache_size_mb < persistent_cache_size_mb_min) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Invalid value for rocksdb_persistent_cache_size_mb. It "
+                      "has to be at least %i",
+                      persistent_cache_size_mb_min);
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+    if (!strlen(rocksdb_persistent_cache_path)) {
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Specify rocksdb_persistent_cache_size_path");
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+
     std::shared_ptr<rocksdb::PersistentCache> pcache;
     uint64_t cache_size_bytes = rocksdb_persistent_cache_size_mb * 1024 * 1024;
     status = rocksdb::NewPersistentCache(
@@ -15599,7 +15633,7 @@ bool ha_rocksdb::use_read_free_rpl() const {
 }
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
-uchar *ha_rocksdb::get_blob_buffer(uint current_size) {
+uchar *blob_buffer::get_blob_buffer(uint current_size) {
   auto output = m_blob_buffer_current;
   m_blob_buffer_current = m_blob_buffer_current + current_size;
   assert((m_blob_buffer_current - m_blob_buffer_start) <=
@@ -15607,7 +15641,7 @@ uchar *ha_rocksdb::get_blob_buffer(uint current_size) {
   return output;
 }
 
-bool ha_rocksdb::reset_blob_buffer(uint total_size) {
+bool blob_buffer::reset_blob_buffer(uint total_size) {
   if (m_blob_buffer_start == nullptr) {
     m_blob_buffer_start = reinterpret_cast<uchar *>(
         my_malloc(PSI_NOT_INSTRUMENTED, total_size, MYF(0)));
@@ -15623,7 +15657,7 @@ bool ha_rocksdb::reset_blob_buffer(uint total_size) {
   return false;
 }
 
-void ha_rocksdb::release_blob_buffer() {
+void blob_buffer::release_blob_buffer() {
   if (m_blob_buffer_start != nullptr) {
     my_free(m_blob_buffer_start);
     m_blob_buffer_start = nullptr;

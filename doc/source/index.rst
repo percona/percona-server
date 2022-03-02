@@ -35,6 +35,15 @@ Installation
    installation
    installation/post-installation
 
+Run in Docker
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   installation/docker
+
 Scalability Improvements
 ================================================================================
 
@@ -124,6 +133,7 @@ Security Improvements
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin
+  security/using-kmip
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces
@@ -196,7 +206,7 @@ TokuDB
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
-Reference
+Release notes
 ================================================================================
 
 .. toctree::
@@ -204,6 +214,14 @@ Reference
    :glob:
 
    release-notes/release-notes_index
+
+Reference
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
    upstream-bug-fixes
    ps-variables
    development

@@ -210,7 +210,7 @@ html_static_path = ['_static']
 
 # Custom sidebar templates, maps document names to template names.
 html_sidebars = {
-        '**': ['localtoc.html', 'relations.html', 'sourcelink.html', 'edit.html'],
+        '**': ['localtoc.html', 'relations.html', 'sourcelink.html'],
         'using/windows': ['windowssidebar.html'],
 }
 
@@ -284,7 +284,7 @@ latex_documents = [
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-latex_logo = 'percona-logo.jpg'
+latex_logo = 'percona-logo-color.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.

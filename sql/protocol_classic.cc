@@ -1410,6 +1410,13 @@ int Protocol_classic::read_packet() {
   }
 
   bad_packet = true;
+  /*
+    XXX: This place seems erroneous.
+    -1 means request of current thread shutdown and
+    1 is just return with error (see do_command() description).
+    Now all errors except NET_ERROR_SOCKET_UNUSABLE request shutdown,
+    probably NET_ERROR_SOCKET_RECOVERABLE should be here instead of it.
+  */
   return m_thd->net.error == NET_ERROR_SOCKET_UNUSABLE ? 1 : -1;
 }
 

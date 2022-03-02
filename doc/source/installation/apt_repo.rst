@@ -37,6 +37,8 @@ What's in each DEB package?
        ABI change that requires software using the client library to be
        recompiled or its source code modified.
 
+.. _apt-install:
+
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 

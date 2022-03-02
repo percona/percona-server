@@ -6676,6 +6676,8 @@ dict_close(void)
 {
 	ulint	i;
 
+	if (!dict_sys) return;
+
 	/* Free the hash elements. We don't remove them from the table
 	because we are going to destroy the table anyway. */
 	for (i = 0; i < hash_get_n_cells(dict_sys->table_hash); i++) {

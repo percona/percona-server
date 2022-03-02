@@ -541,6 +541,8 @@ void
 lock_sys_close(void)
 /*================*/
 {
+	if (!lock_sys) return;
+
 	if (lock_latest_err_file != NULL) {
 		fclose(lock_latest_err_file);
 		lock_latest_err_file = NULL;

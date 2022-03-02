@@ -97,6 +97,13 @@ Shuts down the Innobase database.
 @return DB_SUCCESS or error code */
 dberr_t
 innobase_shutdown_for_mysql(void);
+/*=============================*/
+
+/****************************************************************//**
+Free all the resources acquired by InnoDB (mutexes, events, memory). */
+void
+srv_free_resources();
+/*================*/
 
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do

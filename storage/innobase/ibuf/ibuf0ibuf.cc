@@ -461,6 +461,8 @@ void
 ibuf_close(void)
 /*============*/
 {
+	if (!ibuf) return;
+
 	mutex_free(&ibuf_pessimistic_insert_mutex);
 
 	mutex_free(&ibuf_mutex);

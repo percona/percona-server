@@ -829,6 +829,8 @@ void
 trx_sys_file_format_close(void)
 /*===========================*/
 {
+	if (!file_format_max.name) return;
+
 	mutex_free(&file_format_max.mutex);
 }
 
@@ -1164,8 +1166,11 @@ void
 trx_sys_close(void)
 /*===============*/
 {
+	if (!trx_sys) return;
+
 	ut_ad(trx_sys != NULL);
-	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
+	      srv_shutdown_state == SRV_SHUTDOWN_NONE);
 
 	ulint	size = trx_sys->mvcc->size();
 
@@ -1174,14 +1179,12 @@ trx_sys_close(void)
 			" shutdown: " << size << " read views open";
 	}
 
-	sess_close(trx_dummy_sess);
-	trx_dummy_sess = NULL;
+	if (trx_dummy_sess) {
+		sess_close(trx_dummy_sess);
+		trx_dummy_sess = NULL;
+	}
 
 	trx_purge_sys_close();
-
-	/* Free the double write data structures. */
-	buf_dblwr_free();
-	buf_parallel_dblwr_free(srv_fast_shutdown != 2);
 
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);

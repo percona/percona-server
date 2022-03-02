@@ -397,10 +397,14 @@ buf_flush_free_flush_rbt(void)
 {
 	ulint	i;
 
+	if (!buf_pool_ptr) return;
+
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
+
+		if (!buf_pool || !buf_pool->flush_rbt) continue;
 
 		buf_flush_list_mutex_enter(buf_pool);
 

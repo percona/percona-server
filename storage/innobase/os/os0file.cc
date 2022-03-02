@@ -7397,6 +7397,8 @@ os_aio_init(
 void
 os_aio_free()
 {
+	if (!os_aio_segment_wait_events) return;
+
 	AIO::shutdown();
 
 	for (ulint i = 0; i < os_aio_n_segments; i++) {

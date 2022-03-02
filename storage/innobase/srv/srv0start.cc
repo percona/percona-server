@@ -1571,6 +1571,8 @@ srv_init_abort_low(
 	}
 
 	srv_shutdown_all_bg_threads();
+	srv_free_resources();
+
 	return(err);
 }
 
@@ -3145,6 +3147,41 @@ innobase_shutdown_for_mysql(void)
 	/* 2. Make all threads created by InnoDB to exit */
 	srv_shutdown_all_bg_threads();
 
+	if (!srv_read_only_mode) {
+		/* Shutdown key rotation threads */
+		fil_crypt_threads_cleanup();
+		btr_scrub_cleanup();
+	}
+
+	if (srv_print_verbose_log) {
+		ib::info() << "Shutdown completed; log sequence number "
+			<< srv_shutdown_lsn;
+	}
+
+	srv_was_started = FALSE;
+	srv_start_has_been_called = FALSE;
+
+	unlock_keyrings(NULL);
+
+	return(DB_SUCCESS);
+}
+
+/****************************************************************//**
+Free all the resources acquired by InnoDB (mutexes, events, memory). */
+void srv_free_resources()
+{
+	/* We don't create these mutexes in RO mode because we don't create
+	the temp files that the cover. */
+	if (!srv_read_only_mode) {
+		/* If mutex_monitor != nullptr, then srv_monitor_file_mutex was
+		 * created. */
+		if (mutex_monitor)
+			mutex_free(&srv_monitor_file_mutex);
+		if (srv_monitor_file)
+			mutex_free(&srv_dict_tmpfile_mutex);
+		if (srv_dict_tmpfile)
+			mutex_free(&srv_misc_tmpfile_mutex);
+	}
 
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
@@ -3167,9 +3204,6 @@ innobase_shutdown_for_mysql(void)
 
 	if (!srv_read_only_mode) {
 		dict_stats_thread_deinit();
-		/* Shutdown key rotation threads */
-		fil_crypt_threads_cleanup();
-		btr_scrub_cleanup();
 	}
 
 	/* This must be disabled before closing the buffer pool
@@ -3183,15 +3217,11 @@ innobase_shutdown_for_mysql(void)
 	trx_sys_close();
 	lock_sys_close();
 
-	trx_pool_close();
+	/* Free the double write data structures. */
+	buf_dblwr_free();
+	buf_parallel_dblwr_free(srv_fast_shutdown != 2);
 
-	/* We don't create these mutexes in RO mode because we don't create
-	the temp files that the cover. */
-	if (!srv_read_only_mode) {
-		mutex_free(&srv_monitor_file_mutex);
-		mutex_free(&srv_dict_tmpfile_mutex);
-		mutex_free(&srv_misc_tmpfile_mutex);
-	}
+	trx_pool_close();
 
 	dict_close();
 	btr_search_sys_free();
@@ -3208,6 +3238,7 @@ innobase_shutdown_for_mysql(void)
 
 	pars_lexer_close();
 	log_mem_free();
+	buf_flush_free_flush_rbt();
 	buf_pool_free(srv_buf_pool_instances);
 
 	/* 6. Free the thread management resoruces. */
@@ -3219,18 +3250,6 @@ innobase_shutdown_for_mysql(void)
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);
 	}
-
-	if (srv_print_verbose_log) {
-		ib::info() << "Shutdown completed; log sequence number "
-			<< srv_shutdown_lsn;
-	}
-
-	srv_was_started = FALSE;
-	srv_start_has_been_called = FALSE;
-
-	unlock_keyrings(NULL);
-
-	return(DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
 

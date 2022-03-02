@@ -100,6 +100,9 @@ name, the 2nd tag is the stem, the 3rd tag is a file sequence number, the 4th
 tag is the start LSN for the file. */
 static const char* bmp_file_name_template = "%s%s%lu_" LSN_PF ".xdb";
 
+/** Database log parsing inited */
+static bool log_online_inited = false;
+
 /* On server startup with empty database srv_start_lsn == 0, in
 which case the first LSN of actual log records will be this. */
 #define MIN_TRACKED_LSN (LOG_START_LSN + OS_FILE_LOG_BLOCK_SIZE + \
@@ -604,6 +607,7 @@ void
 log_online_init(void)
 {
 	mutex_create(LATCH_ID_LOG_ONLINE, &log_bmp_sys_mutex);
+	log_online_inited = true;
 }
 
 /** Initialize the dynamic part of the log tracking subsystem */
@@ -814,6 +818,8 @@ log_online_read_shutdown(void)
 void
 log_online_shutdown(void)
 {
+	if (!log_online_inited) return;
+
 	mutex_free(&log_bmp_sys_mutex);
 }
 

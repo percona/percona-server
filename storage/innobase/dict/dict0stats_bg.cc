@@ -279,6 +279,8 @@ dict_stats_thread_deinit()
 	ut_a(!srv_read_only_mode);
 	ut_ad(!srv_dict_stats_thread_active);
 
+	if (!dict_stats_event) return;
+
 	dict_stats_recalc_pool_deinit();
 
 	mutex_free(&recalc_pool_mutex);

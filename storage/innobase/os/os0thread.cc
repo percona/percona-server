@@ -363,6 +363,9 @@ os_thread_free()
 	}
 
 #ifdef _WIN32
+	/* If mutex_monitor != nullptr, then thread_mutex was created. */
+	if (!mutex_monitor) return;
+
 	mutex_destroy(&thread_mutex);
 #endif
 }

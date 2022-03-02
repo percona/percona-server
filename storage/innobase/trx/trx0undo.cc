@@ -2042,7 +2042,8 @@ trx_undo_free_prepared(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: PREPARED transaction */
 {
-	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
+	      srv_shutdown_state == SRV_SHUTDOWN_NONE);
 
 	if (trx->rsegs.m_redo.update_undo) {
 		ut_a(trx->rsegs.m_redo.update_undo->state == TRX_UNDO_PREPARED);

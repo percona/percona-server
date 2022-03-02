@@ -325,6 +325,8 @@ btr_search_sys_resize(ulint hash_size)
 void
 btr_search_sys_free()
 {
+	if (!btr_search_sys) return;
+
 	ut_ad(btr_search_sys != NULL && btr_search_latches != NULL);
 
 	/* Step-1: Release the hash tables. */
@@ -381,6 +383,8 @@ btr_search_disable(
 	bool	need_mutex)
 {
 	dict_table_t*	table;
+
+	if (!dict_sys) return;
 
 	if (need_mutex) {
 		mutex_enter(&dict_sys->mutex);

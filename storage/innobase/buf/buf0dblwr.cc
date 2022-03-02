@@ -769,6 +769,8 @@ buffer at the end of crash recovery */
 void
 buf_parallel_dblwr_finish_recovery(void)
 {
+	if (!recv_sys) return;
+
 	recv_sys->dblwr.pages.clear();
 	ut_free(parallel_dblwr_buf.recovery_buf_unaligned);
 	parallel_dblwr_buf.recovery_buf_unaligned = NULL;
@@ -962,6 +964,8 @@ void
 buf_dblwr_free(void)
 /*================*/
 {
+	if (!buf_dblwr) return;
+
 	/* Free the double write data structures. */
 	ut_a(buf_dblwr != NULL);
 	ut_ad(buf_dblwr->s_reserved == 0);

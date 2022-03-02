@@ -2983,6 +2983,8 @@ void
 log_shutdown(void)
 /*==============*/
 {
+	if (!log_sys) return;
+
 	log_group_close_all();
 
 	ut_free(log_sys->buf_ptr);

@@ -289,6 +289,8 @@ void
 trx_purge_sys_close(void)
 /*======================*/
 {
+	if (!purge_sys) return;
+
 	for (que_thr_t* thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		thr != NULL;
 		thr = UT_LIST_GET_NEXT(thrs, thr)) {

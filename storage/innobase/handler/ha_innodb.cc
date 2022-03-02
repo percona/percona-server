@@ -4986,6 +4986,8 @@ innobase_end(
 		os_event_global_destroy();
 	}
 
+	srv_free_resources();
+
 	DBUG_RETURN(err);
 }
 

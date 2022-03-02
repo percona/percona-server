@@ -6882,13 +6882,11 @@ void
 fil_close(void)
 /*===========*/
 {
+	if (!fil_system) return;
+
 	hash_table_free(fil_system->spaces);
 
 	hash_table_free(fil_system->name_hash);
-
-	ut_a(UT_LIST_GET_LEN(fil_system->LRU) == 0);
-	ut_a(UT_LIST_GET_LEN(fil_system->unflushed_spaces) == 0);
-	ut_a(UT_LIST_GET_LEN(fil_system->space_list) == 0);
 
 	mutex_free(&fil_system->mutex);
 

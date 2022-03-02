@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,14 @@
 #ifndef MOCK_CREATE_FIELD_H
 #define MOCK_CREATE_FIELD_H
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/create_field.h"
 #include "sql/dd/types/column.h"
 #include "sql/sql_lex.h"
 
 class Mock_create_field : public Create_field {
-  LEX_CSTRING m_lex_string;
+  LEX_CSTRING m_lex_string{nullptr, 0};
 
  public:
   Mock_create_field(enum_field_types field_type, Item *insert_default,
@@ -38,8 +39,8 @@ class Mock_create_field : public Create_field {
       Only TIMESTAMP is implemented for now.
       Other types would need different parameters (fld_length, etc).
     */
-    DBUG_ASSERT(field_type == MYSQL_TYPE_TIMESTAMP ||
-                field_type == MYSQL_TYPE_TIMESTAMP2);
+    assert(field_type == MYSQL_TYPE_TIMESTAMP ||
+           field_type == MYSQL_TYPE_TIMESTAMP2);
     memset(&m_lex_string, 0, sizeof(m_lex_string));
     init(nullptr,  // THD *thd
          nullptr,  // char *fld_name

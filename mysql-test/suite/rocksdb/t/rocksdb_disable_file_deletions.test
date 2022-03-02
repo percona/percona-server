@@ -1,8 +1,6 @@
 --source include/have_rocksdb.inc
 --source include/count_sessions.inc
 
-let $ROCKSDB_DATADIR = `select CONCAT(@@datadir, '/', @@rocksdb_datadir)`;
-
 CREATE TABLE t (a INT, b TEXT) ENGINE=ROCKSDB;
 
 # disable file deletions
@@ -27,7 +25,9 @@ while ($i < 1000)
 enable_query_log;
 
 # make sure the WAL has not been removed
-file_exists $ROCKSDB_DATADIR/$wal;
+--let $file_exists_file_name = $wal
+--let $file_exists_inverted = 0
+--source ../include/zenfs_file_exists.inc
 
 connection con1;
 disconnect con1;
@@ -46,7 +46,8 @@ while ($i < 10)
 enable_query_log;
 
 # make sure the WAL has disappeared
---error 1
-file_exists $ROCKSDB_DATADIR/$wal;
+--let $file_exists_file_name = $wal
+--let $file_exists_inverted = 1
+--source ../include/zenfs_file_exists.inc
 
 DROP TABLE t;

@@ -12,7 +12,7 @@ call mtr.add_suppression("Failed to find tablespace for table `test`\.`t2` in th
 call mtr.add_suppression("Failed to find tablespace for table `test`\.`t_mk` in the cache");
 call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[Warning\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file\.so'\.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find tablespace key, please check the keyring plugin is loaded\.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find tablespace key, please check the keyring is loaded\.");
 
 --let encrypted_tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
 --echo # Wait max 10 min for key encryption threads to encrypt all spaces

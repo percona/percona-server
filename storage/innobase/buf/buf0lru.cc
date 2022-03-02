@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -271,7 +271,7 @@ scan_again:
     ut_a(buf_page_in_file(bpage));
 
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
-        bpage->id.space() != space_id || bpage->io_fix != BUF_IO_NONE) {
+        bpage->id.space() != space_id || bpage->was_io_fixed()) {
       /* Compressed pages are never hashed.
       Skip blocks of other tablespaces.
       Skip I/O-fixed blocks (to be dealt with later). */
@@ -376,7 +376,7 @@ static void buf_flush_yield(buf_pool_t *buf_pool, buf_page_t *bpage) {
 
   mutex_exit(block_mutex);
   /* Try and force a context switch. */
-  os_thread_yield();
+  std::this_thread::yield();
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -403,10 +403,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_try_yield(
   loop we release buf_pool->LRU_list_mutex to let other threads
   do their job but only if the block is not IO fixed. This
   ensures that the block stays in its position in the
-  flush_list. */
+  flush_list.
+  We read io_fix without block_mutex, because we will recheck with block_mutex.
+  And in case io_fixed is not NONE now we do the same thing as when is not NONE
+  later: return false.
+  */
 
   if (bpage != nullptr && processed >= BUF_LRU_DROP_SEARCH_SIZE &&
-      buf_page_get_io_fix_unlocked(bpage) == BUF_IO_NONE) {
+      bpage->was_io_fix_none()) {
     BPageMutex *block_mutex = buf_page_get_mutex(bpage);
 
     buf_flush_list_mutex_exit(buf_pool);
@@ -464,9 +468,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_or_remove_page(
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
   /* It is safe to check bpage->space and bpage->io_fix while holding
-  buf_pool->LRU_list_mutex only. */
+  buf_pool->LRU_list_mutex only.
+  We will repeat the check of io_fix under block_mutex later, this is just an
+  optimization to avoid the mutex acquisition if its likely io_fix is not NONE.
+  */
 
-  if (buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+  if (bpage->was_io_fixed()) {
     /* We cannot remove this page during this scan
     yet; maybe the system is currently reading it
     in, or flushing the modifications to the file */
@@ -579,7 +586,7 @@ rescan:
       /* Remove was unsuccessful, we have to try again
       by scanning the entire list from the end.
       This also means that we never released the
-      flust list mutex. Therefore we can trust the prev
+      flush list mutex. Therefore we can trust the prev
       pointer.
       buf_flush_or_remove_page() released the
       flush list mutex but not the LRU list mutex.
@@ -671,7 +678,7 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
     ut_ad(buf_flush_validate(buf_pool));
 
     if (err == DB_FAIL) {
-      os_thread_sleep(2000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 
     if (err == DB_INTERRUPTED && observer != nullptr) {
@@ -724,7 +731,7 @@ scan_again:
       /* Skip this block, as it does not belong to
       the space that is being invalidated. */
       goto next_page;
-    } else if (buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+    } else if (bpage->was_io_fixed()) {
       /* We cannot remove this page during this scan
       yet; maybe the system is currently reading it
       in, or flushing the modifications to the file */
@@ -759,9 +766,9 @@ scan_again:
 
     ut_ad(mutex_own(block_mutex));
 
-    DBUG_PRINT("ib_buf",
-               ("evict page " UINT32PF ":" UINT32PF " state %u",
-                bpage->id.space(), bpage->id.page_no(), bpage->state));
+    DBUG_PRINT("ib_buf", ("evict page " UINT32PF ":" UINT32PF " state %u",
+                          bpage->id.space(), bpage->id.page_no(),
+                          static_cast<unsigned>(bpage->state)));
 
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
       /* Do nothing, because the adaptive hash index
@@ -822,7 +829,7 @@ scan_again:
   mutex_exit(&buf_pool->LRU_list_mutex);
 
   if (!all_freed) {
-    os_thread_sleep(20000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     goto scan_again;
   }
@@ -1326,6 +1333,7 @@ loop:
   }
 
   if (block != nullptr) {
+    ut_ad(!block->page.someone_has_io_responsibility());
     ut_ad(buf_pool_from_block(block) == buf_pool);
     memset(&block->page.zip, 0, sizeof block->page.zip);
 
@@ -1352,9 +1360,9 @@ loop:
     const auto priority = srv_current_thread_priority;
 
     if (n_iterations < 3) {
-      os_thread_yield();
+      std::this_thread::yield();
       if (!priority) {
-        os_thread_yield();
+        std::this_thread::yield();
       }
     } else {
       ulint i, b;
@@ -1372,8 +1380,9 @@ loop:
       if (b > MAX_FREE_LIST_BACKOFF_SLEEP) {
         b = MAX_FREE_LIST_BACKOFF_SLEEP;
       }
-      os_thread_sleep(b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
-                                    : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER));
+      std::this_thread::sleep_for(std::chrono::microseconds(
+          b / (priority ? FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER
+                        : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER)));
     }
 
     buf_LRU_handle_lack_of_free_blocks(n_iterations, started_time,
@@ -1446,7 +1455,7 @@ loop:
 
   if (n_iterations > 1) {
     MONITOR_INC(MONITOR_LRU_GET_FREE_WAITS);
-    os_thread_sleep(10000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   /* No free block was found: try to flush the LRU list.
@@ -1472,11 +1481,20 @@ loop:
   goto loop;
 }
 
+/** Calculates the desired number for the old blocks list.
+@param[in]	buf_pool	buffer pool instance */
+static size_t calculate_desired_LRU_old_size(const buf_pool_t *buf_pool) {
+  return ut_min(UT_LIST_GET_LEN(buf_pool->LRU) *
+                    static_cast<size_t>(buf_pool->LRU_old_ratio) /
+                    BUF_LRU_OLD_RATIO_DIV,
+                UT_LIST_GET_LEN(buf_pool->LRU) -
+                    (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+}
+
 /** Moves the LRU_old pointer so that the length of the old blocks list
 is inside the allowed limits.
 @param[in]	buf_pool	buffer pool instance */
-UNIV_INLINE
-void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
+static inline void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
   ulint old_len;
   ulint new_len;
 
@@ -1500,10 +1518,7 @@ void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
 #endif /* UNIV_LRU_DEBUG */
 
   old_len = buf_pool->LRU_old_len;
-  new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU) * buf_pool->LRU_old_ratio /
-                       BUF_LRU_OLD_RATIO_DIV,
-                   UT_LIST_GET_LEN(buf_pool->LRU) -
-                       (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+  new_len = calculate_desired_LRU_old_size(buf_pool);
 
   for (;;) {
     buf_page_t *LRU_old = buf_pool->LRU_old;
@@ -1590,8 +1605,7 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage) {
 
 /** Removes a block from the LRU list.
 @param[in]	bpage	control block */
-UNIV_INLINE
-void buf_LRU_remove_block(buf_page_t *bpage) {
+static inline void buf_LRU_remove_block(buf_page_t *bpage) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -1636,8 +1650,7 @@ void buf_LRU_remove_block(buf_page_t *bpage) {
   /* If the LRU list is so short that LRU_old is not defined,
   clear the "old" flags and return */
   if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
-    for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU); bpage != nullptr;
-         bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+    for (auto bpage : buf_pool->LRU) {
       /* This loop temporarily violates the
       assertions of buf_page_set_old(). */
       bpage->old = FALSE;
@@ -1689,8 +1702,7 @@ page_size from the buffer page when adding a block into LRU
                         else put to the start; if the LRU list is very short,
                         the block is added to the start, regardless of this
                         parameter */
-UNIV_INLINE
-void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
+static inline void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -1832,7 +1844,7 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
 
   mutex_exit(block_mutex);
   DBUG_EXECUTE_IF("buf_lru_free_page_delay_block_mutex_reacquisition",
-                  os_thread_sleep(100););
+                  std::this_thread::sleep_for(std::chrono::microseconds(100)););
 
   rw_lock_x_lock(hash_lock);
   mutex_enter(block_mutex);
@@ -2095,6 +2107,7 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block) {
     mutex_enter(&buf_pool->free_list_mutex);
     UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
     ut_d(block->page.in_free_list = TRUE);
+    ut_ad(!block->page.someone_has_io_responsibility());
     mutex_exit(&buf_pool->free_list_mutex);
   }
 }
@@ -2498,30 +2511,22 @@ func_exit:
 /** Validates the LRU list for one buffer pool instance.
 @param[in]	buf_pool	buffer pool instance */
 static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
-  ulint old_len;
-  ulint new_len;
-
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
     ut_a(buf_pool->LRU_old);
-    old_len = buf_pool->LRU_old_len;
 
-    new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU) * buf_pool->LRU_old_ratio /
-                         BUF_LRU_OLD_RATIO_DIV,
-                     UT_LIST_GET_LEN(buf_pool->LRU) -
-                         (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+    const size_t new_len = calculate_desired_LRU_old_size(buf_pool);
 
-    ut_a(old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
-    ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
+    ut_a(buf_pool->LRU_old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
+    ut_a(buf_pool->LRU_old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
   }
 
   CheckInLRUList::validate(buf_pool);
 
-  old_len = 0;
+  ulint old_len = 0;
 
-  for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU); bpage != nullptr;
-       bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+  for (auto bpage : buf_pool->LRU) {
     switch (buf_page_get_state(bpage)) {
       case BUF_BLOCK_POOL_WATCH:
       case BUF_BLOCK_NOT_USED:
@@ -2560,8 +2565,7 @@ static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
 
   CheckInFreeList::validate(buf_pool);
 
-  for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->free); bpage != nullptr;
-       bpage = UT_LIST_GET_NEXT(list, bpage)) {
+  for (auto bpage : buf_pool->free) {
     ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
   }
 
@@ -2571,8 +2575,7 @@ static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
 
   CheckUnzipLRUAndLRUList::validate(buf_pool);
 
-  for (buf_block_t *block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
-       block != nullptr; block = UT_LIST_GET_NEXT(unzip_LRU, block)) {
+  for (auto block : buf_pool->unzip_LRU) {
     ut_ad(block->in_unzip_LRU_list);
     ut_ad(block->page.in_LRU_list);
     ut_a(buf_page_belongs_to_unzip_LRU(&block->page));
@@ -2599,8 +2602,7 @@ Space_References buf_LRU_count_space_references() {
 
     mutex_enter(&buf_pool->LRU_list_mutex);
 
-    for (const buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-         bpage != nullptr; bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+    for (auto bpage : buf_pool->LRU) {
       /* We have the LRU mutex, it is safe to assume the space ID will not be
       changed, as it would require removal from the LRU first. */
       result[bpage->get_space()]++;
@@ -2631,8 +2633,7 @@ Space_References buf_LRU_count_space_references() {
 static void buf_LRU_print_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
-  for (const buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-       bpage != nullptr; bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
+  for (auto bpage : buf_pool->LRU) {
     mutex_enter(buf_page_get_mutex(bpage));
 
     fprintf(stderr, "BLOCK space " UINT32PF " page " UINT32PF " ",

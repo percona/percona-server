@@ -18,14 +18,18 @@ CREATE TABLESPACE s_zip ADD DATAFILE 's_zip.ibd' FILE_BLOCK_SIZE=2k;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
 innodb_system	System	DEFAULT	0	0	0	Any	ibdata1
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_def	General	DEFAULT	0	1	1	Any	s_def.ibd
 s_zip	General	DEFAULT	2048	1	1	Compressed	s_zip.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 s_zip	TABLESPACE	InnoDB	NORMAL	s_zip	MYSQLD_DATADIR/s_zip.ibd
@@ -35,7 +39,9 @@ s_zip	TABLESPACE	InnoDB	NORMAL	s_zip	MYSQLD_DATADIR/s_zip.ibd
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=s_def ROW_FORMAT=redundant ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	128	8	Redundant	0	General
 test/fts_aux_index_2	s_def	128	8	Redundant	0	General
@@ -65,7 +71,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	128	8	Redundant	0	General
 test/fts_aux_index_2	s_def	128	8	Redundant	0	General
@@ -99,7 +107,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=s_def ROW_FORMAT=compact ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -129,7 +139,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -163,7 +175,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=s_def ROW_FORMAT=dynamic ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -193,7 +207,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -227,7 +243,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=s_zip ROW_FORMAT=compressed KEY_BLOCK_SIZE=2;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_zip	165	8	Compressed	2048	General
 test/fts_aux_index_2	s_zip	165	8	Compressed	2048	General
@@ -257,7 +275,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_zip	165	8	Compressed	2048	General
 test/fts_aux_index_2	s_zip	165	8	Compressed	2048	General
@@ -291,7 +311,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=innodb_file_per_table ROW_FORMAT=dynamic ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -321,7 +343,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -355,7 +379,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=innodb_file_per_table ROW_FORMAT=compressed KEY_BLOCK_SIZE=2;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	37	8	Compressed	2048	Single
 test/fts_aux_index_2	test/fts_aux_index_2	37	8	Compressed	2048	Single
@@ -385,7 +411,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	37	8	Compressed	2048	Single
 test/fts_aux_index_2	test/fts_aux_index_2	37	8	Compressed	2048	Single
@@ -419,7 +447,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=innodb_system ROW_FORMAT=redundant ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	128	8	Redundant	0	System
 test/fts_aux_index_2	innodb_system	128	8	Redundant	0	System
@@ -449,7 +479,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	128	8	Redundant	0	System
 test/fts_aux_index_2	innodb_system	128	8	Redundant	0	System
@@ -483,7 +515,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=innodb_system ROW_FORMAT=compact ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	129	8	Compact	0	System
 test/fts_aux_index_2	innodb_system	129	8	Compact	0	System
@@ -513,7 +547,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	129	8	Compact	0	System
 test/fts_aux_index_2	innodb_system	129	8	Compact	0	System
@@ -547,7 +583,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) TABLESPACE=innodb_system ROW_FORMAT=dynamic ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	161	8	Dynamic	0	System
 test/fts_aux_index_2	innodb_system	161	8	Dynamic	0	System
@@ -577,7 +615,9 @@ Optimizing MySQL	In this tutorial we will show
 TRUNCATE TABLE t1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	161	8	Dynamic	0	System
 test/fts_aux_index_2	innodb_system	161	8	Dynamic	0	System
@@ -611,7 +651,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -633,7 +675,9 @@ SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	innodb_system	33	8	Dynamic	0	System
 test/fts_aux_index_2	innodb_system	33	8	Dynamic	0	System
@@ -656,7 +700,9 @@ ERROR HY000: Cannot create FULLTEXT index on temporary InnoDB table
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) DATA DIRECTORY 'REMOTE_DIR';
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	97	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	97	8	Dynamic	0	Single
@@ -716,7 +762,9 @@ title VARCHAR(200)
 ) ENGINE=InnoDB;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/t1	test/t1	33	5	Dynamic	0	Single
 ALTER TABLE t1 ADD FULLTEXT INDEX (title), TABLESPACE=s_def;
@@ -724,7 +772,9 @@ Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
 test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
@@ -742,7 +792,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT fts_idx(a,b), c INT PRIMARY KEY) TABLESPACE=s_def ROW_FORMAT=compact;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -772,7 +824,9 @@ c
 ALTER  TABLE t1 ADD UNIQUE INDEX idx1(b(20)), ALGORITHM=INPLACE;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -795,7 +849,9 @@ c
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -817,7 +873,9 @@ pk
 # Before drop FTS index
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -835,7 +893,9 @@ test/t1	s_def	129	8	Compact	0	General
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	s_def	129	8	Compact	0	General
 test/fts_aux_index_2	s_def	129	8	Compact	0	General
@@ -859,7 +919,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT fts_idx(a,b), c INT PRIMARY KEY) ;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -889,7 +951,9 @@ c
 ALTER  TABLE t1 ADD UNIQUE INDEX idx1(b(20)), ALGORITHM=INPLACE;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -912,7 +976,9 @@ c
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -934,7 +1000,9 @@ pk
 # Before drop FTS index
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
@@ -952,7 +1020,9 @@ test/t1	test/t1	33	8	Dynamic	0	Single
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Single
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
+mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
 test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
 test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single

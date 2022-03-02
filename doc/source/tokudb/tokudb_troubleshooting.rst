@@ -4,6 +4,18 @@
 TokuDB Troubleshooting
 ======================
 
+.. Important:: 
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+
 .. contents::
    :local:
    :depth: 1
@@ -190,7 +202,7 @@ bit ``0`` set (decimal ``1``).
 
 Suppose that we create a table with a single column that is the primary key.
 
-.. code-block:: guess
+.. code-block:: mysql
 
  mysql> SHOW CREATE TABLE table;
 
@@ -212,7 +224,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       Query OK, 3 rows affected (0.00 sec)
       Records: 3  Duplicates: 0  Warnings: 0
@@ -223,7 +235,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -239,7 +251,7 @@ that are held by the transaction.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       Empty set (0.00 sec)
 
@@ -255,13 +267,13 @@ The insert gets blocked since there is a conflict on the primary key with value 
 
 The granted |TokuDB| locks are:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |
@@ -275,7 +287,7 @@ The granted |TokuDB| locks are:
 
 The locks that are pending due to a conflict are:
 
-.. code-block:: guess
+.. code-block:: mysql
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
@@ -297,7 +309,7 @@ Eventually, the lock for client 2 times out, and we can retrieve a JSON document
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +---------------------------------------------------------------------------------------------------------------+
       | @@tokudb_last_lock_timeout                                                                                    |
@@ -317,7 +329,7 @@ Since transaction 62 was rolled back, all of the locks taken by it are released.
 
 .. admonition:: Output
 
-   .. code-block:: guess
+   .. code-block:: mysql
 
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
       | locks_trx_id | locks_mysql_thread_id | locks_dname   | locks_key_left | locks_key_right | locks_table_schema | locks_table_name | locks_table_dictionary_name |

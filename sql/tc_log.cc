@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -123,8 +123,8 @@ int TC_LOG_MMAP::open(const char *opt_name) {
   bool crashed = false;
   PAGE *pg;
 
-  DBUG_ASSERT(total_ha_2pc > 1);
-  DBUG_ASSERT(opt_name && opt_name[0]);
+  assert(total_ha_2pc > 1);
+  assert(opt_name && opt_name[0]);
 
   tc_log_page_size = my_getpagesize();
 
@@ -160,7 +160,7 @@ int TC_LOG_MMAP::open(const char *opt_name) {
   inited = 2;
 
   npages = (uint)file_length / tc_log_page_size;
-  DBUG_ASSERT(npages >= 3);  // to guarantee non-empty pool
+  assert(npages >= 3);  // to guarantee non-empty pool
   if (!(pages = (PAGE *)my_malloc(key_memory_TC_LOG_MMAP_pages,
                                   npages * sizeof(PAGE),
                                   MYF(MY_WME | MY_ZEROFILL))))
@@ -387,7 +387,7 @@ ulong TC_LOG_MMAP::log_xid(my_xid xid) {
       goto done;  // we're done
     }
   }  // page was not synced! do it now
-  DBUG_ASSERT(active == p && syncing == nullptr);
+  assert(active == p && syncing == nullptr);
   syncing = p;                         // place is vacant - take it
   active = nullptr;                    // page is not active anymore
   mysql_cond_broadcast(&COND_active);  // in case somebody's waiting
@@ -414,7 +414,7 @@ bool TC_LOG_MMAP::sync() {
                                syncing->size * sizeof(my_xid), MS_SYNC);
 
   mysql_mutex_lock(&LOCK_tc);
-  DBUG_ASSERT(syncing != active);
+  assert(syncing != active);
 
   /* Page is synced. Let's move it to the pool. */
   *pool_last_ptr = syncing;
@@ -443,13 +443,13 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid MY_ATTRIBUTE((unused))) {
   PAGE *p = pages + (cookie / tc_log_page_size);
   my_xid *x = (my_xid *)(data + cookie);
 
-  DBUG_ASSERT(*x == xid);
-  DBUG_ASSERT(x >= p->start && x < p->end);
+  assert(*x == xid);
+  assert(x >= p->start && x < p->end);
 
   mysql_mutex_lock(&LOCK_tc);
   *x = 0;
   p->free++;
-  DBUG_ASSERT(p->free <= p->size);
+  assert(p->free <= p->size);
   p->ptr = std::min(p->ptr, x);
   if (p->free == p->size)  // the page is completely empty
     tc_log_cur_pages_used--;

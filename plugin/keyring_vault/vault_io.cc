@@ -86,7 +86,7 @@ bool Vault_io::get_serialized_object(ISerialized_object **serialized_object) {
 }
 
 void Vault_io::set_curl_timeout(uint timeout) noexcept {
-  DBUG_ASSERT(vault_curl != nullptr);
+  assert(vault_curl != nullptr);
   vault_curl->set_timeout(timeout);
 }
 
@@ -133,7 +133,7 @@ bool Vault_io::delete_key(const Vault_key &key) {
 }
 
 bool Vault_io::flush_to_storage(ISerialized_object *serialized_object) {
-  DBUG_ASSERT(serialized_object->has_next_key());
+  assert(serialized_object->has_next_key());
   IKey *vault_key_raw = nullptr;
 
   if (serialized_object->get_next_key(&vault_key_raw) ||

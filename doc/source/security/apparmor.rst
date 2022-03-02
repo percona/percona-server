@@ -33,7 +33,6 @@ Install the ``apparmor-utils`` package to work with profiles. Use these utilitie
             python3-apparmor python3-libapparmor
         ...
 
-
 Check the Current Status
 -----------------------------
 
@@ -167,7 +166,7 @@ AppArmor provides security and disabling the system is not recommened. If AppArm
         $ sudo systemctl stop apparmor
         $ sudo systemctl disable apparmor
 
-.. _modify-mysqld
+.. _modify-mysqld:
 
 Add the mysqld profile
 ---------------------------------

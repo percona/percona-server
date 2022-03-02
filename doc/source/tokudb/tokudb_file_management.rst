@@ -4,6 +4,18 @@
 TokuDB file management
 ======================
 
+.. Important:: 
+
+   The TokuDB Storage Engine was `declared as deprecated <https://www.percona.com/doc/percona-server/8.0/release-notes/Percona-Server-8.0.13-3.html>`__ in Percona Server for MySQL 8.0. For more information, see the Percona blog post: `Heads-Up: TokuDB Support Changes and Future Removal from Percona Server for MySQL 8.0 <https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0/>`__.
+    
+   Starting with Percona Server for MySQL :ref:`8.0.26-16`, the binary builds and packages include but disable the TokuDB storage engine plugins. The ``tokudb_enabled`` option and the ``tokudb_backup_enabled`` option control the state of the plugins and have a default setting of ``FALSE``. The result of attempting to load the plugins are the plugins fail to initialize and print a deprecation message.
+
+   To enable the plugins to migrate to another storage engine, set the ``tokudb_enabled`` and ``tokudb_backup_enabled`` options to ``TRUE`` in your ``my.cnf`` file and restart your server instance. Then, you can load the plugins.
+
+   We recommend :ref:`migrate-myrocks`.
+      
+   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+
 As mentioned in the :ref:`tokudb_files_and_file_types` |Percona FT| is
 extremely pedantic about validating its data set. If a file goes missing or
 can't be accessed, or seems to contain some nonsensical data, it will

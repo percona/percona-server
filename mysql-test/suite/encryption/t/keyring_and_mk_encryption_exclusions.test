@@ -368,6 +368,7 @@ EOF
 --source include/search_pattern_in_file.inc
 
 --remove_file $BOOT_LOG
+--exec rm $MYSQLD_DATADIR1/*
 
 --echo # It should not be possible to bootstrap server with encryption threads turned ON and
 --echo # innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING as this option does not make sense.
@@ -382,6 +383,9 @@ EOF
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$BOOT_LOG
 --source include/search_pattern_in_file.inc
+
+--remove_file $BOOT_LOG
+--exec rm $MYSQLD_DATADIR1/*
 
 --let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON --default-table-encryption=OFF $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $BOOT_LOG 2>&1
 

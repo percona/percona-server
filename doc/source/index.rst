@@ -51,11 +51,15 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/adaptive_network_buffers
    performance/aio_page_requests
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
    performance/prefix_index_queries_optimization
    performance/query_limit_records
+   performance/jemalloc-profiling
+   performance/procfs-plugin
+
 
 Flexibility Improvements
 ================================================================================
@@ -119,6 +123,7 @@ Security Improvements
   security/apparmor
   security/data-at-rest-encryption
   security/using-keyring-plugin
+  security/using-kmip
   security/rotating-master-key
   security/encrypting-tables
   security/encrypting-tablespaces
@@ -152,6 +157,24 @@ Diagnostics Improvements
    diagnostics/stacktrace
    diagnostics/libcoredumper
 
+Percona MyRocks
+================================================================================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   MyRocks Introduction <myrocks/index>
+   MyRocks Installation <myrocks/install>
+   MyRocks Limitations <myrocks/limitations>
+   MyRocks Differences <myrocks/differences>
+   MyRocks Information Schema Tables <myrocks/information-schema-tables>
+   MyRocks Server Variables <myrocks/variables>
+   MyRocks Status Variables <myrocks/status_variables>
+   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
+   MyRocks Data Loading <myrocks/data_loading>
+   MyRocks ZenFS <myrocks/zenfs>
+   
 TokuDB
 ================================================================================
 
@@ -173,22 +196,6 @@ TokuDB
    tokudb/tokudb_performance_schema
    tokudb/tokudb_faq
    tokudb/removing_tokudb
-
-Percona MyRocks
-================================================================================
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-
-   MyRocks Introduction <myrocks/index>
-   MyRocks Installation <myrocks/install>
-   MyRocks Limitations <myrocks/limitations>
-   MyRocks Differences <myrocks/differences>
-   MyRocks Server Variables <myrocks/variables>
-   MyRocks Status Variables <myrocks/status_variables>
-   MyRocks Gap Locks Detection <myrocks/gap_locks_detection>
-   MyRocks Data Loading <myrocks/data_loading>
 
 Reference
 ================================================================================

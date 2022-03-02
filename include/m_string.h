@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 
 #include "decimal.h"
 #include "lex_string.h"
+#include "my_compiler.h"  // unlikely
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -200,6 +201,30 @@ static inline char *my_stpncpy(char *dst, const char *src, size_t n) {
 #endif
 }
 
+/**
+   Copies strlen(src) characters of source to destination.
+   If strlen(src) is equal or bigger than num then dst will be truncated.
+   The null-character is always appended at the end of destination.
+   Destination is not padded with zeros until a total of num characters.
+
+   @param dst   Destination
+   @param src   Source
+   @param n     Maximum number of characters to copy.
+
+   @return pointer to Destination is returned.
+*/
+static inline char *my_strncpy_trunc(char *dst, const char *src, size_t num) {
+  size_t len = strlen(src);
+  if (unlikely(len >= num)) {
+    len = num - 1;
+    memcpy(dst, src, len);
+    dst[len] = '\0';
+  } else {
+    memcpy(dst, src, len + 1);
+  }
+  return dst;
+}
+
 static inline longlong my_strtoll(const char *nptr, char **endptr, int base) {
 #if defined _WIN32
   return _strtoi64(nptr, endptr, base);
@@ -252,11 +277,17 @@ static inline int is_prefix(const char *s, const char *t) {
   return 1; /* WRONG */
 }
 
+/*
+   Replace the deprecated character set name "utf8" with "utf8mb3".
+ */
+static inline const char *replace_utf8_utf8mb3(const char *csname) {
+  return (native_strcasecmp(csname, "utf8") != 0) ? csname : "utf8mb3";
+}
+
 /* Conversion routines */
 typedef enum { MY_GCVT_ARG_FLOAT, MY_GCVT_ARG_DOUBLE } my_gcvt_arg_type;
 
 double my_strtod(const char *str, const char **end, int *error);
-double my_atof(const char *nptr);
 size_t my_fcvt(double x, int precision, char *to, bool *error);
 size_t my_fcvt_compact(double x, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,

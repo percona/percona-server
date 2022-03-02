@@ -3,10 +3,10 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
-call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring is not loaded.");
+call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("Redo log key generation failed.");
 
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
@@ -59,7 +59,7 @@ SELECT a,LEFT(b,10) FROM tde_db.t4;
 FLUSH LOGS;
 
 --let $restart_parameters = restart: $KEYRING_PARAMS
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/kill_and_restart_mysqld.inc
 
 SELECT

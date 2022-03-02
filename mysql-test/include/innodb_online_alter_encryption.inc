@@ -1,6 +1,6 @@
 # Restart the server with keyring loaded
 --let $restart_parameters="$keyring_restart_param"
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --source include/restart_mysqld.inc
 
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='y';

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -36,6 +37,7 @@
 #include <sys/types.h>
 #include <forward_list>
 #include <list>
+#include <memory>
 #include <string>
 
 #include "client/client_priv.h"
@@ -146,7 +148,7 @@ static char *opt_password = nullptr, *current_user = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
             *opt_ignore_error = nullptr, *log_error_file = nullptr;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static char *start_sql_file = nullptr, *finish_sql_file = nullptr;
 #endif
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
@@ -162,8 +164,8 @@ static bool ansi_quotes_mode = false;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
-#define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
-#define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
+#define MYSQL_OPT_SOURCE_DATA_EFFECTIVE_SQL 1
+#define MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL 2
 #define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL 2
 static uint opt_enable_cleartext_plugin = 0;
@@ -264,9 +266,14 @@ static struct my_option my_long_options[] = {
     {"allow-keywords", OPT_KEYWORDS,
      "Allow creation of column names that are keywords.", &opt_keywords,
      &opt_keywords, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"apply-slave-statements", OPT_MYSQLDUMP_SLAVE_APPLY,
+    {"apply-replica-statements", OPT_MYSQLDUMP_REPLICA_APPLY,
      "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom "
      "of dump.",
+     &opt_slave_apply, &opt_slave_apply, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"apply-slave-statements", OPT_MYSQLDUMP_SLAVE_APPLY_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use apply-replica-statements instead.",
      &opt_slave_apply, &opt_slave_apply, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
@@ -311,7 +318,7 @@ static struct my_option my_long_options[] = {
      "'USE db_name;' will be included in the output.",
      &opt_databases, &opt_databases, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -335,9 +342,15 @@ static struct my_option my_long_options[] = {
     {"default-character-set", OPT_DEFAULT_CHARSET,
      "Set the default character set.", &default_charset, &default_charset,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
-     "Delete logs on master after backup. This automatically enables "
-     "--master-data.",
+    {"delete-source-logs", OPT_DELETE_SOURCE_LOGS,
+     "Rotate logs before the backup, equivalent to FLUSH LOGS, and purge "
+     "all old binary logs after the backup, equivalent to PURGE LOGS. This "
+     "automatically enables --source-data.",
+     &opt_delete_master_logs, &opt_delete_master_logs, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"delete-master-logs", OPT_DELETE_MASTER_LOGS_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use delete-source-logs instead.",
      &opt_delete_master_logs, &opt_delete_master_logs, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"disable-keys", 'K',
@@ -345,8 +358,8 @@ static struct my_option my_long_options[] = {
      "TABLE tb_name ENABLE KEYS */; will be put in the output.",
      &opt_disable_keys, &opt_disable_keys, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
-    {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA,
-     "This causes the binary log position and filename of the master to be "
+    {"dump-replica", OPT_MYSQLDUMP_REPLICA_DATA,
+     "This causes the binary log position and filename of the source to be "
      "appended to the dumped data output. Setting the value to 1, will print"
      "it as a CHANGE MASTER command in the dumped data output; if equal"
      " to 2, that command will be prefixed with a comment symbol. "
@@ -368,6 +381,11 @@ static struct my_option my_long_options[] = {
      &opt_compressed_columns_with_dictionaries,
      &opt_compressed_columns_with_dictionaries, nullptr, GET_BOOL, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr},
+    {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use dump-replica instead.",
+     &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
+     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
     {"events", 'E', "Dump events.", &opt_events, &opt_events, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"extended-insert", 'e',
@@ -395,11 +413,11 @@ static struct my_option my_long_options[] = {
      "Note that if you dump many databases at once (using the option "
      "--databases= or --all-databases), the logs will be flushed for "
      "each database dumped. The exception is when using --lock-all-tables "
-     "or --master-data: "
+     "or --source-data: "
      "in this case the logs will be flushed only once, corresponding "
      "to the moment all tables are locked. So if you want your dump and "
      "the log flush to happen at the same exact moment you should use "
-     "--lock-all-tables or --master-data with --flush-logs.",
+     "--lock-all-tables or --source-data with --flush-logs.",
      &flush_logs, &flush_logs, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"flush-privileges", OPT_ESC,
@@ -433,9 +451,15 @@ static struct my_option my_long_options[] = {
      "--ignore-table=database.table.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"include-master-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
+    {"include-source-host-port", OPT_MYSQLDUMP_INCLUDE_SOURCE_HOST_PORT,
      "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' "
-     "in dump produced with --dump-slave.",
+     "in dump produced with --dump-replica.",
+     &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"include-master-host-port",
+     OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use include-source-host-port instead.",
      &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"innodb-optimize-keys", OPT_INNODB_OPTIMIZE_KEYS,
@@ -469,7 +493,7 @@ static struct my_option my_long_options[] = {
      "Append warnings and errors to given file.", &log_error_file,
      &log_error_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"master-data", OPT_MASTER_DATA,
+    {"source-data", OPT_SOURCE_DATA,
      "This causes the binary log position and filename to be appended to the "
      "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
      " to 2, that command will be prefixed with a comment symbol. "
@@ -482,7 +506,12 @@ static struct my_option my_long_options[] = {
      "any action on logs will happen at the exact moment of the dump. "
      "Option automatically turns --lock-tables off.",
      &opt_master_data, &opt_master_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+     MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+    {"master-data", OPT_MASTER_DATA_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use source-data instead.",
+     &opt_master_data, &opt_master_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
+     MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
     {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
      "The maximum packet length to send to or receive from server.",
      &opt_max_allowed_packet, &opt_max_allowed_packet, nullptr, GET_ULONG,
@@ -607,7 +636,7 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"start-sql-file", OPT_START_SQL_FILE,
      "Execute SQL statements from the file at the mysqldump start. "
      "Each line has to contain one statement terminated with a semicolon. "
@@ -924,8 +953,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -986,13 +1015,30 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case '?':
       usage();
       exit(0);
-    case (int)OPT_MASTER_DATA:
+    case (int)OPT_MASTER_DATA_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--master-data", "--source-data");
+      // FALLTHROUGH
+    case (int)OPT_SOURCE_DATA:
       if (!argument) /* work like in old versions */
-        opt_master_data = MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL;
+        opt_master_data = MYSQL_OPT_SOURCE_DATA_EFFECTIVE_SQL;
       break;
-    case (int)OPT_MYSQLDUMP_SLAVE_DATA:
+    case (int)OPT_MYSQLDUMP_SLAVE_APPLY_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--apply-slave-statements",
+                             "--apply-replica-statements");
+      break;
+    case (int)OPT_DELETE_MASTER_LOGS_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--delete-master-logs", "--delete-source-logs");
+      break;
+    case (int)OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--dump-slave", "--dump-replica");
+      // FALLTHROUGH
+    case (int)OPT_MYSQLDUMP_REPLICA_DATA:
       if (!argument) /* work like in old versions */
         opt_slave_data = MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL;
+      break;
+    case (int)OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--include-master-host-port",
+                             "--include-source-host-port");
       break;
     case (int)OPT_OPTIMIZE:
       extended_insert = opt_drop = opt_lock = quick = create_options =
@@ -1135,7 +1181,7 @@ static int get_options(int *argc, char ***argv) {
 
   /* Ensure consistency of the set of binlog & locking options */
   if (opt_delete_master_logs && !opt_master_data)
-    opt_master_data = MYSQL_OPT_MASTER_DATA_COMMENTED_SQL;
+    opt_master_data = MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL;
   if (opt_single_transaction && opt_lock_all_tables) {
     fprintf(stderr,
             "%s: You can't use --single-transaction and "
@@ -1161,7 +1207,8 @@ static int get_options(int *argc, char ***argv) {
             my_progname);
     return (EX_USAGE);
   }
-  if (strcmp(default_charset, charset_info->csname) &&
+  if (0 != strcmp(replace_utf8_utf8mb3(default_charset),
+                  replace_utf8_utf8mb3(charset_info->csname)) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
@@ -1393,8 +1440,8 @@ static int switch_db_collation(FILE *sql_file, const char *db_name,
     if (!db_cl) return 1;
 
     fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-            (const char *)quoted_db_name, (const char *)db_cl->csname,
-            (const char *)db_cl->name, (const char *)delimiter);
+            quoted_db_name, replace_utf8_utf8mb3(db_cl->csname), db_cl->name,
+            delimiter);
 
     *db_cl_altered = 1;
 
@@ -1416,8 +1463,8 @@ static int restore_db_collation(FILE *sql_file, const char *db_name,
   if (!db_cl) return 1;
 
   fprintf(sql_file, "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
-          (const char *)quoted_db_name, (const char *)db_cl->csname,
-          (const char *)db_cl->name, (const char *)delimiter);
+          quoted_db_name, replace_utf8_utf8mb3(db_cl->csname), db_cl->name,
+          delimiter);
 
   return 0;
 }
@@ -1564,14 +1611,17 @@ static char *cover_definer_clause(char *stmt_str, size_t stmt_length,
   */
   query_str = alloc_query_str(stmt_length + 23);
 
+  constexpr const char comment_str[] = "*/ /*!";
+
   query_ptr = my_stpncpy(query_str, stmt_str, definer_begin - stmt_str);
-  query_ptr = my_stpncpy(query_ptr, STRING_WITH_LEN("*/ /*!"));
+  query_ptr = my_stpncpy(query_ptr, comment_str, sizeof(comment_str));
   query_ptr =
       my_stpncpy(query_ptr, definer_version_str, definer_version_length);
   query_ptr = my_stpncpy(query_ptr, definer_begin, definer_end - definer_begin);
-  query_ptr = my_stpncpy(query_ptr, STRING_WITH_LEN("*/ /*!"));
+  query_ptr = my_stpncpy(query_ptr, comment_str, sizeof(comment_str));
   query_ptr = my_stpncpy(query_ptr, stmt_version_str, stmt_version_length);
   query_ptr = strxmov(query_ptr, definer_end, NullS);
+  assert(query_ptr <= query_str + stmt_length + 23);
 
   return query_str;
 }
@@ -1912,7 +1962,7 @@ static const char *unquote_name(const char *opt_quoted_name,
   const char qtype = ansi_quotes_mode ? '\"' : '`';
 
   if (*opt_quoted_name != qtype) {
-    DBUG_ASSERT(strchr(opt_quoted_name, qtype) == 0);
+    assert(strchr(opt_quoted_name, qtype) == 0);
     return (const char *)opt_quoted_name;
   }
 
@@ -1924,7 +1974,7 @@ static const char *unquote_name(const char *opt_quoted_name,
       if (*opt_quoted_name == qtype)
         *to++ = qtype;
       else {
-        DBUG_ASSERT(*opt_quoted_name == '\0');
+        assert(*opt_quoted_name == '\0');
       }
     } else {
       *to++ = *opt_quoted_name++;
@@ -2063,7 +2113,7 @@ static void print_xml_tag(FILE *xml_file, const char *sbeg,
   attribute_name = first_attribute_name;
   while (attribute_name != NullS) {
     attribute_value = va_arg(arg_list, char *);
-    DBUG_ASSERT(attribute_value != NullS);
+    assert(attribute_value != NullS);
 
     fputc(' ', xml_file);
     fputs(attribute_name, xml_file);
@@ -2782,7 +2832,7 @@ static bool contains_autoinc_column(const char *autoinc_column,
                                     ssize_t autoinc_column_len,
                                     const char *keydef,
                                     key_type_t type) noexcept {
-  DBUG_ASSERT(type != key_type_t::NONE);
+  assert(type != key_type_t::NONE);
 
   if (autoinc_column == nullptr) return false;
 
@@ -2933,7 +2983,7 @@ static void skip_secondary_keys(const char *table, char *create_str,
         that column anymore.
       */
       if (type != key_type_t::NONE && has_autoinc) {
-        DBUG_ASSERT(autoinc_column != NULL);
+        assert(autoinc_column != NULL);
 
         my_free(autoinc_column);
         autoinc_column = NULL;
@@ -2957,7 +3007,7 @@ static void skip_secondary_keys(const char *table, char *create_str,
           /* empty */;
 
         if (*end == '`' && end > ptr + 1) {
-          DBUG_ASSERT(autoinc_column == NULL);
+          assert(autoinc_column == NULL);
 
           autoinc_column_len = end - ptr - 1;
           autoinc_column = my_strndup(PSI_NOT_INSTRUMENTED, ptr + 1,
@@ -3011,7 +3061,7 @@ static void skip_compressed_columns(char *create_str,
   char *prefix_ptr = strstr(ptr, prefix);
   while (prefix_ptr != nullptr) {
     char *const suffix_ptr = strstr(prefix_ptr + prefix_length, suffix);
-    DBUG_ASSERT(suffix_ptr != nullptr);
+    assert(suffix_ptr != nullptr);
     if (!opt_compressed_columns_with_dictionaries) {
       if (!opt_compressed_columns) {
         /* Strip out all compressed columns extensions. */
@@ -3031,7 +3081,7 @@ static void skip_compressed_columns(char *create_str,
       if (dictionaries != nullptr && prefix_ptr + prefix_length != suffix_ptr) {
         const char *dictionary_keyword_ptr =
             strstr(prefix_ptr + prefix_length, dictionary_keyword);
-        DBUG_ASSERT(dictionary_keyword_ptr < suffix_ptr);
+        assert(dictionary_keyword_ptr < suffix_ptr);
         const auto dictionary_name_length =
             suffix_ptr - (dictionary_keyword_ptr + dictionary_keyword_length);
 
@@ -3136,7 +3186,7 @@ static void print_optional_create_compression_dictionary(
       DBUG_VOID_RETURN;
     }
     const ulong *const lengths = mysql_fetch_lengths(result);
-    DBUG_ASSERT(lengths != nullptr);
+    assert(lengths != nullptr);
 
     char quoted_buff[NAME_LEN * 2 + 3];
     const char *quoted_dictionary_name =
@@ -4303,7 +4353,7 @@ static void dump_skipped_keys(const char *table) {
 
       skipped_keys_list.pop_front();
     }
-    DBUG_ASSERT(skipped_keys_list.empty());
+    assert(skipped_keys_list.empty());
   }
 
   if (!alter_constraints_list.empty()) {
@@ -4319,7 +4369,7 @@ static void dump_skipped_keys(const char *table) {
 
       alter_constraints_list.pop_front();
     }
-    DBUG_ASSERT(alter_constraints_list.empty());
+    assert(alter_constraints_list.empty());
   }
 }
 
@@ -4632,10 +4682,9 @@ static void dump_table(char *table, char *db) {
                   dynstr_append_checked(&extended_row, "0x");
                   extended_row.length += mysql_hex_string(
                       extended_row.str + extended_row.length, row[i], length);
-                  DBUG_ASSERT(extended_row.length + 1 <=
-                              extended_row.max_length);
+                  assert(extended_row.length + 1 <= extended_row.max_length);
                   /* mysql_hex_string() already terminated string by '\0' */
-                  DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
+                  assert(extended_row.str[extended_row.length] == '\0');
                 } else {
                   dynstr_realloc_checked(
                       &extended_row,
@@ -5137,7 +5186,7 @@ static int dump_all_databases() {
       db_cnt++;
     }
   }
-  DBUG_ASSERT(mysql_db_found);
+  assert(mysql_db_found);
   memset(database_list, 0, sizeof(*database_list));
   my_free(database_list);
   mysql_free_result(tableres);
@@ -5523,7 +5572,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   DBUG_TRACE;
 
   /* Check memory for quote_for_like() */
-  DBUG_ASSERT(2 * sizeof(old_table_name) < sizeof(show_name_buff));
+  assert(2 * sizeof(old_table_name) < sizeof(show_name_buff));
   snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
            quote_for_like(old_table_name, show_name_buff));
 
@@ -5689,19 +5738,22 @@ static int do_show_master_status(MYSQL *mysql_con,
   char binlog_pos_file[FN_REFLEN];
   char binlog_pos_offset[LONGLONG_LEN + 1];
   char *file, *offset;
+  std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> master(
+      nullptr, mysql_free_result);
+
   if (consistent_binlog_pos) {
     if (!check_consistent_binlog_pos(binlog_pos_file, binlog_pos_offset))
       return true;
     file = binlog_pos_file;
     offset = binlog_pos_offset;
   } else {
-    MYSQL_RES *master;
-    if (mysql_query_with_error_report(mysql_con, &master,
+    MYSQL_RES *master_ptr;
+    if (mysql_query_with_error_report(mysql_con, &master_ptr,
                                       "SHOW MASTER STATUS")) {
       return 1;
     }
-    MYSQL_ROW row = mysql_fetch_row(master);
-    mysql_free_result(master);
+    master.reset(master_ptr);
+    MYSQL_ROW row = mysql_fetch_row(master.get());
     if (row && row[0] && row[1]) {
       file = row[0];
       offset = row[1];
@@ -5718,7 +5770,7 @@ static int do_show_master_status(MYSQL *mysql_con,
   }
 
   const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_MASTER_DATA_COMMENTED_SQL) ? "-- " : "";
+      (opt_master_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
 
   /* SHOW MASTER STATUS reports file and position */
   print_comment(md_result_file, 0,
@@ -5781,7 +5833,7 @@ static int do_show_slave_status(MYSQL *mysql_con) {
   if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS")) {
     if (!opt_force) {
       /* SHOW SLAVE STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Slave not set up", MYF(0));
+      my_printf_error(0, "Error: Replication not configured", MYF(0));
     }
     mysql_free_result(slave);
     return 1;
@@ -5799,7 +5851,7 @@ static int do_show_slave_status(MYSQL *mysql_con) {
         if (opt_comments)
           fprintf(md_result_file,
                   "\n--\n-- Position to start replication or point-in-time "
-                  "recovery from (the master of this slave)\n--\n\n");
+                  "recovery from (the source for this replica)\n--\n\n");
 
         fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
 
@@ -5846,7 +5898,7 @@ static int do_start_slave_sql(MYSQL *mysql_con) {
 
   /* now, start slave if stopped */
   if (mysql_query_with_error_report(mysql_con, nullptr, "START SLAVE")) {
-    my_printf_error(0, "Error: Unable to start slave", MYF(0));
+    my_printf_error(0, "Error: Unable to start replication", MYF(0));
     return 1;
   }
   return (0);
@@ -5923,7 +5975,7 @@ static int purge_bin_logs_to(MYSQL *mysql_con, char *log_name) {
 static int start_transaction(MYSQL *mysql_con) {
   verbose_msg("-- Starting transaction...\n");
   /*
-    We use BEGIN for old servers. --single-transaction --master-data will fail
+    We use BEGIN for old servers. --single-transaction --source-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
     do a consistent read, so better tell people frankly, with the error).
 
@@ -5934,7 +5986,7 @@ static int start_transaction(MYSQL *mysql_con) {
   if ((mysql_get_server_version(mysql_con) < 40100) && opt_master_data) {
     fprintf(stderr,
             "-- %s: the combination of --single-transaction and "
-            "--master-data requires a MySQL server version of at least 4.1 "
+            "--source-data requires a MySQL server version of at least 4.1 "
             "(current server's version is %s). %s\n",
             opt_force ? "Warning" : "Error",
             mysql_con->server_version ? mysql_con->server_version : "unknown",
@@ -6009,7 +6061,7 @@ char check_if_ignore_table(const char *table_name, char *table_type) {
   DBUG_TRACE;
 
   /* Check memory for quote_for_like() */
-  DBUG_ASSERT(2 * sizeof(table_name) < sizeof(show_name_buff));
+  assert(2 * sizeof(table_name) < sizeof(show_name_buff));
   snprintf(buff, sizeof(buff), "show table status like %s",
            quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(mysql, &res, buff)) {
@@ -6681,7 +6733,7 @@ static bool server_supports_backup_locks(void) noexcept {
   @retval  1 failure
            0 success
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SQL_STATEMENT_MAX_LEN 1024  // 1023 chars for statement + trailing 0
 static int execute_sql_file(const char *sql_file) {
   static const char *win_eol = "\r\n";
@@ -6734,7 +6786,7 @@ static int execute_sql_file(const char *sql_file) {
   fclose(file);
   return 0;
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 int main(int argc, char **argv) {
   char bin_log_name[FN_REFLEN];
@@ -6769,7 +6821,7 @@ int main(int argc, char **argv) {
     exit(EX_MYSQLERR);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (execute_sql_file(start_sql_file)) goto err;
 #endif
 
@@ -6927,7 +6979,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  /* if --dump-slave , start the slave sql thread */
+  /* if --dump-replica , start the slave sql thread */
   if (opt_slave_data && do_start_slave_sql(mysql)) goto err;
 
   /*
@@ -6968,7 +7020,7 @@ int main(int argc, char **argv) {
     server.
   */
 err:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   execute_sql_file(finish_sql_file);
 #endif
 

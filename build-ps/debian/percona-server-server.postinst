@@ -117,7 +117,8 @@ case "$1" in
 			fi
 		fi
 		if [ "${CNF_ACTION}" = "Use NEW my.cnf" ]; then
-			update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+			update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
+			update-alternatives --set my.cnf /etc/mysql/mysql.cnf
 		fi
 
 		PROFILE_ACTION="Use NEW AppArmor profile"

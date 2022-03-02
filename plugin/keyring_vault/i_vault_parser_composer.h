@@ -32,11 +32,11 @@ class IVault_parser_composer {
     Secure_string key_id;
     Secure_string user_id;
     Secure_string &operator[](std::size_t i) {
-      DBUG_ASSERT(i <= 1);
+      assert(i <= 1);
       return i == 0 ? key_id : user_id;
     }
     const Secure_string &operator[](std::size_t i) const {
-      DBUG_ASSERT(i <= 1);
+      assert(i <= 1);
       return i == 0 ? key_id : user_id;
     }
   };

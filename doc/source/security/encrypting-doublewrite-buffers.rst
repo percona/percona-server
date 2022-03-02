@@ -27,7 +27,7 @@ A summary of Doublewrite buffer and Doublewrite buffer encryption changes:
        implementation. Percona preserved the meaning and
        functionality of the :variable:`innodb_parallel_dblwr_encrypt` variable.
    * - Percona Server from Percona-Server-8.0.23-14
-     - |MySQL| 8.0.23 implemented its own version of `parallel doublewrite encryption <https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html#innodb-doublewrite-file-encryption)>`__.
+     - |MySQL| 8.0.23 implemented its own version of `parallel doublewrite encryption <https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html#innodb-doublewrite-file-encryption>`__.
        Pages that belong to encrypted tablespaces are also written into the
        doublewrite buffer in an encrypted form. Percona's
        implementation was reverted and :variable:`innodb_parallel_dblwr_encrypt` is deprecated.

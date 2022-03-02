@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 #include "mysql/harness/stdx/expected_ostream.h"
 
 TEST(NetTS_impl_resolver, gethostname_buffer_empty) {
-  std::array<char, 1> name;
+  std::array<char, 1> name{};
   const auto res = net::impl::resolver::gethostname(name.data(), 0);
 
 #if defined(_WIN32)

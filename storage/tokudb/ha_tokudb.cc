@@ -3080,8 +3080,7 @@ int ha_tokudb::do_uniqueness_checks(uchar *record, DB_TXN *txn, THD *thd) {
   // first do uniqueness checks
   //
   if (share->has_unique_keys && do_unique_checks(thd, in_rpl_write_rows)) {
-    DBUG_EXECUTE_IF("tokudb_crash_if_rpl_does_uniqueness_check",
-                    DBUG_ASSERT(0););
+    DBUG_EXECUTE_IF("tokudb_crash_if_rpl_does_uniqueness_check", assert(0););
     for (uint keynr = 0; keynr < table_share->keys; keynr++) {
       bool is_unique_key =
           (table->key_info[keynr].flags & HA_NOSAME) || (keynr == primary_key);
@@ -3933,9 +3932,9 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
   active_index = keynr;
 
   if (active_index < MAX_KEY) {
-    DBUG_ASSERT(keynr <= table->s->keys);
+    assert(keynr <= table->s->keys);
   } else {
-    DBUG_ASSERT(active_index == MAX_KEY);
+    assert(active_index == MAX_KEY);
     keynr = primary_key;
   }
   tokudb_active_index = keynr;
@@ -3949,7 +3948,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
   last_cursor_error = 0;
   range_lock_grabbed = false;
   range_lock_grabbed_null = false;
-  DBUG_ASSERT(share->key_file[keynr]);
+  assert(share->key_file[keynr]);
   cursor_flags = get_cursor_isolation_flags(lock.type, thd);
   if (use_write_locks) {
     cursor_flags |= DB_RMW;
@@ -5163,7 +5162,7 @@ int ha_tokudb::rnd_pos(uchar *buf, uchar *pos) {
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
   // test rpl slave by inducing a delay before the point query
   if (thd->slave_thread && (in_rpl_delete_rows || in_rpl_update_rows)) {
-    DBUG_EXECUTE_IF("tokudb_crash_if_rpl_looks_up_row", DBUG_ASSERT(0););
+    DBUG_EXECUTE_IF("tokudb_crash_if_rpl_looks_up_row", assert(0););
     uint64_t delay_ms = tokudb::sysvars::rpl_lookup_rows_delay(thd);
     if (delay_ms) usleep(delay_ms * 1000);
   }
@@ -5332,8 +5331,7 @@ void ha_tokudb::position(const uchar *record) {
   TOKUDB_HANDLER_DBUG_ENTER("");
   DBT key;
   if (hidden_primary_key) {
-    DBUG_ASSERT(ref_length ==
-                (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(uint32_t)));
+    assert(ref_length == (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(uint32_t)));
     memcpy(ref + sizeof(uint32_t), current_ident,
            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
     *(uint32_t *)ref = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
@@ -6639,19 +6637,19 @@ int ha_tokudb::delete_table(const char *name,
 }
 
 static bool tokudb_check_db_dir_exist_from_table_name(const char *table_name) {
-  DBUG_ASSERT(table_name);
+  assert(table_name);
   bool mysql_dir_exists;
   char db_name[FN_REFLEN];
   const char *db_name_begin = strchr(table_name, FN_LIBCHAR);
   const char *db_name_end = strrchr(table_name, FN_LIBCHAR);
-  DBUG_ASSERT(db_name_begin);
-  DBUG_ASSERT(db_name_end);
-  DBUG_ASSERT(db_name_begin != db_name_end);
+  assert(db_name_begin);
+  assert(db_name_end);
+  assert(db_name_begin != db_name_end);
 
   ++db_name_begin;
   size_t db_name_size = db_name_end - db_name_begin;
 
-  DBUG_ASSERT(db_name_size < FN_REFLEN);
+  assert(db_name_size < FN_REFLEN);
 
   memcpy(db_name, db_name_begin, db_name_size);
   db_name[db_name_size] = '\0';
@@ -7184,7 +7182,7 @@ int ha_tokudb::tokudb_add_index(TABLE *table_arg, KEY *key_info,
     }
     indexer = NULL;
   } else {
-    DBUG_ASSERT(table->mdl_ticket->get_type() >= MDL_SHARED_NO_WRITE);
+    assert(table->mdl_ticket->get_type() >= MDL_SHARED_NO_WRITE);
     share->_num_DBs_lock.unlock();
     rw_lock_taken = false;
     prelocked_right_range_size = 0;

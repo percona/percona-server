@@ -117,7 +117,7 @@ static bool btr_scrub_lock_dict_func(space_id_t space_id,
       return false;
     }
 
-    os_thread_sleep(250000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     time_t now = time(0);
 
@@ -162,10 +162,10 @@ static void btr_scrub_table_close_for_thread(btr_scrub_t *scrub_data) {
     /* If tablespace is not marked as stopping perform
     the actual close. */
     if (!space->is_stopping()) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       /* perform the actual closing */
       btr_scrub_table_close(scrub_data->current_table);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
     // TODO:Zsolt
     // space->release();

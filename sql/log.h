@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,10 @@ struct TABLE_LIST;
     Values: ON, OFF
     Control slow query logging of queries that do not use indexes.
 
+  --log-query-errors
+    Values: ALL, comma separated list of code errors
+    Control slow query logging of queries failed with the specified error code.
+
   --log-raw
     Values: ON, OFF
     Control query rewrite of passwords to the general log.
@@ -106,7 +110,7 @@ struct TABLE_LIST;
     Values: ON, OFF
     Log statements such as OPTIMIZE TABLE, ALTER TABLE to the slow query log.
 
-  --log-slow-slave-statements
+  --log-slow-replica-statements
     Values: ON, OFF
 
   log_throttle_queries_not_using_indexes
@@ -157,8 +161,8 @@ enum enum_log_table_type {
 */
 class Log_event_handler {
  public:
-  Log_event_handler() {}
-  virtual ~Log_event_handler() {}
+  Log_event_handler() = default;
+  virtual ~Log_event_handler() = default;
 
   /**
      Log a query to the slow log.
@@ -1570,8 +1574,8 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
   flush() function must not try to log anything, as we hold an
   exclusive lock on the stack.
 
-  @retval   0   no problems
-  @retval  -1   error
+  @returns 0 if no problems occurred, otherwise the negative count
+             of the components that failed to flush
 */
 int log_builtins_error_stack_flush();
 

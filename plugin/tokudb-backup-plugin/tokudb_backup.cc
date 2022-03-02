@@ -18,7 +18,7 @@
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // check_global_access
@@ -128,6 +128,8 @@ static bool tokudb_backup_safe_slave = false;
 static ulonglong tokudb_backup_safe_slave_timeout = 0;
 static bool sql_thread_started = false;
 
+static bool tokudb_backup_enabled = false;
+
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
                         PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
                         "version of the tokudb backup plugin", nullptr, nullptr,
@@ -189,6 +191,10 @@ static MYSQL_SYSVAR_BOOL(safe_slave, tokudb_backup_safe_slave,
                          "Wait until there is no temporary slave tables.",
                          nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(enabled, tokudb_backup_enabled, 0,
+                         "enable tokudb_backup plugin", nullptr, nullptr,
+                         false);
+
 static MYSQL_SYSVAR_ULONGLONG(
     safe_slave_timeout, tokudb_backup_safe_slave_timeout, PLUGIN_VAR_OPCMDARG,
     "The maximum amount of seconds to wait for slave temp tables disappear "
@@ -206,6 +212,7 @@ static struct SYS_VAR *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(last_error),
     MYSQL_SYSVAR(last_error_string),
     MYSQL_SYSVAR(exclude),
+    MYSQL_SYSVAR(enabled),
     nullptr,
 };
 
@@ -433,7 +440,7 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd,
   if (sql_thread_started && !tokudb_backup_stop_slave_sql_thread(thd))
     return false;
 
-  while (atomic_slave_open_temp_tables.load() && n_attemts--) {
+  while (atomic_replica_open_temp_tables.load() && n_attemts--) {
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_begin");
     if (!tokudb_backup_start_slave_sql_thread(thd)) return false;
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_slave_started");
@@ -442,7 +449,7 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd,
     DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_end");
   }
 
-  if (!n_attemts && atomic_slave_open_temp_tables.load() &&
+  if (!n_attemts && atomic_replica_open_temp_tables.load() &&
       sql_thread_started &&
       !tokudb_backup_check_slave_sql_thread_running(thd) &&
       !tokudb_backup_start_slave_sql_thread(thd)) {
@@ -1278,6 +1285,22 @@ static void tokudb_backup_update_throttle(
 
 static int tokudb_backup_plugin_init(MY_ATTRIBUTE((__unused__)) void *p) {
   DBUG_ENTER(__FUNCTION__);
+
+  if (!tokudb_backup_enabled) {
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0,
+        "As of Percona Server 8.0.26-16, the TokuDB storage engine and backup "
+        "plugins have been deprecated. They will be completely removed in a "
+        "future release. If you need to continue to use them in order to "
+        "migrate to another storage engine, set the tokudb_enabled and "
+        "tokudb_backup_enabled options to TRUE in your my.cnf file and restart "
+        "your server instance. Please see this blog post for more information "
+        "https://www.percona.com/blog/2021/05/21/"
+        "tokudb-support-changes-and-future-removal-from-percona-server-for-"
+        "mysql-8-0");
+    DBUG_RETURN(true);
+  }
+
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
     DBUG_RETURN(true);
   }

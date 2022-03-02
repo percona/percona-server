@@ -68,7 +68,7 @@ let $cleanup= drop table t1;
 --let SEARCH_FILE=$error_log
 --let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ###############
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=Tablespace id 4 is encrypted\. Although server managed to find all needed versions of key_id=2 in keyring to decrypt it, the provided versions are either incorrect or corrupted\. Can't continue reading table. Please provide the correct keyring\.
+--let SEARCH_PATTERN=Tablespace id 6 is encrypted\. Although server managed to find all needed versions of key_id=2 in keyring to decrypt it, the provided versions are either incorrect or corrupted\. Can't continue reading table. Please provide the correct keyring\.
 --source include/search_pattern_in_file.inc
 
 --remove_file $error_log
@@ -77,7 +77,7 @@ let $cleanup= drop table t1;
 # thus we need to restart server with correct keyring file
 
 --echo # Restart mysqld
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
 --source include/start_mysqld.inc
 

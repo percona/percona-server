@@ -16,6 +16,7 @@ Usage: $0 [OPTIONS]
         --build_deb         If it is 1 deb will be built
         --build_tarball     If it is 1 tarball will be built
         --with_ssl          If it is 1 tarball will also include ssl libs
+        --with_zenfs        If it is 1 tarball and packages will also include zenfs
         --install_deps      Install build dependencies(root previlages are required)
         --branch            Branch for build
         --repo              Repo for build
@@ -23,6 +24,8 @@ Usage: $0 [OPTIONS]
         --perconaft_branch  Branch for PerconaFT
         --tokubackup_repo   TokuBackup repo
         --tokubackup_branch Btanch for TokuBackup
+        --zenfs_repo        ZenFS repo
+        --zenfs_branch      Branch for ZenFS
         --rpm_release       RPM version( default = 1)
         --deb_release       DEB version( default = 1)
         --debug             Build debug tarball
@@ -56,13 +59,16 @@ parse_arguments() {
             --get_sources=*) SOURCE="$val" ;;
             --build_tarball=*) TARBALL="$val" ;;
             --with_ssl=*) WITH_SSL="$val" ;;
+            --with_zenfs=*) WITH_ZENFS="$val" ;;
             --branch=*) BRANCH="$val" ;;
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
             --perconaft_branch=*) PERCONAFT_BRANCH="$val" ;;
             --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
+            --zenfs_branch=*)      ZENFS_BRANCH="$val" ;;
             --perconaft_repo=*) PERCONAFT_REPO="$val" ;;
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
+            --zenfs_repo=*) ZENFS_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
@@ -190,6 +196,9 @@ get_sources(){
     echo "PERCONAFT_BRANCH=${PERCONAFT_BRANCH}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_REPO=${TOKUBACKUP_REPO}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_BRANCH=${TOKUBACKUP_BRANCH}" >> ../percona-server-8.0.properties
+    echo "ZENFS_REPO=${ZENFS_REPO}" >> ../percona-server-8.0.properties
+    echo "ZENFS_BRANCH=${ZENFS_BRANCH}" >> ../percona-server-8.0.properties
+    export TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
     echo "TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-8.0.properties
     BOOST_PACKAGE_NAME=$(cat cmake/boost.cmake|grep "SET(BOOST_PACKAGE_NAME"|awk -F '"' '{print $2}')
     echo "BOOST_PACKAGE_NAME=${BOOST_PACKAGE_NAME}" >> ../percona-server-8.0.properties
@@ -248,9 +257,26 @@ get_sources(){
         cd Percona-TokuBackup
         git checkout ${TOKUBACKUP_BRANCH}
         cd ${WORKDIR}/percona-server
+
     fi
     #
+
+    if [ ! ${ZENFS_REPO} = 0 ]; then
+        rm -rf ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
+        git clone ${ZENFS_REPO} ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
+    fi
+    if [ ! ${ZENFS_BRANCH} = 0 ]; then
+        cd ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
+        git checkout ${ZENFS_BRANCH}
+        cd -
+    fi
+
     git submodule update
+    cd storage/rocksdb/rocksdb_plugins/zenfs
+    ZEN_VER=$(git describe --abbrev=7 --dirty)
+    sed -i "s/^VERSION=.*/VERSION=$ZEN_VER/" generate-version.sh
+    ./generate-version.sh
+    cd -
     cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DWITH_ZLIB=bundled
     make dist
     #
@@ -267,6 +293,8 @@ get_sources(){
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
+    rsync -av extra/libzbd/ ${PSDIR}/extra/libzbd --exclude .git
+    rsync -av storage/rocksdb/rocksdb_plugins/ ${PSDIR}/storage/rocksdb/rocksdb_plugins --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -281,6 +309,7 @@ get_sources(){
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/percona-server.spec
     sed -i "s:@@RPM_RELEASE@@:${RPM_RELEASE}:g" build-ps/percona-server.spec
     sed -i "s:@@BOOST_PACKAGE_NAME@@:${BOOST_PACKAGE_NAME}:g" build-ps/percona-server.spec
+
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 
@@ -288,8 +317,27 @@ get_sources(){
     mkdir $CURDIR/source_tarball
     cp ${PSDIR}.tar.gz $WORKDIR/source_tarball
     cp ${PSDIR}.tar.gz $CURDIR/source_tarball
+    cp percona-server-8.0.properties $WORKDIR/source_tarball
+    cp percona-server-8.0.properties $CURDIR/source_tarball
     cd $CURDIR
     rm -rf percona-server
+    return
+}
+
+enable_zenfs() {
+    local mode=$1
+
+    cp $CURDIR/source_tarball/percona-server-8.0.properties $WORKDIR
+    source $WORKDIR/percona-server-8.0.properties
+
+    if [[ $mode == "tarball" ]]; then
+        echo "mode tarball selected"
+    elif [[ $mode == "debian" ]]; then
+        sed -i 's:\.\.:$(ZENFS_OPTS_DEFAULT) \.\.:g' debian/rules
+        sed -i '51s:percona-server:libgflags2.2, percona-server:' debian/control
+        echo "usr/bin/zenfs" >> debian/percona-server-rocksdb.install
+        dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"
+    fi
     return
 }
 
@@ -326,6 +374,7 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        yum -y update
         add_percona_yum_repo
         yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
         percona-release enable tools testing
@@ -344,6 +393,7 @@ install_deps() {
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
             yum -y install re2-devel redhat-lsb-core lz4-static
             source /opt/rh/devtoolset-8/enable
+            yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
         else
 	    yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
@@ -351,6 +401,20 @@ install_deps() {
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
 	    yum -y install rpcgen re2-devel libtirpc-devel
 	    yum -y install zstd libzstd libzstd-devel
+	    yum -y install cmake
+            yum -y install cyrus-sasl-devel cyrus-sasl-scram krb5-devel
+        fi
+        if [ "x${RHEL}" = "x8" ]; then
+            yum -y install centos-release-stream
+            yum -y install git gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-annobin
+            source /opt/rh/gcc-toolset-10/enable
+        fi
+        if [ "x${RHEL}" = "x7" ]; then
+            yum -y install devtoolset-10
+            source /opt/rh/devtoolset-10/enable
+        fi
+	 if [ "x${RHEL}" = "x6" ]; then
+            source /opt/rh/devtoolset-8/enable
         fi
         if [ "x$RHEL" = "x6" ]; then
             rm -f /usr/bin/cmake
@@ -396,10 +460,17 @@ install_deps() {
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
-        if [ x"${DIST}" = xfocal ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
+        fi
+        if [ x"${DIST}" = xbionic ]; then
+            apt-get -y install gcc-8 g++-8
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+        else
+            apt-get -y install gcc g++
         fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
@@ -407,14 +478,21 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye ]; then
             apt-get -y install libeatmydata1
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
         fi
+        if [ x${DIST} = xhirsute ]; then
+            apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
+        fi
+	if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]]; then
+            apt-get -y install libgflags-dev
+	fi
+        apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
         cd /usr/local
@@ -529,7 +607,7 @@ build_mecab_lib(){
     rm -rf ${MECAB_DIR}
     rm -rf ${MECAB_INSTALL_DIR}
     mkdir ${MECAB_INSTALL_DIR}
-    wget ${MECAB_LINK}
+    wget --no-check-certificate ${MECAB_LINK}
     tar xf ${MECAB_TARBAL}
     cd ${MECAB_DIR}
     ./configure --with-pic --prefix=/usr
@@ -609,18 +687,42 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     #
     mv *.src.rpm rpmbuild/SRPMS
-    source /opt/rh/devtoolset-8/enable
+    if [ "x${RHEL}" = "x6" ]; then
+        source /opt/rh/devtoolset-8/enable
+    fi
+    if [ "x${RHEL}" = "x7" ]; then
+        source /opt/rh/devtoolset-10/enable
+    fi
+    if [ "x${RHEL}" = "x8" ]; then
+        source /opt/rh/gcc-toolset-10/enable
+    fi
     build_mecab_lib
     build_mecab_dict
 
     cd ${WORKDIR}
-    source /opt/rh/devtoolset-8/enable
+    if [ "x${RHEL}" = "x6" ]; then
+        source /opt/rh/devtoolset-8/enable
+        sudo mv /usr/bin/strip /usr/bin/strip_back
+        sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
+    fi
+    if [ "x${RHEL}" = "x7" ]; then
+        source /opt/rh/devtoolset-10/enable
+    fi
+    if [ "x${RHEL}" = "x8" ]; then
+        source /opt/rh/gcc-toolset-10/enable
+    fi
     #
     if [ ${ARCH} = x86_64 ]; then
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_rocksdb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
+
+    if [ $RHEL = 6 ]; then
+        sudo rm -f /usr/bin/strip
+        sudo mv /usr/bin/strip_back /usr/bin/strip
+    fi
+
     return_code=$?
     if [ $return_code != 0 ]; then
         exit $return_code
@@ -715,9 +817,14 @@ build_deb(){
     dpkg-source -x ${DSC}
 
     cd ${DIRNAME}
+
+
+    if [[ ${WITH_ZENFS} == "1" ]]; then
+        enable_zenfs debian
+    fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -735,7 +842,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco" ]; then
+    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
@@ -758,6 +865,7 @@ build_tarball(){
         echo "Binary tarball will not be created"
         return;
     fi
+
     get_tar "source_tarball"
     cd $WORKDIR
     TARFILE=$(basename $(find . -name 'percona-server-*.tar.gz' | sort | tail -n1))
@@ -768,7 +876,15 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
-      source /opt/rh/devtoolset-8/enable
+      if [ "x${RHEL}" = "x6" ]; then
+          source /opt/rh/devtoolset-8/enable
+      fi
+      if [ "x${RHEL}" = "x7" ]; then
+          source /opt/rh/devtoolset-10/enable
+      fi
+      if [ "x${RHEL}" = "x8" ]; then
+          source /opt/rh/gcc-toolset-10/enable
+      fi
     fi
     #
 
@@ -814,6 +930,10 @@ build_tarball(){
         if [[ "${DEBUG}" == 1 ]]; then
             CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
+        elif [[ ${WITH_ZENFS} == 1 ]]; then
+            enable_zenfs tarball
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-zenfs --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            DIRNAME="tarball"
         else
             CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
@@ -838,6 +958,7 @@ DEB=0
 SOURCE=0
 TARBALL=0
 WITH_SSL=0
+WITH_ZENFS=0
 OS_NAME=
 ARCH=
 OS=
@@ -848,7 +969,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.22-13"
+BRANCH="release-8.0.26-16"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -856,9 +977,9 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=22
-MYSQL_VERSION_EXTRA=-13
-PRODUCT_FULL=Percona-Server-8.0.22
+MYSQL_VERSION_PATCH=26
+MYSQL_VERSION_EXTRA=-16
+PRODUCT_FULL=Percona-Server-8.0.26
 BOOST_PACKAGE_NAME=boost_1_73_0
 PERCONAFT_BRANCH=Percona-Server-8.0.22-13
 TOKUBACKUP_BRANCH=Percona-Server-8.0.22-13

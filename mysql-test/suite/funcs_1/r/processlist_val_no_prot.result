@@ -23,7 +23,7 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `TIME_MS` bigint NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
   `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 # Ensure that the information about the own connection is correct.
 #--------------------------------------------------------------------------
 

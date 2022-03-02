@@ -63,7 +63,7 @@ System_key_adapter::System_key_data::~System_key_data() { free(); }
 
 void System_key_adapter::System_key_data::free() {
   if (key_data.load()) {
-    DBUG_ASSERT(key_data_size <= 512);
+    assert(key_data_size <= 512);
     memset_s(key_data.load(), 512, 0, key_data_size);
     delete[] key_data.load();
     key_data.store(nullptr);

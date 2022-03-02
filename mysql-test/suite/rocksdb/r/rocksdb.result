@@ -886,7 +886,7 @@ ERROR 42S02: Unknown table 'test.t45'
 # Now it fails if there is data overlap with what
 # already exists
 #
-show variables where variable_name like 'rocksdb%' and variable_name not like 'rocksdb_max_open_files';
+show variables where variable_name like 'rocksdb%' and variable_name not like 'rocksdb_max_open_files' and variable_name not like 'rocksdb_fs_uri';
 Variable_name	Value
 rocksdb_access_hint_on_compaction_start	1
 rocksdb_advise_random_on_open	ON
@@ -894,6 +894,8 @@ rocksdb_allow_concurrent_memtable_write	OFF
 rocksdb_allow_mmap_reads	OFF
 rocksdb_allow_mmap_writes	OFF
 rocksdb_allow_to_start_after_corruption	OFF
+rocksdb_allow_unsafe_alter	OFF
+rocksdb_alter_column_default_inplace	ON
 rocksdb_blind_delete_primary_key	OFF
 rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
@@ -902,12 +904,14 @@ rocksdb_block_size_deviation	10
 rocksdb_bulk_load	OFF
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 rocksdb_bytes_per_sync	0
 rocksdb_cache_dump	ON
 rocksdb_cache_high_pri_pool_ratio	0.000000
 rocksdb_cache_index_and_filter_blocks	ON
 rocksdb_cache_index_and_filter_with_high_priority	ON
+rocksdb_cancel_manual_compactions	OFF
 rocksdb_checksums_pct	100
 rocksdb_collect_sst_properties	ON
 rocksdb_commit_in_the_middle	OFF
@@ -942,6 +946,7 @@ rocksdb_disable_file_deletions	OFF
 rocksdb_enable_bulk_load_api	ON
 rocksdb_enable_insert_with_update_caching	ON
 rocksdb_enable_iterate_bounds	ON
+rocksdb_enable_pipelined_write	OFF
 rocksdb_enable_remove_orphaned_dropped_cfs	ON
 rocksdb_enable_thread_tracking	ON
 rocksdb_enable_ttl	ON
@@ -949,6 +954,7 @@ rocksdb_enable_ttl_read_filtering	ON
 rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
 rocksdb_error_on_suboptimal_collation	OFF
+rocksdb_fault_injection_options	
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_force_compute_memtable_stats	ON
 rocksdb_force_compute_memtable_stats_cachetime	0
@@ -966,6 +972,7 @@ rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
 rocksdb_manifest_preallocation_size	4194304
+rocksdb_manual_compaction_bottommost_level	kForceOptimized
 rocksdb_manual_compaction_threads	0
 rocksdb_manual_wal_flush	ON
 rocksdb_master_skip_tx_api	OFF
@@ -989,6 +996,7 @@ rocksdb_no_block_cache	OFF
 rocksdb_no_create_column_family	OFF
 rocksdb_override_cf_options	
 rocksdb_paranoid_checks	ON
+rocksdb_partial_index_sort_max_mem	0
 rocksdb_pause_background_work	ON
 rocksdb_perf_context_level	0
 rocksdb_persistent_cache_path	
@@ -1007,6 +1015,7 @@ rocksdb_signal_drop_index_thread	OFF
 rocksdb_sim_cache_size	0
 rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
+rocksdb_skip_locks_if_skip_unique_check	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0
 rocksdb_stats_dump_period_sec	600
 rocksdb_stats_level	1
@@ -1023,7 +1032,9 @@ rocksdb_table_stats_sampling_pct	10
 rocksdb_table_stats_use_table_scan	OFF
 rocksdb_tmpdir	
 rocksdb_trace_block_cache_access	
+rocksdb_trace_queries	
 rocksdb_trace_sst_api	OFF
+rocksdb_track_and_verify_wals_in_manifest	ON
 rocksdb_two_write_queues	ON
 rocksdb_unsafe_for_binlog	OFF
 rocksdb_update_cf_options	
@@ -1040,6 +1051,7 @@ rocksdb_wal_recovery_mode	2
 rocksdb_wal_size_limit_mb	0
 rocksdb_wal_ttl_seconds	0
 rocksdb_whole_key_filtering	ON
+rocksdb_write_batch_flush_threshold	0
 rocksdb_write_batch_max_bytes	0
 rocksdb_write_disable_wal	OFF
 rocksdb_write_ignore_missing_column_families	OFF
@@ -1553,6 +1565,7 @@ rocksdb_rows_read	#
 rocksdb_rows_updated	#
 rocksdb_rows_expired	#
 rocksdb_rows_filtered	#
+rocksdb_rows_unfiltered_no_snapshot	#
 rocksdb_system_rows_deleted	#
 rocksdb_system_rows_inserted	#
 rocksdb_system_rows_read	#
@@ -1606,6 +1619,8 @@ rocksdb_get_hit_l1	#
 rocksdb_get_hit_l2_and_up	#
 rocksdb_get_updates_since_calls	#
 rocksdb_iter_bytes_read	#
+rocksdb_manual_compactions_cancelled	#
+rocksdb_manual_compactions_pending	#
 rocksdb_manual_compactions_processed	#
 rocksdb_manual_compactions_running	#
 rocksdb_memtable_hit	#
@@ -1638,6 +1653,10 @@ rocksdb_number_sst_entry_singledelete	#
 rocksdb_number_superversion_acquires	#
 rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
+rocksdb_partial_index_groups_materialized	#
+rocksdb_partial_index_groups_sorted	#
+rocksdb_partial_index_rows_materialized	#
+rocksdb_partial_index_rows_sorted	#
 rocksdb_row_lock_deadlocks	#
 rocksdb_row_lock_wait_timeouts	#
 rocksdb_snapshot_conflict_errors	#
@@ -1668,6 +1687,7 @@ rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
 rocksdb_rows_filtered
+rocksdb_rows_unfiltered_no_snapshot
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1721,6 +1741,8 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_manual_compactions_cancelled
+rocksdb_manual_compactions_pending
 rocksdb_manual_compactions_processed
 rocksdb_manual_compactions_running
 rocksdb_memtable_hit
@@ -1753,6 +1775,10 @@ rocksdb_number_sst_entry_singledelete
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
+rocksdb_partial_index_groups_materialized
+rocksdb_partial_index_groups_sorted
+rocksdb_partial_index_rows_materialized
+rocksdb_partial_index_rows_sorted
 rocksdb_row_lock_deadlocks
 rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors
@@ -1785,6 +1811,7 @@ rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
 rocksdb_rows_filtered
+rocksdb_rows_unfiltered_no_snapshot
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1838,6 +1865,8 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_manual_compactions_cancelled
+rocksdb_manual_compactions_pending
 rocksdb_manual_compactions_processed
 rocksdb_manual_compactions_running
 rocksdb_memtable_hit
@@ -1870,6 +1899,10 @@ rocksdb_number_sst_entry_singledelete
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
+rocksdb_partial_index_groups_materialized
+rocksdb_partial_index_groups_sorted
+rocksdb_partial_index_rows_materialized
+rocksdb_partial_index_rows_sorted
 rocksdb_row_lock_deadlocks
 rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors

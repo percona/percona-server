@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 # cmake -DWITH_LZ4=system|bundled
 # bundled is the default
 
-SET(LIBLZ4_VERSION_REQUIRED "1.7.1")
+SET(LIBLZ4_VERSION_REQUIRED "1.9.3")
 
 MACRO (CHECK_LZ4_VERSION)
   SET(PATH_TO_LZ4_H "${ARGV0}/lz4.h")
@@ -57,17 +57,20 @@ MACRO (FIND_SYSTEM_LZ4)
   ENDIF()
 ENDMACRO()
 
+SET(LZ4_VERSION "lz4-1.9.3")
+SET(BUNDLED_LZ4_PATH "${CMAKE_SOURCE_DIR}/extra/lz4/${LZ4_VERSION}")
+
 MACRO (MYSQL_USE_BUNDLED_LZ4)
   SET(WITH_LZ4 "bundled" CACHE STRING "Bundled lz4 library")
   SET(BUILD_BUNDLED_LZ4 1)
-  CHECK_LZ4_VERSION(${CMAKE_SOURCE_DIR}/extra/lz4)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/extra/lz4)
+  CHECK_LZ4_VERSION(${BUNDLED_LZ4_PATH})
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${BUNDLED_LZ4_PATH})
   SET(LZ4_LIBRARY lz4_lib)
   ADD_LIBRARY(lz4_lib STATIC
-    ${CMAKE_SOURCE_DIR}/extra/lz4/lz4.c
-    ${CMAKE_SOURCE_DIR}/extra/lz4/lz4frame.c
-    ${CMAKE_SOURCE_DIR}/extra/lz4/lz4hc.c
-    ${CMAKE_SOURCE_DIR}/extra/lz4/xxhash.c
+    ${BUNDLED_LZ4_PATH}/lz4.c
+    ${BUNDLED_LZ4_PATH}/lz4frame.c
+    ${BUNDLED_LZ4_PATH}/lz4hc.c
+    ${BUNDLED_LZ4_PATH}/xxhash.c
     )
 ENDMACRO()
 

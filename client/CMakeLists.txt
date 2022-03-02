@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@ INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
+## Subdirectory for mysql_migrate_keyring code.
+ADD_SUBDIRECTORY(migrate_keyring)
 
 MYSQL_ADD_EXECUTABLE(mysql
   ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc

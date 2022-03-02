@@ -50,7 +50,7 @@ if ($KEYRING_UDF_DIR != $KEYRING_PLUGIN_DIR)
   --copy_file $KEYRING_VAULT_PLUGIN_DIR/$KEYRING_VAULT_PLUGIN $KEYRING_UDF_DIR/$KEYRING_VAULT_PLUGIN
 }
 --echo # Re-starting mysql server with keyring_vault plugin.
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
 --source include/restart_mysqld.inc
 
@@ -107,7 +107,7 @@ drop function keyring_key_remove;
 drop function keyring_key_generate;
 
 --echo # Re-starting mysql server with keyring_vault plugin.
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring-vault-config=$conf_file1
 --source include/restart_mysqld.inc
 

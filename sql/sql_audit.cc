@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/table.h"
+#include "sql_parse.h"  // Command_names
 #include "sql_string.h"
 #include "thr_mutex.h"
 
@@ -365,8 +366,9 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
                        const char *msg, size_t msg_len) {
   mysql_event_general event;
   char user_buff[MAX_USER_HOST_SIZE];
+  std::string cmd_class_lowercase;
 
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                                   static_cast<unsigned long>(subclass)))
@@ -384,7 +386,34 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_host = sctx->host();
   event.general_external_user = sctx->external_user();
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
-  event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+  if (thd->lex->sql_command == SQLCOM_END && msg_len > 0 && error_code == 0) {
+    enum_server_command found_index = Command_names::get_index_by_str_name(msg);
+
+    switch (found_index) {
+      case COM_STMT_PREPARE:
+        event.general_sql_command = sql_statement_names[SQLCOM_PREPARE];
+        break;
+      case COM_STMT_EXECUTE:
+        event.general_sql_command = sql_statement_names[SQLCOM_EXECUTE];
+        break;
+      case COM_STMT_RESET:
+        event.general_sql_command = sql_statement_names[SQLCOM_RESET];
+        break;
+      case COM_END:
+        event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+        break;
+      default:
+        cmd_class_lowercase = msg;
+        std::transform(cmd_class_lowercase.begin(), cmd_class_lowercase.end(),
+                       cmd_class_lowercase.begin(), ::tolower);
+        MYSQL_LEX_CSTRING command_class = {
+            STRING_WITH_LEN(cmd_class_lowercase.c_str())};
+        event.general_sql_command = command_class;
+        break;
+    }
+  } else {
+    event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+  }
 
   event.general_charset = const_cast<CHARSET_INFO *>(
       thd_get_audit_query(thd, &event.general_query));
@@ -487,11 +516,12 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
   Events for Views, table catogories other than 'SYSTEM' or 'USER' and
   temporary tables are not generated.
 
+  @param thd   Thread handler
   @param table Table that is to be check.
 
   @retval true - generate event, otherwise not.
 */
-inline bool generate_table_access_event(TABLE_LIST *table) {
+inline bool generate_table_access_event(THD *thd, TABLE_LIST *table) {
   /* Discard views or derived tables. */
   if (table->is_view_or_derived()) return false;
 
@@ -499,7 +529,7 @@ inline bool generate_table_access_event(TABLE_LIST *table) {
   if (!table->table) return true;
 
   /* Do not generate events, which come from PS preparation. */
-  if (table->table->in_use->lex->is_ps_or_view_context_analysis()) return false;
+  if (thd->lex->is_ps_or_view_context_analysis()) return false;
 
   /* Generate event for SYSTEM and USER tables, which are not temp tables. */
   if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
@@ -547,7 +577,7 @@ static int mysql_audit_notify(THD *thd,
   LEX_CSTRING str;
   mysql_event_table_access event;
 
-  if (!generate_table_access_event(table) ||
+  if (!generate_table_access_event(thd, table) ||
       mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
                                   static_cast<unsigned long>(subclass)))
     return 0;
@@ -1190,7 +1220,7 @@ void mysql_audit_init_thd(THD *thd) {
 
 void mysql_audit_free_thd(THD *thd) {
   mysql_audit_release(thd);
-  DBUG_ASSERT(thd->audit_class_plugins.empty());
+  assert(thd->audit_class_plugins.empty());
 }
 
 #ifdef HAVE_PSI_INTERFACE

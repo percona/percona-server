@@ -345,7 +345,7 @@ static int io_poll_wait(int pollfd, native_event *events, int maxevents,
     ret = port_getn(pollfd, events, maxevents, &nget,
                     (timeout_ms >= 0) ? &ts : nullptr);
   } while (ret == -1 && errno == EINTR);
-  DBUG_ASSERT(nget < INT_MAX);
+  assert(nget < INT_MAX);
   return (int)nget;
 }
 
@@ -635,7 +635,7 @@ static connection_t *listener(thread_group_t *thread_group) {
     int cnt = io_poll_wait(thread_group->pollfd, ev, MAX_EVENTS, -1);
 
     if (cnt <= 0) {
-      DBUG_ASSERT(thread_group->shutdown);
+      assert(thread_group->shutdown);
       break;
     }
 
@@ -1020,7 +1020,7 @@ static connection_t *get_event(worker_thread_t *current_thread,
   int err = 0;
 
   mysql_mutex_lock(&thread_group->mutex);
-  DBUG_ASSERT(thread_group->active_thread_count >= 0);
+  assert(thread_group->active_thread_count >= 0);
 
   for (;;) {
     const bool oversubscribed = too_many_active_threads(*thread_group);
@@ -1133,8 +1133,8 @@ static void wait_begin(thread_group_t *thread_group) noexcept {
   thread_group->active_thread_count--;
   thread_group->waiting_thread_count++;
 
-  DBUG_ASSERT(thread_group->active_thread_count >= 0);
-  DBUG_ASSERT(thread_group->connection_count > 0);
+  assert(thread_group->active_thread_count >= 0);
+  assert(thread_group->connection_count > 0);
 
 #ifdef THREADPOOL_CREATE_THREADS_ON_WAIT
   if ((thread_group->active_thread_count == 0) &&
@@ -1274,10 +1274,10 @@ void tp_post_kill_notification(THD *thd) noexcept {
 
 void tp_wait_begin(THD *thd, int type MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("tp_wait_begin");
-  DBUG_ASSERT(thd);
+  assert(thd);
   connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if (connection) {
-    DBUG_ASSERT(!connection->waiting);
+    assert(!connection->waiting);
     connection->waiting = true;
     wait_begin(connection->thread_group);
   }
@@ -1290,11 +1290,11 @@ void tp_wait_begin(THD *thd, int type MY_ATTRIBUTE((unused))) {
 
 void tp_wait_end(THD *thd) {
   DBUG_ENTER("tp_wait_end");
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if (connection) {
-    DBUG_ASSERT(connection->waiting);
+    assert(connection->waiting);
     connection->waiting = false;
     wait_end(connection->thread_group);
   }
@@ -1341,7 +1341,7 @@ static void set_wait_timeout(connection_t *c) noexcept {
 
 static int change_group(connection_t *c, thread_group_t *old_group,
                         thread_group_t *new_group) {
-  DBUG_ASSERT(c->thread_group == old_group);
+  assert(c->thread_group == old_group);
 
   /* Remove connection from the old group. */
   if (c->bound_to_poll_descriptor) {

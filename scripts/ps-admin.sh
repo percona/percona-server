@@ -32,6 +32,8 @@ FORCE_MYCNF=0
 FORCE_ENVFILE=0
 DEFAULTS_FILE=""
 DEFAULTS_FILE_OPTION=""
+STATUS_ENABLE_HOTBACKUP_MYCNF=0
+STATUS_ENABLE_TOKUDB_MYCNF=0
 STATUS_THP_SYSTEM=0
 STATUS_THP_MYCNF=0
 STATUS_TOKUDB_PLUGIN=0
@@ -235,6 +237,11 @@ do
   esac
 done
 
+function print_tokudb_deprecation()
+{
+  printf "ERROR: As of Percona Server 8.0.26-16, the TokuDB storage engine and backup plugins have been deprecated. They will be completely removed in a future release. If you need to continue to use them in order to migrate to another storage engine, set the loose-tokudb_enabled and loose-tokudb_backup_enabled options to TRUE in your my.cnf file. Please see this blog post for more information https://www.percona.com/blog/2021/05/21/tokudb-support-changes-and-future-removal-from-percona-server-for-mysql-8-0\n"
+}
+
 # Make sure only root can run this script
 if [ ${ENABLE_TOKUDB} = 1 -o ${DISABLE_TOKUDB} = 1 -o ${ENABLE_TOKUBACKUP} = 1 -o ${DISABLE_TOKUBACKUP} = 1 ]; then
   if [ $(id -u) -ne 0 -a $DOCKER = 0 ]; then
@@ -319,6 +326,12 @@ fi
 
 # Check if TokuDB plugin available on the system
 if [ ${ENABLE_TOKUDB} = 1 ]; then
+  # Warn about TokuDB deprecation
+  STATUS_ENABLE_TOKUDB_MYCNF=$(${MYSQL_DEFAULTS_BIN} mysqld ${DEFAULTS_FILE_OPTION}| grep -v '#' | egrep -i tokudb[_-]enabled | egrep -ic '=1|=true|=on')
+  if [ ${STATUS_ENABLE_TOKUDB_MYCNF} = 0 ]; then
+    print_tokudb_deprecation
+    exit 1;
+  fi
   printf "Checking if TokuDB plugin is available for installation ...\n"
   for ha_tokudb_loc in "${SCRIPT_PWD%/*}/lib/mysql/plugin" "/usr/lib64/mysql/plugin" "/usr/lib/mysql/plugin"; do
     if [ -r "${ha_tokudb_loc}/ha_tokudb.so" ]; then
@@ -372,6 +385,12 @@ fi
 
 # Check location for libHotBackup.so
 if [ ${ENABLE_TOKUBACKUP} = 1 ]; then
+  # Warn about TokuDB deprecation
+  STATUS_ENABLE_HOTBACKUP_MYCNF=$(${MYSQL_DEFAULTS_BIN} mysqld ${DEFAULTS_FILE_OPTION}| grep -v '#' | egrep -i tokudb[_-]backup[_-]enabled | egrep -ic '=1|=true|=on')
+  if [ ${STATUS_ENABLE_HOTBACKUP_MYCNF} = 0 ]; then
+    print_tokudb_deprecation
+    exit 1;
+  fi
   printf "Checking location of TokuBackup library ...\n"
   for libhotbackup in "${SCRIPT_PWD%/*}/lib" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib" "${SCRIPT_PWD%/*}/lib/mysql" "/usr/lib64/mysql" "/usr/lib/x86_64-linux-gnu/mysql" "/usr/lib/mysql"; do
     if [ -r "${libhotbackup}/libHotBackup.so" ]; then

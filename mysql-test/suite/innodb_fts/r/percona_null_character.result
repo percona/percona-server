@@ -1,0 +1,18 @@
+#
+# PS-3851: Crash when SELECT using a fulltext search index with special character
+#
+CREATE TABLE tbtest (col1 int(11) NOT NULL AUTO_INCREMENT, col2 varchar(100) COLLATE utf8mb4_bin DEFAULT NULL, col3 text COLLATE utf8mb4_bin, col4 varchar(300) COLLATE utf8mb4_bin DEFAULT NULL, PRIMARY KEY (col1), FULLTEXT KEY FTX_01 (col2, col3, col4) , FULLTEXT KEY FTX_02 (col4)  ) ENGINE=InnoDB AUTO_INCREMENT=100001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO tbtest (col2, col3, col4)
+SELECT concat(a.column_name,a.column_name) as c1,
+concat(a.column_name,a.column_name) as c2,
+concat(a.column_name,a.column_name) as c3
+FROM information_schema.columns a, information_schema.columns b LIMIT 10000;
+OPTIMIZE TABLE tbtest;
+Table	Op	Msg_type	Msg_text
+test.tbtest	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tbtest	optimize	status	OK
+# Should not crash
+SELECT * FROM tbtest WHERE MATCH(col4) AGAINST('1some_inexistent_file_with_long_name\0.jpg');
+DROP TABLE tbtest;

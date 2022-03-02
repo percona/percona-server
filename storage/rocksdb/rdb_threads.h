@@ -37,7 +37,7 @@
 
 namespace myrocks {
 
-class Rdb_thread {
+class Rdb_thread : public Ensure_initialized {
  private:
   // Disable Copying
   Rdb_thread(const Rdb_thread &);
@@ -73,7 +73,10 @@ class Rdb_thread {
 
   void signal(const bool stop_thread = false);
 
-  int join() { return my_thread_join(&m_handle, nullptr); }
+  int join() {
+    if (!m_run_once) return EINVAL;
+    return my_thread_join(&m_handle, nullptr);
+  }
 
   void uninit();
 
@@ -138,14 +141,23 @@ class Rdb_index_stats_thread : public Rdb_thread {
 };
 
 class Rdb_manual_compaction_thread : public Rdb_thread {
- private:
+ public:
   struct Manual_compaction_request {
     int mc_id;
-    enum mc_state { INITED = 0, RUNNING } state;
+    enum mc_state {
+      PENDING = 0,
+      RUNNING = 1,
+      SUCCESS = 2,
+      FAILURE = 3,
+      CANCEL = 4,
+    } state;
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cf;
     rocksdb::Slice *start;
     rocksdb::Slice *limit;
-    int concurrency = 0;
+    rocksdb::CompactRangeOptions option;
+    std::shared_ptr<std::atomic<bool>> canceled;
+    // state is modified by user threads
+    bool client_done;
   };
 
   int m_latest_mc_id;
@@ -162,12 +174,18 @@ class Rdb_manual_compaction_thread : public Rdb_thread {
   }
 
   virtual void run() override;
-  int request_manual_compaction(std::shared_ptr<rocksdb::ColumnFamilyHandle> cf,
-                                rocksdb::Slice *start, rocksdb::Slice *limit,
-                                int concurrency = 0);
-  bool is_manual_compaction_finished(int mc_id);
-  void clear_manual_compaction_request(int mc_id, bool init_only = false);
+  int request_manual_compaction(
+      std::shared_ptr<rocksdb::ColumnFamilyHandle> cf, rocksdb::Slice *start,
+      rocksdb::Slice *limit, const uint manual_compaction_threads,
+      const rocksdb::BottommostLevelCompaction bottommost_level_compaction);
+  Manual_compaction_request::mc_state manual_compaction_state(const int mc_id);
+  void set_state(Manual_compaction_request *mcr,
+                 const Manual_compaction_request::mc_state state);
+  bool set_client_done(const int mc_id);
   void clear_all_manual_compaction_requests();
+  void cancel_all_pending_manual_compaction_requests();
+  bool cancel_manual_compaction_request(const int mc_id,
+                                        const int timeout_100ms);
 };
 
 /*

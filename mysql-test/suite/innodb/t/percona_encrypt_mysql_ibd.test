@@ -22,7 +22,7 @@ EOF
 --let IBD_FILE=$MYSQLD_DATADIR1/mysql.ibd
 --source include/ibd_encryption_check.inc
 
---let $restart_hide_args=1
+--let $do_not_echo_parameters=1
 --let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1"
 --source include/start_mysqld.inc
 

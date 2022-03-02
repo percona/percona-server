@@ -8,7 +8,7 @@
 --disable_query_log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find masterkey, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find masterkey, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression ("InnoDB: New log files created");
@@ -96,7 +96,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_
 
 --echo # Search for error message
 let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
-let SEARCH_PATTERN=  Redo log was encrypted, but keyring plugin is not loaded;
+let SEARCH_PATTERN=  Redo log was encrypted, but keyring is not loaded;
 --source include/search_pattern.inc
 
 # shutdown server

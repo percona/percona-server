@@ -16,6 +16,8 @@ plugin for |Percona Server| 8.0 and later versions.
 .. contents::
    :local:
 
+.. _myrocks-install:
+
 Installing Percona MyRocks
 ==========================
 
@@ -29,19 +31,23 @@ It is recommended to install Percona software from official repositories:
 
    * For Debian or Ubuntu::
 
-      $ sudo apt-get install percona-server-rocksdb
-
+      $ sudo apt install percona-server-rocksdb
+      
+     .. note::
+     
+       Review the :ref:`zenfs` document for the :ref:`zenfs-installation` and the :ref:`zenfs-configure` information.
+     
+      
    * For RHEL or CentOS::
 
       $ sudo yum install percona-server-rocksdb
-
-After you install the Percona MyRocks package,
-you should see the following output::
+      
+After installation, you should see the following output::
 
 * This release of |Percona Server| is distributed with RocksDB storage engine.
 * Run the following script to enable the RocksDB storage engine in Percona Server:
 
-  .. code-block:: bash 
+  .. code-block:: bash
 
      $ ps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
 
@@ -150,7 +156,7 @@ remove the Percona MyRocks package:
 
 * For Debian or Ubuntu::
 
-  $ sudo apt-get remove percona-server-rocksdb-8.0
+  $ sudo apt remove percona-server-rocksdb-8.0
 
 * For RHEL or CentOS::
 
@@ -183,5 +189,3 @@ The following statements remove the MyRocks plugins:
     UNINSTALL PLUGIN ROCKSDB_LOCKS;
     UNINSTALL PLUGIN ROCKSDB_TRX;
     UNINSTALL PLUGIN ROCKSDB_DEADLOCK;
-    
-

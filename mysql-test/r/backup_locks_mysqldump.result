@@ -123,7 +123,7 @@ ROLLBACK TO SAVEPOINT sp
 RELEASE SAVEPOINT sp
 SELECT argument FROM mysql.general_log WHERE argument != ''
 TRUNCATE TABLE mysql.general_log;
-# Check that --master-data does not disable --lock-for-backup
+# Check that --source-data does not disable --lock-for-backup
 SELECT argument FROM mysql.general_log WHERE argument != '';
 argument
 root@localhost on  using Socket

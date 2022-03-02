@@ -500,6 +500,7 @@ mkdir debug
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
            -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_PROTOBUF=bundled \
            -DWITH_RAPIDJSON=bundled \
@@ -546,6 +547,7 @@ mkdir release
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
            -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \
@@ -914,6 +916,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -940,6 +943,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
@@ -950,12 +954,18 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_wrappers.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_table_access.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
+
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -982,6 +992,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
@@ -990,6 +1001,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/binlog_utils_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_wrappers.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -1029,6 +1044,8 @@ fi
 #%attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
 #
 #%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 #%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
@@ -1096,6 +1113,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
+%attr(755, root, root) %{_bindir}/mysql_migrate_keyring
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
 %attr(644, root, root) %{_mandir}/man1/mysqladmin.1*
@@ -1150,6 +1168,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
+%attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so

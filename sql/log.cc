@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <type_traits>
 
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
@@ -58,6 +59,7 @@
 #include <string>
 #include <utility>
 
+#include "binlog.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -112,6 +114,9 @@
 
 using std::max;
 using std::min;
+
+ulong max_slowlog_size;
+ulong max_slowlog_files;
 
 enum enum_slow_query_log_table_field {
   SQLT_FIELD_START_TIME = 0,
@@ -218,7 +223,7 @@ class Query_log_table_intact : public Table_check_intact {
         log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return;
     }
 
@@ -261,8 +266,8 @@ class Silence_log_table_errors : public Internal_error_handler {
 };
 
 static void ull2timeval(ulonglong utime, struct timeval *tv) {
-  DBUG_ASSERT(tv != nullptr);
-  DBUG_ASSERT(utime > 0); /* should hold true in this context */
+  assert(tv != nullptr);
+  assert(utime > 0); /* should hold true in this context */
   tv->tv_sec = static_cast<long>(utime / 1000000);
   tv->tv_usec = utime % 1000000;
 }
@@ -271,7 +276,7 @@ class File_query_log {
   File_query_log(enum_log_table_type log_type);
 
   ~File_query_log() {
-    DBUG_ASSERT(!is_open());
+    assert(!is_open());
     if (name != nullptr) {
       my_free(name);
       name = nullptr;
@@ -353,6 +358,14 @@ class File_query_log {
                   size_t sql_text_len, struct System_status_var *query_start);
 
  private:
+  /** slow log rotation and purging functions */
+  bool set_rotated_name(bool need_lock);
+  bool rotate(ulong max_size);
+  bool purge_logs();
+
+  ulong cur_log_ext;
+  ulong last_removed_ext;
+
   /** Type of log file. */
   const enum_log_table_type m_log_type;
 
@@ -386,7 +399,12 @@ class File_query_log {
 };
 
 File_query_log::File_query_log(enum_log_table_type log_type)
-    : m_log_type(log_type), name(nullptr), write_error(false), log_open(false) {
+    : cur_log_ext(0),
+      last_removed_ext(0),
+      m_log_type(log_type),
+      name(nullptr),
+      write_error(false),
+      log_open(false) {
   mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 #ifdef HAVE_PSI_INTERFACE
   if (log_type == QUERY_LOG_GENERAL)
@@ -438,9 +456,9 @@ static File mysql_file_real_name_reopen(File file,
                                         int open_flags,
                                         const char *opened_file_name,
                                         char *real_file_name) {
-  DBUG_ASSERT(file);
-  DBUG_ASSERT(opened_file_name);
-  DBUG_ASSERT(real_file_name);
+  assert(file);
+  assert(opened_file_name);
+  assert(real_file_name);
 
 #ifdef _WIN32
   /* On Windows, O_NOFOLLOW is not supported. Verify real path from fd. */
@@ -479,7 +497,7 @@ static File mysql_file_real_name_reopen(File file,
 bool File_query_log::set_file(const char *new_name) {
   char *nn;
 
-  DBUG_ASSERT(new_name && new_name[0]);
+  assert(new_name && new_name[0]);
 
   if (!(nn = my_strdup(key_memory_File_query_log_name, new_name, MYF(MY_WME))))
     return true;
@@ -488,10 +506,13 @@ bool File_query_log::set_file(const char *new_name) {
 
   name = nn;
 
-  // We can do this here since we're not actually resolving symlinks etc.
-  fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+  mysql_mutex_lock(&LOCK_log);
+  cur_log_ext = 0;
+  last_removed_ext = 0;
+  bool res = set_rotated_name(false) || purge_logs();
+  mysql_mutex_unlock(&LOCK_log);
 
-  return false;
+  return res;
 }
 
 bool File_query_log::open() {
@@ -501,7 +522,7 @@ bool File_query_log::open() {
   MY_STAT f_stat;
   DBUG_TRACE;
 
-  DBUG_ASSERT(name != nullptr);
+  assert(name != nullptr);
 
   if (is_open()) return false;
 
@@ -552,18 +573,22 @@ bool File_query_log::open() {
     goto err;
 
   {
+    char log_creation_time[iso8601_size];
+    make_iso8601_timestamp(log_creation_time, my_micro_time(),
+                           iso8601_sysvar_logtimestamps);
+
     char *end;
     size_t len =
         snprintf(buff, sizeof(buff),
-                 "%s, Version: %s (%s). "
+                 "%s, Version: %s (%s), Time: %s. "
 #if defined(_WIN32)
                  "started with:\nTCP Port: %d, Named Pipe: %s\n",
                  my_progname, server_version, MYSQL_COMPILATION_COMMENT_SERVER,
-                 mysqld_port, mysqld_unix_port
+                 log_creation_time, mysqld_port, mysqld_unix_port
 #else
                  "started with:\nTcp port: %d  Unix socket: %s\n",
                  my_progname, server_version, MYSQL_COMPILATION_COMMENT_SERVER,
-                 mysqld_port, mysqld_unix_port
+                 log_creation_time, mysqld_port, mysqld_unix_port
 #endif
         );
     end =
@@ -643,7 +668,7 @@ bool File_query_log::write_general(ulonglong event_utime,
   size_t length = 0;
 
   mysql_mutex_lock(&LOCK_log);
-  DBUG_ASSERT(is_open());
+  assert(is_open());
 
   /* Note that my_b_write() assumes it knows the length for this */
   char local_time_buff[iso8601_size];
@@ -697,7 +722,9 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   end = buff;
 
   mysql_mutex_lock(&LOCK_log);
-  DBUG_ASSERT(is_open());
+  assert(is_open());
+
+  if (max_slowlog_size > 0 && rotate(max_slowlog_size)) goto err;
 
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT)) {
     char my_timestamp[iso8601_size];
@@ -731,20 +758,23 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     available, we generate the now, "long" line (with "extra" information).
   */
   if (!query_start) {
-    if (my_b_printf(&log_file,
-                    "# Schema: %s  Last_errno: %u  Killed: %u\n"
-                    "# Query_time: %s  Lock_time: %s"
-                    "  Rows_sent: %llu  Rows_examined: %llu"
-                    "  Rows_affected: %llu  Bytes_sent: %lu\n",
-                    (thd->db().str ? thd->db().str : ""), thd->last_errno,
-                    (uint)thd->killed, query_time_buff, lock_time_buff,
-                    (ulonglong)thd->get_sent_row_count(),
-                    (ulonglong)thd->get_examined_row_count(),
-                    (thd->get_row_count_func() > 0)
-                        ? (ulonglong)thd->get_row_count_func()
-                        : 0,
-                    (ulong)(thd->status_var.bytes_sent -
-                            thd->bytes_sent_old)) == (uint)-1)
+    if (my_b_printf(
+            &log_file,
+            "# Schema: %s  Last_errno: %lu  Killed: %u\n"
+            "# Query_time: %s  Lock_time: %s"
+            "  Rows_sent: %llu  Rows_examined: %llu"
+            "  Rows_affected: %llu  Bytes_sent: %lu\n",
+            (thd->db().str ? thd->db().str : ""),
+            static_cast<ulong>(
+                thd->is_error() ? thd->get_stmt_da()->mysql_errno() : 0),
+            (uint)thd->killed, query_time_buff, lock_time_buff,
+            (ulonglong)thd->get_sent_row_count(),
+            (ulonglong)thd->get_examined_row_count(),
+            (thd->get_row_count_func() > 0)
+                ? (ulonglong)thd->get_row_count_func()
+                : 0,
+            (ulong)(thd->status_var.bytes_sent - thd->bytes_sent_old)) ==
+        (uint)-1)
       goto err; /* purecov: inspected */
   } else {
     char start_time_buff[iso8601_size];
@@ -778,9 +808,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             " Start: %s End: %s Schema: %s Rows_affected: %llu\n",
             query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
             (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
-            (ulong)(thd->is_classic_protocol()
-                        ? thd->get_protocol_classic()->get_net()->last_errno
-                        : 0),
+            static_cast<ulong>(
+                thd->is_error() ? thd->get_stmt_da()->mysql_errno() : 0),
             (ulong)thd->killed,
             (ulong)(thd->status_var.bytes_received -
                     query_start->bytes_received),
@@ -888,6 +917,36 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       goto err;
   }
 
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_INFO))) {
+    // Query_tables
+    std::string tbl_list_str = "";
+    if (thd->lex->query_tables != nullptr) {
+      std::stringstream tbl_list;
+      for (TABLE_LIST *table = thd->lex->query_tables; table;
+           table = table->next_global) {
+        tbl_list << table->get_table_name() << ",";
+      }
+      tbl_list_str = tbl_list.str();
+      tbl_list_str.pop_back();
+    }
+
+    // Query_digest
+    uchar digest_buf[PARSER_SERVICE_DIGEST_LENGTH];
+    const size_t digest_size = PARSER_SERVICE_DIGEST_LENGTH * 2;
+    char digest_str[digest_size + sizeof('\0')];
+
+    if (!mysql_parser_get_statement_digest(thd, digest_buf)) {
+      for (int i = 0; i < PARSER_SERVICE_DIGEST_LENGTH; ++i) {
+        snprintf(digest_str + i * 2, digest_size, "%02x", digest_buf[i]);
+      }
+    }
+
+    if (my_b_printf(&log_file, "# Query_tables: %s Query_digest: %s\n",
+                    tbl_list_str.c_str(), digest_str) == (uint)-1) {
+      goto err;
+    }
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db)) {  // Database changed
     if (my_b_printf(&log_file, "use %s;\n", thd->db().str) == (uint)-1)
       goto err;
@@ -936,6 +995,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       my_b_write(&log_file, pointer_cast<const uchar *>(";\n"), 2) ||
       flush_io_cache(&log_file))
     goto err;
+
+  if (purge_logs()) goto err;
 
   mysql_mutex_unlock(&LOCK_log);
   return false;
@@ -1013,8 +1074,7 @@ bool Log_to_csv_event_handler::log_general(
     default value (which is CURRENT_TIMESTAMP).
   */
 
-  DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() ==
-              MYSQL_TYPE_TIMESTAMP);
+  assert(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
   ull2timeval(event_utime, &tv);
   table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(&tv);
 
@@ -1129,8 +1189,7 @@ bool Log_to_csv_event_handler::log_slow(
   restore_record(table, s->default_values);  // Get empty record
 
   /* store the time and user values */
-  DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() ==
-              MYSQL_TYPE_TIMESTAMP);
+  assert(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
   ull2timeval(current_utime, &tv);
   table->field[SQLT_FIELD_START_TIME]->store_timestamp(&tv);
 
@@ -1264,7 +1323,7 @@ bool Log_to_csv_event_handler::activate_log(
       log_name_length = SLOW_LOG_NAME.length;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
@@ -1322,7 +1381,7 @@ class Log_to_file_event_handler : public Log_event_handler {
    * log.*/
   File_query_log *get_query_log(enum_log_table_type log_type) {
     if (log_type == QUERY_LOG_SLOW) return &mysql_slow_log;
-    DBUG_ASSERT(log_type == QUERY_LOG_GENERAL);
+    assert(log_type == QUERY_LOG_GENERAL);
     return &mysql_general_log;
   }
 
@@ -1366,7 +1425,7 @@ bool Query_logger::is_log_table_enabled(enum_log_table_type log_type) const {
     return (opt_slow_log && (log_output_options & LOG_TABLE));
   else if (log_type == QUERY_LOG_GENERAL)
     return (opt_general_log && (log_output_options & LOG_TABLE));
-  DBUG_ASSERT(false);
+  assert(false);
   return false; /* make compiler happy */
 }
 
@@ -1378,7 +1437,7 @@ void Query_logger::init() {
 void Query_logger::cleanup() {
   mysql_rwlock_destroy(&LOCK_logger);
 
-  DBUG_ASSERT(file_log_handler);
+  assert(file_log_handler);
   file_log_handler->cleanup();
   delete file_log_handler;
   file_log_handler = nullptr;
@@ -1387,12 +1446,12 @@ void Query_logger::cleanup() {
 bool Query_logger::slow_log_write(
     THD *thd, const char *query, size_t query_length,
     struct System_status_var *query_start_status) {
-  DBUG_ASSERT(thd->enable_slow_log);
+  assert(thd->enable_slow_log);
 
   if (!(*slow_log_handler_list)) return false;
 
   /* do not log slow queries from replication threads */
-  if (thd->slave_thread && !opt_log_slow_slave_statements) return false;
+  if (thd->slave_thread && !opt_log_slow_replica_statements) return false;
 
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
@@ -1421,8 +1480,9 @@ bool Query_logger::slow_log_write(
   bool is_command = false;
   if (!query) {
     is_command = true;
-    query = command_name[thd->get_command()].str;
-    query_length = command_name[thd->get_command()].length;
+    const std::string &cn = Command_names::str_global(thd->get_command());
+    query = cn.c_str();
+    query_length = cn.length();
   }
 
   mysql_rwlock_rdlock(&LOCK_logger);
@@ -1469,8 +1529,8 @@ static bool log_command(THD *thd, enum_server_command command) {
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length) {
   /* Send a general log message to the audit API. */
-  mysql_audit_general_log(thd, command_name[(uint)command].str,
-                          command_name[(uint)command].length);
+  const std::string &cn = Command_names::str_global(command);
+  mysql_audit_general_log(thd, cn.c_str(), cn.length());
 
   /*
     Do we want to log this kind of command?
@@ -1494,8 +1554,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
     error |=
         (*current_handler++)
             ->log_general(thd, current_utime, user_host_buff, user_host_len,
-                          thd->thread_id(), command_name[(uint)command].str,
-                          command_name[(uint)command].length, query,
+                          thd->thread_id(), cn.c_str(), cn.length(), query,
                           query_length, thd->variables.character_set_client);
   }
   mysql_rwlock_unlock(&LOCK_logger);
@@ -1513,8 +1572,8 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
   if (!log_command(thd, command) || !opt_general_log ||
       !(*general_log_handler_list)) {
     /* Send a general log message to the audit API. */
-    mysql_audit_general_log(thd, command_name[(uint)command].str,
-                            command_name[(uint)command].length);
+    const std::string &cn = Command_names::str_global(command);
+    mysql_audit_general_log(thd, cn.c_str(), cn.length());
     return false;
   }
 
@@ -1581,7 +1640,7 @@ void Query_logger::init_query_log(enum_log_table_type log_type,
         break;
     }
   } else
-    DBUG_ASSERT(false);
+    assert(false);
 }
 
 void Query_logger::set_handlers(ulonglong log_printer) {
@@ -1625,7 +1684,7 @@ bool Query_logger::set_log_file(enum_log_table_type log_type) {
   else if (log_type == QUERY_LOG_GENERAL)
     log_name = opt_general_logname;
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   bool res = file_log_handler->get_query_log(log_type)->set_file(log_name);
 
@@ -1679,7 +1738,7 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
   else if (log_type == QUERY_LOG_SLOW)
     log_ext = "-slow.log";
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   strmake(buff, default_logfile_name, FN_REFLEN - 5);
   return fn_format(buff, buff, mysql_real_data_home, log_ext,
@@ -1702,7 +1761,7 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
 static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
   ulonglong res;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (thd->variables.query_exec_time != 0)
     res = thd->lex->sql_command != SQLCOM_SET_OPTION
               ? thd->variables.query_exec_time
@@ -1719,16 +1778,15 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
   return res;
 }
 
-static void copy_global_to_session(THD *thd, ulong flag, const ulong *val) {
-  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
-  if (opt_slow_query_log_use_global_control & (1ULL << flag))
-    *(ulong *)((char *)&thd->variables + offset) = *val;
-}
+template <typename Val>
+static void copy_global_to_session(THD *thd, ulong flag, const Val *val) {
+  static_assert(std::is_same<Query_errors_set, Val>::value ||
+                    std::is_unsigned<Val>::value,
+                "Check value type passed to copy_global_to_session template");
 
-static void copy_global_to_session(THD *thd, ulong flag, const ulonglong *val) {
   const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
-    *(ulonglong *)((char *)&thd->variables + offset) = *val;
+    *(Val *)((char *)&thd->variables + offset) = *val;
 }
 
 bool log_slow_applicable(THD *thd, int sp_sql_command) {
@@ -1741,13 +1799,41 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   */
   if (unlikely(thd->in_sub_stmt)) return false;  // Don't set time for sub stmt
 
+  if (unlikely(thd->killed == THD::KILL_CONNECTION)) return false;
+
+  /*
+    Do not log administrative statements unless the appropriate option is
+    set.
+  */
+  if (!thd->enable_slow_log || !opt_slow_log) return false;
+
+  /* Collect query exec time as the first step. */
+  ulonglong end_utime_of_query = thd->current_utime();
+  ulonglong query_exec_time = get_query_exec_time(thd, end_utime_of_query);
+
+  /*
+    Copy all needed global variables into a session one before doing all checks.
+
+    Low long_query_time value most likely means user is debugging stuff and even
+    though some thread's queries are not supposed to be logged b/c of the rate
+    limit, if one of them takes long enough (>= 1 second) it will be sensible
+    to make an exception and write to slow log anyway.
+  */
+  System_variables const &g = global_system_variables;
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER, &g.log_slow_filter);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
+                         &g.log_slow_rate_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
+                         &g.log_slow_verbosity);
+  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME, &g.long_query_time);
+  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+                         &g.min_examined_row_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_QUERY_ERRORS, &g.log_query_errors);
+
   /* Follow the slow log filter configuration. */
   if (thd->variables.log_slow_filter != 0 &&
       !(thd->variables.log_slow_filter & thd->query_plan_flags))
 	 return false;
-
-  ulonglong end_utime_of_query = thd->current_utime();
-  ulonglong query_exec_time = get_query_exec_time(thd, end_utime_of_query);
 
   /*
     Don't log the CALL statement if slow statements logging
@@ -1756,7 +1842,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   if (opt_log_slow_sp_statements > 0 && thd->lex) {
     if (thd->lex->sql_command == SQLCOM_CALL) {
       if (!thd->stmt_arena->is_regular()) {
-        DBUG_ASSERT(sp_sql_command != -1);
+        assert(sp_sql_command != -1);
         if (sp_sql_command == SQLCOM_CALL) return false;
       } else
 	 return false;
@@ -1768,23 +1854,6 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
 	 return false;
     }
   }
-
-  /*
-    Low long_query_time value most likely means user is debugging stuff and even
-    though some thread's queries are not supposed to be logged b/c of the rate
-    limit, if one of them takes long enough (>= 1 second) it will be sensible
-    to make an exception and write to slow log anyway.
-  */
-
-  System_variables const &g = global_system_variables;
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER, &g.log_slow_filter);
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
-                         &g.log_slow_rate_limit);
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
-                         &g.log_slow_verbosity);
-  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME, &g.long_query_time);
-  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
-                         &g.min_examined_row_limit);
 
   if (opt_slow_query_log_rate_type == SLOG_RT_QUERY &&
       thd->variables.log_slow_rate_limit &&
@@ -1804,24 +1873,24 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
 	  return false;
   }
 
-  /*
-    Do not log administrative statements unless the appropriate option is
-    set.
-  */
-  if (thd->enable_slow_log && opt_slow_log) {
-    bool warn_no_index =
-        ((thd->server_status &
-          (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-         opt_log_queries_not_using_indexes &&
-         !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
-    bool log_this_query =
-        ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
-        (thd->get_examined_row_count() >=
-         thd->variables.min_examined_row_limit);
-    bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
+  /* Log queries failing with predefined error */
+  bool warn_failed_query =
+      thd->is_error() && thd->variables.log_query_errors.check_error_set(
+                             thd->get_stmt_da()->mysql_errno());
+  bool warn_no_index =
+      ((thd->server_status &
+        (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+       opt_log_queries_not_using_indexes &&
+       !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
+  bool log_this_query =
+      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index ||
+       warn_failed_query) &&
+      (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
+  bool suppress_logging =
+      log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
-    if (!suppress_logging && log_this_query) return true;
-  }
+  if (!suppress_logging && log_this_query) return true;
+
   return false;
 }
 
@@ -2008,6 +2077,192 @@ bool Slow_log_throttle::log(THD *thd, bool eligible) {
   return suppress_current;
 }
 
+/**
+ * Check if string is a n-digit number.
+ *
+ * @param str String to check
+ * @param n_digit Expected number of digits
+ * @param res Returns actual number contained in provided string
+ * @return True in case string is a n-digit number, False otherwise
+ */
+static bool is_n_digit_number(const char *str, int n_digit, ulong *res) {
+  if (!isdigit(*str)) return false;
+
+  const char *start = str++;
+  while (isdigit(*str)) str++;
+  if (*str != 0 || str - start != n_digit) return false;
+
+  if (res) *res = atol(start);
+  return true;
+}
+
+/**
+ * Get biggest known numeric extension for a file name.
+ *
+ * Provided with the full path to the file it searches file's directory for
+ * files with the same name and six digit extension which is preceded by a dot.
+ * Max found extension number is returned. Extension equal to zero is returned
+ * in case there is no such file or there is no such files with numeric
+ * extension yet.
+ *
+ * @param name Full path to the log file name
+ * @return Biggest known numeric extension for the log file name
+ *         or 0 if not found
+ */
+static size_t get_last_extension(const char *const name) {
+  DBUG_ENTER("get_last_extension");
+  char buff[FN_REFLEN];
+  ulong max_found = 0;
+  ulong number = 0;
+  size_t buf_length;
+  size_t length;
+
+  length = dirname_part(buff, name, &buf_length);
+  const char *const start = name + length;
+  const char *const end = strend(start);
+  length = (size_t)(end - start);
+
+  MY_DIR *const dir_info = my_dir(buff, MYF(MY_DONT_SORT));
+  const struct fileinfo *file_info = dir_info->dir_entry;
+
+  for (uint i = dir_info->number_off_files; i--; file_info++) {
+    if (strncmp(file_info->name, start, length) == 0 &&
+        file_info->name[length] == '.' &&
+        is_n_digit_number(file_info->name + length + 1, 6, &number)) {
+      max_found = std::max(max_found, number);
+    }
+  }
+  my_dirend(dir_info);
+  DBUG_RETURN(max_found);
+}
+
+/**
+ * Set rotated log file name.
+ *
+ * Path to log file name updated according to current log file rotation
+ * settings. Numeric extension is added to log file name if needed.
+ * The opt_slow_logname is updated in case log file name has a numeric extension
+ * for the whole server to use proper log file name.
+ *
+ * @param need_lock Shows if LOCK_log mutex should be locked before
+ *                  updating opt_slow_logname
+ * @return False in case log file name updated successfully, True otherwise
+ */
+bool File_query_log::set_rotated_name(const bool need_lock) {
+  DBUG_ENTER("File_query_log::set_rotated_name");
+  if (need_lock) mysql_mutex_assert_owner(&LOCK_log);
+
+  if (!max_slowlog_size) {
+    fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+    DBUG_RETURN(false);
+  }
+
+  if (cur_log_ext == 0) {
+    fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+    cur_log_ext = get_last_extension(log_file_name) + 1;
+  } else {
+    cur_log_ext++;
+  }
+
+  if (cur_log_ext > 0) {
+    /* check if reached the maximum possible extension number */
+    if (cur_log_ext >= MAX_LOG_UNIQUE_FN_EXT) {
+      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_EXTENSION_NUMBER_EXHAUSTED,
+             cur_log_ext);
+      DBUG_RETURN(true);
+    }
+
+    if (snprintf(log_file_name, sizeof(log_file_name), "%s.%06lu", name,
+                 cur_log_ext) >= static_cast<int>(sizeof(log_file_name))) {
+      my_printf_error(ER_NO_UNIQUE_LOGFILE,
+                      ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
+                      MYF(ME_FATALERROR), name);
+      LogErr(ERROR_LEVEL, ER_NO_UNIQUE_LOGFILE, name);
+      DBUG_RETURN(true);
+    }
+
+    if (need_lock) mysql_mutex_lock(&LOCK_global_system_variables);
+    opt_slow_logname =
+        my_strdup(key_memory_LOG_name, log_file_name, MYF(MY_WME));
+    if (need_lock) mysql_mutex_unlock(&LOCK_global_system_variables);
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
+ * Rotate log file in case its size exceeds provided value.
+ *
+ * @param max_size Max allowed log file size
+ * @return False in case log is rotated successfully, True otherwise
+ */
+bool File_query_log::rotate(const ulong max_size) {
+  DBUG_ENTER("File_query_log::rotate");
+  mysql_mutex_assert_owner(&LOCK_log);
+
+  if (my_b_tell(&log_file) > max_size) {
+    if (set_rotated_name(true)) DBUG_RETURN(true);
+    close();
+    if (open()) DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
+ * Purge log files depending on max configured number of log files.
+ *
+ * @return False in case logs purged successfully, True otherwise
+ */
+bool File_query_log::purge_logs() {
+  DBUG_ENTER("File_query_log::purge_logs");
+  mysql_mutex_assert_owner(&LOCK_log);
+
+  if (max_slowlog_files == 0 || cur_log_ext < 1 ||
+      last_removed_ext == cur_log_ext - 1)
+    DBUG_RETURN(false);
+
+  char buff[FN_REFLEN];
+  MY_STAT stat_area;
+  long iter_log_ext = cur_log_ext - 1;
+  ulong total_slowlog_files_count = 1;
+
+  while (true) {
+    if (iter_log_ext > 0) {
+      snprintf(buff, sizeof(buff), "%s.%06lu", name, iter_log_ext);
+    } else {
+      snprintf(buff, sizeof(buff), "%s", name);
+    }
+
+    if (!mysql_file_stat(m_log_file_key, buff, &stat_area, MYF(0))) {
+      last_removed_ext = iter_log_ext;
+      DBUG_RETURN(false);
+    }
+
+    if (++total_slowlog_files_count >= max_slowlog_files) break;
+    if (--iter_log_ext < 0) DBUG_RETURN(false);
+  };
+
+  bool error = false;
+  if (max_slowlog_files > 1) --iter_log_ext;
+
+  while (iter_log_ext >= 0) {
+    if (iter_log_ext > 0) {
+      snprintf(buff, sizeof(buff), "%s.%06lu", name, iter_log_ext);
+    } else {
+      snprintf(buff, sizeof(buff), "%s", name);
+    }
+
+    if ((error = (unlink(buff) != 0))) {
+      if (my_errno() == ENOENT) error = false;
+      break;
+    }
+    --iter_log_ext;
+  }
+
+  DBUG_RETURN(error);
+}
+
 bool Error_log_throttle::log() {
   ulonglong end_utime_of_query = my_micro_time();
   DBUG_EXECUTE_IF(
@@ -2082,7 +2337,7 @@ void flush_error_log_messages() {
 }
 
 bool init_error_log() {
-  DBUG_ASSERT(!error_log_initialized);
+  assert(!error_log_initialized);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   /*
     ready the default filter/sink so they'll be available before/without
@@ -2099,7 +2354,7 @@ bool init_error_log() {
 }
 
 bool open_error_log(const char *filename, bool get_lock) {
-  DBUG_ASSERT(filename);
+  assert(filename);
   int retries = 2, errors = 0;
   MY_STAT f_stat;
 
@@ -2161,18 +2416,37 @@ void destroy_error_log() {
 }
 
 bool reopen_error_log() {
+  int component_failures;
   bool result = false;
 
-  DBUG_ASSERT(error_log_initialized);
+  assert(error_log_initialized);
 
-  // reload all error logging services
-  log_builtins_error_stack_flush();
+  // call flush function in all logging services
+  if ((component_failures = log_builtins_error_stack_flush()) < 0) {
+    // If flushing failed and there is a user session, alert the user.
+    if (current_thd)
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED,
+          ER_THD(current_thd, ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED),
+          -component_failures);
+
+    // Log failure to error-log.
+    LogErr(ERROR_LEVEL, ER_LOG_COMPONENT_FLUSH_FAILED, -component_failures);
+  }
 
   if (error_log_file) {
     mysql_mutex_lock(&LOCK_error_log);
     result = open_error_log(error_log_file, true);
     mysql_mutex_unlock(&LOCK_error_log);
 
+    /*
+      This may in theory get bounced to the error log if no session
+      is attached to this thread (e.g. when flush/reload is called
+      by SIGHUP). That's OK though as we don't hold an X-lock on
+      THR_LOCK_log_stack here the way we did during
+      log_builtins_error_stack_flush() above.
+    */
     if (result)
       my_error(ER_DA_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".",
                ""); /* purecov: inspected */
@@ -2278,7 +2552,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
       ll.item[ll.count].key = log_item_wellknown_get_name(wk);
     else {
       ll.item[ll.count].key = "???";
-      DBUG_ASSERT(false);
+      assert(false);
     }
 
     // if we've already got one of this type, de-duplicate later
@@ -2341,7 +2615,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
           Bail. As the input is clearly badly broken, we don't dare try
           to free anything here.
         */
-        DBUG_ASSERT(false);
+        assert(false);
         return -1;
     }
 
@@ -2533,7 +2807,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   struct st_plugin_int *plugin = static_cast<st_plugin_int *>(*plugin_ptr);
   va_list args;
 
-  DBUG_ASSERT(level >= MY_ERROR_LEVEL && level <= MY_INFORMATION_LEVEL);
+  assert(level >= MY_ERROR_LEVEL && level <= MY_INFORMATION_LEVEL);
 
   switch (level) {
     case MY_ERROR_LEVEL:

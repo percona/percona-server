@@ -159,6 +159,18 @@ const constexpr char RDB_TTL_DURATION_QUALIFIER[] = "ttl_duration";
 const constexpr char RDB_TTL_COL_QUALIFIER[] = "ttl_col";
 
 /*
+  Qualifier name for number of prefix keyparts in partial index
+*/
+const char *const RDB_PARTIAL_INDEX_KEYPARTS_QUALIFIER =
+    "partial_group_keyparts";
+
+/*
+  Qualifier name for materialization threshold in partial index
+*/
+const char *const RDB_PARTIAL_INDEX_THRESHOLD_QUALIFIER =
+    "partial_group_threshold";
+
+/*
   Default, minimal valid, and maximum valid sampling rate values when collecting
   statistics about table.
 */
@@ -330,7 +342,7 @@ enum operation_type : int {
   ROWS_DELETED_BLIND,
   ROWS_EXPIRED,
   ROWS_FILTERED,
-  ROWS_HIDDEN_NO_SNAPSHOT,
+  ROWS_UNFILTERED_NO_SNAPSHOT,
   ROWS_MAX
 };
 
@@ -373,7 +385,7 @@ struct st_export_stats {
   ulonglong rows_deleted_blind;
   ulonglong rows_expired;
   ulonglong rows_filtered;
-  ulonglong rows_hidden_no_snapshot;
+  ulonglong rows_unfiltered_no_snapshot;
 
   ulonglong system_rows_deleted;
   ulonglong system_rows_inserted;

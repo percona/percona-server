@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,9 +45,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "keyring_encryption_key_info.h"
 
 /** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table	dict table object
-@param[in,out]	trx	transaction instance
-@param[in]      keyring_encryption_key_id info on keyring encryption key
+@param[in,out]	table		dict table object
+@param[in]	create_info	HA_CREATE_INFO object
+@param[in,out]	trx		transaction instance
+@param[in]	keyring_encryption_key_id 	info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
     dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
@@ -64,9 +65,10 @@ dberr_t dict_build_tablespace(
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table	Table to build in its own tablespace.
-@param[in,out]	trx	Transaction
-@param[in]      keyring_encryption_key_id info on keyring encryption key
+@param[in,out]	table		Table to build in its own tablespace.
+@param[in]	create_info	HA_CREATE_INFO object
+@param[in,out]	trx		Transaction
+@param[in]	keyring_encryption_key_id 	info on keyring encryption key
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
     dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
@@ -102,9 +104,8 @@ the number is not global, as it used to be before MySQL 4.0.18.
 @param[in,out]	id_nr	number to use in id generation; incremented if used
 @param[in]	name	table name
 @param[in,out]	foreign	foreign key */
-UNIV_INLINE
-dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
-                                   dict_foreign_t *foreign);
+static inline dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
+                                                 dict_foreign_t *foreign);
 
 /** Check if a foreign constraint is on columns served as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
@@ -216,22 +217,19 @@ of Sys_columns. The column number includes both its virtual column sequence
 @param[in]	v_pos		virtual column sequence
 @param[in]	col_pos		column position in original table definition
 @return	composed column position number */
-UNIV_INLINE
-ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
+static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return column position in original table */
-UNIV_INLINE
-ulint dict_get_v_col_mysql_pos(ulint pos);
+static inline ulint dict_get_v_col_mysql_pos(ulint pos);
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return virtual column sequence */
-UNIV_INLINE
-ulint dict_get_v_col_pos(ulint pos);
+static inline ulint dict_get_v_col_pos(ulint pos);
 
 #include "dict0crea.ic"
 

@@ -33,10 +33,8 @@ MYSQL_ADD_EXECUTABLE(keyring_vault-test
                ../vault_credentials.cc
                ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/generate_credential_file.cc
                ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
-               ADD_TEST)
+               ADD_TEST keyring_vault-test)
 
 TARGET_LINK_LIBRARIES(keyring_vault-test strings mysys sql_main minchassis)
 TARGET_LINK_LIBRARIES(keyring_vault-test binlog rpl master slave)
 TARGET_LINK_LIBRARIES(keyring_vault-test ${CURL_LIBRARY} ${SSL_LIBRARIES})
-
-ADD_TEST(keyring_vault-test keyring_vault-test)

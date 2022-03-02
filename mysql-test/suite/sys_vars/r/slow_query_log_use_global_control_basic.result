@@ -23,7 +23,7 @@ slow_query_log_use_global_control
 SET GLOBAL slow_query_log_use_global_control=all;
 SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
 Variable_name	Value
-slow_query_log_use_global_control	log_slow_filter,log_slow_rate_limit,log_slow_verbosity,long_query_time,min_examined_row_limit
+slow_query_log_use_global_control	log_slow_filter,log_slow_rate_limit,log_slow_verbosity,long_query_time,min_examined_row_limit,log_query_errors
 SET GLOBAL slow_query_log_use_global_control='';
 SHOW VARIABLES LIKE 'slow_query_log_use_global_control';
 Variable_name	Value

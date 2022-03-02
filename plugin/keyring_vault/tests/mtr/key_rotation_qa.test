@@ -29,18 +29,18 @@ if (!$vault_conf_mount_point_directory)
 }
 
 --disable_query_log
-call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
 call mtr.add_suppression("Function 'keyring_vault' already exists");
 call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.so'.");
 call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.dll'.");
-call mtr.add_suppression("InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("InnoDB: Can't generate new master key, please check the keyring is loaded.");
 call mtr.add_suppression("Encryption information in datafile");
 call mtr.add_suppression("Operating system error number 2 in a file operation.");
 call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("Could not find a valid tablespace file for");
 call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("Ignoring tablespace `test/.*` because it could not be opened.");
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Can't read encryption key from file");
@@ -68,7 +68,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo
 # Restarting mysql server with keyring_vault plugin.
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring_vault_config=$conf_file1
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 --error ER_UDF_EXISTS
@@ -141,7 +141,7 @@ UNINSTALL PLUGIN keyring_vault;
 # After restart encrypted table/s should be accessible
 # when using same Vault server.
 let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file1;
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -149,7 +149,7 @@ SELECT * FROM t2;
 # After restart old encrypted tables will not be not accessible,
 # since we changed Vault we are connecting to
 let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file2;
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1;
@@ -163,7 +163,7 @@ SELECT * FROM t12;
 
 # Test keyring_file with early-plugin-load and plugin-load.
 --let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_EARLY_LOAD $KEYRING_VAULT_PLUGIN_LOAD --keyring_vault_config=$conf_file2
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --source include/restart_mysqld.inc
 
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS

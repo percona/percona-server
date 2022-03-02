@@ -40,7 +40,7 @@
 --connection server_1
 
 SET @binlog_checksum.save= @@global.binlog_checksum;
-SET @master_verify_checksum.save= @@global.master_verify_checksum;
+SET @source_verify_checksum.save= @@global.source_verify_checksum;
 SET @binlog_row_image.save= @@global.binlog_row_image;
 
 --echo ####################################################
@@ -50,7 +50,7 @@ SET @binlog_row_image.save= @@global.binlog_row_image;
 --connection server_1
 
 SET GLOBAL binlog_checksum= NONE;
-SET GLOBAL master_verify_checksum= 0;
+SET GLOBAL source_verify_checksum= 0;
 
 --source testdata.inc
 
@@ -61,7 +61,7 @@ SET GLOBAL master_verify_checksum= 0;
 --connection server_1
 
 SET GLOBAL binlog_checksum= CRC32;
-SET GLOBAL master_verify_checksum= 1;
+SET GLOBAL source_verify_checksum= 1;
 
 --source testdata.inc
 
@@ -72,7 +72,7 @@ SET GLOBAL master_verify_checksum= 1;
 --connection server_1
 
 SET GLOBAL binlog_checksum= NONE;
-SET GLOBAL master_verify_checksum= 0;
+SET GLOBAL source_verify_checksum= 0;
 SET GLOBAL binlog_row_image= MINIMAL;
 SET binlog_row_image= MINIMAL;
 
@@ -157,7 +157,7 @@ SET binlog_row_image= MINIMAL;
 
 --connection server_1
 SET GLOBAL binlog_checksum= @binlog_checksum.save;
-SET GLOBAL master_verify_checksum= @master_verify_checksum.save;
+SET GLOBAL source_verify_checksum= @source_verify_checksum.save;
 SET GLOBAL binlog_row_image= @binlog_row_image.save;
 
 --disable_connect_log

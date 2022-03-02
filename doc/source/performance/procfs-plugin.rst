@@ -32,7 +32,7 @@ We recommend installing the plugin as part of the package. If needed, you can in
     INSTALL PLUGIN procfs SONAME 'procfs.so';
 
 Access Privileges Required 
- ---------------------------
+-----------------------------
 
 Only users with the ``ACCESS_PROCFS`` dynamic privilege can access the ``INFORMATION_SCHEMA.PROCFS`` view. During the plugin startup, this dynamic privilege is registered with the server. 
 

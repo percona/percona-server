@@ -855,7 +855,7 @@ Allowed range is from ``1`` to ``2147483647``.
   :dyn: No
   :scope: Global
   :vartype: Numeric
-  :default: 16 KB
+  :default: ``16 KB``
 
 Specifies the size of the data block for reading RocksDB data files.
 The default value is ``16 KB``.
@@ -2551,6 +2551,7 @@ Specifies the path to the directory for temporary files during DDL operations.
 Defines the block cache trace option string. The format is sampling frequency: max_trace_file_size:trace_file_name. The sampling frequency value and max_trace_file_size value are positive integers. The block accesses are saved to the ``rocksdb_datadir/block_cache_traces/trace_file_name``. The default value is an empty string.
 
 .. variable:: rocksdb_trace_queries
+
    :cli: ``--rocksdb-trace-queries``
    :dyn: Yes
    :scope: Global

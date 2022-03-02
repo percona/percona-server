@@ -6096,13 +6096,11 @@ static int rocksdb_init_internal(void *const p) {
                       "Invalid value for rocksdb_persistent_cache_size_mb. It "
                       "has to be at least %i",
                       persistent_cache_size_mb_min);
-      deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
     if (!strlen(rocksdb_persistent_cache_path)) {
       LogPluginErrMsg(ERROR_LEVEL, 0,
                       "Specify rocksdb_persistent_cache_size_path");
-      deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
 

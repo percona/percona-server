@@ -176,6 +176,7 @@ Percona MyRocks
 
    MyRocks Introduction <myrocks/index>
    MyRocks Installation <myrocks/install>
+   MyRocks Supported Features <myrocks/added-features>
    MyRocks Limitations <myrocks/limitations>
    MyRocks Differences <myrocks/differences>
    MyRocks Information Schema Tables <myrocks/information-schema-tables>

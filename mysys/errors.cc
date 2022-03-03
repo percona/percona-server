@@ -139,6 +139,7 @@ const char *globerrs[GLOBERRS] = {
     "Reset character out of range: %s.",
     "Unknown LDML tag: '%.*s'.",
     "Failed to reset before a secondary ignorable character %s.",
+    "Stopped processing the '%s' directive in file %s at line %d.",
     "Can't create socket '%s' (Errcode: %d)",
     "File name '%s' is too long (max: %d)"};
 

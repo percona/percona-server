@@ -295,6 +295,7 @@ get_sources(){
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     rsync -av extra/libzbd/ ${PSDIR}/extra/libzbd --exclude .git
     rsync -av storage/rocksdb/rocksdb_plugins/ ${PSDIR}/storage/rocksdb/rocksdb_plugins --exclude .git
+    rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     #
     cd ${PSDIR}
     # set tokudb version - can be seen with show variables like '%version%'
@@ -411,6 +412,7 @@ install_deps() {
         fi
         if [ "x${RHEL}" = "x7" ]; then
             yum -y install devtoolset-10
+            yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-10/enable
         fi
 	 if [ "x${RHEL}" = "x6" ]; then
@@ -475,6 +477,7 @@ install_deps() {
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
         apt-get -y install libmecab2 mecab mecab-ipadic
+        apt-get -y install libudev-dev
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
@@ -969,7 +972,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.26-16"
+BRANCH="release-8.0.27-18"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
@@ -977,12 +980,12 @@ REPO="git://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=26
-MYSQL_VERSION_EXTRA=-16
-PRODUCT_FULL=Percona-Server-8.0.26
+MYSQL_VERSION_PATCH=27
+MYSQL_VERSION_EXTRA=-18
+PRODUCT_FULL=Percona-Server-8.0.27
 BOOST_PACKAGE_NAME=boost_1_73_0
-PERCONAFT_BRANCH=Percona-Server-8.0.22-13
-TOKUBACKUP_BRANCH=Percona-Server-8.0.22-13
+PERCONAFT_BRANCH=Percona-Server-8.0.27-18
+TOKUBACKUP_BRANCH=Percona-Server-8.0.27-18
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

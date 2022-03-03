@@ -467,4 +467,3 @@ fi
 rm -rf "$INSTALLDIR"
 rm -rf "$WORKDIR_ABS/libboost"
 rm -rf "$WORKDIR_ABS/bld"
-

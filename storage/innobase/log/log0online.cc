@@ -204,7 +204,7 @@ bool log_read_buffer::is_current_block_valid() const noexcept {
 
     const auto no = log_block_get_hdr_no(ccurrent());
     const auto expected_no = log_block_convert_lsn_to_no(current_lsn);
-    ib::fatal() << "Log block checksum mismatch: LSN " << current_lsn
+    ib::fatal(UT_LOCATION_HERE) << "Log block checksum mismatch: LSN " << current_lsn
                 << ", expected " << log_block_get_checksum(ccurrent()) << ", "
                 << "calculated checksum " << log_block_calc_checksum(ccurrent())
                 << ", "
@@ -507,7 +507,7 @@ static const constexpr auto MODIFIED_PAGE_1ST_PAGE_ID =
     24; /* The page ID of the first tracked
                                         page in this block */
 static const constexpr auto MODIFIED_PAGE_BLOCK_UNUSED_1
-    MY_ATTRIBUTE((unused)) = 28; /* Unused in order to align the start
+    [[maybe_unused]] = 28; /* Unused in order to align the start
                 of bitmap at 8 byte boundary */
 static const constexpr auto MODIFIED_PAGE_BLOCK_BITMAP =
     32; /* Start of the bitmap itself */
@@ -580,9 +580,9 @@ static void log_online_set_page_bit(space_id_t space, page_no_t page_no) {
       new_node = log_bmp_sys->page_free_list;
       log_bmp_sys->page_free_list = new_node->left;
     } else {
-      new_node = static_cast<ib_rbt_node_t *>(
-          ut_malloc(SIZEOF_NODE(log_bmp_sys->modified_pages),
-                    mem_key_log_online_modified_pages));
+      new_node = static_cast<ib_rbt_node_t *>(ut::malloc_withkey(
+          ut::make_psi_memory_key(mem_key_log_online_modified_pages),
+          SIZEOF_NODE(log_bmp_sys->modified_pages)));
     }
     memset(new_node, 0, SIZEOF_NODE(log_bmp_sys->modified_pages));
 
@@ -719,8 +719,7 @@ capacity.
 
 @return true if the missing interval can be tracked or if there's no missing
 data.  */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_can_track_missing(
+MY_NODISCARD static bool log_online_can_track_missing(
     lsn_t last_tracked_lsn,   /*!<in: last tracked LSN */
     lsn_t tracking_start_lsn) /*!<in:	current LSN */
     noexcept {
@@ -730,7 +729,7 @@ file, handle this too. */
 
   if ((last_tracked_lsn > tracking_start_lsn) &&
       (last_tracked_lsn % OS_FILE_LOG_BLOCK_SIZE > LOG_BLOCK_HDR_SIZE)) {
-    ib::fatal() << "Last tracked LSN " << last_tracked_lsn
+    ib::fatal(UT_LOCATION_HERE) << "Last tracked LSN " << last_tracked_lsn
                 << " is ahead of tracking start LSN " << tracking_start_lsn
                 << ".  This can be caused "
                    "by mismatched bitmap files.";
@@ -888,12 +887,12 @@ void log_online_read_init(void) {
 
   ut_ad(srv_track_changed_pages);
 
-  log_online_metadata_recover =
-      UT_NEW(MetadataRecover(true), mem_key_log_online_sys);
+  log_online_metadata_recover = ut::new_withkey<MetadataRecover>(
+      ut::make_psi_memory_key(mem_key_log_online_sys), true);
 
-  log_bmp_sys_unaligned =
-      ut_malloc(sizeof(*log_bmp_sys) + INNODB_LOG_WRITE_AHEAD_SIZE_MAX - 1,
-                mem_key_log_online_sys);
+  log_bmp_sys_unaligned = ut::malloc_withkey(
+      ut::make_psi_memory_key(mem_key_log_online_sys),
+      sizeof(*log_bmp_sys) + INNODB_LOG_WRITE_AHEAD_SIZE_MAX - 1);
   log_bmp_sys = new (
       (reinterpret_cast<uintptr_t>(log_bmp_sys_unaligned) %
        INNODB_LOG_WRITE_AHEAD_SIZE_MAX)
@@ -1012,6 +1011,9 @@ void log_online_read_init(void) {
 
   ib::info() << "Starting tracking changed pages from LSN "
              << tracking_start_lsn;
+  ib::warn() << "Use of Percona changed page tracking is deprecated and will "
+                "be removed in future release. We recommend using the MySQL "
+                "page tracking feature";
   log_bmp_sys->start_at(tracking_start_lsn);
 }
 
@@ -1033,15 +1035,15 @@ void log_online_read_shutdown(void) noexcept {
 
   while (free_list_node) {
     ib_rbt_node_t *next = free_list_node->left;
-    ut_free(free_list_node);
+    ut::free(free_list_node);
     free_list_node = next;
   }
 
-  ut_free(log_bmp_sys_unaligned);
+  ut::free(log_bmp_sys_unaligned);
   log_bmp_sys = nullptr;
   log_bmp_sys_unaligned = nullptr;
 
-  UT_DELETE(log_online_metadata_recover);
+  ut::delete_(log_online_metadata_recover);
   log_online_metadata_recover = nullptr;
 
   mutex_exit(&log_bmp_sys_mutex);
@@ -1114,8 +1116,7 @@ static void log_online_parse_redo_log_block(
 }
 
 /** Read and parse one redo log chunk and updates the modified page bitmap. */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_follow_log_seg(
+MY_NODISCARD static bool log_online_follow_log_seg(
     lsn_t block_start_lsn, /*!< in: the LSN to read from */
     lsn_t block_end_lsn)   /*!< in: the LSN to read to */
 {
@@ -1160,8 +1161,7 @@ static bool log_online_follow_log_seg(
 
 /** Read and parse the redo log in FOLLOW_SCAN_SIZE-sized chunks and update the
 modified page bitmap. */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_follow_log(
+MY_NODISCARD static bool log_online_follow_log(
     lsn_t contiguous_lsn) /*!< in: the LSN of log block start
                                         containing the log_parse_start_lsn */
 {
@@ -1389,7 +1389,7 @@ static void log_online_diagnose_inconsistent_dir(
     noexcept {
   ib::warn() << "Inconsistent bitmap file directory for a "
                 "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query";
-  ut_free(bitmap_files->files);
+  ut::free(bitmap_files->files);
   bitmap_files->files = nullptr;
 }
 
@@ -1491,8 +1491,9 @@ static bool log_online_setup_bitmap_file_range(
 
   bitmap_files->files =
       static_cast<log_online_bitmap_file_range_struct::files_t *>(
-          ut_zalloc(bitmap_files->count * sizeof(bitmap_files->files[0]),
-                    mem_key_log_online_iterator_files));
+          ut::zalloc_withkey(
+              ut::make_psi_memory_key(mem_key_log_online_iterator_files),
+              bitmap_files->count * sizeof(bitmap_files->files[0])));
 
   for (uint i = 0; i < bitmap_dir->number_off_files; i++) {
     ulong file_seq_num;
@@ -1679,13 +1680,14 @@ bool log_online_bitmap_iterator_init(
   if (UNIV_UNLIKELY(!log_online_open_bitmap_file_read_only(
           i->in_files.files[i->in_i].name, &i->in))) {
     i->in_i = i->in_files.count;
-    ut_free(i->in_files.files);
+    ut::free(i->in_files.files);
     i->failed = true;
     return false;
   }
 
-  i->page = static_cast<byte *>(
-      ut_malloc(MODIFIED_PAGE_BLOCK_SIZE, mem_key_log_online_iterator_page));
+  i->page = static_cast<byte *>(ut::malloc_withkey(
+      ut::make_psi_memory_key(mem_key_log_online_iterator_page),
+      MODIFIED_PAGE_BLOCK_SIZE));
   i->bit_offset = MODIFIED_PAGE_BLOCK_BITMAP_LEN;
   i->start_lsn = i->end_lsn = 0;
   i->space_id = 0;
@@ -1708,10 +1710,10 @@ void log_online_bitmap_iterator_release(
     i->in.file.set_closed();
   }
   if (i->in_files.files) {
-    ut_free(i->in_files.files);
+    ut::free(i->in_files.files);
   }
   if (i->page) {
-    ut_free(i->page);
+    ut::free(i->page);
   }
   i->failed = true;
 }
@@ -1916,6 +1918,6 @@ bool log_online_purge_changed_page_bitmaps(
     mutex_exit(&log_bmp_sys_mutex);
   }
 
-  ut_free(bitmap_files.files);
+  ut::free(bitmap_files.files);
   return result;
 }

@@ -160,7 +160,8 @@ class Rdb_iterator_partial : public Rdb_iterator_base {
     explicit slice_comparator(const rocksdb::Comparator *c) : m_comparator(c) {}
     const rocksdb::Comparator *const m_comparator;
 
-    bool operator()(const rocksdb::Slice &lhs, const rocksdb::Slice &rhs) {
+    bool operator()(const rocksdb::Slice &lhs,
+                    const rocksdb::Slice &rhs) const {
       return m_comparator->Compare(lhs, rhs) < 0;
     }
   };

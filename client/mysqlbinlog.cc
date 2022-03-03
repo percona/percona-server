@@ -1607,7 +1607,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
           goto end;
         }
       }
-      // Fall through
+        [[fallthrough]];
       case binary_log::ROWS_QUERY_LOG_EVENT:
       case binary_log::WRITE_ROWS_EVENT:
       case binary_log::DELETE_ROWS_EVENT:
@@ -1760,7 +1760,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
               "any case. If you want to exclude or include transactions, "
               "you should use the options --exclude-gtids or "
               "--include-gtids, respectively, instead.");
-        /* fall through */
+        [[fallthrough]];
       default:
         ev->print(result_file, print_event_info);
         if (head->error == -1) goto err;
@@ -2247,7 +2247,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
     case OPT_READ_FROM_REMOTE_MASTER_DEPRECATED:
       warning(CLIENT_WARN_DEPRECATED_MSG("--read-from-remote-master",
                                          "--read-from-remote-source"));
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case OPT_REMOTE_PROTO:
       opt_remote_proto = (enum_remote_proto)(
           find_type_or_exit(argument, &remote_proto_typelib, opt->name) - 1);
@@ -2909,7 +2909,7 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
   }
 
   bool start_decryption(
-      binary_log::Start_encryption_event *see MY_ATTRIBUTE((unused))) {
+      binary_log::Start_encryption_event *see [[maybe_unused]]) {
     m_binlog_5_7_encrypted = true;
     return false;
   }

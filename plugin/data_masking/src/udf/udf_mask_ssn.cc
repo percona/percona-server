@@ -66,7 +66,7 @@ static void mask_ssn_deinit(UDF_INIT *initid) {
  * argument is not the correct length..
  */
 static const char *mask_ssn(UDF_INIT *initid, UDF_ARGS *args,
-                            char *result MY_ATTRIBUTE((unused)),
+                            char *result [[maybe_unused]],
                             unsigned long *length, char *is_null, char *) {
   DBUG_ENTER("mask_ssn");
 

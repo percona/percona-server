@@ -78,7 +78,7 @@ static void mask_outer_deinit(UDF_INIT *initid) {
  * the entire argument is masked.
  */
 static const char *mask_outer(UDF_INIT *initid, UDF_ARGS *args,
-                              char *result MY_ATTRIBUTE((unused)),
+                              char *result [[maybe_unused]],
                               unsigned long *length, char *is_null, char *) {
   DBUG_ENTER("mask_outer");
 

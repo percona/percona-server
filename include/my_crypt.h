@@ -46,27 +46,25 @@ enum class my_aes_mode {
 
 class MyEncryptionCTX;
 
-int my_aes_crypt_init(MyEncryptionCTX *&ctx, enum my_aes_mode mode, int flags,
-                      const unsigned char *key, size_t klen,
-                      const unsigned char *iv, size_t ivlen)
-    MY_ATTRIBUTE((warn_unused_result));
-int my_aes_crypt_update(
-    MyEncryptionCTX *ctx, const unsigned char *src, size_t slen,
-    unsigned char *dst,
-    size_t *dlen) noexcept MY_ATTRIBUTE((warn_unused_result));
-int my_aes_crypt_finish(MyEncryptionCTX *&ctx, uchar *dst, size_t *dlen)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD int my_aes_crypt_init(MyEncryptionCTX *&ctx, enum my_aes_mode mode,
+                                   int flags, const unsigned char *key,
+                                   size_t klen, const unsigned char *iv,
+                                   size_t ivlen);
+MY_NODISCARD int my_aes_crypt_update(MyEncryptionCTX *ctx,
+                                     const unsigned char *src, size_t slen,
+                                     unsigned char *dst, size_t *dlen) noexcept;
+MY_NODISCARD int my_aes_crypt_finish(MyEncryptionCTX *&ctx, uchar *dst,
+                                     size_t *dlen);
 void my_aes_crypt_free_ctx(MyEncryptionCTX *ctx) noexcept;
 
-int my_aes_crypt(enum my_aes_mode mode, int flags, const unsigned char *src,
-                 size_t slen, unsigned char *dst, size_t *dlen,
-                 const unsigned char *key, size_t klen, const unsigned char *iv,
-                 size_t ivlen) MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD int my_aes_crypt(enum my_aes_mode mode, int flags,
+                              const unsigned char *src, size_t slen,
+                              unsigned char *dst, size_t *dlen,
+                              const unsigned char *key, size_t klen,
+                              const unsigned char *iv, size_t ivlen);
 
-int my_random_bytes(unsigned char *buf,
-                    int num) noexcept MY_ATTRIBUTE((warn_unused_result));
-size_t my_aes_crypt_get_size(
-    enum my_aes_mode mode,
-    size_t source_length) noexcept MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD int my_random_bytes(unsigned char *buf, int num) noexcept;
+MY_NODISCARD size_t my_aes_crypt_get_size(enum my_aes_mode mode,
+                                          size_t source_length) noexcept;
 
 #endif /* MY_CRYPT_INCLUDED */

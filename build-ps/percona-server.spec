@@ -128,7 +128,7 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-%global license_files_server  %{src_dir}/README
+%global license_files_server  %{src_dir}/README.md
 %global license_type          GPLv2
 
 Name:           percona-server
@@ -630,6 +630,10 @@ rm -f %{buildroot}%{_datadir}/percona-server/win_install_firewall.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
 rm -rf %{buildroot}/usr/cmake/coredumper.cmake
+rm -rf %{buildroot}/usr/include/kmip.h
+rm -rf %{buildroot}/usr/include/kmippp.h
+rm -rf %{buildroot}/usr/lib/libkmip.a
+rm -rf %{buildroot}/usr/lib/libkmippp.a
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -1099,6 +1103,12 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/swedish/
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
 #%attr(755, root, root) %{_datadir}/percona-server/mysql_system_users.sql
+#
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_kmip.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_kmip.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
+
 
 %files -n percona-server-client
 %defattr(-, root, root, -)

@@ -1,6 +1,7 @@
 !include ../my.cnf
 
 [mysqld.3]
+replica-parallel-workers=0
 
 [ENV]
 SERVER_MYPORT_3=        @mysqld.3.port

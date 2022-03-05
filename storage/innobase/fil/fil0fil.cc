@@ -39,6 +39,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
+#include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0space.h"
@@ -68,19 +69,6 @@ Created 10/25/1995 Heikki Tuuri
 
 
 extern uint	srv_n_fil_crypt_threads;
-
-/** Tries to close a file in the LRU list. The caller must hold the fil_sys
-mutex.
-@return true if success, false if should retry later; since i/o's
-generally complete in < 100 ms, and as InnoDB writes at most 128 pages
-from the buffer pool in a batch, and then immediately flushes the
-files, there is a good chance that the next time we find a suitable
-node from the LRU list.
-@param[in] print_info	if true, prints information why it
-                        cannot close a file */
-static
-bool
-fil_try_to_close_file_in_LRU(bool print_info);
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -980,13 +968,14 @@ files, there is a good chance that the next time we find a suitable
 node from the LRU list.
 @param[in] print_info	if true, prints information why it
 			cannot close a file*/
-static
 bool
 fil_try_to_close_file_in_LRU(
 
 	bool	print_info)
 {
 	fil_node_t*	node;
+
+	if (!fil_system) return false;
 
 	ut_ad(mutex_own(&fil_system->mutex));
 
@@ -1886,6 +1875,8 @@ fil_close_all_files(void)
 /*=====================*/
 {
 	fil_space_t*	space;
+
+	if (!fil_system) return;
 
 	// Must check both flags as it's possible for this to be called during
 	// server startup with srv_track_changed_pages == true but
@@ -6887,6 +6878,10 @@ fil_close(void)
 	hash_table_free(fil_system->spaces);
 
 	hash_table_free(fil_system->name_hash);
+
+	ut_a(UT_LIST_GET_LEN(fil_system->LRU) == 0);
+	ut_a(UT_LIST_GET_LEN(fil_system->unflushed_spaces) == 0);
+	ut_a(UT_LIST_GET_LEN(fil_system->space_list) == 0);
 
 	mutex_free(&fil_system->mutex);
 

@@ -777,6 +777,18 @@ fil_node_create(
 	ulint		max_pages = ULINT_MAX)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Tries to close a file in the LRU list. The caller must hold the fil_sys
+mutex.
+@return true if success, false if should retry later; since i/o's
+generally complete in < 100 ms, and as InnoDB writes at most 128 pages
+from the buffer pool in a batch, and then immediately flushes the
+files, there is a good chance that the next time we find a suitable
+node from the LRU list.
+@param[in] print_info if true, prints information why it
+                        cannot close a file */
+bool
+fil_try_to_close_file_in_LRU(bool print_info);
+
 /** Create a space memory object and put it to the fil_system hash table.
 The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.

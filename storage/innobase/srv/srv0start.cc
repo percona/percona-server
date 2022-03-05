@@ -3170,6 +3170,8 @@ innobase_shutdown_for_mysql(void)
 Free all the resources acquired by InnoDB (mutexes, events, memory). */
 void srv_free_resources()
 {
+	ulint save_srv_fast_shutdown;
+
 	/* We don't create these mutexes in RO mode because we don't create
 	the temp files that the cover. */
 	if (!srv_read_only_mode) {
@@ -3232,6 +3234,16 @@ void srv_free_resources()
 	que_close();
 	row_mysql_close();
 	srv_free();
+
+	mutex_enter(&fil_system->mutex);
+	do {} while (fil_try_to_close_file_in_LRU(false));
+	mutex_exit(&fil_system->mutex);
+
+	save_srv_fast_shutdown = srv_fast_shutdown;
+	srv_fast_shutdown = 2;
+	fil_close_all_files();
+	srv_fast_shutdown = save_srv_fast_shutdown;
+
 	fil_close();
 
 	/* 4. Free all allocated memory */

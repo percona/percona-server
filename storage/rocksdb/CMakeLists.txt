@@ -166,6 +166,7 @@ message(STATUS "MyRocks compile definitions: ${COMPILE_DEFINITIONS}")
 append_cflags_if_supported(-Wno-unused-parameter -Wno-suggest-override)
 # "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef -Wextra-semi" which cause warnings with RocksDB
 remove_compile_flags(-Wcast-qual -Wundef -Wextra-semi)
+append_cflags_if_supported(-Wno-invalid-offsetof)
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

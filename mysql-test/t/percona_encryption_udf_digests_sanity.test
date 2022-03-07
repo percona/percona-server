@@ -1,0 +1,26 @@
+--source include/have_udf.inc
+
+SET @message = 'message';
+SET @digest_type = 'SHA224';
+
+--echo
+--echo ** checking 'create_digest()' function basics
+--replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
+eval CREATE FUNCTION create_digest RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_digest();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT create_digest(@digest_type);
+
+--error ER_UDF_ERROR
+SELECT create_digest(@digest_type, NULL);
+
+--error ER_UDF_ERROR
+SELECT create_digest('FOO', @message);
+
+#
+# Dropping functions from encryption_udf
+#
+DROP FUNCTION create_digest;

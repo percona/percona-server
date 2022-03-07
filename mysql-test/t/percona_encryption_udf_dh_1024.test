@@ -1,0 +1,5 @@
+--source include/have_udf.inc
+
+--let $key_length = 1024
+
+--source include/percona_encryption_udf_dh.inc

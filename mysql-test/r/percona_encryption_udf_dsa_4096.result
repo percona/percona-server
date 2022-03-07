@@ -1,0 +1,241 @@
+CREATE FUNCTION create_digest RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+CREATE FUNCTION create_asymmetric_priv_key RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+CREATE FUNCTION create_asymmetric_pub_key RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+CREATE FUNCTION asymmetric_sign RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
+CREATE FUNCTION asymmetric_verify RETURNS INTEGER SONAME "ENCRYPTION_UDF_LIB";
+CREATE TEMPORARY TABLE digest_type(
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+digest_name VARCHAR(64) NOT NULL,
+builtin_template VARCHAR(64),
+PRIMARY KEY(id)
+);
+INSERT INTO digest_type(digest_name, builtin_template) VALUES
+('MD5' , 'MD5(@message)'),
+('SHA1', 'SHA(@message)'),
+('SHA224', 'SHA2(@message, 224)'),
+('SHA256', 'SHA2(@message, 256)'),
+('SHA384', 'SHA2(@message, 384)'),
+('SHA512', 'SHA2(@message, 512)'),
+('BLAKE2B512', NULL),
+('BLAKE2S256', NULL),
+('MD4'       , NULL),
+('RIPEMD'    , NULL),
+('RIPEMD160' , NULL),
+('RMD160'    , NULL),
+('SHAKE128'  , NULL),
+('SHAKE256'  , NULL),
+('SM3'       , NULL),
+('WHIRLPOOL' , NULL)
+;
+
+** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
+
+** [DSA] checking asymmertic algorithm functions
+** [DSA][4096] checking asymmetric algorithm functions
+**** [DSA][4096] generating private key
+**** [DSA][4096] deriving public key
+**** [DSA][4096][message_len=0] checking operations
+****** [DSA][4096][message_len=0] checking sign/verify functionality
+******** [DSA][4096][message_len=0][MD5] calculating digest
+******** [DSA][4096][message_len=0][MD5] calculating signature
+******** [DSA][4096][message_len=0][MD5] verifying signature
+******** [DSA][4096][message_len=0][SHA1] calculating digest
+******** [DSA][4096][message_len=0][SHA1] calculating signature
+******** [DSA][4096][message_len=0][SHA1] verifying signature
+******** [DSA][4096][message_len=0][SHA224] calculating digest
+******** [DSA][4096][message_len=0][SHA224] calculating signature
+******** [DSA][4096][message_len=0][SHA224] verifying signature
+******** [DSA][4096][message_len=0][SHA256] calculating digest
+******** [DSA][4096][message_len=0][SHA256] calculating signature
+******** [DSA][4096][message_len=0][SHA256] verifying signature
+******** [DSA][4096][message_len=0][SHA384] calculating digest
+******** [DSA][4096][message_len=0][SHA384] calculating signature
+******** [DSA][4096][message_len=0][SHA384] verifying signature
+******** [DSA][4096][message_len=0][SHA512] calculating digest
+******** [DSA][4096][message_len=0][SHA512] calculating signature
+******** [DSA][4096][message_len=0][SHA512] verifying signature
+******** [DSA][4096][message_len=0][BLAKE2B512] calculating digest
+******** [DSA][4096][message_len=0][BLAKE2B512] calculating signature
+******** [DSA][4096][message_len=0][BLAKE2B512] verifying signature
+******** [DSA][4096][message_len=0][BLAKE2S256] calculating digest
+******** [DSA][4096][message_len=0][BLAKE2S256] calculating signature
+******** [DSA][4096][message_len=0][BLAKE2S256] verifying signature
+******** [DSA][4096][message_len=0][MD4] calculating digest
+******** [DSA][4096][message_len=0][MD4] calculating signature
+******** [DSA][4096][message_len=0][MD4] verifying signature
+******** [DSA][4096][message_len=0][RIPEMD] calculating digest
+******** [DSA][4096][message_len=0][RIPEMD] calculating signature
+******** [DSA][4096][message_len=0][RIPEMD] verifying signature
+******** [DSA][4096][message_len=0][RIPEMD160] calculating digest
+******** [DSA][4096][message_len=0][RIPEMD160] calculating signature
+******** [DSA][4096][message_len=0][RIPEMD160] verifying signature
+******** [DSA][4096][message_len=0][RMD160] calculating digest
+******** [DSA][4096][message_len=0][RMD160] calculating signature
+******** [DSA][4096][message_len=0][RMD160] verifying signature
+******** [DSA][4096][message_len=0][SHAKE128] calculating digest
+******** [DSA][4096][message_len=0][SHAKE128] calculating signature
+******** [DSA][4096][message_len=0][SHAKE128] verifying signature
+******** [DSA][4096][message_len=0][SHAKE256] calculating digest
+******** [DSA][4096][message_len=0][SHAKE256] calculating signature
+******** [DSA][4096][message_len=0][SHAKE256] verifying signature
+******** [DSA][4096][message_len=0][SM3] calculating digest
+******** [DSA][4096][message_len=0][SM3] calculating signature
+******** [DSA][4096][message_len=0][SM3] verifying signature
+******** [DSA][4096][message_len=0][WHIRLPOOL] calculating digest
+******** [DSA][4096][message_len=0][WHIRLPOOL] calculating signature
+******** [DSA][4096][message_len=0][WHIRLPOOL] verifying signature
+**** [DSA][4096][message_len=1] checking operations
+****** [DSA][4096][message_len=1] checking sign/verify functionality
+******** [DSA][4096][message_len=1][MD5] calculating digest
+******** [DSA][4096][message_len=1][MD5] calculating signature
+******** [DSA][4096][message_len=1][MD5] verifying signature
+******** [DSA][4096][message_len=1][SHA1] calculating digest
+******** [DSA][4096][message_len=1][SHA1] calculating signature
+******** [DSA][4096][message_len=1][SHA1] verifying signature
+******** [DSA][4096][message_len=1][SHA224] calculating digest
+******** [DSA][4096][message_len=1][SHA224] calculating signature
+******** [DSA][4096][message_len=1][SHA224] verifying signature
+******** [DSA][4096][message_len=1][SHA256] calculating digest
+******** [DSA][4096][message_len=1][SHA256] calculating signature
+******** [DSA][4096][message_len=1][SHA256] verifying signature
+******** [DSA][4096][message_len=1][SHA384] calculating digest
+******** [DSA][4096][message_len=1][SHA384] calculating signature
+******** [DSA][4096][message_len=1][SHA384] verifying signature
+******** [DSA][4096][message_len=1][SHA512] calculating digest
+******** [DSA][4096][message_len=1][SHA512] calculating signature
+******** [DSA][4096][message_len=1][SHA512] verifying signature
+******** [DSA][4096][message_len=1][BLAKE2B512] calculating digest
+******** [DSA][4096][message_len=1][BLAKE2B512] calculating signature
+******** [DSA][4096][message_len=1][BLAKE2B512] verifying signature
+******** [DSA][4096][message_len=1][BLAKE2S256] calculating digest
+******** [DSA][4096][message_len=1][BLAKE2S256] calculating signature
+******** [DSA][4096][message_len=1][BLAKE2S256] verifying signature
+******** [DSA][4096][message_len=1][MD4] calculating digest
+******** [DSA][4096][message_len=1][MD4] calculating signature
+******** [DSA][4096][message_len=1][MD4] verifying signature
+******** [DSA][4096][message_len=1][RIPEMD] calculating digest
+******** [DSA][4096][message_len=1][RIPEMD] calculating signature
+******** [DSA][4096][message_len=1][RIPEMD] verifying signature
+******** [DSA][4096][message_len=1][RIPEMD160] calculating digest
+******** [DSA][4096][message_len=1][RIPEMD160] calculating signature
+******** [DSA][4096][message_len=1][RIPEMD160] verifying signature
+******** [DSA][4096][message_len=1][RMD160] calculating digest
+******** [DSA][4096][message_len=1][RMD160] calculating signature
+******** [DSA][4096][message_len=1][RMD160] verifying signature
+******** [DSA][4096][message_len=1][SHAKE128] calculating digest
+******** [DSA][4096][message_len=1][SHAKE128] calculating signature
+******** [DSA][4096][message_len=1][SHAKE128] verifying signature
+******** [DSA][4096][message_len=1][SHAKE256] calculating digest
+******** [DSA][4096][message_len=1][SHAKE256] calculating signature
+******** [DSA][4096][message_len=1][SHAKE256] verifying signature
+******** [DSA][4096][message_len=1][SM3] calculating digest
+******** [DSA][4096][message_len=1][SM3] calculating signature
+******** [DSA][4096][message_len=1][SM3] verifying signature
+******** [DSA][4096][message_len=1][WHIRLPOOL] calculating digest
+******** [DSA][4096][message_len=1][WHIRLPOOL] calculating signature
+******** [DSA][4096][message_len=1][WHIRLPOOL] verifying signature
+**** [DSA][4096][message_len=256] checking operations
+****** [DSA][4096][message_len=256] checking sign/verify functionality
+******** [DSA][4096][message_len=256][MD5] calculating digest
+******** [DSA][4096][message_len=256][MD5] calculating signature
+******** [DSA][4096][message_len=256][MD5] verifying signature
+******** [DSA][4096][message_len=256][SHA1] calculating digest
+******** [DSA][4096][message_len=256][SHA1] calculating signature
+******** [DSA][4096][message_len=256][SHA1] verifying signature
+******** [DSA][4096][message_len=256][SHA224] calculating digest
+******** [DSA][4096][message_len=256][SHA224] calculating signature
+******** [DSA][4096][message_len=256][SHA224] verifying signature
+******** [DSA][4096][message_len=256][SHA256] calculating digest
+******** [DSA][4096][message_len=256][SHA256] calculating signature
+******** [DSA][4096][message_len=256][SHA256] verifying signature
+******** [DSA][4096][message_len=256][SHA384] calculating digest
+******** [DSA][4096][message_len=256][SHA384] calculating signature
+******** [DSA][4096][message_len=256][SHA384] verifying signature
+******** [DSA][4096][message_len=256][SHA512] calculating digest
+******** [DSA][4096][message_len=256][SHA512] calculating signature
+******** [DSA][4096][message_len=256][SHA512] verifying signature
+******** [DSA][4096][message_len=256][BLAKE2B512] calculating digest
+******** [DSA][4096][message_len=256][BLAKE2B512] calculating signature
+******** [DSA][4096][message_len=256][BLAKE2B512] verifying signature
+******** [DSA][4096][message_len=256][BLAKE2S256] calculating digest
+******** [DSA][4096][message_len=256][BLAKE2S256] calculating signature
+******** [DSA][4096][message_len=256][BLAKE2S256] verifying signature
+******** [DSA][4096][message_len=256][MD4] calculating digest
+******** [DSA][4096][message_len=256][MD4] calculating signature
+******** [DSA][4096][message_len=256][MD4] verifying signature
+******** [DSA][4096][message_len=256][RIPEMD] calculating digest
+******** [DSA][4096][message_len=256][RIPEMD] calculating signature
+******** [DSA][4096][message_len=256][RIPEMD] verifying signature
+******** [DSA][4096][message_len=256][RIPEMD160] calculating digest
+******** [DSA][4096][message_len=256][RIPEMD160] calculating signature
+******** [DSA][4096][message_len=256][RIPEMD160] verifying signature
+******** [DSA][4096][message_len=256][RMD160] calculating digest
+******** [DSA][4096][message_len=256][RMD160] calculating signature
+******** [DSA][4096][message_len=256][RMD160] verifying signature
+******** [DSA][4096][message_len=256][SHAKE128] calculating digest
+******** [DSA][4096][message_len=256][SHAKE128] calculating signature
+******** [DSA][4096][message_len=256][SHAKE128] verifying signature
+******** [DSA][4096][message_len=256][SHAKE256] calculating digest
+******** [DSA][4096][message_len=256][SHAKE256] calculating signature
+******** [DSA][4096][message_len=256][SHAKE256] verifying signature
+******** [DSA][4096][message_len=256][SM3] calculating digest
+******** [DSA][4096][message_len=256][SM3] calculating signature
+******** [DSA][4096][message_len=256][SM3] verifying signature
+******** [DSA][4096][message_len=256][WHIRLPOOL] calculating digest
+******** [DSA][4096][message_len=256][WHIRLPOOL] calculating signature
+******** [DSA][4096][message_len=256][WHIRLPOOL] verifying signature
+**** [DSA][4096][message_len=512] checking operations
+****** [DSA][4096][message_len=512] checking sign/verify functionality
+******** [DSA][4096][message_len=512][MD5] calculating digest
+******** [DSA][4096][message_len=512][MD5] calculating signature
+******** [DSA][4096][message_len=512][MD5] verifying signature
+******** [DSA][4096][message_len=512][SHA1] calculating digest
+******** [DSA][4096][message_len=512][SHA1] calculating signature
+******** [DSA][4096][message_len=512][SHA1] verifying signature
+******** [DSA][4096][message_len=512][SHA224] calculating digest
+******** [DSA][4096][message_len=512][SHA224] calculating signature
+******** [DSA][4096][message_len=512][SHA224] verifying signature
+******** [DSA][4096][message_len=512][SHA256] calculating digest
+******** [DSA][4096][message_len=512][SHA256] calculating signature
+******** [DSA][4096][message_len=512][SHA256] verifying signature
+******** [DSA][4096][message_len=512][SHA384] calculating digest
+******** [DSA][4096][message_len=512][SHA384] calculating signature
+******** [DSA][4096][message_len=512][SHA384] verifying signature
+******** [DSA][4096][message_len=512][SHA512] calculating digest
+******** [DSA][4096][message_len=512][SHA512] calculating signature
+******** [DSA][4096][message_len=512][SHA512] verifying signature
+******** [DSA][4096][message_len=512][BLAKE2B512] calculating digest
+******** [DSA][4096][message_len=512][BLAKE2B512] calculating signature
+******** [DSA][4096][message_len=512][BLAKE2B512] verifying signature
+******** [DSA][4096][message_len=512][BLAKE2S256] calculating digest
+******** [DSA][4096][message_len=512][BLAKE2S256] calculating signature
+******** [DSA][4096][message_len=512][BLAKE2S256] verifying signature
+******** [DSA][4096][message_len=512][MD4] calculating digest
+******** [DSA][4096][message_len=512][MD4] calculating signature
+******** [DSA][4096][message_len=512][MD4] verifying signature
+******** [DSA][4096][message_len=512][RIPEMD] calculating digest
+******** [DSA][4096][message_len=512][RIPEMD] calculating signature
+******** [DSA][4096][message_len=512][RIPEMD] verifying signature
+******** [DSA][4096][message_len=512][RIPEMD160] calculating digest
+******** [DSA][4096][message_len=512][RIPEMD160] calculating signature
+******** [DSA][4096][message_len=512][RIPEMD160] verifying signature
+******** [DSA][4096][message_len=512][RMD160] calculating digest
+******** [DSA][4096][message_len=512][RMD160] calculating signature
+******** [DSA][4096][message_len=512][RMD160] verifying signature
+******** [DSA][4096][message_len=512][SHAKE128] calculating digest
+******** [DSA][4096][message_len=512][SHAKE128] calculating signature
+******** [DSA][4096][message_len=512][SHAKE128] verifying signature
+******** [DSA][4096][message_len=512][SHAKE256] calculating digest
+******** [DSA][4096][message_len=512][SHAKE256] calculating signature
+******** [DSA][4096][message_len=512][SHAKE256] verifying signature
+******** [DSA][4096][message_len=512][SM3] calculating digest
+******** [DSA][4096][message_len=512][SM3] calculating signature
+******** [DSA][4096][message_len=512][SM3] verifying signature
+******** [DSA][4096][message_len=512][WHIRLPOOL] calculating digest
+******** [DSA][4096][message_len=512][WHIRLPOOL] calculating signature
+******** [DSA][4096][message_len=512][WHIRLPOOL] verifying signature
+DROP FUNCTION asymmetric_verify;
+DROP FUNCTION asymmetric_sign;
+DROP FUNCTION create_asymmetric_pub_key;
+DROP FUNCTION create_asymmetric_priv_key;
+DROP FUNCTION create_digest;

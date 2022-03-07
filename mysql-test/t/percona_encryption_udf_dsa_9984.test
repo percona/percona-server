@@ -1,0 +1,7 @@
+--source include/big_test.inc
+--source include/have_udf.inc
+
+--let $algorithm = DSA
+--let $key_length = 9984
+
+--source include/percona_encryption_udf_xsa.inc

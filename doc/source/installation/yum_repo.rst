@@ -10,6 +10,11 @@ The easiest way to install the *Percona Yum* repository is to install an *RPM* t
 
 Specific information on the supported platforms, products, and versions are described in `Percona Software and Platform Lifecycle <https://www.percona.com/services/policies/percona-software-platform-lifecycle#mysql>`_.
 
+.. note:: 
+
+    The RPM packages for Red Hat Enterprise Linux 7 (and compatible derivatives)  do not support TLSv1.3, as it requires OpenSSL 1.1.1, which is currently not available on this platform. 
+  
+
 What's in each RPM package?
 ===========================
 

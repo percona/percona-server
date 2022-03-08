@@ -307,26 +307,28 @@ eval SET @r3_r4_pages= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_P
 --enable_result_log
 --enable_query_log
 
---let $assert_debug= SELECT $r1_start, $r1_end, $r2_start, $r2_end, $r3_start, $r3_end, $r4_start, $r4_end, @total_pages, @r1_r4_pages, @r1_r2_pages, @r2_r3_pages, @r3_r4_pages, @r1_r3_pages, @r2_r4_pages;
+--let $assert_debug_pages= SELECT $r1_start AS 'START', $r1_end AS 'R1', $r2_end AS 'R2', $r3_end AS 'R3', $r4_end AS 'R4', @total_pages, @r1_r4_pages, @r1_r2_pages, @r2_r3_pages, @r3_r4_pages, @r1_r3_pages, @r2_r4_pages
 
 # Cannot compare for equality total against r1-r4 due to further InnoDB workload
 --let $assert_text= Total changed pages must be no less than tracked pages between r1 and r4
 --let $assert_cond= @total_pages>=@r1_r4_pages
+--let $assert_debug= $assert_debug_pages
 --source include/assert.inc
 
 --let $assert_text= Sum of r1-r2, r2-r3, and r3-r4 tracked pages must be equal to r1-r4
 --let $assert_cond= @r1_r2_pages+@r2_r3_pages+@r3_r4_pages=@r1_r4_pages
+--let $assert_debug= $assert_debug_pages
 --source include/assert.inc
 
 --let $assert_text= Sum of r1-r2 and r2-r3 tracked pages must be equal to r1-r3
 --let $assert_cond= @r1_r2_pages+@r2_r3_pages=@r1_r3_pages
+--let $assert_debug= $assert_debug_pages
 --source include/assert.inc
 
 --let $assert_text= Sum of r2-r3 and r3-r4 tracked pages must be equal to r2-r4
 --let $assert_cond= @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1
+--let $assert_debug= $assert_debug_pages
 --source include/assert.inc
-
---let $assert_debug=
 
 ################################################
 # Check how limit for maximum rows count works #

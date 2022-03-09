@@ -232,6 +232,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Local
+   * - :variable:`rocksdb_enable_native_partition`
+     - No
+     - No
+     - Global
    * - :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
      - Yes
      - Yes
@@ -1354,6 +1358,18 @@ failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.. variable:: rocksdb_
 Enables the rocksdb iterator upper bounds and lower bounds in read options.
 
 The default value is ``TRUE``.
+
+.. variable:: rocksdb_enable_native_partition
+
+  :cli: ``--rocksdb-enable-native-partition``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+This variable is **experimental** and should not be used in production.
+
+This variable enables native partitioning and may be used when upgrading to 8.0.
 
 .. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
 

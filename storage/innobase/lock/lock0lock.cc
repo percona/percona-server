@@ -451,6 +451,8 @@ void lock_sys_close(void) {
     lock_latest_err_file = nullptr;
   }
 
+  if (!lock_sys) return;
+
   os_event_destroy(lock_sys->timeout_event);
 
   mutex_destroy(&lock_sys->wait_mutex);

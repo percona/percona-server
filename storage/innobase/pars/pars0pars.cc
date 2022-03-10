@@ -94,11 +94,23 @@ ulint pars_star_denoter = 12345678;
 /** Mutex to protect the sql parser */
 ib_mutex_t pars_mutex;
 
+/** Parsing inited */
+static bool pars_inited = false;
+
 /** Initialize for the internal parser */
-void pars_init() { mutex_create(LATCH_ID_PARSER, &pars_mutex); }
+void pars_init() {
+  mutex_create(LATCH_ID_PARSER, &pars_mutex);
+  pars_inited = true;
+}
 
 /** Clean up the internal parser */
-void pars_close() { mutex_free(&pars_mutex); }
+void pars_close() {
+  if (!pars_inited) return;
+
+  mutex_free(&pars_mutex);
+
+  pars_inited = false;
+}
 
 /********************************************************************
 Get user function with the given name.*/

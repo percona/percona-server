@@ -108,6 +108,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 #include "dict0stats_bg.h"
 #include "lock0lock.h"
+#include "log0meb.h"
 #include "os0event.h"
 #include "os0proc.h"
 #include "pars0pars.h"
@@ -2934,6 +2935,8 @@ void srv_thread_delay_cleanup_if_needed(bool wait_for_signal) {
   });
 }
 
+extern bool innodb_inited;
+
 /** Shut down the InnoDB database. */
 void srv_shutdown() {
   ut_d(trx_sys_after_pre_dd_shutdown_validate());
@@ -2948,7 +2951,7 @@ void srv_shutdown() {
 
   ib::info(ER_IB_MSG_1247);
 
-  ut_a(!srv_is_being_started);
+  if (innodb_inited) ut_a(!srv_is_being_started);
 
   /* Ensure threads below have been stopped. */
   const auto threads_stopped_before_shutdown = {
@@ -2971,6 +2974,7 @@ void srv_shutdown() {
 #endif /* UNIV_DEBUG */
 
   /* The SRV_SHUTDOWN_DD state was set during pre_dd_shutdown phase. */
+  if (!innodb_inited) srv_shutdown_state.store(SRV_SHUTDOWN_DD);
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_DD);
 
   /* Write dynamic metadata to DD buffer table. */
@@ -3052,6 +3056,7 @@ void srv_shutdown() {
   ibuf_close();
   ddl_log_close();
   log_sys_close();
+  recv_sys_free();
   recv_sys_close();
   trx_sys_close();
   lock_sys_close();
@@ -3076,6 +3081,8 @@ void srv_shutdown() {
 
   dblwr::close();
   os_thread_close();
+
+  meb::redo_log_archive_deinit();
 
   /* 6. Free the synchronisation infrastructure. */
   sync_check_close();

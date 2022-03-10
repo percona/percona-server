@@ -1,0 +1,10 @@
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+RENAME TABLE t1 TO t2;
+# Kill the server
+# Fault (no real fault): Orphan file with duplicate space_id.
+# restart
+DROP TABLE t2;
+# List of files:
+SHOW TABLES;
+Tables_in_test

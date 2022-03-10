@@ -652,8 +652,10 @@ void trx_sys_close(void) {
                               << size << " read views open";
   }
 
-  sess_close(trx_dummy_sess);
-  trx_dummy_sess = nullptr;
+  if (trx_dummy_sess) {
+    sess_close(trx_dummy_sess);
+    trx_dummy_sess = nullptr;
+  }
 
   trx_purge_sys_close();
 
@@ -717,6 +719,8 @@ void trx_sys_before_pre_dd_shutdown_validate() {
 }
 
 void trx_sys_after_pre_dd_shutdown_validate() {
+  if (!trx_sys) return;
+
   trx_sys_mutex_enter();
   /** At this point we check the mysql_trx_list again, now we don't expect purge
   thread transactions in the list */
@@ -749,6 +753,7 @@ void trx_sys_after_pre_dd_shutdown_validate() {
 }
 
 void trx_sys_after_background_threads_shutdown_validate() {
+  if (!trx_sys) return;
   trx_sys_after_pre_dd_shutdown_validate();
 
   ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);

@@ -312,6 +312,8 @@ static void btr_search_await_no_reference(dict_table_t *table) {
 }
 
 bool btr_search_disable() {
+  if (!dict_sys) return false;
+
   mutex_enter(&btr_search_enabled_mutex);
   if (!btr_search_enabled) {
     mutex_exit(&btr_search_enabled_mutex);

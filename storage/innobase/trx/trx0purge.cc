@@ -274,6 +274,8 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
 /************************************************************************
 Frees the global purge system control structure. */
 void trx_purge_sys_close() {
+  if (!purge_sys) return;
+
   /* Most probably this is not needed at all, because purge for virtual columns
    is disabled in 8.0 (see #ifdef INNODB_DD_VC_SUPPORT) */
   for (que_thr_t *thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);

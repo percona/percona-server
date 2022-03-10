@@ -7,8 +7,6 @@
 
 --disable_query_log
 call mtr.add_suppression('Error in Log_event::read_log_event()');
-call mtr.add_suppression("Undo log can't be encrypted if the keyring is not loaded.");
-call mtr.add_suppression("Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;

@@ -1266,6 +1266,8 @@ static void srv_init(void) {
 
 /** Frees the data structures created in srv_init(). */
 void srv_free(void) {
+  if (!srv_sys) return;
+
   mutex_free(&srv_innodb_monitor_mutex);
   mutex_free(&page_zip_stat_per_index_mutex);
 

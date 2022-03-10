@@ -18,7 +18,7 @@ SET GLOBAL innodb_log_flush_now = ON;
 # LCTN mismatch will cause server startup to abort but transaction won't
 # be rollbacked. Without the patch, abort will be hung.
 --echo # Start MySQL after crash with different LCTN value and slow shutdown.
---error 1,42
+--error 1
 --exec $MYSQLD_CMD --innodb-fast-shutdown=0 --lower_case_table_names=1 --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # Verifying that recovery found transaction which needs rollback

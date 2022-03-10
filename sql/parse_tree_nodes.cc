@@ -2629,17 +2629,9 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       m_field_def->on_update_value, &m_field_def->comment, m_old_name.str,
       m_field_def->interval_list, m_field_def->charset,
       m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
-<<<<<<< HEAD
       &m_field_def->m_zip_dict, m_field_def->gcol_info,
-      m_field_def->default_val_info, m_opt_place, m_field_def->m_srid, nullptr,
-||||||| 3290a66c89e
-      m_field_def->gcol_info, m_field_def->default_val_info, m_opt_place,
-      m_field_def->m_srid, nullptr, field_hidden_type);
-=======
-      m_field_def->gcol_info, m_field_def->default_val_info, m_opt_place,
-      m_field_def->m_srid, m_field_def->check_const_spec_list,
->>>>>>> mysql-8.0.28
-      field_hidden_type);
+      m_field_def->default_val_info, m_opt_place, m_field_def->m_srid,
+      m_field_def->check_const_spec_list, field_hidden_type);
 }
 
 bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {

@@ -2759,24 +2759,6 @@ class List_process_list : public Do_THD_Impl {
         inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
 
     {
-<<<<<<< HEAD
-      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-      if ((!(inspect_thd->get_protocol() &&
-             inspect_thd->get_protocol()->connection_alive()) &&
-           !inspect_thd->system_thread) ||
-          (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, m_user))) ||
-          is_utility_user) {
-        return;
-||||||| 3290a66c89e
-      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-      if ((!(inspect_thd->get_protocol() &&
-             inspect_thd->get_protocol()->connection_alive()) &&
-           !inspect_thd->system_thread) ||
-          (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, m_user)))) {
-        return;
-=======
       MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
 
       Security_context *inspect_sctx = inspect_thd->security_context();
@@ -2792,10 +2774,10 @@ class List_process_list : public Do_THD_Impl {
                inspect_thd->get_protocol()->connection_alive()) &&
              !inspect_thd->system_thread) ||
             (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                        strcmp(inspect_sctx_user.str, m_user)))) {
+                        strcmp(inspect_sctx_user.str, m_user))) ||
+            is_utility_user) {
           return;
         }
->>>>>>> mysql-8.0.28
       }
 
       thd_info = new (m_client_thd->mem_root) thread_info;
@@ -3037,70 +3019,12 @@ class Fill_process_list : public Do_THD_Impl {
 
   void operator()(THD *inspect_thd) override {
     DBUG_TRACE;
-<<<<<<< HEAD
-    Security_context *inspect_sctx = inspect_thd->security_context();
-    LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
-    LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
-    LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
-
-    const bool is_utility_user = acl_is_utility_user(
-        inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
-
-    const char *client_priv_user =
-        m_client_thd->security_context()->priv_user().str;
-    const char *user =
-        m_client_thd->security_context()->check_access(PROCESS_ACL)
-            ? NullS
-            : client_priv_user;
-    ulonglong now_utime = my_micro_time();
-||||||| 3290a66c89e
-    Security_context *inspect_sctx = inspect_thd->security_context();
-    LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
-    LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
-    LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
-    const char *client_priv_user =
-        m_client_thd->security_context()->priv_user().str;
-    const char *user =
-        m_client_thd->security_context()->check_access(PROCESS_ACL)
-            ? NullS
-            : client_priv_user;
-=======
 
     TABLE *table;
     const char *val = nullptr;
->>>>>>> mysql-8.0.28
 
     {
-<<<<<<< HEAD
-      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-      if ((!inspect_thd->get_protocol()->connection_alive() &&
-           !inspect_thd->system_thread) ||
-          (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, user))) ||
-          is_utility_user)
-        return;
-    }
-    DBUG_EXECUTE_IF(
-        "test_fill_proc_with_x_root",
-        if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
-          DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
-        });
-||||||| 3290a66c89e
-      MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-      if ((!inspect_thd->get_protocol()->connection_alive() &&
-           !inspect_thd->system_thread) ||
-          (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, user))))
-        return;
-    }
-    DBUG_EXECUTE_IF(
-        "test_fill_proc_with_x_root",
-        if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
-          DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
-        });
-=======
       MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
->>>>>>> mysql-8.0.28
 
       Security_context *inspect_sctx = inspect_thd->security_context();
 
@@ -3108,19 +3032,24 @@ class Fill_process_list : public Do_THD_Impl {
       LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
+      const bool is_utility_user = acl_is_utility_user(
+          inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
+
       const char *client_priv_user =
           m_client_thd->security_context()->priv_user().str;
       const char *user =
           m_client_thd->security_context()->check_access(PROCESS_ACL)
               ? NullS
               : client_priv_user;
+      ulonglong now_utime = my_micro_time();
 
       {
         MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
         if ((!inspect_thd->get_protocol()->connection_alive() &&
              !inspect_thd->system_thread) ||
             (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, user))))
+                      strcmp(inspect_sctx_user.str, user))) ||
+            is_utility_user)
           return;
       }
 

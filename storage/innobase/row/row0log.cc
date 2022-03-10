@@ -514,7 +514,6 @@ void row_log_online_op(
       goto err_exit;
     }
 
-<<<<<<< HEAD
     /* If encryption is enabled encrypt buffer before writing it to file
     system. */
     if (log_tmp_is_encrypted()) {
@@ -529,15 +528,8 @@ void row_log_online_op(
       buf = log->crypt_tail;
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->fd, buf,
-                               byte_offset, srv_sort_buf_size);
-||||||| 3290a66c89e
-    err = os_file_write_int_fd(request, "(modification log)", log->fd,
-                               log->tail.block, byte_offset, srv_sort_buf_size);
-=======
     err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
-                               log->tail.block, byte_offset, srv_sort_buf_size);
->>>>>>> mysql-8.0.28
+                               buf, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
     if (err != DB_SUCCESS) {
@@ -640,7 +632,6 @@ static void row_log_table_close_func(
       goto err_exit;
     }
 
-<<<<<<< HEAD
     /* If encryption is enabled encrypt buffer before writing it
        to file system. */
     if (log_tmp_is_encrypted()) {
@@ -654,12 +645,7 @@ static void row_log_table_close_func(
       srv_stats.n_rowlog_blocks_encrypted.inc();
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->fd,
-||||||| 3290a66c89e
-    err = os_file_write_int_fd(request, "(modification log)", log->fd,
-=======
     err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
->>>>>>> mysql-8.0.28
                                log->tail.block, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
@@ -2978,8 +2964,8 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     err = os_file_read_no_error_handling_int_fd(
-<<<<<<< HEAD
-        request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->file.get(), buf,
+        ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
     from file system. */
@@ -2994,13 +2980,6 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
-||||||| 3290a66c89e
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
-=======
-        request, index->online_log->path, index->online_log->file.get(),
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
->>>>>>> mysql-8.0.28
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
@@ -3326,8 +3305,6 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
   ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
-<<<<<<< HEAD
-  ddl::file_destroy_low(log->fd);
 
   if (log->crypt_head) {
     ut::free_large_page(log->crypt_head, ut::fallback_to_normal_page_t{});
@@ -3339,10 +3316,6 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
     log->crypt_tail = nullptr;
   }
 
-||||||| 3290a66c89e
-  ddl::file_destroy_low(log->fd);
-=======
->>>>>>> mysql-8.0.28
   mutex_free(&log->mutex);
   ut::free(log);
   log = nullptr;
@@ -3795,8 +3768,8 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     dberr_t err = os_file_read_no_error_handling_int_fd(
-<<<<<<< HEAD
-        request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->file.get(), buf,
+        ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
     from file system. */
@@ -3811,13 +3784,6 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
-||||||| 3290a66c89e
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
-=======
-        request, index->online_log->path, index->online_log->file.get(),
-        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
->>>>>>> mysql-8.0.28
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"

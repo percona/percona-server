@@ -81,41 +81,21 @@ ENDIF()
 FOREACH(file ${ABI_HEADERS})
   GET_FILENAME_COMPONENT(header_basename ${file} NAME)
   SET(tmpfile ${BINARY_DIR}/${header_basename}.pp.tmp)
-<<<<<<< HEAD
   SET(errorfile ${BINARY_DIR}/${header_basename}.pp.err)
-||||||| 3290a66c89e
-=======
   SET(abi_file ${file})
   IF(WSL_EXECUTABLE)
     EXECUTE_PROCESS(
       COMMAND ${WSL_EXECUTABLE} wslpath ${abi_file}
       OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE abi_file)
   ENDIF()
->>>>>>> mysql-8.0.28
 
   EXECUTE_PROCESS(
-<<<<<<< HEAD
-    COMMAND ${COMPILER} 
-      -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
-      -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
-      -I${SOURCE_DIR}/libbinlogevents/export
-      ${file} 
-      ERROR_FILE ${errorfile} OUTPUT_FILE ${tmpfile})
-||||||| 3290a66c89e
-    COMMAND ${COMPILER} 
-      -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
-      -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
-      -I${SOURCE_DIR}/libbinlogevents/export
-      ${file} 
-      ERROR_QUIET OUTPUT_FILE ${tmpfile})
-=======
     COMMAND ${WSL_EXECUTABLE} ${COMPILER}
       -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${ABI_SOURCE_DIR}/include
       -I${ABI_BINARY_DIR}/include -I${ABI_SOURCE_DIR}/include/mysql
       -I${ABI_SOURCE_DIR}/sql -I${ABI_SOURCE_DIR}/libbinlogevents/export
       ${abi_file}
-      ERROR_QUIET OUTPUT_FILE ${tmpfile})
->>>>>>> mysql-8.0.28
+      ERROR_FILE ${errorfile} OUTPUT_FILE ${tmpfile})
   EXECUTE_PROCESS(
     COMMAND ${WSL_EXECUTABLE} sed -e "/^# /d"
                 -e "/^[	]*$/d"
@@ -139,17 +119,9 @@ FOREACH(file ${ABI_HEADERS})
     COMMAND ${WSL_EXECUTABLE} diff -w ${abi_original}.pp ${abi_current}
     RESULT_VARIABLE result)
   IF(NOT ${result} EQUAL 0)
-<<<<<<< HEAD
-    MESSAGE(FATAL_ERROR 
+    MESSAGE(FATAL_ERROR
       "ABI check found difference between ${file}.pp and ${abi_check_out}, "
       "compilation error file can be found here: ${errorfile}")
-||||||| 3290a66c89e
-    MESSAGE(FATAL_ERROR 
-      "ABI check found difference between ${file}.pp and ${abi_check_out}")
-=======
-    MESSAGE(FATAL_ERROR
-      "ABI check found difference between ${file}.pp and ${abi_check_out}")
->>>>>>> mysql-8.0.28
   ENDIF()
   FILE(REMOVE ${errorfile})
   FILE(REMOVE ${abi_check_out})

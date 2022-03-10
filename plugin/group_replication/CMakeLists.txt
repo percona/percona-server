@@ -119,68 +119,6 @@ SET(GROUP_REPLICATION_SOURCES
 
 SET(GMS_LISTENER_SERVICE_TEST_SOURCES
   src/services/notification/impl/gms_listener_test.cc
-<<<<<<< HEAD
-  )
-
-ADD_DEFINITIONS(-DMYSQL_SERVER)
-ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
-ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
-
-IF(GROUP_REPLICATION_WITH_ROCKSDB)
-  ADD_COMPILE_DEFINITIONS(src/observer_trans.cc src/asynchronous_channels_state_observer.cc
-                    COMPILE_DEFINITIONS "GROUP_REPLICATION_WITH_ROCKSDB")
-  MESSAGE(STATUS "GROUP_REPLICATION_WITH_ROCKSDB is turned on")
-ELSE()
-  MESSAGE(STATUS "GROUP_REPLICATION_WITH_ROCKSDB is turned off")
-ENDIF()
-
-IF(WITH_UNIT_TESTS)
-  ADD_LIBRARY(gr_unit_test_resource STATIC
-    src/gcs_plugin_messages.cc
-    src/member_info.cc
-    src/member_version.cc
-    src/compatibility_module.cc
-    src/mysql_version_gcs_protocol_map.cc
-    src/gcs_mysql_network_provider.cc
-    src/replication_threads_api.cc
-    src/plugin_psi.cc
-  )
-  SET_TARGET_PROPERTIES(gr_unit_test_resource
-    PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
-    )
-  ADD_DEPENDENCIES(gr_unit_test_resource GenError)
-ENDIF()
-
-ADD_COMPILE_FLAGS(${GROUP_REPLICATION_SOURCES}
-  COMPILE_FLAGS "${GR_PROTOBUF_FLAGS}"
-||||||| 3290a66c89e
-  )
-
-ADD_DEFINITIONS(-DMYSQL_SERVER)
-ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
-ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
-
-IF(WITH_UNIT_TESTS)
-  ADD_LIBRARY(gr_unit_test_resource STATIC
-    src/gcs_plugin_messages.cc
-    src/member_info.cc
-    src/member_version.cc
-    src/compatibility_module.cc
-    src/mysql_version_gcs_protocol_map.cc
-    src/gcs_mysql_network_provider.cc
-    src/replication_threads_api.cc
-    src/plugin_psi.cc
-  )
-  SET_TARGET_PROPERTIES(gr_unit_test_resource
-    PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
-    )
-  ADD_DEPENDENCIES(gr_unit_test_resource GenError)
-ENDIF()
-
-ADD_COMPILE_FLAGS(${GROUP_REPLICATION_SOURCES}
-  COMPILE_FLAGS "${GR_PROTOBUF_FLAGS}"
-=======
->>>>>>> mysql-8.0.28
 )
 
 # Allow both WITHOUT_GROUP_REPLICATION=1 and WITH_GROUP_REPLICATION=0 to be
@@ -209,6 +147,14 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
   ADD_DEFINITIONS(-DMYSQL_SERVER)
   ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
   ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
+
+  IF(GROUP_REPLICATION_WITH_ROCKSDB)
+    ADD_COMPILE_DEFINITIONS(src/observer_trans.cc src/asynchronous_channels_state_observer.cc
+      COMPILE_DEFINITIONS "GROUP_REPLICATION_WITH_ROCKSDB")
+    MESSAGE(STATUS "GROUP_REPLICATION_WITH_ROCKSDB is turned on")
+  ELSE()
+    MESSAGE(STATUS "GROUP_REPLICATION_WITH_ROCKSDB is turned off")
+  ENDIF()
 
   IF(WITH_UNIT_TESTS)
     ADD_LIBRARY(gr_unit_test_resource STATIC

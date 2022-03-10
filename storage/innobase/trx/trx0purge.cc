@@ -1555,7 +1555,6 @@ static bool trx_purge_truncate_marked_undo() {
   }
   ut_ad(mdl_ticket != nullptr);
 
-<<<<<<< HEAD
   // Acquire Percona's LOCK TABLES FOR BACKUP lock
   if (current_thd->backup_tables_lock.is_acquired()) {
     dd_release_mdl(mdl_ticket);
@@ -1569,18 +1568,9 @@ static bool trx_purge_truncate_marked_undo() {
     return (false);
   }
 
-  /* Re-check for clone after acquiring MDL. The Backup MDL from clone
-  is released by clone during shutdown while provisioning. We should
-  not allow truncate to proceed here. */
-||||||| 3290a66c89e
-  /* Re-check for clone after acquiring MDL. The Backup MDL from clone
-  is released by clone during shutdown while provisioning. We should
-  not allow truncate to proceed here. */
-=======
   /* Re-check for clone after acquiring MDL. The Backup MDL from clone is
   released by clone during shutdown while provisioning. We should not allow
   truncate to proceed here. */
->>>>>>> mysql-8.0.28
   if (clone_check_provisioning()) {
     dd_release_mdl(mdl_ticket);
     ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());

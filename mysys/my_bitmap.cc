@@ -399,14 +399,6 @@ bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2) {
   return false;
 }
 
-<<<<<<< HEAD
-void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
-  my_bitmap_map *to = map->bitmap, *from = map2->bitmap, *end;
-  uint len = no_words_in_map(map), len2 = no_words_in_map(map2);
-||||||| 3290a66c89e
-void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
-  assert(to->bitmap && from->bitmap);
-=======
 /**
    Check if 'map' is valid.
    @param map The map that we wish to verify.
@@ -423,9 +415,9 @@ bool bitmap_is_valid(const MY_BITMAP *map) {
   return map->last_word_mask == copy.last_word_mask;
 }
 
-void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
-  assert(to->bitmap && from->bitmap);
->>>>>>> mysql-8.0.28
+void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
+  my_bitmap_map *to = map->bitmap, *from = map2->bitmap, *end;
+  uint len = no_words_in_map(map), len2 = no_words_in_map(map2);
 
   assert(map->bitmap && map2->bitmap);
 
@@ -596,7 +588,6 @@ uint bitmap_get_first(const MY_BITMAP *map) {
   return get_first_not_set(*map->last_word_ptr | map->last_word_mask, word_pos);
 }
 
-<<<<<<< HEAD
 uint bitmap_lock_set_next(MY_BITMAP *map) {
   uint bit_found;
   bitmap_lock(map);
@@ -610,8 +601,8 @@ void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit) {
   assert(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_clear_bit(map, bitmap_bit);
   bitmap_unlock(map);
-||||||| 3290a66c89e
-=======
+}
+
 /**
     Copy as many bits as 'dst' can hold from 'src', but no more than
     max_bits_to_copy bits. 'src' and 'dst' should not overlap. If 'dst'
@@ -650,5 +641,4 @@ uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
     }
     return input_bits;
   }
->>>>>>> mysql-8.0.28
 }

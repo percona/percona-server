@@ -686,12 +686,7 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
                                                       system_charset_info))
     return true;
 
-<<<<<<< HEAD
-  timeval tm = table->in_use->query_start_timeval_trunc(0);
-||||||| 3290a66c89e
-=======
   my_timeval tm = table->in_use->query_start_timeval_trunc(0);
->>>>>>> mysql-8.0.28
   table->field[MYSQL_PROXIES_PRIV_TIMESTAMP]->store_timestamp(&tm);
 
   return false;

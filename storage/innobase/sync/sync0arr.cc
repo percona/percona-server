@@ -399,105 +399,9 @@ void sync_array_cell_print(FILE *file, const sync_cell_t *cell) {
                   .count()));
 
   if (type == SYNC_MUTEX) {
-<<<<<<< HEAD
-    WaitMutex *mutex = cell->latch.mutex;
-    const WaitMutex::MutexPolicy &policy = mutex->policy();
-#ifdef UNIV_DEBUG
-    const char *name = policy.get_enter_filename();
-    if (name == nullptr) {
-      /* The mutex might have been released. */
-      name = "NULL";
-    }
-#endif /* UNIV_DEBUG */
-
-    fprintf(file,
-            "Mutex at %p, %s, lock var %lu\n"
-#ifdef UNIV_DEBUG
-            "Last time reserved in file %s line %lu"
-#endif /* UNIV_DEBUG */
-            "\n",
-            (void *)mutex, policy.to_string().c_str(), (ulong)mutex->state()
-#ifdef UNIV_DEBUG
-                                                           ,
-            name, (ulong)policy.get_enter_line()
-#endif /* UNIV_DEBUG */
-    );
-  } else if (type == SYNC_BUF_BLOCK || type == SYNC_DICT_AUTOINC_MUTEX) {
-    BlockWaitMutex *mutex = cell->latch.bpmutex;
-
-    const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
-#ifdef UNIV_DEBUG
-    const char *name = policy.get_enter_filename();
-    if (name == nullptr) {
-      /* The mutex might have been released. */
-      name = "NULL";
-    }
-#endif /* UNIV_DEBUG */
-
-    fprintf(file,
-            "Mutex at %p, %s, lock var %lu\n"
-#ifdef UNIV_DEBUG
-            "Last time reserved in file %s line %lu"
-#endif /* UNIV_DEBUG */
-            "\n",
-            (void *)mutex, policy.to_string().c_str(), (ulong)mutex->state()
-#ifdef UNIV_DEBUG
-                                                           ,
-            name, (ulong)policy.get_enter_line()
-#endif /* UNIV_DEBUG */
-    );
-||||||| 3290a66c89e
-    WaitMutex *mutex = cell->latch.mutex;
-    const WaitMutex::MutexPolicy &policy = mutex->policy();
-#ifdef UNIV_DEBUG
-    const char *name = policy.get_enter_filename();
-    if (name == nullptr) {
-      /* The mutex might have been released. */
-      name = "NULL";
-    }
-#endif /* UNIV_DEBUG */
-
-    fprintf(file,
-            "Mutex at %p, %s, lock var %lu\n"
-#ifdef UNIV_DEBUG
-            "Last time reserved in file %s line %lu"
-#endif /* UNIV_DEBUG */
-            "\n",
-            (void *)mutex, policy.to_string().c_str(), (ulong)mutex->state()
-#ifdef UNIV_DEBUG
-                                                           ,
-            name, (ulong)policy.get_enter_line()
-#endif /* UNIV_DEBUG */
-    );
-  } else if (type == SYNC_BUF_BLOCK) {
-    BlockWaitMutex *mutex = cell->latch.bpmutex;
-
-    const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
-#ifdef UNIV_DEBUG
-    const char *name = policy.get_enter_filename();
-    if (name == nullptr) {
-      /* The mutex might have been released. */
-      name = "NULL";
-    }
-#endif /* UNIV_DEBUG */
-
-    fprintf(file,
-            "Mutex at %p, %s, lock var %lu\n"
-#ifdef UNIV_DEBUG
-            "Last time reserved in file %s line %lu"
-#endif /* UNIV_DEBUG */
-            "\n",
-            (void *)mutex, policy.to_string().c_str(), (ulong)mutex->state()
-#ifdef UNIV_DEBUG
-                                                           ,
-            name, (ulong)policy.get_enter_line()
-#endif /* UNIV_DEBUG */
-    );
-=======
     sync_array_mutex_print(file, cell->latch.mutex);
-  } else if (type == SYNC_BUF_BLOCK) {
+  } else if (type == SYNC_BUF_BLOCK || type == SYNC_DICT_AUTOINC_MUTEX) {
     sync_array_mutex_print(file, cell->latch.bpmutex);
->>>>>>> mysql-8.0.28
   } else if (type == RW_LOCK_X || type == RW_LOCK_X_WAIT ||
              type == RW_LOCK_SX || type == RW_LOCK_S) {
     fputs(type == RW_LOCK_X
@@ -726,108 +630,10 @@ static bool sync_array_detect_deadlock_low(sync_array_t *arr, sync_cell_t *cell,
                                               depth);
     }
 
-<<<<<<< HEAD
     case SYNC_BUF_BLOCK:
     case SYNC_DICT_AUTOINC_MUTEX: {
-      BlockWaitMutex *mutex = cell->latch.bpmutex;
-
-      const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
-
-      if (mutex->state() != MUTEX_STATE_UNLOCKED) {
-        thread = policy.get_thread_id();
-
-        /* Note that mutex->thread_id above may be
-        also OS_THREAD_ID_UNDEFINED, because the
-        thread which held the mutex maybe has not
-        yet updated the value, or it has already
-        released the mutex: in this case no deadlock
-        can occur, as the wait array cannot contain
-        a thread with ID_UNDEFINED value. */
-        ret = sync_array_deadlock_step(arr, start, thread, 0, depth);
-
-        if (ret) {
-          const char *name;
-
-          name = policy.get_enter_filename();
-
-          if (name == nullptr) {
-            /* The mutex might have been
-            released. */
-            name = "NULL";
-          }
-
-#ifdef UNIV_NO_ERR_MSGS
-          ib::info()
-#else
-          ib::info(ER_IB_MSG_1159)
-#endif /* UNIV_NO_ERR_MSGS */
-              << "Mutex " << mutex
-              << " owned by"
-                 " thread "
-              << thread << " file " << name << " line "
-              << policy.get_enter_line();
-
-          sync_array_cell_print(stderr, cell);
-
-          return (true);
-        }
-      }
-
-      /* No deadlock */
-      return (false);
-||||||| 3290a66c89e
-    case SYNC_BUF_BLOCK: {
-      BlockWaitMutex *mutex = cell->latch.bpmutex;
-
-      const BlockWaitMutex::MutexPolicy &policy = mutex->policy();
-
-      if (mutex->state() != MUTEX_STATE_UNLOCKED) {
-        thread = policy.get_thread_id();
-
-        /* Note that mutex->thread_id above may be
-        also OS_THREAD_ID_UNDEFINED, because the
-        thread which held the mutex maybe has not
-        yet updated the value, or it has already
-        released the mutex: in this case no deadlock
-        can occur, as the wait array cannot contain
-        a thread with ID_UNDEFINED value. */
-        ret = sync_array_deadlock_step(arr, start, thread, 0, depth);
-
-        if (ret) {
-          const char *name;
-
-          name = policy.get_enter_filename();
-
-          if (name == nullptr) {
-            /* The mutex might have been
-            released. */
-            name = "NULL";
-          }
-
-#ifdef UNIV_NO_ERR_MSGS
-          ib::info()
-#else
-          ib::info(ER_IB_MSG_1159)
-#endif /* UNIV_NO_ERR_MSGS */
-              << "Mutex " << mutex
-              << " owned by"
-                 " thread "
-              << thread << " file " << name << " line "
-              << policy.get_enter_line();
-
-          sync_array_cell_print(stderr, cell);
-
-          return (true);
-        }
-      }
-
-      /* No deadlock */
-      return (false);
-=======
-    case SYNC_BUF_BLOCK: {
       return sync_array_detect_mutex_deadlock(cell->latch.bpmutex, arr, cell,
                                               depth);
->>>>>>> mysql-8.0.28
     }
     case RW_LOCK_X:
       /* The x-lock request can block infinitely only if someone (cannot be the
@@ -899,28 +705,8 @@ static bool sync_arr_cell_can_wake_up(
       return !cell->latch.mutex->is_locked();
 
     case SYNC_BUF_BLOCK:
-<<<<<<< HEAD
     case SYNC_DICT_AUTOINC_MUTEX:
-      bpmutex = cell->latch.bpmutex;
-
-      os_rmb;
-      if (bpmutex->state() == MUTEX_STATE_UNLOCKED) {
-        return (true);
-      }
-
-      break;
-||||||| 3290a66c89e
-      bpmutex = cell->latch.bpmutex;
-
-      os_rmb;
-      if (bpmutex->state() == MUTEX_STATE_UNLOCKED) {
-        return (true);
-      }
-
-      break;
-=======
       return !cell->latch.bpmutex->is_locked();
->>>>>>> mysql-8.0.28
 
     case RW_LOCK_X:
     case RW_LOCK_SX:

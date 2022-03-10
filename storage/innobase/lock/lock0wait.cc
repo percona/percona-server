@@ -252,17 +252,9 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   srv_slot_t *slot;
   trx_t *trx;
   ibool was_declared_inside_innodb;
-<<<<<<< HEAD
-  ib_time_monotonic_ms_t start_time = 0;
-  ulong lock_wait_timeout;
+  std::chrono::steady_clock::time_point start_time;
   blocking_trx_info blocking[MAX_BLOCKING_TRX_IN_REPORT];
   size_t blocking_count = 0;
-||||||| 3290a66c89e
-  ib_time_monotonic_ms_t start_time = 0;
-  ulong lock_wait_timeout;
-=======
-  std::chrono::steady_clock::time_point start_time;
->>>>>>> mysql-8.0.28
 
   trx = thr_get_trx(thr);
 

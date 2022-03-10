@@ -1709,15 +1709,11 @@ class THD : public MDL_context_owner,
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-<<<<<<< HEAD
-  ulonglong start_utime, utime_after_lock, utime_after_query;
-||||||| 3290a66c89e
-  ulonglong start_utime, utime_after_lock;
-=======
   /**
     Query start time, expressed in microseconds.
   */
   ulonglong start_utime;
+  ulonglong utime_after_query;
 
  private:
   /**
@@ -1734,7 +1730,6 @@ class THD : public MDL_context_owner,
     m_lock_usec = 0;
   }
   void pop_lock_usec(ulonglong top) { m_lock_usec = top; }
->>>>>>> mysql-8.0.28
 
   /**
     Type of lock to be used for all DML statements, except INSERT, in cases
@@ -3355,20 +3350,13 @@ class THD : public MDL_context_owner,
     return variables.time_zone;
   }
   time_t query_start_in_secs() const { return start_time.tv_sec; }
-<<<<<<< HEAD
   ulonglong query_start_in_usecs() const { return start_utime; }
-  timeval query_start_timeval_trunc(uint decimals);
-||||||| 3290a66c89e
-  timeval query_start_timeval_trunc(uint decimals);
-=======
   my_timeval query_start_timeval_trunc(uint decimals);
->>>>>>> mysql-8.0.28
   void set_time();
   void set_time(const struct timeval *t) {
     user_time = *t;
     set_time();
   }
-<<<<<<< HEAD
   void get_time(QUERY_START_TIME_INFO *time_info) const noexcept {
     time_info->start_time = start_time;
     time_info->start_utime = start_utime;
@@ -3377,12 +3365,7 @@ class THD : public MDL_context_owner,
     start_time = time_info.start_time;
     start_utime = time_info.start_utime;
   }
-  void set_time_after_lock();
 
-||||||| 3290a66c89e
-  void set_time_after_lock();
-=======
->>>>>>> mysql-8.0.28
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }

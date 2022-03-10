@@ -4361,18 +4361,6 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   buf_block_buf_fix_inc(block, file, line);
 
-<<<<<<< HEAD
-||||||| 3290a66c89e
-  auto access_time = buf_page_is_accessed(&block->page);
-
-  buf_page_set_accessed(&block->page);
-
-=======
-  const auto access_time = buf_page_is_accessed(&block->page);
-
-  buf_page_set_accessed(&block->page);
-
->>>>>>> mysql-8.0.28
   buf_page_mutex_exit(block);
 
   ut_ad(!ibuf_inside(mtr) ||
@@ -4439,23 +4427,9 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-<<<<<<< HEAD
   trx_t *trx;
-  if (access_time == 0) {
-    trx = innobase_get_trx_for_slow_log();
-||||||| 3290a66c89e
-  ut_d(buf_page_mutex_enter(block));
-  ut_ad(!block->page.file_page_was_freed);
-  ut_d(buf_page_mutex_exit(block));
-
-  if (access_time == 0) {
-=======
-  ut_d(buf_page_mutex_enter(block));
-  ut_ad(!block->page.file_page_was_freed);
-  ut_d(buf_page_mutex_exit(block));
-
   if (access_time == std::chrono::steady_clock::time_point{}) {
->>>>>>> mysql-8.0.28
+    trx = innobase_get_trx_for_slow_log();
     /* In the case of a first access, try to apply linear read-ahead */
     buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr),
                           trx);
@@ -5930,26 +5904,10 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->flush_state_mutex);
 
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-<<<<<<< HEAD
     /* Although this function is called during startup and
     during redo application phase during recovery, Percona InnoDB
     might be running several LRU manager threads at this stage.
     Hence, a new write batch can be in initialization stage at this point. */
-||||||| 3290a66c89e
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in intialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == FALSE);
-=======
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in initialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == FALSE);
->>>>>>> mysql-8.0.28
 
     /* For buffer pool invalidation to proceed we must ensure there is NO
     write activity happening. */

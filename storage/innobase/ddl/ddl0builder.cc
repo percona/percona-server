@@ -178,18 +178,9 @@ struct File_cursor : public Load_cursor {
   @param[in] buffer_size        IO buffer size to use for reads.
   @param[in] size               Size of the file in bytes.
   @param[in,out] stage          PFS observability. */
-<<<<<<< HEAD
-  File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
-              os_offset_t size, Alter_stage *stage,
-              const Write_offsets &write_offsets) noexcept;
-||||||| 3290a66c89e
-  File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
-              os_offset_t size, Alter_stage *stage) noexcept;
-=======
   File_cursor(Builder *builder, const Unique_os_file_descriptor &file,
-              size_t buffer_size, os_offset_t size,
-              Alter_stage *stage) noexcept;
->>>>>>> mysql-8.0.28
+              size_t buffer_size, os_offset_t size, Alter_stage *stage,
+              const Write_offsets &write_offsets) noexcept;
 
   /** Destructor. */
   ~File_cursor() override = default;
@@ -248,28 +239,14 @@ dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
   }
 }
 
-<<<<<<< HEAD
-File_cursor::File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
-                         os_offset_t size, Alter_stage *stage,
-                         const Write_offsets &write_offsets) noexcept
-||||||| 3290a66c89e
-File_cursor::File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
-                         os_offset_t size, Alter_stage *stage) noexcept
-=======
 File_cursor::File_cursor(Builder *builder,
                          const Unique_os_file_descriptor &file,
                          size_t buffer_size, os_offset_t size,
-                         Alter_stage *stage) noexcept
->>>>>>> mysql-8.0.28
+                         Alter_stage *stage,
+                         const Write_offsets &write_offsets) noexcept
     : Load_cursor(builder, nullptr),
-<<<<<<< HEAD
-      m_reader(fd, builder->index(), buffer_size, size, builder->get_space_id(),
-               write_offsets),
-||||||| 3290a66c89e
-      m_reader(fd, builder->index(), buffer_size, size),
-=======
-      m_reader(file, builder->index(), buffer_size, size),
->>>>>>> mysql-8.0.28
+      m_reader(file, builder->index(), buffer_size, size,
+               builder->get_space_id(), write_offsets),
       m_stage(stage) {
   ut_a(m_reader.m_file.is_open());
 }
@@ -375,16 +352,8 @@ dberr_t Merge_cursor::add_file(const ddl::file_t &file,
   ut_a(file.m_file.is_open());
 
   auto cursor = ut::new_withkey<File_cursor>(
-<<<<<<< HEAD
-      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_fd, buffer_size,
-      file.m_size, m_stage, file.m_write_offsets);
-||||||| 3290a66c89e
-      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_fd, buffer_size,
-      file.m_size, m_stage);
-=======
       ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
-      file.m_size, m_stage);
->>>>>>> mysql-8.0.28
+      file.m_size, m_stage, file.m_write_offsets);
 
   if (cursor == nullptr) {
     m_err = DB_OUT_OF_MEMORY;
@@ -1205,21 +1174,10 @@ bool Builder::create_file(ddl::file_t &file) noexcept {
   }
 }
 
-<<<<<<< HEAD
 dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer,
                         void *crypt_buffer, uint32_t space_id) noexcept {
-  const auto fd = file.m_fd;
-  auto err = ddl::pwrite(fd, io_buffer.first, io_buffer.second, file.m_size,
-                         crypt_buffer, space_id);
-||||||| 3290a66c89e
-dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer) noexcept {
-  const auto fd = file.m_fd;
-  auto err = ddl::pwrite(fd, io_buffer.first, io_buffer.second, file.m_size);
-=======
-dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer) noexcept {
   auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, io_buffer.second,
-                         file.m_size);
->>>>>>> mysql-8.0.28
+                         file.m_size, crypt_buffer, space_id);
 
   if (err != DB_SUCCESS) {
     set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1555,16 +1513,9 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       }
       ut_a(n >= IO_BLOCK_SIZE);
 
-<<<<<<< HEAD
       auto crypt_buffer = thread_ctx->m_aligned_buffer_crypt.io_buffer();
-      auto err = ddl::pwrite(file.m_fd, io_buffer.first, n, file.m_size,
+      auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size,
                              crypt_buffer.first, get_space_id());
-||||||| 3290a66c89e
-      auto err = ddl::pwrite(file.m_fd, io_buffer.first, n, file.m_size);
-=======
-      auto err =
-          ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size);
->>>>>>> mysql-8.0.28
 
       if (err != DB_SUCCESS) {
         set_error(DB_TEMP_FILE_WRITE_FAIL);

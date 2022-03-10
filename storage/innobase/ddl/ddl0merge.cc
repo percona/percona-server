@@ -113,23 +113,14 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   @param[in,out] ctx            DDL context.
   @param[in] file               File to write to.
   @param[in] io_buffer          Buffer to store records and write to file. */
-<<<<<<< HEAD
-  Output_file(ddl::Context &ctx, os_fd_t fd, IO_buffer io_buffer,
-              IO_buffer crypt_buffer) noexcept
+  Output_file(ddl::Context &ctx, const Unique_os_file_descriptor &file,
+              IO_buffer io_buffer, IO_buffer crypt_buffer) noexcept
       : m_ctx(ctx),
-        m_fd(fd),
+        m_file(file),
         m_buffer(io_buffer),
         m_ptr(m_buffer.first),
         m_crypt_buffer(crypt_buffer),
         m_space_id(ctx.new_table()->space) {}
-||||||| 3290a66c89e
-  Output_file(ddl::Context &ctx, os_fd_t fd, IO_buffer io_buffer) noexcept
-      : m_ctx(ctx), m_fd(fd), m_buffer(io_buffer), m_ptr(m_buffer.first) {}
-=======
-  Output_file(ddl::Context &ctx, const Unique_os_file_descriptor &file,
-              IO_buffer io_buffer) noexcept
-      : m_ctx(ctx), m_file(file), m_buffer(io_buffer), m_ptr(m_buffer.first) {}
->>>>>>> mysql-8.0.28
 
   /** Destructor. */
   ~Output_file() = default;
@@ -341,14 +332,8 @@ dberr_t Merge_file_sort::Output_file::write(const mrec_t *mrec,
   if (unlikely(m_ptr + rec_size + need >= m_buffer.first + m_buffer.second)) {
     const size_t n_write = m_ptr - m_buffer.first;
     const auto len = ut_uint64_align_down(n_write, IO_BLOCK_SIZE);
-<<<<<<< HEAD
-    auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset,
+    auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset,
                            m_crypt_buffer.first, m_space_id);
-||||||| 3290a66c89e
-    auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset);
-=======
-    auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset);
->>>>>>> mysql-8.0.28
 
     if (err != DB_SUCCESS) {
       return err;
@@ -393,14 +378,8 @@ dberr_t Merge_file_sort::Output_file::flush() noexcept {
   }
 
   const auto len = ut_uint64_align_up(m_ptr - m_buffer.first, IO_BLOCK_SIZE);
-<<<<<<< HEAD
-  const auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset,
+  const auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset,
                                m_crypt_buffer.first, m_space_id);
-||||||| 3290a66c89e
-  const auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset);
-=======
-  const auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset);
->>>>>>> mysql-8.0.28
 
   m_offset += len;
   m_write_offsets.push_back(m_offset);
@@ -555,14 +534,8 @@ dberr_t Merge_file_sort::sort(Builder *builder,
     }
 
     /* Swap the input file with the output file and repeat. */
-<<<<<<< HEAD
-    std::swap(tmpfd, file->m_fd);
-    file->m_write_offsets = std::move(output_file.m_write_offsets);
-||||||| 3290a66c89e
-    std::swap(tmpfd, file->m_fd);
-=======
     tmpfd.swap(file->m_file);
->>>>>>> mysql-8.0.28
+    file->m_write_offsets = std::move(output_file.m_write_offsets);
     std::swap(offsets, m_next_offsets);
 
     ut_a(m_next_offsets.empty());

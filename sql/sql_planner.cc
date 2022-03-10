@@ -136,17 +136,11 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
                          double num_rows, double worst_seeks) {
   // Limit the number of matched rows
   num_rows = std::min(num_rows, double(thd->variables.max_seeks_for_key));
-<<<<<<< HEAD
-  if (table->covering_keys.is_set(keyno) ||
-      (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
-||||||| 3290a66c89e
-  if (table->covering_keys.is_set(keyno)) {
-=======
   //  The costs can be calculated only if the table is materialized.
   if (table->pos_in_table_list->is_derived_unfinished_materialization()) {
     return worst_seeks;
-  } else if (table->covering_keys.is_set(keyno)) {
->>>>>>> mysql-8.0.28
+  } else if (table->covering_keys.is_set(keyno) ||
+             (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);

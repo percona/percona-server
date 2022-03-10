@@ -2187,7 +2187,6 @@ std::chrono::seconds thd_lock_wait_timeout(THD *thd) {
   return std::chrono::seconds{THDVAR(thd, lock_wait_timeout)};
 }
 
-<<<<<<< HEAD
 /** Is FT ignore stopwords variable set.
 @param thd Thread object
 @return true if ft_ignore_stopwords is set, false otherwise. */
@@ -2195,19 +2194,8 @@ bool thd_has_ft_ignore_stopwords(THD *thd) noexcept {
   return (THDVAR(thd, ft_ignore_stopwords));
 }
 
-/** Set the time waited for the lock for the current query. */
-void thd_set_lock_wait_time(THD *thd,    /*!< in/out: thread handle */
-                            ulint value) /*!< in: time waited for the lock */
-{
-||||||| 3290a66c89e
-/** Set the time waited for the lock for the current query. */
-void thd_set_lock_wait_time(THD *thd,    /*!< in/out: thread handle */
-                            ulint value) /*!< in: time waited for the lock */
-{
-=======
 void thd_set_lock_wait_time(THD *thd,
                             std::chrono::steady_clock::duration value) {
->>>>>>> mysql-8.0.28
   if (thd) {
     thd_storage_lock_wait(
         thd,

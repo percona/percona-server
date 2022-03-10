@@ -794,9 +794,6 @@ extern double srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;
 extern ulong srv_max_purge_lag_delay;
 
-<<<<<<< HEAD
-extern ulong srv_replication_delay;
-
 extern ulint srv_pass_corrupt_table;
 
 /* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is false,
@@ -815,11 +812,7 @@ expected. */
     }                                       \
   } while (0)
 
-||||||| 3290a66c89e
-extern ulong srv_replication_delay;
-=======
 std::chrono::milliseconds get_srv_replication_delay();
->>>>>>> mysql-8.0.28
 /*-------------------------------------------*/
 
 extern bool srv_print_innodb_monitor;

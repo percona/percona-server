@@ -2541,13 +2541,7 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
 
 #ifdef UNIV_DEBUG
     if (UNIV_LIKELY(rec != nullptr)) {
-<<<<<<< HEAD
-      rec_get_nth_field(rec, offsets, i, &len);
-||||||| 3290a66c89e
-      const byte *rec_data = rec_get_nth_field(rec, offsets, i, &len);
-=======
       (void)rec_get_nth_field(rec, offsets, i, &len);
->>>>>>> mysql-8.0.28
       ut_ad(len == dfield_get_len(dfield));
       ut_ad(len != UNIV_SQL_NULL);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);

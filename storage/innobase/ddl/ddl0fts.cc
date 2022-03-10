@@ -377,19 +377,13 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
-<<<<<<< HEAD
     if (log_tmp_is_encrypted()) {
       if (!handler->m_aligned_buffer_crypt.allocate(buffer_size.first)) {
         return DB_OUT_OF_MEMORY;
       }
     }
 
-    if (file_create(&handler->m_file, path) < 0) {
-||||||| 3290a66c89e
-    if (file_create(&handler->m_file, path) < 0) {
-=======
     if (!file_create(&handler->m_file, path)) {
->>>>>>> mysql-8.0.28
       return DB_OUT_OF_MEMORY;
     }
   }

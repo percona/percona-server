@@ -53,12 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "storage/innobase/include/detail/ut/helper.h"
 #include "storage/innobase/include/detail/ut/page_metadata.h"
 #include "storage/innobase/include/detail/ut/pfs.h"
-<<<<<<< HEAD
 #include "storage/innobase/include/os0populate.h"
-||||||| 3290a66c89e
-=======
 #include "storage/innobase/include/ut0log.h"
->>>>>>> mysql-8.0.28
 
 namespace ut {
 namespace detail {
@@ -74,41 +70,25 @@ inline void *page_aligned_alloc(size_t n_bytes, bool populate) {
   // to the multiple of system page size if it is not already
   void *ptr =
       VirtualAlloc(nullptr, n_bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-<<<<<<< HEAD
-||||||| 3290a66c89e
-  return ptr;
-=======
   if (unlikely(!ptr)) {
     ib::log_warn(ER_IB_MSG_856) << "page_aligned_alloc VirtualAlloc(" << n_bytes
                                 << " bytes) failed;"
                                    " Windows error "
                                 << GetLastError();
   }
-  return ptr;
->>>>>>> mysql-8.0.28
 #else
   // With addr set to nullptr, mmap will internally round n_bytes to the
   // multiple of system page size if it is not already
-<<<<<<< HEAD
   void *ptr =
       mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANON | (populate ? OS_MAP_POPULATE : 0), -1, 0);
-  if (ptr == (void *)-1) ptr = nullptr;
-||||||| 3290a66c89e
-  void *ptr = mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON, -1, 0);
-  return (ptr != (void *)-1) ? ptr : nullptr;
-=======
-  void *ptr = mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON, -1, 0);
   if (unlikely(ptr == (void *)-1)) {
     ib::log_warn(ER_IB_MSG_856) << "page_aligned_alloc mmap(" << n_bytes
                                 << " bytes) failed;"
                                    " errno "
                                 << errno;
   }
-  return (ptr != (void *)-1) ? ptr : nullptr;
->>>>>>> mysql-8.0.28
+  if (ptr == (void *)-1) ptr = nullptr;
 #endif
 
   if (!ptr && populate) prefault_if_not_map_populate(ptr, n_bytes);

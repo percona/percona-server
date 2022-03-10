@@ -45,20 +45,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
-<<<<<<< HEAD
-#include "sql/composite_iterators.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/table.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/filesort.h"    // Filesort
-||||||| 3290a66c89e
-#include "sql/composite_iterators.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/filesort.h"    // Filesort
-=======
 #include "sql/debug_sync.h"        // DEBUG_SYNC
 #include "sql/filesort.h"          // Filesort
->>>>>>> mysql-8.0.28
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/iterators/row_iterator.h"
@@ -1063,62 +1053,10 @@ bool Query_result_delete::optimize() {
       error_if_full_join(join))
     return true;
 
-<<<<<<< HEAD
-  if (!(tempfiles =
-            (Unique **)sql_calloc(sizeof(Unique *) * delete_table_count)))
-    return true; /* purecov: inspected */
-
-  if (!(tables = (TABLE **)sql_calloc(sizeof(TABLE *) * delete_table_count)))
-    return true; /* purecov: inspected */
-
-  bool delete_while_scanning = true;
-  for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
-    if (!tr->is_deleted()) continue;
-    if (delete_while_scanning &&
-        (unique_table(tr, join->tables_list, false) ||
-         has_cascade_dependency(thd, *tr, join->tables_list))) {
-      /*
-        If the table being deleted from is also referenced in the query,
-        defer delete so that the delete doesn't interfer with reading of this
-        table.
-      */
-      delete_while_scanning = false;
-    }
-  }
-
-  for (uint i = 0; i < join->primary_tables; i++) {
-    TABLE *const table = join->best_ref[i]->table();
-    const table_map map = join->best_ref[i]->table_ref->map();
-||||||| 3290a66c89e
-  if (!(tempfiles =
-            (Unique **)sql_calloc(sizeof(Unique *) * delete_table_count)))
-    return true; /* purecov: inspected */
-
-  if (!(tables = (TABLE **)sql_calloc(sizeof(TABLE *) * delete_table_count)))
-    return true; /* purecov: inspected */
-
-  bool delete_while_scanning = true;
-  for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
-    if (!tr->is_deleted()) continue;
-    if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
-      /*
-        If the table being deleted from is also referenced in the query,
-        defer delete so that the delete doesn't interfer with reading of this
-        table.
-      */
-      delete_while_scanning = false;
-    }
-  }
-
-  for (uint i = 0; i < join->primary_tables; i++) {
-    TABLE *const table = join->best_ref[i]->table();
-    const table_map map = join->best_ref[i]->table_ref->map();
-=======
   for (TABLE_LIST *tr = select->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
     TABLE *const table = tr->table;
     const table_map map = tr->map();
->>>>>>> mysql-8.0.28
     if (!(map & delete_table_map)) continue;
 
     // We are going to delete from this table
@@ -1432,7 +1370,8 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
        tr = tr->next_leaf) {
     if (!tr->is_deleted()) continue;
 
-    if (unique_table(tr, join->tables_list, false) != nullptr) {
+    if (unique_table(tr, join->tables_list, false) != nullptr ||
+        has_cascade_dependency(thd, *tr, join->tables_list)) {
       /*
         If the table being deleted from is also referenced in the query,
         defer delete so that the delete doesn't interfer with reading of this

@@ -500,7 +500,6 @@ TEST_F(TempTableAllocator, block_size_cap) {
   EXPECT_TRUE(shared_block.is_empty());
 }
 
-<<<<<<< HEAD
 struct AllocatorRaii {
   AllocatorRaii(temptable::Allocator<uint8_t> *allocator)
       : m_allocator(allocator) {}
@@ -520,8 +519,7 @@ struct AllocatorRaii {
   temptable::Allocator<uint8_t> *m_allocator;
   std::vector<std::pair<uint8_t *, size_t>> allocs;
 };
-||||||| 3290a66c89e
-=======
+
 TEST_F(
     TempTableAllocator,
     table_resource_monitor_increases_then_drops_to_0_when_allocation_is_backed_by_shared_block) {
@@ -665,30 +663,19 @@ TEST_F(
   allocator.deallocate(chunk1, 792_KiB);
   EXPECT_EQ(table_resource_monitor.consumption(), 0_KiB);
 }
->>>>>>> mysql-8.0.28
 
 TEST_F(TempTableAllocator,
        shared_block_utilization_shall_not_impact_the_block_size_growth_policy) {
   temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
-<<<<<<< HEAD
 
-  temptable::Allocator<uint8_t> a1(&shared_block);
-  temptable::Allocator<uint8_t> a2(&shared_block);
+  temptable::Allocator<uint8_t> a1(&shared_block, table_resource_monitor);
+  temptable::Allocator<uint8_t> a2(&shared_block, table_resource_monitor);
 
   AllocatorRaii a1_raii(&a1);
   AllocatorRaii a2_raii(&a2);
 
   auto r11 = a1_raii.allocate(512_KiB);
-||||||| 3290a66c89e
-  temptable::Allocator<uint8_t> a1(&shared_block);
-  temptable::Allocator<uint8_t> a2(&shared_block);
-  auto r11 = a1.allocate(512_KiB);
-=======
-  temptable::Allocator<uint8_t> a1(&shared_block, table_resource_monitor);
-  temptable::Allocator<uint8_t> a2(&shared_block, table_resource_monitor);
-  auto r11 = a1.allocate(512_KiB);
->>>>>>> mysql-8.0.28
   temptable::Block b11 = temptable::Block(temptable::Chunk(r11));
   EXPECT_EQ(b11, shared_block);
   EXPECT_EQ(b11.size(), shared_block.size());

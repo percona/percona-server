@@ -55,14 +55,8 @@ component_keyring_file.mysql_ts_alter_encrypt_1 : BUG#29531106 - ATTACHABLE_TRX(
 
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
-<<<<<<< HEAD
-main.mysql_config_editor @windows : Bug#32654416 THE MYSQL CLIENT LIBRARY DOES NOT HANDLE INVALID .MYLOGIN.CNF FILES WELL
 main.percona_changed_pages_big : BUG#7435 percona https://jira.percona.com/browse/PS-7435
 main.bug100352 : BUG#100352 https://bugs.mysql.com/bug.php?id=100352
-||||||| 3290a66c89e
-main.mysql_config_editor @windows : Bug#32654416 THE MYSQL CLIENT LIBRARY DOES NOT HANDLE INVALID .MYLOGIN.CNF FILES WELL
-=======
->>>>>>> mysql-8.0.28
 
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.

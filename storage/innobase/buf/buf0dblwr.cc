@@ -1716,7 +1716,6 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
   }
 
   space->get_encryption_info(type.get_encryption_info());
-<<<<<<< HEAD
   type.encryption_algorithm(space->encryption_type);
   page_size_t page_size(space->flags);
 
@@ -1726,12 +1725,7 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
     ut_ad(page_size.physical() > 0);
   }
 
-  auto e_block = os_file_encrypt_page(type, frame, &n);
-||||||| 3290a66c89e
-  auto e_block = os_file_encrypt_page(type, frame, &n);
-=======
   auto e_block = os_file_encrypt_page(type, frame, n);
->>>>>>> mysql-8.0.28
 
   if (compressed_block != nullptr) {
     file::Block::free(compressed_block);

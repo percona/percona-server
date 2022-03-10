@@ -367,13 +367,7 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
-<<<<<<< HEAD
-  bka_iterator.cc
   binlog_crypt_data.cc
-||||||| 3290a66c89e
-  bka_iterator.cc
-=======
->>>>>>> mysql-8.0.28
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc

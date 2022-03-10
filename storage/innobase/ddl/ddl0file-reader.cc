@@ -109,17 +109,9 @@ dberr_t File_reader::prepare() noexcept {
   }
 
   ut_a(m_size > m_offset);
-<<<<<<< HEAD
   m_read_len = get_read_len_next();
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_read_len, m_offset,
-                              m_crypt_buffer.first, m_space_id);
-||||||| 3290a66c89e
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, len, m_offset);
-=======
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
->>>>>>> mysql-8.0.28
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
+                              m_offset, m_crypt_buffer.first, m_space_id);
 
   if (err != DB_SUCCESS) {
     return err;
@@ -137,17 +129,9 @@ dberr_t File_reader::seek(os_offset_t offset) noexcept {
 
   m_offset = offset;
 
-<<<<<<< HEAD
   m_read_len = get_read_len_next();
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, m_read_len, m_offset,
-                              m_crypt_buffer.first, m_space_id);
-||||||| 3290a66c89e
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_fd, m_io_buffer.first, len, m_offset);
-=======
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
->>>>>>> mysql-8.0.28
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
+                              m_offset, m_crypt_buffer.first, m_space_id);
 
   m_ptr = m_io_buffer.first;
 

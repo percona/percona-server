@@ -1367,13 +1367,9 @@ bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
 
-<<<<<<< HEAD
 ulonglong denied_connections = 0;
-||||||| 3290a66c89e
-=======
 ulonglong global_conn_mem_limit = 0;
 ulonglong global_conn_mem_counter = 0;
->>>>>>> mysql-8.0.28
 
 /**
   This variable holds handle to the object that's responsible
@@ -7080,17 +7076,14 @@ static int init_server_components() {
 
   init_max_user_conn();
 
-<<<<<<< HEAD
   init_global_user_stats();
   init_global_client_stats();
   init_global_thread_stats();
-||||||| 3290a66c89e
-=======
+
 #if defined(MYSQL_ICU_DATADIR)
   init_icu_data_directory();
 #endif  // MYSQL_ICU_DATADIR
 
->>>>>>> mysql-8.0.28
   return 0;
 }
 
@@ -7608,19 +7601,12 @@ int mysqld_main(int argc, char **argv)
 
   keyring_lockable_init();
 
-<<<<<<< HEAD
-||||||| 3290a66c89e
-  my_init_signals();
-
-=======
-  my_init_signals();
   /*
     Install server's my_abort routine to assure my_aborts prints signal info
     sequentially without sudden termination.
   */
   set_my_abort(my_server_abort);
 
->>>>>>> mysql-8.0.28
   size_t guardize = 0;
 #ifndef _WIN32
   int retval = pthread_attr_getguardsize(&connection_attrib, &guardize);

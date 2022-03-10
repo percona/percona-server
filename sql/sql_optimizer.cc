@@ -2468,18 +2468,10 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         If tab->range_scan() pointed to another quick than save_range_scan, we
         would lose access to it and leak memory.
       */
-<<<<<<< HEAD
-      assert(tab->quick() == save_quick || tab->quick() == nullptr);
-      tab->set_quick(qck);
-      if (qck && !no_changes) tab->set_type(calc_join_type(qck->get_type()));
-||||||| 3290a66c89e
-      assert(tab->quick() == save_quick || tab->quick() == nullptr);
-      tab->set_quick(qck);
-=======
       assert(tab->range_scan() == save_range_scan ||
              tab->range_scan() == nullptr);
       tab->set_range_scan(range_scan);
->>>>>>> mysql-8.0.28
+      if (qck && !no_changes) tab->set_type(calc_join_type(qck->get_type()));
     }
     order_direction = best_key_direction;
     /*

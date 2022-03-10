@@ -40,16 +40,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <future>
 #include <sstream>
 #include <thread>
-<<<<<<< HEAD
 #ifdef UNIV_LINUX
 #include <sys/types.h>
 #endif
 
 #include "my_compiler.h"
-||||||| 3290a66c89e
-=======
 #include "ut0dbg.h"
->>>>>>> mysql-8.0.28
 
 class IB_thread {
  public:

@@ -11083,99 +11083,6 @@ bool THD::is_ddl_gtid_compatible() {
   // statement.
   if (!is_binlog_open || !is_binlog_enabled_for_session) return true;
 
-<<<<<<< HEAD
-  DBUG_PRINT("info",
-             ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%zu SQLCOM_DROP:%d "
-              "DROP-TMP:%d trx:%d",
-              lex->sql_command == SQLCOM_CREATE_TABLE,
-              (lex->sql_command == SQLCOM_CREATE_TABLE &&
-               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-              lex->query_block ? lex->query_block->fields.size() : 0,
-              lex->sql_command == SQLCOM_DROP_TABLE,
-              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
-              in_multi_stmt_transaction_mode()));
-
-  if (lex->sql_command == SQLCOM_CREATE_TABLE &&
-      !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !lex->query_block->field_list_is_empty()) {
-    if (!(get_default_handlerton(this, lex->create_info->db_type)->flags &
-          HTON_SUPPORTS_ATOMIC_DDL)) {
-      /*
-        CREATE ... SELECT (without TEMPORARY) for engines not supporting atomic
-        DDL is unsafe because if binlog_format=row it will be logged as a CREATE
-        TABLE followed by row events, re-executed non-atomically as two
-        transactions, and then written to the slave's binary log as two separate
-        transactions with the same GTID.
-      */
-      bool ret = handle_gtid_consistency_violation(
-          this, ER_GTID_UNSAFE_CREATE_SELECT,
-          ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
-      return ret;
-    }
-  } else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-              (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
-             (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary)) {
-    /*
-      When @@session.binlog_format=statement, [CREATE|DROP] TEMPORARY TABLE
-      is unsafe to execute inside a transaction or Procedure, because the
-      [CREATE|DROP] statement on the temporary table will be executed and
-      written into binary log with a GTID even if the transaction or
-      Procedure is rolled back.
-    */
-    if (variables.binlog_format == BINLOG_FORMAT_STMT &&
-        (in_multi_stmt_transaction_mode() || in_sub_stmt)) {
-      bool ret = handle_gtid_consistency_violation(
-          this, ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR,
-          ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR);
-      return ret;
-    }
-||||||| 3290a66c89e
-  DBUG_PRINT(
-      "info",
-      ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%zu SQLCOM_DROP:%d "
-       "DROP-TMP:%d trx:%d",
-       lex->sql_command == SQLCOM_CREATE_TABLE,
-       (lex->sql_command == SQLCOM_CREATE_TABLE &&
-        (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-       lex->query_block->fields.size(), lex->sql_command == SQLCOM_DROP_TABLE,
-       (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
-       in_multi_stmt_transaction_mode()));
-
-  if (lex->sql_command == SQLCOM_CREATE_TABLE &&
-      !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !lex->query_block->field_list_is_empty()) {
-    if (!(get_default_handlerton(this, lex->create_info->db_type)->flags &
-          HTON_SUPPORTS_ATOMIC_DDL)) {
-      /*
-        CREATE ... SELECT (without TEMPORARY) for engines not supporting atomic
-        DDL is unsafe because if binlog_format=row it will be logged as a CREATE
-        TABLE followed by row events, re-executed non-atomically as two
-        transactions, and then written to the slave's binary log as two separate
-        transactions with the same GTID.
-      */
-      bool ret = handle_gtid_consistency_violation(
-          this, ER_GTID_UNSAFE_CREATE_SELECT,
-          ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
-      return ret;
-    }
-  } else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-              (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
-             (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary)) {
-    /*
-      When @@session.binlog_format=statement, [CREATE|DROP] TEMPORARY TABLE
-      is unsafe to execute inside a transaction or Procedure, because the
-      [CREATE|DROP] statement on the temporary table will be executed and
-      written into binary log with a GTID even if the transaction or
-      Procedure is rolled back.
-    */
-    if (variables.binlog_format == BINLOG_FORMAT_STMT &&
-        (in_multi_stmt_transaction_mode() || in_sub_stmt)) {
-      bool ret = handle_gtid_consistency_violation(
-          this, ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR,
-          ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR);
-      return ret;
-    }
-=======
   bool is_create_table{lex->sql_command == SQLCOM_CREATE_TABLE};
   bool is_create_temporary_table{false};
   bool is_create_table_select{false};
@@ -11190,7 +11097,6 @@ bool THD::is_ddl_gtid_compatible() {
     is_create_table_atomic =
         get_default_handlerton(this, lex->create_info->db_type)->flags &
         HTON_SUPPORTS_ATOMIC_DDL;
->>>>>>> mysql-8.0.28
   }
 
   bool is_drop_table{lex->sql_command == SQLCOM_DROP_TABLE};

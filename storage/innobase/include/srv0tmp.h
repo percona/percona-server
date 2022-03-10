@@ -253,7 +253,6 @@ class Tablespace_pool {
     release();
   }
 
-<<<<<<< HEAD
   /** Iterate through the list of "active" tablespaces and perform specified
   operation on the tablespace on every iteration.
   @param[in]    f                Function pointer for the function to be
@@ -276,8 +275,8 @@ class Tablespace_pool {
                   [](ibt::Tablespace *ts) { ts->rotate_encryption_key(); });
 
     release();
-||||||| 3290a66c89e
-=======
+  }
+
   /** Gets current pool size.
   @return Number of tablespaces in the pool, both active and free ones. */
   size_t get_size() {
@@ -285,7 +284,6 @@ class Tablespace_pool {
     size_t current_size = m_active->size() + m_free->size();
     release();
     return current_size;
->>>>>>> mysql-8.0.28
   }
 
  private:

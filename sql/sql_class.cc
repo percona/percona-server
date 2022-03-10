@@ -3480,14 +3480,8 @@ void THD::inc_lock_usec(ulonglong lock_usec) {
 }
 
 void THD::update_slow_query_status() {
-<<<<<<< HEAD
   utime_after_query = current_utime();
-  if (my_micro_time() > utime_after_lock + variables.long_query_time)
-||||||| 3290a66c89e
-  if (my_micro_time() > utime_after_lock + variables.long_query_time)
-=======
   if (my_micro_time() > start_utime + variables.long_query_time)
->>>>>>> mysql-8.0.28
     server_status |= SERVER_QUERY_WAS_SLOW;
 }
 

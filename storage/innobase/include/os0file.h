@@ -717,18 +717,15 @@ class IORequest {
   /** The length of data in encrypted block. */
   uint32_t m_elen{};
 
-<<<<<<< HEAD
   bool m_is_page_zip_compressed;
 
   ulint m_zip_page_physical_size;
-||||||| 3290a66c89e
-=======
+
   /** Length of the original IO size.
   For reads it is an expected uncompressed length.
   For writes it is a length up to which the write is to be extended with a punch
   hole, if supported. */
   uint32_t m_original_size{};
->>>>>>> mysql-8.0.28
 };
 
 /** @} */
@@ -1865,21 +1862,11 @@ must not cross a file boundary; in AIO this must be a block size multiple
 @param[in,out]	m1		Message for the AIO handler, (can be used to
 identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @param[in,out]	m2		message for the AIO handler (can be used to
-<<<<<<< HEAD
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
-@param[in]	should_buffer	Whether to buffer an aio request.
-                                AIO read ahead uses this. If you plan to
-                                use this parameter, make sure you remember to
-                                call os_aio_dispatch_read_array_submit()
-                                when you're ready to commit all your
-                                requests.
-||||||| 3290a66c89e
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
-=======
 identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
->>>>>>> mysql-8.0.28
+@param[in]	should_buffer	Whether to buffer an aio request.
+AIO read ahead uses this. If you plan to use this parameter,
+make sure you remember to call os_aio_dispatch_read_array_submit()
+when you're ready to commit all your requests.
 @return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,

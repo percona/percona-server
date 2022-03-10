@@ -2822,22 +2822,10 @@ ulint page_recommendation(ulint last_pages_in, bool is_sync_flush,
  @retval OS_SYNC_TIME_EXCEEDED if timeout was exceeded
  @param next_loop_time	time when next loop iteration should start
  @param sig_count	zero or the value returned by previous call of
-<<<<<<< HEAD
- os_event_reset() */
-static ulint pc_sleep_if_needed(ib_time_monotonic_ms_t next_loop_time,
-                                int64_t sig_count) {
-  const auto cur_time = ut_time_monotonic_ms();
-||||||| 3290a66c89e
-                         os_event_reset() */
-static ulint pc_sleep_if_needed(ib_time_monotonic_ms_t next_loop_time,
-                                int64_t sig_count) {
-  const auto cur_time = ut_time_monotonic_ms();
-=======
                          os_event_reset() */
 static ulint pc_sleep_if_needed(
     std::chrono::steady_clock::time_point next_loop_time, int64_t sig_count) {
   const auto cur_time = std::chrono::steady_clock::now();
->>>>>>> mysql-8.0.28
 
   if (next_loop_time > cur_time) {
     auto sleep_time = next_loop_time - cur_time;
@@ -2988,17 +2976,7 @@ static void pc_request(ulint min_n, lsn_t lsn_limit) {
 Do flush for one slot.
 @return	the number of the slots which has not been treated yet. */
 static ulint pc_flush_slot(void) {
-<<<<<<< HEAD
-  ib_time_monotonic_ms_t list_tm = 0;
-||||||| 3290a66c89e
-  ib_time_monotonic_ms_t lru_tm = 0;
-  ib_time_monotonic_ms_t list_tm = 0;
-  int lru_pass = 0;
-=======
-  std::chrono::steady_clock::duration lru_time;
   std::chrono::steady_clock::duration flush_list_time{};
-  int lru_pass = 0;
->>>>>>> mysql-8.0.28
   int list_pass = 0;
 
   mutex_enter(&page_cleaner->mutex);
@@ -3031,67 +3009,9 @@ static ulint pc_flush_slot(void) {
 
     if (!page_cleaner->is_running) {
       slot->n_flushed_list = 0;
-<<<<<<< HEAD
-      goto finish_mutex;
-    }
-
-    mutex_exit(&page_cleaner->mutex);
-
-    /* Flush pages from flush_list if required */
-    if (page_cleaner->requested) {
-      list_tm = ut_time_monotonic_ms();
-
-      slot->succeeded_list =
-          buf_flush_do_batch(buf_pool, BUF_FLUSH_LIST, slot->n_pages_requested,
-                             page_cleaner->lsn_limit, &slot->n_flushed_list);
-
-      list_tm = ut_time_monotonic_ms() - list_tm;
-      list_pass++;
-||||||| 3290a66c89e
-      goto finish_mutex;
-    }
-
-    mutex_exit(&page_cleaner->mutex);
-
-    lru_tm = ut_time_monotonic_ms();
-
-    /* Flush pages from end of LRU if required */
-    slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
-
-    lru_tm = ut_time_monotonic_ms() - lru_tm;
-    lru_pass++;
-
-    if (!page_cleaner->is_running) {
-      slot->n_flushed_list = 0;
-      goto finish;
-    }
-
-    /* Flush pages from flush_list if required */
-    if (page_cleaner->requested) {
-      list_tm = ut_time_monotonic_ms();
-
-      slot->succeeded_list =
-          buf_flush_do_batch(buf_pool, BUF_FLUSH_LIST, slot->n_pages_requested,
-                             page_cleaner->lsn_limit, &slot->n_flushed_list);
-
-      list_tm = ut_time_monotonic_ms() - list_tm;
-      list_pass++;
-=======
->>>>>>> mysql-8.0.28
     } else {
       mutex_exit(&page_cleaner->mutex);
-
-      const auto lru_start = std::chrono::steady_clock::now();
-
-      /* Flush pages from end of LRU if required */
-      slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
-
-      lru_time = std::chrono::steady_clock::now() - lru_start;
-      lru_pass = 1;
-
-      if (!page_cleaner->is_running) {
-        slot->n_flushed_list = 0;
-      } else {
+      {
         /* Flush pages from flush_list if required */
         if (page_cleaner->requested) {
           const auto flush_list_start = std::chrono::steady_clock::now();
@@ -3109,32 +3029,12 @@ static ulint pc_flush_slot(void) {
       }
       mutex_enter(&page_cleaner->mutex);
     }
-<<<<<<< HEAD
-    mutex_enter(&page_cleaner->mutex);
-  finish_mutex:
-||||||| 3290a66c89e
-  finish:
-    mutex_enter(&page_cleaner->mutex);
-  finish_mutex:
-=======
->>>>>>> mysql-8.0.28
     page_cleaner->n_slots_flushing--;
     page_cleaner->n_slots_finished++;
     slot->state = PAGE_CLEANER_STATE_FINISHED;
 
-<<<<<<< HEAD
-    slot->flush_list_time += list_tm;
-||||||| 3290a66c89e
-    slot->flush_lru_time += lru_tm;
-    slot->flush_list_time += list_tm;
-    slot->flush_lru_pass += lru_pass;
-=======
-    slot->flush_lru_time +=
-        std::chrono::duration_cast<std::chrono::milliseconds>(lru_time);
     slot->flush_list_time +=
         std::chrono::duration_cast<std::chrono::milliseconds>(flush_list_time);
-    slot->flush_lru_pass += lru_pass;
->>>>>>> mysql-8.0.28
     slot->flush_list_pass += list_pass;
 
     if (page_cleaner->n_slots_requested == 0 &&
@@ -3416,16 +3316,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
               curr_time - loop_start_time);
 
           ib::info(ER_IB_MSG_128)
-<<<<<<< HEAD
-              << "Page cleaner took " << us << "ms to flush " << n_flushed_last
-              << " pages";
-||||||| 3290a66c89e
-              << "Page cleaner took " << us << "ms to flush " << n_flushed_last
-              << " and evict " << n_evicted << " pages";
-=======
               << "Page cleaner took " << diff_ms.count() << "ms to flush "
-              << n_flushed_last << " and evict " << n_evicted << " pages";
->>>>>>> mysql-8.0.28
+              << n_flushed_last << " pages";
 
           if (warn_interval > 300) {
             warn_interval = 600;
@@ -3443,16 +3335,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
         warn_count = 0;
       }
 
-<<<<<<< HEAD
-      next_loop_time = curr_time + 1000;
-      n_flushed_last = 0;
-||||||| 3290a66c89e
-      next_loop_time = curr_time + 1000;
-      n_flushed_last = n_evicted = 0;
-=======
       loop_start_time = curr_time;
-      n_flushed_last = n_evicted = 0;
->>>>>>> mysql-8.0.28
+      n_flushed_last = 0;
 
       was_server_active = srv_check_activity(last_activity);
       last_activity = srv_get_activity_count();

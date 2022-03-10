@@ -1443,24 +1443,12 @@ void Query_logger::cleanup() {
   file_log_handler = nullptr;
 }
 
-<<<<<<< HEAD
-bool Query_logger::slow_log_write(
-    THD *thd, const char *query, size_t query_length,
-    struct System_status_var *query_start_status) {
-  assert(thd->enable_slow_log);
-||||||| 3290a66c89e
-bool Query_logger::slow_log_write(
-    THD *thd, const char *query, size_t query_length,
-    struct System_status_var *query_start_status) {
-  assert(thd->enable_slow_log && opt_slow_log);
-=======
 bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   size_t query_length,
                                   struct System_status_var *query_start_status,
                                   bool aggregate, ulonglong lock_usec,
                                   ulonglong exec_usec) {
-  assert(thd->enable_slow_log && opt_slow_log);
->>>>>>> mysql-8.0.28
+  assert(thd->enable_slow_log);
 
   if (!(*slow_log_handler_list)) return false;
 

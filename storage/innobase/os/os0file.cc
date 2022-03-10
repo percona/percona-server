@@ -2209,18 +2209,10 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
   Encryption encryption(type.encryption_algorithm());
   file::Block *block{};
 
-<<<<<<< HEAD
   ut_ad(type.is_write());
   ut_ad(type.is_encrypted());
   ut_ad(type.is_log());
-  ut_ad(*n % OS_FILE_LOG_BLOCK_SIZE == 0);
-||||||| 3290a66c89e
-  ut_ad(type.is_write() && type.is_encrypted() && type.is_log());
-  ut_ad(*n % OS_FILE_LOG_BLOCK_SIZE == 0);
-=======
-  ut_ad(type.is_write() && type.is_encrypted() && type.is_log());
   ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
->>>>>>> mysql-8.0.28
 
   if (n <= BUFFER_BLOCK_SIZE - os_io_ptr_align) {
     block = os_alloc_block();
@@ -3143,19 +3135,7 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
       }
       break;
     case EINTR:
-<<<<<<< HEAD
-      return (OS_FILE_AIO_INTERRUPTED);
-||||||| 3290a66c89e
-      if (srv_use_native_aio) {
-        return (OS_FILE_AIO_INTERRUPTED);
-      }
-      break;
-=======
-      if (srv_use_native_aio) {
-        return OS_FILE_AIO_INTERRUPTED;
-      }
-      break;
->>>>>>> mysql-8.0.28
+      return OS_FILE_AIO_INTERRUPTED;
     case EACCES:
       return OS_FILE_ACCESS_VIOLATION;
     case ENAMETOOLONG:
@@ -5418,14 +5398,8 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       written to the dblwr file and the data file. During importing an
       encrypted tablespace, we reach here. */
       if (e_block == nullptr) {
-<<<<<<< HEAD
         ut_ad(type.encryption_algorithm().has_key());
-        block = os_file_encrypt_page(type, buf, &n);
-||||||| 3290a66c89e
-        block = os_file_encrypt_page(type, buf, &n);
-=======
         block = os_file_encrypt_page(type, buf, n);
->>>>>>> mysql-8.0.28
       } else {
         block = const_cast<file::Block *>(e_block);
       }
@@ -7280,21 +7254,11 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   before compression, the encrypted data will cause compression fail
   or low compression rate. */
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
-<<<<<<< HEAD
       (type.is_encrypted() || e_block != nullptr) &&
       (type.encryption_algorithm().get_type() != Encryption::KEYRING ||
        (type.encryption_algorithm().has_key() &&
         Encryption::can_page_be_keyring_encrypted(slot->buf)))) {
-    ulint encrypted_len = slot->len;
-    file::Block *encrypted_block;
-||||||| 3290a66c89e
-      (type.is_encrypted() || e_block != nullptr)) {
-    ulint encrypted_len = slot->len;
-    file::Block *encrypted_block;
-=======
-      (type.is_encrypted() || e_block != nullptr)) {
     file::Block *encrypted_block = nullptr;
->>>>>>> mysql-8.0.28
     byte *encrypt_log_buf;
 
     release();

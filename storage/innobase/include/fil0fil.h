@@ -52,7 +52,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include <vector>
 
-<<<<<<< HEAD
 #include "fil0rkinfo.h"
 #include "keyring_encryption_key_info.h"
 
@@ -62,10 +61,8 @@ struct redo_log_key;
 
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
-||||||| 3290a66c89e
-=======
+
 extern ulong srv_fast_shutdown;
->>>>>>> mysql-8.0.28
 
 /** Maximum number of tablespaces to be scanned by a thread while scanning
 for available tablespaces during server startup. This is a hard maximum.

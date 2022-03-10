@@ -974,7 +974,6 @@ sub main {
   remove_redundant_thread_id_file_locations();
   clean_unique_id_dir();
 
-<<<<<<< HEAD
   if ($opt_ctest) {
     find({ wanted => sub {
              my $core_file= $File::Find::name;
@@ -985,12 +984,11 @@ sub main {
                My::CoreDump->show($core_file, "", 1);
              }
        }}, $bindir);
-||||||| 3290a66c89e
-=======
+  }
+
   # Cleanup the secondary engine environment
   if ($secondary_engine_support) {
     clean_virtual_env();
->>>>>>> mysql-8.0.28
   }
 
   print_total_times($opt_parallel) if $opt_report_times;
@@ -1132,25 +1130,13 @@ sub run_test_server ($$$) {
                       my $core_file = $File::Find::name;
                       my $core_name = basename($core_file);
 
-<<<<<<< HEAD
                       if (is_core_dump($core_name)) {
-||||||| 3290a66c89e
-                      # Name beginning with core, not ending in .gz
-                      if (($core_name =~ /^core/ and $core_name !~ /\.gz$/) or
-                          (IS_WINDOWS and $core_name =~ /\.dmp$/)) {
-                        # Ending with .dmp
-=======
-                      # Name beginning with core, not ending in .gz
-                      if (($core_name =~ /^core/ and $core_name !~ /\.gz$/) or
-                          (IS_WINDOWS and $core_name =~ /\.dmp$/)) {
-                        # Ending with .dmp
 
                         if (exists $saved_cores_paths{$core_file}) {
                           mtr_report(" - found '$core_name' again, keeping it");
                           return;
                         }
                         my $num_saved_cores = %saved_cores_paths;
->>>>>>> mysql-8.0.28
                         mtr_report(" - found '$core_name'",
                                    "($num_saved_cores/$opt_max_save_core)");
 

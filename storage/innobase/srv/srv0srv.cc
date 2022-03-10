@@ -2817,7 +2817,6 @@ innodb_temp_tablespace_encrypt is TRUE
 dberr_t srv_temp_encryption_update(bool enable) {
   ut_ad(!srv_read_only_mode);
 
-<<<<<<< HEAD
   fil_space_t *const space = fil_space_get(srv_tmp_space.space_id());
   bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
@@ -2934,13 +2933,8 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
   }
 
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-||||||| 3290a66c89e
-  /* While enabling encryption, make sure not to overwrite the tablespace
-  key. */
-=======
   /* While enabling encryption, make sure not to overwrite the tablespace key.
    */
->>>>>>> mysql-8.0.28
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;
   }

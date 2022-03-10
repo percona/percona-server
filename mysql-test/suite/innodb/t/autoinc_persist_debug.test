@@ -312,7 +312,7 @@ SELECT * FROM t1 ORDER BY col1;
 
 --echo # Stop mysqld and trigger failure during boot.
 --source include/kill_mysqld.inc
---error 1,42
+--error 1
 --exec $MYSQLD_CMD --debug=+d,error_during_bootstrap
 
 --echo # Start server normally.

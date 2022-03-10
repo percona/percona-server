@@ -1,0 +1,36 @@
+# Test the detection of memory leak in sync_latch_meta_init() in case of a
+# failed innodb start by ASan.
+
+--source include/have_innodb_max_16k.inc
+
+SET GLOBAL innodb_file_per_table=ON;
+
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+RENAME TABLE t1 TO t2;
+
+let MYSQLD_DATADIR= `select @@datadir`;
+--source include/kill_mysqld.inc
+
+--echo # Fault (no real fault): Orphan file with duplicate space_id.
+--copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
+
+# The InnoDB cannot start and server shutdowns, for this reason, resource leaks
+# occur
+--error 1
+--exec $mysqld
+
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--remove_file $SEARCH_FILE
+
+--source include/start_mysqld.inc
+
+DROP TABLE t2;
+
+--echo # List of files:
+--list_files $MYSQLD_DATADIR/test
+
+SHOW TABLES;

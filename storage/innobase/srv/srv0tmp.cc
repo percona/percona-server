@@ -388,6 +388,8 @@ void delete_pool_manager() { ut::delete_(tbsp_pool); }
 void close_files() {
   auto close = [&](const ibt::Tablespace *ts) { ts->close(); };
 
+  if (!ibt::tbsp_pool) return;
+
   ibt::tbsp_pool->iterate_tbsp(close);
 }
 

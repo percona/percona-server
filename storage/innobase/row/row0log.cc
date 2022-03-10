@@ -183,7 +183,7 @@ directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_t {
   /** File descriptor */
-  os_fd_t fd;
+  ddl::Unique_os_file_descriptor file;
 
   /** Mutex protecting error, max_trx and tail */
   ib_mutex_t mutex;
@@ -369,19 +369,17 @@ bool log_tmp_block_decrypt(const byte *src_block, ulint size, byte *dst_block,
 /** Create the file or online log if it does not exist.
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
-[[nodiscard]] static int row_log_tmpfile(row_log_t *log) {
+[[nodiscard]] static bool row_log_tmpfile(row_log_t *log) {
   DBUG_TRACE;
-  if (log->fd < 0) {
-    log->fd = ddl::file_create_low(log->path);
-    DBUG_EXECUTE_IF("row_log_tmpfile_fail",
-                    if (log->fd > 0) ddl::file_destroy_low(log->fd);
-                    log->fd = -1;);
-    if (log->fd >= 0) {
+  if (!log->file.is_open()) {
+    log->file = ddl::file_create_low(log->path);
+    DBUG_EXECUTE_IF("row_log_tmpfile_fail", log->file.close(););
+    if (log->file.is_open()) {
       MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_LOG_FILES);
     }
   }
 
-  return log->fd;
+  return log->file.is_open();
 }
 
 /** Allocate the memory for the log buffer.
@@ -511,11 +509,12 @@ void row_log_online_op(
 
     UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
-    if (row_log_tmpfile(log) < 0) {
+    if (!row_log_tmpfile(log)) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
     }
 
+<<<<<<< HEAD
     /* If encryption is enabled encrypt buffer before writing it to file
     system. */
     if (log_tmp_is_encrypted()) {
@@ -532,6 +531,13 @@ void row_log_online_op(
 
     err = os_file_write_int_fd(request, "(modification log)", log->fd, buf,
                                byte_offset, srv_sort_buf_size);
+||||||| 3290a66c89e
+    err = os_file_write_int_fd(request, "(modification log)", log->fd,
+                               log->tail.block, byte_offset, srv_sort_buf_size);
+=======
+    err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
+                               log->tail.block, byte_offset, srv_sort_buf_size);
+>>>>>>> mysql-8.0.28
 
     log->tail.blocks++;
     if (err != DB_SUCCESS) {
@@ -629,11 +635,12 @@ static void row_log_table_close_func(
 
     UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
-    if (row_log_tmpfile(log) < 0) {
+    if (!row_log_tmpfile(log)) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
     }
 
+<<<<<<< HEAD
     /* If encryption is enabled encrypt buffer before writing it
        to file system. */
     if (log_tmp_is_encrypted()) {
@@ -648,6 +655,11 @@ static void row_log_table_close_func(
     }
 
     err = os_file_write_int_fd(request, "(modification log)", log->fd,
+||||||| 3290a66c89e
+    err = os_file_write_int_fd(request, "(modification log)", log->fd,
+=======
+    err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
+>>>>>>> mysql-8.0.28
                                log->tail.block, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
@@ -1694,7 +1706,8 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 
   do {
     n_index++;
-    if (!(index = index->next())) {
+    index = index->next();
+    if (!index) {
       break;
     }
 
@@ -1757,6 +1770,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       break;
     default:
       ut_ad(0);
+      [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
       return (error);
@@ -2178,6 +2192,7 @@ flag_ok:
       break;
     default:
       ut_ad(0);
+      [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
       return (error);
@@ -2917,8 +2932,8 @@ next_block:
     if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
       /* Truncate the file in order to save space. */
-      if (index->online_log->fd > 0 &&
-          ftruncate(index->online_log->fd, 0) == -1) {
+      if (index->online_log->file.is_open() &&
+          ftruncate(index->online_log->file.get(), 0) == -1) {
         perror("ftruncate");
       }
 #endif /* HAVE_FTRUNCATE */
@@ -2963,6 +2978,7 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     err = os_file_read_no_error_handling_int_fd(
+<<<<<<< HEAD
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
@@ -2978,6 +2994,13 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
+||||||| 3290a66c89e
+        request, index->online_log->path, index->online_log->fd,
+        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
+=======
+        request, index->online_log->path, index->online_log->file.get(),
+        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
+>>>>>>> mysql-8.0.28
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
@@ -2988,7 +3011,7 @@ next_block:
 
 #ifdef POSIX_FADV_DONTNEED
     /* Each block is read exactly once.  Free up the file cache. */
-    posix_fadvise(index->online_log->fd, ofs, srv_sort_buf_size,
+    posix_fadvise(index->online_log->file.get(), ofs, srv_sort_buf_size,
                   POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
@@ -3245,14 +3268,12 @@ bool row_log_allocate(
   ut_ad(!add_cols || col_map);
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
-  log = static_cast<row_log_t *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof *log));
+  log = ut::new_withkey<row_log_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   if (log == nullptr) {
     return false;
   }
 
-  log->fd = -1;
   mutex_create(LATCH_ID_INDEX_ONLINE_LOG, &log->mutex);
 
   log->blobs = nullptr;
@@ -3305,6 +3326,7 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
   ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
+<<<<<<< HEAD
   ddl::file_destroy_low(log->fd);
 
   if (log->crypt_head) {
@@ -3317,6 +3339,10 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
     log->crypt_tail = nullptr;
   }
 
+||||||| 3290a66c89e
+  ddl::file_destroy_low(log->fd);
+=======
+>>>>>>> mysql-8.0.28
   mutex_free(&log->mutex);
   ut::free(log);
   log = nullptr;
@@ -3727,8 +3753,8 @@ next_block:
     if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
       /* Truncate the file in order to save space. */
-      if (index->online_log->fd > 0 &&
-          ftruncate(index->online_log->fd, 0) == -1) {
+      if (index->online_log->file.is_open() &&
+          ftruncate(index->online_log->file.get(), 0) == -1) {
         perror("ftruncate");
       }
 #endif /* HAVE_FTRUNCATE */
@@ -3769,6 +3795,7 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     dberr_t err = os_file_read_no_error_handling_int_fd(
+<<<<<<< HEAD
         request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
@@ -3784,6 +3811,13 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
+||||||| 3290a66c89e
+        request, index->online_log->path, index->online_log->fd,
+        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
+=======
+        request, index->online_log->path, index->online_log->file.get(),
+        index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
+>>>>>>> mysql-8.0.28
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"
@@ -3794,7 +3828,7 @@ next_block:
 
 #ifdef POSIX_FADV_DONTNEED
     /* Each block is read exactly once.  Free up the file cache. */
-    posix_fadvise(index->online_log->fd, ofs, srv_sort_buf_size,
+    posix_fadvise(index->online_log->file.get(), ofs, srv_sort_buf_size,
                   POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 

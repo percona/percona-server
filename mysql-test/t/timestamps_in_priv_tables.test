@@ -5,6 +5,11 @@
 #
 # === References ===
 #
+<<<<<<< HEAD
+||||||| 3290a66c89e
+=======
+# Bug #98495: Timestamp is not set to CURRENT_TIMESTAMP in mysql.tables_priv
+>>>>>>> mysql-8.0.28
 # PS-7617: Timestamp is not set to CURRENT_TIMESTAMP in grant tables
 
 # Test Setup.

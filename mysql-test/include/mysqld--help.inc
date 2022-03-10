@@ -27,7 +27,13 @@ perl;
 
   # Variables which we don't want to display in result file since
   # they depend on type of build
+<<<<<<< HEAD
   @build_specific=qw/auto-generate-certs lock-order version-suffix/;
+||||||| 3290a66c89e
+  @build_specific=qw/auto-generate-certs lock-order/;
+=======
+  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version/;
+>>>>>>> mysql-8.0.28
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file

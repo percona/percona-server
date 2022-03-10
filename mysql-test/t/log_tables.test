@@ -178,8 +178,16 @@ drop table bug16905;
 truncate table mysql.slow_log;
 set session long_query_time=1;
 select sleep(2);
+<<<<<<< HEAD
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 11 QUERY 12 THREAD_ID
 select * from mysql.slow_log where sql_text="select sleep(2)";
+||||||| 3290a66c89e
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 11 QUERY 12 THREAD_ID
+select * from mysql.slow_log;
+=======
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME 4 LOCK_TIME 11 QUERY 12 THREAD_ID
+select * from mysql.slow_log;
+>>>>>>> mysql-8.0.28
 set @@session.long_query_time = @saved_long_query_time;
 
 #

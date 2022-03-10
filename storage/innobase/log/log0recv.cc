@@ -1209,7 +1209,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
     unit = batch_size;
   }
 
-  auto start_time = ut_time_monotonic();
+  auto start_time = std::chrono::steady_clock::now();
 
   for (const auto &space : *recv_sys->spaces) {
     bool dropped;
@@ -1244,10 +1244,11 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
         pct += PCT;
 
-        start_time = ut_time_monotonic();
+        start_time = std::chrono::steady_clock::now();
 
-      } else if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
-        start_time = ut_time_monotonic();
+      } else if (std::chrono::steady_clock::now() - start_time >=
+                 PRINT_INTERVAL) {
+        start_time = std::chrono::steady_clock::now();
 
         ib::info(ER_IB_MSG_709)
             << std::setprecision(2)
@@ -3592,9 +3593,9 @@ bool meb_read_log_encryption(IORequest &encryption_request,
     /* encryption info was not given as a parameter, read it from the
        header of "ib_logfile0" */
 
-    err = fil_redo_io(IORequestLogRead, page_id, univ_page_size,
-                      LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-                      OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
+    err = fil_io(IORequestLogRead, true, page_id, univ_page_size,
+                 LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                 OS_FILE_LOG_BLOCK_SIZE, log_block_buf, nullptr);
     ut_a(err == DB_SUCCESS);
   }
 

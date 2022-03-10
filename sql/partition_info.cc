@@ -906,6 +906,14 @@ const char *partition_info::find_duplicate_name() {
     then we could just return NULL, but that has not been verified.
     And this only happens when in ALTER TABLE with full table copy.
   */
+<<<<<<< HEAD
+||||||| 3290a66c89e
+
+  max_names = num_parts;
+  if (is_sub_partitioned()) max_names += num_parts * num_subparts;
+=======
+
+>>>>>>> mysql-8.0.28
   while ((p_elem = (parts_it++))) {
     const char *partition_name = p_elem->partition_name;
     if (!partition_names.insert(partition_name).second) return partition_name;

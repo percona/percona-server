@@ -31,7 +31,17 @@ namespace temptable_storage_unittest {
 
 TEST(StorageTest, Iterate) {
   std::thread t([]() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
+<<<<<<< HEAD
+||||||| 3290a66c89e
+    temptable::Allocator<uint8_t> allocator(&shared_block);
+    temptable::Storage storage(&allocator);
+=======
+    temptable::Allocator<uint8_t> allocator(&shared_block,
+                                            table_resource_monitor);
+    temptable::Storage storage(&allocator);
+>>>>>>> mysql-8.0.28
 
     {
       temptable::Allocator<uint8_t> allocator(&shared_block);
@@ -70,8 +80,9 @@ TEST(StorageTest, AllocatorRebind) {
   // Bug in VS2019 error C3409 if we do the same as above.
   // Turns out it is the rebind which confuses the compiler.
   auto thread_function = []() {
+    temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-    temptable::Allocator<uint8_t> alloc(&shared_block);
+    temptable::Allocator<uint8_t> alloc(&shared_block, table_resource_monitor);
     uint8_t *shared_eater = alloc.allocate(
         1048576);  // Make sure to consume the initial shared block.
     uint8_t *ptr = alloc.allocate(100);

@@ -58,18 +58,18 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"          // Field
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"          // my_localhost
 #include "sql/psi_memory_key.h"  // key_memory_acl_mem
-#include "sql/records.h"         // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_plugin_ref.h"
@@ -686,7 +686,12 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
                                                       system_charset_info))
     return true;
 
+<<<<<<< HEAD
   timeval tm = table->in_use->query_start_timeval_trunc(0);
+||||||| 3290a66c89e
+=======
+  my_timeval tm = table->in_use->query_start_timeval_trunc(0);
+>>>>>>> mysql-8.0.28
   table->field[MYSQL_PROXIES_PRIV_TIMESTAMP]->store_timestamp(&tm);
 
   return false;

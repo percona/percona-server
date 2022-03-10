@@ -2657,6 +2657,7 @@
    fun:_dl_init
 }
 
+<<<<<<< HEAD
 #
 # RcoksDB submodule, ignore 'still reachable' notifications on
 # static variables
@@ -2721,4 +2722,17 @@
    fun:allocate_and_init
    fun:tls_get_addr_tail
    fun:__tls_get_addr
+||||||| 3290a66c89e
+=======
+#  The ... is for malloc or realloc
+{
+   mysql_dynamic_loader_scheme_file_imp_load
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:vasprintf
+   fun:asprintf
+   fun:dlerror
+   fun:_ZN36mysql_dynamic_loader_scheme_file_imp4loadEPKcPP17mysql_component_t
+>>>>>>> mysql-8.0.28
 }

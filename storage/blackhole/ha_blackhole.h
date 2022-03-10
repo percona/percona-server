@@ -22,11 +22,30 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
+<<<<<<< HEAD
 #include "sql/handler.h"   /* handler */
 #include "sql/sql_const.h" /* MAX_KEY */
 #include "sql/table.h"     /* TABLE_SHARE */
 #include "thr_lock.h"      /* THR_LOCK */
+||||||| 3290a66c89e
+#include "sql/handler.h" /* handler */
+#include "sql/table.h"   /* TABLE_SHARE */
+#include "thr_lock.h"    /* THR_LOCK */
+=======
+#include "sql/handler.h" /* handler */
+#include "sql/key.h"
+#include "sql/table.h" /* TABLE_SHARE */
+#include "thr_lock.h"  /* THR_LOCK */
+
+class String;
+class THD;
+struct FT_INFO;
+namespace dd {
+class Table;
+}
+>>>>>>> mysql-8.0.28
 
 /*
   Shared structure for correct LOCK operation
@@ -105,7 +124,16 @@ class ha_blackhole : public handler {
              dd::Table *table_def) override;
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override;
+<<<<<<< HEAD
   bool has_gap_locks() const noexcept override { return true; }
+||||||| 3290a66c89e
+=======
+  FT_INFO *ft_init_ext(uint flags, uint inx, String *key) override;
+  int ft_init() override;
+
+ protected:
+  int ft_read(uchar *buf) override;
+>>>>>>> mysql-8.0.28
 
  private:
   int write_row(uchar *buf) override;

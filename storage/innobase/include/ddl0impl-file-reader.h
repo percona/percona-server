@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,10 +41,11 @@ struct File_cursor;
 /** Read rows from the temporary file. */
 struct File_reader : private ut::Non_copyable {
   /** Constructor.
-  @param[in] fd                 Open file descriptors.
+  @param[in] file               Opened file.
   @param[in,out] index          Index that the rows belong to.
   @param[in] buffer_size        Size of file buffer for reading.
   @param[in] size               File size in bytes. */
+<<<<<<< HEAD
   File_reader(os_fd_t fd, dict_index_t *index, size_t buffer_size,
               os_offset_t size, space_id_t space_id,
               const Write_offsets &write_offsets) noexcept
@@ -54,10 +55,19 @@ struct File_reader : private ut::Non_copyable {
         m_buffer_size(buffer_size),
         m_space_id(space_id),
         m_write_offsets(write_offsets) {
+||||||| 3290a66c89e
+  File_reader(os_fd_t fd, dict_index_t *index, size_t buffer_size,
+              os_offset_t size) noexcept
+      : m_index(index), m_fd(fd), m_size(size), m_buffer_size(buffer_size) {
+=======
+  File_reader(const Unique_os_file_descriptor &file, dict_index_t *index,
+              size_t buffer_size, os_offset_t size) noexcept
+      : m_index(index), m_file(file), m_size(size), m_buffer_size(buffer_size) {
+>>>>>>> mysql-8.0.28
     ut_a(size > 0);
     ut_a(m_buffer_size > 0);
     ut_a(m_index != nullptr);
-    ut_a(fd != OS_FD_CLOSED);
+    ut_a(m_file.is_open());
   }
 
   /** Destructor. */
@@ -125,7 +135,7 @@ struct File_reader : private ut::Non_copyable {
   Offsets m_offsets{};
 
   /** File handle to read from. */
-  os_fd_t m_fd{OS_FD_CLOSED};
+  const Unique_os_file_descriptor &m_file;
 
  private:
   /** Size of the file in bytes. */

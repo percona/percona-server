@@ -1648,6 +1648,8 @@ dberr_t clone_init() {
 }
 
 void clone_free() {
+  if (!clone_sys) return;
+
   Clone_handler::uninit_xa();
   if (clone_sys != nullptr) {
     ut_ad(Clone_Sys::s_clone_sys_state == CLONE_SYS_ACTIVE);

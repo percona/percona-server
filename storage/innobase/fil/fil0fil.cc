@@ -3901,7 +3901,11 @@ void Fil_system::close_all_files() {
 
 /** Closes all open files. There must not be any pending i/o's or not flushed
 modifications in the files. */
-void fil_close_all_files() { fil_system->close_all_files(); }
+void fil_close_all_files() {
+  if (!fil_system) return;
+
+  fil_system->close_all_files();
+}
 
 /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
 returning the nodes via callback function cbk.
@@ -4032,6 +4036,7 @@ for concurrency control.
 @param[in]      space_id        Tablespace ID
 @return the tablespace, or nullptr if missing or being deleted */
 fil_space_t *fil_space_acquire(space_id_t space_id) {
+  if (!fil_system) return nullptr;
   return fil_system->space_acquire(space_id, false);
 }
 
@@ -8239,6 +8244,7 @@ void Fil_system::flush_file_spaces() {
     shard->flush_file_spaces();
   }
 }
+
 
 void fil_flush_file_spaces() { fil_system->flush_file_spaces(); }
 

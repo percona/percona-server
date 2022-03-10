@@ -383,6 +383,8 @@ void lock_sys_close(void) {
     lock_latest_err_file = nullptr;
   }
 
+  if (!lock_sys) return;
+
   ut::delete_(lock_sys->rec_hash);
   ut::delete_(lock_sys->prdt_hash);
   ut::delete_(lock_sys->prdt_page_hash);

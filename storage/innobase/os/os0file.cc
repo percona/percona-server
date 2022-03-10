@@ -6775,6 +6775,8 @@ void os_aio_start_threads() { AIO::start_threads(); }
 
 /** Frees the asynchronous io system. */
 void os_aio_free() {
+  if (!os_aio_segment_wait_events) return;
+
   AIO::shutdown();
 
   for (ulint i = 0; i < os_aio_n_segments; i++) {

@@ -5246,6 +5246,8 @@ void row_mysql_init(void) {
 
 /** Close this module */
 void row_mysql_close(void) {
+  if (!row_mysql_drop_list_inited) return;
+
   ut_a(UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
 
   mutex_free(&row_drop_list_mutex);

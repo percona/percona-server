@@ -14,12 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdexcept>
-#include <string>
+#include <array>
+#include <bitset>
 
 #include <boost/lexical_cast/try_lexical_convert.hpp>
 
-#include <mysql/plugin.h>
+#include <my_dbug.h>
+
+#include <mysql/components/component_implementation.h>
+#include <mysql/components/services/mysql_runtime_error.h>
+#include <mysql/components/services/udf_registration.h>
 
 #include <mysqlpp/udf_wrappers.hpp>
 
@@ -35,6 +39,9 @@
 #include <opensslpp/rsa_padding.hpp>
 #include <opensslpp/rsa_sign_verify_operations.hpp>
 
+REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
+REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
+
 namespace {
 
 // CREATE_ASYMMETRIC_PRIV_KEY(@algorithm, {@key_len|@dh_parameters})
@@ -45,8 +52,6 @@ namespace {
 class create_asymmetric_priv_key_impl {
  public:
   create_asymmetric_priv_key_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
@@ -62,7 +67,6 @@ class create_asymmetric_priv_key_impl {
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
   }
-  ~create_asymmetric_priv_key_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -70,8 +74,6 @@ class create_asymmetric_priv_key_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
@@ -123,8 +125,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
 class create_asymmetric_pub_key_impl {
  public:
   create_asymmetric_pub_key_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
@@ -140,7 +140,6 @@ class create_asymmetric_pub_key_impl {
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
   }
-  ~create_asymmetric_pub_key_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -148,8 +147,6 @@ class create_asymmetric_pub_key_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
@@ -180,8 +177,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
 class asymmetric_encrypt_impl {
  public:
   asymmetric_encrypt_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 3)
       throw std::invalid_argument("Function requires exactly three arguments");
 
@@ -201,7 +196,6 @@ class asymmetric_encrypt_impl {
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
   }
-  ~asymmetric_encrypt_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -209,8 +203,6 @@ class asymmetric_encrypt_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
@@ -247,8 +239,6 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
 class asymmetric_decrypt_impl {
  public:
   asymmetric_decrypt_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 3)
       throw std::invalid_argument("Function requires exactly three arguments");
 
@@ -268,7 +258,6 @@ class asymmetric_decrypt_impl {
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
   }
-  ~asymmetric_decrypt_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -276,8 +265,6 @@ class asymmetric_decrypt_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
@@ -315,8 +302,6 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
 class create_digest_impl {
  public:
   create_digest_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
@@ -332,7 +317,6 @@ class create_digest_impl {
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
   }
-  ~create_digest_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -340,8 +324,6 @@ class create_digest_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(0);
   if (digest_type_sv.data() == nullptr)
     throw std::invalid_argument("Digest type cannot be NULL");
@@ -371,8 +353,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
 class asymmetric_sign_impl {
  public:
   asymmetric_sign_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 4)
       throw std::invalid_argument("Function requires exactly four arguments");
 
@@ -396,7 +376,6 @@ class asymmetric_sign_impl {
     ctx.mark_arg_nullable(3, false);
     ctx.set_arg_type(3, STRING_RESULT);
   }
-  ~asymmetric_sign_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -404,8 +383,6 @@ class asymmetric_sign_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
@@ -459,8 +436,6 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
 class asymmetric_verify_impl {
  public:
   asymmetric_verify_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 5)
       throw std::invalid_argument("Function requires exactly five arguments");
 
@@ -488,15 +463,12 @@ class asymmetric_verify_impl {
     ctx.mark_arg_nullable(4, false);
     ctx.set_arg_type(4, STRING_RESULT);
   }
-  ~asymmetric_verify_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &args);
 };
 
 mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   if (algorithm.data() == nullptr)
     throw std::invalid_argument("Algorithm cannot be NULL");
@@ -545,8 +517,6 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
 class create_dh_parameters_impl {
  public:
   create_dh_parameters_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
 
@@ -558,7 +528,6 @@ class create_dh_parameters_impl {
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, INT_RESULT);
   }
-  ~create_dh_parameters_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -566,8 +535,6 @@ class create_dh_parameters_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto optional_length = ctx.get_arg<INT_RESULT>(0);
   if (!optional_length)
     throw std::invalid_argument("Parameters length cannot be NULL");
@@ -591,8 +558,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
 class asymmetric_derive_impl {
  public:
   asymmetric_derive_impl(mysqlpp::udf_context &ctx) {
-    DBUG_TRACE;
-
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
@@ -608,7 +573,6 @@ class asymmetric_derive_impl {
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
   }
-  ~asymmetric_derive_impl() { DBUG_TRACE; }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &args);
@@ -616,8 +580,6 @@ class asymmetric_derive_impl {
 
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_derive_impl::calculate(
     const mysqlpp::udf_context &ctx) {
-  DBUG_TRACE;
-
   auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(0);
   if (public_key_pem_sv.data() == nullptr)
     throw std::invalid_argument("Public key cannot be NULL");
@@ -645,3 +607,92 @@ DECLARE_STRING_UDF(asymmetric_sign_impl, asymmetric_sign)
 DECLARE_INT_UDF(asymmetric_verify_impl, asymmetric_verify)
 DECLARE_STRING_UDF(create_dh_parameters_impl, create_dh_parameters)
 DECLARE_STRING_UDF(asymmetric_derive_impl, asymmetric_derive)
+
+struct udf_info {
+  const char *name;
+  Item_result return_type;
+  Udf_func_any func;
+  Udf_func_init init_func;
+  Udf_func_deinit deinit_func;
+};
+
+#define DECLARE_UDF_INFO(NAME, TYPE) \
+  udf_info { #NAME, TYPE, (Udf_func_any)&NAME, &NAME##_init, &NAME##_deinit }
+
+static const std::array known_udfs{
+    DECLARE_UDF_INFO(create_asymmetric_priv_key, STRING_RESULT),
+    DECLARE_UDF_INFO(create_asymmetric_pub_key, STRING_RESULT),
+    DECLARE_UDF_INFO(asymmetric_encrypt, STRING_RESULT),
+    DECLARE_UDF_INFO(asymmetric_decrypt, STRING_RESULT),
+    DECLARE_UDF_INFO(create_digest, STRING_RESULT),
+    DECLARE_UDF_INFO(asymmetric_sign, STRING_RESULT),
+    DECLARE_UDF_INFO(asymmetric_verify, INT_RESULT),
+    DECLARE_UDF_INFO(create_dh_parameters, STRING_RESULT),
+    DECLARE_UDF_INFO(asymmetric_derive, STRING_RESULT)};
+
+#undef DECLARE_UDF_INFO
+
+using bitset_type = std::bitset<std::tuple_size<decltype(known_udfs)>::value>;
+static bitset_type registered_udfs;
+
+static mysql_service_status_t component_encryption_udf_init() {
+  std::size_t index = 0U;
+
+  for (const auto &element : known_udfs) {
+    if (!registered_udfs.test(index)) {
+      if (mysql_service_udf_registration->udf_register(
+              element.name, element.return_type, element.func,
+              element.init_func, element.deinit_func) == 0)
+        registered_udfs.set(index);
+    }
+    ++index;
+  }
+  return registered_udfs.all() ? 0 : 1;
+}
+
+static mysql_service_status_t component_encryption_udf_deinit() {
+  int was_present = 0;
+
+  std::size_t index = 0U;
+
+  for (const auto &element : known_udfs) {
+    if (registered_udfs.test(index)) {
+      if (mysql_service_udf_registration->udf_unregister(element.name,
+                                                         &was_present) == 0)
+        registered_udfs.reset(index);
+    }
+    ++index;
+  }
+  return registered_udfs.none() ? 0 : 1;
+}
+
+// Currently UDF wrappers exception handling is build so that
+// 'generic_udf_base<...>::handle_exception()' calls 'my_error()'
+// to report errors with codes. In order to avoid linking 'mysys'
+// (a static library where 'my_error()' is defined) as a dependency
+// we simply define this function here. Internally it just redirects
+// everything to the 'mysql_runtime_error' service.
+void my_error(int error_id, myf flags, ...) {
+  va_list args;
+  va_start(args, flags);
+  mysql_service_mysql_runtime_error->emit(error_id, flags, args);
+  va_end(args);
+}
+
+BEGIN_COMPONENT_PROVIDES(component_encryption_udf)
+END_COMPONENT_PROVIDES();
+
+BEGIN_COMPONENT_REQUIRES(component_encryption_udf)
+REQUIRES_SERVICE(mysql_runtime_error), REQUIRES_SERVICE(udf_registration),
+    END_COMPONENT_REQUIRES();
+
+BEGIN_COMPONENT_METADATA(component_encryption_udf)
+METADATA("mysql.author", "Percona Corporation"),
+    METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
+
+DECLARE_COMPONENT(component_encryption_udf, "component_encryption_udf")
+component_encryption_udf_init,
+    component_encryption_udf_deinit END_DECLARE_COMPONENT();
+
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(component_encryption_udf)
+    END_DECLARE_LIBRARY_COMPONENTS

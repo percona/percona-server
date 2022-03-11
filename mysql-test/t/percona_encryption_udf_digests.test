@@ -1,8 +1,8 @@
 --source include/have_udf.inc
 
+INSTALL COMPONENT 'file://component_encryption_udf';
+
 --echo ** checking digests calculation
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_digest RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
 
 --let $number_of_length_iterations = 16
 --let $length_increment = 7
@@ -55,4 +55,4 @@ while($digest_type_idx <= $number_of_digest_types)
 #
 # Dropping functions from encryption_udf
 #
-DROP FUNCTION create_digest;
+UNINSTALL COMPONENT 'file://component_encryption_udf';

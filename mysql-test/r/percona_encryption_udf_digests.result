@@ -1,5 +1,5 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
 ** checking digests calculation
-CREATE FUNCTION create_digest RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
 SET @random_pattern = REPEAT(MD5(42), 16 * 7 DIV 32 + 1);
 CREATE TEMPORARY TABLE digest_type(
 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -415,4 +415,4 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ****** [WHIRLPOOL][message_len=98] checking digest calculation on message
 ****** [WHIRLPOOL][message_len=105] checking digest calculation on message
 ****** [WHIRLPOOL][message_len=112] checking digest calculation on message
-DROP FUNCTION create_digest;
+UNINSTALL COMPONENT 'file://component_encryption_udf';

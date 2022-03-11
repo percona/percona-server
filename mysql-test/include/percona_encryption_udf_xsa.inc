@@ -1,30 +1,7 @@
 #
 # Creating functions from encryption_udf
 #
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_digest RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_asymmetric_priv_key RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_asymmetric_pub_key RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
-if ($algorithm == 'RSA')
-{
-  --replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-  eval CREATE FUNCTION asymmetric_encrypt RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
-  --replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-  eval CREATE FUNCTION asymmetric_decrypt RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-}
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION asymmetric_sign RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION asymmetric_verify RETURNS INTEGER SONAME "$ENCRYPTION_UDF_LIB";
+INSTALL COMPONENT 'file://component_encryption_udf';
 
 --source include/percona_encryption_udf_digest_table.inc
 
@@ -137,13 +114,4 @@ if ($algorithm == 'RSA')
 #
 # Dropping functions from encryption_udf
 #
-DROP FUNCTION asymmetric_verify;
-DROP FUNCTION asymmetric_sign;
-if ($algorithm == 'RSA')
-{
-  DROP FUNCTION asymmetric_decrypt;
-  DROP FUNCTION asymmetric_encrypt;
-}
-DROP FUNCTION create_asymmetric_pub_key;
-DROP FUNCTION create_asymmetric_priv_key;
-DROP FUNCTION create_digest;
+UNINSTALL COMPONENT 'file://component_encryption_udf';

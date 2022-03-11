@@ -4,17 +4,7 @@
 # Creating functions from encryption_udf
 #
 
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_asymmetric_priv_key RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_asymmetric_pub_key RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION create_dh_parameters RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
-
---replace_result $ENCRYPTION_UDF_LIB ENCRYPTION_UDF_LIB
-eval CREATE FUNCTION asymmetric_derive RETURNS STRING SONAME "$ENCRYPTION_UDF_LIB";
+INSTALL COMPONENT 'file://component_encryption_udf';
 
 --echo ** [DH][$key_length] generating parameters
 eval SET @dh_params = create_dh_parameters($key_length);
@@ -39,7 +29,4 @@ SET @shared2 = asymmetric_derive(@dh_pub2, @dh_priv1);
 #
 # Dropping functions from encryption_udf
 #
-DROP FUNCTION asymmetric_derive;
-DROP FUNCTION create_dh_parameters;
-DROP FUNCTION create_asymmetric_pub_key;
-DROP FUNCTION create_asymmetric_priv_key;
+UNINSTALL COMPONENT 'file://component_encryption_udf';

@@ -15,9 +15,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 if(WITH_ENCRYPTION_UDF)
-  message(STATUS "Building Encryption UDF plugin")
+  message(STATUS "Building Encryption UDF component")
 else()
-  message(STATUS "Not building Encryption UDF plugin")
+  message(STATUS "Not building Encryption UDF component")
   return()
 endif()
 
@@ -26,6 +26,13 @@ if(NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET AND NOT DEFINED CMAKE_VISIBILITY_INLI
   set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 endif()
 
-MYSQL_ADD_PLUGIN(encryption_udf encryption_udf.cc LINK_LIBRARIES OpenSSLPP::OpenSSLPP MODULE_ONLY MODULE_OUTPUT_NAME "encryption_udf")
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
 
-target_include_directories(encryption_udf SYSTEM PRIVATE ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+MYSQL_ADD_COMPONENT(encryption_udf
+  encryption_udf_component.cc
+  LINK_LIBRARIES OpenSSLPP::OpenSSLPP
+  MODULE_ONLY
+)
+
+target_include_directories(component_encryption_udf SYSTEM PRIVATE ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})

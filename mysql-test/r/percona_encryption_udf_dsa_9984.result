@@ -1,8 +1,4 @@
-CREATE FUNCTION create_digest RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
-CREATE FUNCTION create_asymmetric_priv_key RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
-CREATE FUNCTION create_asymmetric_pub_key RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
-CREATE FUNCTION asymmetric_sign RETURNS STRING SONAME "ENCRYPTION_UDF_LIB";
-CREATE FUNCTION asymmetric_verify RETURNS INTEGER SONAME "ENCRYPTION_UDF_LIB";
+INSTALL COMPONENT 'file://component_encryption_udf';
 CREATE TEMPORARY TABLE digest_type(
 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 digest_name VARCHAR(64) NOT NULL,
@@ -234,8 +230,4 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ******** [DSA][9984][message_len=1248][WHIRLPOOL] calculating digest
 ******** [DSA][9984][message_len=1248][WHIRLPOOL] calculating signature
 ******** [DSA][9984][message_len=1248][WHIRLPOOL] verifying signature
-DROP FUNCTION asymmetric_verify;
-DROP FUNCTION asymmetric_sign;
-DROP FUNCTION create_asymmetric_pub_key;
-DROP FUNCTION create_asymmetric_priv_key;
-DROP FUNCTION create_digest;
+UNINSTALL COMPONENT 'file://component_encryption_udf';

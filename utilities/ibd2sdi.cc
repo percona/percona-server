@@ -313,9 +313,10 @@ static void usage() {
 }
 
 /** Parse the options passed to tool. */
-extern "C" bool ibd2sdi_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument MY_ATTRIBUTE((unused))) {
+extern "C" bool ibd2sdi_get_one_option(int optid,
+                                       const struct my_option *opt
+                                       [[maybe_unused]],
+                                       char *argument [[maybe_unused]]) {
   switch (optid) {
 #ifndef NDEBUG
     case '#':
@@ -718,8 +719,7 @@ static size_t fetch_page(ib_tablespace *ts, page_no_t page_num,
   }
 
   if (page_size.is_compressed() && fil_page_get_type(buf) == FIL_PAGE_SDI) {
-    byte *uncomp_buf =
-        static_cast<byte *>(ut_malloc_nokey(2 * page_size.logical()));
+    byte *uncomp_buf = static_cast<byte *>(ut::malloc(2 * page_size.logical()));
 
     byte *uncomp_page =
         static_cast<byte *>(ut_align(uncomp_buf, page_size.logical()));
@@ -753,7 +753,7 @@ static size_t fetch_page(ib_tablespace *ts, page_no_t page_num,
       memcpy(buf, uncomp_page, page_size.logical());
     }
 
-    ut_free(uncomp_buf);
+    ut::free(uncomp_buf);
   }
 
   return n_bytes;
@@ -1629,8 +1629,6 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
   DBUG_TRACE;
 
   byte page_buf[UNIV_PAGE_SIZE_MAX];
-  uint64_t calc_length = 0;
-  uint64_t part_len;
   page_no_t page_num = first_blob_page_num;
   z_stream d_stream;
   int err;
@@ -1667,16 +1665,12 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
       break;
     }
 
-    part_len =
-        mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_PART_LEN);
-
     page_no_t next_page_num = mach_read_from_4(page_buf + FIL_PAGE_NEXT);
     space_id_t space_id =
         mach_read_from_4(page_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
     d_stream.next_in = page_buf + FIL_PAGE_DATA;
     d_stream.avail_in = static_cast<uInt>(page_size.physical() - FIL_PAGE_DATA);
-    calc_length += part_len;
     err = inflate(&d_stream, Z_NO_FLUSH);
     switch (err) {
       case Z_OK:
@@ -1688,7 +1682,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
         if (next_page_num == FIL_NULL) {
           goto func_exit;
         }
-      /* fall through */
+        [[fallthrough]];
       default:
       inflate_error : {
         page_id_t page_id(space_id, page_num);

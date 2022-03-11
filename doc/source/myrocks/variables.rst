@@ -79,6 +79,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_bulk_load_partial_index`
+     - Yes
+     - Yes
+     - Local
    * - :variable:`rocksdb_block_restart_interval`
      - Yes
      - No
@@ -118,6 +122,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_cache_index_and_filter_blocks`
      - Yes
      - No
+     - Global
+   * - :variable:`rocksdb_cancel_manual_compactions`
+     - Yes
+     - Yes
      - Global
    * - :variable:`rocksdb_checksums_pct`
      - Yes
@@ -443,6 +451,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_partial_index_sort_max_mem`
+     - Yes
+     - Yes
+     - Local
    * - :variable:`rocksdb_pause_background_work`
      - Yes
      - Yes
@@ -855,7 +867,7 @@ Allowed range is from ``1`` to ``2147483647``.
   :dyn: No
   :scope: Global
   :vartype: Numeric
-  :default: 16 KB
+  :default: ``16 KB``
 
 Specifies the size of the data block for reading RocksDB data files.
 The default value is ``16 KB``.
@@ -919,6 +931,17 @@ for example, when setting up a new MyRocks instance from a MySQL dump.
 Enabling this variable will also enable
 the :variable:`rocksdb_commit_in_the_middle` variable.
 
+.. variable:: rocksdb_bulk_load_partial_index
+
+  :version 8.0.27-17: Implemented
+  :cli: ``--rocksdb-bulk-load-partial-index``
+  :dyn: Yes
+  :scope: Local
+  :vartype: Boolean
+  :default: ``ON``
+  
+Materialize partial index during bulk load, instead of leaving the index empty.
+
 .. variable:: rocksdb_bulk_load_size
 
   :cli: ``--rocksdb-bulk-load-size``
@@ -974,6 +997,17 @@ and bloomfilter data blocks from each data file.
 Enabled by default.
 If you disable this feature,
 RocksDB will allocate additional memory to maintain these data blocks.
+
+.. variable:: rocksdb_cancel_manual_compactions
+
+  :version 8.0.27-17: Implemented
+  :cli: ``--rocksdb-cancel-manual-compactions``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+  
+Cancels all ongoing manual compactions.
 
 .. variable:: rocksdb_checksums_pct
 
@@ -2098,6 +2132,17 @@ Specifies whether MyRocks should re-read the data file
 as soon as it is created to verify correctness.
 Enabled by default.
 
+.. variable:: rocksdb_partial_index_sort_max_mem
+
+  :version 8.0.27-17: Implemented
+  :cli: ``--rocksdb-partial-index-sort-max-mem``
+  :dyn: Yes
+  :scope: Local
+  :vartype: Unsigned Integer
+  :default: ``0``
+  
+Maximum memory to use when sorting an unmaterialized group for partial indexes. The 0(zero) value is defined as no limit.
+
 .. variable:: rocksdb_pause_background_work
 
   :cli: ``--rocksdb-pause-background-work``
@@ -2551,6 +2596,7 @@ Specifies the path to the directory for temporary files during DDL operations.
 Defines the block cache trace option string. The format is sampling frequency: max_trace_file_size:trace_file_name. The sampling frequency value and max_trace_file_size value are positive integers. The block accesses are saved to the ``rocksdb_datadir/block_cache_traces/trace_file_name``. The default value is an empty string.
 
 .. variable:: rocksdb_trace_queries
+
    :cli: ``--rocksdb-trace-queries``
    :dyn: Yes
    :scope: Global

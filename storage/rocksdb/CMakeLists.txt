@@ -44,7 +44,22 @@ ELSE()
     EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_DATE COMMAND "${GIT_EXECUTABLE}" log -1 --date=format:"%Y-%m-%d %T" --format="%ad")
     EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_TAG RESULT_VARIABLE rv COMMAND "${GIT_EXECUTABLE}" symbolic-ref -q --short HEAD OUTPUT_STRIP_TRAILING_WHITESPACE)
     IF (rv AND NOT rv EQUAL 0)
-      EXECUTE_PROCESS(WORKING_DIRECTORY "${ROCKSDB_ROOT}" OUTPUT_VARIABLE GIT_TAG COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match OUTPUT_STRIP_TRAILING_WHITESPACE)
+      EXECUTE_PROCESS(
+        WORKING_DIRECTORY "${ROCKSDB_ROOT}"
+        OUTPUT_VARIABLE GIT_TAG
+        ERROR_VARIABLE GIT_ERROR
+        RESULT_VARIABLE rv
+        COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+      IF (rv AND NOT rv EQUAL 0)
+        EXECUTE_PROCESS(
+          WORKING_DIRECTORY "${ROCKSDB_ROOT}"
+          OUTPUT_VARIABLE GIT_TAG
+          COMMAND "${GIT_EXECUTABLE}" for-each-ref --contains HEAD --format=%\(refname:lstrip=-1\) --sort=version:refname --count=1 refs/remotes/*/*.fb
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+      ENDIF()
     ENDIF()
   ELSE()
     SET(GIT_SHA 0)
@@ -194,6 +209,12 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
 ENDIF()
 
+# Suppress warnings for clang-13 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-unused-but-set-variable FILES rocksdb/utilities/env_mirror.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-copy FILES rocksdb/options/options_helper.cc rocksdb/options/db_options.cc)
+ENDIF()
+
 # Suppress warnings for clang-10 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc rocksdb/options/options_helper.cc)
@@ -239,7 +260,7 @@ INCLUDE_DIRECTORIES(
 
 IF(BUILD_BUNDLED_ZSTD)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zstd/lib/dictBuilder)
+    ${ZSTD_INCLUDE_DIR}/dictBuilder)
 ENDIF()
 
 # add bundled compression code

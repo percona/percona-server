@@ -14,7 +14,7 @@ Frequently Asked Questions
 
    We recommend :ref:`migrate-myrocks`.
       
-   Starting with Percona 8.0.28-18, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
+   Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
 
 This section contains frequently asked questions regarding |TokuDB| and related software. 

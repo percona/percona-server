@@ -111,7 +111,7 @@ bool Binlog_crypt_data::load_latest_binlog_key() {
 }
 
 bool Binlog_crypt_data::init_with_loaded_key(
-    uint sch, const uchar *nonce MY_ATTRIBUTE((unused))) noexcept {
+    uint sch, const uchar *nonce [[maybe_unused]]) noexcept {
   scheme = sch;
 #ifdef MYSQL_SERVER
   assert(key != nullptr);
@@ -122,9 +122,9 @@ bool Binlog_crypt_data::init_with_loaded_key(
   return false;
 }
 
-bool Binlog_crypt_data::init(uint sch MY_ATTRIBUTE((unused)),
-                             uint kv MY_ATTRIBUTE((unused)),
-                             const uchar *nonce MY_ATTRIBUTE((unused))) {
+bool Binlog_crypt_data::init(uint sch [[maybe_unused]],
+                             uint kv [[maybe_unused]],
+                             const uchar *nonce [[maybe_unused]]) {
   free_key(key, key_length);
 #ifdef MYSQL_SERVER
   char *key_type = nullptr;

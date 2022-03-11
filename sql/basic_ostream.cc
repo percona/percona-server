@@ -32,7 +32,7 @@ IO_CACHE_ostream::~IO_CACHE_ostream() { close(); }
 
 bool IO_CACHE_ostream::open(
 #ifdef HAVE_PSI_INTERFACE
-    PSI_file_key log_file_key MY_ATTRIBUTE((unused)),
+    PSI_file_key log_file_key [[maybe_unused]],
 #endif
     const char *file_name, myf flags) {
   File file = -1;
@@ -74,7 +74,7 @@ bool IO_CACHE_ostream::truncate(my_off_t offset) {
 
   if (my_chsize(m_io_cache.file, offset, 0, MYF(MY_WME))) return true;
 
-  MY_ATTRIBUTE((unused))
+  [[maybe_unused]]
   const auto reinit_res =
       reinit_io_cache(&m_io_cache, WRITE_CACHE, offset, false, true);
   assert(reinit_res == 0);

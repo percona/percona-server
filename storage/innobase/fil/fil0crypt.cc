@@ -132,7 +132,7 @@ static constexpr uint ENCRYPTION_SERVER_UUID_HEX_LEN = 16;
 
 #define DEBUG_KEYROTATION_THROTTLING 0
 
-static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
+const uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
     Encryption::MAGIC_SIZE + 1                 // type
     + 4                                        // min_key_version
     + 4                                        // max_key_version
@@ -144,7 +144,7 @@ static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
     + Encryption::SERVER_UUID_HEX_LEN          // server's UUID written in hex
     + ENCRYPTION_KEYRING_VALIDATION_TAG_SIZE;  // validation tag
 
-static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
+const uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
     Encryption::MAGIC_SIZE + 1      // type
     + 4                             // min_key_version
     + 4                             // key_id
@@ -154,7 +154,7 @@ static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V2 =
     + Encryption::KEY_LEN           // tablespace key
     + Encryption::SERVER_UUID_LEN;  // server's UUID
 
-static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
+const uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
     Encryption::MAGIC_SIZE + 2  // length of iv
     + 4                         // space id
     + 2                         // offset
@@ -236,10 +236,10 @@ Check if a key needs rotation given a key_state
 @param[in]	latest_key_version	Latest key version
 @param[in]	rotate_key_age		when to rotate
 @return true if key needs rotation, false if not */
-static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
-                                     uint key_version, uint latest_key_version,
-                                     uint rotate_key_age)
-    MY_ATTRIBUTE((warn_unused_result));
+MY_NODISCARD static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
+                                                  uint key_version,
+                                                  uint latest_key_version,
+                                                  uint rotate_key_age);
 
 static bool encrypt_validation_tag(const byte *secret, const size_t secret_size,
                                    const byte *key, byte *encrypted_secret) {
@@ -418,7 +418,9 @@ static fil_space_crypt_t *fil_space_create_crypt_data(
     Crypt_key_operation key_operation =
         Crypt_key_operation::FETCH_OR_GENERATE_KEY) {
   fil_space_crypt_t *crypt_data = NULL;
-  if (void *buf = ut_zalloc_nokey(sizeof(fil_space_crypt_t))) {
+
+  if (void *buf = ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                     sizeof(fil_space_crypt_t))) {
     crypt_data = new (buf) fil_space_crypt_t(min_key_version, key_id, uuid,
                                              encrypt_mode, key_operation);
   }
@@ -429,7 +431,8 @@ static fil_space_crypt_t *fil_space_create_crypt_data(
 void fil_space_rotate_state_t::create_flush_observer(space_id_t space_id) {
   destroy_flush_observer();
   trx = trx_allocate_for_background();
-  flush_observer = UT_NEW_NOKEY(FlushObserver(space_id, trx, NULL));
+  flush_observer = ut::new_withkey<Flush_observer>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                   space_id, trx, nullptr);
   trx_set_flush_observer(trx, flush_observer);
 }
 
@@ -440,7 +443,7 @@ void fil_space_rotate_state_t::create_flush_observer(space_id_t space_id) {
 void fil_space_rotate_state_t::destroy_flush_observer() {
   if (flush_observer != nullptr) {
     flush_observer->flush();
-    UT_DELETE(flush_observer);
+    ut::delete_(flush_observer);
     flush_observer = nullptr;
   }
   if (trx != nullptr) {
@@ -695,13 +698,11 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v2(
 }
 
 static void hex_to_uuid(const uchar *hex, char *uuid) {
-  char uuid_string[Encryption::SERVER_UUID_LEN + 1];
   snprintf(
-      uuid_string, Encryption::SERVER_UUID_LEN + 1,
+      uuid, Encryption::SERVER_UUID_LEN + 1,
       "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
       hex[0], hex[1], hex[2], hex[3], hex[4], hex[5], hex[6], hex[7], hex[8],
       hex[9], hex[10], hex[11], hex[12], hex[13], hex[14], hex[15]);
-  memcpy(uuid, uuid_string, Encryption::SERVER_UUID_LEN);
 }
 
 static fil_space_crypt_t *fil_space_read_crypt_data_v3(
@@ -752,8 +753,7 @@ static fil_space_crypt_t *fil_space_read_crypt_data_v3(
 
   bytes_read += ENCRYPTION_SERVER_UUID_HEX_LEN;
 
-  static char uuid[Encryption::SERVER_UUID_LEN];
-  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  static char uuid[Encryption::SERVER_UUID_LEN + 1];
   hex_to_uuid(uuid_hex, uuid);
 
   ut_ad(strlen(uuid) > 0);
@@ -846,7 +846,7 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data) {
     }
     if (c) {
       c->~fil_space_crypt_t();
-      ut_free(c);
+      ut::free(c);
     } else {
       ut_ad(0);
     }
@@ -1022,8 +1022,7 @@ byte *fil_parse_write_crypt_data_v3(space_id_t space_id, byte *ptr,
 
   ptr += ENCRYPTION_SERVER_UUID_HEX_LEN;
 
-  static char uuid[Encryption::SERVER_UUID_LEN];
-  memset(uuid, 0, Encryption::SERVER_UUID_LEN);
+  static char uuid[Encryption::SERVER_UUID_LEN + 1];
   hex_to_uuid(uuid_hex, uuid);
 
   ut_ad(strlen(uuid) > 0);
@@ -1726,7 +1725,7 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
   do {
     trx_t *trx = trx_allocate_for_background();
-    FlushObserver flush_observer(space->id, trx, nullptr);
+    Flush_observer flush_observer(space->id, trx, nullptr);
     trx_set_flush_observer(trx, &flush_observer);
 
     mtr_t mtr;
@@ -3550,7 +3549,7 @@ void fil_crypt_thread() {
   //#ifdef UNIV_PFS_THREAD
   // pfs_register_thread(page_cleaner_thread_key);
   //#endif
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_thd(false, true, true, 0, 0);
 
   mutex_enter(&fil_crypt_threads_mutex);
   uint thread_no = srv_threads.m_crypt_threads_n;
@@ -3701,7 +3700,7 @@ void fil_crypt_set_thread_cnt(const uint new_cnt) {
     uint add = new_cnt - srv_n_fil_crypt_threads_requested;
     srv_n_fil_crypt_threads_requested = new_cnt;
     for (uint i = 0; i < add; i++) {
-      auto thread = os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
+      auto thread = os_thread_create(PSI_NOT_INSTRUMENTED, 0, fil_crypt_thread);
       ib::info() << "Creating #" << i + 1 << " encryption thread"
                  << " total threads " << new_cnt << ".";
       thread.start();

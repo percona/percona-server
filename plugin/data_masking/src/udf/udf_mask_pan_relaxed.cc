@@ -68,7 +68,7 @@ static void mask_pan_relaxed_deinit(UDF_INIT *initid) {
  * than required, it is returned unchanged.
  */
 static const char *mask_pan_relaxed(UDF_INIT *initid, UDF_ARGS *args,
-                                    char *result MY_ATTRIBUTE((unused)),
+                                    char *result [[maybe_unused]],
                                     unsigned long *length, char *is_null,
                                     char *) {
   DBUG_ENTER("mask_pan_relaxed");

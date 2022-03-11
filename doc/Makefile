@@ -39,8 +39,12 @@ help:
 clean:
 	-rm -rf $(BUILDDIR)/*
 
+ext:
+	@echo "Downloading Percona documentation utils from repository..."
+	@mkdir -p $(BUILDDIR) && wget -O - $(UTILS_REPO) | tar xz -C $(BUILDDIR) && cp -r $(BUILDDIR)/$(UTILS_DIR)/sphinx/ext source
 
-html:   
+
+html:
 	@echo "Downloading percona-theme ..."
 	@wget -O percona-theme.tar.gz https://www.percona.com/docs/theme-1-4/percona-server/5.6
 	@echo "Extracting theme."
@@ -54,6 +58,12 @@ html:
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
+
+render:
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) -c source/conf-netlify $(BUILDDIR)/html
+	@echo
+	@echo "render build finished. The HTML pages are in $(BUILDDIR)/html."
+	
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
 	@echo
@@ -146,7 +156,7 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
-				
+		  
 thtml:
 	@echo "Building themed html doc"
 	$(SPHINXBUILD) -D html_theme=alabaster -D html_theme_path='' -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html

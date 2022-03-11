@@ -31,6 +31,8 @@
 #include <time.h>
 #include <atomic>
 #include <utility>
+#include <string>
+#include <vector>
 
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
@@ -38,7 +40,6 @@
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_command.h"
-#include "my_compiler.h"
 #include "my_compress.h"
 #include "my_getopt.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
@@ -71,6 +72,7 @@
 #include "sql_connect.h"
 
 class Rpl_global_filter;
+class Rpl_acf_configuration_handler;
 class Source_IO_monitor;
 class THD;
 class Time_zone;
@@ -107,6 +109,8 @@ typedef Bitmap<((MAX_INDEXES + 7) / 8 * 8)> Key_map; /* Used for finding keys */
 #define TEST_DO_QUICK_LEAK_CHECK       \
   4096 /**< Do Valgrind leak check for \
           each command. */
+#define TEST_NO_TEMP_TABLES \
+  8192 /**< No temp table engine is loaded, so use dummy costs. */
 
 #define SPECIAL_NO_NEW_FUNC 2     /* Skip new functions */
 #define SPECIAL_SKIP_SHOW_DB 4    /* Don't allow 'show db' */
@@ -178,6 +182,7 @@ extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_replica_compressed_protocol;
 extern ulong replica_exec_mode_options;
 extern Rpl_global_filter rpl_global_filter;
+extern Rpl_acf_configuration_handler *rpl_acf_configuration_handler;
 extern Source_IO_monitor *rpl_source_io_monitor;
 extern int32_t opt_regexp_time_limit;
 extern int32_t opt_regexp_stack_limit;
@@ -353,6 +358,8 @@ enum enum_binlog_error_action {
 };
 extern const char *binlog_error_action_list[];
 extern bool opt_binlog_skip_flush_commands;
+extern char *opt_authentication_policy;
+extern std::vector<std::string> authentication_policy_list;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -481,6 +488,8 @@ extern PSI_mutex_key key_mta_temp_table_LOCK;
 extern PSI_mutex_key key_mta_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 extern PSI_mutex_key key_monitor_info_run_lock;
+extern PSI_mutex_key key_LOCK_delegate_connection_mutex;
+extern PSI_mutex_key key_LOCK_group_replication_connection_mutex;
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_replica_worker_hash;
@@ -518,6 +527,7 @@ extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
+extern PSI_cond_key key_COND_group_replication_connection_cond_var;
 extern PSI_thread_key key_thread_bootstrap;
 extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;
@@ -662,6 +672,7 @@ extern PSI_stage_info stage_binlog_transaction_decompress;
 extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
 extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
 extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
+extern PSI_stage_info stage_communication_delegation;
 extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
@@ -744,6 +755,7 @@ extern mysql_mutex_t LOCK_tls_ctx_options;
 extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
 extern mysql_mutex_t LOCK_partial_revokes;
+extern mysql_mutex_t LOCK_authentication_policy;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -767,7 +779,7 @@ int *get_remaining_argc();
 char ***get_remaining_argv();
 
 /* increment query_id and return it.  */
-inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id() {
+[[nodiscard]] inline query_id_t next_query_id() {
   return ++atomic_global_query_id;
 }
 
@@ -787,8 +799,7 @@ void free_global_thread_stats(void) noexcept;
 void refresh_concurrent_conn_stats() noexcept;
 
 /* Accessor function for _connection_events_loop_aborted flag */
-inline MY_ATTRIBUTE(
-    (warn_unused_result)) bool connection_events_loop_aborted() {
+[[nodiscard]] inline bool connection_events_loop_aborted() {
   return connection_events_loop_aborted_flag.load();
 }
 
@@ -842,6 +853,10 @@ void set_mysqld_partial_revokes(bool value);
 
 bool check_and_update_partial_revokes_sysvar(THD *thd);
 
+bool parse_authentication_policy(char *val,
+                                 std::vector<std::string> &policy_list);
+bool validate_authentication_policy(char *val);
+bool update_authentication_policy();
 #ifdef _WIN32
 
 bool is_windows_service();

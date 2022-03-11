@@ -7,6 +7,7 @@
 .. toctree::
    :maxdepth: 1
 
+   Percona-Server-8.0.27-18
    Percona-Server-8.0.26-17
    Percona-Server-8.0.26-16
    Percona-Server-8.0.25-15

@@ -61,7 +61,7 @@ static void gen_range_deinit(UDF_INIT *initid) {
  * @return A random integer in the range from lower to upper, inclusive, or NULL
  * if the upper argument is less than lower.
  */
-static long long gen_range(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+static long long gen_range(UDF_INIT *initid [[maybe_unused]],
                            UDF_ARGS *args, char *is_null, char *is_error) {
   DBUG_ENTER("gen_range");
 

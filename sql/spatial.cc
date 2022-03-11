@@ -4324,7 +4324,11 @@ void Gis_wkb_vector<T>::reassemble() {
   // the space for ring count is already counted above.
   totlen += (nbytes ? nbytes : (is_inns ? 0 : sizeof(uint32)));
 
-  size_t len = 0, total_len = 0, last_i = 0, numgeoms = 0;
+  size_t len = 0, last_i = 0, numgeoms = 0;
+#ifndef NDEBUG
+  size_t total_len = 0;
+#endif
+
   // Allocate extra space as free space for the WKB buffer, and write it as
   // defined pattern.
   const size_t extra_wkb_free_space = 32;
@@ -4355,14 +4359,18 @@ void Gis_wkb_vector<T>::reassemble() {
     if (start) {
       memcpy(q, start, len = end - start);
       q += len;
+#ifndef NDEBUG
       total_len += len;
+#endif
     }
 
     // Set WKB header. This geometry must be one of multilinestring,
     // multipolygon or a polygon's inner rings.
     if (get_geotype() != Geometry::wkb_polygon_inner_rings) {
       q = write_wkb_header(q, veci->get_geotype());
+#ifndef NDEBUG
       total_len += hdrsz;
+#endif
     }
 
     // Copy the out of line geometry into buffer. A polygon's data isn't
@@ -4378,14 +4386,18 @@ void Gis_wkb_vector<T>::reassemble() {
       memcpy(q, plgn_data_itr->second.first, len);
     }
     q += len;
+#ifndef NDEBUG
     total_len += len;
+#endif
   }
 
   // There may be trailing inline geometries to copy at old tail.
   if (last_i < vec.size() - 1) {
     len = get_cptr() + get_nbytes() - prev_start;
     memcpy(q, prev_start, len);
+#ifndef NDEBUG
     total_len += len;
+#endif
   }
   assert(total_len == totlen);
 

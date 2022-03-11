@@ -22,11 +22,11 @@ insert into t1 values('a ');
 select v='a' from t1;
 v='a'
 1
-select binary v='a' from t1;
-binary v='a'
+select cast(v as binary)='a' from t1;
+cast(v as binary)='a'
 0
-select binary v='a ' from t1;
-binary v='a '
+select cast(v as binary)='a ' from t1;
+cast(v as binary)='a '
 1
 insert into t1 values('a');
 alter table t1 add primary key (v);

@@ -156,7 +156,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ib::error(ER_IB_MSG_431) << "File Path Specification '" << filepath_spec
                                << "' is missing a file name.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -164,7 +164,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ib::error(ER_IB_MSG_432) << "File Path Specification '" << filepath_spec
                                << "' is missing a file size.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -178,7 +178,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
           << "Invalid File Path Specification: '" << filepath_spec
           << "'. An invalid file size was specified.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -201,7 +201,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
             << "'. Only the last"
                " file defined can be 'autoextend'.";
 
-        ut_free(input_str);
+        ut::free(input_str);
         return (false);
       }
     }
@@ -217,7 +217,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
             << "' Tablespace"
                " doesn't support raw devices";
 
-        ut_free(input_str);
+        ut::free(input_str);
         return (false);
       }
 
@@ -234,7 +234,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
           << "File Path Specification: '" << filepath_spec
           << "' has unrecognized characters after '" << input_str << "'";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
   }
@@ -244,7 +244,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
                              << "' must contain"
                                 " at least one data file definition";
 
-    ut_free(input_str);
+    ut::free(input_str);
     return (false);
   }
 
@@ -309,7 +309,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 
   ut_ad(n_files == ulint(m_files.size()));
 
-  ut_free(input_str);
+  ut::free(input_str);
 
   return (true);
 }
@@ -426,13 +426,13 @@ dberr_t SysTablespace::create_file(Datafile &file) {
       written over */
       m_created_new_raw = true;
 
-      /* Fall through. */
+      [[fallthrough]];
 
     case SRV_OLD_RAW:
 
       srv_start_raw_disk_in_use = TRUE;
 
-      /* Fall through. */
+      [[fallthrough]];
 
     case SRV_NOT_RAW:
       err =
@@ -461,7 +461,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
       written over */
       m_created_new_raw = true;
 
-      /* Fall through */
+      [[fallthrough]];
 
     case SRV_OLD_RAW:
       srv_start_raw_disk_in_use = TRUE;
@@ -475,7 +475,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
         return (DB_ERROR);
       }
 
-      /* Fall through */
+      [[fallthrough]];
 
     case SRV_NOT_RAW:
       err =
@@ -543,7 +543,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
     err = it->validate_first_page(it->m_space_id, flushed_lsn, false).error;
 
     if (err != DB_SUCCESS &&
-        (retry == 1 || it->restore_from_doublewrite(0) != DB_SUCCESS)) {
+        (retry == 1 || it->open_or_create(srv_read_only_mode) != DB_SUCCESS ||
+         it->restore_from_doublewrite(0) != DB_SUCCESS)) {
       it->close();
 
       return (err);

@@ -243,23 +243,97 @@ The following command backs up everything from the root of the ZenFS drive:
 
 .. sourcecode:: bash
 
-    zenfs backup --zbd=${NULLB} --path="/home/user/bkp" --backup_path=./
+    $ zenfs backup --zbd=${NULLB} --path="/home/user/bkp" --backup_path=/
 
 The options are the following:
 
-* ``--path`` must be an absolute path. This option must not end with a slash (``/``) character.
-* ``--backup_path`` must end with a slash (``/``) character. Use the single period character with a slash character ``./`` combination to back up everything starting from the root of the ZenFS drive.
+* The ``--path`` can be either an absolute path or a relative path. The backup command creates the directory in the ``--path`` if it does not exist. 
+
+* The ``--backup_path`` option can use any of the following path values based on the location. 
+
+  If the backup is for the ZenFS root drive, use any of the values in the following table:
+
+  .. list-table:: Back up from the ZenFS root drive
+     :header-rows: 1
+
+     * - Value 
+       - Description
+     * - <empty_string>
+       - Empty string 
+     * - /
+       - A forward slash
+     * - .
+       - A single period
+     * - ./
+       - A single period with a forward slash
+
+  If the backup is for a non-root ZenFS path, use any of the values in the following table:
+
+  .. list-table:: Back up from a non-root ZenFS path
+     :header-rows: 1
+
+     * - Value
+       - Description
+     * -  <directory>
+       - Only the directory name
+     * - /<directory>
+       - A forward slash with the directory name
+     * - ./<directory>
+       - A single period with a forward slash and the directory name
+     * -  <directory>/
+       -  The directory name with a forward slash
+     * - /<directory>/
+       - A forward slash with the directory name and an ending forward slash
+     * - ./<directory>/
+       - A single period, a forward slash, the directory name, and an ending forward slash
+
 
 Use the following command to restore a backup into the root of the ZenFS drive:
 
 .. sourcecode:: bash
 
-    zenfs restore --zbd=${NULLB} --path="/home/user/bkp/" --restore_path=.
+    $ zenfs restore --zbd=${NULLB} --path="/home/user/bkp/" --restore_path=/
 
-The options are the following:
+* The ``--path`` can be either an absolute path or a relative path. The backup command creates the directory in the ``--path`` if it does not exist. 
 
-* ``--path`` must end with a slash (``/``) character.
-* ``--restore_path`` must not end with a slash (``/``) character. The single period (``.``) character restores the backup into the root of the ZenFS drive.
+* The ``--restore_path`` option can use any of the following path values based on the location.
+
+  If the restore is for the ZenFS root drive, use any of the values in the following tables:
+
+  .. list-table:: Restore to the ZenFS root drive
+     :header-rows: 1
+
+     * - Value 
+       - Description
+     * - <empty_string>
+       - Empty string 
+     * - /
+       - A forward slash
+     * - .
+       - A single period
+     * - ./
+       - A single period with a forward slash
+
+  If the restore is for a non-root ZenFS path, use any of the values in the following table:
+
+  .. list-table:: Restore to a non-root ZenFS path
+     :header-rows: 1
+
+     * - Value
+       - Description
+     * -  <directory>
+       - Only the directory name
+     * - /<directory>
+       - A forward slash with the directory name
+     * - ./<directory>
+       - A single period with a forward slash and the directory name
+     * -  <directory>/
+       -  The directory name with a forward slash
+     * - /<directory>/
+       - A forward slash with the directory name and an ending forward slash
+     * - ./<directory>/
+       - A single period, a forward slash, the directory name, and an ending forward slash
+
 
 
 

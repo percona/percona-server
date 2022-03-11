@@ -136,7 +136,7 @@ In :rn:8.0.25.14, the following tables are implemented to retrieve memory alloca
 
 More information about the stats that are returned can be found in `jemalloc <http://jemalloc.net/jemalloc.3.html>`__.
 
-.. _malloc_stats_table:
+.. _malloc_stats_totals:
 
 malloc_stats_totals
 ---------------------

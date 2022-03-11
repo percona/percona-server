@@ -151,7 +151,7 @@ void trx_rseg_mem_free(trx_rseg_t *rseg) {
     trx_undo_mem_free(undo);
   }
 
-  ut_free(rseg);
+  ut::free(rseg);
 }
 
 static void trx_rseg_persist_gtid(trx_rseg_t *rseg, trx_id_t gtid_trx_no) {
@@ -219,7 +219,8 @@ static void trx_rseg_persist_gtid(trx_rseg_t *rseg, trx_id_t gtid_trx_no) {
 static trx_rseg_t *trx_rseg_mem_initialize(ulint id, space_id_t space_id,
                                            page_no_t page_no,
                                            const page_size_t &page_size) {
-  auto rseg = static_cast<trx_rseg_t *>(ut_zalloc_nokey(sizeof(trx_rseg_t)));
+  auto rseg = static_cast<trx_rseg_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(trx_rseg_t)));
 
   rseg->id = id;
   rseg->space_id = space_id;
@@ -364,7 +365,8 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
                                 page_no_t page_no, const page_size_t &page_size,
                                 trx_id_t gtid_trx_no, purge_pq_t *purge_queue,
                                 mtr_t *mtr) {
-  auto rseg = static_cast<trx_rseg_t *>(ut_zalloc_nokey(sizeof(trx_rseg_t)));
+  auto rseg = static_cast<trx_rseg_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(trx_rseg_t)));
 
   rseg->id = id;
   rseg->space_id = space_id;
@@ -583,7 +585,7 @@ void trx_rsegs_parallel_init(purge_pq_t *purge_queue) /*!< in: rseg queue */
 
   for (uint32_t i = 0; i < srv_rseg_init_threads; i++) {
     auto thread =
-        os_thread_create(parallel_rseg_init_thread_key, trx_rseg_init_thread,
+        os_thread_create(parallel_rseg_init_thread_key, 0, trx_rseg_init_thread,
                          (void *)purge_queue, gtid_trx_no);
     threads.emplace_back(thread);
     thread.start();
@@ -593,7 +595,7 @@ void trx_rsegs_parallel_init(purge_pq_t *purge_queue) /*!< in: rseg queue */
     t.join();
   }
 
-  ib::info() << "Parallel initialization of rseg complete";
+  ib::info(ER_IB_MSG_PAR_RSEG_INIT_COMPLETE_MSG);
   trx_rsegs_init_end();
 }
 
@@ -740,7 +742,8 @@ page_no_t trx_rseg_create(space_id_t space_id, ulint rseg_id) {
 void Rsegs::init() {
   m_rsegs.reserve(TRX_SYS_N_RSEGS);
 
-  m_latch = static_cast<rw_lock_t *>(ut_zalloc_nokey(sizeof(*m_latch)));
+  m_latch = static_cast<rw_lock_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*m_latch)));
 
   rw_lock_create(rsegs_lock_key, m_latch, SYNC_RSEGS);
 }
@@ -750,7 +753,7 @@ void Rsegs::deinit() {
   clear();
 
   rw_lock_free(m_latch);
-  ut_free(m_latch);
+  ut::free(m_latch);
   m_latch = nullptr;
 }
 

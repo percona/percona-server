@@ -99,6 +99,28 @@ class Encryption {
     VERSION_3 = 2,
   };
 
+  /** Encryption progress type. */
+  enum class Progress {
+    /* Space encryption in progress */
+    ENCRYPTION,
+    /* Space decryption in progress */
+    DECRYPTION,
+    /* Nothing in progress */
+    NONE
+  };
+
+  /** Encryption operation resume point after server restart. */
+  enum class Resume_point {
+    /* Resume from the beginning. */
+    INIT,
+    /* Resume processing. */
+    PROCESS,
+    /* Operation has ended. */
+    END,
+    /* All done. */
+    DONE
+  };
+
   /** Encryption magic bytes for 5.7.11, it's for checking the encryption
   information version. */
   static constexpr char KEY_MAGIC_V1[] = "lCA";
@@ -253,7 +275,7 @@ class Encryption {
 
   ~Encryption();
 
-  void set_key(byte *key, ulint key_len) noexcept;
+  void set_key(const byte *key, ulint key_len) noexcept;
 
   void set_key_versions_cache(
       std::map<uint, byte *> *key_versions_cache) noexcept;
@@ -261,27 +283,24 @@ class Encryption {
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
   @return true if it is an encrypted page */
-  static bool is_encrypted_page(const byte *page) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_encrypted_page(const byte *page) noexcept;
 
   /** Check if a log block is encrypted or not
   @param[in]  block block which need to check
   @return true if it is an encrypted block */
-  static bool is_encrypted_log(const byte *block) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_encrypted_log(const byte *block) noexcept;
 
   /** Check the encryption option and set it
   @param[in]      option      encryption option
   @param[in,out]  type        The encryption type
   @return DB_SUCCESS or DB_UNSUPPORTED */
-  dberr_t set_algorithm(const char *option, Encryption *type) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t set_algorithm(const char *option,
+                                      Encryption *type) noexcept;
 
   /** Validate the algorithm string.
   @param[in]  option  Encryption option
   @return DB_SUCCESS or error code */
-  static dberr_t validate(const char *option) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static dberr_t validate(const char *option) noexcept;
 
   /** Validate the algorithm string for tablespace
   @param[in]	option		Encryption option
@@ -292,42 +311,35 @@ class Encryption {
   /** Convert to a "string".
   @param[in]  type  The encryption type
   @return the string representation */
-  static const char *to_string(Type type) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static const char *to_string(Type type) noexcept;
 
   /** Check if the string is "" or "n".
   @param[in]  algorithm  Encryption algorithm to check
   @return true if no algorithm requested */
-  static bool is_none(const char *algorithm) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_none(const char *algorithm) noexcept;
 
   /** Check if the NO algorithm was explicitly specified.
   @param[in]      explicit_encryption was ENCRYPTION clause
                   specified explicitly
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm explicitly requested */
-  static bool none_explicitly_specified(
-      bool explicit_encryption,
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
+  MY_NODISCARD static bool none_explicitly_specified(
+      bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Check if the string is "y" or "Y".
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm requested */
-  static bool is_master_key_encryption(
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
+  MY_NODISCARD static bool is_master_key_encryption(
+      const char *algorithm) noexcept;
 
-  static bool is_empty(const char *algorithm) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  MY_NODISCARD static bool is_empty(const char *algorithm) noexcept;
 
-  static bool is_keyring(const char *algoritm) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  MY_NODISCARD static bool is_keyring(const char *algoritm) noexcept;
 
-  static bool is_online_encryption_on() noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  MY_NODISCARD static bool is_online_encryption_on() noexcept;
 
-  static bool should_be_keyring_encrypted(
-      bool explicit_encryption,
-      const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
+  MY_NODISCARD static bool should_be_keyring_encrypted(
+      bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */
@@ -394,8 +406,9 @@ class Encryption {
   @param[in]      is_boot       if it's for bootstrap
   @param[in]      encrypt_key   encrypt with master key
   @return true if success. */
-  static bool fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                   bool is_boot, bool encrypt_key) noexcept;
+  static bool fill_encryption_info(const byte *key, const byte *iv,
+                                   byte *encrypt_info, bool is_boot,
+                                   bool encrypt_key) noexcept;
 
   static bool fill_encryption_info(uint key_version, byte *iv,
                                    byte *encrypt_info);
@@ -449,8 +462,8 @@ class Encryption {
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return buffer data, dst_len will have the length of the data */
-  byte *encrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                ulint *dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] byte *encrypt(const IORequest &type, byte *src, ulint src_len,
+                              byte *dst, ulint *dst_len) noexcept;
 
   /** Decrypt the log block.
   @param[in]      type  IORequest
@@ -483,8 +496,8 @@ class Encryption {
   @param[in,out]  dst     scratch area to use for decrypt
   @param[in]  dst_len     size of the scratch area in bytes
   @return DB_SUCCESS or error code */
-  dberr_t decrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                  ulint dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t decrypt(const IORequest &type, byte *src, ulint src_len,
+                                byte *dst, ulint dst_len) noexcept;
 
   /** Check if keyring plugin loaded. */
   MY_NODISCARD static bool check_keyring() noexcept;
@@ -495,23 +508,19 @@ class Encryption {
 
   /** Check if the encryption algorithm is NONE.
   @return true if no algorithm is set, false otherwise. */
-  bool is_none() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_type == NONE;
-  }
+  [[nodiscard]] bool is_none() const noexcept { return m_type == NONE; }
 
   /** Set encryption type
   @param[in]  type  encryption type **/
   void set_type(Type type);
 
-  /** Get encryption key
-  @return encryption key **/
-  byte *get_key() const;
-
   std::map<uint, byte *> *get_key_versions_cache() const;
 
   /** Set encryption key
   @param[in]  key  encryption key **/
-  void set_key(byte *key);
+  void set_key(const byte *key);
+
+  bool has_key() const noexcept { return m_key != nullptr; }
 
   /** Get key length
   @return  key length **/
@@ -521,13 +530,9 @@ class Encryption {
   @param[in]  klen  key length **/
   void set_key_length(ulint klen);
 
-  /** Get initial vector
-  @return initial vector **/
-  byte *get_initial_vector() const;
-
   /** Set initial vector
   @param[in]  iv  initial_vector **/
-  void set_initial_vector(byte *iv);
+  void set_initial_vector(const byte *iv);
 
   /** Get tablespace encryption key
   @return tablespace encryption key **/
@@ -583,20 +588,21 @@ class Encryption {
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return true if operation successful, false otherwise. */
-  bool encrypt_low(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                   ulint *dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool encrypt_low(const IORequest &type, byte *src,
+                                 ulint src_len, byte *dst,
+                                 ulint *dst_len) noexcept;
 
   /** Encrypt type */
   Type m_type;
 
   /** Encrypt key */
-  byte *m_key;
+  const byte *m_key;
 
   /** Encrypt key length*/
   ulint m_klen;
 
   /** Encrypt initial vector */
-  byte *m_iv;
+  const byte *m_iv;
 
   byte *m_tablespace_key;
 

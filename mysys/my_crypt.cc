@@ -107,7 +107,7 @@ MyEncryptionCTX::~MyEncryptionCTX() {
 
 int MyEncryptionCTX::init(const my_aes_mode mode, int encrypt, const uchar *key,
                           size_t klen, const uchar *iv,
-                          size_t ivlen MY_ATTRIBUTE((unused))) noexcept {
+                          size_t ivlen [[maybe_unused]]) noexcept {
   if (unlikely(!ciphers[static_cast<int>(mode)](klen)))
     return MY_AES_BAD_KEYSIZE;
 
@@ -123,13 +123,17 @@ int MyEncryptionCTX::init(const my_aes_mode mode, int encrypt, const uchar *key,
 
 int MyEncryptionCTX::update(const uchar *src, size_t slen, uchar *dst,
                             size_t *dlen) noexcept {
-  if (!EVP_CipherUpdate(ctx, dst, (int *)dlen, src, slen))
+  int out_len;
+  if (!EVP_CipherUpdate(ctx, dst, &out_len, src, slen))
     return MY_AES_OPENSSL_ERROR;
+  *dlen = out_len;
   return MY_AES_OK;
 }
 
 int MyEncryptionCTX::finish(uchar *dst, size_t *dlen) {
-  if (!EVP_CipherFinal_ex(ctx, dst, (int *)dlen)) return MY_AES_BAD_DATA;
+  int out_len;
+  if (!EVP_CipherFinal_ex(ctx, dst, &out_len)) return MY_AES_BAD_DATA;
+  *dlen = out_len;
   return MY_AES_OK;
 }
 
@@ -283,7 +287,8 @@ int my_aes_crypt_init(MyEncryptionCTX *&ctx, const my_aes_mode mode, int flags,
     ctx = (flags & ENCRYPTION_FLAG_NOPAD) ? new MyEncryptionCTX_nopad()
                                           : new MyEncryptionCTX();
 
-  int ctx_init_result = ctx->init(mode, flags & 1, key, klen, iv, ivlen);
+  int ctx_init_result =
+      ctx->init(mode, flags & ENCRYPTION_FLAG_ENCRYPT, key, klen, iv, ivlen);
   if (ctx_init_result != MY_AES_OK) {
     delete ctx;
     ctx = NULL;
@@ -330,7 +335,7 @@ int my_aes_crypt(const my_aes_mode mode, int flags, const uchar *src,
   Without padding (ENCRYPTION_FLAG_NOPAD) cyphertext has the same length
   as the plaintext
 */
-size_t my_aes_crypt_get_size(enum my_aes_mode mode MY_ATTRIBUTE((unused)),
+size_t my_aes_crypt_get_size(enum my_aes_mode mode [[maybe_unused]],
                              size_t source_length) noexcept {
 #ifdef HAVE_EncryptAes128Ctr
   if (mode == MY_AES_CTR) return source_length;

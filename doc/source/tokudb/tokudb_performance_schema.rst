@@ -17,12 +17,12 @@ TokuDB Performance Schema Integration
    Starting with Percona 8.0.28-19, **the TokuDB storage engine is no longer supported and is removed from the installation packages and not enabled in our binary builds**.
 
 
-|TokuDB| is integrated with `Performance Schema
+*TokuDB* is integrated with `Performance Schema
 <https://dev.mysql.com/doc/refman/8.0/en/innodb-performance-schema.html>`_
 
-This integration can be used for profiling additional |TokuDB| operations.
+This integration can be used for profiling additional *TokuDB* operations.
 
-|TokuDB| instruments available in Performance Schema can be seen in
+*TokuDB* instruments available in Performance Schema can be seen in
 :table:`PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS` table:
 
 .. code-block:: mysql
@@ -104,13 +104,13 @@ This integration can be used for profiling additional |TokuDB| operations.
   | wait/io/file/fti/tokudb_log_file                           | YES     | YES   |
   +------------------------------------------------------------+---------+-------+
 
-For |TokuDB|-related objects, following clauses can be used when querying
+For *TokuDB*-related objects, following clauses can be used when querying
 Performance Schema tables:
 
  * ``WHERE EVENT_NAME LIKE '%fti%'`` or
  * ``WHERE NAME LIKE '%fti%'``
 
-For example, to get the information about |TokuDB| related events you can query
+For example, to get the information about *TokuDB* related events you can query
 :table:`PERFORMANCE_SCHEMA.events_waits_summary_global_by_event_name` like:
 
 .. code-block:: mysql

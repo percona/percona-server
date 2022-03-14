@@ -21,7 +21,7 @@
 
 #include <openssl/rsa.h>
 
-#include "opensslpp/rsa_padding.hpp"
+#include <opensslpp/rsa_padding.hpp>
 
 namespace opensslpp {
 

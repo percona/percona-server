@@ -19,10 +19,10 @@
 
 #include <string>
 
-#include "opensslpp/dh_key_fwd.hpp"
+#include <opensslpp/dh_key_fwd.hpp>
 
-#include "opensslpp/big_number_fwd.hpp"
-#include "opensslpp/dh_padding_fwd.hpp"
+#include <opensslpp/big_number_fwd.hpp>
+#include <opensslpp/dh_padding_fwd.hpp>
 
 namespace opensslpp {
 

@@ -19,14 +19,15 @@
 
 #include <openssl/dh.h>
 
-#include "opensslpp/dh_compute_operations.hpp"
+#include <opensslpp/dh_compute_operations.hpp>
 
-#include "opensslpp/big_number.hpp"
+#include <opensslpp/big_number.hpp>
+#include <opensslpp/core_error.hpp>
+#include <opensslpp/dh_key.hpp>
+#include <opensslpp/dh_padding.hpp>
+
 #include "opensslpp/big_number_accessor.hpp"
-#include "opensslpp/core_error.hpp"
-#include "opensslpp/dh_key.hpp"
 #include "opensslpp/dh_key_accessor.hpp"
-#include "opensslpp/dh_padding.hpp"
 
 namespace opensslpp {
 

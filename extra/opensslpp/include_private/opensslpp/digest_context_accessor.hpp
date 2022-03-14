@@ -19,7 +19,8 @@
 
 #include <openssl/evp.h>
 
-#include "opensslpp/digest_context_fwd.hpp"
+#include <opensslpp/digest_context_fwd.hpp>
+
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {

@@ -17,7 +17,7 @@
 #ifndef OPENSSLPP_ACCESSOR_HPP
 #define OPENSSLPP_ACCESSOR_HPP
 
-#include "opensslpp/accessor_fwd.hpp"
+#include <opensslpp/accessor_fwd.hpp>
 
 namespace opensslpp {
 

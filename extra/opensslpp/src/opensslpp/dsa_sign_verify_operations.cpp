@@ -20,10 +20,11 @@
 #include <openssl/dsa.h>
 #include <openssl/evp.h>
 
-#include "opensslpp/dsa_sign_verify_operations.hpp"
+#include <opensslpp/dsa_sign_verify_operations.hpp>
 
-#include "opensslpp/core_error.hpp"
-#include "opensslpp/dsa_key.hpp"
+#include <opensslpp/core_error.hpp>
+#include <opensslpp/dsa_key.hpp>
+
 #include "opensslpp/dsa_key_accessor.hpp"
 
 namespace opensslpp {

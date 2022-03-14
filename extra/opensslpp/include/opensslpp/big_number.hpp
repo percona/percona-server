@@ -21,9 +21,9 @@
 #include <memory>
 #include <ostream>
 
-#include "opensslpp/big_number_fwd.hpp"
+#include <opensslpp/big_number_fwd.hpp>
 
-#include "opensslpp/accessor_fwd.hpp"
+#include <opensslpp/accessor_fwd.hpp>
 
 namespace opensslpp {
 

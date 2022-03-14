@@ -17,7 +17,7 @@
 #ifndef OPENSSLPP_RSA_PADDING_HPP
 #define OPENSSLPP_RSA_PADDING_HPP
 
-#include "opensslpp/rsa_padding_fwd.hpp"
+#include <opensslpp/rsa_padding_fwd.hpp>
 
 namespace opensslpp {
 

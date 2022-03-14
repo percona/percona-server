@@ -20,9 +20,10 @@
 
 #include <openssl/evp.h>
 
-#include "opensslpp/digest_context.hpp"
+#include <opensslpp/digest_context.hpp>
 
-#include "opensslpp/core_error.hpp"
+#include <opensslpp/core_error.hpp>
+
 #include "opensslpp/digest_context_accessor.hpp"
 
 namespace opensslpp {

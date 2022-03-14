@@ -18,11 +18,12 @@
 
 #include <openssl/bn.h>
 
-#include "opensslpp/big_number.hpp"
+#include <opensslpp/big_number.hpp>
+
+#include <opensslpp/core_error.hpp>
 
 #include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/core_allocated_buffer.hpp"
-#include "opensslpp/core_error.hpp"
 
 namespace opensslpp {
 

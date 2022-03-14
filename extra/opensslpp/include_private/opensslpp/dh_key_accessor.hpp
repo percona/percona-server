@@ -19,7 +19,8 @@
 
 #include <openssl/dh.h>
 
-#include "opensslpp/dh_key_fwd.hpp"
+#include <opensslpp/dh_key_fwd.hpp>
+
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {

@@ -19,7 +19,8 @@
 
 #include <openssl/rsa.h>
 
-#include "opensslpp/rsa_key_fwd.hpp"
+#include <opensslpp/rsa_key_fwd.hpp>
+
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {

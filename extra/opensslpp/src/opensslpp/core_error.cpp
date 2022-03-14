@@ -19,7 +19,7 @@
 
 #include <openssl/err.h>
 
-#include "opensslpp/core_error.hpp"
+#include <opensslpp/core_error.hpp>
 
 namespace opensslpp {
 

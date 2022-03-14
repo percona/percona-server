@@ -22,10 +22,10 @@
 #include <ostream>
 #include <string>
 
-#include "opensslpp/dsa_key_fwd.hpp"
+#include <opensslpp/dsa_key_fwd.hpp>
 
-#include "opensslpp/accessor_fwd.hpp"
-#include "opensslpp/big_number_fwd.hpp"
+#include <opensslpp/accessor_fwd.hpp>
+#include <opensslpp/big_number_fwd.hpp>
 
 namespace opensslpp {
 

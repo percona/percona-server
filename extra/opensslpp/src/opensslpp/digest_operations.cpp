@@ -16,7 +16,7 @@
 
 #include "opensslpp/digest_operations.hpp"
 
-#include "opensslpp/digest_context.hpp"
+#include <opensslpp/digest_context.hpp>
 
 namespace opensslpp {
 

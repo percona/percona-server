@@ -19,7 +19,8 @@
 
 #include <openssl/bn.h>
 
-#include "opensslpp/big_number_fwd.hpp"
+#include <opensslpp/big_number_fwd.hpp>
+
 #include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {

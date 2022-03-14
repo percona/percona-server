@@ -21,13 +21,14 @@
 #include <openssl/dsa.h>
 #include <openssl/pem.h>
 
-#include "opensslpp/dsa_key.hpp"
+#include <opensslpp/dsa_key.hpp>
 
-#include "opensslpp/big_number.hpp"
+#include <opensslpp/big_number.hpp>
+#include <opensslpp/core_error.hpp>
+
 #include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/bio.hpp"
 #include "opensslpp/bio_accessor.hpp"
-#include "opensslpp/core_error.hpp"
 #include "opensslpp/dsa_key_accessor.hpp"
 
 namespace opensslpp {

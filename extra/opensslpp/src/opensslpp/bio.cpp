@@ -19,8 +19,9 @@
 
 #include "opensslpp/bio.hpp"
 
+#include <opensslpp/core_error.hpp>
+
 #include "opensslpp/bio_accessor.hpp"
-#include "opensslpp/core_error.hpp"
 
 namespace opensslpp {
 

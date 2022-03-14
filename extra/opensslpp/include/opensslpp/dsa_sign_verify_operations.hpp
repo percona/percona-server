@@ -19,7 +19,7 @@
 
 #include <string>
 
-#include "opensslpp/dsa_key_fwd.hpp"
+#include <opensslpp/dsa_key_fwd.hpp>
 
 namespace opensslpp {
 

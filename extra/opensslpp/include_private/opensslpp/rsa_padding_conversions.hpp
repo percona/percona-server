@@ -26,14 +26,18 @@
 namespace opensslpp {
 
 inline int rsa_padding_to_native_padding(rsa_padding padding) noexcept {
+  int res = RSA_NO_PADDING;
   switch (padding) {
     case rsa_padding::no:
-      return RSA_NO_PADDING;
+      res = RSA_NO_PADDING;
+      break;
     case rsa_padding::pkcs1:
-      return RSA_PKCS1_PADDING;
+      res = RSA_PKCS1_PADDING;
+      break;
     default:
       assert(false);
   }
+  return res;
 }
 
 }  // namespace opensslpp

@@ -152,7 +152,7 @@ dsa_key dsa_key::derive_public_key() const {
 /*static*/
 dsa_key dsa_key::generate_parameters(std::uint32_t bits) {
   auto res = dsa_key{};
-  res.impl_.reset(DSA_new());
+  dsa_key_accessor::set_impl(res, DSA_new());
   if (res.is_empty())
     core_error::raise_with_error_string("cannot create DSA key");
 
@@ -219,8 +219,9 @@ std::string dsa_key::export_public_pem(const dsa_key &key) {
 dsa_key dsa_key::import_parameters_pem(const std::string &pem) {
   auto source = bio{pem};
   dsa_key res{};
-  res.impl_.reset(PEM_read_bio_DSAparams(bio_accessor::get_impl(source),
-                                         nullptr, nullptr, nullptr));
+  dsa_key_accessor::set_impl(
+      res, PEM_read_bio_DSAparams(bio_accessor::get_impl(source), nullptr,
+                                  nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import DSA key from PEM PARAMETERS");
@@ -232,8 +233,9 @@ dsa_key dsa_key::import_parameters_pem(const std::string &pem) {
 dsa_key dsa_key::import_private_pem(const std::string &pem) {
   auto source = bio{pem};
   dsa_key res{};
-  res.impl_.reset(PEM_read_bio_DSAPrivateKey(bio_accessor::get_impl(source),
-                                             nullptr, nullptr, nullptr));
+  dsa_key_accessor::set_impl(
+      res, PEM_read_bio_DSAPrivateKey(bio_accessor::get_impl(source), nullptr,
+                                      nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import DSA key from PEM PRIVATE KEY");
@@ -245,8 +247,9 @@ dsa_key dsa_key::import_private_pem(const std::string &pem) {
 dsa_key dsa_key::import_public_pem(const std::string &pem) {
   auto source = bio{pem};
   dsa_key res{};
-  res.impl_.reset(PEM_read_bio_DSA_PUBKEY(bio_accessor::get_impl(source),
-                                          nullptr, nullptr, nullptr));
+  dsa_key_accessor::set_impl(
+      res, PEM_read_bio_DSA_PUBKEY(bio_accessor::get_impl(source), nullptr,
+                                   nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import DSA key from PEM PUBLIC KEY");

@@ -152,7 +152,7 @@ dh_key dh_key::derive_public_key() const {
 dh_key dh_key::generate_parameters(
     std::uint32_t bits, std::uintmax_t generator /* = default_generator */) {
   auto res = dh_key{};
-  res.impl_.reset(DH_new());
+  dh_key_accessor::set_impl(res, DH_new());
   if (res.is_empty())
     core_error::raise_with_error_string("cannot create DH parameters");
 
@@ -225,8 +225,9 @@ std::string dh_key::export_public_pem(const dh_key &key) {
 dh_key dh_key::import_parameters_pem(const std::string &pem) {
   auto source = bio{pem};
   dh_key res{};
-  res.impl_.reset(PEM_read_bio_DHparams(bio_accessor::get_impl(source), nullptr,
-                                        nullptr, nullptr));
+  dh_key_accessor::set_impl(
+      res, PEM_read_bio_DHparams(bio_accessor::get_impl(source), nullptr,
+                                 nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import DH key from PEM PARAMETERS");
@@ -244,7 +245,7 @@ dh_key dh_key::import_private_pem(const std::string &pem) {
         "cannot import DH key from PEM PRIVATE KEY");
 
   dh_key res{};
-  res.impl_.reset(EVP_PKEY_get1_DH(pkey.get()));
+  dh_key_accessor::set_impl(res, EVP_PKEY_get1_DH(pkey.get()));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot extract PRIVATE DH key from EVP KEY");
@@ -262,7 +263,7 @@ dh_key dh_key::import_public_pem(const std::string &pem) {
         "cannot import DH key from PEM PUBLIC KEY");
 
   dh_key res{};
-  res.impl_.reset(EVP_PKEY_get1_DH(pkey.get()));
+  dh_key_accessor::set_impl(res, EVP_PKEY_get1_DH(pkey.get()));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot extract PUBLIC DH key from EVP KEY");

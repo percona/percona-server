@@ -102,8 +102,8 @@ std::size_t rsa_key::get_max_block_size_in_bytes(
 rsa_key rsa_key::derive_public_key() const {
   assert(!is_empty());
   rsa_key res{};
-  res.impl_.reset(
-      RSAPublicKey_dup(rsa_key_accessor::get_impl_const_casted(*this)));
+  rsa_key_accessor::set_impl(
+      res, RSAPublicKey_dup(rsa_key_accessor::get_impl_const_casted(*this)));
   if (res.is_empty())
     core_error::raise_with_error_string("cannot derive public RSA key");
 
@@ -114,7 +114,7 @@ rsa_key rsa_key::derive_public_key() const {
 rsa_key rsa_key::generate(std::uint32_t bits,
                           const big_number &exponent /* = default_exponent */) {
   auto res = rsa_key{};
-  res.impl_.reset(RSA_new());
+  rsa_key_accessor::set_impl(res, RSA_new());
   if (res.is_empty())
     core_error::raise_with_error_string("cannot create RSA key");
 
@@ -162,8 +162,9 @@ std::string rsa_key::export_public_pem(const rsa_key &key) {
 rsa_key rsa_key::import_private_pem(const std::string &pem) {
   auto source = bio{pem};
   rsa_key res{};
-  res.impl_.reset(PEM_read_bio_RSAPrivateKey(bio_accessor::get_impl(source),
-                                             nullptr, nullptr, nullptr));
+  rsa_key_accessor::set_impl(
+      res, PEM_read_bio_RSAPrivateKey(bio_accessor::get_impl(source), nullptr,
+                                      nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import RSA key from PEM PRIVATE KEY");
@@ -175,8 +176,9 @@ rsa_key rsa_key::import_private_pem(const std::string &pem) {
 rsa_key rsa_key::import_public_pem(const std::string &pem) {
   auto source = bio{pem};
   rsa_key res{};
-  res.impl_.reset(PEM_read_bio_RSAPublicKey(bio_accessor::get_impl(source),
-                                            nullptr, nullptr, nullptr));
+  rsa_key_accessor::set_impl(
+      res, PEM_read_bio_RSAPublicKey(bio_accessor::get_impl(source), nullptr,
+                                     nullptr, nullptr));
   if (res.is_empty())
     core_error::raise_with_error_string(
         "cannot import RSA key from PEM PUBLIC KEY");

@@ -91,7 +91,7 @@ std::string digest_context::finalize() {
     throw core_error{"cannot finalize digest context"};
   assert(res_size <= res.size());
 
-  impl_.reset();
+  digest_context_accessor::set_impl(*this, nullptr);
   return {reinterpret_cast<char *>(res.data()),
           static_cast<std::size_t>(res_size)};
 }

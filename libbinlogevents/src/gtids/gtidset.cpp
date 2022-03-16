@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "libbinlogevents/include/gtids/gtidset.h"
+#include "my_compiler.h"
 #include <map>
 #include <string>
 
@@ -235,7 +236,10 @@ bool Gtid_set::is_empty() const { return m_gtid_set.empty(); }
 std::size_t Gtid_set::count() const {
   std::size_t count{0};
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
   for (auto const &[uuid, intervals] : m_gtid_set) {
+    MY_COMPILER_DIAGNOSTIC_POP()
     for (auto &interval : intervals) {
       count += interval.count();
     }

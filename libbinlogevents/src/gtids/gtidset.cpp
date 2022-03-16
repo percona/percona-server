@@ -235,7 +235,7 @@ bool Gtid_set::is_empty() const { return m_gtid_set.empty(); }
 std::size_t Gtid_set::count() const {
   std::size_t count{0};
 
-  for (auto const &[uuid, intervals] : m_gtid_set) {
+  for ([[maybe_unused]] auto const &[uuid, intervals] : m_gtid_set) {
     for (auto &interval : intervals) {
       count += interval.count();
     }

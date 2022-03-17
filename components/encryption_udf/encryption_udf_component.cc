@@ -16,12 +16,16 @@
 
 #include <array>
 #include <bitset>
+#include <stdexcept>
+#include <string>
 
 #include <boost/lexical_cast/try_lexical_convert.hpp>
 
-#include <my_dbug.h>
+#include <boost/preprocessor/stringize.hpp>
 
 #include <mysql/components/component_implementation.h>
+
+#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_runtime_error.h>
 #include <mysql/components/services/udf_registration.h>
 
@@ -39,10 +43,71 @@
 #include <opensslpp/rsa_padding.hpp>
 #include <opensslpp/rsa_sign_verify_operations.hpp>
 
+// defined as a macro because needed both raw and stringized
+#define CURRENT_COMPONENT_NAME encryption_udf
+#define CURRENT_COMPONENT_NAME_STR BOOST_PP_STRINGIZE(CURRENT_COMPONENT_NAME)
+
 REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 namespace {
+
+enum class threshold_index_type { rsa, dsa, dh, delimiter };
+constexpr std::size_t number_of_thresholds =
+    static_cast<std::size_t>(threshold_index_type::delimiter);
+
+uint bits_threshold_values[number_of_thresholds] = {};
+
+struct threshold_definition {
+  std::size_t min;
+  std::size_t max;
+  const char *var_name;
+  const char *var_description;
+};
+
+constexpr std::array<threshold_definition, number_of_thresholds> thresholds = {
+    threshold_definition{
+        1024U, 16384U, "rsa_bits_threshold",
+        "Maximum RSA key length in bits for create_asymmetric_priv_key()"},
+    // DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
+    // and be a multiple of 64, therefore 9984
+    threshold_definition{
+        1024U, 9984U, "dsa_bits_threshold",
+        "Maximum DSA key length in bits for create_asymmetric_priv_key()"},
+    threshold_definition{
+        1024U, 10000U, "dh_bits_threshold",
+        "Maximum DH key length in bits for create_dh_parameters()"}};
+
+using udf_int_arg_raw_type = mysqlpp::udf_arg_t<INT_RESULT>::value_type;
+bool check_if_bits_in_range(udf_int_arg_raw_type value,
+                            threshold_index_type threshold_index) noexcept {
+  const auto &threshold = thresholds[static_cast<std::size_t>(threshold_index)];
+
+  if (value < static_cast<udf_int_arg_raw_type>(threshold.min)) return false;
+
+  std::size_t max_value = threshold.max;
+
+  static constexpr std::size_t var_buffer_length = 63U;
+  using var_buffer_type = std::array<char, var_buffer_length + 1>;
+  var_buffer_type var_buffer;
+  void *var_buffer_ptr = var_buffer.data();
+  std::size_t var_length = var_buffer_length;
+
+  if (mysql_service_component_sys_variable_register->get_variable(
+          CURRENT_COMPONENT_NAME_STR, threshold.var_name, &var_buffer_ptr,
+          &var_length) == 0) {
+    std::size_t extracted_var_value = 0;
+    if (boost::conversion::try_lexical_convert(
+            static_cast<char *>(var_buffer_ptr), var_length,
+            extracted_var_value))
+      max_value = extracted_var_value;
+  }
+
+  if (value > static_cast<udf_int_arg_raw_type>(max_value)) return false;
+  return true;
+}
 
 // CREATE_ASYMMETRIC_PRIV_KEY(@algorithm, {@key_len|@dh_parameters})
 // This functions generates a private key using the given algorithm
@@ -100,14 +165,12 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
       throw std::invalid_argument("Key length is not a numeric value");
 
     if (algorithm == "RSA") {
-      if (length < 1024 || length > 16384)
+      if (!check_if_bits_in_range(length, threshold_index_type::rsa))
         throw std::invalid_argument("Invalid RSA key length specified");
       auto key = opensslpp::rsa_key::generate(length);
       pem = opensslpp::rsa_key::export_private_pem(key);
     } else if (algorithm == "DSA") {
-      // DSA max key length must be <= OPENSSL_DSA_MAX_MODULUS_BITS (10000)
-      // and be a multiple of 64
-      if (length < 1024 || length > 9984)
+      if (!check_if_bits_in_range(length, threshold_index_type::dsa))
         throw std::invalid_argument("Invalid DSA key length specified");
       auto key = opensslpp::dsa_key::generate_parameters(length);
       key.promote_to_key();
@@ -540,7 +603,7 @@ mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
     throw std::invalid_argument("Parameters length cannot be NULL");
   auto length = optional_length.get();
 
-  if (length < 1024 || length > 10000)
+  if (!check_if_bits_in_range(length, threshold_index_type::dh))
     throw std::invalid_argument("Invalid DH parameters length specified");
 
   auto key = opensslpp::dh_key::generate_parameters(length);
@@ -632,12 +695,35 @@ static const std::array known_udfs{
 
 #undef DECLARE_UDF_INFO
 
-using bitset_type = std::bitset<std::tuple_size<decltype(known_udfs)>::value>;
-static bitset_type registered_udfs;
+using udf_bitset_type =
+    std::bitset<std::tuple_size<decltype(known_udfs)>::value>;
+static udf_bitset_type registered_udfs;
 
-static mysql_service_status_t component_encryption_udf_init() {
+using threshold_bitset_type = std::bitset<number_of_thresholds>;
+static threshold_bitset_type registered_thresholds;
+
+static mysql_service_status_t component_init() {
   std::size_t index = 0U;
 
+  for (const auto &threshold : thresholds) {
+    if (!registered_thresholds.test(index)) {
+      INTEGRAL_CHECK_ARG(uint) arg;
+      arg.def_val = threshold.max;
+      arg.min_val = threshold.min;
+      arg.max_val = threshold.max;
+      arg.blk_sz = 0;
+      if (mysql_service_component_sys_variable_register->register_variable(
+              CURRENT_COMPONENT_NAME_STR, threshold.var_name,
+              PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG,
+              threshold.var_description, nullptr, nullptr,
+              static_cast<void *>(&arg),
+              static_cast<void *>(&bits_threshold_values[index])) == 0)
+        registered_thresholds.set(index);
+    }
+    ++index;
+  }
+
+  index = 0U;
   for (const auto &element : known_udfs) {
     if (!registered_udfs.test(index)) {
       if (mysql_service_udf_registration->udf_register(
@@ -647,10 +733,10 @@ static mysql_service_status_t component_encryption_udf_init() {
     }
     ++index;
   }
-  return registered_udfs.all() ? 0 : 1;
+  return registered_udfs.all() && registered_thresholds.all() ? 0 : 1;
 }
 
-static mysql_service_status_t component_encryption_udf_deinit() {
+static mysql_service_status_t component_deinit() {
   int was_present = 0;
 
   std::size_t index = 0U;
@@ -663,7 +749,18 @@ static mysql_service_status_t component_encryption_udf_deinit() {
     }
     ++index;
   }
-  return registered_udfs.none() ? 0 : 1;
+
+  index = 0;
+  for (const auto &threshold : thresholds) {
+    if (registered_thresholds.test(index)) {
+      if (mysql_service_component_sys_variable_unregister->unregister_variable(
+              CURRENT_COMPONENT_NAME_STR, threshold.var_name) == 0)
+        registered_thresholds.reset(index);
+    }
+    ++index;
+  }
+
+  return registered_udfs.none() && registered_thresholds.none() ? 0 : 1;
 }
 
 // Currently UDF wrappers exception handling is build so that
@@ -679,20 +776,21 @@ void my_error(int error_id, myf flags, ...) {
   va_end(args);
 }
 
-BEGIN_COMPONENT_PROVIDES(component_encryption_udf)
+BEGIN_COMPONENT_PROVIDES(CURRENT_COMPONENT_NAME)
 END_COMPONENT_PROVIDES();
 
-BEGIN_COMPONENT_REQUIRES(component_encryption_udf)
+BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
 REQUIRES_SERVICE(mysql_runtime_error), REQUIRES_SERVICE(udf_registration),
+    REQUIRES_SERVICE(component_sys_variable_register),
+    REQUIRES_SERVICE(component_sys_variable_unregister),
     END_COMPONENT_REQUIRES();
 
-BEGIN_COMPONENT_METADATA(component_encryption_udf)
+BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)
 METADATA("mysql.author", "Percona Corporation"),
     METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
 
-DECLARE_COMPONENT(component_encryption_udf, "component_encryption_udf")
-component_encryption_udf_init,
-    component_encryption_udf_deinit END_DECLARE_COMPONENT();
+DECLARE_COMPONENT(CURRENT_COMPONENT_NAME, CURRENT_COMPONENT_NAME_STR)
+component_init, component_deinit, END_DECLARE_COMPONENT();
 
-DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(component_encryption_udf)
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(CURRENT_COMPONENT_NAME)
     END_DECLARE_LIBRARY_COMPONENTS

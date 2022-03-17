@@ -18,18 +18,19 @@ namespace myrocks {
 // If we need it to be scalable, consider using db (RocksDB?) as the backend.
 class EncryptionInfoPlainFileStorage : public EncryptionInfoStorage {
 public:
-    EncryptionInfoPlainFileStorage(const std::string& filePath,
-    const std::shared_ptr<rocksdb::FileSystem> fs, const std::string &uuidHint,
-    std::shared_ptr<rocksdb::Logger> logger);
+ EncryptionInfoPlainFileStorage(const std::string &filePath,
+                                const std::shared_ptr<rocksdb::FileSystem> fs,
+                                std::shared_ptr<rocksdb::Logger> logger);
 
-    void StoreCurrentMasterKeyId(uint32_t Id) override;
-    void StoreMasterKeyRotationInProgress(bool flag) override;
-    bool GetMasterKeyRotationInProgress() override;
+ void StoreMasterKeyRotationInProgress(bool flag) override;
+ bool GetMasterKeyRotationInProgress() override;
 
-    // returns 0 if no ID stored
-    uint32_t GetCurrentMasterKeyId() override;
+ void StoreCurrentMasterKeyId(uint32_t Id) override;
+ // returns 0 if no ID stored
+ uint32_t GetCurrentMasterKeyId() override;
 
-    std::string GetServerUuid() override;
+ void StoreServerUuid(const std::string &uuid) override;
+ std::string GetServerUuid() override;
 
 private:
    struct EncryptionInfo {
@@ -45,7 +46,6 @@ private:
    std::string filePath_;
    std::string backupFilePath_;
    const std::shared_ptr<rocksdb::FileSystem> fs_;
-   std::string uuidHint_;
    std::mutex fileAccessMtx_;
    std::shared_ptr<EncryptionInfo> encryptionInfo_;
    std::shared_ptr<rocksdb::Logger> logger_;

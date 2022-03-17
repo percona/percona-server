@@ -273,6 +273,7 @@ SET(ROCKSDB_SOURCES
   enc_aes_ctr_stream_factory.cc
   enc_stream_cipher.cc
   enc_info_plainfile_storage.cc
+  enc_uuid_provider.cc
 )
 
 IF(WITH_FB_TSAN)

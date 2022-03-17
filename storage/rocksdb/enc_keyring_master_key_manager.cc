@@ -1,15 +1,17 @@
 #include "./enc_keyring_master_key_manager.h"
-#include "./enc_info_storage.h"
 #include <scope_guard.h>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <string>
-#include "./rdb_mutex_wrapper.h"
+#include "./enc_info_storage.h"
+#include "./enc_uuid_provider.h"
 #include "./rdb_psi.h"
+#include "mysql/thread_pool_priv.h"
+#include "rdb_utils.h"
 #include "rocksdb/env.h"
 #include "rocksdb/logging/logging.h"
 #include "sql/mysqld.h"
-
 // #define USE_DEVEL_KEY
 
 namespace myrocks {
@@ -17,34 +19,36 @@ namespace myrocks {
 // in InnoDB (os0enc.cc). That logic works fine, so no point in reinventing
 // the wheel.
 
+using ULock = std::unique_lock<std::mutex>;
 using rocksdb::InfoLogLevel;
+using namespace std::chrono_literals;
 
 static constexpr uint32_t DEFAULT_MASTER_KEY_ID = 0;
 constexpr char rocksdb_key_type[] = "AES";
 static constexpr size_t KEY_LEN = 32;
 
 static std::once_flag master_key_mutex_init_once_flag;
-static Rds_mysql_mutex master_key_id_mutex_;
 
 KeyringMasterKeyManager::KeyringMasterKeyManager(
     std::shared_ptr<EncryptionInfoStorage> encInfoStorage,
+    std::shared_ptr<EncryptionUuidProvider> encUuidProvider,
+    std::function<bool()> checkThdKilledFn,
     std::shared_ptr<rocksdb::Logger> logger)
     : oldestMasterKeyId_((uint32_t)-1),
+      disableNewMasterKeyGenerationCounter_(0),
       encInfoStorage_(encInfoStorage),
+      encUuidProvider_(encUuidProvider),
+      checkThdKilledFn_(checkThdKilledFn),
       logger_(logger) {
-  std::call_once(master_key_mutex_init_once_flag, []() {
-    master_key_id_mutex_.init(rdb_master_key_mutex_key, MY_MUTEX_INIT_FAST);
-  });
-
 #ifdef USE_DEVEL_KEY
   ROCKS_LOG_WARN(
       logger_, "KeyringMasterKeyManger uses hardcoded development master key.");
 #endif
 
   InitKeyringServices();
-  serverUuid_ = encInfoStorage_->GetServerUuid();
-  newestMasterKeyId_ = encInfoStorage_->GetCurrentMasterKeyId();
   Recover();
+  serverUuid_ = encUuidProvider_->GetServerUuid();
+  newestMasterKeyId_ = encInfoStorage_->GetCurrentMasterKeyId();
 }
 
 KeyringMasterKeyManager::~KeyringMasterKeyManager() { DeinitKeyringServices(); }
@@ -145,7 +149,7 @@ void KeyringMasterKeyManager::DeinitKeyringServices() {
 */
 int KeyringMasterKeyManager::GetSecretFromCache(const std::string &keyName,
                                                 std::string *secret) {
-  std::unique_lock<std::mutex> lock(keysCacheMtx_);
+  ULock lock(keysCacheMtx_);
   auto it = keysCache_.find(keyName);
   if (it == keysCache_.end()) {
     return -1;
@@ -156,7 +160,7 @@ int KeyringMasterKeyManager::GetSecretFromCache(const std::string &keyName,
 
 void KeyringMasterKeyManager::StoreSecretInCache(const std::string &keyName,
                                                  const std::string &secret) {
-  std::unique_lock<std::mutex> lock(keysCacheMtx_);
+  ULock lock(keysCacheMtx_);
   auto it = keysCache_.find(keyName);
   if (it != keysCache_.end()) {
     // It may happen if it is already added if two thread simultaneously
@@ -231,7 +235,7 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
   }
   secret->assign((char *)(secret_v.data()), secret_length);
 
-#endif  /* USE_DEVEL_KEY */
+#endif /* USE_DEVEL_KEY */
 
   StoreSecretInCache(keyName, *secret);
 
@@ -241,12 +245,11 @@ int KeyringMasterKeyManager::ReadSecret(const std::string &keyName,
 int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
                                                     uint32_t *masterKeyId) {
   int retval;
-  bool key_id_locked = false;
+  std::shared_ptr<ULock> guard;
 
   if (newestMasterKeyId_ == DEFAULT_MASTER_KEY_ID) {
     /* Take mutex as master_key_id is going to change. */
-    RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
-    key_id_locked = true;
+    guard = std::make_shared<ULock>(masterKeyIdMutex_);
   }
 
   /* Check for s_master_key_id again, as a parallel rotation might have caused
@@ -257,7 +260,7 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     it to keyring. */
 
     // This is the key with id '1'
-    auto keyName = CreateKeyName(1);
+    auto keyName = CreateKeyName(1, serverUuid_);
     encInfoStorage_->StoreMasterKeyRotationInProgress(true);
 
 #ifdef USE_DEVEL_KEY
@@ -266,9 +269,6 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     // We call keyring API to generate master key here.
     if (keyring_generator_service_->generate(
             keyName.c_str(), nullptr, rocksdb_key_type, KEY_LEN) == true) {
-      if (key_id_locked) {
-        RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
-      }
       ROCKS_LOG_ERROR(logger_,
                       "MasterKey generation FAILED. Check if Keyring component "
                       "is installed.");
@@ -289,7 +289,8 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     *masterKeyId = newestMasterKeyId_;
 
     // We call keyring API to get master key here.
-    retval = ReadSecret(CreateKeyName(newestMasterKeyId_), masterKey);
+    retval =
+        ReadSecret(CreateKeyName(newestMasterKeyId_, serverUuid_), masterKey);
   }
 
   if (retval == -1) {
@@ -297,10 +298,6 @@ int KeyringMasterKeyManager::GetMostRecentMasterKey(std::string *masterKey,
     ROCKS_LOG_ERROR(logger_,
                     "Encryption can't find master key, please check that the "
                     "keyring is installed.");
-  }
-
-  if (key_id_locked) {
-    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
   }
 
   return retval;
@@ -324,20 +321,18 @@ int KeyringMasterKeyManager::GetMasterKey(uint32_t masterKeyId,
     oldestMasterKeyId_ = masterKeyId;
   }
 
-  return ReadSecret(CreateKeyName(masterKeyId), masterKey);
+  return ReadSecret(CreateKeyName(masterKeyId, suuid), masterKey);
 }
 
-int KeyringMasterKeyManager::GenerateNewMasterKey() {
-  RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
+int KeyringMasterKeyManager::GenerateNewMasterKeyUnprotected() {
   encInfoStorage_->StoreMasterKeyRotationInProgress(true);
 
   uint32_t newMasterKeyId = newestMasterKeyId_ + 1;
 
   // We call keyring API to generate master key here.
   if (keyring_generator_service_->generate(
-          CreateKeyName(newMasterKeyId).c_str(), nullptr, rocksdb_key_type,
-          KEY_LEN) == true) {
-    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
+          CreateKeyName(newMasterKeyId, serverUuid_).c_str(), nullptr,
+          rocksdb_key_type, KEY_LEN) == true) {
     ROCKS_LOG_ERROR(logger_,
                     "MasterKey generation FAILED. Check if Keyring component "
                     "is installed.");
@@ -346,10 +341,10 @@ int KeyringMasterKeyManager::GenerateNewMasterKey() {
 
   // We call keyring API to get master key here. It will store the key in the cache.
   std::string masterKey;
-  auto retval = ReadSecret(CreateKeyName(newMasterKeyId).c_str(), &masterKey);
+  auto retval = ReadSecret(CreateKeyName(newMasterKeyId, serverUuid_).c_str(),
+                           &masterKey);
 
   if (retval < 0 || masterKey.length() == 0) {
-    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
     return -1;
   }
 
@@ -357,35 +352,83 @@ int KeyringMasterKeyManager::GenerateNewMasterKey() {
   newestMasterKeyId_ = newMasterKeyId;
 
   encInfoStorage_->StoreMasterKeyRotationInProgress(false);
-  RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
   return 0;
 }
 
-const std::string KeyringMasterKeyManager::CreateKeyName(uint32_t keyId) const {
+int KeyringMasterKeyManager::GenerateNewMasterKey() {
+  ULock lock(masterKeyIdMutex_);
+  while (disableNewMasterKeyGenerationCounter_ > 0 && !checkThdKilledFn_()) {
+    masterKeyIdCv_.wait_for(lock, 500ms);
+  }
+  if (checkThdKilledFn_()) return -2;
+
+  return GenerateNewMasterKeyUnprotected();
+}
+
+void KeyringMasterKeyManager::DisableNewMasterKeyGeneration() {
+  ULock lock(masterKeyIdMutex_);
+  ++disableNewMasterKeyGenerationCounter_;
+  if (disableNewMasterKeyGenerationCounter_ == 1) {
+    ROCKS_LOG_INFO(logger_, "Master key generation disabled");
+  }
+}
+
+void KeyringMasterKeyManager::EnableNewMasterKeyGeneration() {
+  ULock lock(masterKeyIdMutex_);
+  if (disableNewMasterKeyGenerationCounter_ > 0) {
+    --disableNewMasterKeyGenerationCounter_;
+    if (disableNewMasterKeyGenerationCounter_ == 0) {
+      ROCKS_LOG_INFO(logger_, "Master key generation enabled");
+      masterKeyIdCv_.notify_one();
+    }
+  }
+}
+
+const std::string KeyringMasterKeyManager::CreateKeyName(
+    uint32_t keyId, const std::string &suuid) const {
   static const std::string MASTER_KEY_PREFIX = "ROCKSDBKey-";
   static const std::string MASTER_KEY_SEPARATOR = "-";
 
-  return MASTER_KEY_PREFIX + serverUuid_ + MASTER_KEY_SEPARATOR +
+  return MASTER_KEY_PREFIX + suuid + MASTER_KEY_SEPARATOR +
          std::to_string(keyId);
 }
 
 void KeyringMasterKeyManager::Recover() {
-    RDB_MUTEX_LOCK_CHECK(master_key_id_mutex_);
-    if (encInfoStorage_->GetMasterKeyRotationInProgress()) {
-        auto masterKeyId = encInfoStorage_->GetCurrentMasterKeyId();
-        std::string masterKey;
+  ULock lock(masterKeyIdMutex_);
+  if (encInfoStorage_->GetMasterKeyRotationInProgress()) {
+    auto masterKeyId = encInfoStorage_->GetCurrentMasterKeyId();
+    std::string masterKey;
 
-        // check if we failed after rotation.
-        // This means that new key was generated, but its Id was not stored
-        auto retval = ReadSecret(CreateKeyName(masterKeyId+1).c_str(), &masterKey);
-        if (!retval) {
-            // new key was generated, but info was not stored
-            newestMasterKeyId_ = masterKeyId+1;
-            encInfoStorage_->StoreCurrentMasterKeyId(newestMasterKeyId_);
-        }
-        encInfoStorage_->StoreMasterKeyRotationInProgress(false);
+    // check if we failed after rotation.
+    // This means that new key was generated, but its Id was not stored
+    auto retval = ReadSecret(
+        CreateKeyName(masterKeyId + 1, serverUuid_).c_str(), &masterKey);
+    if (!retval) {
+      // new key was generated, but info was not stored?
+      newestMasterKeyId_ = masterKeyId + 1;
+      encInfoStorage_->StoreCurrentMasterKeyId(newestMasterKeyId_);
     }
-    RDB_MUTEX_UNLOCK_CHECK(master_key_id_mutex_);
+    encInfoStorage_->StoreMasterKeyRotationInProgress(false);
+  }
+
+  // If the serverUUID stored in encInfoStorage is different than the one
+  // got from encUuidProvider it means one of the following:
+  // 1. This is fresh/new server. In such a case uuid from encInfoStorage is
+  //    empty.
+  // 2. This is the server restored from the backup. In such a case uuid from
+  //    encInfoStorage indicates the uuid of data origin.
+  std::string thisServerUuid = encUuidProvider_->GetServerUuid();
+  std::string prevServerUuid = encInfoStorage_->GetServerUuid();
+  if(thisServerUuid.compare(prevServerUuid)) {
+    // This will force new MK generation when GetMostRecentMasterKey() is
+    // called.
+    // In case (1) this is just a normal path.
+    // In case (2) we need to force new MK generation as well, bacause there
+    // is no MK with our uuid yet in keyring. We will count MKs from 1 on,
+    // but with new uuid.
+    encInfoStorage_->StoreCurrentMasterKeyId(DEFAULT_MASTER_KEY_ID);
+    encInfoStorage_->StoreServerUuid(thisServerUuid);
+  }
 }
 
 }  // namespace myrocks

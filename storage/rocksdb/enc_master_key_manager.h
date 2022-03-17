@@ -15,6 +15,9 @@ class MasterKeyManager {
                            std::string *masterKey) = 0;
   virtual void GetServerUuid(std::string *serverUuid) = 0;
   virtual int GenerateNewMasterKey() = 0;
+
+  virtual void DisableNewMasterKeyGeneration() = 0;
+  virtual void EnableNewMasterKeyGeneration() = 0;
 };
 
 }  // namespace myrocks

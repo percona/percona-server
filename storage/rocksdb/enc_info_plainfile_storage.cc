@@ -1,7 +1,8 @@
 #include "./enc_info_plainfile_storage.h"
 #include "rocksdb/file_system.h"
-#include "rocksdb/util/crc32c.h"
 #include "rocksdb/logging/logging.h"
+#include "rocksdb/slice.h"
+#include "rocksdb/util/crc32c.h"
 
 namespace myrocks {
 using namespace rocksdb;
@@ -22,19 +23,15 @@ static constexpr size_t g_serialization_buffer_size = strlen(g_serialization_for
 static char g_serialization_buffer[g_serialization_buffer_size];
 
 EncryptionInfoPlainFileStorage::EncryptionInfoPlainFileStorage(
-    const std::string& filePath,
-    const std::shared_ptr<rocksdb::FileSystem> fs,
-    const std::string& uuidHint,
+    const std::string &filePath, const std::shared_ptr<rocksdb::FileSystem> fs,
     std::shared_ptr<rocksdb::Logger> logger)
-: filePath_(filePath),
-  backupFilePath_(filePath_+".bak"),
-  fs_(fs),
-  uuidHint_(uuidHint),
-  logger_(logger)
-{
-    std::unique_lock<std::mutex> lock(fileAccessMtx_);
-    recover();
-    encryptionInfo_ = deserialize(filePath_);
+    : filePath_(filePath),
+      backupFilePath_(filePath_ + ".bak"),
+      fs_(fs),
+      logger_(logger) {
+  std::unique_lock<std::mutex> lock(fileAccessMtx_);
+  recover();
+  encryptionInfo_ = deserialize(filePath_);
 }
 
 void EncryptionInfoPlainFileStorage::StoreCurrentMasterKeyId(uint32_t Id)
@@ -51,12 +48,20 @@ uint32_t EncryptionInfoPlainFileStorage::GetCurrentMasterKeyId()
     return encryptionInfo_->CurrentMasterKeyId;
 }
 
+void EncryptionInfoPlainFileStorage::StoreServerUuid(const std::string &uuid)
+{
+    std::unique_lock<std::mutex> lock(fileAccessMtx_);
+    encryptionInfo_->ServerUuid = uuid;
+    serialize(filePath_, encryptionInfo_);
+}
+
 std::string EncryptionInfoPlainFileStorage::GetServerUuid()
 {
     std::unique_lock<std::mutex> lock(fileAccessMtx_);
     if (!encryptionInfo_) encryptionInfo_ = deserialize(filePath_);
     return encryptionInfo_->ServerUuid;
 }
+
 
 void EncryptionInfoPlainFileStorage::StoreMasterKeyRotationInProgress(bool flag){
     std::unique_lock<std::mutex> lock(fileAccessMtx_);
@@ -79,48 +84,54 @@ void EncryptionInfoPlainFileStorage::serialize(const std::string &filePath,
         serialize(backupFilePath_, deserialize(filePath_), false);
       }
 
-      rocksdb::Slice data;
       std::unique_ptr<rocksdb::FSWritableFile> file;
 
-      snprintf(g_serialization_buffer, g_serialization_buffer_size, g_serialization_format,
-        g_serializtion_format_version,
-        info->CurrentMasterKeyId,
-        info->MasterKeyRotationInProgress,
-        info->ServerUuid.c_str(),
-        0);
+      snprintf(g_serialization_buffer, g_serialization_buffer_size,
+               g_serialization_format, g_serializtion_format_version,
+               info->CurrentMasterKeyId, info->MasterKeyRotationInProgress, info->ServerUuid.c_str(), 0);
 
       // crc
-      char* ptr = strstr(g_serialization_buffer, g_CRC_item);
+      char *ptr = strstr(g_serialization_buffer, g_CRC_item);
       if (ptr) ptr += strlen(g_CRC_item);
       uint32_t crc = rocksdb::crc32c::Extend(0, g_serialization_buffer,
-                                         ptr - g_serialization_buffer);
+                                             ptr - g_serialization_buffer);
 
       sprintf(ptr, "%u\n", crc);
-      data = rocksdb::Slice(g_serialization_buffer);
+      auto data = rocksdb::Slice(g_serialization_buffer);
 
-      auto status = fs_->NewWritableFile(filePath, rocksdb::FileOptions(), &file, nullptr);
+      auto status = fs_->NewWritableFile(filePath, rocksdb::FileOptions(),
+                                         &file, nullptr);
       if (!status.ok()) {
-        ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::serialize(). Failed to create %s file.",
-            filePath.c_str());
+        ROCKS_LOG_WARN(logger_,
+                       "EncryptionInfoPlainFileStorage::serialize(). Failed to "
+                       "create %s file.",
+                       filePath.c_str());
         return;
       }
       status = file->Append(data, rocksdb::IOOptions(), nullptr);
       if (!status.ok()) {
-        ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::serialize(). Failed to append to %s file.",
-            filePath.c_str());
+        ROCKS_LOG_WARN(logger_,
+                       "EncryptionInfoPlainFileStorage::serialize(). Failed to "
+                       "append to %s file.",
+                       filePath.c_str());
         return;
       }
       status = file->Close(rocksdb::IOOptions(), nullptr);
       if (!status.ok()) {
-        ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::serialize(). Failed to close %s file.",
-            filePath.c_str());
+        ROCKS_LOG_WARN(logger_,
+                       "EncryptionInfoPlainFileStorage::serialize(). Failed to "
+                       "close %s file.",
+                       filePath.c_str());
         return;
       }
       if (backup) {
-        status = fs_->DeleteFile(backupFilePath_, rocksdb::IOOptions(), nullptr);
+        status =
+            fs_->DeleteFile(backupFilePath_, rocksdb::IOOptions(), nullptr);
         if (!status.ok()) {
-          ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::serialize(). Failed to delete %s file.",
-            filePath.c_str());
+          ROCKS_LOG_WARN(logger_,
+                         "EncryptionInfoPlainFileStorage::serialize(). Failed "
+                         "to delete %s file.",
+                         filePath.c_str());
           return;
         }
       }
@@ -136,12 +147,15 @@ EncryptionInfoPlainFileStorage::deserialize(const std::string &filePath)
 
     auto status = fs_->NewSequentialFile(filePath, rocksdb::FileOptions(), &file, nullptr);
     if (status.ok()){
-        status = file->Read(g_serialization_buffer_size, rocksdb::IOOptions(), &data, g_serialization_buffer, nullptr);
-        if (!status.ok()) {
-            ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::deserialize(). Reading from file %s failed.",
-              filePath.c_str());
-            return nullptr;
-        }
+      status = file->Read(g_serialization_buffer_size, rocksdb::IOOptions(),
+                          &data, g_serialization_buffer, nullptr);
+      if (!status.ok()) {
+        ROCKS_LOG_WARN(logger_,
+                       "EncryptionInfoPlainFileStorage::deserialize(). Reading "
+                       "from file %s failed.",
+                       filePath.c_str());
+        return nullptr;
+      }
         char uuid[128];
         uint32_t version;
         sscanf(data.data(), g_serialization_format,
@@ -154,28 +168,34 @@ EncryptionInfoPlainFileStorage::deserialize(const std::string &filePath)
         // crc check
         char *ptr = strstr(g_serialization_buffer, g_CRC_item);
         if (!ptr) {
-            ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::deserialize(). Failed to read CRC.");
-            return nullptr;
+          ROCKS_LOG_WARN(logger_,
+                         "EncryptionInfoPlainFileStorage::deserialize(). "
+                         "Failed to read CRC.");
+          return nullptr;
         }
         ptr += strlen(g_CRC_item);
         uint32_t crc;
         sscanf(ptr, "%u\n", &crc);
         if (newInfo->CRC != crc) {
-            ROCKS_LOG_WARN(logger_, "EncryptionInfoPlainFileStorage::deserialize(). CRC mismatch for file %s",
-             filePath.c_str());
-            return nullptr;
+          ROCKS_LOG_WARN(logger_,
+                         "EncryptionInfoPlainFileStorage::deserialize(). CRC "
+                         "mismatch for file %s",
+                         filePath.c_str());
+          return nullptr;
         }
 
         newInfo->ServerUuid = std::string(uuid);
         if (g_serializtion_format_version != version) {
-            ROCKS_LOG_ERROR(logger_, "EncryptionInfoPlainFileStorage::deserialize() failed. Serialization format mismatch. Current: %u, expected: %u",
+          ROCKS_LOG_ERROR(
+              logger_,
+              "EncryptionInfoPlainFileStorage::deserialize() failed. "
+              "Serialization format mismatch. Current: %u, expected: %u",
               version, g_serializtion_format_version);
-            return nullptr;
+          return nullptr;
         }
     } else {
       newInfo->CurrentMasterKeyId = 0;
       newInfo->MasterKeyRotationInProgress = 0;
-      newInfo->ServerUuid = std::string(uuidHint_);
     }
     return newInfo;
 }
@@ -189,10 +209,13 @@ void EncryptionInfoPlainFileStorage::recover() {
         // If the main file is not OK, recover from backup.
         auto mainInfo = deserialize(filePath_);
         if (mainInfo) {
-            status = fs_->DeleteFile(backupFilePath_, rocksdb::IOOptions(), nullptr);
-            if (!status.ok()){
-                ROCKS_LOG_ERROR(logger_, "EncryptionInfoPlainFileStorage::recover(). Failed deleting backup file.");
-            }
+          status =
+              fs_->DeleteFile(backupFilePath_, rocksdb::IOOptions(), nullptr);
+          if (!status.ok()) {
+            ROCKS_LOG_ERROR(logger_,
+                            "EncryptionInfoPlainFileStorage::recover(). Failed "
+                            "deleting backup file.");
+          }
             return;
         }
 
@@ -203,9 +226,12 @@ void EncryptionInfoPlainFileStorage::recover() {
             // as we are modifying main and backup files independently.
         }
         serialize(filePath_, backupInfo, false);
-        status = fs_->DeleteFile(backupFilePath_, rocksdb::IOOptions(), nullptr);
-        if (!status.ok()){
-            ROCKS_LOG_ERROR(logger_, "EncryptionInfoPlainFileStorage::recover(). Failed deleting backup file.");
+        status =
+            fs_->DeleteFile(backupFilePath_, rocksdb::IOOptions(), nullptr);
+        if (!status.ok()) {
+          ROCKS_LOG_ERROR(logger_,
+                          "EncryptionInfoPlainFileStorage::recover(). Failed "
+                          "deleting backup file.");
         }
     }
 }

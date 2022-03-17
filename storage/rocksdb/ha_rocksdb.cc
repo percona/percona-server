@@ -94,13 +94,14 @@
 #include "./rdb_threads.h"
 
 /* encryption includes */
-#include "./enc_aes_ctr_stream_factory.h"
 #include "./enc_aes_ctr_encryption_provider.h"
+#include "./enc_aes_ctr_stream_factory.h"
 #include "./enc_env_encryption_myrocks.h"
-#include "./enc_master_key_manager.h"
-#include "./enc_keyring_master_key_manager.h"
-#include "./enc_info_storage.h"
 #include "./enc_info_plainfile_storage.h"
+#include "./enc_info_storage.h"
+#include "./enc_keyring_master_key_manager.h"
+#include "./enc_master_key_manager.h"
+#include "./enc_uuid_provider.h"
 #include "rocksdb/env/composite_env_wrapper.h"
 #include "rocksdb/env_encryption.h"
 
@@ -4557,6 +4558,7 @@ static int rocksdb_close_connection(handlerton *const hton, THD *const thd) {
   }
   if (get_ha_data(thd)->get_disable_file_deletions()) {
     rdb->EnableFileDeletions(false);
+    keyringMasterKeyManager->EnableNewMasterKeyGeneration();
   }
   destroy_ha_data(thd);
   return HA_EXIT_SUCCESS;
@@ -4612,9 +4614,11 @@ static void rocksdb_disable_file_deletions_update(
   bool val = *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
   if (val && !get_ha_data(thd)->get_disable_file_deletions()) {
     rdb->DisableFileDeletions();
+    keyringMasterKeyManager->DisableNewMasterKeyGeneration();
     get_ha_data(thd)->set_disable_file_deletions(true);
   } else if (!val && get_ha_data(thd)->get_disable_file_deletions()) {
     rdb->EnableFileDeletions(false);
+    keyringMasterKeyManager->EnableNewMasterKeyGeneration();
     get_ha_data(thd)->set_disable_file_deletions(false);
   }
 }
@@ -4667,7 +4671,9 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
 
 bool rocksdb_rotate_encryption_master_key() {
   auto res = keyringMasterKeyManager->GenerateNewMasterKey();
-  if (res) {
+  if (res == -2) {
+    my_error(ER_QUERY_INTERRUPTED, MYF(0));
+  } else if (res) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
   }
   return res;
@@ -5690,10 +5696,18 @@ void rocksdb_truncation_table_cleanup(void) {
 // encryption infrastructure initialization
 static rocksdb::Status initialize_encryption(
     std::shared_ptr<Rdb_logger> logger) {
-    rocksdb_encryption = rocksdb_encryption_enabled;
+  rocksdb_encryption = rocksdb_encryption_enabled;
 
-    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Initializing MyRocks encryption. "
-      "Enabled: %d", rocksdb_encryption.load());
+  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                  "Initializing MyRocks encryption. "
+                  "Enabled: %d",
+                  rocksdb_encryption.load());
+
+  std::string encryptionInfoStorageFile =
+      std::string(rocksdb_datadir) + std::string("/.encryption_info");
+  auto encInfoStorage = std::make_shared<EncryptionInfoPlainFileStorage>(
+      encryptionInfoStorageFile, rocksdb_db_options->env->GetFileSystem(),
+      logger);
 
   /* We are here before MySql uuid is generated or read from auto.cnf file.
      As the master key name consists of unique uuid, to be able to distinguish
@@ -5705,15 +5719,17 @@ static rocksdb::Status initialize_encryption(
   auto uuid = rocksdb_db_options->env->GenerateUniqueId();
   // unfortunately it has new line character at the end
   uuid.erase(std::remove(uuid.begin(), uuid.end(), '\n'), uuid.end());
+  std::string encryptionUuidFile =
+      std::string(rocksdb_datadir) + std::string("/.encryption_uuid");
+  auto encUuidProvider = std::make_shared<EncryptionUuidProvider>(logger);
+  if (!encUuidProvider->Init(encryptionUuidFile,
+                             rocksdb_db_options->env->GetFileSystem(), uuid)) {
+    return rocksdb::Status::Corruption();
+  }
 
-  std::string encryptionInfoStorageFile =
-    std::string(rocksdb_datadir) + std::string("/.encryption_info");
-  auto encInfoStorage = std::make_shared<EncryptionInfoPlainFileStorage>(
-      encryptionInfoStorageFile, rocksdb_db_options->env->GetFileSystem(), uuid,
-  logger);
-
-  keyringMasterKeyManager =
-      std::make_shared<KeyringMasterKeyManager>(encInfoStorage, logger);
+  keyringMasterKeyManager = std::make_shared<KeyringMasterKeyManager>(
+      encInfoStorage, encUuidProvider, []() { return thd_killed(nullptr); },
+      logger);
 
   /* The best case scenario would be to use AES CTR provided by MySql as
      keyring_encryption_service. As it does not provide AES CTR, we will hide

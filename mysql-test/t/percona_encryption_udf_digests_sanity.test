@@ -1,4 +1,4 @@
---source include/have_udf.inc
+--source include/have_encryption_udf_component.inc
 
 INSTALL COMPONENT 'file://component_encryption_udf';
 

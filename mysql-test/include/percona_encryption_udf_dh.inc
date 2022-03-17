@@ -1,5 +1,3 @@
---source include/have_udf.inc
-
 #
 # Creating functions from encryption_udf
 #

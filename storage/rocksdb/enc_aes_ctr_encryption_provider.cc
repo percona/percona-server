@@ -130,22 +130,6 @@ rocksdb::Status AesCtrEncryptionProvider::CreateNewPrefix(
   return res;
 }
 
-bool AesCtrEncryptionProvider::IsPrefixOK(const rocksdb::Slice &prefix) {
-  if (prefix.size() != defaultPrefixLength) {
-    return false;
-  }
-
-  if (memcmp(prefix.data() + KEY_MAGIC_OFFSET, kKeyMagic, KEY_MAGIC_SIZE)) {
-    return false;
-  }
-
-  uint32_t crc = rocksdb::DecodeFixed32(prefix.data() + HEADER_CRC_OFFSET);
-  uint32_t crcCalculated =
-      rocksdb::crc32c::Extend(0, prefix.data(), HEADER_CRC_SIZE);
-
-  return crc == crcCalculated;
-}
-
 rocksdb::Status AesCtrEncryptionProvider::CreateCipherStream(
     const std::string &fname, const rocksdb::EnvOptions &options,
     rocksdb::Slice &prefix,

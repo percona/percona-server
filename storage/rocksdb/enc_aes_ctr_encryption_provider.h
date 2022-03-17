@@ -58,8 +58,6 @@ class AesCtrEncryptionProvider : public MyRocksEncryptionProvider {
       rocksdb::Slice &prefix,
       std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) override;
 
-  bool IsPrefixOK(const rocksdb::Slice &prefix) override;
-
  protected:
   // CreateCipherStreamFromPrefix creates a block access cipher stream for a
   // file given

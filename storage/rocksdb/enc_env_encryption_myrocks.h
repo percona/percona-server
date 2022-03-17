@@ -18,7 +18,6 @@ class MyRocksEncryptionProvider : public rocksdb::EncryptionProvider {
       const std::string &fname, const rocksdb::EnvOptions &options,
       rocksdb::Slice &prefix,
       std::unique_ptr<rocksdb::BlockAccessCipherStream> *result) = 0;
-  virtual bool IsPrefixOK(const rocksdb::Slice &prefix) = 0;
 };
 
 class MyRocksEncryptedFileSystem : public rocksdb::EncryptedFileSystem {

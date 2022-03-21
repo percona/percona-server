@@ -12,7 +12,8 @@ static constexpr const char *g_serialization_format =
   "Version: %u\nMasterKeyId: %u\nMasterKeyRotationInProgress: %u\nServerUuid: %s\nCRC: %u\n";
 static constexpr const char *g_CRC_item = "CRC: ";
 static constexpr size_t uint32_t_strlen = strlen("4294967295");  // uint32_t max
-static constexpr size_t uuid_strlen = strlen("9ddb9c4d-c4bf-4db3-9303-0e52470a484f");
+static constexpr const char *g_default_Uuid = "00000000-0000-0000-0000-000000000000";
+static constexpr size_t uuid_strlen = strlen(g_default_Uuid);
 static constexpr size_t g_serialization_buffer_size = strlen(g_serialization_format)
                                                       + uint32_t_strlen // version
                                                       + uint32_t_strlen // MasterKeyId
@@ -174,8 +175,9 @@ EncryptionInfoPlainFileStorage::deserialize(const std::string &filePath)
           return nullptr;
         }
         ptr += strlen(g_CRC_item);
-        uint32_t crc;
-        sscanf(ptr, "%u\n", &crc);
+        uint32_t crc = rocksdb::crc32c::Extend(0, g_serialization_buffer,
+                                             ptr - g_serialization_buffer);
+
         if (newInfo->CRC != crc) {
           ROCKS_LOG_WARN(logger_,
                          "EncryptionInfoPlainFileStorage::deserialize(). CRC "
@@ -196,6 +198,7 @@ EncryptionInfoPlainFileStorage::deserialize(const std::string &filePath)
     } else {
       newInfo->CurrentMasterKeyId = 0;
       newInfo->MasterKeyRotationInProgress = 0;
+      newInfo->ServerUuid = g_default_Uuid;
     }
     return newInfo;
 }

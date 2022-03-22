@@ -69,13 +69,24 @@ bool rsa_key::is_private() const noexcept {
   assert(!is_empty());
   const BIGNUM *p = nullptr;
   const BIGNUM *q = nullptr;
-  RSA_get0_factors(rsa_key_accessor::get_impl(*this), &p, &q);
+  const auto *rsa_raw = rsa_key_accessor::get_impl(*this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  p = rsa_raw->p;
+  q = rsa_raw->q;
+#else
+  RSA_get0_factors(rsa_raw, &p, &q);
+#endif
   return p != nullptr && q != nullptr;
 }
 
 std::size_t rsa_key::get_size_in_bits() const noexcept {
   assert(!is_empty());
-  return RSA_bits(rsa_key_accessor::get_impl(*this));
+  const auto *rsa_raw = rsa_key_accessor::get_impl(*this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  return BN_num_bits(rsa_raw->n);
+#else
+  return RSA_bits(rsa_raw);
+#endif
 }
 
 std::size_t rsa_key::get_size_in_bytes() const noexcept {

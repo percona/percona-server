@@ -30,11 +30,11 @@ namespace opensslpp {
 
 void digest_context::digest_context_deleter::operator()(
     void *dc) const noexcept {
-  if (dc != nullptr) EVP_MD_CTX_free(static_cast<EVP_MD_CTX *>(dc));
+  if (dc != nullptr) EVP_MD_CTX_destroy(static_cast<EVP_MD_CTX *>(dc));
 }
 
 digest_context::digest_context(const std::string &type)
-    : impl_{EVP_MD_CTX_new()} {
+    : impl_{EVP_MD_CTX_create()} {
   if (!impl_) throw core_error{"cannot create digest context"};
   auto md = EVP_get_digestbyname(type.c_str());
   if (md == nullptr) throw core_error{"unknown digest name"};
@@ -44,7 +44,7 @@ digest_context::digest_context(const std::string &type)
 }
 
 digest_context::digest_context(const digest_context &obj)
-    : impl_{obj.is_empty() ? nullptr : EVP_MD_CTX_new()} {
+    : impl_{obj.is_empty() ? nullptr : EVP_MD_CTX_create()} {
   if (!obj.is_empty()) {
     if (!impl_) throw core_error{"cannot duplicate digest context"};
     auto obj_md = EVP_MD_CTX_md(digest_context_accessor::get_impl(obj));

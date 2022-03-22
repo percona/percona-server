@@ -14,16 +14,8 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ('SHA256', 'SHA2(@message, 256)'),
 ('SHA384', 'SHA2(@message, 384)'),
 ('SHA512', 'SHA2(@message, 512)'),
-('BLAKE2B512', NULL),
-('BLAKE2S256', NULL),
 ('MD4'       , NULL),
-('RIPEMD'    , NULL),
-('RIPEMD160' , NULL),
-('RMD160'    , NULL),
-('SHAKE128'  , NULL),
-('SHAKE256'  , NULL),
-('SM3'       , NULL),
-('WHIRLPOOL' , NULL)
+('RIPEMD160' , NULL)
 ;
 **** [MD5] checking digest
 ****** [MD5][message_len=0] checking digest calculation on message
@@ -235,42 +227,6 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ******** [SHA512][message_len=105] checking if identical to built-in SHA2(@message, 512)
 ****** [SHA512][message_len=112] checking digest calculation on message
 ******** [SHA512][message_len=112] checking if identical to built-in SHA2(@message, 512)
-**** [BLAKE2B512] checking digest
-****** [BLAKE2B512][message_len=0] checking digest calculation on message
-****** [BLAKE2B512][message_len=7] checking digest calculation on message
-****** [BLAKE2B512][message_len=14] checking digest calculation on message
-****** [BLAKE2B512][message_len=21] checking digest calculation on message
-****** [BLAKE2B512][message_len=28] checking digest calculation on message
-****** [BLAKE2B512][message_len=35] checking digest calculation on message
-****** [BLAKE2B512][message_len=42] checking digest calculation on message
-****** [BLAKE2B512][message_len=49] checking digest calculation on message
-****** [BLAKE2B512][message_len=56] checking digest calculation on message
-****** [BLAKE2B512][message_len=63] checking digest calculation on message
-****** [BLAKE2B512][message_len=70] checking digest calculation on message
-****** [BLAKE2B512][message_len=77] checking digest calculation on message
-****** [BLAKE2B512][message_len=84] checking digest calculation on message
-****** [BLAKE2B512][message_len=91] checking digest calculation on message
-****** [BLAKE2B512][message_len=98] checking digest calculation on message
-****** [BLAKE2B512][message_len=105] checking digest calculation on message
-****** [BLAKE2B512][message_len=112] checking digest calculation on message
-**** [BLAKE2S256] checking digest
-****** [BLAKE2S256][message_len=0] checking digest calculation on message
-****** [BLAKE2S256][message_len=7] checking digest calculation on message
-****** [BLAKE2S256][message_len=14] checking digest calculation on message
-****** [BLAKE2S256][message_len=21] checking digest calculation on message
-****** [BLAKE2S256][message_len=28] checking digest calculation on message
-****** [BLAKE2S256][message_len=35] checking digest calculation on message
-****** [BLAKE2S256][message_len=42] checking digest calculation on message
-****** [BLAKE2S256][message_len=49] checking digest calculation on message
-****** [BLAKE2S256][message_len=56] checking digest calculation on message
-****** [BLAKE2S256][message_len=63] checking digest calculation on message
-****** [BLAKE2S256][message_len=70] checking digest calculation on message
-****** [BLAKE2S256][message_len=77] checking digest calculation on message
-****** [BLAKE2S256][message_len=84] checking digest calculation on message
-****** [BLAKE2S256][message_len=91] checking digest calculation on message
-****** [BLAKE2S256][message_len=98] checking digest calculation on message
-****** [BLAKE2S256][message_len=105] checking digest calculation on message
-****** [BLAKE2S256][message_len=112] checking digest calculation on message
 **** [MD4] checking digest
 ****** [MD4][message_len=0] checking digest calculation on message
 ****** [MD4][message_len=7] checking digest calculation on message
@@ -289,24 +245,6 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ****** [MD4][message_len=98] checking digest calculation on message
 ****** [MD4][message_len=105] checking digest calculation on message
 ****** [MD4][message_len=112] checking digest calculation on message
-**** [RIPEMD] checking digest
-****** [RIPEMD][message_len=0] checking digest calculation on message
-****** [RIPEMD][message_len=7] checking digest calculation on message
-****** [RIPEMD][message_len=14] checking digest calculation on message
-****** [RIPEMD][message_len=21] checking digest calculation on message
-****** [RIPEMD][message_len=28] checking digest calculation on message
-****** [RIPEMD][message_len=35] checking digest calculation on message
-****** [RIPEMD][message_len=42] checking digest calculation on message
-****** [RIPEMD][message_len=49] checking digest calculation on message
-****** [RIPEMD][message_len=56] checking digest calculation on message
-****** [RIPEMD][message_len=63] checking digest calculation on message
-****** [RIPEMD][message_len=70] checking digest calculation on message
-****** [RIPEMD][message_len=77] checking digest calculation on message
-****** [RIPEMD][message_len=84] checking digest calculation on message
-****** [RIPEMD][message_len=91] checking digest calculation on message
-****** [RIPEMD][message_len=98] checking digest calculation on message
-****** [RIPEMD][message_len=105] checking digest calculation on message
-****** [RIPEMD][message_len=112] checking digest calculation on message
 **** [RIPEMD160] checking digest
 ****** [RIPEMD160][message_len=0] checking digest calculation on message
 ****** [RIPEMD160][message_len=7] checking digest calculation on message
@@ -325,94 +263,4 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ****** [RIPEMD160][message_len=98] checking digest calculation on message
 ****** [RIPEMD160][message_len=105] checking digest calculation on message
 ****** [RIPEMD160][message_len=112] checking digest calculation on message
-**** [RMD160] checking digest
-****** [RMD160][message_len=0] checking digest calculation on message
-****** [RMD160][message_len=7] checking digest calculation on message
-****** [RMD160][message_len=14] checking digest calculation on message
-****** [RMD160][message_len=21] checking digest calculation on message
-****** [RMD160][message_len=28] checking digest calculation on message
-****** [RMD160][message_len=35] checking digest calculation on message
-****** [RMD160][message_len=42] checking digest calculation on message
-****** [RMD160][message_len=49] checking digest calculation on message
-****** [RMD160][message_len=56] checking digest calculation on message
-****** [RMD160][message_len=63] checking digest calculation on message
-****** [RMD160][message_len=70] checking digest calculation on message
-****** [RMD160][message_len=77] checking digest calculation on message
-****** [RMD160][message_len=84] checking digest calculation on message
-****** [RMD160][message_len=91] checking digest calculation on message
-****** [RMD160][message_len=98] checking digest calculation on message
-****** [RMD160][message_len=105] checking digest calculation on message
-****** [RMD160][message_len=112] checking digest calculation on message
-**** [SHAKE128] checking digest
-****** [SHAKE128][message_len=0] checking digest calculation on message
-****** [SHAKE128][message_len=7] checking digest calculation on message
-****** [SHAKE128][message_len=14] checking digest calculation on message
-****** [SHAKE128][message_len=21] checking digest calculation on message
-****** [SHAKE128][message_len=28] checking digest calculation on message
-****** [SHAKE128][message_len=35] checking digest calculation on message
-****** [SHAKE128][message_len=42] checking digest calculation on message
-****** [SHAKE128][message_len=49] checking digest calculation on message
-****** [SHAKE128][message_len=56] checking digest calculation on message
-****** [SHAKE128][message_len=63] checking digest calculation on message
-****** [SHAKE128][message_len=70] checking digest calculation on message
-****** [SHAKE128][message_len=77] checking digest calculation on message
-****** [SHAKE128][message_len=84] checking digest calculation on message
-****** [SHAKE128][message_len=91] checking digest calculation on message
-****** [SHAKE128][message_len=98] checking digest calculation on message
-****** [SHAKE128][message_len=105] checking digest calculation on message
-****** [SHAKE128][message_len=112] checking digest calculation on message
-**** [SHAKE256] checking digest
-****** [SHAKE256][message_len=0] checking digest calculation on message
-****** [SHAKE256][message_len=7] checking digest calculation on message
-****** [SHAKE256][message_len=14] checking digest calculation on message
-****** [SHAKE256][message_len=21] checking digest calculation on message
-****** [SHAKE256][message_len=28] checking digest calculation on message
-****** [SHAKE256][message_len=35] checking digest calculation on message
-****** [SHAKE256][message_len=42] checking digest calculation on message
-****** [SHAKE256][message_len=49] checking digest calculation on message
-****** [SHAKE256][message_len=56] checking digest calculation on message
-****** [SHAKE256][message_len=63] checking digest calculation on message
-****** [SHAKE256][message_len=70] checking digest calculation on message
-****** [SHAKE256][message_len=77] checking digest calculation on message
-****** [SHAKE256][message_len=84] checking digest calculation on message
-****** [SHAKE256][message_len=91] checking digest calculation on message
-****** [SHAKE256][message_len=98] checking digest calculation on message
-****** [SHAKE256][message_len=105] checking digest calculation on message
-****** [SHAKE256][message_len=112] checking digest calculation on message
-**** [SM3] checking digest
-****** [SM3][message_len=0] checking digest calculation on message
-****** [SM3][message_len=7] checking digest calculation on message
-****** [SM3][message_len=14] checking digest calculation on message
-****** [SM3][message_len=21] checking digest calculation on message
-****** [SM3][message_len=28] checking digest calculation on message
-****** [SM3][message_len=35] checking digest calculation on message
-****** [SM3][message_len=42] checking digest calculation on message
-****** [SM3][message_len=49] checking digest calculation on message
-****** [SM3][message_len=56] checking digest calculation on message
-****** [SM3][message_len=63] checking digest calculation on message
-****** [SM3][message_len=70] checking digest calculation on message
-****** [SM3][message_len=77] checking digest calculation on message
-****** [SM3][message_len=84] checking digest calculation on message
-****** [SM3][message_len=91] checking digest calculation on message
-****** [SM3][message_len=98] checking digest calculation on message
-****** [SM3][message_len=105] checking digest calculation on message
-****** [SM3][message_len=112] checking digest calculation on message
-**** [WHIRLPOOL] checking digest
-****** [WHIRLPOOL][message_len=0] checking digest calculation on message
-****** [WHIRLPOOL][message_len=7] checking digest calculation on message
-****** [WHIRLPOOL][message_len=14] checking digest calculation on message
-****** [WHIRLPOOL][message_len=21] checking digest calculation on message
-****** [WHIRLPOOL][message_len=28] checking digest calculation on message
-****** [WHIRLPOOL][message_len=35] checking digest calculation on message
-****** [WHIRLPOOL][message_len=42] checking digest calculation on message
-****** [WHIRLPOOL][message_len=49] checking digest calculation on message
-****** [WHIRLPOOL][message_len=56] checking digest calculation on message
-****** [WHIRLPOOL][message_len=63] checking digest calculation on message
-****** [WHIRLPOOL][message_len=70] checking digest calculation on message
-****** [WHIRLPOOL][message_len=77] checking digest calculation on message
-****** [WHIRLPOOL][message_len=84] checking digest calculation on message
-****** [WHIRLPOOL][message_len=91] checking digest calculation on message
-****** [WHIRLPOOL][message_len=98] checking digest calculation on message
-****** [WHIRLPOOL][message_len=105] checking digest calculation on message
-****** [WHIRLPOOL][message_len=112] checking digest calculation on message
 UNINSTALL COMPONENT 'file://component_encryption_udf';

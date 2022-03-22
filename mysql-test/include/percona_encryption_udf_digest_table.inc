@@ -14,16 +14,8 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
   ('SHA384', 'SHA2(@message, 384)'),
   ('SHA512', 'SHA2(@message, 512)'),
 
-  ('BLAKE2B512', NULL),
-  ('BLAKE2S256', NULL),
   ('MD4'       , NULL),
-  ('RIPEMD'    , NULL),
-  ('RIPEMD160' , NULL),
-  ('RMD160'    , NULL),
-  ('SHAKE128'  , NULL),
-  ('SHAKE256'  , NULL),
-  ('SM3'       , NULL),
-  ('WHIRLPOOL' , NULL)
+  ('RIPEMD160' , NULL)
 ;
 
 --let $number_of_digest_types = `SELECT COUNT(*) FROM digest_type`

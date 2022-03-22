@@ -12,16 +12,8 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ('SHA256', 'SHA2(@message, 256)'),
 ('SHA384', 'SHA2(@message, 384)'),
 ('SHA512', 'SHA2(@message, 512)'),
-('BLAKE2B512', NULL),
-('BLAKE2S256', NULL),
 ('MD4'       , NULL),
-('RIPEMD'    , NULL),
-('RIPEMD160' , NULL),
-('RMD160'    , NULL),
-('SHAKE128'  , NULL),
-('SHAKE256'  , NULL),
-('SM3'       , NULL),
-('WHIRLPOOL' , NULL)
+('RIPEMD160' , NULL)
 ;
 
 ** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
@@ -50,36 +42,12 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ******** [DSA][1024][message_len=0][SHA512] calculating digest
 ******** [DSA][1024][message_len=0][SHA512] calculating signature
 ******** [DSA][1024][message_len=0][SHA512] verifying signature
-******** [DSA][1024][message_len=0][BLAKE2B512] calculating digest
-******** [DSA][1024][message_len=0][BLAKE2B512] calculating signature
-******** [DSA][1024][message_len=0][BLAKE2B512] verifying signature
-******** [DSA][1024][message_len=0][BLAKE2S256] calculating digest
-******** [DSA][1024][message_len=0][BLAKE2S256] calculating signature
-******** [DSA][1024][message_len=0][BLAKE2S256] verifying signature
 ******** [DSA][1024][message_len=0][MD4] calculating digest
 ******** [DSA][1024][message_len=0][MD4] calculating signature
 ******** [DSA][1024][message_len=0][MD4] verifying signature
-******** [DSA][1024][message_len=0][RIPEMD] calculating digest
-******** [DSA][1024][message_len=0][RIPEMD] calculating signature
-******** [DSA][1024][message_len=0][RIPEMD] verifying signature
 ******** [DSA][1024][message_len=0][RIPEMD160] calculating digest
 ******** [DSA][1024][message_len=0][RIPEMD160] calculating signature
 ******** [DSA][1024][message_len=0][RIPEMD160] verifying signature
-******** [DSA][1024][message_len=0][RMD160] calculating digest
-******** [DSA][1024][message_len=0][RMD160] calculating signature
-******** [DSA][1024][message_len=0][RMD160] verifying signature
-******** [DSA][1024][message_len=0][SHAKE128] calculating digest
-******** [DSA][1024][message_len=0][SHAKE128] calculating signature
-******** [DSA][1024][message_len=0][SHAKE128] verifying signature
-******** [DSA][1024][message_len=0][SHAKE256] calculating digest
-******** [DSA][1024][message_len=0][SHAKE256] calculating signature
-******** [DSA][1024][message_len=0][SHAKE256] verifying signature
-******** [DSA][1024][message_len=0][SM3] calculating digest
-******** [DSA][1024][message_len=0][SM3] calculating signature
-******** [DSA][1024][message_len=0][SM3] verifying signature
-******** [DSA][1024][message_len=0][WHIRLPOOL] calculating digest
-******** [DSA][1024][message_len=0][WHIRLPOOL] calculating signature
-******** [DSA][1024][message_len=0][WHIRLPOOL] verifying signature
 **** [DSA][1024][message_len=1] checking operations
 ****** [DSA][1024][message_len=1] checking sign/verify functionality
 ******** [DSA][1024][message_len=1][MD5] calculating digest
@@ -100,36 +68,12 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ******** [DSA][1024][message_len=1][SHA512] calculating digest
 ******** [DSA][1024][message_len=1][SHA512] calculating signature
 ******** [DSA][1024][message_len=1][SHA512] verifying signature
-******** [DSA][1024][message_len=1][BLAKE2B512] calculating digest
-******** [DSA][1024][message_len=1][BLAKE2B512] calculating signature
-******** [DSA][1024][message_len=1][BLAKE2B512] verifying signature
-******** [DSA][1024][message_len=1][BLAKE2S256] calculating digest
-******** [DSA][1024][message_len=1][BLAKE2S256] calculating signature
-******** [DSA][1024][message_len=1][BLAKE2S256] verifying signature
 ******** [DSA][1024][message_len=1][MD4] calculating digest
 ******** [DSA][1024][message_len=1][MD4] calculating signature
 ******** [DSA][1024][message_len=1][MD4] verifying signature
-******** [DSA][1024][message_len=1][RIPEMD] calculating digest
-******** [DSA][1024][message_len=1][RIPEMD] calculating signature
-******** [DSA][1024][message_len=1][RIPEMD] verifying signature
 ******** [DSA][1024][message_len=1][RIPEMD160] calculating digest
 ******** [DSA][1024][message_len=1][RIPEMD160] calculating signature
 ******** [DSA][1024][message_len=1][RIPEMD160] verifying signature
-******** [DSA][1024][message_len=1][RMD160] calculating digest
-******** [DSA][1024][message_len=1][RMD160] calculating signature
-******** [DSA][1024][message_len=1][RMD160] verifying signature
-******** [DSA][1024][message_len=1][SHAKE128] calculating digest
-******** [DSA][1024][message_len=1][SHAKE128] calculating signature
-******** [DSA][1024][message_len=1][SHAKE128] verifying signature
-******** [DSA][1024][message_len=1][SHAKE256] calculating digest
-******** [DSA][1024][message_len=1][SHAKE256] calculating signature
-******** [DSA][1024][message_len=1][SHAKE256] verifying signature
-******** [DSA][1024][message_len=1][SM3] calculating digest
-******** [DSA][1024][message_len=1][SM3] calculating signature
-******** [DSA][1024][message_len=1][SM3] verifying signature
-******** [DSA][1024][message_len=1][WHIRLPOOL] calculating digest
-******** [DSA][1024][message_len=1][WHIRLPOOL] calculating signature
-******** [DSA][1024][message_len=1][WHIRLPOOL] verifying signature
 **** [DSA][1024][message_len=64] checking operations
 ****** [DSA][1024][message_len=64] checking sign/verify functionality
 ******** [DSA][1024][message_len=64][MD5] calculating digest
@@ -150,36 +94,12 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ******** [DSA][1024][message_len=64][SHA512] calculating digest
 ******** [DSA][1024][message_len=64][SHA512] calculating signature
 ******** [DSA][1024][message_len=64][SHA512] verifying signature
-******** [DSA][1024][message_len=64][BLAKE2B512] calculating digest
-******** [DSA][1024][message_len=64][BLAKE2B512] calculating signature
-******** [DSA][1024][message_len=64][BLAKE2B512] verifying signature
-******** [DSA][1024][message_len=64][BLAKE2S256] calculating digest
-******** [DSA][1024][message_len=64][BLAKE2S256] calculating signature
-******** [DSA][1024][message_len=64][BLAKE2S256] verifying signature
 ******** [DSA][1024][message_len=64][MD4] calculating digest
 ******** [DSA][1024][message_len=64][MD4] calculating signature
 ******** [DSA][1024][message_len=64][MD4] verifying signature
-******** [DSA][1024][message_len=64][RIPEMD] calculating digest
-******** [DSA][1024][message_len=64][RIPEMD] calculating signature
-******** [DSA][1024][message_len=64][RIPEMD] verifying signature
 ******** [DSA][1024][message_len=64][RIPEMD160] calculating digest
 ******** [DSA][1024][message_len=64][RIPEMD160] calculating signature
 ******** [DSA][1024][message_len=64][RIPEMD160] verifying signature
-******** [DSA][1024][message_len=64][RMD160] calculating digest
-******** [DSA][1024][message_len=64][RMD160] calculating signature
-******** [DSA][1024][message_len=64][RMD160] verifying signature
-******** [DSA][1024][message_len=64][SHAKE128] calculating digest
-******** [DSA][1024][message_len=64][SHAKE128] calculating signature
-******** [DSA][1024][message_len=64][SHAKE128] verifying signature
-******** [DSA][1024][message_len=64][SHAKE256] calculating digest
-******** [DSA][1024][message_len=64][SHAKE256] calculating signature
-******** [DSA][1024][message_len=64][SHAKE256] verifying signature
-******** [DSA][1024][message_len=64][SM3] calculating digest
-******** [DSA][1024][message_len=64][SM3] calculating signature
-******** [DSA][1024][message_len=64][SM3] verifying signature
-******** [DSA][1024][message_len=64][WHIRLPOOL] calculating digest
-******** [DSA][1024][message_len=64][WHIRLPOOL] calculating signature
-******** [DSA][1024][message_len=64][WHIRLPOOL] verifying signature
 **** [DSA][1024][message_len=128] checking operations
 ****** [DSA][1024][message_len=128] checking sign/verify functionality
 ******** [DSA][1024][message_len=128][MD5] calculating digest
@@ -200,34 +120,10 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ******** [DSA][1024][message_len=128][SHA512] calculating digest
 ******** [DSA][1024][message_len=128][SHA512] calculating signature
 ******** [DSA][1024][message_len=128][SHA512] verifying signature
-******** [DSA][1024][message_len=128][BLAKE2B512] calculating digest
-******** [DSA][1024][message_len=128][BLAKE2B512] calculating signature
-******** [DSA][1024][message_len=128][BLAKE2B512] verifying signature
-******** [DSA][1024][message_len=128][BLAKE2S256] calculating digest
-******** [DSA][1024][message_len=128][BLAKE2S256] calculating signature
-******** [DSA][1024][message_len=128][BLAKE2S256] verifying signature
 ******** [DSA][1024][message_len=128][MD4] calculating digest
 ******** [DSA][1024][message_len=128][MD4] calculating signature
 ******** [DSA][1024][message_len=128][MD4] verifying signature
-******** [DSA][1024][message_len=128][RIPEMD] calculating digest
-******** [DSA][1024][message_len=128][RIPEMD] calculating signature
-******** [DSA][1024][message_len=128][RIPEMD] verifying signature
 ******** [DSA][1024][message_len=128][RIPEMD160] calculating digest
 ******** [DSA][1024][message_len=128][RIPEMD160] calculating signature
 ******** [DSA][1024][message_len=128][RIPEMD160] verifying signature
-******** [DSA][1024][message_len=128][RMD160] calculating digest
-******** [DSA][1024][message_len=128][RMD160] calculating signature
-******** [DSA][1024][message_len=128][RMD160] verifying signature
-******** [DSA][1024][message_len=128][SHAKE128] calculating digest
-******** [DSA][1024][message_len=128][SHAKE128] calculating signature
-******** [DSA][1024][message_len=128][SHAKE128] verifying signature
-******** [DSA][1024][message_len=128][SHAKE256] calculating digest
-******** [DSA][1024][message_len=128][SHAKE256] calculating signature
-******** [DSA][1024][message_len=128][SHAKE256] verifying signature
-******** [DSA][1024][message_len=128][SM3] calculating digest
-******** [DSA][1024][message_len=128][SM3] calculating signature
-******** [DSA][1024][message_len=128][SM3] verifying signature
-******** [DSA][1024][message_len=128][WHIRLPOOL] calculating digest
-******** [DSA][1024][message_len=128][WHIRLPOOL] calculating signature
-******** [DSA][1024][message_len=128][WHIRLPOOL] verifying signature
 UNINSTALL COMPONENT 'file://component_encryption_udf';

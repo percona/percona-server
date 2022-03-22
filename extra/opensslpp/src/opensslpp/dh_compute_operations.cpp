@@ -88,9 +88,15 @@ std::string compute_dh_key(const dh_key &public_key, const dh_key &private_key,
   // TODO: use c++17 non-const std::string::data() member here
   using buffer_type = std::vector<unsigned char>;
   buffer_type res(private_key.get_size_in_bytes());
-  auto compute_status = (*function)(
-      res.data(), DH_get0_pub_key(dh_key_accessor::get_impl(public_key)),
-      dh_key_accessor::get_impl_const_casted(private_key));
+  const auto *dh_raw = dh_key_accessor::get_impl(public_key);
+  auto compute_status =
+      (*function)(res.data(),
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+                  dh_raw->pub_key,
+#else
+                  DH_get0_pub_key(dh_raw),
+#endif
+                  dh_key_accessor::get_impl_const_casted(private_key));
 
   if (compute_status == -1)
     core_error::raise_with_error_string(

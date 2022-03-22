@@ -50,9 +50,18 @@ dh_key::dh_key(const dh_key &obj)
       core_error::raise_with_error_string("cannot duplicate DH parameters");
     auto public_component = obj.get_public_component();
     auto private_component = obj.get_private_component();
-    if (DH_set0_key(dh_key_accessor::get_impl(*this),
-                    big_number_accessor::get_impl(public_component),
-                    big_number_accessor::get_impl(private_component)) == 0)
+    auto *dh_raw = dh_key_accessor::get_impl(*this);
+    int set_result;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    dh_raw->pub_key = big_number_accessor::get_impl(public_component);
+    dh_raw->priv_key = big_number_accessor::get_impl(private_component);
+    set_result = 1;
+#else
+    set_result =
+        DH_set0_key(dh_raw, big_number_accessor::get_impl(public_component),
+                    big_number_accessor::get_impl(private_component));
+#endif
+    if (set_result == 0)
       throw core_error{
           "cannot set private/public components when duplicating DH key"};
     big_number_accessor::release(public_component);
@@ -69,16 +78,33 @@ dh_key &dh_key::operator=(const dh_key &obj) {
 void dh_key::swap(dh_key &obj) noexcept { impl_.swap(obj.impl_); }
 
 bool dh_key::has_private_component() const noexcept {
-  return DH_get0_priv_key(dh_key_accessor::get_impl(*this)) != nullptr;
+  assert(!is_empty());
+  const auto *dh_raw = dh_key_accessor::get_impl(*this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  return dh_raw->priv_key != nullptr;
+#else
+  return DH_get0_priv_key(dh_raw) != nullptr;
+#endif
 }
 
 bool dh_key::has_public_component() const noexcept {
-  return DH_get0_pub_key(dh_key_accessor::get_impl(*this)) != nullptr;
+  assert(!is_empty());
+  const auto *dh_raw = dh_key_accessor::get_impl(*this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  return dh_raw->pub_key != nullptr;
+#else
+  return DH_get0_pub_key(dh_raw) != nullptr;
+#endif
 }
 
 std::size_t dh_key::get_size_in_bits() const noexcept {
   assert(!is_empty());
-  return DH_bits(dh_key_accessor::get_impl(*this));
+  const auto *dh_raw = dh_key_accessor::get_impl(*this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  return BN_num_bits(dh_raw->p);
+#else
+  return DH_bits(dh_raw);
+#endif
 }
 
 std::size_t dh_key::get_size_in_bytes() const noexcept {
@@ -88,12 +114,48 @@ std::size_t dh_key::get_size_in_bytes() const noexcept {
 
 std::size_t dh_key::get_security_size_in_bits() const noexcept {
   assert(!is_empty());
-  return DH_security_bits(dh_key_accessor::get_impl(*this));
+  const auto *dh_raw = dh_key_accessor::get_impl(*this);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  int n;
+  if (dh_raw->q)
+    n = BN_num_bits(dh_raw->q);
+  else if (dh_raw->length)
+    n = dh_raw->length;
+  else
+    n = -1;
+  int l = BN_num_bits(dh_raw->p);
+
+  int secbits, bits;
+  if (l >= 15360)
+    secbits = 256;
+  else if (l >= 7680)
+    secbits = 192;
+  else if (l >= 3072)
+    secbits = 128;
+  else if (l >= 2048)
+    secbits = 112;
+  else if (l >= 1024)
+    secbits = 80;
+  else
+    return 0;
+  if (n == -1) return secbits;
+  bits = n / 2;
+  if (bits < 80) return 0;
+  return bits >= secbits ? secbits : bits;
+#else
+  return DH_security_bits(dh_raw);
+#endif
 }
 
 big_number dh_key::get_public_component() const {
   assert(!is_empty());
-  auto public_component_raw = DH_get0_pub_key(dh_key_accessor::get_impl(*this));
+  const auto *dh_raw = dh_key_accessor::get_impl(*this);
+  auto public_component_raw =
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+      dh_raw->pub_key;
+#else
+      DH_get0_pub_key(dh_raw);
+#endif
   if (public_component_raw == nullptr) return {};
   big_number res;
   auto public_component_raw_copy = BN_dup(public_component_raw);
@@ -105,8 +167,13 @@ big_number dh_key::get_public_component() const {
 
 big_number dh_key::get_private_component() const {
   assert(!is_empty());
+  const auto *dh_raw = dh_key_accessor::get_impl(*this);
   auto private_component_raw =
-      DH_get0_priv_key(dh_key_accessor::get_impl(*this));
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+      dh_raw->priv_key;
+#else
+      DH_get0_priv_key(dh_raw);
+#endif
   if (private_component_raw == nullptr) return {};
   big_number res;
   auto private_component_raw_copy = BN_dup(private_component_raw);
@@ -138,9 +205,16 @@ dh_key dh_key::derive_public_key() const {
   if (res.is_empty())
     core_error::raise_with_error_string("cannot derive public key from DH key");
 
-  if (DH_set0_key(dh_key_accessor::get_impl(res),
-                  big_number_accessor::get_impl(public_component),
-                  nullptr) == 0)
+  auto *dh_raw = dh_key_accessor::get_impl(res);
+  int set_result;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  dh_raw->pub_key = big_number_accessor::get_impl(public_component);
+  set_result = 1;
+#else
+  set_result = DH_set0_key(
+      dh_raw, big_number_accessor::get_impl(public_component), nullptr);
+#endif
+  if (set_result == 0)
     throw core_error{"cannot set public component when deriving from DH key"};
 
   big_number_accessor::release(public_component);

@@ -12,16 +12,8 @@ INSERT INTO digest_type(digest_name, builtin_template) VALUES
 ('SHA256', 'SHA2(@message, 256)'),
 ('SHA384', 'SHA2(@message, 384)'),
 ('SHA512', 'SHA2(@message, 512)'),
-('BLAKE2B512', NULL),
-('BLAKE2S256', NULL),
 ('MD4'       , NULL),
-('RIPEMD'    , NULL),
-('RIPEMD160' , NULL),
-('RMD160'    , NULL),
-('SHAKE128'  , NULL),
-('SHAKE256'  , NULL),
-('SM3'       , NULL),
-('WHIRLPOOL' , NULL)
+('RIPEMD160' , NULL)
 ;
 
 ** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
@@ -59,36 +51,12 @@ ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
 ******** [RSA][4096][message_len=0][SHA512] calculating digest
 ******** [RSA][4096][message_len=0][SHA512] calculating signature
 ******** [RSA][4096][message_len=0][SHA512] verifying signature
-******** [RSA][4096][message_len=0][BLAKE2B512] calculating digest
-******** [RSA][4096][message_len=0][BLAKE2B512] calculating signature
-******** [RSA][4096][message_len=0][BLAKE2B512] verifying signature
-******** [RSA][4096][message_len=0][BLAKE2S256] calculating digest
-******** [RSA][4096][message_len=0][BLAKE2S256] calculating signature
-******** [RSA][4096][message_len=0][BLAKE2S256] verifying signature
 ******** [RSA][4096][message_len=0][MD4] calculating digest
 ******** [RSA][4096][message_len=0][MD4] calculating signature
 ******** [RSA][4096][message_len=0][MD4] verifying signature
-******** [RSA][4096][message_len=0][RIPEMD] calculating digest
-******** [RSA][4096][message_len=0][RIPEMD] calculating signature
-******** [RSA][4096][message_len=0][RIPEMD] verifying signature
 ******** [RSA][4096][message_len=0][RIPEMD160] calculating digest
 ******** [RSA][4096][message_len=0][RIPEMD160] calculating signature
 ******** [RSA][4096][message_len=0][RIPEMD160] verifying signature
-******** [RSA][4096][message_len=0][RMD160] calculating digest
-******** [RSA][4096][message_len=0][RMD160] calculating signature
-******** [RSA][4096][message_len=0][RMD160] verifying signature
-******** [RSA][4096][message_len=0][SHAKE128] calculating digest
-******** [RSA][4096][message_len=0][SHAKE128] calculating signature
-******** [RSA][4096][message_len=0][SHAKE128] verifying signature
-******** [RSA][4096][message_len=0][SHAKE256] calculating digest
-******** [RSA][4096][message_len=0][SHAKE256] calculating signature
-******** [RSA][4096][message_len=0][SHAKE256] verifying signature
-******** [RSA][4096][message_len=0][SM3] calculating digest
-******** [RSA][4096][message_len=0][SM3] calculating signature
-******** [RSA][4096][message_len=0][SM3] verifying signature
-******** [RSA][4096][message_len=0][WHIRLPOOL] calculating digest
-******** [RSA][4096][message_len=0][WHIRLPOOL] calculating signature
-******** [RSA][4096][message_len=0][WHIRLPOOL] verifying signature
 **** [RSA][4096][message_len=1] checking operations
 ****** [RSA][4096][message_len=1] checking encryption with public key
 ****** [RSA][4096][message_len=1] checking decryption with private key
@@ -113,36 +81,12 @@ ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
 ******** [RSA][4096][message_len=1][SHA512] calculating digest
 ******** [RSA][4096][message_len=1][SHA512] calculating signature
 ******** [RSA][4096][message_len=1][SHA512] verifying signature
-******** [RSA][4096][message_len=1][BLAKE2B512] calculating digest
-******** [RSA][4096][message_len=1][BLAKE2B512] calculating signature
-******** [RSA][4096][message_len=1][BLAKE2B512] verifying signature
-******** [RSA][4096][message_len=1][BLAKE2S256] calculating digest
-******** [RSA][4096][message_len=1][BLAKE2S256] calculating signature
-******** [RSA][4096][message_len=1][BLAKE2S256] verifying signature
 ******** [RSA][4096][message_len=1][MD4] calculating digest
 ******** [RSA][4096][message_len=1][MD4] calculating signature
 ******** [RSA][4096][message_len=1][MD4] verifying signature
-******** [RSA][4096][message_len=1][RIPEMD] calculating digest
-******** [RSA][4096][message_len=1][RIPEMD] calculating signature
-******** [RSA][4096][message_len=1][RIPEMD] verifying signature
 ******** [RSA][4096][message_len=1][RIPEMD160] calculating digest
 ******** [RSA][4096][message_len=1][RIPEMD160] calculating signature
 ******** [RSA][4096][message_len=1][RIPEMD160] verifying signature
-******** [RSA][4096][message_len=1][RMD160] calculating digest
-******** [RSA][4096][message_len=1][RMD160] calculating signature
-******** [RSA][4096][message_len=1][RMD160] verifying signature
-******** [RSA][4096][message_len=1][SHAKE128] calculating digest
-******** [RSA][4096][message_len=1][SHAKE128] calculating signature
-******** [RSA][4096][message_len=1][SHAKE128] verifying signature
-******** [RSA][4096][message_len=1][SHAKE256] calculating digest
-******** [RSA][4096][message_len=1][SHAKE256] calculating signature
-******** [RSA][4096][message_len=1][SHAKE256] verifying signature
-******** [RSA][4096][message_len=1][SM3] calculating digest
-******** [RSA][4096][message_len=1][SM3] calculating signature
-******** [RSA][4096][message_len=1][SM3] verifying signature
-******** [RSA][4096][message_len=1][WHIRLPOOL] calculating digest
-******** [RSA][4096][message_len=1][WHIRLPOOL] calculating signature
-******** [RSA][4096][message_len=1][WHIRLPOOL] verifying signature
 **** [RSA][4096][message_len=250] checking operations
 ****** [RSA][4096][message_len=250] checking encryption with public key
 ****** [RSA][4096][message_len=250] checking decryption with private key
@@ -167,36 +111,12 @@ ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
 ******** [RSA][4096][message_len=250][SHA512] calculating digest
 ******** [RSA][4096][message_len=250][SHA512] calculating signature
 ******** [RSA][4096][message_len=250][SHA512] verifying signature
-******** [RSA][4096][message_len=250][BLAKE2B512] calculating digest
-******** [RSA][4096][message_len=250][BLAKE2B512] calculating signature
-******** [RSA][4096][message_len=250][BLAKE2B512] verifying signature
-******** [RSA][4096][message_len=250][BLAKE2S256] calculating digest
-******** [RSA][4096][message_len=250][BLAKE2S256] calculating signature
-******** [RSA][4096][message_len=250][BLAKE2S256] verifying signature
 ******** [RSA][4096][message_len=250][MD4] calculating digest
 ******** [RSA][4096][message_len=250][MD4] calculating signature
 ******** [RSA][4096][message_len=250][MD4] verifying signature
-******** [RSA][4096][message_len=250][RIPEMD] calculating digest
-******** [RSA][4096][message_len=250][RIPEMD] calculating signature
-******** [RSA][4096][message_len=250][RIPEMD] verifying signature
 ******** [RSA][4096][message_len=250][RIPEMD160] calculating digest
 ******** [RSA][4096][message_len=250][RIPEMD160] calculating signature
 ******** [RSA][4096][message_len=250][RIPEMD160] verifying signature
-******** [RSA][4096][message_len=250][RMD160] calculating digest
-******** [RSA][4096][message_len=250][RMD160] calculating signature
-******** [RSA][4096][message_len=250][RMD160] verifying signature
-******** [RSA][4096][message_len=250][SHAKE128] calculating digest
-******** [RSA][4096][message_len=250][SHAKE128] calculating signature
-******** [RSA][4096][message_len=250][SHAKE128] verifying signature
-******** [RSA][4096][message_len=250][SHAKE256] calculating digest
-******** [RSA][4096][message_len=250][SHAKE256] calculating signature
-******** [RSA][4096][message_len=250][SHAKE256] verifying signature
-******** [RSA][4096][message_len=250][SM3] calculating digest
-******** [RSA][4096][message_len=250][SM3] calculating signature
-******** [RSA][4096][message_len=250][SM3] verifying signature
-******** [RSA][4096][message_len=250][WHIRLPOOL] calculating digest
-******** [RSA][4096][message_len=250][WHIRLPOOL] calculating signature
-******** [RSA][4096][message_len=250][WHIRLPOOL] verifying signature
 **** [RSA][4096][message_len=501] checking operations
 ****** [RSA][4096][message_len=501] checking encryption with public key
 ****** [RSA][4096][message_len=501] checking decryption with private key
@@ -221,36 +141,12 @@ ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
 ******** [RSA][4096][message_len=501][SHA512] calculating digest
 ******** [RSA][4096][message_len=501][SHA512] calculating signature
 ******** [RSA][4096][message_len=501][SHA512] verifying signature
-******** [RSA][4096][message_len=501][BLAKE2B512] calculating digest
-******** [RSA][4096][message_len=501][BLAKE2B512] calculating signature
-******** [RSA][4096][message_len=501][BLAKE2B512] verifying signature
-******** [RSA][4096][message_len=501][BLAKE2S256] calculating digest
-******** [RSA][4096][message_len=501][BLAKE2S256] calculating signature
-******** [RSA][4096][message_len=501][BLAKE2S256] verifying signature
 ******** [RSA][4096][message_len=501][MD4] calculating digest
 ******** [RSA][4096][message_len=501][MD4] calculating signature
 ******** [RSA][4096][message_len=501][MD4] verifying signature
-******** [RSA][4096][message_len=501][RIPEMD] calculating digest
-******** [RSA][4096][message_len=501][RIPEMD] calculating signature
-******** [RSA][4096][message_len=501][RIPEMD] verifying signature
 ******** [RSA][4096][message_len=501][RIPEMD160] calculating digest
 ******** [RSA][4096][message_len=501][RIPEMD160] calculating signature
 ******** [RSA][4096][message_len=501][RIPEMD160] verifying signature
-******** [RSA][4096][message_len=501][RMD160] calculating digest
-******** [RSA][4096][message_len=501][RMD160] calculating signature
-******** [RSA][4096][message_len=501][RMD160] verifying signature
-******** [RSA][4096][message_len=501][SHAKE128] calculating digest
-******** [RSA][4096][message_len=501][SHAKE128] calculating signature
-******** [RSA][4096][message_len=501][SHAKE128] verifying signature
-******** [RSA][4096][message_len=501][SHAKE256] calculating digest
-******** [RSA][4096][message_len=501][SHAKE256] calculating signature
-******** [RSA][4096][message_len=501][SHAKE256] verifying signature
-******** [RSA][4096][message_len=501][SM3] calculating digest
-******** [RSA][4096][message_len=501][SM3] calculating signature
-******** [RSA][4096][message_len=501][SM3] verifying signature
-******** [RSA][4096][message_len=501][WHIRLPOOL] calculating digest
-******** [RSA][4096][message_len=501][WHIRLPOOL] calculating signature
-******** [RSA][4096][message_len=501][WHIRLPOOL] verifying signature
 **** [RSA][4096] checking operations on oversize message
 ****** [RSA][4096] checking encryption of oversize message with public key
 ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key

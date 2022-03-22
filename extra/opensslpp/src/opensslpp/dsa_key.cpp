@@ -93,7 +93,7 @@ std::size_t dsa_key::get_security_size_in_bits() const noexcept {
 big_number dsa_key::get_public_component() const {
   assert(!is_empty());
   auto public_component_raw =
-      DSA_get0_priv_key(dsa_key_accessor::get_impl(*this));
+      DSA_get0_pub_key(dsa_key_accessor::get_impl(*this));
   if (public_component_raw == nullptr) return {};
   big_number res;
   auto public_component_raw_copy = BN_dup(public_component_raw);

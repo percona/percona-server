@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "NDB_MGM" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "NDB_MGM" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ To start the management client, it is necessary to supply the host name and port
 .RS 4
 .\}
 .nf
-shell> \fBndb_mgm [\fR\fB\fIhost_name\fR\fR\fB [\fR\fB\fIport_num\fR\fR\fB]]\fR
+$> \fBndb_mgm [\fR\fB\fIhost_name\fR\fR\fB [\fR\fB\fIport_num\fR\fR\fB]]\fR
 .fi
 .if n \{\
 .RE
@@ -57,7 +57,7 @@ For example:
 .RS 4
 .\}
 .nf
-shell> \fBndb_mgm ndb_mgmd\&.mysql\&.com 1186\fR
+$> \fBndb_mgm ndb_mgmd\&.mysql\&.com 1186\fR
 .fi
 .if n \{\
 .RE
@@ -126,9 +126,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--connect-string=connection-string\fR,
+\fB--connect-string=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -173,9 +173,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--execute=name\fR,
+\fB--execute=command\fR,
 .PP
-\fB \fR\fB-e\fR\fB \fR
+\fB \fR\fB-e command\fR\fB \fR
 T}:T{
 Execute command and exit
 T}:T{
@@ -204,9 +204,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-connectstring=connection-string\fR,
+\fB--ndb-connectstring=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Set connect string for connecting to ndb_mgmd. Syntax:
               "[nodeid=id;][host=]hostname[:port]". Overrides entries in
@@ -217,9 +217,9 @@ T}:T{
 T}
 T{
 .PP
-\fB--ndb-mgmd-host=connection-string\fR,
+\fB--ndb-mgmd-host=connection_string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{
@@ -268,7 +268,7 @@ T{
 .PP
 \fB--try-reconnect=#\fR,
 .PP
-\fB \fR\fB-t\fR\fB \fR
+\fB \fR\fB-t #\fR\fB \fR
 T}:T{
 Set number of times to retry connection before giving up; synonym for
               --connect-retries
@@ -437,7 +437,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---connect-string=connection-string
+--connect-string=connection_string
 T}
 T{
 Type
@@ -595,7 +595,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---execute=name
+--execute=command
 T}
 .TE
 .sp 1
@@ -607,8 +607,8 @@ in the management client:
 .RS 4
 .\}
 .nf
-shell> \fBndb_mgm \-e "SHOW"\fR
-shell> \fBndb_mgm \-\-execute="SHOW"\fR
+$> \fBndb_mgm \-e "SHOW"\fR
+$> \fBndb_mgm \-\-execute="SHOW"\fR
 .fi
 .if n \{\
 .RE
@@ -714,7 +714,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-connectstring=connection-string
+--ndb-connectstring=connection_string
 T}
 T{
 Type
@@ -752,7 +752,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---ndb-mgmd-host=connection-string
+--ndb-mgmd-host=connection_string
 T}
 T{
 Type

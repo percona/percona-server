@@ -5,6 +5,8 @@
 # and there should be possible to drop such a table.
 #
 --source include/have_innodb.inc
+# We use some debug-only features in this test
+--source include/have_debug.inc
 
 --disable_query_log
 call mtr.add_suppression('InnoDB: Partition .* contains 2 user defined columns in InnoDB, but 1 columns in MySQL');

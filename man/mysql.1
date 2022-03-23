@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2021
+.\"      Date: 11/29/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "09/06/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQL" "1" "11/29/2021" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1819,7 +1819,7 @@ The XML output also uses an XML namespace, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \*(Aqversion%\*(Aq"\fR
+$> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \*(Aqversion%\*(Aq"\fR
 <?xml version="1\&.0"?>
 <resultset statement="SHOW VARIABLES LIKE \*(Aqversion%\*(Aq" xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
 <row>
@@ -2832,7 +2832,7 @@ option on the command line to
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-prompt="(\eu@\eh) [\ed]> "\fR
+$> \fBmysql \-\-prompt="(\eu@\eh) [\ed]> "\fR
 (user@host) [database]>
 .fi
 .if n \{\

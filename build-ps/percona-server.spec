@@ -30,7 +30,7 @@
 %global mysql_version @@MYSQL_VERSION@@
 %global percona_server_version @@PERCONA_VERSION@@
 %global revision @@REVISION@@
-%global tokudb_backup_version %{mysql_version}-%{percona_server_version}
+#%global tokudb_backup_version %{mysql_version}-%{percona_server_version}
 %global rpm_release @@RPM_RELEASE@@
 
 %global release %{percona_server_version}.%{rpm_release}%{?dist}
@@ -40,7 +40,7 @@
 %{!?with_ssl: %global ssl_option -DWITH_SSL=system}
 
 # By default a build will be done including the TokuDB
-%{!?with_tokudb: %global tokudb 1}
+#%{!?with_tokudb: %global tokudb 1}
 
 # By default a build will be done including the RocksDB
 %{!?with_rocksdb: %global rocksdb 1}
@@ -63,15 +63,15 @@
 %{!?src_base:                    %global src_base percona-server}
 
 # Setup cmake flags for TokuDB
-%if 0%{?tokudb}
-  %global TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=%{tokudb_backup_version}
-  %global TOKUDB_DEBUG_ON -DTOKU_DEBUG_PARANOID=ON
-  %global TOKUDB_DEBUG_OFF -DTOKU_DEBUG_PARANOID=OFF
-%else
-  %global TOKUDB_FLAGS -DWITHOUT_TOKUDB=1
-  %global TOKUDB_DEBUG_ON %{nil}
-  %global TOKUDB_DEBUG_OFF %{nil}
-%endif
+#%if 0%{?tokudb}
+#  %global TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=%{tokudb_backup_version}
+#  %global TOKUDB_DEBUG_ON -DTOKU_DEBUG_PARANOID=ON
+#  %global TOKUDB_DEBUG_OFF -DTOKU_DEBUG_PARANOID=OFF
+#%else
+#  %global TOKUDB_FLAGS -DWITHOUT_TOKUDB=1
+#  %global TOKUDB_DEBUG_ON %{nil}
+#  %global TOKUDB_DEBUG_OFF %{nil}
+#%endif
 
 # Setup cmake flags for RocksDB
 %if 0%{?rocksdb}
@@ -387,20 +387,20 @@ This package contains the shared compat libraries for Percona Server %{compatver
 applications.
 %endif
 
-%if 0%{?tokudb}
+#%if 0%{?tokudb}
 # ----------------------------------------------------------------------------
-%package -n percona-server-tokudb
-Summary:        Percona Server - TokuDB package
-Group:          Applications/Databases
-Requires:       percona-server-server = %{version}-%{release}
-Requires:       percona-server-shared = %{version}-%{release}
-Requires:       percona-server-client = %{version}-%{release}
-Requires:       jemalloc >= 3.3.0
-Provides:       tokudb-plugin = %{version}-%{release}
-
-%description -n percona-server-tokudb
-This package contains the TokuDB plugin for Percona Server %{version}-%{release}
-%endif
+#%package -n percona-server-tokudb
+#Summary:        Percona Server - TokuDB package
+#Group:          Applications/Databases
+#Requires:       percona-server-server = %{version}-%{release}
+#Requires:       percona-server-shared = %{version}-%{release}
+#Requires:       percona-server-client = %{version}-%{release}
+#Requires:       jemalloc >= 3.3.0
+#Provides:       tokudb-plugin = %{version}-%{release}
+#
+#%description -n percona-server-tokudb
+#This package contains the TokuDB plugin for Percona Server %{version}-%{release}
+#%endif
 
 %if 0%{?rocksdb}
 # ----------------------------------------------------------------------------
@@ -634,12 +634,12 @@ rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
 rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
-%if 0%{?tokudb}
-  rm -f %{buildroot}%{_prefix}/README.md
-  rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
-  rm -f %{buildroot}%{_prefix}/COPYING.GPLv2
-  rm -f %{buildroot}%{_prefix}/PATENTS
-%endif
+#%if 0%{?tokudb}
+#  rm -f %{buildroot}%{_prefix}/README.md
+#  rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
+#  rm -f %{buildroot}%{_prefix}/COPYING.GPLv2
+#  rm -f %{buildroot}%{_prefix}/PATENTS
+#%endif
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
@@ -797,16 +797,16 @@ done
 %endif
 %endif
 
-%if 0%{?tokudb}
-%post -n percona-server-tokudb
-if [ $1 -eq 1 ] ; then
-  echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
-  echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
-  echo -e "\tps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
-  echo -e " * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_installation.html for more installation details\n"
-  echo -e " * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
-fi
-%endif
+#%if 0%{?tokudb}
+#%post -n percona-server-tokudb
+#if [ $1 -eq 1 ] ; then
+#  echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
+#  echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
+#  echo -e "\tps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
+#  echo -e " * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_installation.html for more installation details\n"
+#  echo -e " * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
+#fi
+#%endif
 
 %if 0%{?rocksdb}
 %post -n percona-server-rocksdb
@@ -1326,18 +1326,18 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
-%if 0%{?tokudb}
-%files -n percona-server-tokudb
-%attr(-, root, root)
-%{_bindir}/tokuftdump
-%{_libdir}/mysql/plugin/ha_tokudb.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
-%attr(755, root, root) %{_bindir}/tokuft_logprint
-%attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
-%attr(755, root, root) %{_libdir}/mysql/libHotBackup.so
-%{_includedir}/backup.h
-%endif
+#%if 0%{?tokudb}
+#%files -n percona-server-tokudb
+#%attr(-, root, root)
+#%{_bindir}/tokuftdump
+#%{_libdir}/mysql/plugin/ha_tokudb.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
+#%attr(755, root, root) %{_bindir}/tokuft_logprint
+#%attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
+#%attr(755, root, root) %{_libdir}/mysql/libHotBackup.so
+#%{_includedir}/backup.h
+#%endif
 
 %if 0%{?rocksdb}
 %files -n percona-server-rocksdb

@@ -22,6 +22,7 @@
 
 #include "event_data_objects.h"
 
+#include "my_user.h"
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                        // get_default_db_collation
@@ -404,6 +405,20 @@ Event_timed::init()
 }
 
 
+static void parse_user_host(const LEX_STRING &user_host, LEX_CSTRING &user,
+                            LEX_CSTRING &host, MEM_ROOT *mem_root)
+{
+  char *user_str= (char *)alloc_root(mem_root, USERNAME_LENGTH + 1);
+  user.str= user_str;
+
+  char *host_str= (char *)alloc_root(mem_root, HOSTNAME_LENGTH + 1);
+  host.str= host_str;
+
+  parse_user(user_host.str, user_host.length, user_str, &user.length,
+             host_str, &host.length);
+}
+
+
 /**
   Load an event's body from a row from mysql.event.
 
@@ -419,8 +434,6 @@ Event_timed::init()
 bool
 Event_job_data::load_from_row(THD *thd, TABLE *table)
 {
-  char *ptr;
-  size_t len;
   LEX_STRING tz_name;
 
   DBUG_ENTER("Event_job_data::load_from_row");
@@ -446,18 +459,7 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str, table,
                                    &creation_ctx);
 
-  ptr= strchr(definer.str, '@');
-
-  if (! ptr)
-    ptr= definer.str;
-
-  len= ptr - definer.str;
-  definer_user.str= strmake_root(&mem_root, definer.str, len);
-  definer_user.length= len;
-  len= definer.length - len - 1;
-  /* 1:because of @ */
-  definer_host.str= strmake_root(&mem_root, ptr + 1, len);
-  definer_host.length= len;
+  parse_user_host(definer, definer_user, definer_host, &mem_root);
 
   sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
@@ -618,9 +620,6 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
 bool
 Event_timed::load_from_row(THD *thd, TABLE *table)
 {
-  char *ptr;
-  size_t len;
-
   DBUG_ENTER("Event_timed::load_from_row");
 
   if (Event_queue_element::load_from_row(thd, table))
@@ -643,18 +642,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
                         (const char *) name.str);
   }
 
-  ptr= strchr(definer.str, '@');
-
-  if (! ptr)
-    ptr= definer.str;
-
-  len= ptr - definer.str;
-  definer_user.str= strmake_root(&mem_root, definer.str, len);
-  definer_user.length= len;
-  len= definer.length - len - 1;
-  /* 1:because of @ */
-  definer_host.str= strmake_root(&mem_root, ptr + 1,  len);
-  definer_host.length= len;
+  parse_user_host(definer, definer_user, definer_host, &mem_root);
 
   created= table->field[ET_FIELD_CREATED]->val_int();
   modified= table->field[ET_FIELD_MODIFIED]->val_int();

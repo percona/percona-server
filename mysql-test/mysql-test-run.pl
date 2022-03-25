@@ -315,7 +315,6 @@ our @DEFAULT_SUITES = qw(
   engines/funcs
   funcs_1
   group_replication
-  interactive_utilities
   jp
   stress
 );
